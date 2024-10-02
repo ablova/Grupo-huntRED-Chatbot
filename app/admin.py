@@ -6,8 +6,14 @@ from django.utils.html import format_html
 from django.http import JsonResponse
 from django.template.response import TemplateResponse
 from django.shortcuts import get_object_or_404
-from .models import MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI, Person, Pregunta, Worker, Buttons, Etapa, SubPregunta, GptApi, SmtpConfig, Chat, FlowModel
-
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.shortcuts import render  # Necesario para la función 'render' usada en FlowModelAdmin
+from django.utils.decorators import method_decorator  # Opcional, para aplicar decoradores a métodos de clase
+from .models import (
+    MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
+    Person, Pregunta, Worker, Buttons, Etapa, SubPregunta, GptApi,
+    SmtpConfig, Chat, FlowModel)
 # Definición personalizada del AdminSite
 class CustomAdminSite(admin.AdminSite):
     site_header = "Amigro Admin"
