@@ -107,9 +107,9 @@ class TelegramAPI(models.Model):
         return self.bot_name or "Telegram Bot"
     
 class MetaAPI(models.Model):
-    app_id = models.CharField(max_length=255 default='662158495636216')
-    app_secret = models.CharField(max_length=255 default='7732534605ab6a7b96c8e8e81ce02e6b')   
-    verify_token = models.CharField(max_length=255 default='amigro_secret_token')
+    app_id = models.CharField(max_length=255, default='662158495636216')
+    app_secret = models.CharField(max_length=255, default='7732534605ab6a7b96c8e8e81ce02e6b')   
+    verify_token = models.CharField(max_length=255, default='amigro_secret_token')
 
     def __str__(self):
         return f"MetaAPI {self.app_id}"
@@ -140,8 +140,8 @@ class MessengerAPI(models.Model):
     
 class InstagramAPI(models.Model):
     app_id = models.CharField(max_length=255, default ='1615393869401916') # Amigro-IG amigro_org 17841457231476550
-    access_token = models.CharField(max_length=255  default = '5d8740cb80ae42d8b5cafb47e6c461d5') #IGQWROZA1BQNXB2UElFQms3SlhzT0M4bUJzZA2ZAQNFpISTNsZAHVOb1pYeXNkVExWMGhzNjdjYlQ2MnQzQ1RqQ043Slh5SzFmVXFmOGdxX0l5aTZAvWjhkcUlKRzl6ajE1dElrdmVUbDE3d0ozTm0yU0ZANaDVvU0dJcmMZD
-    instagram_account_id = models.CharField(max_length=255 default = '17841457231476550')
+    access_token = models.CharField(max_length=255,  default = '5d8740cb80ae42d8b5cafb47e6c461d5') #IGQWROZA1BQNXB2UElFQms3SlhzT0M4bUJzZA2ZAQNFpISTNsZAHVOb1pYeXNkVExWMGhzNjdjYlQ2MnQzQ1RqQ043Slh5SzFmVXFmOGdxX0l5aTZAvWjhkcUlKRzl6ajE1dElrdmVUbDE3d0ozTm0yU0ZANaDVvU0dJcmMZD
+    instagram_account_id = models.CharField(max_length=255, default = '17841457231476550')
     def __str__(self):
         return f"InstagramAPI {self.app_id}"
 
