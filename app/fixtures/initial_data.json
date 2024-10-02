@@ -1,0 +1,59 @@
+[
+    {
+        "model": "app.smtpconfig",
+        "pk": 1,
+        "fields": {
+            "host": "mail.huntred.com",
+            "port": 587,
+            "username": "hola@amigro.org",
+            "password": "Natalia&Patricio1113!",
+            "use_tls": true,
+            "use_ssl": true
+        }
+    },
+    {
+        "model": "app.telegramapi",
+        "pk": 1,
+        "fields": {
+            "api_key": "5875713338:AAEl4RDu95KuB-oz4JqxMKLRnWr6j8bHky0",
+            "bot_name": "AmigroBot"
+        }
+    },
+    {
+        "model": "app.messengerapi",
+        "pk": 1,
+        "fields": {
+            "page_access_token": "109623338672452",
+            "verify_token": "verify_messenger_token",
+            "app_secret": "EAAJaOsnq2vgBO5dvBOu8atXdAUDunbMi8Q7kunOrfeBkNWV8X3LkyRsx59pH6FfoLkHYIEWeJHJ88ZCT8ZAyUKcGmrg9iiyW3PxKgcQd3iFdujfDHfxdZCveFwpIeHK26FeKhGZAwVNbXZAujo88y8NB7ybGJoKyU1Q15GHwvpHzrF2iUZCi2Iwrt0prZA5R0HIwKxOeOvuD136blpn"
+        }
+    },
+    {
+        "model": "app.apitoken",
+        "pk": 1,
+        "fields": {
+            "account_sid": "your-twilio-account-sid",
+            "auth_token": "your-twilio-auth-token",
+            "whatsapp_number": "+525516823110"
+        }
+    },
+    {
+        "model": "app.whatsappapi",
+        "pk": 1,
+        "fields": {
+            "whatsAppId": "104851739211207",
+            "api_token": "EAAJaOsnq2vgBOZBrxFV0zLJjElPcluIeGtES8KRxxXiZBuEFg4aLheiqZC5X2Nb6MfvpEWyEZCZAsiJPe1C6c4h5B6Wzv4XlXbgykBZBXT6JEGvnBbaCufnI8swaDrtAjA92ZCOPOqgF5OWWRA8xBRFVbp0e4mhQCsVC4BHGQTxI38t8lIfX4vANYR9KGgQ4iCzahSodZAl3jkZAwAg9pc9KUH5eGE7dznWtWthgZD",
+            "v_api": "v2.0"
+        }
+    },
+    {
+        "model": "app.gptapi",
+        "pk": 1,
+        "fields": {
+            "api_token": "your-openai-api-token",
+            "model": "gpt-3.5-turbo",
+            "form_pregunta": "Formulame la siguiente pregunta...",
+            "work_pregunta": "Describe la siguiente experiencia laboral..."
+        }
+    }
+]

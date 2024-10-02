@@ -1,0 +1,7 @@
+<!--#/home/amigro/app/templates/admin/change_form_with_edit_button.html -->
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+    <a href="{{ edit_flow_url }}" class="button">Editar Flujo</a>
+{% endblock %}

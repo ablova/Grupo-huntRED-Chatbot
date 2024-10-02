@@ -1,0 +1,7 @@
+<!-- /home/amigro/app/templates/admin/base_site.html -->
+{% block branding %}
+    <div id="site-name">
+        <img src="https://amigro.org/wp-content/uploads/2019/11/logo2-1.png" alt="Amigro" style="max-height: 50px;">
+        <h1>{{ site_title|default:_('Django site admin') }}</h1>
+    </div>
+{% endblock %}

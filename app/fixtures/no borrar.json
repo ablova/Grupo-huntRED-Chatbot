@@ -1,0 +1,120 @@
+[
+  {
+    "model": "app.pregunta",
+    "pk": 1,
+    "fields": {
+      "name": "Hola, bienvenid@ a Amigro. Somos una organización Mexicana...",
+      "option": "Si/No",
+      "valid": true,
+      "yes_or_not": true,
+      "active": true
+    }
+  },
+  {
+    "model": "app.subpregunta",
+    "pk": 1,
+    "fields": {
+      "name": "Vienes con familia?",
+      "option": "Si/No",
+      "valid": true,
+      "yes_or_not": true,
+      "active": true,
+      "pregunta": 1,
+      "etape": null
+    }
+  },
+  {
+    "model": "app.subpregunta",
+    "pk": 2,
+    "fields": {
+      "name": "¿Tienes hijos menores de edad?",
+      "option": "Si/No",
+      "valid": true,
+      "yes_or_not": true,
+      "active": true,
+      "pregunta": 1,
+      "etape": 1
+    }
+  },
+  {
+    "model": "app.pregunta",
+    "pk": 2,
+    "fields": {
+      "name": "Cual es tu nombre completo de pila (como aparece en tu pasaporte o documento de identidad)?",
+      "option": "texto",
+      "valid": false,
+      "yes_or_not": false,
+      "active": true
+    }
+  },
+  {
+    "model": "app.subpregunta",
+    "pk": 3,
+    "fields": {
+      "name": "Cual es tu nacionalidad?",
+      "option": "texto",
+      "valid": false,
+      "yes_or_not": false,
+      "active": true,
+      "pregunta": 2,
+      "etape": null
+    }
+  },
+  {
+    "model": "app.pregunta",
+    "pk": 3,
+    "fields": {
+      "name": "¿En qué año naciste?",
+      "option": "texto",
+      "valid": false,
+      "yes_or_not": false,
+      "active": true
+    }
+  },
+  {
+    "model": "app.pregunta",
+    "pk": 4,
+    "fields": {
+      "name": "Te interesa trabajar en México?",
+      "option": "Si/No",
+      "valid": true,
+      "yes_or_not": true,
+      "active": true
+    }
+  },
+  {
+    "model": "app.subpregunta",
+    "pk": 4,
+    "fields": {
+      "name": "¿En qué sector te gustaría trabajar (ejemplo: transporte, agricultura, medicina, etc.)?",
+      "option": "texto",
+      "valid": false,
+      "yes_or_not": false,
+      "active": true,
+      "pregunta": 4,
+      "etape": null
+    }
+  },
+  {
+    "model": "app.pregunta",
+    "pk": 5,
+    "fields": {
+      "name": "¿Tienes interés en recibir notificaciones en este número?",
+      "option": "Si/No",
+      "valid": true,
+      "yes_or_not": false,
+      "active": true
+    }
+  },
+  {
+    "model": "app.pregunta",
+    "pk": 6,
+    "fields": {
+      "name": "¡Gracias! Pronto recibirás información sobre las vacantes disponibles.",
+      "option": "final",
+      "valid": true,
+      "yes_or_not": false,
+      "active": true
+    }
+  }
+]

@@ -1,0 +1,1073 @@
+[
+    {
+        "pk": 1,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Bienvenida e introducción a quien es Amigro.org, q...",
+            "content": "Bienvenida e introducción a quien es Amigro.org, que hacemos y como podemos ayudar a los migrantes al ingresar al territorio mexicano en la búsqueda de empleo.",
+            "input_type": "texto",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 2,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 2,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Logo Amigro",
+            "content": "Logo Amigro",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 3,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 3,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "URL TOS",
+            "content": "URL TOS",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 4,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 4,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Aceptas TOS",
+            "content": "¿Aceptas nuestras nuestra Política de Privacidad, y TOS?, es necesaria para continuar.",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 7,
+                "next_no": 5
+            }
+        }
+    },
+    {
+        "pk": 5,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Agradecimiento y recordatorio",
+            "content": "Agradecimiento y recordatorio que siempre puede regresar, actualizar tus datos y conocer nuevas oportunidades.",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 6,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 6,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "O visitar, conocer y aplicar directamente en Amigr...",
+            "content": "O visitar, conocer y aplicar directamente en Amigro.org con el perfil que creas mediante el chatbot. O realizarlo dentro de la plataforma web / sitio donde podrás observar otras herramientas, como el creador de tu curriculum completando toda tu información profesional.",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": null,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 7,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Me podrías brindar tu nombre de pila",
+            "content": "Me podrías brindar tu nombre de pila",
+            "input_type": "name",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 8,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 8,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Y tu apellido como esta en tus documentos oficiale...",
+            "content": "Y tu apellido como esta en tus documentos oficiales",
+            "input_type": "lastname",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 9,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 9,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Nacionalidad",
+            "content": "Nacionalidad",
+            "input_type": "nationality",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 63,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 10,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Fecha de Nacimiento",
+            "content": "Fecha de Nacimiento",
+            "input_type": "nacimiento",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 11,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 11,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Sexo (Hombre o Mujer",
+            "content": "Sexo (Hombre o Mujer",
+            "input_type": "sexo",
+            "option": "Hombre / Mujer",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 12,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 12,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Vienes con Familia",
+            "content": "Vienes con Familia",
+            "input_type": "family_travel",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 13,
+                "next_no": 14
+            }
+        }
+    },
+    {
+        "pk": 13,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Vienes con hijos menores",
+            "content": "Vienes con hijos menores",
+            "input_type": "menor",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 14,
+                "next_no": 14
+            }
+        }
+    },
+    {
+        "pk": 14,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Viajas con conocidos o en grupo?",
+            "content": "Viajas con conocidos o en grupo?",
+            "input_type": "group_aditionality",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 15,
+                "next_no": 20
+            }
+        }
+    },
+    {
+        "pk": 15,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Quieres invitarlos",
+            "content": "Quieres invitarlos",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 16,
+                "next_no": 20
+            }
+        }
+    },
+    {
+        "pk": 16,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Nombre",
+            "content": "Nombre",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 17,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 17,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Apellido",
+            "content": "Apellido",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 18,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 18,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Numero de contacto",
+            "content": "Numero de contacto",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 19,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 19,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Alguien más?",
+            "content": "Alguien más?",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 16,
+                "next_no": 20
+            }
+        }
+    },
+    {
+        "pk": 20,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Solicitaste Refugio / Asilo",
+            "content": "Solicitaste Refugio / Asilo",
+            "input_type": "refugio",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 21,
+                "next_no": 25
+            }
+        }
+    },
+    {
+        "pk": 21,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuentas con permiso con razones humanitarias",
+            "content": "Cuentas con permiso con razones humanitarias",
+            "input_type": "perm_humanitario",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 24,
+                "next_no": 22
+            }
+        }
+    },
+    {
+        "pk": 22,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Tienes una cita en el futuro",
+            "content": "Tienes una cita en el futuro",
+            "input_type": "cita",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 23,
+                "next_no": 25
+            }
+        }
+    },
+    {
+        "pk": 23,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuando es tu cita",
+            "content": "Cuando es tu cita",
+            "input_type": "solicita_refugio",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 25,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 24,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Piensas solicitar regugio en México",
+            "content": "Piensas solicitar regugio en México",
+            "input_type": "piensa_solicitar_refugio",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": null,
+                "next_no": 25
+            }
+        }
+    },
+    {
+        "pk": 25,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Buscas trabajo en México",
+            "content": "Buscas trabajo en México",
+            "input_type": "int_work",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 26,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 26,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Excelente",
+            "content": "Excelente",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 27,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 27,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Documentacion adicional",
+            "content": "Vamos super avanzados en el registro, faltan 2 cositas, conocer con cuales documentos cuentas y tu experiencia laboral.",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 28,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 28,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Cuentas con documentos de tu país de origen (pasaporte, registro de población, etc)",
+            "content": "Cuentas con documentos de tu país de origen (pasaporte, registro de población, etc)",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 29,
+                "next_no": 32
+            }
+        }
+    },
+    {
+        "pk": 29,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cual es ese documento?",
+            "content": "Cual es ese documento?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 30,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 30,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Me puedes dar el número por favor?",
+            "content": "Me puedes dar el número por favor?",
+            "input_type": "passport",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 31,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 31,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Tienes algun otro documento?",
+            "content": "Tienes algun otro documento?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": null,
+                "next_no": 32
+            }
+        }
+    },
+    {
+        "pk": 32,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuentas con permiso para laborar?",
+            "content": "Cuentas con permiso para laborar?",
+            "input_type": "per_trabajo",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 33,
+                "next_no": 34
+            }
+        }
+    },
+    {
+        "pk": 33,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Buenisimo que tienes ya permiso para laborar.",
+            "content": "Buenisimo que tienes ya permiso para laborar.",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 34,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 34,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuando tramitaste tu permiso?",
+            "content": "Cuando tramitaste tu permiso?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 35,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 35,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Vigencia Permiso",
+            "content": "Y que vigencia tiene?",
+            "input_type": "date_permit",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 34,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 36,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuentas con CURP?",
+            "content": "Cuentas con CURP?",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 35,
+                "next_no": 38
+            }
+        }
+    },
+    {
+        "pk": 37,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Captura CURP.",
+            "content": "Me lo puedes brindar, esto lo utilizaremos para apoyarte a dar de alta en la empresa (Seguridad Social y otros beneficios). Es un trámite necesario que debemos realizar previo a tu inclusión en una empresa y organización.",
+            "input_type": "curp",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 38,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 38,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Algún otro documento que te haya emitido una autoridad mexicana?",
+            "content": "Algún otro documento que te haya emitido una autoridad mexicana?",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 39,
+                "next_no": 40
+            }
+        }
+    },
+    {
+        "pk": 39,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Que documento es?",
+            "content": "Que documento es?",
+            "input_type": "aditional_official_document",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 40,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 40,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Ya casi terminamos, un par de preguntas y listo! Me brindas tu ubicación por favor. Puedes hacerlo compartiendo tu ubicación (si tienes dudas aquí tienes un video ...",
+            "content": "Ya casi terminamos, un par de preguntas y listo! Me brindas tu ubicación por favor. Puedes hacerlo compartiendo tu ubicación (si tienes dudas aquí tienes un video ...",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 41,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 41,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuéntanos en qué trabajas actualmente o tu última posición?",
+            "content": "Cuéntanos en qué trabajas actualmente o tu última posición?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 42,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 42,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "En qué giro estaba la empresa?",
+            "content": "En qué giro estaba la empresa?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 43,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 43,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Dónde estaba ubicada esta posición?",
+            "content": "Dónde estaba ubicada esta posición?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 44,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 44,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Tienes interés en trabajar en algún sector particular?",
+            "content": "Tienes interés en trabajar en algún sector particular?",
+            "input_type": "",
+            "option": "Brindar Opciones, y almacenar",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 45,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 45,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Quieres agregar algún otro trabajo / posición?",
+            "content": "Quieres agregar algún otro trabajo / posición?",
+            "input_type": "work_experience",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 46,
+                "next_no": 50
+            }
+        }
+    },
+    {
+        "pk": 46,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cual era el nombre de la posición?",
+            "content": "Cual era el nombre de la posición?",
+            "input_type": "industria_work",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 47,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 47,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "En que giro estaba la empresa?",
+            "content": "En que giro estaba la empresa?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 48,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 48,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuanto tiempo estuviste en esta posición?",
+            "content": "Cuanto tiempo estuviste en esta posición?",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 49,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 49,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Donde estaba ubicada esta posición?",
+            "content": "Donde estaba ubicada esta posición?",
+            "input_type": "phone",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 50,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 50,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Registro Numero Contacto",
+            "content": "Registro Numero Contacto",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 51,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 51,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuentas con correo electrónico",
+            "content": "Cuentas con correo electrónico",
+            "input_type": "email",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 52,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 52,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cuál es?",
+            "content": "Cuál es?",
+            "input_type": "email",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 53,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 53,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "En este número podemos contactarte para una oferta?",
+            "content": "En este número podemos contactarte para una oferta y seguimiento.",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 57,
+                "next_no": 54
+            }
+        }
+    },
+    {
+        "pk": 54,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "A que número podemos realizarlo?",
+            "content": "A que número podemos realizarlo?",
+            "input_type": "phone",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 55,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 55,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Puedo acceder a tu ubicación por medio de la info de este chat?",
+            "content": "Puedo acceder a tu ubicación por medio de la info de este chat?",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 56,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 56,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Registrada tu ubicación",
+            "content": "Registrada tu ubicación",
+            "input_type": "ubication",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 57,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 57,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "GRACIAS por completar el proceso, recibirás un correo con la información de acceso.",
+            "content": "GRACIAS por completar el proceso, recibirás un correo con la información de acceso.",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 60,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 58,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Si gustas puedes cargar tu CV, en caso de tenerlo",
+            "content": "Si gustas puedes cargar tu CV, en caso de tenerlo",
+            "input_type": "",
+            "option": "Si / No",
+            "valid": true,
+            "yes_or_not": true,
+            "active": true,
+            "decision": {
+                "next_si": 59,
+                "next_no": 60
+            }
+        }
+    },
+    {
+        "pk": 59,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Cargar archivo con el CV",
+            "content": "Cargar archivo con el CV",
+            "input_type": "file",
+            "option": "adjuntar",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 60,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 60,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Buenísimo, ya tenemos toda la información que necesitamos para brindarte alternativas. Dame 1 minuto para que piense qué posición es la que mejor se ajusta, basado en todo lo que me contaste!! Me encantaría que me contaras cómo te fue en tu viaje migratorio, pero mejor me enfoco en apoyarte, donde si sé cómo brindar soporte!",
+            "content": "Buenísimo, ya tenemos toda la información que necesitamos para brindarte alternativas.",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 61,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 61,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Estas son las posiciones que mejor se ajustan a tu experiencia y perfil",
+            "content": "Estas son las posiciones que mejor se ajustan a tu experiencia y perfil",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 62,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 62,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "MOSTRAR OPORTUNIDADES, SCRIPT DE vacantes.py",
+            "content": "MOSTRAR OPORTUNIDADES, SCRIPT DE vacantes.py",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 63,
+                "next_no": null
+            }
+        }
+    },
+    {
+        "pk": 63,
+        "model": "app.subpregunta",
+        "fields": {
+            "name": "Aplica a cada una de las oportunidades que te resulte interesante. Lo que buscamos es que encuentres una posición interesante para ti. Por lo que creemos fielmente en abrir oportunidades. Mucho éxito.",
+            "content": "Aplica a cada una de las oportunidades que te resulte interesante.",
+            "input_type": "",
+            "option": "texto",
+            "valid": true,
+            "yes_or_not": false,
+            "active": true,
+            "decision": {
+                "next_si": 5,
+                "next_no": null
+            }
+        }
+    }
+]

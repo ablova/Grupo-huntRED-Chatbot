@@ -1,0 +1,44 @@
+<!-- /home/amigro/app/templates/django_admin_template.html -->
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<div id="flow-canvas" style="width: 100%; height: 400px; background: #f4f4f4; border: 1px solid #ccc;"></div>
+
+<script>
+    jsPlumb.ready(function() {
+        var instance = jsPlumb.getInstance({
+            // Configuración básica
+            PaintStyle: { stroke: '#456', strokeWidth: 3 },
+            Connector: ["Straight"],
+            Anchor: "Continuous"
+        });
+
+        // Crear nodos
+        var node1 = document.createElement('div');
+        node1.innerText = 'Pregunta 1';
+        node1.style.width = '100px';
+        node1.style.height = '100px';
+        node1.style.background = '#fff';
+        node1.style.position = 'absolute';
+        node1.style.left = '50px';
+        node1.style.top = '50px';
+
+        var node2 = document.createElement('div');
+        node2.innerText = 'Pregunta 2';
+        node2.style.width = '100px';
+        node2.style.height = '100px';
+        node2.style.background = '#fff';
+        node2.style.position = 'absolute';
+        node2.style.left = '200px';
+        node2.style.top = '50px';
+
+        document.getElementById('flow-canvas').appendChild(node1);
+        document.getElementById('flow-canvas').appendChild(node2);
+
+        instance.draggable(node1);
+        instance.draggable(node2);
+
+        // Conectar nodos
+        instance.connect({ source: node1, target: node2 });
+    });
+</script>
+{% endblock %}
