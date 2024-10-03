@@ -2,6 +2,7 @@
 cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
 git add .
 git commit -m "Actualización repositorio Git (date)"
+git remote remove production
 git remote add production git@chatbot.amigro.org:/home/amigro/git/chatbot.git
 git push production main
 
