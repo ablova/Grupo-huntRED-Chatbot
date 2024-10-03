@@ -1,4 +1,23 @@
-ssh -i ~/.ssh/id_rsa_chatbot.pub git@35.209.109.141
+#SIncronizacion GIT
+cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
+git add .
+git commit -m "Actualización repositorio Git (date)"
+git remote add production git@chatbot.amigro.org:/home/amigro/git/chatbot.git
+git push production main
+
+#git remote -v
+
+sudo journalctl -u gunicorn -f
+sudo journalctl -u celery -f
+cat /home/amigro/logs/error.log
+
+
+gcloud compute ssh pablollh@amigro --zone=us-central1-a --project=amigro 
+
+ssh -i ~/.ssh/id_rsa_chatbot git@35.209.109.141
+ssh chatbot.amigro.org
+
+
 
 sudo journalctl --vacuum-time=5days
 sudo journalctl --rotate
