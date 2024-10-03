@@ -22,7 +22,7 @@ from app.integrations.whatsapp import send_whatsapp_message
 from .gpt import gpt_message
 from celery import shared_task
 import asyncio
-from .nlp_utils import analyze_text  # Importamos la función mejorada
+from .nlp_utils import analyze_text
 from .vacantes import (
     match_person_with_jobs,
     get_available_slots,
@@ -207,7 +207,6 @@ class ChatBotHandler:
         # Si no se cumplen las condiciones anteriores, avanzar al siguiente nodo en el flujo
         # Primero, verificar si hay subpreguntas sin responder
         if event.current_question.sub_pregunta.exists():
-            # Obtener la siguiente subpregunta que no haya sido respondida
             last_sub_pregunta_id = event.context.get('last_sub_pregunta_id')
             sub_pregunta = event.current_question.sub_pregunta.filter(
                 id__gt=last_sub_pregunta_id or 0
@@ -220,7 +219,6 @@ class ChatBotHandler:
 
         # Si la pregunta actual no requiere respuesta, avanzar automáticamente
         if not event.current_question.requires_response:
-            # Obtener la siguiente pregunta en el flujo
             next_question = self.get_next_question_in_flow(event.current_question, user_message)
             if next_question:
                 event.current_question = next_question
@@ -229,7 +227,6 @@ class ChatBotHandler:
                 event.current_question = None  # No hay más preguntas
                 return None, []
 
-        # Manejo normal de la conversación
         next_question = self.get_next_question_in_flow(event.current_question, user_message)
         if next_question:
             event.current_question = next_question
@@ -246,7 +243,6 @@ class ChatBotHandler:
         if next_question_id:
             return Pregunta.objects.get(id=next_question_id)
         else:
-            # Si no hay una decisión basada en la respuesta, obtener la siguiente pregunta secuencialmente
             next_question = Pregunta.objects.filter(id__gt=current_question.id).order_by('id').first()
             return next_question
 
@@ -309,12 +305,3 @@ class ChatBotHandler:
                 logger.error("No se encontró configuración de API de Messenger")
         else:
             logger.error(f"Plataforma desconocida: {platform}")
-
-    # Función para manejar preguntas del chatbot (si es necesaria)
-    def handle_user_message(self, platform, user_id, message):
-        # Lógica para determinar si se envían opciones
-        if some_condition:  # Aquí iría la lógica para verificar cuándo enviar opciones
-            send_options(platform, user_id, "Por favor selecciona una opción:")
-        else:
-            # Lógica normal de respuesta del chatbot
-            pass

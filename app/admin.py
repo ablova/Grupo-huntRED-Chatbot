@@ -31,91 +31,49 @@ admin.site.site_header = "Amigro Admin"
 admin.site.site_title = "Amigro Admin Portal"
 admin.site.index_title = "Bienvenido a Amigro.org parte de Grupo huntRED®"
 
+
+@admin.register(Person)
+class PersonAdmin(admin.ModelAdmin):
+    list_display = ('name', 'lastname', 'phone', 'nationality', 'skills', 'ubication', 'email', 'preferred_language')
+    search_fields = ('name', 'lastname', 'phone', 'email', 'nationality')
+
+@admin.register(Worker)
+class WorkerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'job_id', 'company', 'job_type', 'salary', 'address', 'experience_required')
+    search_fields = ('name', 'company', 'job_type')
+
+@admin.register(Pregunta)
+class PreguntaAdmin(admin.ModelAdmin):
+    list_display = ('name', 'etapa', 'option', 'input_type', 'requires_response')
+    search_fields = ('name', 'etapa__name')
+
+@admin.register(SubPregunta)
 class SubPreguntaAdmin(admin.ModelAdmin):
-    list_display = ('name', 'option', 'decision_si', 'decision_no')
+    list_display = ('name', 'option', 'input_type', 'requires_response')
+    search_fields = ('name', 'parent_sub_pregunta__name')
 
-    def decision_si(self, obj):
-        return obj.decision.get('yes', 'No definido')
+@admin.register(ChatState)
+class ChatStateAdmin(admin.ModelAdmin):
+    list_display = ('user_id', 'platform', 'current_question', 'last_interaction', 'context')
+    search_fields = ('user_id', 'platform')
 
-    def decision_no(self, obj):
-        return obj.decision.get('no', 'No definido')
-
-    decision_si.short_description = 'Decisión (Sí)'
-    decision_no.short_description = 'Decisión (No)'
-
-# Modelo personalizado de FlowModelAdmin con botón para editar el flujo
+@admin.register(FlowModel)
 class FlowModelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'edit_flow_button')
+    list_display = ('name', 'description')
+    search_fields = ('name',)
 
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path('<int:flowmodel_id>/edit-flow/', self.admin_site.admin_view(self.edit_flow), name='edit_flow'),
-            path('save_flow/', self.admin_site.admin_view(self.save_flow), name='save_flow'),
-            path('load_flow/', self.admin_site.admin_view(self.load_flow), name='load_flow'),
-        ]
-        return custom_urls + urls
+@admin.register(TelegramAPI)
+class TelegramAPIAdmin(admin.ModelAdmin):
+    list_display = ('bot_name', 'api_key')
 
-    def edit_flow_button(self, obj):
-        return format_html('<a class="button" href="{}">Editar Flujo</a>', reverse('admin:edit_flow', args=[obj.id]))
-    
-    edit_flow_button.short_description = 'Editar Flujo'
-    edit_flow_button.allow_tags = True  # Deprecated en Django >1.9, pero puedes mantenerlo para compatibilidad
+@admin.register(WhatsAppAPI)
+class WhatsAppAPIAdmin(admin.ModelAdmin):
+    list_display = ('phoneID', 'api_token')
 
-    @csrf_exempt
-    @require_http_methods(["POST"])
-    def save_flow(self, request):
-        """
-        Guarda el flujo enviado desde el frontend.
-        """
-        try:
-            data = json.loads(request.body)
-            flowmodel_id = data.get('flowmodel_id')
-            nodes = data.get('nodes', [])
-            links = data.get('links', [])
-            flow = get_object_or_404(FlowModel, id=flowmodel_id)
-            flow.flow_data_json = json.dumps({'nodes': nodes, 'links': links})
-            flow.save()
-            return JsonResponse({'status': 'success'})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+@admin.register(MessengerAPI)
+class MessengerAPIAdmin(admin.ModelAdmin):
+    list_display = ('page_access_token',)
 
-    @csrf_exempt
-    @require_http_methods(["GET"])
-    def load_flow(self, request):
-        """
-        Carga el flujo desde la base de datos.
-        """
-        try:
-            flowmodel_id = request.GET.get('flowmodel_id')
-            flow = get_object_or_404(FlowModel, id=flowmodel_id)
-            flow_data = json.loads(flow.flow_data_json) if flow.flow_data_json else {}
-            return JsonResponse(flow_data)
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-
-    def edit_flow(self, request, flowmodel_id):
-        """
-        Renderiza la plantilla de edición del flujo.
-        """
-        flow = get_object_or_404(FlowModel, id=flowmodel_id)
-        return render(request, 'admin/chatbot_flow.html', {'flow': flow})
-
-admin.site.register(FlowModel, FlowModelAdmin)
-
-# Registro de otros modelos
-admin.site.register(WhatsAppAPI)
-admin.site.register(TelegramAPI)
-admin.site.register(MessengerAPI)
-admin.site.register(InstagramAPI)
-admin.site.register(MetaAPI)
-admin.site.register(Pregunta)
-#admin.site.register(ChatState)
-admin.site.register(Person)
-admin.site.register(Worker)
-admin.site.register(Buttons)
-admin.site.register(Etapa)
-admin.site.register(SubPregunta, SubPreguntaAdmin)
-admin.site.register(GptApi)
-admin.site.register(SmtpConfig)
-admin.site.register(Chat)
+@admin.register(InstagramAPI)
+class InstagramAPIAdmin(admin.ModelAdmin):
+    list_display = ('app_id', 'access_token', 'instagram_account_id')

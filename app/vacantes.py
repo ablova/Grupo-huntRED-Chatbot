@@ -8,11 +8,11 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Mantener la sesión abierta
-s = requests.session()
-
 # Configuración del logger
 logger = logging.getLogger(__name__)
+
+# Mantener la sesión abierta
+s = requests.session()
 
 def get_session():
     headers = {'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N)'}
@@ -26,7 +26,6 @@ def get_session():
         logger.error(f"Error obteniendo sesión: {e}")
         return None
 
-# Consultar vacantes disponibles
 def consult(page, url):
     payload = (
         'lang=&search_keywords=&search_location=&filter_job_type%5B%5D=freelance&'
@@ -61,7 +60,6 @@ def consult(page, url):
         logger.error(f"Error consultando vacantes: {e}")
         return []
 
-# Función para registrar un usuario
 def register(username, email, password, name, lastname):
     data_session = get_session()
     if not data_session:
@@ -82,7 +80,6 @@ def register(username, email, password, name, lastname):
         logger.error(f"Error registrando usuario: {e}")
         return None
 
-# Función para iniciar sesión
 def login(username, password):
     data_session = get_session()
     if not data_session:
@@ -100,7 +97,6 @@ def login(username, password):
         logger.error(f"Error iniciando sesión: {e}")
         return None
 
-# Enviar solicitud para una vacante
 def solicitud(vacante_url, name, email, message, job_id):
     payload = f'candidate_email={email}&application_message={message}&job_id={job_id}&candidate_name={name}'
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'user-agent': 'Mozilla/5.0'}
@@ -114,23 +110,27 @@ def solicitud(vacante_url, name, email, message, job_id):
         logger.error(f"Error enviando solicitud: {e}")
         return None
 
-# Función para encontrar trabajos que coincidan con la persona
+# Coincidencia de trabajos con habilidades del candidato
 def match_person_with_jobs(person):
-    """
-    Función para encontrar trabajos que coincidan con las habilidades, experiencia
-    y otros datos del candidato (persona) en base a su perfil.
-    """
     logger.info(f"Buscando coincidencias de trabajo para {person.name}")
-
-    # Obtener todas las vacantes
     all_jobs = Worker.objects.all()
-
-    # Preprocesar las habilidades del usuario
     user_skills = person.skills.lower().split(',') if person.skills else []
     user_skills_text = ' '.join(user_skills)
 
-    # Crear una lista de documentos (descripciones de trabajos)
     job_descriptions = []
     job_list = []
     for job in all_jobs:
-        job_skills = job.required_skills.lower().split(','
+        job_skills = job.required_skills.lower().split(',') if job.required_skills else []
+        job_descriptions.append(' '.join(job_skills))
+        job_list.append(job)
+
+    if not job_descriptions:
+        return []
+
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform(job_descriptions + [user_skills_text])
+    cosine_similarities = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])
+    similarity_scores = cosine_similarities[0]
+
+    top_jobs = sorted(zip(job_list, similarity_scores), key=lambda x: x[1], reverse=True)
+    return top_jobs[:5]  # Retorna las 5 mejores coincidencias

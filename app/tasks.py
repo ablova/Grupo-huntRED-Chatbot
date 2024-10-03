@@ -2,7 +2,7 @@
 
 import requests
 from chatbot_django.celery import shared_task
-from app.integrations.services import WhatsAppService, MessengerService, TelegramService, send_options
+from app.integrations.services import WhatsAppService, MessengerService, TelegramService, send_options, WhatsAppAPI, MessengerAPI, TelegramAPI, InstagramAPI
 from app.models import Person, Worker, WhatsAppAPI
 from app.vacantes import match_person_with_jobs
 import logging
