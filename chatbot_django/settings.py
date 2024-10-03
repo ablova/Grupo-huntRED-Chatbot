@@ -19,7 +19,13 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-rxkhgtlsk84*0)-ivnt
 
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ["35.209.109.141", "chatbot.amigro.org", 'www.chat.amigro.org',  '*.amigro.org', 'chat.amigro.org',"localhost",  '*.googleusercontent.com', '0.0.0.0','127.0.0.1']
+ALLOWED_HOSTS = [
+    "35.209.109.141",
+    "chatbot.amigro.org",
+    "www.chat.amigro.org",
+    "localhost",
+    "127.0.0.1"
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
