@@ -3,97 +3,99 @@
         "pk": 1,
         "model": "app.pregunta",
         "fields": {
-            "name": "Bienvenida e introducción a quien es Amigro.org, q...",
-            "content": "Bienvenida e introducción a quien es Amigro.org, que hacemos y como podemos ayudar a los migrantes al ingresar al territorio mexicano en la búsqueda de empleo.",
-            "input_type": "texto",
+            "name": "Bienvenida",
+            "content": "¡Bienvenido a Amigro.org! Somos una plataforma que ayuda a migrantes en la búsqueda de empleo y asistencia.",
+            "input_type": "info",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 2,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 2,
         "model": "app.subpregunta",
         "fields": {
-            "name": "Logo Amigro",
-            "content": "Logo Amigro",
-            "input_type": "",
-            "option": "texto",
+            "name": "Envio Logo Amigro",
+            "content": "Aquí te mostramos nuestro logo:",
+            "input_type": "image",
+            "option": "URL Imagen",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 3,
                 "next_no": null
-            }
+            } 
         }
     },
     {
         "pk": 3,
         "model": "app.subpregunta",
         "fields": {
-            "name": "URL TOS",
-            "content": "URL TOS",
-            "input_type": "",
-            "option": "texto",
+            "name": "Envio URL TOS",
+            "content": "Aquí puedes consultar nuestros Términos y Condiciones: https://amigro.org/tos/",
+            "input_type": "link",
+            "option": "URL",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 4,
                 "next_no": null
-            }
+            } 
         }
     },
     {
         "pk": 4,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Aceptas TOS",
-            "content": "¿Aceptas nuestras nuestra Política de Privacidad, y TOS?, es necesaria para continuar.",
-            "input_type": "",
+            "name": "Aceptación de TOS",
+            "content": "¿Aceptas nuestros Términos y Condiciones?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
-                "next_si": 7,
-                "next_no": 5
-            }
+                "next_si": 5,
+                "next_no": 6
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 5,
-        "model": "app.pregunta",
+        "model": "app.subpregunta",
         "fields": {
-            "name": "Agradecimiento y recordatorio",
-            "content": "Agradecimiento y recordatorio que siempre puede regresar, actualizar tus datos y conocer nuevas oportunidades.",
-            "input_type": "",
+            "name": "Términos Aceptados",
+            "content": "Gracias por aceptar los Términos y Condiciones. ¡Continuemos con tu registro!",
+            "input_type": "info",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
-                "next_si": 6,
+                "next_si": 7,
                 "next_no": null
-            }
+            } 
         }
     },
     {
         "pk": 6,
         "model": "app.subpregunta",
         "fields": {
-            "name": "O visitar, conocer y aplicar directamente en Amigr...",
-            "content": "O visitar, conocer y aplicar directamente en Amigro.org con el perfil que creas mediante el chatbot. O realizarlo dentro de la plataforma web / sitio donde podrás observar otras herramientas, como el creador de tu curriculum completando toda tu información profesional.",
-            "input_type": "",
+            "name": "Términos Rechazados",
+            "content": "Lamentamos que no aceptes nuestros Términos. No podemos continuar sin tu aceptación.",
+            "input_type": "info",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": null,
@@ -105,969 +107,1368 @@
         "pk": 7,
         "model": "app.pregunta",
         "fields": {
-            "name": "Me podrías brindar tu nombre de pila",
-            "content": "Me podrías brindar tu nombre de pila",
-            "input_type": "name",
+            "name": "Registro - Nombre",
+            "content": "Por favor, ingresa tu nombre:",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 8,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 8,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Y tu apellido como esta en tus documentos oficiale...",
-            "content": "Y tu apellido como esta en tus documentos oficiales",
-            "input_type": "lastname",
+            "name": "Registro - Apellido Paterno",
+            "content": "Por favor, ingresa tu apellido paterno:",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 9,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 9,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Nacionalidad",
-            "content": "Nacionalidad",
-            "input_type": "nationality",
+            "name": "Registro - Apellido Materno",
+            "content": "Por favor, ingresa tu apellido materno:",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
-                "next_si": 63,
+                "next_si": 10,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 10,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Fecha de Nacimiento",
-            "content": "Fecha de Nacimiento",
-            "input_type": "nacimiento",
+            "name": "Registro - Fecha de Nacimiento",
+            "content": "Por favor, ingresa tu fecha de nacimiento (DD/MM/AAAA):",
+            "input_type": "date",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 11,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 11,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Sexo (Hombre o Mujer",
-            "content": "Sexo (Hombre o Mujer",
-            "input_type": "sexo",
-            "option": "Hombre / Mujer",
+            "name": "Registro - Nacionalidad",
+            "content": "¿Cuál es tu nacionalidad?",
+            "input_type": "text",
+            "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 12,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 12,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Vienes con Familia",
-            "content": "Vienes con Familia",
-            "input_type": "family_travel",
-            "option": "Si / No",
+            "name": "Registro - Sexo",
+            "content": "¿Cuál es tu sexo? (Hombre/Mujer):",
+            "input_type": "select",
+            "option": "Hombre / Mujer",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 13,
-                "next_no": 14
-            }
+                "next_no": null
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 13,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Vienes con hijos menores",
-            "content": "Vienes con hijos menores",
-            "input_type": "menor",
-            "option": "Si / No",
+            "name": "Viajas con Familia",
+            "content": "¿Viajas con tu familia?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 14,
-                "next_no": 14
-            }
+                "next_no": 15
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 14,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Viajas con conocidos o en grupo?",
-            "content": "Viajas con conocidos o en grupo?",
-            "input_type": "group_aditionality",
-            "option": "Si / No",
+            "name": "Viajas con Hijos Menores",
+            "content": "¿Viajas con hijos menores de edad?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
-                "next_si": 15,
-                "next_no": 20
-            }
+                "next_si": 16,
+                "next_no": 15
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 15,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Quieres invitarlos",
-            "content": "Quieres invitarlos",
-            "input_type": "",
+            "name": "Viajas con conocidos o en grupo",
+            "content": "¿Viajas con conocidos o en grupo?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 16,
                 "next_no": 20
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 16,
         "model": "app.pregunta",
         "fields": {
-            "name": "Nombre",
-            "content": "Nombre",
-            "input_type": "",
+            "name": "Nombre del Conocido",
+            "content": "Por favor, ingresa el nombre del conocido que quieres invitar.",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 17,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 17,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Apellido",
-            "content": "Apellido",
-            "input_type": "",
+            "name": "Apellido del Conocido",
+            "content": "Por favor, ingresa el apellido paterno del conocido que quieres invitar.",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 18,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 18,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Numero de contacto",
-            "content": "Numero de contacto",
-            "input_type": "",
+            "name": "Número de Contacto del Conocido",
+            "content": "Por favor, ingresa el número de contacto del conocido.",
+            "input_type": "phone",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 19,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 19,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Alguien más?",
-            "content": "Alguien más?",
-            "input_type": "",
+            "name": "Más Conocidos",
+            "content": "¿Quieres invitar a alguien más?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 16,
                 "next_no": 20
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 20,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
             "name": "Solicitaste Refugio / Asilo",
-            "content": "Solicitaste Refugio / Asilo",
-            "input_type": "refugio",
+            "content": "¿Solicitaste Refugio o Asilo?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 21,
                 "next_no": 25
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 21,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cuentas con permiso con razones humanitarias",
-            "content": "Cuentas con permiso con razones humanitarias",
-            "input_type": "perm_humanitario",
+            "name": "Cuentas con permiso humanitario",
+            "content": "¿Cuentas con un permiso por razones humanitarias?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 24,
                 "next_no": 22
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 22,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Tienes una cita en el futuro",
-            "content": "Tienes una cita en el futuro",
-            "input_type": "cita",
+            "name": "Tienes una cita para refugio",
+            "content": "¿Tienes una cita para tramitar el refugio?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 23,
                 "next_no": 25
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 23,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cuando es tu cita",
-            "content": "Cuando es tu cita",
-            "input_type": "solicita_refugio",
+            "name": "Fecha de la cita",
+            "content": "¿Cuándo es tu cita?",
+            "input_type": "date",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 25,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 24,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Piensas solicitar regugio en México",
-            "content": "Piensas solicitar regugio en México",
-            "input_type": "piensa_solicitar_refugio",
+            "name": "Solicitar Refugio en México",
+            "content": "¿Planeas solicitar refugio en México?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": null,
                 "next_no": 25
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 25,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
             "name": "Buscas trabajo en México",
-            "content": "Buscas trabajo en México",
-            "input_type": "int_work",
+            "content": "¿Buscas trabajo en México?",
+            "input_type": "select",
             "option": "Si / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 26,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 26,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
             "name": "Excelente",
-            "content": "Excelente",
-            "input_type": "",
+            "content": "¡Excelente! Vamos a continuar con el registro.",
+            "input_type": "info",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 27,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 27,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Documentacion adicional",
-            "content": "Vamos super avanzados en el registro, faltan 2 cositas, conocer con cuales documentos cuentas y tu experiencia laboral.",
-            "input_type": "",
+            "name": "Documentación adicional",
+            "content": "Faltan un par de cosas: ¿Cuentas con alguna documentación adicional como pasaporte o permiso de trabajo?",
+            "input_type": "info",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 28,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 28,
         "model": "app.pregunta",
         "fields": {
-            "name": "Cuentas con documentos de tu país de origen (pasaporte, registro de población, etc)",
-            "content": "Cuentas con documentos de tu país de origen (pasaporte, registro de población, etc)",
-            "input_type": "",
-            "option": "Si / No",
+            "name": "Documento del País de Origen",
+            "content": "¿Cuentas con documentos de tu país de origen, como pasaporte o registro de población?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 29,
                 "next_no": 32
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 29,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cual es ese documento?",
-            "content": "Cual es ese documento?",
-            "input_type": "",
+            "name": "¿Qué Documento?",
+            "content": "¿Qué documento es?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 30,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 30,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Me puedes dar el número por favor?",
-            "content": "Me puedes dar el número por favor?",
-            "input_type": "passport",
+            "name": "Número del Documento",
+            "content": "¿Me puedes proporcionar el número de tu documento, por favor?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 31,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 31,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Tienes algun otro documento?",
-            "content": "Tienes algun otro documento?",
-            "input_type": "",
-            "option": "texto",
+            "name": "Tienes algún otro documento?",
+            "content": "¿Tienes algún otro documento de tu país de origen?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
-                "next_si": null,
-                "next_no": 32
-            }
+                "next_si": 32,
+                "next_no": 34
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 32,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
             "name": "Cuentas con permiso para laborar?",
-            "content": "Cuentas con permiso para laborar?",
-            "input_type": "per_trabajo",
-            "option": "Si / No",
+            "content": "¿Cuentas con un permiso para trabajar en México?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 33,
                 "next_no": 34
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 33,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
             "name": "Buenisimo que tienes ya permiso para laborar.",
-            "content": "Buenisimo que tienes ya permiso para laborar.",
-            "input_type": "",
+            "content": "¡Buenísimo que ya tienes permiso para trabajar! Vamos a continuar.",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 34,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 34,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cuando tramitaste tu permiso?",
-            "content": "Cuando tramitaste tu permiso?",
-            "input_type": "",
+            "name": "¿Cuándo tramitaste tu permiso?",
+            "content": "¿Cuándo tramitaste tu permiso de trabajo?",
+            "input_type": "date",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 35,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 35,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Vigencia Permiso",
-            "content": "Y que vigencia tiene?",
-            "input_type": "date_permit",
+            "name": "Vigencia del Permiso",
+            "content": "¿Cuál es la vigencia de tu permiso?",
+            "input_type": "date",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
-                "next_si": 34,
+                "next_si": 36,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 36,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
             "name": "Cuentas con CURP?",
-            "content": "Cuentas con CURP?",
-            "input_type": "",
-            "option": "Si / No",
+            "content": "¿Cuentas con un CURP emitido en México?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
-                "next_si": 35,
+                "next_si": 37,
                 "next_no": 38
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 37,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Captura CURP.",
-            "content": "Me lo puedes brindar, esto lo utilizaremos para apoyarte a dar de alta en la empresa (Seguridad Social y otros beneficios). Es un trámite necesario que debemos realizar previo a tu inclusión en una empresa y organización.",
-            "input_type": "curp",
+            "name": "Captura CURP",
+            "content": "Por favor, ingresa tu CURP. Esto es necesario para procesos de alta laboral.",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 38,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 38,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Algún otro documento que te haya emitido una autoridad mexicana?",
-            "content": "Algún otro documento que te haya emitido una autoridad mexicana?",
-            "input_type": "",
-            "option": "Si / No",
+            "name": "Documento emitido por autoridad mexicana",
+            "content": "¿Cuentas con algún otro documento emitido por una autoridad mexicana?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 39,
                 "next_no": 40
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 39,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Que documento es?",
-            "content": "Que documento es?",
-            "input_type": "aditional_official_document",
+            "name": "¿Qué documento es?",
+            "content": "¿Qué documento es?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 40,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 40,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Ya casi terminamos, un par de preguntas y listo! Me brindas tu ubicación por favor. Puedes hacerlo compartiendo tu ubicación (si tienes dudas aquí tienes un video ...",
-            "content": "Ya casi terminamos, un par de preguntas y listo! Me brindas tu ubicación por favor. Puedes hacerlo compartiendo tu ubicación (si tienes dudas aquí tienes un video ...",
-            "input_type": "",
+            "name": "Ubicación Actual",
+            "content": "Ya casi terminamos. Por favor, comparte tu ubicación actual o escríbela manualmente.",
+            "input_type": "location",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 41,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 41,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cuéntanos en qué trabajas actualmente o tu última posición?",
-            "content": "Cuéntanos en qué trabajas actualmente o tu última posición?",
-            "input_type": "",
+            "name": "Trabajo Actual o Última Posición",
+            "content": "¿En qué trabajas actualmente o cuál fue tu última posición?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 42,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 42,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "En qué giro estaba la empresa?",
-            "content": "En qué giro estaba la empresa?",
-            "input_type": "",
+            "name": "Sector de la Empresa",
+            "content": "¿En qué sector o industria estaba la empresa?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 43,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 43,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Dónde estaba ubicada esta posición?",
-            "content": "Dónde estaba ubicada esta posición?",
-            "input_type": "",
+            "name": "Ubicación de la Posición",
+            "content": "¿Dónde estaba ubicada esta posición?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 44,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 44,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Tienes interés en trabajar en algún sector particular?",
-            "content": "Tienes interés en trabajar en algún sector particular?",
-            "input_type": "",
-            "option": "Brindar Opciones, y almacenar",
+            "name": "Interés en Trabajar en un Sector Específico",
+            "content": "¿Tienes interés en trabajar en algún sector particular?",
+            "input_type": "text",
+            "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 45,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 45,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Quieres agregar algún otro trabajo / posición?",
-            "content": "Quieres agregar algún otro trabajo / posición?",
-            "input_type": "work_experience",
-            "option": "Si / No",
+            "name": "¿Te gustaría agregar algún otro trabajo o posición?",
+            "content": "¿Te gustaría agregar algún otro trabajo o posición en tu experiencia laboral?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 46,
                 "next_no": 50
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 46,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cual era el nombre de la posición?",
-            "content": "Cual era el nombre de la posición?",
-            "input_type": "industria_work",
+            "name": "Nombre de la Posición",
+            "content": "¿Cuál era el nombre de la posición que ocupabas?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 47,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 47,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "En que giro estaba la empresa?",
-            "content": "En que giro estaba la empresa?",
-            "input_type": "",
+            "name": "Industria de la Empresa",
+            "content": "¿En qué industria estaba la empresa donde trabajabas?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 48,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 48,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cuanto tiempo estuviste en esta posición?",
-            "content": "Cuanto tiempo estuviste en esta posición?",
-            "input_type": "",
+            "name": "Duración en la Posición",
+            "content": "¿Cuánto tiempo estuviste en esta posición?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 49,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 49,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Donde estaba ubicada esta posición?",
-            "content": "Donde estaba ubicada esta posición?",
-            "input_type": "phone",
+            "name": "Ubicación de la Posición",
+            "content": "¿Dónde estaba ubicada esta posición?",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 50,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 50,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Registro Numero Contacto",
-            "content": "Registro Numero Contacto",
-            "input_type": "",
+            "name": "Registro Número de Contacto",
+            "content": "Por favor, proporciona el número de contacto donde podemos ubicarte para cualquier oferta laboral.",
+            "input_type": "phone",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 51,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 51,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cuentas con correo electrónico",
-            "content": "Cuentas con correo electrónico",
-            "input_type": "email",
-            "option": "Si / No",
+            "name": "¿Tienes un correo electrónico?",
+            "content": "¿Tienes un correo electrónico?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 52,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 52,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cuál es?",
-            "content": "Cuál es?",
+            "name": "Correo Electrónico",
+            "content": "Por favor, ingresa tu correo electrónico.",
             "input_type": "email",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 53,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 53,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "En este número podemos contactarte para una oferta?",
-            "content": "En este número podemos contactarte para una oferta y seguimiento.",
-            "input_type": "",
-            "option": "Si / No",
+            "name": "¿Podemos contactarte para ofertas?",
+            "content": "¿Podemos contactarte en este número para ofertas y seguimiento?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
-                "next_si": 57,
-                "next_no": 54
-            }
+                "next_si": 54,
+                "next_no": null
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 54,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "A que número podemos realizarlo?",
-            "content": "A que número podemos realizarlo?",
+            "name": "Otro Número de Contacto",
+            "content": "Si no es el mismo, ¿a qué número podemos contactarte?",
             "input_type": "phone",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 55,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 55,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Puedo acceder a tu ubicación por medio de la info de este chat?",
-            "content": "Puedo acceder a tu ubicación por medio de la info de este chat?",
-            "input_type": "",
-            "option": "Si / No",
+            "name": "Acceder a tu Ubicación",
+            "content": "¿Puedo acceder a tu ubicación por medio de la información de este chat?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 56,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 56,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Registrada tu ubicación",
-            "content": "Registrada tu ubicación",
-            "input_type": "ubication",
+            "name": "Ubicación Registrada",
+            "content": "Tu ubicación ha sido registrada.",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 57,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 57,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "GRACIAS por completar el proceso, recibirás un correo con la información de acceso.",
-            "content": "GRACIAS por completar el proceso, recibirás un correo con la información de acceso.",
-            "input_type": "",
+            "name": "Gracias por completar el proceso",
+            "content": "¡Gracias por completar el proceso! Recibirás un correo con toda la información de acceso.",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
-                "next_si": 60,
+                "next_si": 58,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 58,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Si gustas puedes cargar tu CV, en caso de tenerlo",
-            "content": "Si gustas puedes cargar tu CV, en caso de tenerlo",
-            "input_type": "",
-            "option": "Si / No",
+            "name": "Cargar CV",
+            "content": "Si gustas, puedes cargar tu CV. En caso de tenerlo, adjunta tu archivo.",
+            "input_type": "file",
+            "option": "adjuntar",
             "valid": true,
-            "yes_or_not": true,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 59,
-                "next_no": 60
-            }
+                "next_no": null
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 59,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Cargar archivo con el CV",
-            "content": "Cargar archivo con el CV",
-            "input_type": "file",
-            "option": "adjuntar",
+            "name": "Buenísimo, ya tenemos toda la información",
+            "content": "Buenísimo, ya tenemos toda la información que necesitamos para brindarte alternativas.",
+            "input_type": "text",
+            "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 60,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 60,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Buenísimo, ya tenemos toda la información que necesitamos para brindarte alternativas. Dame 1 minuto para que piense qué posición es la que mejor se ajusta, basado en todo lo que me contaste!! Me encantaría que me contaras cómo te fue en tu viaje migratorio, pero mejor me enfoco en apoyarte, donde si sé cómo brindar soporte!",
-            "content": "Buenísimo, ya tenemos toda la información que necesitamos para brindarte alternativas.",
-            "input_type": "",
+            "name": "Vacantes ajustadas a tu perfil",
+            "content": "Estas son las posiciones que mejor se ajustan a tu experiencia y perfil.",
+            "input_type": "text",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 61,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 61,
         "model": "app.pregunta",
         "fields": {
-            "name": "Estas son las posiciones que mejor se ajustan a tu experiencia y perfil",
-            "content": "Estas son las posiciones que mejor se ajustan a tu experiencia y perfil",
-            "input_type": "",
-            "option": "texto",
+            "name": "Mostrar oportunidades",
+            "content": "A continuación, te mostramos las vacantes que mejor se ajustan a tu perfil.",
+            "input_type": "vacante",
+            "option": "mostrar_vacantes_amigro",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
                 "next_si": 62,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 62,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "MOSTRAR OPORTUNIDADES, SCRIPT DE vacantes.py",
-            "content": "MOSTRAR OPORTUNIDADES, SCRIPT DE vacantes.py",
-            "input_type": "",
-            "option": "texto",
+            "name": "Aplicar a una vacante",
+            "content": "¿Te gustaría aplicar a alguna de estas vacantes?",
+            "input_type": "select",
+            "option": "Sí / No",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": true,
             "active": true,
             "decision": {
                 "next_si": 63,
-                "next_no": null
-            }
+                "next_no": 65
+            } ,
+            "etapa": 1
         }
     },
     {
         "pk": 63,
-        "model": "app.subpregunta",
+        "model": "app.pregunta",
         "fields": {
-            "name": "Aplica a cada una de las oportunidades que te resulte interesante. Lo que buscamos es que encuentres una posición interesante para ti. Por lo que creemos fielmente en abrir oportunidades. Mucho éxito.",
-            "content": "Aplica a cada una de las oportunidades que te resulte interesante.",
-            "input_type": "",
+            "name": "Aplicación recibida",
+            "content": "Tu aplicación ha sido recibida. Ahora selecciona un slot de entrevista para continuar.",
+            "input_type": "info",
             "option": "texto",
             "valid": true,
-            "yes_or_not": false,
+            "requires_response": false,
             "active": true,
             "decision": {
-                "next_si": 5,
+                "next_si": 64,
                 "next_no": null
-            }
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 64,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Seleccionar slot de entrevista",
+            "content": "Selecciona uno de los siguientes horarios disponibles para tu entrevista:",
+            "input_type": "slot_entrevista",
+            "option": "seleccionar_slot",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 66,
+                "next_no": 82
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 65,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Finalizar proceso",
+            "content": "Gracias por utilizar nuestro servicio. Si más adelante te gustaría aplicar a otras vacantes, estamos aquí para ayudarte.",
+            "input_type": "info",
+            "option": "texto",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": null,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 66,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Confirmación de entrevista",
+            "content": "¡Entrevista confirmada! Hemos agendado tu entrevista en el horario seleccionado. Recibirás más detalles por correo.",
+            "input_type": "info",
+            "option": "texto",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": 67,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 67,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Recapitulación final",
+            "content": "Aquí tienes un resumen de tu proceso: Vacantes aplicadas, entrevista agendada. Si quieres cambiar algún dato, indícalo.",
+            "input_type": "recap",
+            "option": "resumen_final",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": 68,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 68,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "¿Modificar algún dato?",
+            "content": "¿Te gustaría modificar algún dato antes de finalizar el proceso?",
+            "input_type": "select",
+            "option": "Sí / No",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 69,
+                "next_no": 70
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 69,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Modificar datos",
+            "content": "Por favor, indícanos qué datos te gustaría modificar:",
+            "input_type": "text",
+            "option": "texto",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 67,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 70,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Proceso finalizado",
+            "content": "¡Proceso finalizado! Gracias por confiar en Amigro. Recibirás más detalles por correo.",
+            "input_type": "info",
+            "option": "texto",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": null,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 71,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Recapitulación de la información",
+            "content": "Vamos a hacer un resumen de la información que nos has brindado.",
+            "input_type": "recap",
+            "option": "resumen",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": 72,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 72,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "¿Te gustaría actualizar algún dato?",
+            "content": "¿Te gustaría modificar o actualizar algún dato?",
+            "input_type": "select",
+            "option": "Sí / No",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 73,
+                "next_no": 75
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 73,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "¿Qué campo te gustaría actualizar?",
+            "content": "Selecciona el campo que te gustaría modificar: \n1. Nombre \n2. Apellido Paterno \n3. Apellido Materno \n4. Nacionalidad \n5. Fecha de Nacimiento \n6. Sexo \n7. Número de Contacto \n8. Correo Electrónico \n9. Ubicación...",
+            "input_type": "select",
+            "option": "nombre,apellido_paterno,apellido_materno,nacionalidad,fecha_nacimiento,sexo,phone,email,ubication...",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 74,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 74,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Actualizar campo seleccionado",
+            "content": "Por favor, ingresa el nuevo valor para el campo seleccionado:",
+            "input_type": "text",
+            "option": "texto",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 72,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 75,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Confirmación de actualización",
+            "content": "Los datos han sido actualizados exitosamente. ¿Te gustaría revisar algún otro campo?",
+            "input_type": "select",
+            "option": "Sí / No",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 72,
+                "next_no": 76
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 76,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Proceso de actualización finalizado",
+            "content": "¡Gracias por actualizar tu información! El proceso ha finalizado.",
+            "input_type": "info",
+            "option": "texto",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": null,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 77,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "¿Te gustaría invitar a algún conocido o familiar?",
+            "content": "¿Te gustaría invitar a algún amigo, conocido o familiar para que también pueda beneficiarse de nuestros servicios?",
+            "input_type": "select",
+            "option": "Sí / No",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 78,
+                "next_no": 81
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 78,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Nombre del Conocido",
+            "content": "Por favor, ingresa el nombre del conocido que deseas invitar.",
+            "input_type": "text",
+            "option": "texto",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 79,
+                "next_no": null
+            } 
+        
+        }
+    },
+    {
+        "pk": 79,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Apellido del Conocido",
+            "content": "Por favor, ingresa el apellido paterno del conocido.",
+            "input_type": "text",
+            "option": "texto",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 80,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 80,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Número de Contacto del Conocido",
+            "content": "Por último, ingresa el número de contacto del conocido.",
+            "input_type": "phone",
+            "option": "texto",
+            "valid": true,
+            "requires_response": true,
+            "active": true,
+            "decision": {
+                "next_si": 81,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 81,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Invitación enviada",
+            "content": "¡Invitación enviada! Gracias por referirnos a tus conocidos.",
+            "input_type": "info",
+            "option": "texto",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": null,
+                "next_no": null
+            } ,
+            "etapa": 1
+        }
+    },
+    {
+        "pk": 82,
+        "model": "app.pregunta",
+        "fields": {
+            "name": "Sin slots de entrevista disponibles",
+            "content": "Tu aplicación ha sido enviada correctamente. En cuanto tengamos noticias del cliente, te contactaremos por este mismo medio. ¡Gracias por tu paciencia!",
+            "input_type": "info",
+            "option": "texto",
+            "valid": true,
+            "requires_response": false,
+            "active": true,
+            "decision": {
+                "next_si": 67,
+                "next_no": null
+            } ,
+            "etapa": 1
         }
     }
 ]

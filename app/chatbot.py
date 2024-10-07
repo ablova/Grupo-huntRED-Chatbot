@@ -1,58 +1,27 @@
-# /home/amigro/app/chatbot.py
-
 import logging
-import random
-from .models import (
-    Person,
-    Worker,
-    Pregunta,
-    GptApi,
-    Chat,
-    FlowModel,
-    ChatState,
-    Condicion,
-    TelegramAPI,
-    WhatsAppAPI,
-    MessengerAPI,
-)
-from app.integrations.services import send_options
-from app.integrations.telegram import send_telegram_message
-from app.integrations.messenger import send_messenger_message
-from app.integrations.whatsapp import send_whatsapp_message
-from .gpt import gpt_message
-from celery import shared_task
-import asyncio
-from .nlp_utils import analyze_text
-from .vacantes import (
-    match_person_with_jobs,
-    get_available_slots,
-    book_interview_slot,
-)
-from .google_calendar import create_calendar_event
+from .models import ChatState, Pregunta, Person, FlowModel, Invitacion
+from app.vacantes import match_person_with_jobs, get_available_slots, book_interview_slot, solicitud
+from app.integrations.services import send_message, send_options, send_menu
 
 # Inicializa el logger
-logging.basicConfig(filename="logger.log", level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class ChatBotHandler:
     def __init__(self):
-        self.gpt_api = GptApi.objects.first()
         self.flow_model = None
 
     async def process_message(self, platform, user_id, text):
         """
         Procesa el mensaje del usuario y gestiona la conversación según el flujo de preguntas.
         """
-        # Asegurarse de que el flow_model está inicializado
         if not self.flow_model:
             self.flow_model = await FlowModel.objects.afirst()
 
         event = await self.get_or_create_event(user_id, platform)
-        analysis = analyze_text(text)  # Utilizamos la función mejorada
+        analysis = analyze_text(text)
 
         if not event.current_question:
-            event.current_question = await self.flow_model.pregunta_set.afirst()
+            event.current_question = await self.flow_model.preguntas.afirst()  # Cambiado a 'preguntas'
 
         response, options = await self.process_user_response(event, text, analysis)
 
@@ -71,7 +40,6 @@ class ChatBotHandler:
             event.platform = platform
             await event.asave()
         else:
-            # Actualizar la plataforma si es diferente
             if event.platform != platform:
                 event.platform = platform
                 await event.asave()
@@ -87,19 +55,22 @@ class ChatBotHandler:
         logger.info(f"Intenciones detectadas: {intents}")
         logger.info(f"Entidades detectadas: {entities}")
 
-        # Manejo de intenciones específicas
+        # Menú Persistente
+        if user_message.lower() in ['menu', 'inicio', 'volver', 'menu principal']:
+            return await handle_persistent_menu(event)
+
         if 'saludo' in intents:
             response = "¡Hola! ¿En qué puedo ayudarte hoy?"
             return response, []
 
         elif 'despedida' in intents:
-            response = "¡Hasta luego! Si necesitas algo más, no dudes en contactarme."
-            event.current_question = None  # Finalizar la conversación
+            response = "¡Hasta luego!"
+            event.current_question = None
             return response, []
 
         elif 'buscar_vacante' in intents:
             response = "Claro, puedo ayudarte a buscar vacantes. ¿En qué área estás interesado?"
-            event.current_question = await Pregunta.objects.aget(option='solicitar_skills')
+            event.current_question = await Pregunta.objects.aget(option='buscar_vacante')
             return response, []
 
         elif 'postular_vacante' in intents:
@@ -107,43 +78,39 @@ class ChatBotHandler:
             event.current_question = await Pregunta.objects.aget(option='solicitar_datos')
             return response, []
 
-        else:
-            # Si no se detecta ninguna intención conocida, continuar con el flujo normal
-            return await self.determine_next_question(event, user_message, analysis)
+        return await self.determine_next_question(event, user_message, analysis)
 
     async def determine_next_question(self, event, user_message, analysis):
         """
         Determina la siguiente pregunta en el flujo basado en la intención y entidades extraídas del mensaje.
         """
-        # Asegurarse de que event.current_question está definido
+        # Si no hay una pregunta actual, asignar la primera pregunta del flujo
         if not event.current_question:
-            event.current_question = await self.flow_model.pregunta_set.afirst()
+            event.current_question = await self.flow_model.preguntas.afirst()
+            if not event.current_question:
+                return "Lo siento, no se encontró una pregunta inicial en el flujo.", []
 
-        # Obtener el usuario
+        # Obtener o crear un usuario asociado con el evento
         user, _ = await Person.objects.aget_or_create(number_interaction=event.user_id)
 
-        # Manejo de diferentes tipos de input
+        # Verificar si la pregunta actual requiere habilidades
         if event.current_question.input_type == 'skills':
-            # Guardar las habilidades del usuario
             user.skills = user_message
             await user.asave()
 
-            # Obtener vacantes recomendadas
             recommended_jobs = match_person_with_jobs(user)
-
             if recommended_jobs:
                 response = "Aquí tienes algunas vacantes que podrían interesarte:\n"
-                for idx, (job, score) in enumerate(recommended_jobs[:5]):  # Mostrar top 5
-                    response += f"{idx + 1}. {job.name} en {job.company}\n"
-                response += "Por favor, ingresa el número de la vacante que te interesa para agendar una entrevista."
+                for idx, (job, score) in enumerate(recommended_jobs[:5]):
+                    response += f"{idx + 1}. {job['title']} en {job['company']}\n"
+                response += "Por favor, ingresa el número de la vacante que te interesa."
                 event.context = {'recommended_jobs': recommended_jobs}
-                # Mantener la misma pregunta o avanzar según tu lógica
                 return response, []
             else:
-                response = "Lo siento, no encontré vacantes que coincidan con tu perfil en este momento."
-                event.current_question = None  # Finalizar conversación o pasar a otra pregunta
+                response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
                 return response, []
 
+        # Manejo de selección de vacante
         elif event.current_question.input_type == 'select_job':
             try:
                 job_index = int(user_message) - 1
@@ -152,156 +119,100 @@ class ChatBotHandler:
 
             recommended_jobs = event.context.get('recommended_jobs')
             if recommended_jobs and 0 <= job_index < len(recommended_jobs):
-                selected_job, _ = recommended_jobs[job_index]
+                selected_job = recommended_jobs[job_index]
                 event.context['selected_job'] = selected_job
                 event.current_question = await Pregunta.objects.aget(option='schedule_interview')
-                return event.current_question.content, self.get_options(event.current_question)
+                return event.current_question.content, []
             else:
-                return "Selección inválida. Por favor, ingresa el número de la vacante que te interesa.", []
+                return "Selección inválida.", []
 
+        # Procesar agendado de entrevista
         elif event.current_question.input_type == 'schedule_interview':
-            if user_message.lower() in ['sí', 'si']:
-                selected_job = event.context.get('selected_job')
-                available_slots = get_available_slots(selected_job)
-                if available_slots:
-                    response = "Estos son los horarios disponibles para la entrevista:\n"
-                    for idx, slot in enumerate(available_slots):
-                        response += f"{idx + 1}. {slot['date']} a las {slot['time']}\n"
-                    response += "Por favor, selecciona el número del horario que prefieras."
-                    event.context['available_slots'] = available_slots
-                    event.current_question = await Pregunta.objects.aget(option='select_slot')
-                    return response, []
-                else:
-                    event.current_question = None  # No hay más preguntas
-                    return "Lo siento, no hay horarios disponibles para esta vacante en este momento.", []
-            else:
-                event.current_question = None  # Finalizar conversación
-                return "Entiendo. Si necesitas algo más, no dudes en pedírmelo.", []
+            selected_job = event.context.get('selected_job')
+            if not selected_job:
+                return "No se encontró la vacante seleccionada.", []
 
-        elif event.current_question.input_type == 'select_slot':
+            available_slots = get_available_slots(selected_job)
+            if available_slots:
+                response = "Estos son los horarios disponibles para la entrevista:\n"
+                for idx, slot in enumerate(available_slots):
+                    response += f"{idx + 1}. {slot}\n"
+                response += "Por favor, selecciona el número del horario que prefieras."
+                event.context['available_slots'] = available_slots
+                return response, []
+            else:
+                return "No hay horarios disponibles.", []
+
+        # Reserva de entrevista
+        elif event.current_question.input_type == 'confirm_interview_slot':
             try:
                 slot_index = int(user_message) - 1
             except ValueError:
                 return "Por favor, ingresa un número válido.", []
 
             available_slots = event.context.get('available_slots')
-            selected_job = event.context.get('selected_job')
-
             if available_slots and 0 <= slot_index < len(available_slots):
-                success = book_interview_slot(selected_job, slot_index, user)
-                if success:
-                    slot = available_slots[slot_index]
-                    # Crear evento en Google Calendar
-                    event_link = create_calendar_event(slot, user, selected_job)
-                    event.current_question = None  # Finalizar conversación
-                    return (
-                        f"¡Listo! Tu entrevista ha sido programada para el {slot['date']} a las {slot['time']}. "
-                        f"Puedes ver los detalles aquí: {event_link}",
-                        [],
-                    )
+                selected_slot = available_slots[slot_index]
+                if book_interview_slot(event.context['selected_job'], slot_index, user):
+                    response = f"Has reservado tu entrevista en el horario: {selected_slot}."
+                    return response, []
                 else:
-                    return "Lo siento, ese horario ya no está disponible. Por favor, elige otro.", []
+                    return "No se pudo reservar el slot, por favor intenta nuevamente.", []
             else:
-                return "Selección inválida. Por favor, elige un número de la lista.", []
+                return "Selección inválida.", []
 
-        # Si no se cumplen las condiciones anteriores, avanzar al siguiente nodo en el flujo
-        # Primero, verificar si hay subpreguntas sin responder
-        if event.current_question.sub_pregunta.exists():
-            last_sub_pregunta_id = event.context.get('last_sub_pregunta_id')
-            sub_pregunta = event.current_question.sub_pregunta.filter(
-                id__gt=last_sub_pregunta_id or 0
-            ).first()
-            if sub_pregunta:
-                event.context['last_sub_pregunta_id'] = sub_pregunta.id
-                await event.asave()
-                event.current_question = sub_pregunta
-                return sub_pregunta.content, self.get_options(sub_pregunta)
-
-        # Si la pregunta actual no requiere respuesta, avanzar automáticamente
-        if not event.current_question.requires_response:
-            next_question = self.get_next_question_in_flow(event.current_question, user_message)
-            if next_question:
-                event.current_question = next_question
-                return next_question.content, self.get_options(next_question)
-            else:
-                event.current_question = None  # No hay más preguntas
-                return None, []
-
-        next_question = self.get_next_question_in_flow(event.current_question, user_message)
+        # Guardar el estado del evento
+        await event.asave()
+        next_question = await Pregunta.objects.filter(id__gt=event.current_question.id).first()
         if next_question:
             event.current_question = next_question
-            return next_question.content, self.get_options(next_question)
+            return next_question.content, []
         else:
             event.current_question = None
-            return None, []
+            return "No hay más preguntas.", []
 
-    def get_next_question_in_flow(self, current_question, user_message):
+    async def send_response(self, platform, user_id, response, options=None):
         """
-        Obtiene la siguiente pregunta en el flujo de conversación.
+        Envía la respuesta generada al usuario, con opciones si están disponibles.
         """
-        next_question_id = current_question.decision.get(user_message.lower())
-        if next_question_id:
-            return Pregunta.objects.get(id=next_question_id)
-        else:
-            next_question = Pregunta.objects.filter(id__gt=current_question.id).order_by('id').first()
-            return next_question
+        await send_message(platform, user_id, response)
 
-    def get_options(self, question):
-        """
-        Retorna las opciones disponibles para una pregunta.
-        """
-        return question.options.split(',') if question.options else []
+        if options:
+            await send_options(platform, user_id, options)
 
-    async def generate_gpt_response(self, message):
+    async def recap_information(self, user):
         """
-        Genera una respuesta utilizando la API de GPT.
+        Función para hacer un recap de la información proporcionada por el usuario y permitirle hacer ajustes.
         """
-        try:
-            response = gpt_message(
-                api_token=self.gpt_api.api_token,
-                text=message,
-                model=self.gpt_api.model,
-            )
-            return response['choices'][0]['message']['content'], []
-        except Exception as e:
-            logger.error(f"Error llamando a GPT: {e}", exc_info=True)
-            return "Lo siento, ocurrió un error al procesar tu solicitud.", []
+        recap_message = (
+            f"Recapitulación de tu información:\n"
+            f"Nombre: {user.name}\n"
+            f"Apellido Paterno: {user.apellido_paterno}\n"
+            f"Apellido Materno: {user.apellido_materno}\n"
+            f"Fecha de Nacimiento: {user.fecha_nacimiento}\n"
+            f"Sexo: {user.sexo}\n"
+            f"Nacionalidad: {user.nationality}\n"
+            f"Permiso de Trabajo: {user.permiso_trabajo}\n"
+            f"CURP: {user.curp}\n"
+            f"Ubicación: {user.ubicacion}\n"
+            f"Experiencia Laboral: {user.work_experience}\n"
+            f"Nivel Salarial Esperado: {user.nivel_salarial}"
+        )
+        return recap_message
 
-    async def send_response(self, platform, user_id, response, options):
+    async def invite_known_person(self, referrer, name, apellido, phone_number):
         """
-        Envía la respuesta al usuario en la plataforma correspondiente.
+        Función para invitar a un conocido por WhatsApp y crear un pre-registro del invitado.
         """
-        if platform == 'telegram':
-            telegram_api = TelegramAPI.objects.first()
-            if telegram_api:
-                await send_telegram_message(
-                    user_id,
-                    response,
-                    telegram_api.api_key
-                )
-            else:
-                logger.error("No se encontró configuración de API de Telegram")
-        elif platform == 'whatsapp':
-            whatsapp_api = WhatsAppAPI.objects.first()
-            if whatsapp_api:
-                await send_whatsapp_message(
-                    user_id,
-                    response,
-                    whatsapp_api.api_token,
-                    whatsapp_api.phoneID,
-                    whatsapp_api.v_api
-                )
-            else:
-                logger.error("No se encontró configuración de API de WhatsApp")
-        elif platform == 'messenger':
-            messenger_api = MessengerAPI.objects.first()
-            if messenger_api:
-                await send_messenger_message(
-                    user_id,
-                    response,
-                    messenger_api.page_access_token
-                )
-            else:
-                logger.error("No se encontró configuración de API de Messenger")
-        else:
-            logger.error(f"Plataforma desconocida: {platform}")
+        invitado, created = await Person.objects.aget_or_create(phone=phone_number, defaults={
+            'name': name,
+            'apellido_paterno': apellido
+        })
+
+        await Invitacion.objects.acreate(referrer=referrer, invitado=invitado)
+
+        if created:
+            mensaje = f"Hola {name}, has sido invitado por {referrer.name} a unirte a Amigro.org. ¡Únete a nuestra comunidad!"
+            await send_message("whatsapp", phone_number, mensaje)
+
+        return invitado

@@ -5,19 +5,30 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def send_telegram_message(user_id, message, bot_token):
+def send_telegram_message(user_id, message, api_key):
     """
-    Envía un mensaje de texto a un usuario de Telegram.
+    Envía un mensaje de Telegram al usuario especificado.
     """
+    url = f"https://api.telegram.org/bot{api_key}/sendMessage"
+    payload = {'chat_id': user_id, 'text': message}
+
     try:
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {
-            'chat_id': user_id,
-            'text': message,
-            'parse_mode': 'Markdown',
-        }
         response = requests.post(url, json=payload)
-        response.raise_for_status()
-        logger.info(f"Mensaje enviado a Telegram user {user_id}")
-    except requests.RequestException as e:
-        logger.error(f"Error enviando mensaje a Telegram: {e}", exc_info=True)
+        if response.status_code != 200:
+            logger.error(f"Error al enviar mensaje de Telegram: {response.text}")
+    except Exception as e:
+        logger.error(f"Error enviando mensaje de Telegram: {e}", exc_info=True)
+
+def telegram_webhook(request):
+    """
+    Webhook para recibir mensajes desde Telegram.
+    """
+    if request.method == 'POST':
+        data = request.json()
+        message = data['message']['text']
+        user_id = data['message']['from']['id']
+        # Lógica para procesar el mensaje de Telegram
+        return JsonResponse({'status': 'received'})
+
+    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+

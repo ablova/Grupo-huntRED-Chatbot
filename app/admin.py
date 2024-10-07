@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods
 from .models import (
     MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
     Person, Pregunta, Worker, Buttons, Etapa, SubPregunta, GptApi,
-    SmtpConfig, Chat, FlowModel
+    SmtpConfig, Chat, FlowModel, ChatState
 )
 
 # Definición personalizada del AdminSite
@@ -25,55 +25,83 @@ class CustomAdminSite(admin.AdminSite):
         context['admin_css'] = 'admin/css/custom_admin.css'  # Estilos personalizados, si tienes alguno.
         return context
 
+# Instancia de CustomAdminSite
 admin_site = CustomAdminSite(name='custom_admin')
 
-admin.site.site_header = "Amigro Admin"
-admin.site.site_title = "Amigro Admin Portal"
-admin.site.index_title = "Bienvenido a Amigro.org parte de Grupo huntRED®"
-
-
-@admin.register(Person)
+# Registrar los modelos con CustomAdminSite
+@admin.register(Person, site=admin_site)
 class PersonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'lastname', 'phone', 'nationality', 'skills', 'ubication', 'email', 'preferred_language')
-    search_fields = ('name', 'lastname', 'phone', 'email', 'nationality')
+    list_display = ('name', 'apellido_paterno', 'apellido_materno', 'phone', 'nationality', 'skills', 'ubication', 'email', 'preferred_language')
+    search_fields = ('name', 'apellido_paterno', 'phone', 'email', 'nationality')
 
-@admin.register(Worker)
+@admin.register(Worker, site=admin_site)
 class WorkerAdmin(admin.ModelAdmin):
     list_display = ('name', 'job_id', 'company', 'job_type', 'salary', 'address', 'experience_required')
     search_fields = ('name', 'company', 'job_type')
 
-@admin.register(Pregunta)
+@admin.register(Pregunta, site=admin_site)
 class PreguntaAdmin(admin.ModelAdmin):
     list_display = ('name', 'etapa', 'option', 'input_type', 'requires_response')
-    search_fields = ('name', 'etapa__name')
+    search_fields = ('name', 'etapa__nombre')  # Asegúrate de que 'nombre' exista en Etapa
 
-@admin.register(SubPregunta)
+@admin.register(SubPregunta, site=admin_site)
 class SubPreguntaAdmin(admin.ModelAdmin):
     list_display = ('name', 'option', 'input_type', 'requires_response')
     search_fields = ('name', 'parent_sub_pregunta__name')
 
-@admin.register(ChatState)
+@admin.register(ChatState, site=admin_site)
 class ChatStateAdmin(admin.ModelAdmin):
     list_display = ('user_id', 'platform', 'current_question', 'last_interaction', 'context')
     search_fields = ('user_id', 'platform')
 
-@admin.register(FlowModel)
+@admin.register(FlowModel, site=admin_site)
 class FlowModelAdmin(admin.ModelAdmin):
     list_display = ('name', 'description')
     search_fields = ('name',)
 
-@admin.register(TelegramAPI)
+@admin.register(TelegramAPI, site=admin_site)
 class TelegramAPIAdmin(admin.ModelAdmin):
     list_display = ('bot_name', 'api_key')
 
-@admin.register(WhatsAppAPI)
+@admin.register(WhatsAppAPI, site=admin_site)
 class WhatsAppAPIAdmin(admin.ModelAdmin):
     list_display = ('phoneID', 'api_token')
 
-@admin.register(MessengerAPI)
+@admin.register(MessengerAPI, site=admin_site)
 class MessengerAPIAdmin(admin.ModelAdmin):
     list_display = ('page_access_token',)
 
-@admin.register(InstagramAPI)
+@admin.register(InstagramAPI, site=admin_site)
 class InstagramAPIAdmin(admin.ModelAdmin):
     list_display = ('app_id', 'access_token', 'instagram_account_id')
+
+@admin.register(MetaAPI, site=admin_site)
+class MetaAPIAdmin(admin.ModelAdmin):
+    list_display = ('app_id', 'app_secret', 'verify_token')
+
+@admin.register(GptApi, site=admin_site)
+class GptApiAdmin(admin.ModelAdmin):
+    list_display = ('api_token', 'model', 'organization')
+    search_fields = ('model', 'organization')
+
+@admin.register(Buttons, site=admin_site)
+class ButtonsAdmin(admin.ModelAdmin):
+    list_display = ('name', 'active')
+    search_fields = ('name',)
+
+@admin.register(Etapa, site=admin_site)
+class EtapaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'descripcion', 'activo')  # Asegúrate de que 'nombre' y 'descripcion' existan en Etapa
+    search_fields = ('nombre', 'descripcion')
+
+@admin.register(SmtpConfig, site=admin_site)
+class SmtpConfigAdmin(admin.ModelAdmin):
+    list_display = ('host', 'port', 'use_tls', 'use_ssl')
+    search_fields = ('host',)
+
+@admin.register(Chat, site=admin_site)
+class ChatAdmin(admin.ModelAdmin):
+    list_display = ('From', 'To', 'ProfileName', 'created_at')  # Ajusta según los campos en Chat
+    search_fields = ('From', 'To')
+
+

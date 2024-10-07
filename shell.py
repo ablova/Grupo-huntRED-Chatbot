@@ -318,3 +318,67 @@ curl -X POST "https://graph.facebook.com/v20.0/{PAGE_ID}/messages" \
       -d "messaging_type=RESPONSE" \
       -d "message={'text':'hello, world'}" \
       -d "access_token={PAGE_ACCESS_TOKEN}"
+
+from app.chatbot import ChatBotHandler
+from app.models import Person, FlowModel
+
+# Crear una instancia del chatbot
+chatbot = ChatBotHandler()
+
+# Supongamos que tienes un flujo cargado
+flow = FlowModel.objects.first()
+user_id = 871198362  # Cambia esto por un ID de usuario real o de prueba
+platform = 'telegram'  # Cambia según la plataforma que estés probando
+message = "Hola, quiero saber sobre la plataforma de Amigro, registrarme"  # Un mensaje de prueba
+
+# Procesar el mensaje
+response, options = await chatbot.process_message(platform, user_id, message)
+
+# Mostrar la respuesta y opciones generadas
+print(response, options)
+
+# Crear una instancia del chatbot
+chatbot = ChatBotHandler()
+
+# ID de usuario para pruebas de WhatsApp
+phone_number = '525518490291'
+platform = 'whatsapp'
+message = "Estoy buscando oportunidades laborales"
+
+# Procesar el mensaje
+response, options = await chatbot.process_message(platform, phone_number, message)
+
+# Mostrar la respuesta y opciones generadas
+print(response, options)
+
+import asyncio
+from app.chatbot import ChatBotHandler
+
+async def run_test():
+    chatbot = ChatBotHandler()
+    platform = 'whatsapp'
+    user_id = '525518490291'
+    message = 'Estoy buscando oportunidades laborales'
+    
+    response, options = await chatbot.process_message(platform, user_id, message)
+    print(response, options)
+
+# Ejecutar la función asíncrona
+asyncio.run(run_test())
+
+
+
+import asyncio
+from app.chatbot import ChatBotHandler
+
+async def run_test():
+    chatbot = ChatBotHandler()
+    platform = 'whatsapp'
+    user_id = '525518490291'
+    message = 'Estoy ingresando a México, quiero registrarme'
+    
+    response, options = await chatbot.process_message(platform, user_id, message)
+    print(response, options)
+
+# Ejecutar la función asíncrona
+asyncio.run(run_test())

@@ -54,6 +54,14 @@ def consult(page, url):
                         "longitude": li.get("data-longitude"),
                         "latitude": li.get("data-latitude"),
                     },
+                    "agenda": {
+                        "slot 1": li.get("job_booking_1"),
+                        "slot 2": li.get("job_booking_2"),
+                        "slot 3": li.get("job_booking_3"),
+                        "slot 4": li.get("job_booking_4"),
+                        "slot 5": li.get("job_booking_5"),
+
+                    } 
                 })
         return vacantes
     except requests.RequestException as e:
@@ -134,3 +142,42 @@ def match_person_with_jobs(person):
 
     top_jobs = sorted(zip(job_list, similarity_scores), key=lambda x: x[1], reverse=True)
     return top_jobs[:5]  # Retorna las 5 mejores coincidencias
+
+def get_available_slots(job):
+    """
+    Extrae los slots de entrevista disponibles de una vacante.
+    """
+    agenda = job.get("agenda", {})
+    available_slots = [slot for slot in agenda.values() if slot]
+    
+    if available_slots:
+        return available_slots
+    else:
+        logger.info(f"No hay slots disponibles para la vacante {job['title']}")
+        return None
+
+def book_interview_slot(job, slot_index, person):
+    """
+    Reserva un slot de entrevista para una persona en una vacante específica.
+    
+    Args:
+        job (dict): Información de la vacante.
+        slot_index (int): Índice del slot seleccionado.
+        person (Person): Instancia de la persona que va a reservar el slot.
+
+    Returns:
+        bool: True si la reserva fue exitosa, False si no.
+    """
+    available_slots = get_available_slots(job)
+
+    if available_slots and 0 <= slot_index < len(available_slots):
+        selected_slot = available_slots[slot_index]
+
+        # Aquí puedes agregar la lógica para registrar el slot en el sistema de gestión de entrevistas
+        # Esto puede implicar enviar una solicitud a un sistema externo o registrar la información localmente.
+
+        logger.info(f"Slot reservado para {person.name} en {selected_slot} para la vacante {job['title']}")
+        return True
+    else:
+        logger.error(f"No se pudo reservar el slot para {person.name}. Slot no disponible o inválido.")
+        return False

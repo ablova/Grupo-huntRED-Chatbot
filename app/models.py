@@ -9,12 +9,10 @@ class ChatState(models.Model):
     platform = models.CharField(max_length=20)  # 'telegram', 'whatsapp', 'messenger'
     current_question = models.ForeignKey('Pregunta', on_delete=models.CASCADE, null=True, blank=True)
     last_interaction = models.DateTimeField(auto_now=True)
-    last_sub_pregunta_id = models.IntegerField(blank=True, null=True)
-    context = models.JSONField(blank=True, null=True, default=dict)  # Para almacenar contexto adicional
+    context = models.JSONField(blank=True, null=True, default=dict)
 
     def __str__(self):
         return f"ChatState {self.user_id} - {self.platform}"
-
 
 class Condicion(models.Model):
     nombre = models.CharField(max_length=100)
@@ -24,7 +22,6 @@ class Condicion(models.Model):
     def __str__(self):
         return f"Condicion: {self.nombre} (espera: {self.valor_esperado})"
 
-
 class Etapa(models.Model):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, null=True)
@@ -33,20 +30,57 @@ class Etapa(models.Model):
     def __str__(self):
         return self.nombre
 
-
 class Pregunta(models.Model):
     INPUT_TYPE_CHOICES = [
         ('text', 'Texto'),
-        ('email', 'Correo Electrónico'),
-        ('date', 'Fecha'),
-        ('phone', 'Teléfono'),
-        ('location', 'Ubicación'),
-        ('number', 'Número'),
-        ('file', 'Carga de Archivo'),
+        ('name', 'Nombre'),
+        ('apellido_paterno', 'Apellido Paterno'),
+        ('apellido_materno', 'Apellido Materno'),
+        ('nationality', 'Nacionalidad'),
+        ('fecha_nacimiento', 'Fecha de Nacimiento'),
+        ('sexo', 'Sexo'),
+        ('email', 'Email'),
+        ('phone', 'Celular'),
+        ('family_traveling', 'Viaja con Familia'),
+        ('policie', 'Politica Migratoria'),
+        ('group_aditionality', 'Viaja en Grupo'),
+        ('passport', 'Pasaporte'),
+        ('additional_official_documentation', 'Documentación Adicional'),
+        ('int_work', 'Intención de Trabajo'),
+        ('menor', 'Menores'),
+        ('refugio', 'Refugio'),
+        ('perm_humanitario', 'Permiso Humanitario'),
+        ('solicita_refugio', 'Solicitud de Refugio'),
+        ('cita', 'Fecha de Cita'),
+        ('piensa_solicitar_refugio', 'Contempla Solicitud de Refugio'),
+        ('industria_work', 'Industria de Trabajo'),
+        ('licencia', 'Licencia para Trabajar'),
+        ('curp', 'CURP'),
+        ('date_permit', 'Fecha del Permiso'),
+        ('ubication', 'Ubicación'),
+        ('work_experience', 'Experiencia Laboral'),
+        ('saludo', 'Saludo'),
+        ('file', 'Archivo / CV'),
+        ('per_trabajo', 'Permiso de Trabajo'),
+        ('preferred_language', 'Idioma Preferido'),
+        ('skills', 'Habilidades'),
+        ('experience_years', 'Años de Experiencia'),
+        ('desired_job_types', 'Tipo de Trabajo Deseado'),
+        ('nivel_salarial', 'Nivel Salarial Deseado'),
     ]
 
-    name = models.CharField(max_length=800)
-    etapa = models.ForeignKey(Etapa, on_delete=models.CASCADE)
+    ACTION_TYPE_CHOICES = [
+        ('none', 'Ninguna acción'),
+        ('mostrar_vacantes', 'Mostrar Vacantes'),
+        ('enviar_whatsapp_plantilla', 'Enviar Plantilla WhatsApp'),
+        ('enviar_imagen', 'Enviar Imagen'),
+        ('enviar_url', 'Enviar URL'),
+        ('recap', 'Hacer Recapitulación'),
+        # Otras acciones personalizadas que necesites
+    ]
+
+    name = models.TextField(max_length=800)
+    etapa = models.ForeignKey('Etapa', on_delete=models.CASCADE, default=1)
     option = models.CharField(max_length=50)
     valid = models.BooleanField(null=True, blank=True)
     active = models.BooleanField(default=True)
@@ -56,6 +90,8 @@ class Pregunta(models.Model):
     condiciones = models.ManyToManyField(Condicion, blank=True)
     input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
     requires_response = models.BooleanField(default=True)
+    field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la pregunta con el campo de Person
+    action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
 
     def __str__(self):
         return str(self.name)
@@ -63,6 +99,8 @@ class Pregunta(models.Model):
 
 class SubPregunta(models.Model):
     INPUT_TYPE_CHOICES = Pregunta.INPUT_TYPE_CHOICES
+    ACTION_TYPE_CHOICES = Pregunta.ACTION_TYPE_CHOICES  # Mismas opciones que Pregunta
+
     name = models.CharField(max_length=800)
     option = models.CharField(max_length=50)
     valid = models.BooleanField(null=True, blank=True)
@@ -72,10 +110,11 @@ class SubPregunta(models.Model):
     decision = models.JSONField(blank=True, null=True, default=dict)
     input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
     requires_response = models.BooleanField(default=True)
+    field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la subpregunta con el campo de Person
+    action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
 
     def __str__(self):
         return str(self.name)
-
 
 class TelegramAPI(models.Model):
     api_key = models.CharField(max_length=255)
@@ -84,7 +123,6 @@ class TelegramAPI(models.Model):
     def __str__(self):
         return self.bot_name or "Telegram Bot"
 
-
 class MetaAPI(models.Model):
     app_id = models.CharField(max_length=255, default='662158495636216')
     app_secret = models.CharField(max_length=255, default='7732534605ab6a7b96c8e8e81ce02e6b')
@@ -92,7 +130,6 @@ class MetaAPI(models.Model):
 
     def __str__(self):
         return f"MetaAPI {self.app_id}"
-
 
 class WhatsAppAPI(models.Model):
     phoneID = models.CharField(max_length=100)
@@ -103,13 +140,11 @@ class WhatsAppAPI(models.Model):
     def __str__(self):
         return f"WhatsApp API {self.phoneID}"
 
-
 class MessengerAPI(models.Model):
     page_access_token = models.CharField(max_length=255)
 
     def __str__(self):
         return "Messenger Configuration"
-
 
 class InstagramAPI(models.Model):
     app_id = models.CharField(max_length=255, default='1615393869401916')
@@ -118,7 +153,6 @@ class InstagramAPI(models.Model):
 
     def __str__(self):
         return f"InstagramAPI {self.app_id}"
-
 
 class GptApi(models.Model):
     api_token = models.CharField(max_length=500)
@@ -131,7 +165,6 @@ class GptApi(models.Model):
     def __str__(self):
         return f"Model: {self.model} | Organization: {self.organization} | Project: {self.project}"
 
-
 class Chat(models.Model):
     body = models.TextField(max_length=1000)
     SmsStatus = models.CharField(max_length=15, null=True, blank=True)
@@ -140,10 +173,12 @@ class Chat(models.Model):
     ProfileName = models.CharField(max_length=50)
     ChannelPrefix = models.CharField(max_length=50)
     MessageSid = models.CharField(max_length=100, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True) #Agregando campo de fecha de creación
+    updated_at = models.DateTimeField(auto_now_add=True) #Agregando campo de fecha de creación
+    message_count = models.IntegerField(default=0)
 
     def __str__(self):
         return str(self.body)
-
 
 class Worker(models.Model):
     name = models.CharField(max_length=100)
@@ -171,13 +206,13 @@ class Worker(models.Model):
     def __str__(self) -> str:
         return str(self.name)
 
-
 class Person(models.Model):
     number_interaction = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=100)
-    lastname = models.CharField(max_length=100, blank=True, null=True)
+    apellido_paterno = models.CharField(max_length=200, blank=True, null=True)
+    apellido_materno = models.CharField(max_length=200, blank=True, null=True)
     nationality = models.CharField(max_length=100, blank=True, null=True)
-    nacimiento = models.DateField(blank=True, null=True)
+    fecha_nacimiento = models.DateField(blank=True, null=True)
     sexo = models.CharField(max_length=20, choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')])
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=40, blank=True, null=True)
@@ -206,10 +241,15 @@ class Person(models.Model):
     skills = models.TextField(blank=True, null=True)
     experience_years = models.IntegerField(blank=True, null=True)
     desired_job_types = models.CharField(max_length=100, blank=True, null=True)
+    nivel_salarial = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.name} {self.lastname}"
 
+class Invitacion(models.Model):
+    referrer = models.ForeignKey(Person, related_name='invitaciones_enviadas', on_delete=models.CASCADE)
+    invitado = models.ForeignKey(Person, related_name='invitaciones_recibidas', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class SmtpConfig(models.Model):
     host = models.CharField(max_length=255)
@@ -222,7 +262,6 @@ class SmtpConfig(models.Model):
     def __str__(self):
         return f"{self.host}:{self.port}"
 
-
 class Buttons(models.Model):
     name = models.CharField(max_length=800)
     active = models.BooleanField()
@@ -232,10 +271,10 @@ class Buttons(models.Model):
     def __str__(self):
         return str(self.name)
 
-
 class FlowModel(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
+    preguntas = models.ManyToManyField(Pregunta, related_name='flowmodels')
     flow_data_json = models.TextField(blank=True, null=True)
 
     def __str__(self):
