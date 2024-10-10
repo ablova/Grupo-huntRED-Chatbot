@@ -4,30 +4,37 @@ import sentry_sdk
 from pathlib import Path
 from django.conf import settings
 from sentry_sdk.integrations.django import DjangoIntegration
+from django.core.exceptions import ImproperlyConfigured
 
 
+# Rutas de proyecto
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# La clave secreta y demás configuraciones dinámicas se establecerán desde `apps.py`.
+# Aquí solo proporcionas un valor por defecto si es necesario.
+SECRET_KEY = 'django-insecure-rxkhgtlsk84*0)-ivntl4&cnt8sp9ahu0aib$709q^crthve&u'  # Valor por defecto
+DEBUG = True  # Valor por defecto para el modo de depuración
+
+# Definir configuraciones iniciales para Sentry (se reemplazan dinámicamente desde la base de datos)
+SENTRY_DSN = None
 sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN"),
+    dsn=SENTRY_DSN,
     integrations=[DjangoIntegration()],
     traces_sample_rate=1.0,
     send_default_pii=True
 )
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-rxkhgtlsk84*0)-ivntl4&cnt8sp9ahu0aib$709q^crthve&u')
-
-DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = [
     "35.209.109.141",
     "chatbot.amigro.org",
-    "www.chat.amigro.org",
+    "*.amigro.org",
     "localhost",
     "127.0.0.1"
 ]
 
 INSTALLED_APPS = [
+    'app.apps.AppConfig',  # Usa el nombre completo con 'apps.AppConfig'
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -35,7 +42,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'app',
     'corsheaders',  # Correcto
 ]
 
@@ -138,12 +144,19 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_RETRY_DELAY = 300  # Reintentar cada 5 minutos
+CELERY_TASK_RETRY_DELAY = 180  # Reintentar cada 3 minutos
 CELERY_TASK_MAX_RETRIES = 5  # Máximo 5 reintentos
+CELERY_TASK_RESULT_EXPIRES = 3600  # Expira en 1 hora
 
 CELERY_WORKER_LOG_FILE = '/home/amigro/logs/worker.log'
 CELERY_WORKER_LOG_LEVEL = 'INFO'
 CELERY_WORKER_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+CELERYD_WORKER_TYPE = 'prefork'
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prefetch una tarea a la vez
+
+CELERY_BROKER_HEARTBEAT = 10
+CELERY_BROKER_CONNECTION_TIMEOUT = 30
 
 
 LOGGING = {
@@ -161,74 +174,75 @@ LOGGING = {
     },
     'handlers': {
         'file': {
-            'level': 'ERROR',
+            'level': 'WARNING',  # Capturar advertencias (WARNING), errores y críticos en general
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/error.log'),
+            'filename': os.path.join(BASE_DIR, 'logs/error.log'),  # Archivo para capturar errores y advertencias generales
             'formatter': 'verbose',
-        },
-        'telegram_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/telegram.log'),
-            'formatter': 'verbose',
-        },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
         },
         'whatsapp_file': {
-            'level': 'DEBUG',
+            'level': 'WARNING',  # Capturar advertencias de WhatsApp
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/whatsapp.log'),
             'formatter': 'verbose',
         },
+        'telegram_file': {
+            'level': 'WARNING',  # Capturar advertencias de Telegram
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/telegram.log'),
+            'formatter': 'verbose',
+        },
         'messenger_file': {
-            'level': 'DEBUG',
+            'level': 'WARNING',  # Capturar advertencias de Messenger
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/messenger.log'),
             'formatter': 'verbose',
         },
         'instagram_file': {
-            'level': 'DEBUG',
+            'level': 'WARNING',  # Capturar advertencias de Instagram
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/instagram.log'),
             'formatter': 'verbose',
         },
+        'console': {
+            'level': 'DEBUG',  # Mostrar todos los eventos en consola (incluyendo depuración)
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
+            'handlers': ['file', 'console'],  # Registrar advertencias y errores de Django en error.log y consola
+            'level': 'WARNING',  # Capturar advertencias, errores y críticos
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'telegram': {
-            'handlers': ['telegram_file', 'console'],
-            'level': 'DEBUG',
+            'handlers': ['file'],  # Registrar advertencias y errores de solicitudes en error.log
+            'level': 'WARNING',  # Capturar advertencias, errores y críticos
             'propagate': False,
         },
         'whatsapp': {
-            'handlers': ['whatsapp_file', 'console'],
-            'level': 'DEBUG',
+            'handlers': ['whatsapp_file', 'console'],  # Log específico para WhatsApp
+            'level': 'WARNING',  # Capturar advertencias y superiores
+            'propagate': False,
+        },
+        'telegram': {
+            'handlers': ['telegram_file', 'console'],  # Log específico para Telegram
+            'level': 'WARNING',
             'propagate': False,
         },
         'messenger': {
-            'handlers': ['messenger_file', 'console'],
-            'level': 'DEBUG',
+            'handlers': ['messenger_file', 'console'],  # Log específico para Messenger
+            'level': 'WARNING',
             'propagate': False,
         },
         'instagram': {
-            'handlers': ['instagram_file', 'console'],
-            'level': 'DEBUG',
+            'handlers': ['instagram_file', 'console'],  # Log específico para Instagram
+            'level': 'WARNING',
             'propagate': False,
         },
     },
 }
+
 
 CACHES = {
     "default": {

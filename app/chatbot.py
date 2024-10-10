@@ -1,3 +1,5 @@
+# /home/amigro/app/chatbot.py
+
 import logging
 from .models import ChatState, Pregunta, Person, FlowModel, Invitacion
 from app.vacantes import match_person_with_jobs, get_available_slots, book_interview_slot, solicitud

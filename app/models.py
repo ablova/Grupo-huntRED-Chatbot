@@ -3,6 +3,13 @@
 from django.db import models
 from datetime import datetime
 
+#para evitar variables de entorno, no las quiero en lo más minimo, evitar tambien creación de archivos si no son explicitamente necesarios
+class Configuracion(models.Model):
+    secret_key = models.CharField(max_length=255)
+    sentry_dsn = models.CharField(max_length=255, blank=True, null=True)
+    debug_mode = models.BooleanField(default=True)
+    # Otras configuraciones importantes
+
 # Estado del Chat
 class ChatState(models.Model):
     user_id = models.CharField(max_length=50)
@@ -279,3 +286,34 @@ class FlowModel(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+#________________________________________________________________________________________________
+#Esto es para la aplicación de Milkyleak, independiente del chatbot de amigro, solo se utiliza el servidor.
+class MilkyLeak(models.Model):
+    # Configuraciones de la API de Twitter
+    twitter_api_key = models.CharField(max_length=255)
+    twitter_api_secret_key = models.CharField(max_length=255)
+    twitter_access_token = models.CharField(max_length=255)
+    twitter_access_token_secret = models.CharField(max_length=255)
+
+    # Configuraciones de Mega.nz
+    mega_email = models.EmailField()
+    mega_password = models.CharField(max_length=255)
+
+    # Configuraciones adicionales
+    folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")
+    image_prefix = models.CharField(max_length=50, default='ML_')
+    local_directory = models.CharField(max_length=255, default='/tmp/', help_text="Directorio local temporal para imágenes")
+
+    # Contador de imágenes
+    image_counter = models.PositiveIntegerField(default=1)
+    # Rango de tiempo aleatorio para publicaciones (en minutos)
+    min_interval = models.PositiveIntegerField(default=10, help_text="Tiempo mínimo de espera entre publicaciones (minutos)")
+    max_interval = models.PositiveIntegerField(default=20, help_text="Tiempo máximo de espera entre publicaciones (minutos)")
+
+
+    def __str__(self):
+        return f"MilkyLeak Config ({self.twitter_api_key})"
+
+    

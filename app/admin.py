@@ -11,7 +11,8 @@ from django.views.decorators.http import require_http_methods
 from .models import (
     MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
     Person, Pregunta, Worker, Buttons, Etapa, SubPregunta, GptApi,
-    SmtpConfig, Chat, FlowModel, ChatState
+    SmtpConfig, Chat, FlowModel, ChatState, Configuracion,
+    MilkyLeak
 )
 
 # Definición personalizada del AdminSite
@@ -29,6 +30,10 @@ class CustomAdminSite(admin.AdminSite):
 admin_site = CustomAdminSite(name='custom_admin')
 
 # Registrar los modelos con CustomAdminSite
+@admin.register(Configuracion, site=admin_site)
+class ConfiguracionAdmin(admin.ModelAdmin):
+    list_display = ('secret_key', 'debug_mode', 'sentry_dsn')
+    
 @admin.register(Person, site=admin_site)
 class PersonAdmin(admin.ModelAdmin):
     list_display = ('name', 'apellido_paterno', 'apellido_materno', 'phone', 'nationality', 'skills', 'ubication', 'email', 'preferred_language')
@@ -104,4 +109,13 @@ class ChatAdmin(admin.ModelAdmin):
     list_display = ('From', 'To', 'ProfileName', 'created_at')  # Ajusta según los campos en Chat
     search_fields = ('From', 'To')
 
-
+#________________________________________________________________________________________________
+#Esto es para la aplicación de Milkyleak, independiente del chatbot de amigro, solo se utiliza el servidor.
+class MilkyLeakAdmin(admin.ModelAdmin):
+    list_display = ('twitter_api_key', 'mega_email', 'folder_location', 'image_counter', 'min_interval', 'max_interval')
+    fields = (
+        'twitter_api_key', 'twitter_api_secret_key', 'twitter_access_token', 'twitter_access_token_secret',
+        'mega_email', 'mega_password', 'folder_location', 'image_prefix', 'local_directory', 
+        'image_counter', 'min_interval', 'max_interval'
+    )
+    readonly_fields = ['image_counter']  # Solo lectura para el contador, ya que se actualiza automáticamente

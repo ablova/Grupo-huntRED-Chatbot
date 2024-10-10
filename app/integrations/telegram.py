@@ -1,34 +1,51 @@
 # /home/amigro/app/integrations/telegram.py
-
-import requests
+import json
 import logging
+import requests
+from celery import shared_task
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from app.models import TelegramAPI
+from app.integrations.services import send_message
+from app.chatbot import ChatBotHandler
+#from app.views import process_message  # Aseguramos que este importe funcione bien
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('telegram')
 
-def send_telegram_message(user_id, message, api_key):
-    """
-    Envía un mensaje de Telegram al usuario especificado.
-    """
-    url = f"https://api.telegram.org/bot{api_key}/sendMessage"
-    payload = {'chat_id': user_id, 'text': message}
-
+@shared_task
+def send_telegram_message(chat_id, text, bot_token):
     try:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+
         response = requests.post(url, json=payload)
-        if response.status_code != 200:
-            logger.error(f"Error al enviar mensaje de Telegram: {response.text}")
-    except Exception as e:
-        logger.error(f"Error enviando mensaje de Telegram: {e}", exc_info=True)
+        response.raise_for_status()
+        logger.info(f"Mensaje enviado a Telegram {chat_id}: {text}")
+    
+    except requests.RequestException as e:
+        logger.error(f"Error enviando mensaje a Telegram: {e}")
 
-def telegram_webhook(request):
-    """
-    Webhook para recibir mensajes desde Telegram.
-    """
+
+@csrf_exempt
+async def telegram_webhook(request):
     if request.method == 'POST':
-        data = request.json()
-        message = data['message']['text']
-        user_id = data['message']['from']['id']
-        # Lógica para procesar el mensaje de Telegram
-        return JsonResponse({'status': 'received'})
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            message = body.get('message', {})
+            chat_id = message['chat']['id']
+            text = message.get('text', '').lower()
 
-    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+            # Proceso el mensaje con el ChatBotHandler
+            chatbot_handler = ChatBotHandler()
+            response_text, options = await chatbot_handler.process_message('telegram', chat_id, text)
 
+            # Enviar la respuesta a Telegram
+            send_message('telegram', chat_id, response_text)
+
+            return JsonResponse({"status": "ok"}, status=200)
+
+        except Exception as e:
+            logger.error(f"Error en telegram_webhook: {e}", exc_info=True)
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+    return JsonResponse({"status": "Método no permitido"}, status=405)

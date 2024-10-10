@@ -10,11 +10,12 @@ from django.template.response import TemplateResponse
 from django.conf import settings
 from .nlp_utils import analyze_text
 from .gpt import gpt_message
-from app.integrations.services import send_message as smg   
+from app.integrations.services import send_message
 from .models import GptApi, SmtpConfig, Pregunta, FlowModel, ChatState, Condicion, Etapa, Person
 import spacy
 
-logging.basicConfig(filename="logger.log", level=logging.ERROR)
+
+logger = logging.getLogger(__name__)
 
 # Configuración de spaCy
 nlp = spacy.load("es_core_news_sm")
@@ -125,9 +126,44 @@ def load_flow_questions_data(request, flowmodel_id):
 
     return JsonResponse(flow_structure)
 
+# Nueva función para procesar mensajes sin necesidad de request
+def process_message(platform, sender_id, message, use_gpt):
+    """
+    Procesa un mensaje entrante y responde a través de la plataforma correspondiente.
+    Args:
+        platform (str): La plataforma (whatsapp, telegram, etc.)
+        sender_id (str): El ID del remitente del mensaje.
+        message (str): El mensaje de texto recibido.
+        use_gpt (str): Indicador para usar GPT o no ('yes' o 'no').
+    """
+    try:
+        # Analizar el mensaje usando la función NLP
+        analysis = analyze_text(message)
+
+        # Respuesta inicial con SpaCy
+        response = process_spacy_analysis(analysis, message)
+
+        # Si no hay respuesta y está activado el uso de GPT, llamar a GPT
+        if not response and use_gpt == 'yes':
+            gpt_api = GptApi.objects.first()
+            gpt_response = gpt_message(api_token=gpt_api.api_token, text=message, model=gpt_api.model)
+            response = gpt_response['choices'][0]['message']['content']
+
+        # Enviar la respuesta usando la plataforma
+        send_message(platform, sender_id, response)
+
+        return JsonResponse({'status': 'success', 'response': response})
+
+    except Exception as e:
+        logger.error(f"Error procesando el mensaje: {e}")
+        return JsonResponse({'status': 'error'}, status=500)
+
 # Función para recibir mensajes del chatbot
 @csrf_exempt
 def recv_message(request):
+    """
+    Recibe un mensaje desde cualquier plataforma y lo procesa.
+    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body.decode('utf-8'))
@@ -135,31 +171,28 @@ def recv_message(request):
             platform = data.get('platform')
             use_gpt = data.get('use_gpt')
 
+            # Analizar el texto
             analysis = analyze_text(message)
+
+            # Procesar la respuesta con spaCy
             response = process_spacy_analysis(analysis, message)
 
+            # Si no hay respuesta con spaCy y GPT está habilitado, usar GPT
             if not response and use_gpt == 'yes':
-                try:
-                    gpt_api = GptApi.objects.first()
-                    gpt_response = gpt_message(api_token=gpt_api.api_token, text=message, model=gpt_api.model)
-                    response = gpt_response['choices'][0]['message']['content']
-                except Exception as e:
-                    logging.error(f"Error llamando a GPT: {e}")
-                    response = "Lo siento, ocurrió un error al procesar tu solicitud."
+                gpt_api = GptApi.objects.first()
+                gpt_response = gpt_message(api_token=gpt_api.api_token, text=message, model=gpt_api.model)
+                response = gpt_response['choices'][0]['message']['content']
 
-            if platform == 'telegram':
-                send_telegram_message(data['username'], response)
-            elif platform == 'whatsapp':
-                send_whatsapp_message(data['username'], response)
-            elif platform == 'messenger':
-                send_messenger_message(data['username'], response)
+            # Enviar la respuesta a la plataforma correspondiente
+            send_message(platform, data['username'], response)
 
             return JsonResponse({'status': 'success', 'response': response})
+
         except json.JSONDecodeError:
             logger.error("Error decodificando JSON")
             return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
         except Exception as e:
-            logger.error(f"Error inesperado: {e}")
+            logger.error(f"Error procesando mensaje: {e}")
             return JsonResponse({'status': 'error', 'message': 'Error interno del servidor'}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
@@ -174,14 +207,40 @@ def send_test_message(request):
             message = data.get('message')
 
             if platform == 'whatsapp':
-                # Lógica para WhatsApp
-                pass
+                # Llamada a tu función de WhatsApp
+                from app.integrations.whatsapp import send_whatsapp_message
+                whatsapp_api = WhatsAppAPI.objects.first()  # Obtener la API desde la base de datos
+                if whatsapp_api:
+                    send_whatsapp_message('525518490291', message, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api)
+                else:
+                    raise Exception("Configuración de WhatsApp no encontrada")
+
             elif platform == 'telegram':
-                # Lógica para Telegram
-                pass
+                # Llamada a tu función de Telegram
+                from app.integrations.telegram import send_telegram_message
+                telegram_api = TelegramAPI.objects.first()
+                if telegram_api:
+                    send_telegram_message('871198362', message, telegram_api.api_key)
+                else:
+                    raise Exception("Configuración de Telegram no encontrada")
+
             elif platform == 'messenger':
-                # Lógica para Messenger
-                pass
+                # Llamada a tu función de Messenger
+                from app.integrations.messenger import send_messenger_message
+                messenger_api = MessengerAPI.objects.first()
+                if messenger_api:
+                    send_messenger_message('123456789', message, messenger_api.page_access_token)
+                else:
+                    raise Exception("Configuración de Messenger no encontrada")
+
+            elif platform == 'instagram':
+                # Llamada a tu función de Instagram
+                from app.integrations.instagram import send_instagram_message
+                instagram_api = InstagramAPI.objects.first()
+                if instagram_api:
+                    send_instagram_message('instagram_id', message, instagram_api.access_token)
+                else:
+                    raise Exception("Configuración de Instagram no encontrada")
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
@@ -189,36 +248,3 @@ def send_test_message(request):
     else:
         return JsonResponse({'error': 'Método no permitido'}, status=405)
 
-# Función para enviar mensajes
-@csrf_exempt
-def send_message(request):
-    """
-    Envía un mensaje a través de una plataforma específica.
-    """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            message = data.get('message')
-            platform = data.get('platform')
-
-            # Lógica de envío de mensajes basada en la plataforma
-            if platform == 'whatsapp':
-                # Envía un mensaje por WhatsApp (lógica necesaria)
-                response = f"Mensaje enviado a WhatsApp: {message}"
-            elif platform == 'telegram':
-                # Envía un mensaje por Telegram (lógica necesaria)
-                response = f"Mensaje enviado a Telegram: {message}"
-            elif platform == 'messenger':
-                # Envía un mensaje por Messenger (lógica necesaria)
-                response = f"Mensaje enviado a Messenger: {message}"
-            elif platform == 'instagram':
-                # Envía un mensaje por Instagram (lógica necesaria)
-                response = f"Mensaje enviado a Instagram: {message}"
-            else:
-                return JsonResponse({'error': 'Plataforma no soportada.'}, status=400)
-
-            return JsonResponse({'status': 'success', 'response': response})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)

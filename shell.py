@@ -67,14 +67,23 @@ user_id = 871198362  # PLLH Telegram
 phone_number = '525518490291'  #PLLH WA
 PSID = '25166616082937314' # huntRED Messenger
 
+print(f"BOT Token: {bot_token}")
+print(f"Telegram API: {telegram_api}")
+
+
 send_logo('whatsapp', phone_number)
 send_logo('telegram', user_id)
 send_logo('messenger', sender_id)
 # Inicia el shell de Django
 python manage.py shell
 
+curl -X POST "https://api.telegram.org/bot5875713338:AAEl4RDu95KuB-oz4JqxMKLRnWr6j8bHky0/sendMessage" \
+-H "Content-Type: application/json" \
+-d '{"chat_id": "871198362", "text": "Mensaje desde curl directo"}'
+
+
 # Importa las funciones y modelos
-from app.integrations.services import send_logo
+from app.integrations.services import send_menu
 from app.models import WhatsAppAPI, TelegramAPI, MessengerAPI
 
 # Verifica las configuraciones de las APIs
@@ -86,11 +95,11 @@ user_id = 871198362
 PSID = '25166616082937314' # huntRED 
 
 # Envía el logo por WhatsApp
-send_logo('whatsapp', phone_number)  # Reemplaza con tu número
+send_menu('whatsapp', phone_number)  # Reemplaza con tu número
 # Envía el logo por Telegram
-send_logo('telegram', user_id)  # Reemplaza con tu chat ID
+send_menu('telegram', user_id)  # Reemplaza con tu chat ID
 # Envía el logo por Messenger
-send_logo('messenger', PSID)  # Reemplaza con tu PSID
+send_menu('messenger', PSID)  # Reemplaza con tu PSID
 
 
 

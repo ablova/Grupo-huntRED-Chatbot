@@ -1,495 +1,559 @@
-<!-- /home/amigro/app/templates/index.html -->
-<!DOCTYPE html>
-<html lang="es">
+    <!-- /home/amigro/app/templates/index.html -->
+    <!DOCTYPE html>
+    <html lang="es">
 
-<head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-        integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-    <!-- Font Awesome para iconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <title>Prueba de envíos para el Chatbot de Amigro</title>
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
+    <head>
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+            integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <!-- Font Awesome para iconos -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+        <title>Prueba de envíos para el Chatbot de Amigro por PLLH</title>
+        <style>
+            body {
+                background-color: #f8f9fa;
+            }
 
-        .container {
-            margin-top: 50px;
-            margin-bottom: 50px;
-        }
+            .container {
+                margin-top: 50px;
+                margin-bottom: 50px;
+            }
 
-        .form-section {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
+            .form-section {
+                background-color: #ffffff;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            }
 
-        .form-section h2 {
-            margin-bottom: 20px;
-        }
+            .form-section h2 {
+                margin-bottom: 20px;
+            }
 
-        .preloaded-vars {
-            margin-top: 15px;
-        }
+            .preloaded-vars {
+                margin-top: 15px;
+            }
 
-        .preloaded-vars input {
-            margin-bottom: 10px;
-        }
+            .preloaded-vars input {
+                margin-bottom: 10px;
+            }
 
-        .send-button {
-            margin-top: 20px;
-        }
+            .send-button {
+                margin-top: 20px;
+            }
 
-        .chat-textarea {
-            height: 300px;
-            resize: none;
-        }
+            .chat-textarea {
+                height: 300px;
+                resize: none;
+            }
 
-        .loading-spinner {
-            display: none;
-            text-align: center;
-            margin-top: 10px;
-        }
+            .loading-spinner {
+                display: none;
+                text-align: center;
+                margin-top: 10px;
+            }
 
-        .alert {
-            display: none;
-            margin-top: 20px;
-        }
-    </style>
-</head>
+            .alert {
+                display: none;
+                margin-top: 20px;
+            }
+        </style>
+    </head>
 
-<body>
-    <div class="container">
-        <!-- Sección de Pruebas -->
-        <div class="form-section">
-            <h2>Ejecutor de Pruebas del Chatbot de Amigro</h2>
-            <form id="test-form">
-                <!-- Selección de Funciones -->
-                <div class="form-group">
-                    <label for="functions"><strong>Selecciona Funciones:</strong></label>
-                    <select multiple class="form-control" id="functions" required>
-                        <option value="send_message">Enviar Mensaje</option>
-                        <option value="send_link">Enviar Link</option>
-                        <option value="execute_action">Ejecutar Acción</option>
-                        <option value="send_image">Enviar Imagen</option>
-                        <!-- Agrega más funciones según sea necesario -->
-                    </select>
-                    <small class="form-text text-muted">Mantén presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar múltiples opciones.</small>
-                </div>
-
-                <!-- Selección de Plataforma -->
-                <div class="form-group">
-                    <label for="platform"><strong>Selecciona Plataforma:</strong></label>
-                    <select class="form-control" id="platform" required>
-                        <option value="">-- Selecciona una Plataforma --</option>
-                        <option value="telegram">Telegram</option>
-                        <option value="whatsapp">WhatsApp</option>
-                        <option value="messenger">Messenger</option>
-                        <option value="instagram">Instagram</option>
-                    </select>
-                </div>
-
-                <!-- Variables Pre-Cargadas -->
-                <div class="preloaded-vars" id="preloadedVars">
-                    <!-- Las variables se agregarán aquí dinámicamente -->
-                </div>
-
-                <!-- Definición del Mensaje o Acción -->
-                <div class="form-group">
-                    <label for="action"><strong>Define el Mensaje/Acción:</strong></label>
-                    <textarea class="form-control chat-textarea" id="action" placeholder="Escribe el mensaje, link o acción a ejecutar aquí..." required></textarea>
-                </div>
-
-                <!-- Botón de Envío -->
-                <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Enviar Prueba</button>
-
-                <!-- Spinner de Carga -->
-                <div class="loading-spinner" id="loadingSpinner">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="sr-only">Enviando...</span>
-                    </div>
-                </div>
-
-                <!-- Alertas -->
-                <div class="alert alert-success" role="alert" id="successAlert">
-                    Prueba enviada exitosamente.
-                </div>
-                <div class="alert alert-danger" role="alert" id="errorAlert">
-                    Ocurrió un error al enviar la prueba.
-                </div>
-            </form>
-        </div>
-
-        <!-- Sección de Chatbot (opcional) -->
-        <div class="row d-flex justify-content-center mt-5">
-            <div class="col-12 text-center">
-                <h1 class="h3">Prueba de envíos para el Chatbot de Amigro</h1>
-                <p>Solo es para uso del Administrador - Pablo Lelo de Larrea H.</p>
-            </div>
-        </div>
-
-        <div class="row d-flex justify-content-center mt-4">
-            <div class="col-6">
-                <form id="chat-form">
+    <body>
+        <div class="container">
+            <!-- Sección de Pruebas -->
+            <div class="form-section">
+                <h2>Ejecutor de Pruebas del Chatbot de Amigro por PLLH</h2>
+                <form id="test-form" method="POST">
+                    {% csrf_token %}
+                    <!-- Selección de Funciones -->
                     <div class="form-group">
-                        <label for="exampleFormControlTextarea1" class="h4">Chatbot</label>
-                        <textarea class="form-control chat-textarea" id="chat-text" readonly rows="10"></textarea><br>
+                        <label for="functions"><strong>Selecciona Funciones:</strong></label>
+                        <select multiple class="form-control" id="functions" required>
+                            <option value="send_message">Enviar Mensaje</option>
+                            <option value="send_link">Enviar Link</option>
+                            <option value="execute_action">Ejecutar Acción</option>
+                            <option value="send_image">Enviar Imagen</option>
+                            <!-- Agrega más funciones según sea necesario -->
+                        </select>
+                        <small class="form-text text-muted">Mantén presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar múltiples opciones.</small>
                     </div>
+
+                    <!-- Selección de Plataforma -->
                     <div class="form-group">
-                        <input class="form-control" placeholder="Enter text here" id="input" type="text" required></br>
-                    </div>
-                    <div class="form-group">
-                        <label for="platform">Selecciona Plataforma</label>
+                        <label for="platform"><strong>Selecciona Plataforma:</strong></label>
                         <select class="form-control" id="platform" required>
+                            <option value="">-- Selecciona una Plataforma --</option>
                             <option value="telegram">Telegram</option>
                             <option value="whatsapp">WhatsApp</option>
                             <option value="messenger">Messenger</option>
                             <option value="instagram">Instagram</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="use-gpt">¿Usar GPT?</label>
-                        <select class="form-control" id="use-gpt" required>
-                            <option value="true">Sí</option>
-                            <option value="false">No</option>
-                        </select>
+
+                    <!-- Variables Pre-Cargadas -->
+                    <div class="preloaded-vars" id="preloadedVars">
+                        <!-- Las variables se agregarán aquí dinámicamente -->
                     </div>
-                    <input class="btn btn-primary btn-lg btn-block" id="submit" type="button" value="Send">
+
+                    <!-- Definición del Mensaje o Acción -->
+                    <div class="form-group">
+                        <label for="action"><strong>Define el Mensaje/Acción:</strong></label>
+                        <textarea class="form-control chat-textarea" id="action" placeholder="Escribe el mensaje, link o acción a ejecutar aquí..." required></textarea>
+                    </div>
+
+                    <!-- Botón de Envío -->
+                    <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Enviar Prueba</button>
+
+                    <!-- Spinner de Carga -->
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Enviando...</span>
+                        </div>
+                    </div>
+
+                    <!-- Alertas -->
+                    <div class="alert alert-success" role="alert" id="successAlert">
+                        Prueba enviada exitosamente.
+                    </div>
+                    <div class="alert alert-danger" role="alert" id="errorAlert">
+                        Ocurrió un error al enviar la prueba.
+                    </div>
                 </form>
             </div>
+
+            <!-- Sección de Chatbot (opcional) -->
+            <div class="row d-flex justify-content-center mt-5">
+                <div class="col-12 text-center">
+                    <h1 class="h3">Prueba de envíos para el Chatbot de Amigro</h1>
+                    <p>Solo es para uso del Administrador - Pablo Lelo de Larrea H.</p>
+                </div>
+            </div>
+
+            <div class="row d-flex justify-content-center mt-4">
+                <div class="col-6">
+                    <form id="chat-form">
+                        <div class="form-group">
+                            <label for="exampleFormControlTextarea1" class="h4">Chatbot</label>
+                            <textarea class="form-control chat-textarea" id="chat-text" readonly rows="10"></textarea><br>
+                        </div>
+                        <div class="form-group">
+                            <input class="form-control" placeholder="Enter text here" id="input" type="text" required></br>
+                        </div>
+                        <div class="form-group">
+                            <label for="platform">Selecciona Plataforma</label>
+                            <select class="form-control" id="platform" required>
+                                <option value="telegram">Telegram</option>
+                                <option value="whatsapp">WhatsApp</option>
+                                <option value="messenger">Messenger</option>
+                                <option value="instagram">Instagram</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="use-gpt">¿Usar GPT?</label>
+                            <select class="form-control" id="use-gpt" required>
+                                <option value="true">Sí</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <input class="btn btn-primary btn-lg btn-block" id="submit" type="button" value="Send">
+                    </form>
+                </div>
+            </div>
+<!--  PARA MILKYLEAK  -->
+            <div class="container">
+                <!-- Formulario de post -->
+                <div class="form-section">
+                    <h2>Ejecutor de Post de MilkyLeak</h2>
+                    <form method="POST" id="post-form">
+                        {% csrf_token %}
+            
+                        <!-- Mostrar información del modelo MilkyLeak -->
+                        <div class="form-group">
+                            <label><strong>Prefijo de Imagen:</strong></label>
+                            <input type="text" class="form-control" value="{{ milky_leak.image_prefix }}" readonly>
+                        </div>
+            
+                        <div class="form-group">
+                            <label><strong>Directorio de Imágenes:</strong></label>
+                            <input type="text" class="form-control" value="{{ milky_leak.folder_location }}" readonly>
+                        </div>
+            
+                        <!-- Ingresar el texto del post -->
+                        <div class="form-group">
+                            <label for="post_text"><strong>Texto a incluir en el post:</strong></label>
+                            <textarea class="form-control" id="post_text" name="post_text" rows="4" placeholder="Escribe aquí el texto para el post..." required></textarea>
+                        </div>
+            
+                        <!-- Botón de Enviar -->
+                        <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Publicar Post</button>
+            
+                        <!-- Mensaje de éxito -->
+                        {% if success %}
+                        <div class="alert alert-success" role="alert" id="successAlert">
+                            {{ message }}
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+            
+                <!-- Sección para mostrar los top followers -->
+                <div class="form-section">
+                    <h2>Top 25 Followers</h2>
+                    <ul>
+                        {% for follower in top_followers %}
+                        <li>
+                            <strong>@{{ follower.screen_name }}</strong> - {{ follower.name }} ({{ follower.followers_count }} seguidores)
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            
+                <!-- Sección para mostrar las top 25 cuentas que sigo con más seguidores -->
+                <div class="form-section">
+                    <h2>Top 25 Cuentas Seguidas</h2>
+                    <ul>
+                        {% for following in top_following %}
+                        <li>
+                            <strong>@{{ following.screen_name }}</strong> - {{ following.name }} ({{ following.followers_count }} seguidores)
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            
         </div>
-    </div>
 
-    <!-- Bootstrap JS, Popper.js, and jQuery -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
-        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous">
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
-        integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous">
-    </script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
-        integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous">
-    </script>
+        <!-- Bootstrap JS, Popper.js, and jQuery -->
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous">
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+            integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous">
+        </script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+            integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous">
+        </script>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Variables para la sección de pruebas
-            const testForm = document.getElementById('test-form');
-            const preloadedVarsContainer = document.getElementById('preloadedVars');
-            const platformSelectTest = document.getElementById('platform');
-            const functionsSelect = document.getElementById('functions');
-            const actionInput = document.getElementById('action');
-            const loadingSpinner = document.getElementById('loadingSpinner');
-            const successAlert = document.getElementById('successAlert');
-            const errorAlert = document.getElementById('errorAlert');
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                // Variables para la sección de pruebas
+                const testForm = document.getElementById('test-form');
+                const preloadedVarsContainer = document.getElementById('preloadedVars');
+                const platformSelectTest = document.getElementById('platform');
+                const functionsSelect = document.getElementById('functions');
+                const actionInput = document.getElementById('action');
+                const loadingSpinner = document.getElementById('loadingSpinner');
+                const successAlert = document.getElementById('successAlert');
+                const errorAlert = document.getElementById('errorAlert');
 
-            // Funciones disponibles con sus campos
-            const availableFunctions = {
-                'send_message': {
-                    name: 'Enviar Mensaje',
-                    fields: [
-                        { label: 'Número de WhatsApp', id: 'whatsapp_number', type: 'text', placeholder: 'Ej. +1234567890' },
-                        { label: 'ID de Telegram', id: 'telegram_id', type: 'text', placeholder: 'Ej. @usuario' },
-                        { label: 'ID de Messenger', id: 'messenger_id', type: 'text', placeholder: 'Ej. 123456789' },
-                        { label: 'ID de Instagram', id: 'instagram_id', type: 'text', placeholder: 'Ej. usuario_instagram' }
-                    ]
-                },
-                'send_link': {
-                    name: 'Enviar Link',
-                    fields: [
-                        { label: 'Link a Enviar', id: 'link', type: 'url', placeholder: 'Ej. https://ejemplo.com' }
-                    ]
-                },
-                'execute_action': {
-                    name: 'Ejecutar Acción',
-                    fields: [
-                        { label: 'Nombre de la Acción', id: 'action_name', type: 'text', placeholder: 'Ej. CrearUsuario' },
-                        { label: 'Parámetros de la Acción', id: 'action_params', type: 'text', placeholder: 'Ej. {"nombre":"Juan","edad":30}' }
-                    ]
-                },
-                'send_image': {
-                    name: 'Enviar Imagen',
-                    fields: [
-                        { label: 'URL de la Imagen', id: 'image_url', type: 'url', placeholder: 'Ej. https://ejemplo.com/imagen.jpg' }
-                    ]
-                }
-                // Agrega más funciones según sea necesario
-            };
-
-            // Actualizar variables pre-cargadas según las funciones y plataforma seleccionadas
-            function updatePreloadedVars() {
-                const selectedFunctions = Array.from(functionsSelect.selectedOptions).map(option => option.value);
-                const selectedPlatform = platformSelectTest.value;
-
-                // Limpiar contenedor
-                preloadedVarsContainer.innerHTML = '';
-
-                // Iterar sobre las funciones seleccionadas y agregar campos necesarios
-                selectedFunctions.forEach(func => {
-                    if (availableFunctions[func]) {
-                        availableFunctions[func].fields.forEach(field => {
-                            // Mostrar campos relevantes para la plataforma seleccionada o campos generales
-                            if (field.id.includes(selectedPlatform) || ['link', 'action_name', 'action_params', 'image_url'].includes(field.id)) {
-                                const formGroup = document.createElement('div');
-                                formGroup.classList.add('form-group');
-
-                                const label = document.createElement('label');
-                                label.setAttribute('for', field.id);
-                                label.innerHTML = field.label;
-
-                                const input = document.createElement('input');
-                                input.classList.add('form-control');
-                                input.setAttribute('type', field.type);
-                                input.setAttribute('id', field.id);
-                                input.setAttribute('placeholder', field.placeholder);
-                                input.required = true;
-
-                                formGroup.appendChild(label);
-                                formGroup.appendChild(input);
-                                preloadedVarsContainer.appendChild(formGroup);
-                            }
-                        });
+                // Funciones disponibles con sus campos
+                const availableFunctions = {
+                    'send_message': {
+                        name: 'Enviar Mensaje',
+                        fields: [
+                            { label: 'Número de WhatsApp', id: 'whatsapp_number', type: 'text', placeholder: 'Ej. +1234567890' },
+                            { label: 'ID de Telegram', id: 'telegram_id', type: 'text', placeholder: 'Ej. @usuario' },
+                            { label: 'ID de Messenger', id: 'messenger_id', type: 'text', placeholder: 'Ej. 123456789' },
+                            { label: 'ID de Instagram', id: 'instagram_id', type: 'text', placeholder: 'Ej. usuario_instagram' }
+                        ]
+                    },
+                    'send_link': {
+                        name: 'Enviar Link',
+                        fields: [
+                            { label: 'Link a Enviar', id: 'link', type: 'url', placeholder: 'Ej. https://ejemplo.com' }
+                        ]
+                    },
+                    'execute_action': {
+                        name: 'Ejecutar Acción',
+                        fields: [
+                            { label: 'Nombre de la Acción', id: 'action_name', type: 'text', placeholder: 'Ej. CrearUsuario' },
+                            { label: 'Parámetros de la Acción', id: 'action_params', type: 'text', placeholder: 'Ej. {"nombre":"Juan","edad":30}' }
+                        ]
+                    },
+                    'send_image': {
+                        name: 'Enviar Imagen',
+                        fields: [
+                            { label: 'URL de la Imagen', id: 'image_url', type: 'url', placeholder: 'Ej. https://ejemplo.com/imagen.jpg' }
+                        ]
                     }
-                });
-            }
+                    // Agrega más funciones según sea necesario
+                };
 
-            // Escuchar cambios en la selección de funciones
-            functionsSelect.addEventListener('change', updatePreloadedVars);
+                // Actualizar variables pre-cargadas según las funciones y plataforma seleccionadas
+                function updatePreloadedVars() {
+                    const selectedFunctions = Array.from(functionsSelect.selectedOptions).map(option => option.value);
+                    const selectedPlatform = platformSelectTest.value;
 
-            // Escuchar cambios en la selección de plataforma
-            platformSelectTest.addEventListener('change', updatePreloadedVars);
+                    // Limpiar contenedor
+                    preloadedVarsContainer.innerHTML = '';
 
-            // Manejar el envío del formulario de pruebas
-            testForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
+                    // Iterar sobre las funciones seleccionadas y agregar campos necesarios
+                    selectedFunctions.forEach(func => {
+                        if (availableFunctions[func]) {
+                            availableFunctions[func].fields.forEach(field => {
+                                // Mostrar campos relevantes para la plataforma seleccionada o campos generales
+                                if (field.id.includes(selectedPlatform) || ['link', 'action_name', 'action_params', 'image_url'].includes(field.id)) {
+                                    const formGroup = document.createElement('div');
+                                    formGroup.classList.add('form-group');
 
-                // Obtener funciones seleccionadas
-                const selectedFunctions = Array.from(functionsSelect.selectedOptions).map(option => option.value);
-                if (selectedFunctions.length === 0) {
-                    alert('Por favor selecciona al menos una función.');
-                    return;
+                                    const label = document.createElement('label');
+                                    label.setAttribute('for', field.id);
+                                    label.innerHTML = field.label;
+
+                                    const input = document.createElement('input');
+                                    input.classList.add('form-control');
+                                    input.setAttribute('type', field.type);
+                                    input.setAttribute('id', field.id);
+                                    input.setAttribute('placeholder', field.placeholder);
+                                    input.required = true;
+
+                                    formGroup.appendChild(label);
+                                    formGroup.appendChild(input);
+                                    preloadedVarsContainer.appendChild(formGroup);
+                                }
+                            });
+                        }
+                    });
                 }
 
-                // Obtener plataforma seleccionada
-                const platform = platformSelectTest.value;
-                if (!platform) {
-                    alert('Por favor selecciona una plataforma.');
-                    return;
-                }
+                // Escuchar cambios en la selección de funciones
+                functionsSelect.addEventListener('change', updatePreloadedVars);
 
-                // Obtener valores de las variables pre-cargadas
-                const formData = {};
-                selectedFunctions.forEach(func => {
-                    if (availableFunctions[func]) {
-                        availableFunctions[func].fields.forEach(field => {
-                            if (field.id.includes(platform) || ['link', 'action_name', 'action_params', 'image_url'].includes(field.id)) {
-                                const value = document.getElementById(field.id).value.trim();
-                                formData[field.id] = value;
-                            }
-                        });
+                // Escuchar cambios en la selección de plataforma
+                platformSelectTest.addEventListener('change', updatePreloadedVars);
+
+                // Manejar el envío del formulario de pruebas
+                testForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+
+                    // Obtener funciones seleccionadas
+                    const selectedFunctions = Array.from(functionsSelect.selectedOptions).map(option => option.value);
+                    if (selectedFunctions.length === 0) {
+                        alert('Por favor selecciona al menos una función.');
+                        return;
                     }
-                });
 
-                // Obtener el mensaje o acción a ejecutar
-                const action = actionInput.value.trim();
-                if (!action) {
-                    alert('Por favor define el mensaje, link o acción a ejecutar.');
-                    return;
-                }
+                    // Obtener plataforma seleccionada
+                    const platform = platformSelectTest.value;
+                    if (!platform) {
+                        alert('Por favor selecciona una plataforma.');
+                        return;
+                    }
 
-                // Mostrar spinner de carga
-                loadingSpinner.style.display = 'block';
-                successAlert.style.display = 'none';
-                errorAlert.style.display = 'none';
-
-                try {
-                    // Enviar datos al backend
-                    const response = await fetch('/send-test-message/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: JSON.stringify({
-                            'functions': selectedFunctions,
-                            'platform': platform,
-                            'variables': formData,
-                            'action': action
-                        })
+                    // Obtener valores de las variables pre-cargadas
+                    const formData = {};
+                    selectedFunctions.forEach(func => {
+                        if (availableFunctions[func]) {
+                            availableFunctions[func].fields.forEach(field => {
+                                if (field.id.includes(platform) || ['link', 'action_name', 'action_params', 'image_url'].includes(field.id)) {
+                                    const value = document.getElementById(field.id).value.trim();
+                                    formData[field.id] = value;
+                                }
+                            });
+                        }
                     });
 
-                    const data = await response.json();
-
-                    if (response.ok) {
-                        successAlert.style.display = 'block';
-                        testForm.reset();
-                        preloadedVarsContainer.innerHTML = '';
-                    } else {
-                        throw new Error(data.error || 'Error desconocido');
+                    // Obtener el mensaje o acción a ejecutar
+                    const action = actionInput.value.trim();
+                    if (!action) {
+                        alert('Por favor define el mensaje, link o acción a ejecutar.');
+                        return;
                     }
-                } catch (error) {
-                    console.error('Error:', error);
-                    errorAlert.textContent = `Error: ${error.message}`;
-                    errorAlert.style.display = 'block';
-                } finally {
-                    // Ocultar spinner de carga
-                    loadingSpinner.style.display = 'none';
-                }
-            });
 
-            // Inicializar variables pre-cargadas al cargar la página
-            updatePreloadedVars();
+                    // Mostrar spinner de carga
+                    loadingSpinner.style.display = 'block';
+                    successAlert.style.display = 'none';
+                    errorAlert.style.display = 'none';
 
-            // Variables para la sección de chat (opcional)
-            const chatForm = document.getElementById('chat-form');
-            const chatMessages = document.getElementById('chatMessages');
-            const messageInput = document.getElementById('input');
-            const platformSelectChat = document.getElementById('platform');
-            const useGptSelect = document.getElementById('use-gpt');
-            const loadingSpinnerChat = document.getElementById('loadingSpinner');
-            const platformIcon = document.getElementById('platformIcon');
+                    try {
+                        // Enviar datos al backend
+                        const response = await fetch('/send-test-message/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({
+                                'functions': selectedFunctions,
+                                'platform': platform,
+                                'variables': formData,
+                                'action': action
+                            })
+                        });
 
-            // Actualizar icono según la plataforma seleccionada
-            function updatePlatformIconChat() {
-                const platform = platformSelectChat.value;
-                platformIcon.className = ''; // Limpiar clases anteriores
-                switch (platform) {
-                    case 'telegram':
-                        platformIcon.classList.add('fab', 'fa-telegram-plane');
-                        platformIcon.style.color = '#0088cc';
-                        break;
-                    case 'whatsapp':
-                        platformIcon.classList.add('fab', 'fa-whatsapp');
-                        platformIcon.style.color = '#25D366';
-                        break;
-                    case 'messenger':
-                        platformIcon.classList.add('fab', 'fa-facebook-messenger');
-                        platformIcon.style.color = '#0084ff';
-                        break;
-                    case 'instagram':
-                        platformIcon.classList.add('fab', 'fa-instagram');
-                        platformIcon.style.color = '#C13584';
-                        break;
-                    default:
-                        platformIcon.classList.add('fas', 'fa-robot');
-                        platformIcon.style.color = '#ffffff';
-                }
-            }
+                        const data = await response.json();
 
-            // Inicializar icono al cargar la página
-            updatePlatformIconChat();
-
-            // Cambiar icono cuando se cambia la plataforma
-            platformSelectChat.addEventListener('change', updatePlatformIconChat);
-
-            // Función para agregar un mensaje al chat
-            function addMessage(content, sender = 'bot') {
-                const messageElement = document.createElement('div');
-                messageElement.classList.add('message', sender);
-
-                const messageBody = document.createElement('div');
-                messageBody.classList.add('message-body');
-                messageBody.innerHTML = content;
-
-                messageElement.appendChild(messageBody);
-                chatMessages.appendChild(messageElement);
-
-                // Scroll al final
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            // Función para simular la respuesta del bot
-            function simulateBotResponse(userMessage, platform, useGpt) {
-                // Aquí puedes integrar lógica más compleja o llamadas a APIs
-                // Por ahora, responderemos con una respuesta simple
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        let response = '';
-
-                        if (useGpt === 'true') {
-                            response = `GPT: Procesando tu mensaje en ${platform}: "${userMessage}"`;
+                        if (response.ok) {
+                            successAlert.style.display = 'block';
+                            testForm.reset();
+                            preloadedVarsContainer.innerHTML = '';
                         } else {
-                            response = `Bot: Recibí tu mensaje en ${platform}: "${userMessage}"`;
+                            throw new Error(data.error || 'Error desconocido');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        errorAlert.textContent = `Error: ${error.message}`;
+                        errorAlert.style.display = 'block';
+                    } finally {
+                        // Ocultar spinner de carga
+                        loadingSpinner.style.display = 'none';
+                    }
+                });
+
+                // Inicializar variables pre-cargadas al cargar la página
+                updatePreloadedVars();
+
+                // Variables para la sección de chat (opcional)
+                const chatForm = document.getElementById('chat-form');
+                const chatMessages = document.getElementById('chatMessages');
+                const messageInput = document.getElementById('input');
+                const platformSelectChat = document.getElementById('platform');
+                const useGptSelect = document.getElementById('use-gpt');
+                const loadingSpinnerChat = document.getElementById('loadingSpinner');
+                const platformIcon = document.getElementById('platformIcon');
+
+                // Actualizar icono según la plataforma seleccionada
+                function updatePlatformIconChat() {
+                    const platform = platformSelectChat.value;
+                    platformIcon.className = ''; // Limpiar clases anteriores
+                    switch (platform) {
+                        case 'telegram':
+                            platformIcon.classList.add('fab', 'fa-telegram-plane');
+                            platformIcon.style.color = '#0088cc';
+                            break;
+                        case 'whatsapp':
+                            platformIcon.classList.add('fab', 'fa-whatsapp');
+                            platformIcon.style.color = '#25D366';
+                            break;
+                        case 'messenger':
+                            platformIcon.classList.add('fab', 'fa-facebook-messenger');
+                            platformIcon.style.color = '#0084ff';
+                            break;
+                        case 'instagram':
+                            platformIcon.classList.add('fab', 'fa-instagram');
+                            platformIcon.style.color = '#C13584';
+                            break;
+                        default:
+                            platformIcon.classList.add('fas', 'fa-robot');
+                            platformIcon.style.color = '#ffffff';
+                    }
+                }
+
+                // Inicializar icono al cargar la página
+                updatePlatformIconChat();
+
+                // Cambiar icono cuando se cambia la plataforma
+                platformSelectChat.addEventListener('change', updatePlatformIconChat);
+
+                // Función para agregar un mensaje al chat
+                function addMessage(content, sender = 'bot') {
+                    const messageElement = document.createElement('div');
+                    messageElement.classList.add('message', sender);
+
+                    const messageBody = document.createElement('div');
+                    messageBody.classList.add('message-body');
+                    messageBody.innerHTML = content;
+
+                    messageElement.appendChild(messageBody);
+                    chatMessages.appendChild(messageElement);
+
+                    // Scroll al final
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+
+                // Función para simular la respuesta del bot
+                function simulateBotResponse(userMessage, platform, useGpt) {
+                    // Aquí puedes integrar lógica más compleja o llamadas a APIs
+                    // Por ahora, responderemos con una respuesta simple
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            let response = '';
+
+                            if (useGpt === 'true') {
+                                response = `GPT: Procesando tu mensaje en ${platform}: "${userMessage}"`;
+                            } else {
+                                response = `Bot: Recibí tu mensaje en ${platform}: "${userMessage}"`;
+                            }
+
+                            resolve(response);
+                        }, 1000); // Simular tiempo de respuesta
+                    });
+                }
+
+                // Manejar el envío del formulario de chat
+                chatForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+
+                    const message = messageInput.value.trim();
+                    const platform = platformSelectChat.value;
+                    const useGpt = useGptSelect.value;
+
+                    if (message === "") {
+                        alert("Por favor ingrese un mensaje.");
+                        return;
+                    }
+
+                    // Agregar mensaje del usuario
+                    addMessage(message, 'user');
+
+                    // Limpiar el input
+                    messageInput.value = '';
+
+                    // Mostrar spinner de carga
+                    loadingSpinnerChat.style.display = 'block';
+
+                    try {
+                        // Enviar mensaje al backend
+                        const response = await fetch('/send-message/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({
+                                'message': message,
+                                'platform': platform,
+                                'use_gpt': useGpt
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        // Simular la respuesta del bot
+                        let botResponse = '';
+                        if (data.response) {
+                            botResponse = data.response;
+                        } else {
+                            // Si no hay respuesta del backend, usar la simulación local
+                            botResponse = await simulateBotResponse(message, platform, useGpt);
                         }
 
-                        resolve(response);
-                    }, 1000); // Simular tiempo de respuesta
-                });
-            }
-
-            // Manejar el envío del formulario de chat
-            chatForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-
-                const message = messageInput.value.trim();
-                const platform = platformSelectChat.value;
-                const useGpt = useGptSelect.value;
-
-                if (message === "") {
-                    alert("Por favor ingrese un mensaje.");
-                    return;
-                }
-
-                // Agregar mensaje del usuario
-                addMessage(message, 'user');
-
-                // Limpiar el input
-                messageInput.value = '';
-
-                // Mostrar spinner de carga
-                loadingSpinnerChat.style.display = 'block';
-
-                try {
-                    // Enviar mensaje al backend
-                    const response = await fetch('/send-message/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: JSON.stringify({
-                            'message': message,
-                            'platform': platform,
-                            'use_gpt': useGpt
-                        })
-                    });
-
-                    const data = await response.json();
-
-                    // Simular la respuesta del bot
-                    let botResponse = '';
-                    if (data.response) {
-                        botResponse = data.response;
-                    } else {
-                        // Si no hay respuesta del backend, usar la simulación local
-                        botResponse = await simulateBotResponse(message, platform, useGpt);
+                        // Agregar respuesta del bot
+                        addMessage(botResponse, 'bot');
+                    } catch (error) {
+                        console.error('Error:', error);
+                        addMessage("Bot: Ocurrió un error al procesar tu mensaje.", 'bot');
+                    } finally {
+                        // Ocultar spinner de carga
+                        loadingSpinnerChat.style.display = 'none';
                     }
+                });
 
-                    // Agregar respuesta del bot
-                    addMessage(botResponse, 'bot');
-                } catch (error) {
-                    console.error('Error:', error);
-                    addMessage("Bot: Ocurrió un error al procesar tu mensaje.", 'bot');
-                } finally {
-                    // Ocultar spinner de carga
-                    loadingSpinnerChat.style.display = 'none';
-                }
+                // Opcional: manejar la tecla Enter para enviar el mensaje
+                messageInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        chatForm.dispatchEvent(new Event('submit'));
+                    }
+                });
             });
+        </script>
+            
+    </body>
 
-            // Opcional: manejar la tecla Enter para enviar el mensaje
-            messageInput.addEventListener('keypress', function (e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    chatForm.dispatchEvent(new Event('submit'));
-                }
-            });
-        });
-    </script>
-</body>
-
-</html>
+    </html>

@@ -1,3 +1,5 @@
+# /home/amigro/app/urls.py
+
 from django.urls import path, include  # Asegúrate de importar `include`
 from django.conf.urls.static import static
 from django.conf import settings

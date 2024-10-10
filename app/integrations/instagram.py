@@ -1,46 +1,60 @@
 # /home/amigro/app/integrations/instagram.py
-
 import logging
+import json
 import requests
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from app.chatbot import ChatBotHandler
+from app.models import InstagramAPI, MetaAPI
+from app.integrations.services import send_message
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('instagram')
 
 @csrf_exempt
-@require_http_methods(["POST"])
 def instagram_webhook(request):
-    """
-    Webhook para manejar mensajes entrantes desde Instagram.
-    """
+    if request.method == 'GET':
+        verify_token = request.GET.get('hub.verify_token')
+        challenge = request.GET.get('hub.challenge')
+
+        meta_api = MetaAPI.objects.first()
+        expected_token = meta_api.verify_token if meta_api else 'amigro_secret_token'
+
+        if verify_token == expected_token:
+            return HttpResponse(challenge)
+        else:
+            return HttpResponse('Token de verificación inválido', status=403)
+
+    elif request.method == 'POST':
+        payload = json.loads(request.body.decode('utf-8'))
+        logger.info(f"Payload recibido de Instagram: {payload}")
+
+        try:
+            for entry in payload.get('entry', []):
+                for change in entry.get('changes', []):
+                    messages = change.get('value', {}).get('messages', [])
+                    for message in messages:
+                        sender_id = message['from']
+                        message_text = message.get('text', {}).get('body', '')
+                        handle_message(sender_id, message_text, 'instagram')
+            return HttpResponse(status=200)
+
+        except Exception as e:
+            logger.error(f"Error al manejar el webhook de Instagram: {e}", exc_info=True)
+            return HttpResponse(status=500)
+
+    return HttpResponse(status=405)
+
+
+def send_instagram_message(user_id, message_text, access_token):
     try:
-        data = request.body.decode('utf-8')
-        # Aquí puedes procesar el mensaje de Instagram
-        logger.info(f"Mensaje recibido desde Instagram: {data}")
-        
-        # Ejemplo de interacción con el chatbot
-        chatbot_handler = ChatBotHandler()
-        response, options = chatbot_handler.process_message('instagram', data['sender']['id'], data['message']['text'])
+        url = f"https://graph.facebook.com/v16.0/me/messages?access_token={access_token}"
+        payload = {
+            "recipient": {"id": user_id},
+            "message": {"text": message_text}
+        }
 
-        return JsonResponse({'status': 'success', 'response': response}, status=200)
-    except Exception as e:
-        logger.error(f"Error en el webhook de Instagram: {e}")
-        return JsonResponse({'status': 'error', 'message': 'Error interno del servidor'}, status=500)
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+        logger.info(f"Mensaje enviado a Instagram {user_id}: {message_text}")
 
-async def send_instagram_message(recipient_id, message, access_token):
-    """
-    Envía un mensaje a un usuario de Instagram.
-    """
-    url = f"https://graph.facebook.com/v11.0/me/messages"
-    params = {"access_token": access_token}
-    data = {
-        "recipient": {"id": recipient_id},
-        "message": {"text": message},
-    }
-    response = requests.post(url, json=data, params=params)
-    if response.status_code != 200:
-        logger.error(f"Error enviando mensaje a Instagram: {response.text}")
-    else:
-        logger.info(f"Mensaje enviado correctamente a Instagram: {message}")
+    except requests.RequestException as e:
+        logger.error(f"Error enviando mensaje a Instagram: {e}")
