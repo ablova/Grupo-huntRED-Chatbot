@@ -8,7 +8,7 @@ from app.models import (
     Person,
     FlowModel,
     Invitacion,
-    MetaAPI
+    MetaAPI,
     WhatsAppAPI,
     TelegramAPI,
     MessengerAPI,
