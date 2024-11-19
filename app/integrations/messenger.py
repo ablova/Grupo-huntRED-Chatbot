@@ -1,7 +1,7 @@
 # /home/amigro/app/integrations/messenger.py
 import logging
 import json
-import requests
+import httpx
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from app.models import MessengerAPI, MetaAPI
@@ -56,18 +56,68 @@ def messenger_webhook(request):
     else:
         return HttpResponse(status=405)
 
+async def send_messenger_buttons(user_id, message, buttons, access_token):
+    """
+    Envía un mensaje con botones a través de Facebook Messenger usando respuestas rápidas.
+    :param user_id: ID del usuario en Messenger.
+    :param message: Mensaje de texto a enviar.
+    :param buttons: Lista de botones [{'content_type': 'text', 'title': 'Boton 1', 'payload': 'boton_1'}].
+    :param access_token: Token de acceso de la página de Facebook.
+    """
+    url = f"https://graph.facebook.com/v11.0/me/messages"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
 
-def send_messenger_message(user_id, message_text, access_token):
-    try:
-        url = f"https://graph.facebook.com/v16.0/me/messages?access_token={access_token}"
-        payload = {
-            "recipient": {"id": user_id},
-            "message": {"text": message_text}
+    # Construcción del payload para enviar el mensaje con botones
+    payload = {
+        "recipient": {"id": user_id},
+        "message": {
+            "text": message,
+            "quick_replies": buttons
         }
+    }
 
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        logger.info(f"Mensaje enviado a Messenger {user_id}: {message_text}")
+    try:
+        async with httpx.AsyncClient() as client:
+            logger.debug(f"Enviando botones a Messenger para el usuario {user_id}")
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()  # Verifica si hubo algún error
+            logger.info(f"Botones enviados correctamente a Messenger. Respuesta: {response.text}")
 
-    except requests.RequestException as e:
-        logger.error(f"Error enviando mensaje a Messenger: {e}")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error enviando botones a Messenger: {e}")
+
+async def send_messenger_buttons(user_id, message, buttons, access_token):
+    """
+    Envía un mensaje con botones a través de Facebook Messenger usando respuestas rápidas.
+    :param user_id: ID del usuario en Messenger.
+    :param message: Mensaje de texto a enviar.
+    :param buttons: Lista de botones [{'content_type': 'text', 'title': 'Boton 1', 'payload': 'boton_1'}].
+    :param access_token: Token de acceso de la página de Facebook.
+    """
+    url = f"https://graph.facebook.com/v11.0/me/messages"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    # Construcción del payload para enviar el mensaje con botones
+    payload = {
+        "recipient": {"id": user_id},
+        "message": {
+            "text": message,
+            "quick_replies": buttons
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            logger.debug(f"Enviando botones a Messenger para el usuario {user_id}")
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()  # Verifica si hubo algún error
+            logger.info(f"Botones enviados correctamente a Messenger. Respuesta: {response.text}")
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error enviando botones a Messenger: {e}")

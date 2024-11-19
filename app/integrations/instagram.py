@@ -1,7 +1,7 @@
 # /home/amigro/app/integrations/instagram.py
 import logging
 import json
-import requests
+import httpx
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from app.models import InstagramAPI, MetaAPI
@@ -43,18 +43,62 @@ def instagram_webhook(request):
 
     return HttpResponse(status=405)
 
+async def send_instagram_message(user_id, message, access_token):
+    url = f"https://graph.facebook.com/v14.0/me/messages"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
 
-def send_instagram_message(user_id, message_text, access_token):
-    try:
-        url = f"https://graph.facebook.com/v16.0/me/messages?access_token={access_token}"
-        payload = {
-            "recipient": {"id": user_id},
-            "message": {"text": message_text}
+    payload = {
+        "messaging_product": "instagram",
+        "recipient": {
+            "id": user_id
+        },
+        "message": {
+            "text": message
         }
+    }
 
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        logger.info(f"Mensaje enviado a Instagram {user_id}: {message_text}")
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info(f"Mensaje enviado a Instagram {user_id} correctamente.")
+            return response.json()
+    except Exception as e:
+        logger.error(f"Error enviando mensaje en Instagram: {e}", exc_info=True)
+        raise e
+    
+async def send_instagram_buttons(user_id, message, buttons, access_token):
+   """
+   Envía un mensaje con botones a través de Instagram usando respuestas rápidas.
+   :param user_id: ID del usuario en Instagram.
+   :param message: Mensaje de texto a enviar.
+   :param buttons: Lista de botones [{'content_type': 'text', 'title': 'Boton 1', 'payload': 'boton_1'}].
+   :param access_token: Token de acceso de la cuenta de Instagram.
+   """
+   url = f"https://graph.facebook.com/v11.0/me/messages"
+   headers = {
+       "Authorization": f"Bearer {access_token}",
+       "Content-Type": "application/json"
+   }
 
-    except requests.RequestException as e:
-        logger.error(f"Error enviando mensaje a Instagram: {e}")
+   # Construcción del payload para enviar el mensaje con botones
+   payload = {
+       "recipient": {"id": user_id},
+       "message": {
+           "text": message,
+           "quick_replies": buttons
+       }
+   }
+
+   try:
+       async with httpx.AsyncClient() as client:
+           logger.debug(f"Enviando botones a Instagram para el usuario {user_id}")
+           response = await client.post(url, headers=headers, json=payload)
+           response.raise_for_status()  # Verifica si hubo algún error
+           logger.info(f"Botones enviados correctamente a Instagram. Respuesta: {response.text}")
+
+   except httpx.HTTPStatusError as e:
+       logger.error(f"Error enviando botones a Instagram: {e}")

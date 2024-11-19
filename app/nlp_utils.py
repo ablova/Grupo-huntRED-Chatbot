@@ -18,6 +18,7 @@ matcher = Matcher(nlp.vocab)
 
 # Definir patrones para identificar intenciones
 patterns = [
+    {"label": "reiniciar", "pattern": [{"LOWER": {"IN": ["reiniciar", "reinicio", "comenzar de nuevo el chat", "inicio pllh"]}}]},
     {"label": "saludo", "pattern": [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "buenas noches"]}}]},
     {"label": "despedida", "pattern": [{"LOWER": {"IN": ["adiós", "hasta luego", "nos vemos", "chao", "gracias"]}}]},
     {"label": "buscar_vacante", "pattern": [{"LEMMA": "buscar"}, {"LEMMA": "vacante"}]},

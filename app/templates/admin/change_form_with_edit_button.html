@@ -1,7 +1,13 @@
-<!--#/home/amigro/app/templates/admin/change_form_with_edit_button.html -->
+<!-- /home/amigro/app/templates/admin/change_form_with_edit_button.html -->
 {% extends "admin/change_form.html" %}
 
 {% block submit_buttons_bottom %}
     {{ block.super }}
-    <a href="{{ edit_flow_url }}" class="button">Editar Flujo</a>
+    {% if edit_flow_url %}
+        <a href="{{ edit_flow_url }}" class="button">Editar Flujo</a>
+        <!-- Esto te mostrará la URL generada para debug -->
+        <p>URL generada: {{ edit_flow_url }}</p>
+    {% else %}
+        <p>No se encontró URL para editar el flujo</p>
+    {% endif %}
 {% endblock %}

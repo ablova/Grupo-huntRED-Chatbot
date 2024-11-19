@@ -1,60 +1,22 @@
 <!-- /home/amigro/app/templates/admin/chatbot_flow.html -->
-{% extends "admin/base_site.html" %}
+ {% extends "admin/base_site.html" %}
 
 {% block extrahead %}
 {{ block.super }}
-<!-- Inclusión de GoJS desde CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gojs/2.1.53/go.js"></script>
-<!-- Inclusión de Font Awesome para iconos -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 <style>
-    /* Estilo para el contenedor del diagrama */
-    #myDiagramDiv {
-        width: 100%;
-        height: 600px;
-        background-color: #DAE4E4;
-        border: 1px solid #ccc;
-    }
-    .controls {
-        margin-top: 20px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    .controls button {
-        padding: 10px;
-        border: none;
-        background-color: #007bff;
-        color: white;
-        cursor: pointer;
-        border-radius: 4px;
-    }
-    .controls button:hover {
-        background-color: #0056b3;
-    }
-    #nodeProperties {
-        width: 300px;
-        padding: 10px;
-        border: 1px solid #ccc;
-        margin-top: 20px;
-    }
-    #simulator {
-        margin-top: 40px;
-    }
-    #flowSelectorContainer {
-        margin-bottom: 20px;
-    }
-    #flowSelector {
-        padding: 5px;
-        border-radius: 4px;
-    }
+    #myDiagramDiv { width: 100%; height: 600px; background-color: #DAE4E4; border: 1px solid #ccc; }
+    .controls { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .controls button { padding: 10px; border: none; background-color: #007bff; color: white; cursor: pointer; border-radius: 4px; }
+    .controls button:hover { background-color: #0056b3; }
+    #nodeProperties { width: 300px; padding: 10px; border: 1px solid #ccc; margin-top: 20px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <h1>Editor de Flujo del Chatbot</h1>
 
-<!-- Selector de Flujos (si manejas múltiples flujos) -->
 <div id="flowSelectorContainer">
     <label for="flowSelector"><strong>Seleccionar Flujo:</strong></label>
     <select id="flowSelector" onchange="loadSelectedFlow()">
@@ -64,571 +26,149 @@
     </select>
 </div>
 
-<!-- Contenedor del diagrama -->
 <div id="myDiagramDiv"></div>
 
-<!-- Controles para agregar nodos, fases y guardar el flujo -->
 <div class="controls">
     <button onclick="addNode('text')"><i class="fas fa-comment-alt"></i> Añadir Pregunta/Texto</button>
-    <button onclick="addNode('decision')"><i class="fas fa-question-circle"></i> Añadir Decisión</button>
-    <button onclick="addNode('input')"><i class="fas fa-keyboard"></i> Añadir Input</button>
-    <button onclick="addNode('menu')"><i class="fas fa-list"></i> Añadir Menú</button>
-    <button onclick="addNode('image')"><i class="fas fa-image"></i> Añadir Imagen</button>
-    <button onclick="addNode('link')"><i class="fas fa-link"></i> Añadir Link</button>
     <button onclick="saveFlow()"><i class="fas fa-save"></i> Guardar Flujo</button>
     <button onclick="exportFlow()"><i class="fas fa-file-export"></i> Exportar Flujo</button>
-    <button onclick="importFlow()"><i class="fas fa-file-import"></i> Importar Flujo</button>
 </div>
 
-<!-- Panel para editar las propiedades del nodo seleccionado -->
 <div id="nodeProperties">
     <h3>Propiedades del Nodo</h3>
     <label for="nodeText">Texto del nodo:</label>
-    <input type="text" id="nodeText" placeholder="Texto del nodo"><br><br>
-    <label for="nodeType">Tipo de nodo:</label>
-    <select id="nodeType" onchange="updatePropertiesPanel()">
-        <option value="text">Pregunta/Texto</option>
-        <option value="decision">Decisión</option>
-        <option value="input">Input</option>
-        <option value="menu">Menú</option>
-        <option value="image">Imagen</option>
-        <option value="link">Link</option>
-        <option value="registration">Registro</option>
-        <option value="document_verification">Verificación de Documentos</option>
-        <option value="skill_assessment">Evaluación de Habilidades</option>
-        <option value="job_recommendation">Recomendación de Trabajo</option>
-        <option value="legal_info">Información Legal</option>
-    </select><br><br>
-
-    <!-- Opciones para nodos de decisión -->
-    <div id="decisionOptions" style="display: none;">
-        <label for="option1">Opción 1:</label>
-        <input type="text" id="option1" placeholder="Opción 1"><br>
-        <label for="option2">Opción 2:</label>
-        <input type="text" id="option2" placeholder="Opción 2"><br>
-        <label for="option3">Opción 3:</label>
-        <input type="text" id="option3" placeholder="Opción 3"><br>
-    </div>
-
-    <!-- Placeholder para input -->
-    <div id="inputProperties" style="display: none;">
-        <label for="inputPlaceholder">Placeholder del input:</label>
-        <input type="text" id="inputPlaceholder" placeholder="Placeholder del input"><br>
-    </div>
-
-    <!-- URL de imagen -->
-    <div id="imageProperties" style="display: none;">
-        <label for="imgSrc">URL de la imagen:</label>
-        <input type="text" id="imgSrc" placeholder="URL de la imagen"><br>
-    </div>
-
-    <!-- URL del enlace -->
-    <div id="linkProperties" style="display: none;">
-        <label for="linkUrl">URL del link:</label>
-        <input type="text" id="linkUrl" placeholder="URL del link"><br>
-    </div>
-
+    <input type="text" id="nodeText" placeholder="Texto del nodo">
     <button onclick="updateSelectedNode()"><i class="fas fa-edit"></i> Actualizar Nodo</button>
 </div>
 
-<!-- Simulador -->
-<div id="simulator">
-    <h3>Simulador</h3>
-    <div id="simulatorContent"></div>
-    <button onclick="simulateFlow()"><i class="fas fa-play"></i> Probar Chatbot</button>
-</div>
-
 <script>
-    var myDiagram;
-    var selectedNode = null;
-    var flowmodel_id = "{{ flow.id }}";  // Obtener el ID del flujo actual
+    let myDiagram;
+    const flowmodel_id = "{{ flow.id }}";
 
     function init() {
-        var $ = go.GraphObject.make;
-
-        myDiagram =
-            $(go.Diagram, "myDiagramDiv", {
-                "undoManager.isEnabled": true,
-                initialContentAlignment: go.Spot.Center,
-                "linkingTool.direction": go.Link.AvoidsNodes,
-                "draggingTool.isGridSnapEnabled": true,
-                "grid.visible": true,
-                "grid.gridCellSize": new go.Size(10, 10),
-                "animationManager.isEnabled": false,
-                "toolManager.hoverDelay": 100,
-                allowDrop: true,
-                "linkingTool.isUnconnectedLinkValid": true,
-                "linkingTool.portGravity": 20,
-                "relinkingTool.isUnconnectedLinkValid": true,
-                "relinkingTool.portGravity": 20,
-                "relinkingTool.fromHandleArchetype":
-                    $(go.Shape, "Diamond", { segmentIndex: 0, cursor: "pointer", desiredSize: new go.Size(8, 8), fill: "tomato", stroke: "darkred" }),
-                "relinkingTool.toHandleArchetype":
-                    $(go.Shape, "Diamond", { segmentIndex: -1, cursor: "pointer", desiredSize: new go.Size(8, 8), fill: "darkred", stroke: "tomato" }),
-                "linkReshapingTool.handleArchetype":
-                    $(go.Shape, "Diamond", { desiredSize: new go.Size(7, 7), fill: "lightblue", stroke: "deepskyblue" }),
-                "InitialLayoutCompleted": onLayoutCompleted,
-                "ExternalObjectsDropped": onObjectsDropped,
-                model: $(go.GraphLinksModel, {
-                    linkKeyProperty: "key",
-                    nodeKeyProperty: "key"
-                })
-            });
-
-        // Definir las plantillas de nodos
-        myDiagram.nodeTemplateMap.add("text", createNodeTemplate("RoundedRectangle", "lightblue"));
-        myDiagram.nodeTemplateMap.add("decision", createDecisionTemplate());
-        myDiagram.nodeTemplateMap.add("input", createNodeTemplate("Ellipse", "lightyellow"));
-        myDiagram.nodeTemplateMap.add("menu", createMenuTemplate());
-        myDiagram.nodeTemplateMap.add("image", createImageTemplate());
-        myDiagram.nodeTemplateMap.add("link", createLinkTemplate());
-        myDiagram.nodeTemplateMap.add("registration", createNodeTemplate("RoundedRectangle", "lightgreen"));
-        myDiagram.nodeTemplateMap.add("document_verification", createNodeTemplate("RoundedRectangle", "lightcoral"));
-        myDiagram.nodeTemplateMap.add("skill_assessment", createNodeTemplate("RoundedRectangle", "lightyellow"));
-        myDiagram.nodeTemplateMap.add("job_recommendation", createNodeTemplate("RoundedRectangle", "lightblue"));
-        myDiagram.nodeTemplateMap.add("legal_info", createNodeTemplate("RoundedRectangle", "lightpink"));
-
-        // Definir la plantilla de enlaces (conectores)
-        myDiagram.linkTemplate =
-            $(go.Link,
-                { routing: go.Link.AvoidsNodes, curve: go.Link.JumpOver, corner: 5 },
-                $(go.Shape, { strokeWidth: 2, stroke: "#555" }),
-                $(go.Shape, { toArrow: "Standard", stroke: null, fill: "#555" }),
-                $(go.Panel, "Auto",
-                    $(go.Shape, "Rectangle", { fill: "#F8F8F8", stroke: "#E0E0E0" }),
-                    $(go.TextBlock, { margin: 3, editable: true },
-                        new go.Binding("text").makeTwoWay())
-                )
-            );
-
-        // Evento para mostrar las propiedades del nodo seleccionado
-        myDiagram.addDiagramListener("ChangedSelection", showNodeProperties);
-    }
-
-    // Crear plantillas de nodos
-    function createNodeTemplate(shapeType, color) {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, shapeType, { fill: color, strokeWidth: 2 }),
-            go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-            { fromLinkable: true, toLinkable: true }  // Permitir que el nodo sea conectado
-        );
-    }
-
-    // Plantilla para nodos de decisión
-    function createDecisionTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "Diamond", { fill: "lightgreen", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.Panel, "Vertical",
-                    { itemTemplate: go.GraphObject.make(go.TextBlock, new go.Binding("text")) },
-                    new go.Binding("itemArray", "options")
-                )
-            ),
-            { fromLinkable: true, toLinkable: true }  // Permitir conexiones hacia/desde el nodo
-        );
-    }
-
-    // Plantilla para nodos de menú
-    function createMenuTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "RoundedRectangle", { fill: "lightcoral", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.Panel, "Vertical",
-                    { itemTemplate: go.GraphObject.make(go.TextBlock, new go.Binding("text")) },
-                    new go.Binding("itemArray", "options")
-                )
-            ),
-            { fromLinkable: true, toLinkable: true }  // Permitir conexiones
-        );
-    }
-
-    // Plantilla para nodos de imagen
-    function createImageTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "Rectangle", { fill: "lightpink", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.Picture, { margin: 4, width: 80, height: 80 }, new go.Binding("source", "imgSrc"))
-            ),
-            { fromLinkable: true, toLinkable: true }  // Conectores habilitados
-        );
-    }
-
-    // Plantilla para nodos de enlace
-    function createLinkTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "Rectangle", { fill: "lightblue", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.TextBlock, { margin: 4, font: "italic 10px sans-serif" }, new go.Binding("text", "linkUrl").makeTwoWay())
-            ),
-            { fromLinkable: true, toLinkable: true }  // Conexiones habilitadas
-        );
-    }
-
-    // Añadir nodo al diagrama
-    function addNode(type) {
-        var nodeData = { 
-            key: 'node' + Date.now(),  // Generar una clave única
-            text: "Nuevo " + capitalizeFirstLetter(type), 
-            type: type, 
-            fill: getNodeColor(type),
-            isNew: true  // Marcar como nuevo
-        };
-        if (type === "decision") {
-            nodeData.options = ["Opción 1", "Opción 2", "Opción 3"];
-        }
-        if (type === "menu") {
-            nodeData.options = ["Registro", "Vacantes", "Agenda", "Información"];
-        }
-        if (type === "image") {
-            nodeData.imgSrc = "URL de la imagen";
-        }
-        if (type === "link") {
-            nodeData.linkUrl = "URL del link";
-        }
-        myDiagram.model.addNodeData(nodeData);
-    }
-
-    // Capitalizar la primera letra de una cadena
-    function capitalizeFirstLetter(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
-    }
-
-    // Asignar colores diferentes para cada tipo de nodo
-    function getNodeColor(type) {
-        switch (type) {
-            case "text": return "lightblue";
-            case "decision": return "lightgreen";
-            case "menu": return "lightcoral";
-            case "input": return "lightyellow";
-            case "image": return "lightpink";
-            case "link": return "lightblue";
-            case "registration": return "lightgreen";
-            case "document_verification": return "lightcoral";
-            case "skill_assessment": return "lightyellow";
-            case "job_recommendation": return "lightblue";
-            case "legal_info": return "lightpink";
-            default: return "white";
-        }
-    }
-
-    // Mostrar las propiedades del nodo seleccionado
-    function showNodeProperties(e) {
-        var node = myDiagram.selection.first();
-        if (node instanceof go.Node) {
-            selectedNode = node;
-            document.getElementById("nodeText").value = node.data.text;
-            document.getElementById("nodeType").value = node.data.type;
-            updatePropertiesPanel();
-            if (node.data.type === "decision" && node.data.options) {
-                document.getElementById("option1").value = node.data.options[0] || "";
-                document.getElementById("option2").value = node.data.options[1] || "";
-                document.getElementById("option3").value = node.data.options[2] || "";
-            }
-            if (node.data.type === "input" && node.data.placeholder) {
-                document.getElementById("inputPlaceholder").value = node.data.placeholder;
-            }
-            if (node.data.type === "image" && node.data.imgSrc) {
-                document.getElementById("imgSrc").value = node.data.imgSrc;
-            }
-            if (node.data.type === "link" && node.data.linkUrl) {
-                document.getElementById("linkUrl").value = node.data.linkUrl;
-            }
-        }
-    }
-
-    // Actualizar panel de propiedades basado en el tipo de nodo
-    function updatePropertiesPanel() {
-        var type = document.getElementById("nodeType").value;
-        document.getElementById("decisionOptions").style.display = type === "decision" ? "block" : "none";
-        document.getElementById("inputProperties").style.display = type === "input" ? "block" : "none";
-        document.getElementById("imageProperties").style.display = type === "image" ? "block" : "none";
-        document.getElementById("linkProperties").style.display = type === "link" ? "block" : "none";
-    }
-
-    // Actualizar el nodo seleccionado con la nueva información
-    function updateSelectedNode() {
-        if (selectedNode) {
-            var newType = document.getElementById("nodeType").value;
-            myDiagram.model.setDataProperty(selectedNode.data, "text", document.getElementById("nodeText").value);
-            myDiagram.model.setDataProperty(selectedNode.data, "type", newType);
-            myDiagram.model.setDataProperty(selectedNode.data, "fill", getNodeColor(newType));
-
-            if (newType === "decision") {
-                myDiagram.model.setDataProperty(selectedNode.data, "options", [
-                    document.getElementById("option1").value,
-                    document.getElementById("option2").value,
-                    document.getElementById("option3").value
-                ]);
-            } else if (newType === "input") {
-                myDiagram.model.setDataProperty(selectedNode.data, "placeholder", document.getElementById("inputPlaceholder").value);
-            } else if (newType === "image") {
-                myDiagram.model.setDataProperty(selectedNode.data, "imgSrc", document.getElementById("imgSrc").value);
-            } else if (newType === "link") {
-                myDiagram.model.setDataProperty(selectedNode.data, "linkUrl", document.getElementById("linkUrl").value);
-            } else {
-                // Limpiar propiedades si el nodo es diferente
-                delete selectedNode.data.options;
-                delete selectedNode.data.placeholder;
-                delete selectedNode.data.imgSrc;
-                delete selectedNode.data.linkUrl;
-                myDiagram.model.setDataProperty(selectedNode.data, "options", null);
-                myDiagram.model.setDataProperty(selectedNode.data, "placeholder", null);
-                myDiagram.model.setDataProperty(selectedNode.data, "imgSrc", null);
-                myDiagram.model.setDataProperty(selectedNode.data, "linkUrl", null);
-            }
-            myDiagram.model.updateTargetBindings(selectedNode.data);
-        }
-    }
-
-    // Validar el flujo
-    function validateFlow(nodes, links) {
-        const errors = [];
-
-        // Verificar que haya exactamente un nodo de inicio
-        const startNodes = nodes.filter(node => node.type === 'text' && node.text.toLowerCase() === 'inicio');
-        if (startNodes.length !== 1) {
-            errors.push('Debe haber exactamente un nodo de inicio (Pregunta/Texto con texto "Inicio").');
-        }
-
-        // Verificar que todos los nodos estén conectados (excepto el nodo de inicio)
-        const connectedNodes = new Set();
-        links.forEach(link => {
-            connectedNodes.add(link.from);
-            connectedNodes.add(link.to);
+        const $ = go.GraphObject.make;
+        myDiagram = $(go.Diagram, "myDiagramDiv", {
+            "undoManager.isEnabled": true,
+            initialContentAlignment: go.Spot.Center,
+            model: $(go.GraphLinksModel, { linkKeyProperty: "key", nodeKeyProperty: "key" })
         });
-        nodes.forEach(node => {
-            if (node.type !== 'text' || node.text.toLowerCase() !== 'inicio') {  // El nodo de inicio ya está conectado
-                if (!connectedNodes.has(node.key)) {
-                    errors.push(`El nodo "${node.text}" no está conectado al flujo.`);
-                }
+
+        // Definición del template de nodo
+        myDiagram.nodeTemplate = $(go.Node, "Auto",
+            $(go.Shape, "RoundedRectangle", { fill: "lightblue" }),
+            $(go.TextBlock, { margin: 8, editable: true },
+                new go.Binding("text").makeTwoWay()
+            )
+        );
+
+        // Evento para actualizar el campo de texto del nodo seleccionado
+        myDiagram.addDiagramListener("ObjectSingleClicked", function(e) {
+            const selectedNode = e.subject.part;
+            if (selectedNode) {
+                document.getElementById("nodeText").value = selectedNode.data.text || "";
             }
         });
 
-        // Verificar que los nodos de decisión tengan al menos dos opciones
-        nodes.forEach(node => {
-            if (node.type === 'decision') {
-                if (!node.options || node.options.length < 2) {
-                    errors.push(`El nodo de decisión "${node.text}" debe tener al menos dos opciones.`);
-                }
-            }
-        });
-
-        // Evitar ciclos simples (auto-conexiones)
-        links.forEach(link => {
-            if (link.from === link.to) {
-                errors.push(`El nodo "${getNodeText(link.from)}" tiene una auto-conexión.`);
-            }
-        });
-
-        return errors;
+        loadSelectedFlow();
     }
 
-    function getNodeText(key) {
-        var node = myDiagram.findNodeForKey(key);
-        return node ? node.data.text : '';
+    // Cargar el flujo seleccionado
+    function loadSelectedFlow() {
+        const selectedFlowId = document.getElementById("flowSelector").value;
+        fetch(`/admin/app/load_flow_data/${selectedFlowId}/`, {  // Actualiza para incluir selectedFlowId
+            method: 'GET',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            const modelData = {
+                nodeDataArray: data.flow_data.nodes,
+                linkDataArray: data.flow_data.links
+            };
+            myDiagram.model = new go.GraphLinksModel(modelData.nodeDataArray, modelData.linkDataArray);
+        })
+        .catch(error => console.error('Error al cargar el flujo:', error));
     }
 
-    // Guardar el flujo
+    // Guardar el flujo actual
     function saveFlow() {
-        const nodes = myDiagram.model.nodeDataArray;
-        const links = myDiagram.model.linkDataArray;
-        const validationErrors = validateFlow(nodes, links);
-        if (validationErrors.length > 0) {
-            alert(`Errores de validación:\n${validationErrors.join('\n')}`);
-            return;
-        }
+        const flowData = {
+            flowmodel_id,
+            nodes: myDiagram.model.nodeDataArray,
+            links: myDiagram.model.linkDataArray
+        };
         fetch("{% url 'admin:save_flow' %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify({ 
-                flowmodel_id: flowmodel_id,
-                nodes, 
-                links
-            })
-        }).then(response => response.json())
-          .then(data => {
-              if (data.status === 'success') {
-                  alert('Flujo guardado exitosamente.');
-              } else {
-                  alert('Error al guardar el flujo: ' + data.message);
-              }
-          })
-          .catch(error => console.error('Error al guardar el flujo:', error));
+            body: JSON.stringify(flowData)
+        })
+        .then(response => response.json())
+        .then(data => alert(data.status === 'success' ? 'Flujo guardado exitosamente' : 'Error al guardar el flujo'))
+        .catch(error => console.error('Error al guardar el flujo:', error));
     }
 
-    // Simular el flujo del chatbot
-    function simulateFlow() {
-        const nodes = myDiagram.model.nodeDataArray;
-        const links = myDiagram.model.linkDataArray;
-        const simulatorContent = document.getElementById('simulatorContent');
-        simulatorContent.innerHTML = '';
-
-        // Encontrar el nodo de inicio
-        let currentNode = nodes.find(node => node.type === 'text' && node.text.toLowerCase() === 'inicio');
-        if (!currentNode) {
-            alert('No se encontró un nodo de inicio (Pregunta/Texto con texto "Inicio").');
-            return;
-        }
-
-        while (currentNode) {
-            simulatorContent.innerHTML += `<p><strong>Bot:</strong> ${currentNode.text}</p>`;
-            
-            if (currentNode.type === 'decision') {
-                // Solicitar al usuario una opción
-                let userChoice = prompt(`Decisión: ${currentNode.text}\nOpciones: ${currentNode.options.join(', ')}`);
-                if (!userChoice) {
-                    alert('Simulación cancelada.');
-                    return;
-                }
-                // Encontrar el enlace que corresponde a la elección
-                let nextLink = links.find(link => link.from === currentNode.key && link.text.trim().toLowerCase() === userChoice.trim().toLowerCase());
-                if (nextLink) {
-                    currentNode = nodes.find(node => node.key === nextLink.to);
-                } else {
-                    alert(`Opción inválida: "${userChoice}"`);
-                    return;
-                }
-            } else if (currentNode.type === 'link') {
-                simulatorContent.innerHTML += `<p><strong>Bot:</strong> ${currentNode.linkUrl}</p>`;
-                let nextLink = links.find(link => link.from === currentNode.key);
-                currentNode = nextLink ? nodes.find(node => node.key === nextLink.to) : null;
-            } else {
-                // Obtener el siguiente enlace
-                let nextLink = links.find(link => link.from === currentNode.key);
-                currentNode = nextLink ? nodes.find(node => node.key === nextLink.to) : null;
-            }
-        }
-
-        simulatorContent.innerHTML += `<p><strong>Bot:</strong> Gracias por usar el chatbot.</p>`;
+    // Añadir un nuevo nodo
+    function addNode(type) {
+        const newNodeData = { key: myDiagram.model.nodeDataArray.length + 1, text: "Nuevo nodo" };
+        myDiagram.model.addNodeData(newNodeData);
     }
 
-    // Exportar el flujo a JSON
+    // Eliminar el nodo seleccionado
+    function deleteSelectedNode() {
+        const selectedNode = myDiagram.selection.first();
+        if (selectedNode) {
+            myDiagram.model.removeNodeData(selectedNode.data);
+        } else {
+            alert("Selecciona un nodo para eliminar.");
+        }
+    }
+
+    // Actualizar el nodo seleccionado con el texto ingresado
+    function updateSelectedNode() {
+        const selectedNode = myDiagram.selection.first();
+        const newText = document.getElementById("nodeText").value;
+        if (selectedNode) {
+            myDiagram.model.setDataProperty(selectedNode.data, "text", newText);
+        } else {
+            alert("Selecciona un nodo para actualizar.");
+        }
+    }
+
+    // Exportar el flujo actual en formato JSON
     function exportFlow() {
-        const flowData = myDiagram.model.toJson();
-        const blob = new Blob([flowData], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'chatbot_flow.json';
-        a.click();
-    }
-
-    // Importar el flujo desde un archivo JSON
-    function importFlow() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'application/json';
-        input.onchange = e => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = event => {
-                try {
-                    const importedModel = go.Model.fromJson(event.target.result);
-                    myDiagram.model = importedModel;
-                    alert('Flujo importado correctamente.');
-                } catch (error) {
-                    alert('Error al importar el flujo: ' + error.message);
-                    console.error('Error al importar el flujo:', error);
-                }
-            };
-            reader.readAsText(file);
+        const flowData = {
+            nodes: myDiagram.model.nodeDataArray,
+            links: myDiagram.model.linkDataArray
         };
-        input.click();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(flowData));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "flow_data.json");
+        document.body.appendChild(downloadAnchorNode); // required for firefox
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
     }
 
-    // Función para crear nodos arrastrables (Opcional si decides incluir una paleta)
-    function makeDraggableNode(text, nodeType) {
-        var $ = go.GraphObject.make;
-        var node = $(go.Node, "Auto",
-            { locationSpot: go.Spot.Center },
-            $(go.Shape, "RoundedRectangle", { fill: getNodeColor(nodeType) }),
-            $(go.TextBlock, text, { margin: 8 })
-        );
-        return node;
-    }
-
-    // Inicializar paleta de nodos (Opcional)
-    function initPalette() {
-        var $ = go.GraphObject.make;
-        var palette = $(go.Palette, "palette", {
-            nodeTemplateMap: myDiagram.nodeTemplateMap,
-            model: new go.GraphLinksModel([
-                { key: "node1", text: "Pregunta/Texto", type: "text" },
-                { key: "node2", text: "Decisión", type: "decision" },
-                { key: "node3", text: "Input", type: "input" },
-                { key: "node4", text: "Menú", type: "menu" },
-                { key: "node5", text: "Imagen", type: "image" },
-                { key: "node6", text: "Link", type: "link" },
-                { key: "node7", text: "Registro", type: "registration" },
-                { key: "node8", text: "Verificación de Documentos", type: "document_verification" },
-                { key: "node9", text: "Evaluación de Habilidades", type: "skill_assessment" },
-                { key: "node10", text: "Recomendación de Trabajo", type: "job_recommendation" },
-                { key: "node11", text: "Información Legal", type: "legal_info" }
-            ])
-        });
-    }
-
-    // Función para editar el texto del nodo (Opcional)
-    function editNodeText(e, obj) {
-        var node = obj.part;
-        if (node) {
-            var tb = node.findObject("TextBlock");
-            if (tb) myDiagram.commandHandler.editTextBlock(tb);
-        }
-    }
-
-    // Evento llamado cuando se completa el layout inicial
-    function onLayoutCompleted(e) {
-        var newNodes = e.diagram.findNodesByExample({ isNew: true });
-        newNodes.each(function(node) {
-            var tb = node.findObject("TextBlock");
-            if (tb) e.diagram.commandHandler.editTextBlock(tb);
-            myDiagram.model.setDataProperty(node.data, "isNew", false);
-        });
-    }
-
-    // Evento llamado cuando se sueltan objetos externos en el diagrama
-    function onObjectsDropped(e) {
-        var newNodes = e.subject;
-        newNodes.each(function(node) {
-            if (node instanceof go.Node) {
-                var tb = node.findObject("TextBlock");
-                if (tb) e.diagram.commandHandler.editTextBlock(tb);
-                myDiagram.model.setDataProperty(node.data, "isNew", false);
-            }
-        });
-    }
-
-    // Inicializar el diagrama cuando la página esté cargada
-    window.onload = function() {
-        init();
-        initPalette();
-        loadFlow();
-    };
-
-    // Cargar el flujo desde la base de datos
-    function loadFlow() {
-        fetch("{% url 'admin:load_flow' %}?flowmodel_id=" + flowmodel_id)
-            .then(response => response.json())
-            .then(data => {
-                if (data.nodes && data.links) {
-                    var model = go.Model.fromJson(JSON.stringify({
-                        class: "GraphLinksModel",
-                        nodeDataArray: data.nodes,
-                        linkDataArray: data.links
-                    }));
-                    myDiagram.model = model;
+    // Función para obtener la cookie CSRF
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
                 }
-            })
-            .catch(error => console.error('Error al cargar el flujo:', error));
+            }
+        }
+        return cookieValue;
     }
 
+    document.addEventListener("DOMContentLoaded", init);
 </script>
 {% endblock %}

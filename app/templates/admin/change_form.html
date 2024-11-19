@@ -1,0 +1,18 @@
+<!-- /home/amigro/app/templates/admin/change_form.html -->
+{% extends "admin/change_form.html" %}  <!-- Extends debe ir primero -->
+
+{% load static %}  <!-- Cargar la etiqueta static después de extends -->
+
+{% block content %}
+    <div>
+        <!-- Renderizar los campos dinámicamente -->
+        {{ form.media }}
+        {{ form.as_p }}
+    </div>
+{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <!-- Incluir el JS personalizado -->
+    <script src="{% static 'js/custom_admin.js' %}"></script>
+{% endblock %}

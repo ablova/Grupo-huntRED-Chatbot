@@ -1,3 +1,4 @@
+# /home/amigro/app/fixtures/preguntas.json
 [
     {
         "pk": 1,
@@ -14,7 +15,8 @@
                 "next_si": 2,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -66,7 +68,8 @@
                 "next_si": 5,
                 "next_no": 6
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -118,7 +121,8 @@
                 "next_si": 8,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -136,7 +140,8 @@
                 "next_si": 9,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -154,7 +159,8 @@
                 "next_si": 10,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -172,7 +178,8 @@
                 "next_si": 11,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -190,7 +197,8 @@
                 "next_si": 12,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -208,7 +216,8 @@
                 "next_si": 13,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -226,7 +235,8 @@
                 "next_si": 14,
                 "next_no": 15
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -244,7 +254,8 @@
                 "next_si": 16,
                 "next_no": 15
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -262,7 +273,8 @@
                 "next_si": 16,
                 "next_no": 20
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -280,7 +292,8 @@
                 "next_si": 17,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -298,7 +311,8 @@
                 "next_si": 18,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -316,7 +330,8 @@
                 "next_si": 19,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -334,7 +349,8 @@
                 "next_si": 16,
                 "next_no": 20
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -352,7 +368,8 @@
                 "next_si": 21,
                 "next_no": 25
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -370,7 +387,8 @@
                 "next_si": 24,
                 "next_no": 22
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -388,7 +406,8 @@
                 "next_si": 23,
                 "next_no": 25
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -406,7 +425,8 @@
                 "next_si": 25,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -424,7 +444,8 @@
                 "next_si": null,
                 "next_no": 25
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -442,7 +463,8 @@
                 "next_si": 26,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -460,7 +482,8 @@
                 "next_si": 27,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -478,7 +501,8 @@
                 "next_si": 28,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -496,7 +520,8 @@
                 "next_si": 29,
                 "next_no": 32
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -514,7 +539,8 @@
                 "next_si": 30,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -532,7 +558,8 @@
                 "next_si": 31,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -550,7 +577,8 @@
                 "next_si": 32,
                 "next_no": 34
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -568,7 +596,8 @@
                 "next_si": 33,
                 "next_no": 34
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -586,7 +615,8 @@
                 "next_si": 34,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -604,7 +634,8 @@
                 "next_si": 35,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -622,7 +653,8 @@
                 "next_si": 36,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -640,7 +672,8 @@
                 "next_si": 37,
                 "next_no": 38
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -658,7 +691,8 @@
                 "next_si": 38,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -676,7 +710,8 @@
                 "next_si": 39,
                 "next_no": 40
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -694,7 +729,8 @@
                 "next_si": 40,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -712,7 +748,8 @@
                 "next_si": 41,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -730,7 +767,8 @@
                 "next_si": 42,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -748,7 +786,8 @@
                 "next_si": 43,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -766,7 +805,8 @@
                 "next_si": 44,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -784,7 +824,8 @@
                 "next_si": 45,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -802,7 +843,8 @@
                 "next_si": 46,
                 "next_no": 50
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -820,7 +862,8 @@
                 "next_si": 47,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -838,7 +881,8 @@
                 "next_si": 48,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -856,7 +900,8 @@
                 "next_si": 49,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -874,7 +919,8 @@
                 "next_si": 50,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -892,7 +938,8 @@
                 "next_si": 51,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -910,7 +957,8 @@
                 "next_si": 52,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -928,7 +976,8 @@
                 "next_si": 53,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -946,7 +995,8 @@
                 "next_si": 54,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -964,7 +1014,8 @@
                 "next_si": 55,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -982,7 +1033,8 @@
                 "next_si": 56,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1000,7 +1052,8 @@
                 "next_si": 57,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1018,7 +1071,8 @@
                 "next_si": 58,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1036,7 +1090,8 @@
                 "next_si": 59,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1054,7 +1109,8 @@
                 "next_si": 60,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1072,7 +1128,8 @@
                 "next_si": 61,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1090,7 +1147,8 @@
                 "next_si": 62,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1108,7 +1166,8 @@
                 "next_si": 63,
                 "next_no": 65
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1126,7 +1185,8 @@
                 "next_si": 64,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1144,7 +1204,8 @@
                 "next_si": 66,
                 "next_no": 82
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1162,7 +1223,8 @@
                 "next_si": null,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1180,7 +1242,8 @@
                 "next_si": 67,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1198,7 +1261,8 @@
                 "next_si": 68,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1216,7 +1280,8 @@
                 "next_si": 69,
                 "next_no": 70
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1234,7 +1299,8 @@
                 "next_si": 67,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1252,7 +1318,8 @@
                 "next_si": null,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1270,7 +1337,8 @@
                 "next_si": 72,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1288,7 +1356,8 @@
                 "next_si": 73,
                 "next_no": 75
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1306,7 +1375,8 @@
                 "next_si": 74,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1324,7 +1394,8 @@
                 "next_si": 72,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1342,7 +1413,8 @@
                 "next_si": 72,
                 "next_no": 76
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1360,7 +1432,8 @@
                 "next_si": null,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1378,7 +1451,8 @@
                 "next_si": 78,
                 "next_no": 81
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1414,7 +1488,8 @@
                 "next_si": 80,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1432,7 +1507,8 @@
                 "next_si": 81,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1450,7 +1526,8 @@
                 "next_si": null,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     },
     {
@@ -1468,7 +1545,8 @@
                 "next_si": 67,
                 "next_no": null
             } ,
-            "etapa": 1
+            "etapa": 1,
+            "flow":1
         }
     }
 ]

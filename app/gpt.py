@@ -7,7 +7,7 @@ import logging
 
 #openai.organization = "org-B19vTHzNZ5FIuzsFOgDmisDi"
 #openai.api_key = os.getenv("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")
-#openai.api_key = "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"
+#openai.api_key = "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"
 #openai.Model.list()
 logger = logging.getLogger(__name__)
 

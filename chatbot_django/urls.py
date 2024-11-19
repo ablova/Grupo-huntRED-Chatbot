@@ -19,13 +19,17 @@ from django.contrib import admin
 from django.urls import path, include
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.http import HttpResponse
+#from app.urls import admin_patterns
 
 def health_check(request):
     return HttpResponse("OK")
 
 urlpatterns = [
-    path('admin/', admin_site.urls),
-    path('', include("app.urls")),
+    path('admin/', admin_site.urls, name='grupo_huntred_admin'),
+    # Asegúrate de que esta sea la única inclusión de admin_patterns
+    #path('admin/app/', include(admin_patterns)),
+    # Incluye las URLs regulares de la app, pero no las admin_patterns
+    path('', include('app.urls')),
     path('health/', health_check, name='health_check'),
 ]
 urlpatterns += staticfiles_urlpatterns()

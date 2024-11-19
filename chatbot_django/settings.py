@@ -6,6 +6,10 @@ from django.conf import settings
 from sentry_sdk.integrations.django import DjangoIntegration
 from django.core.exceptions import ImproperlyConfigured
 
+import sys
+
+# Añadir una variable para detectar si estamos en un entorno de pruebas
+TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
 
 # Rutas de proyecto
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,6 +28,7 @@ sentry_sdk.init(
     send_default_pii=True
 )
 
+APPEND_SLASH = False
 
 ALLOWED_HOSTS = [
     "35.209.109.141",
@@ -32,6 +37,19 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1"
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://chatbot.amigro.org',
+    'https://graph.facebook.com',
+]
+CSRF_MIDDLEWARE_EXEMPT_URLS = [
+    r"^/webhook/whatsapp/.*$",
+    r"^/webhook/telegram/.*$",
+    r"^/webhook/messenger/.*$",
+    r"^/webhook/instagram/.*$",
+    r"^/admin/app/create-flow$",
+]
+CSRF_FAILURE_VIEW = 'django.views.csrf.csrf_failure'
 
 INSTALLED_APPS = [
     'app.apps.AppConfig',  # Usa el nombre completo con 'apps.AppConfig'
@@ -43,6 +61,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',  # Correcto
+    'django_extensions',  # Agregar esta línea
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -129,7 +149,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS configuration
-# CORS_ORIGIN_ALLOW_ALL = True  # Cambia a False en producción y define los dominios permitidos
+CORS_ALLOW_ALL_ORIGINS = True  # Solo para pruebas, cambia a False en producción
+CORS_ORIGIN_ALLOW_ALL = True  # Cambia a False en producción y define los dominios permitidos
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = [
      'https://chatbot.amigro.org',
@@ -155,8 +176,10 @@ CELERY_WORKER_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s
 CELERYD_WORKER_TYPE = 'prefork'
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prefetch una tarea a la vez
 
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BROKER_HEARTBEAT = 10
 CELERY_BROKER_CONNECTION_TIMEOUT = 30
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
 
 
 LOGGING = {
@@ -174,33 +197,39 @@ LOGGING = {
     },
     'handlers': {
         'file': {
-            'level': 'WARNING',  # Capturar advertencias (WARNING), errores y críticos en general
+            'level': 'DEBUG',  # Capturar advertencias (DEBUG), errores y críticos en general
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/error.log'),  # Archivo para capturar errores y advertencias generales
             'formatter': 'verbose',
         },
         'whatsapp_file': {
-            'level': 'WARNING',  # Capturar advertencias de WhatsApp
+            'level': 'DEBUG',  # Capturar advertencias de WhatsApp
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/whatsapp.log'),
             'formatter': 'verbose',
         },
         'telegram_file': {
-            'level': 'WARNING',  # Capturar advertencias de Telegram
+            'level': 'DEBUG',  # Capturar advertencias de Telegram
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/telegram.log'),
             'formatter': 'verbose',
         },
         'messenger_file': {
-            'level': 'WARNING',  # Capturar advertencias de Messenger
+            'level': 'DEBUG',  # Capturar advertencias de Messenger
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/messenger.log'),
             'formatter': 'verbose',
         },
         'instagram_file': {
-            'level': 'WARNING',  # Capturar advertencias de Instagram
+            'level': 'DEBUG',  # Capturar advertencias de Instagram
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/instagram.log'),
+            'formatter': 'verbose',
+        },
+        'milkyleak_file': {
+            'level': 'DEBUG',  # Capturar advertencias de MilkyLeak
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/milkyleak.log'),
             'formatter': 'verbose',
         },
         'console': {
@@ -212,32 +241,37 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['file', 'console'],  # Registrar advertencias y errores de Django en error.log y consola
-            'level': 'WARNING',  # Capturar advertencias, errores y críticos
+            'level': 'INFO',  # Capturar advertencias, errores y críticos
             'propagate': True,
         },
         'django.request': {
             'handlers': ['file'],  # Registrar advertencias y errores de solicitudes en error.log
-            'level': 'WARNING',  # Capturar advertencias, errores y críticos
+            'level': 'INFO',  # Capturar advertencias, errores y críticos
             'propagate': False,
         },
         'whatsapp': {
             'handlers': ['whatsapp_file', 'console'],  # Log específico para WhatsApp
-            'level': 'WARNING',  # Capturar advertencias y superiores
+            'level': 'DEBUG',  # Capturar advertencias y superiores
             'propagate': False,
         },
         'telegram': {
             'handlers': ['telegram_file', 'console'],  # Log específico para Telegram
-            'level': 'WARNING',
+            'level': 'DEBUG',
             'propagate': False,
         },
         'messenger': {
             'handlers': ['messenger_file', 'console'],  # Log específico para Messenger
-            'level': 'WARNING',
+            'level': 'DEBUG',
             'propagate': False,
         },
         'instagram': {
             'handlers': ['instagram_file', 'console'],  # Log específico para Instagram
-            'level': 'WARNING',
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'milkyleak': {
+            'handlers': ['milkyleak_file', 'console'],  # Log específico para MilkyLeak
+            'level': 'DEBUG',
             'propagate': False,
         },
     },

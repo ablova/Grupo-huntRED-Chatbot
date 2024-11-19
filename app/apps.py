@@ -15,9 +15,11 @@ class AppConfig(AppConfig):
         post_migrate.connect(load_dynamic_settings, sender=self)
 
 def load_dynamic_settings(sender, **kwargs):
-    from app.models import Configuracion  # Importar el modelo dentro de la función para evitar problemas
+    if getattr(settings, 'TESTING', False):
+        return  # Ignorar durante las pruebas
+
+    from app.models import Configuracion
     try:
-        # Obtener la configuración desde la base de datos
         config = Configuracion.objects.first()
         if not config:
             raise ImproperlyConfigured("No se encontraron configuraciones en la base de datos.")
@@ -27,5 +29,7 @@ def load_dynamic_settings(sender, **kwargs):
         settings.DEBUG = config.debug_mode
         settings.SENTRY_DSN = config.sentry_dsn
 
+    except ImproperlyConfigured as e:
+        raise  # Re-raise the exception to avoid silent failures
     except Exception as e:
         raise ImproperlyConfigured(f"Error al cargar configuraciones desde la base de datos: {e}")
