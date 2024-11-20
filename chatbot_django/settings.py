@@ -52,7 +52,12 @@ CSRF_MIDDLEWARE_EXEMPT_URLS = [
 CSRF_FAILURE_VIEW = 'django.views.csrf.csrf_failure'
 
 INSTALLED_APPS = [
+    'grappelli',
     'app.apps.AppConfig',  # Usa el nombre completo con 'apps.AppConfig'
+    'admin_tools',
+    'admin_tools.theming',
+    'admin_tools.menu',
+    'admin_tools.dashboard',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -96,6 +101,9 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'chatbot_django.wsgi.application'
+ADMIN_TOOLS_INDEX_DASHBOARD = 'app.dashboard.CustomIndexDashboard'
+GRAPPELLI_ADMIN_TITLE = "Administración de Chatbots de Grupo huntRED®"
+#GRAPPELLI_INDEX_DASHBOARD = 'ruta.a.tu.DashboardPersonalizado'  # Opcional, para un dashboard personalizado
 
 DATABASES = {
     'default': {

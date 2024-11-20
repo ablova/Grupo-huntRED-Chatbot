@@ -20,6 +20,18 @@ from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.template.response import TemplateResponse
+from django.shortcuts import render
+from django.contrib.admin.views.decorators import staff_member_required
+from app.models import BusinessUnit, ChatState
+
+@staff_member_required
+def interacciones_por_unidad(request):
+    data = []
+    units = BusinessUnit.objects.all()
+    for unit in units:
+        count = ChatState.objects.filter(platform__icontains=unit.name.lower()).count()
+        data.append({'unidad': unit.name, 'interacciones': count})
+    return render(request, 'admin/estadisticas/interacciones.html', {'data': data})
 
 # Importaciones de utilidades y funciones internas
 from .nlp_utils import analyze_text

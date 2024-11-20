@@ -75,7 +75,8 @@
     // Cargar el flujo seleccionado
     function loadSelectedFlow() {
         const selectedFlowId = document.getElementById("flowSelector").value;
-        fetch(`/admin/app/load_flow_data/${selectedFlowId}/`, {  // Actualiza para incluir selectedFlowId
+        const urlLoadFlowData = "{% url 'load_flow_data' 0 %}".replace('0', selectedFlowId);
+        fetch(urlLoadFlowData, {
             method: 'GET',
             headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Accept': 'application/json' },
             credentials: 'same-origin'
@@ -98,7 +99,7 @@
             nodes: myDiagram.model.nodeDataArray,
             links: myDiagram.model.linkDataArray
         };
-        fetch("{% url 'admin:save_flow' %}", {
+        fetch("{% url 'save_flow_structure' %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

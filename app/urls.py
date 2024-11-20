@@ -66,6 +66,10 @@ urlpatterns = [
     path('send-test-notification/', send_test_notification, name='send_test_notification'),
     path('milkyleak/', milkyleak_view, name='milkyleak'),
     path('sentry-debug/', trigger_error),
+
+    path('admin/estadisticas/interacciones/', views.interacciones_por_unidad, name='interacciones_por_unidad'),
+
+
 ]
 
 # Añadir rutas para archivos estáticos en modo desarrollo

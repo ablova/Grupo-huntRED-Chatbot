@@ -1,14 +1,27 @@
-<!-- /home/amigro/app/templates/admin/base_site.html -->
+<!-- /home/amigro/templates/admin/base_site.html -->
 {% extends "admin/base.html" %}
-
-{% block branding %}
-    <div id="site-name">
-        <img src="https://amigro.org/wp-content/uploads/2019/11/logo2-1.png" alt="Amigro" style="max-height: 50px;">
-        <h1>{{ site_title|default:_('Django site admin') }}</h1>
-    </div>
+{% load static %}
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'css/admin.css' %}">
+<link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha384-eN5lYd17tFe20zEHIoBTgmP3pYgJX8yX6U2bYTCG0XcRgbsYDR49fyljP/Zgi+zZ" crossorigin="anonymous">
 {% endblock %}
 
-{% block content %}
-    <!-- Aquí va el contenido del administrador -->
-    <h2>Contenido personalizado</h2>
+{% block branding %}
+<div id="branding">
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">
+            <img src="{% static 'images/logo.png' %}" alt="Grupo huntRED® Logo" style="height:50px; vertical-align: middle;"/>
+            Administración de Chatbots y Servicios de Grupo huntRED
+        </a>
+    </h1>
+</div>
+{% endblock %}
+
+{% block nav-global %}
+<ul id="nav-global">
+    <li><a href="https://www.huntred.com" target="_blank">Sitio Web</a></li>
+    <li><a href="https://www.huntred.com/contacto" target="_blank">Contacto</a></li>
+</ul>
 {% endblock %}

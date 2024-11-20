@@ -1,0 +1,33 @@
+<!-- /home/amigro/templates/admin/estadisticas/interacciones.html -->
+
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block content %}
+<h1>Interacciones por Unidad de Negocio</h1>
+<canvas id="interaccionesChart" width="400" height="200"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+var ctx = document.getElementById('interaccionesChart').getContext('2d');
+var chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: {{ data|pluck:'unidad'|safe }},
+        datasets: [{
+            label: 'Interacciones',
+            data: {{ data|pluck:'interacciones'|safe }},
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
