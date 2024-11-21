@@ -421,10 +421,6 @@ class ChatBotHandler:
             fields_str = ", ".join(missing_fields)
             return f"Para continuar, completa estos datos: {fields_str}"
         return None  # Todo está completo
-    # Métodos auxiliares
-    async def _get_next_subquestion_or_main(self, event, current_question):
-        next_subquestion = await sync_to_async(lambda: current_question.next_subquestion)()
-        return next_subquestion or await sync_to_async(lambda: current_question.next_main_question)()
 
     async def process_user_message(self, event, text, analysis, context):
         """

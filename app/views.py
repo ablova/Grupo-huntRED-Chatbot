@@ -81,23 +81,36 @@ def load_flow(request):
 @csrf_exempt
 def create_pregunta(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        pregunta = Pregunta.objects.create(
-            name=data.get('name', "Nombre por defecto"),
-            content=data.get('content', ""),
-            # Otros campos según tu necesidad
-        )
-        return JsonResponse({'id': pregunta.id})
+        try:
+            data = json.loads(request.body)
+            next_si = Pregunta.objects.get(id=data.get('next_si')) if data.get('next_si') else None
+            next_no = Pregunta.objects.get(id=data.get('next_no')) if data.get('next_no') else None
+            
+            pregunta = Pregunta.objects.create(
+                name=data.get('name', "Nombre por defecto"),
+                content=data.get('content', ""),
+                next_si=next_si,
+                next_no=next_no,
+                # Otros campos según tu necesidad
+            )
+            return JsonResponse({'id': pregunta.id})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
 
 @csrf_exempt
 def update_pregunta(request, id):
     if request.method == 'PUT':
-        data = json.loads(request.body)
-        pregunta = get_object_or_404(Pregunta, id=id)
-        pregunta.name = data.get('name', pregunta.name)
-        pregunta.content = data.get('content', pregunta.content)
-        pregunta.save()
-        return JsonResponse({'status': 'success'})
+        try:
+            data = json.loads(request.body)
+            pregunta = get_object_or_404(Pregunta, id=id)
+            pregunta.name = data.get('name', pregunta.name)
+            pregunta.content = data.get('content', pregunta.content)
+            pregunta.next_si = Pregunta.objects.get(id=data.get('next_si')) if data.get('next_si') else None
+            pregunta.next_no = Pregunta.objects.get(id=data.get('next_no')) if data.get('next_no') else None
+            pregunta.save()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
 
 @csrf_exempt
 def delete_pregunta(request, id):
@@ -116,12 +129,13 @@ def update_position(request, id):
         pregunta.save()
         return JsonResponse({'status': 'success'})
 
-# Función para imprimir pregunta y subpreguntas (recursiva)
-def print_pregunta_y_subpreguntas(pregunta):
+# Función para imprimir pregunta (recursiva)
+def print_pregunta(pregunta):
     print(f"Pregunta: {pregunta.name}")
-    for sub_pregunta in pregunta.sub_preguntas.all():
-        print(f"    SubPregunta: {sub_pregunta.name}")
-        print_pregunta_y_subpreguntas(sub_pregunta)  # Recursividad para explorar más
+    if pregunta.next_si:
+        print(f"    Siguiente (Si): {pregunta.next_si.name}")
+    if pregunta.next_no:
+        print(f"    Siguiente (No): {pregunta.next_no.name}")
 
 # Cargar datos del flujo
 def load_flow_data(request, flowmodel_id):
@@ -138,6 +152,7 @@ def edit_flow(request, flowmodel_id):
         'flow': flow,
         'flows': flows,
         'questions_json': flow.flow_data_json or "[]",
+        'csrf_token': get_token(request),  # Añade el token CSRF si es necesario
     }
     logger.info(f"Accediendo a edit_flow con ID: {flowmodel_id}")
     return TemplateResponse(request, "admin/chatbot_flow.html", context)
@@ -168,26 +183,30 @@ def export_chatbot_flow(request):
         return JsonResponse({'status': 'exported', 'data': flow_data})
     return JsonResponse({'status': 'error'}, status=400)
 
-# Función para cargar preguntas y subpreguntas asociadas al flujo
+# Función para cargar preguntas asociadas al flujo
 def load_flow_questions_data(request, flowmodel_id):
-    flow = FlowModel.objects.prefetch_related('preguntas__sub_preguntas').get(pk=flowmodel_id)
-    
-    flow_structure = {
-        'flow_data': flow.flow_data_json,  # JSON del flujo
-        'preguntas': [
-            {
-                'id': pregunta.id,
-                'name': pregunta.name,
-                'sub_preguntas': [
-                    {'id': sub_pregunta.id, 'name': sub_pregunta.name}
-                    for sub_pregunta in pregunta.sub_preguntas.all()
-                ]
-            }
-            for pregunta in flow.preguntas.all()
-        ]
-    }
+    try:
+        # Obtén el flujo y sus preguntas asociadas
+        flow = FlowModel.objects.prefetch_related('preguntas').get(pk=flowmodel_id)
 
-    return JsonResponse(flow_structure)
+        # Construir la estructura del flujo
+        flow_structure = {
+            'flow_data': flow.flow_data_json,  # JSON del flujo
+            'preguntas': [
+                {
+                    'id': pregunta.id,
+                    'name': pregunta.name,
+                    'content': pregunta.content,
+                    'next_si': pregunta.next_si.id if pregunta.next_si else None,
+                    'next_no': pregunta.next_no.id if pregunta.next_no else None,
+                }
+                for pregunta in flow.preguntas.all()
+            ]
+        }
+
+        return JsonResponse(flow_structure, safe=False)
+    except FlowModel.DoesNotExist:
+        return JsonResponse({'error': 'FlowModel not found'}, status=404)
 
 # Nueva función para procesar mensajes sin necesidad de request
 def process_message(platform, sender_id, message, use_gpt):

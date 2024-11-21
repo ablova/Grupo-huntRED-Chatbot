@@ -1,3 +1,4 @@
+admin_tools==0.1
 amqp==5.2.0
 annotated-types==0.7.0
 anyio==4.4.0
@@ -24,9 +25,11 @@ cymem==2.0.8
 distro==1.9.0
 Django==5.1.1
 django-admin-sortable2==2.2.3
+django-admin-tools==0.9.3
 django-celery-beat==2.7.0
 django-cors-headers==4.4.0
 django-extensions==3.2.3
+django-grappelli==4.0.1
 django-redis==5.4.0
 django-timezone-field==7.0
 djangorestframework==3.15.2

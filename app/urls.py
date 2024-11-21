@@ -2,6 +2,7 @@
 #APP 713dd8c2-0801-4720-af2a-910da63c42d3   7732534605ab6a7b96c8e8e81ce02e6b
 
 from django.urls import path, re_path, include
+from app import views
 from django.conf.urls.static import static
 from django.conf import settings
 from django.http import HttpResponseNotFound, HttpResponse

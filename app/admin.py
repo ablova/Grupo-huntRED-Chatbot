@@ -9,7 +9,7 @@ from asgiref.sync import async_to_sync
 from django.contrib import admin, messages
 from app.models import (
     BusinessUnit, ApiConfig, MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
-    Person, Pregunta, Worker, Buttons, Etapa, SubPregunta, GptApi,
+    Person, Pregunta, Worker, Buttons, Etapa, GptApi,
     SmtpConfig, Chat, FlowModel, ChatState, Configuracion,
     MilkyLeak
 )
@@ -105,16 +105,17 @@ class PreguntaAdmin(admin.ModelAdmin):
         ('Opciones y Contenidos', {
             'fields': (('content', 'valid', 'active', 'requires_response', 'multi_select', 'buttons')),
         }),
-        ('Conexiones y SubPreguntas', {
-            'fields': (('next_si', 'next_no'), ('sub_pregunta',))
+        ('Conexiones', {
+            'fields': (('next_si', 'next_no'),))
         }),
         ('Potencialmente obsoletos', {
             'fields': (('condiciones', 'decision', 'field_person'),)
         })
     ]
-    list_display = ['flow', 'name', 'action_type', 'multi_select', 'requires_response', 'mostrar_botones', 'next_si', 'next_no']
+    list_display = ['id','flow', 'name', 'action_type', 'multi_select', 'requires_response', 'mostrar_botones', 'next_si', 'next_no']
     list_filter = ['flow', 'action_type', 'requires_response', 'multi_select', 'buttons', 'input_type']
     search_fields = ['flow__name', 'name', 'content']
+    ordering = ('id',)
     actions = [cambiar_etapa]
 
     def mostrar_botones(self, obj):
@@ -132,23 +133,16 @@ class PreguntaAdmin(admin.ModelAdmin):
         context['adminform'].form.fields['content'].help_text = self.get_help_text()
         return super().render_change_form(request, context, *args, **kwargs)
 
-@admin.register(SubPregunta)
-class SubPreguntaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'parent_sub_pregunta', 'option', 'input_type', 'requires_response')
-    search_fields = ('name', 'parent_sub_pregunta__name')
 
 @admin.register(Buttons)
 class ButtonsAdmin(admin.ModelAdmin):
-    list_display = ('name', 'active', 'mostrar_preguntas', 'mostrar_subpreguntas')
+    list_display = ('name', 'active', 'mostrar_preguntas', )
     search_fields = ('name',)
 
     def mostrar_preguntas(self, obj):
         return ", ".join([pregunta.name for pregunta in obj.pregunta.all()])
     mostrar_preguntas.short_description = 'Preguntas'
 
-    def mostrar_subpreguntas(self, obj):
-        return ", ".join([subpregunta.name for subpregunta in obj.subpregunta.all()])
-    mostrar_subpreguntas.short_description = 'SubPreguntas'
 
 @admin.register(ChatState)
 class ChatStateAdmin(admin.ModelAdmin):
@@ -187,7 +181,10 @@ class BusinessUnitAdmin(admin.ModelAdmin):
         'name', 'description', 'whatsapp_enabled', 'telegram_enabled',
         'messenger_enabled', 'instagram_enabled', 'scrapping_enabled'
     )
-    inlines = [MetaAPIInline, WhatsAppAPIInline, TelegramAPIInline, MessengerAPIInline, InstagramAPIInline]
+    inlines = [
+        MetaAPIInline, WhatsAppAPIInline, TelegramAPIInline,
+        MessengerAPIInline, InstagramAPIInline, ConfiguracionBUInline
+    ]
     list_editable = (
         'whatsapp_enabled', 'telegram_enabled',
         'messenger_enabled', 'instagram_enabled', 'scrapping_enabled'
@@ -199,10 +196,37 @@ class BusinessUnitAdmin(admin.ModelAdmin):
     )
     search_fields = ['name', 'description']
 
+class ConfiguracionBUInline(admin.StackedInline):
+    model = ConfiguracionBU
+    can_delete = False  # Evitar borrar directamente desde el inline
+    verbose_name = "Configuración de Unidad de Negocio"
+    verbose_name_plural = "Configuraciones de Unidad de Negocio"
+    fk_name = 'business_unit'  # Indica que el campo `business_unit` es la clave foránea
+    fieldsets = (
+        ('Información General', {
+            'fields': ('logo_url', 'direccion_bu', 'telefono_bu', 'correo_bu')
+        }),
+        ('Integración y Configuración', {
+            'fields': ('dominio_bu', 'dominio_rest_api', 'jwt_token', 'scraping_domains')
+        }),
+        ('Configuración SMTP', {
+            'fields': ('smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_use_tls', 'smtp_use_ssl')
+        }),
+    )
+    readonly_fields = ('jwt_token',)  # Ejemplo de campos solo lectura si es necesario
+    extra = 0
+
 @admin.register(FlowModel)
 class FlowModelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
+    list_display = ('name', 'business_unit', 'description', 'editar_flujo')
     search_fields = ('name',)
+    list_filter = ('business_unit',)
+
+    def editar_flujo(self, obj):
+        url = reverse('edit_flow', args=[obj.pk])
+        return format_html('<a class="button" href="{}">Editar Flujo</a>', url)
+    editar_flujo.short_description = 'Editar Flujo'
+    editar_flujo.allow_tags = True
 
     # Mostrar solo flujos asociados a la unidad de negocio seleccionada en el formulario de creación
     def formfield_for_foreignkey(self, db_field, request, **kwargs):

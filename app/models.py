@@ -192,7 +192,6 @@ class Pregunta(models.Model):
     next_no = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='pregunta_no')  # Pregunta siguiente si es "No"
     input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
     action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
-    sub_pregunta = models.ManyToManyField('SubPregunta', blank=True, related_name='pregunta_principal')
     #NO se si se estan utilizando ya en el chatbot, pero las dejo para no romper el app
     field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la pregunta con el campo de Person
     condiciones = models.ManyToManyField(Condicion, blank=True)
@@ -206,29 +205,6 @@ class Pregunta(models.Model):
             self.name = "Nombre por defecto"  # Asignar un valor por defecto si no se proporciona.
         super().save(*args, **kwargs)
 
-class SubPregunta(models.Model):
-    INPUT_TYPE_CHOICES = Pregunta.INPUT_TYPE_CHOICES
-    ACTION_TYPE_CHOICES = Pregunta.ACTION_TYPE_CHOICES  # Mismas opciones que Pregunta
-    name = models.CharField(max_length=800)
-    option = models.CharField(max_length=50)
-    valid = models.BooleanField(null=True, blank=True)
-    active = models.BooleanField(default=True)
-    content = models.TextField(blank=True, null=True)
-    parent_sub_pregunta = models.ForeignKey('self', blank=True, null=True, on_delete=models.SET_NULL)
-    decision = models.JSONField(blank=True, null=True, default=dict)
-    input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
-    requires_response = models.BooleanField(default=True)
-    field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la subpregunta con el campo de Person
-    action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
-    buttons = models.ManyToManyField('Buttons', related_name='sub_preguntas', blank=True)
-
-    def __str__(self):
-        return str(self.name)
-    def save(self, *args, **kwargs):
-        # Puedes agregar lógica para establecer valores por defecto o validaciones aquí.
-        if not self.name:
-            self.name = "Nombre por defecto"  # Asignar un valor por defecto si no se proporciona.
-        super().save(*args, **kwargs)
 
 class MetaAPI(models.Model):
     business_unit = models.OneToOneField(

@@ -1,15 +1,11 @@
-<!-- /home/amigro/app/templates/index.html -->
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <!-- Meta tags requeridos -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- CSS de Bootstrap -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <title>Prueba de Envíos para el Chatbot de Amigro</title>
+    <title>Pruebas del Chatbot de Amigro</title>
     <style>
         body {
             background-color: #f8f9fa;
@@ -41,168 +37,103 @@
         }
     </style>
 </head>
-
 <body>
     <div class="container">
         <!-- Sección de Pruebas -->
         <div class="form-section">
-            <h2>Ejecutor de Pruebas del Chatbot de Amigro</h2>
+            <h2>Ejecutor de Pruebas del Chatbot</h2>
             <form id="test-form" method="POST">
                 {% csrf_token %}
-                
                 <!-- Selección de Funciones -->
                 <div class="form-group">
                     <label for="functions"><strong>Selecciona Funciones:</strong></label>
                     <select multiple class="form-control" id="functions" required>
-                        <option value="send_message">Enviar Mensaje Simple</option>
+                        <option value="send_message">Enviar Mensaje</option>
                         <option value="send_image">Enviar Imagen</option>
-                        <option value="send_menu">Enviar Menú Interactivo</option>
-                        <option value="enviar_logo">Enviar Logo de Amigro</option>
+                        <option value="send_menu">Enviar Menú</option>
+                        <option value="enviar_logo">Enviar Logo</option>
                         <option value="mostrar_vacantes">Mostrar Vacantes</option>
                         <option value="enviar_whatsapp_plantilla">Enviar Plantilla WhatsApp</option>
-                        <option value="send_question">Enviar Pregunta Específica</option>
+                        <option value="send_question">Enviar Pregunta</option>
                     </select>
-                    <small class="form-text text-muted">Mantén presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar múltiples opciones.</small>
+                    <small class="form-text text-muted">Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples.</small>
                 </div>
-
                 <!-- Selección de Plataforma -->
                 <div class="form-group">
                     <label for="platform"><strong>Selecciona Plataforma:</strong></label>
                     <select class="form-control" id="platform" required>
-                        <option value="">-- Selecciona una Plataforma --</option>
                         <option value="whatsapp">WhatsApp</option>
                         <option value="telegram">Telegram</option>
                         <option value="messenger">Messenger</option>
                         <option value="instagram">Instagram</option>
                     </select>
                 </div>
-
-                <!-- Campo para el número de teléfono o ID de usuario -->
+                <!-- Campo para Número de Teléfono -->
                 <div class="form-group">
-                    <label for="phone_number"><strong>Número de Teléfono o ID de Usuario:</strong></label>
+                    <label for="phone_number"><strong>Número de Teléfono:</strong></label>
                     <input type="text" class="form-control" id="phone_number" placeholder="Ej. 525518490291">
-                    <small class="form-text text-muted">Si no se proporciona, se usará el valor predeterminado para la plataforma seleccionada.</small>
                 </div>
-
-                <!-- Definición de Pregunta (opcional) -->
+                <!-- ID de Pregunta -->
                 <div class="form-group">
-                    <label for="question_id"><strong>ID de la Pregunta (Opcional):</strong></label>
-                    <input type="text" class="form-control" id="question_id" placeholder="ID de la pregunta a enviar">
-                    <small class="form-text text-muted">Solo necesario si seleccionas 'Enviar Pregunta Específica'.</small>
+                    <label for="question_id"><strong>ID de la Pregunta:</strong></label>
+                    <input type="text" class="form-control" id="question_id" placeholder="Opcional">
                 </div>
-
-                <!-- Definición del Mensaje o Acción -->
+                <!-- Mensaje / Acción -->
                 <div class="form-group">
-                    <label for="action"><strong>Define el Mensaje/Acción:</strong></label>
-                    <textarea class="form-control" id="action" placeholder="Escribe el mensaje, link o acción a ejecutar aquí..." required></textarea>
+                    <label for="action"><strong>Mensaje/Acción:</strong></label>
+                    <textarea class="form-control" id="action" required></textarea>
                 </div>
-
                 <!-- Botón de Envío -->
-                <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Enviar Prueba</button>
-
-                <!-- Spinner de Carga -->
+                <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Enviar</button>
+                <!-- Spinner -->
                 <div class="loading-spinner" id="loadingSpinner">
                     <div class="spinner-border text-primary" role="status">
-                        <span class="sr-only">Enviando...</span>
+                        <span class="sr-only">Cargando...</span>
                     </div>
                 </div>
-
                 <!-- Alertas -->
-                <div class="alert alert-success" role="alert" id="successAlert">
-                    Prueba enviada exitosamente.
-                </div>
-                <div class="alert alert-danger" role="alert" id="errorAlert">
-                    Ocurrió un error al enviar la prueba.
-                </div>
+                <div class="alert alert-success" id="successAlert">Prueba enviada exitosamente.</div>
+                <div class="alert alert-danger" id="errorAlert">Error al enviar la prueba.</div>
             </form>
         </div>
+        <!-- Configuración Actual -->
         <div class="form-section">
-            <h2>Configuración Actual de Pruebas de Celery</h2>
-        
+            <h2>Configuración de Pruebas</h2>
             <div class="form-group">
-                <label><strong>Usuario de Prueba:</strong></label>
+                <label><strong>Usuario:</strong></label>
                 <input type="text" class="form-control" value="{{ config.test_user }}" readonly>
             </div>
-        
             <div class="form-group">
-                <label><strong>Número de Teléfono de Prueba:</strong></label>
+                <label><strong>Teléfono:</strong></label>
                 <input type="text" class="form-control" value="{{ config.test_phone_number }}" readonly>
             </div>
-        
             <div class="form-group">
-                <label><strong>Email de Prueba:</strong></label>
+                <label><strong>Email:</strong></label>
                 <input type="text" class="form-control" value="{{ config.test_email }}" readonly>
             </div>
-        
-            <button id="sendTestNotification" class="btn btn-primary">
-                <i class="fas fa-paper-plane"></i> Enviar Notificación de Prueba
-            </button>
-        
-            <div id="testNotificationResult" class="alert" style="display: none;"></div>
         </div>
     </div>
-
-    <!-- JS de Bootstrap, Popper.js y jQuery -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <!-- Asegúrate de incluir el token CSRF -->
+    <!-- Scripts -->
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const functionsSelect = document.getElementById('functions');
-            const platformSelect = document.getElementById('platform');
+        document.addEventListener('DOMContentLoaded', () => {
             const testForm = document.getElementById('test-form');
-            const actionInput = document.getElementById('action');
-            const phoneNumberInput = document.getElementById('phone_number');
-            const questionInput = document.getElementById('question_id');
-            const loadingSpinner = document.getElementById('loadingSpinner');
             const successAlert = document.getElementById('successAlert');
             const errorAlert = document.getElementById('errorAlert');
+            const loadingSpinner = document.getElementById('loadingSpinner');
 
-            // Manejar el envío del formulario de pruebas
-            testForm.addEventListener('submit', async function (e) {
+            testForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-
-                const selectedFunctions = Array.from(functionsSelect.selectedOptions).map(option => option.value);
-                const platform = platformSelect.value;
-                const phoneNumber = phoneNumberInput.value.trim();
-                const questionId = questionInput.value.trim();
-                const action = actionInput.value.trim();
-
-                if (selectedFunctions.length === 0) {
-                    alert('Por favor selecciona al menos una función.');
-                    return;
-                }
-
-                if (!platform) {
-                    alert('Por favor selecciona una plataforma.');
-                    return;
-                }
-
-                if (!action) {
-                    alert('Por favor define el mensaje, link o acción a ejecutar.');
-                    return;
-                }
-
-                // Validar si 'send_question' requiere 'question_id'
-                if (selectedFunctions.includes('send_question') && !questionId) {
-                    alert('Por favor proporciona el ID de la pregunta a enviar.');
-                    return;
-                }
-
-                // Mostrar spinner de carga
-                loadingSpinner.style.display = 'block';
                 successAlert.style.display = 'none';
                 errorAlert.style.display = 'none';
+                loadingSpinner.style.display = 'block';
 
-                // Obtener el token CSRF
                 const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-                // Datos para el request
                 const data = {
-                    'functions': selectedFunctions,
-                    'platform': platform,
-                    'action': action,
-                    'phone_number': phoneNumber ? phoneNumber : undefined,
-                    'question_id': questionId ? questionId : undefined
+                    functions: Array.from(document.getElementById('functions').selectedOptions).map(option => option.value),
+                    platform: document.getElementById('platform').value,
+                    phone_number: document.getElementById('phone_number').value.trim(),
+                    question_id: document.getElementById('question_id').value.trim(),
+                    action: document.getElementById('action').value.trim()
                 };
 
                 try {
@@ -215,55 +146,20 @@
                         body: JSON.stringify(data)
                     });
 
-                    const result = await response.json();
-
                     if (response.ok) {
                         successAlert.style.display = 'block';
-                        // Opcionalmente, puedes resetear el formulario aquí
                     } else {
-                        throw new Error(result.error || 'Error desconocido');
+                        errorAlert.textContent = `Error: ${response.statusText}`;
+                        errorAlert.style.display = 'block';
                     }
                 } catch (error) {
-                    console.error('Error:', error);
                     errorAlert.textContent = `Error: ${error.message}`;
                     errorAlert.style.display = 'block';
                 } finally {
-                    // Ocultar spinner de carga
                     loadingSpinner.style.display = 'none';
                 }
             });
         });
     </script>
-    <script>
-        document.getElementById('sendTestNotification').addEventListener('click', async () => {
-            const resultDiv = document.getElementById('testNotificationResult');
-            resultDiv.style.display = 'none';
-    
-            try {
-                const response = await fetch('/send-test-notification/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    }
-                });
-    
-                const result = await response.json();
-                if (response.ok) {
-                    resultDiv.textContent = 'Notificación de prueba enviada exitosamente.';
-                    resultDiv.className = 'alert alert-success';
-                } else {
-                    throw new Error(result.error || 'Error desconocido');
-                }
-            } catch (error) {
-                resultDiv.textContent = `Error: ${error.message}`;
-                resultDiv.className = 'alert alert-danger';
-            }
-    
-            resultDiv.style.display = 'block';
-        });
-    </script>
-
 </body>
-
 </html>
