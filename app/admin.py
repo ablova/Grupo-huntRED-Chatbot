@@ -10,7 +10,7 @@ from django.contrib import admin, messages
 from app.models import (
     BusinessUnit, ApiConfig, MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
     Person, Pregunta, Worker, Buttons, Etapa, GptApi,
-    SmtpConfig, Chat, FlowModel, ChatState, Configuracion,
+    SmtpConfig, Chat, FlowModel, ChatState, Configuracion, ConfiguracionBU,
     MilkyLeak
 )
 from app.chatbot import ChatBotHandler
@@ -106,7 +106,7 @@ class PreguntaAdmin(admin.ModelAdmin):
             'fields': (('content', 'valid', 'active', 'requires_response', 'multi_select', 'buttons')),
         }),
         ('Conexiones', {
-            'fields': (('next_si', 'next_no'),))
+            'fields': (('next_si', 'next_no',))
         }),
         ('Potencialmente obsoletos', {
             'fields': (('condiciones', 'decision', 'field_person'),)
@@ -174,6 +174,27 @@ class InstagramAPIInline(admin.StackedInline):
     extra = 0
     fields = ('app_id', 'access_token', 'associated_flow', 'is_active')
 
+
+class ConfiguracionBUInline(admin.StackedInline):
+    model = ConfiguracionBU
+    can_delete = False  # Evitar borrar directamente desde el inline
+    verbose_name = "Configuración de Unidad de Negocio"
+    verbose_name_plural = "Configuraciones de Unidad de Negocio"
+    fk_name = 'business_unit'  # Indica que el campo `business_unit` es la clave foránea
+    fieldsets = (
+        ('Información General', {
+            'fields': ('logo_url', 'direccion_bu', 'telefono_bu', 'correo_bu')
+        }),
+        ('Integración y Configuración', {
+            'fields': ('dominio_bu', 'dominio_rest_api', 'jwt_token', 'scraping_domains')
+        }),
+        ('Configuración SMTP', {
+            'fields': ('smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_use_tls', 'smtp_use_ssl')
+        }),
+    )
+    readonly_fields = ('jwt_token',)  # Ejemplo de campos solo lectura si es necesario
+    extra = 0
+
 # Admin para Unidad de Negocio
 @admin.register(BusinessUnit)
 class BusinessUnitAdmin(admin.ModelAdmin):
@@ -195,26 +216,6 @@ class BusinessUnitAdmin(admin.ModelAdmin):
         'scraping_domains'
     )
     search_fields = ['name', 'description']
-
-class ConfiguracionBUInline(admin.StackedInline):
-    model = ConfiguracionBU
-    can_delete = False  # Evitar borrar directamente desde el inline
-    verbose_name = "Configuración de Unidad de Negocio"
-    verbose_name_plural = "Configuraciones de Unidad de Negocio"
-    fk_name = 'business_unit'  # Indica que el campo `business_unit` es la clave foránea
-    fieldsets = (
-        ('Información General', {
-            'fields': ('logo_url', 'direccion_bu', 'telefono_bu', 'correo_bu')
-        }),
-        ('Integración y Configuración', {
-            'fields': ('dominio_bu', 'dominio_rest_api', 'jwt_token', 'scraping_domains')
-        }),
-        ('Configuración SMTP', {
-            'fields': ('smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_use_tls', 'smtp_use_ssl')
-        }),
-    )
-    readonly_fields = ('jwt_token',)  # Ejemplo de campos solo lectura si es necesario
-    extra = 0
 
 @admin.register(FlowModel)
 class FlowModelAdmin(admin.ModelAdmin):

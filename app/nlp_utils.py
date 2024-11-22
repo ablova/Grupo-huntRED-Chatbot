@@ -18,11 +18,15 @@ matcher = Matcher(nlp.vocab)
 
 # Definir patrones para identificar intenciones
 patterns = [
-    {"label": "reiniciar", "pattern": [{"LOWER": {"IN": ["reiniciar", "reinicio", "comenzar de nuevo el chat", "inicio pllh"]}}]},
+    {"label": "reiniciar", "pattern": [{"LOWER": {"IN": ["reiniciar", "reinicio", "comenzar de nuevo el chat", "inicio pllh", "reset", "empezar de nuevo"]}}]},
+    {"label": "menu", "pattern": [{"LOWER": {"IN": ["menu", "menú", "main menu", "menú principal", "menú_iterativo"]}}]},
+    {"label": "recapitulación", "pattern": [{"LOWER": {"IN": ["recap", "recapitulación", "mi perfil", "ver información"]}}]},
+    # Otros patrones existentes
     {"label": "saludo", "pattern": [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "buenas noches"]}}]},
-    {"label": "despedida", "pattern": [{"LOWER": {"IN": ["adiós", "hasta luego", "nos vemos", "chao", "gracias"]}}]},
+    {"label": "despedida", "pattern": [{"LOWER": {"IN": ["adiós", "hasta luego", "nos vemos", "chao", "ciao"]}}]},
     {"label": "buscar_vacante", "pattern": [{"LEMMA": "buscar"}, {"LEMMA": "vacante"}]},
     {"label": "postular_vacante", "pattern": [{"LEMMA": "postular"}, {"LEMMA": "vacante"}]},
+    
     # Añade más patrones según tus necesidades
 ]
 

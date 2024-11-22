@@ -187,7 +187,7 @@
           },
           {
             "pk": 2,
-            "model": "app.subpregunta",
+            "model": "app.pregunta",
             "fields": {
               "name": "Envio Logo Amigro",
               "content": "Aquí te mostramos nuestro logo:",
@@ -204,7 +204,7 @@
           },
           {
             "pk": 3,
-            "model": "app.subpregunta",
+            "model": "app.pregunta",
             "fields": {
               "name": "Envio URL TOS",
               "content": "Aquí puedes consultar nuestros Términos y Condiciones: https://amigro.org/tos/",
@@ -240,7 +240,7 @@
           },
           {
             "pk": 5,
-            "model": "app.subpregunta",
+            "model": "app.pregunta",
             "fields": {
               "name": "Términos Aceptados",
               "content": "Gracias por aceptar los Términos y Condiciones. ¡Continuemos con tu registro!",
@@ -257,7 +257,7 @@
           },
           {
             "pk": 6,
-            "model": "app.subpregunta",
+            "model": "app.pregunta",
             "fields": {
               "name": "Términos Rechazados",
               "content": "Lamentamos que no aceptes nuestros Términos. No podemos continuar sin tu aceptación.",
@@ -1820,7 +1820,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -1844,7 +1843,6 @@
         "field_person": null,
         "decision": {},
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -1868,7 +1866,6 @@
         "field_person": null,
         "decision": {},
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -1895,7 +1892,6 @@
           "next_no": 6
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -1919,7 +1915,6 @@
         "field_person": null,
         "decision": {},
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -1943,7 +1938,6 @@
         "field_person": null,
         "decision": {},
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -1970,7 +1964,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -1997,7 +1990,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2024,7 +2016,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2051,7 +2042,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2078,7 +2068,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2105,7 +2094,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2132,7 +2120,6 @@
           "next_no": 15
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2159,7 +2146,6 @@
           "next_no": 15
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2186,7 +2172,6 @@
           "next_no": 20
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2213,7 +2198,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2240,7 +2224,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2267,7 +2250,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2294,7 +2276,6 @@
           "next_no": 20
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2321,7 +2302,6 @@
           "next_no": 25
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2348,7 +2328,6 @@
           "next_no": 22
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2375,7 +2354,6 @@
           "next_no": 25
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2402,7 +2380,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2429,7 +2406,6 @@
           "next_no": 25
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2456,7 +2432,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2483,7 +2458,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2510,7 +2484,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2537,7 +2510,6 @@
           "next_no": 32
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2564,7 +2536,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2591,7 +2562,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2618,7 +2588,6 @@
           "next_no": 34
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2645,7 +2614,6 @@
           "next_no": 34
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2672,7 +2640,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2699,7 +2666,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2726,7 +2692,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2753,7 +2718,6 @@
           "next_no": 38
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2780,7 +2744,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2807,7 +2770,6 @@
           "next_no": 40
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2834,7 +2796,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2861,7 +2822,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2888,7 +2848,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2915,7 +2874,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2942,7 +2900,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2969,7 +2926,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -2996,7 +2952,6 @@
           "next_no": 50
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3023,7 +2978,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3050,7 +3004,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3077,7 +3030,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3104,7 +3056,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3131,7 +3082,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3158,7 +3108,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3185,7 +3134,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3212,7 +3160,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3239,7 +3186,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3266,7 +3212,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3293,7 +3238,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3320,7 +3264,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3347,7 +3290,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3374,7 +3316,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3401,7 +3342,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3428,7 +3368,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3455,7 +3394,6 @@
           "next_no": 65
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3482,7 +3420,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3509,7 +3446,6 @@
           "next_no": 82
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3536,7 +3472,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3563,7 +3498,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3590,7 +3524,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3617,7 +3550,6 @@
           "next_no": 70
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3644,7 +3576,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3671,7 +3602,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3698,7 +3628,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3725,7 +3654,6 @@
           "next_no": 75
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3752,7 +3680,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3779,7 +3706,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3806,7 +3732,6 @@
           "next_no": 76
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3833,7 +3758,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3860,7 +3784,6 @@
           "next_no": 81
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3887,7 +3810,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3914,7 +3836,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3941,7 +3862,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3968,7 +3888,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },
@@ -3995,7 +3914,6 @@
           "next_no": null
         },
         "buttons": [],
-        "sub_pregunta": [],
         "condiciones": []
       }
     },

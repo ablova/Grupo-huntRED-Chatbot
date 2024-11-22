@@ -222,8 +222,8 @@ class MetaAPI(models.Model):
 class WhatsAppAPI(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='whatsapp_apis', null=True, blank=True)
     name = models.CharField(max_length=50)
-    phoneID = models.CharField(max_length=20)
-    api_token = models.CharField(max_length=500)
+    phoneID = models.CharField(max_length=20, default='114521714899382') 
+    api_token = models.CharField(max_length=500, default='EAAJaOsnq2vgBOxatkizgaMhE6dk4jEtbWchTiuHK7XXDbsZAlekvZCldWTajCXABVAGQW9XUbZAdy6IZBoUqZBctEHm6H5mSfP9nAbQ5dZAPbf9P1WkHh4keLT400yhvvbZAEq34e9dlkIp2RwsPqK9ghG6H244SZAFK4V5Oo7FiDl9DdM5j5EhXCY5biTrn7cmzYwZDZD')
     WABID = models.CharField(max_length=20, default='104851739211207')
     v_api = models.CharField(max_length=10)
     meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
@@ -405,7 +405,6 @@ class Buttons(models.Model):
     name = models.CharField(max_length=20)
     active = models.BooleanField()
     pregunta = models.ManyToManyField(Pregunta, related_name='botones_pregunta', blank=True)
-    subpregunta = models.ManyToManyField(SubPregunta, related_name='botones_subpregunta', blank=True)
 
     def __str__(self):
         return str(self.name)

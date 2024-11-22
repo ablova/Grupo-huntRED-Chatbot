@@ -15,26 +15,53 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git .
 
 
 #Ejecutar desde el LOCAL MI COMPU
-git status
-git add .
-git commit -m "Actualización del panel de administración y editor de flujo"
+git status &&
+git add . &&
+git commit -m "Actualización del panel de administración, modelos (quitamos subpregunta), editor de flujo, y mucho más" &&
 git push origin main
 
 
 #Ejecutar desde el SERVIDOR Donde se realizará el clonado
-cd /home/amigro &&
+# Truncar logs antes de iniciar el despliegue
+sudo truncate -s 0 /home/amigro/logs/*.log &&
+sudo truncate -s 0 /var/log/nginx/access.log &&
+sudo truncate -s 0 /var/log/nginx/error.log &&
+sudo truncate -s 0 /var/log/syslog &&
+sudo truncate -s 0 /var/log/auth.log &&
+sudo truncate -s 0 /var/log/dmesg &&
+sudo truncate -s 0 /var/log/kern.log
+
+sudo logrotate -f /etc/logrotate.conf
+sudo journalctl --vacuum-time=1s
+sudo journalctl --vacuum-size=50M
+
+
+cd /home/amigro && source venv/bin/activate &&
 git fetch origin &&
 git reset --hard origin/main &&
 git clean -fd &&
 git status &&
-git log -1
+git log -1 &&
+mkdir -p /home/amigro/logs &&
+touch /home/amigro/logs/error.log && 
+chmod 664 /home/amigro/logs/error.log &&
+chown pablollh:pablollh /home/amigro/logs/error.log
 
 
-python manage.py makemigrations
-python manage.py migrate
-python manage.py collectstatic
-sudo systemctl restart gunicorn nginx celery
+python manage.py makemigrations &&
+python manage.py migrate &&
+python manage.py collectstatic &&
+sudo systemctl restart gunicorn nginx celery &&
+sudo journalctl -u gunicorn &&
+sudo journalctl -u nginx
 cd /home/amigro/logs && cat error.log
+# Ver solo errores nuevos del sistema (e.g., gunicorn o nginx)
+sudo journalctl -u gunicorn -p err --since "10 minutes ago" -f
+sudo journalctl -u nginx -p err --since "10 minutes ago" -f
+
+# Filtrar errores recientes en logs específicos
+grep "ERROR" /home/amigro/logs/error.log
+grep "ERROR" /var/log/nginx/error.log
 
 
 

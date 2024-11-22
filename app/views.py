@@ -85,15 +85,29 @@ def create_pregunta(request):
             data = json.loads(request.body)
             next_si = Pregunta.objects.get(id=data.get('next_si')) if data.get('next_si') else None
             next_no = Pregunta.objects.get(id=data.get('next_no')) if data.get('next_no') else None
+            flow = FlowModel.objects.get(id=data.get('flow')) if data.get('flow') else None
+            etapa = Etapa.objects.get(id=data.get('etapa')) if data.get('etapa') else None
             
             pregunta = Pregunta.objects.create(
                 name=data.get('name', "Nombre por defecto"),
                 content=data.get('content', ""),
+                input_type=data.get('input_type', "text"),
+                flow=flow,
+                etapa=etapa,
+                active=data.get('active', True),
+                requires_response=data.get('requires_response', True),
+                multi_select=data.get('multi_select', False),
+                action_type=data.get('action_type', 'none'),
                 next_si=next_si,
                 next_no=next_no,
-                # Otros campos según tu necesidad
             )
             return JsonResponse({'id': pregunta.id})
+        except FlowModel.DoesNotExist:
+            return JsonResponse({'error': 'FlowModel no encontrado'}, status=400)
+        except Etapa.DoesNotExist:
+            return JsonResponse({'error': 'Etapa no encontrada'}, status=400)
+        except Pregunta.DoesNotExist:
+            return JsonResponse({'error': 'Pregunta next_si o next_no no encontrada'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 

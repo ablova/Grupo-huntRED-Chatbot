@@ -31,7 +31,7 @@ class VacanteManager:
     def __init__(self, job_data):
         self.job_data = job_data
         self.configuracion = ConfiguracionBU.objects.get(business_unit=self.job_data['business_unit'])
-        self.api_url = f"{self.configuracion.dominio_rest_api}/job-listings"  # Usar el dominio REST API
+        self.api_url = f"{self.configuracion.dominio_bu}/wp-json//wp/v2/job-listings"  # Usar el dominio REST API
         self.headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {self.configuracion.jwt_token}'  # Usar el JWT Token

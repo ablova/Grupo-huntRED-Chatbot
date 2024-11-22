@@ -1,3 +1,5 @@
+# /home/amigro/app/apps.py
+
 from django.apps import AppConfig
 from django.conf import settings
 from django.db import connection
@@ -76,20 +78,38 @@ class AppConfig(AppConfig):
 
     def load_dynamic_settings(self):
         """
-        Carga configuraciones dinámicas desde la tabla `app_configuracion`.
+        Carga configuraciones dinámicas desde la tabla `app_configuracion`
+        y establece valores predeterminados si no se encuentran en la base de datos.
         """
         from django.apps import apps
         Configuracion = apps.get_model('app', 'Configuracion')
+        logger = logging.getLogger(__name__)
 
-        # Recuperar configuración desde la base de datos
-        config = Configuracion.objects.first()
-        if config:
-            # Asignar valores dinámicos a las configuraciones globales
-            settings.SECRET_KEY = config.secret_key
-            settings.DEBUG = config.debug_mode
-            settings.SENTRY_DSN = config.sentry_dsn
-            logger = logging.getLogger(__name__)
-            logger.info("Configuraciones dinámicas cargadas correctamente.")
-        else:
-            logger = logging.getLogger(__name__)
-            logger.warning("No se encontró ninguna configuración en la tabla 'app_configuracion'.")
+        # Valores predeterminados
+        default_settings = {
+            'SECRET_KEY': 'hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48',
+            'DEBUG': False,
+            'SENTRY_DSN': 'https://94c6575f877d16a00cc74bcaaab5ae79@o4508258791653376.ingest.us.sentry.io/4508258794471424',
+        }
+
+        try:
+            # Recuperar configuración desde la base de datos
+            config = Configuracion.objects.first()
+            if config:
+                # Asignar valores desde la base de datos o usar predeterminados
+                settings.SECRET_KEY = config.secret_key or default_settings['SECRET_KEY']
+                settings.DEBUG = config.debug_mode if config.debug_mode is not None else default_settings['DEBUG']
+                settings.SENTRY_DSN = config.sentry_dsn or default_settings['SENTRY_DSN']
+                logger.info("Configuraciones dinámicas cargadas correctamente.")
+            else:
+                # Usar valores predeterminados si no hay configuración en la base de datos
+                settings.SECRET_KEY = default_settings['SECRET_KEY']
+                settings.DEBUG = default_settings['DEBUG']
+                settings.SENTRY_DSN = default_settings['SENTRY_DSN']
+                logger.warning("No se encontró ninguna configuración en la tabla 'app_configuracion'. Usando valores por defecto.")
+        except Exception as e:
+            # Usar valores predeterminados en caso de error
+            settings.SECRET_KEY = default_settings['SECRET_KEY']
+            settings.DEBUG = default_settings['DEBUG']
+            settings.SENTRY_DSN = default_settings['SENTRY_DSN']
+            logger.error(f"Error al cargar configuraciones dinámicas: {e}. Usando valores por defecto.")

@@ -2,6 +2,7 @@
 import logging
 import asyncio
 from typing import Optional, Tuple, List, Dict, Any
+from asgiref.sync import sync_to_async
 from app.models import (
     ChatState,
     Pregunta,
@@ -51,10 +52,13 @@ class ChatBotHandler:
             logger.error(f"No se encontró configuración de MetaAPI para {platform} y unidad de negocio {business_unit}.")
             return
 
-        phone_id = meta_api.phoneID
-
-        # Obtener la instancia de API específica según la plataforma
+        # Instanciar la API según la plataforma
         if platform == 'whatsapp':
+            whatsapp_api = await WhatsAppAPI.objects.filter(business_unit=business_unit).afirst()
+            if not whatsapp_api:
+                logger.error(f"No se encontró configuración de WhatsAppAPI para la unidad de negocio {business_unit}.")
+                return
+            phone_id = whatsapp_api.phoneID
             api_instance, _ = await WhatsAppAPI.objects.aget_or_create(
                 business_unit=business_unit, phoneID=phone_id
             )
@@ -74,14 +78,34 @@ class ChatBotHandler:
             raise ValueError(f"Plataforma no soportada: {platform}")
 
         # Asignar el flujo asociado a la instancia de API
-        flow_model = api_instance.associated_flow
+        flow_model = await sync_to_async(lambda: api_instance.associated_flow)()
 
         # Obtener o crear el estado de chat (evento) para el usuario
         event = await self.get_or_create_event(user_id, platform, flow_model)
 
         # Realizar el análisis de intención en el mensaje
         analysis = analyze_text(text)
+        intents = analysis.get("intents", [])
         logger.info(f"Análisis del mensaje completado para el texto '{text}': {analysis}")
+
+        # Procesar intenciones conocidas
+        if "menu" in intents:
+            logger.info(f"El usuario {user_id} solicitó el menú principal.")
+            await send_menu(platform, user_id)
+            return
+
+        if "reiniciar" in intents:
+            logger.info(f"El usuario {user_id} solicitó reiniciar la conversación.")
+            await reset_chat_state(user_id)
+            await send_message(platform, user_id, "Se ha reiniciado tu conversación. ¿Cómo puedo ayudarte?")
+            return
+
+        if "recapitulación" in intents or "recap" in intents:
+            logger.info(f"El usuario {user_id} solicitó recapitulación.")
+            recap = await self.recap_information(event.user_id)
+            if recap:
+                await self.send_response(platform, user_id, recap)
+            return
 
         # Obtener o crear el usuario y preparar el contexto
         user, _ = await Person.objects.aget_or_create(number_interaction=event.user_id)
