@@ -1,10 +1,71 @@
 # /home/amigro/app/models.py
 
 from django.db import models
-from datetime import datetime
+from datetime import datetime, timezone
 import graphviz  
+import requests
+import logging
+import re
+import json
+from django.core.exceptions import ValidationError
 
-#para evitar variables de entorno, no las quiero en lo más minimo, evitar tambien creación de archivos si no son explicitamente necesarios
+# Configurar el logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Configurar un handler si aún no está configurado
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+PLATFORM_CHOICES = [
+    ("workday", "Workday"),
+    ("phenom_people", "Phenom People"),
+    ("oracle_hcm", "Oracle HCM"),
+    ("sap_successfactors", "SAP SuccessFactors"),
+    ("adp", "ADP"),
+    ("peoplesoft", "PeopleSoft"),
+    ("meta4", "Meta4"),
+    ("cornerstone", "Cornerstone"),
+    ("ukg", "UKG"),
+    ("linkedin", "LinkedIn"),
+    ("indeed", "Indeed"),
+    ("greenhouse", "Greenhouse"),
+    ("glassdoor", "Glassdoor"),
+    ("computrabajo", "Computrabajo"),
+    ("accenture", "Accenture"),
+    ("otro", "Otro"),
+]
+
+BUSINESS_UNIT_CHOICES = [
+    ('amigro', 'Amigro®'),
+    ('huntu', 'huntU®'),
+    ('huntred', 'huntRED®'),
+    ('huntred_executive', 'huntRED® Executive'),
+]
+
+DAY_CHOICES = [
+    ('Monday', 'Lunes'),
+    ('Tuesday', 'Martes'),
+    ('Wednesday', 'Miércoles'),
+    ('Thursday', 'Jueves'),
+    ('Friday', 'Viernes'),
+    ('Saturday', 'Sábado'),
+    ('Sunday', 'Domingo'),
+]
+
+COMUNICATION_CHOICES =[
+    ("whatsapp", "WhatsApp"),
+    ("telegram", "Telegram"),
+    ("messenger", "Messenger"),
+    ("instagram", "Instagram"),
+    ("sms", "SMS"),
+]
+
+# ... [Otros modelos y clases anteriores]
+# CONFIGURACION, Business UNIT y sus derivados
 class Configuracion(models.Model):
     secret_key = models.CharField(max_length=255, default='hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48')
     sentry_dsn = models.CharField(max_length=255, blank=True, null=True, default='https://94c6575f877d16a00cc74bcaaab5ae79@o4508258791653376.ingest.us.sentry.io/4508258794471424')
@@ -12,12 +73,93 @@ class Configuracion(models.Model):
     test_user = models.CharField(max_length=255, blank=True, null=True, default='Pablo Lelo de Larrea H.')
     test_phone_number = models.CharField(max_length=15, default='+525518490291', help_text='Número de teléfono para pruebas y reportes de ejecución')
     test_email = models.EmailField(max_length=50, default='pablo@huntred.com', help_text='Email para pruebas y reportes de ejecución')
-    default_platform = models.CharField(max_length=20, default='whatsapp', help_text='Plataforma de pruebas por defecto (whatsapp, telegram, messenger)')
+    default_platform = models.CharField(max_length=20, default='whatsapp', choices=COMUNICATION_CHOICES, help_text='Plataforma de pruebas por defecto (whatsapp, telegram, messenger)')
     notification_hour = models.TimeField(blank=True, null=True, help_text='Hora para enviar notificaciones diarias de pruebas')
     is_test_mode = models.BooleanField(default=True, help_text='Indicador de si el sistema está en modo de pruebas')
     default_flow_model = models.ForeignKey('FlowModel', on_delete=models.SET_NULL, blank=True, null=True, help_text='FlowModel de pruebas por defecto')
 
-    # Otras configuraciones importantes
+class DominioScraping(models.Model):
+    empresa = models.CharField(max_length=75, unique=True, blank=True, null=True)
+    dominio = models.URLField(max_length=255, unique=True)  # Dominio principal
+    plataforma = models.CharField(max_length=100, choices=PLATFORM_CHOICES, blank=True, null=True)
+    estado = models.CharField(max_length=20, choices=[("definido", "Definido"), ("libre", "Indefinido")], default="libre")
+    verificado = models.BooleanField(default=False)
+    activo = models.BooleanField(default=True)
+    cookies = models.JSONField(blank=True, null=True)
+    frecuencia_scraping = models.IntegerField(default=24)  # Horas entre ejecuciones
+    mensaje_error = models.TextField(blank=True, null=True)
+    ultima_verificacion = models.DateTimeField(blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def generar_correo_asignado(self):
+        """
+        Genera dinámicamente el correo asignado según la configuración de la BusinessUnit.
+        """
+        from app.models import ConfiguracionBU  # Evitar dependencias circulares
+        configuracion = ConfiguracionBU.objects.filter(scraping_domains__dominio=self.dominio).first()
+        dominio_bu = configuracion.dominio_bu if configuracion else "amigro.org"
+        return f"{self.empresa.lower()}@{dominio_bu}" if self.empresa else None
+
+    def __str__(self):
+        return f"{self.dominio} ({self.plataforma})"
+
+    def validar_url(self):
+        """
+        Valida si la URL proporcionada responde correctamente.
+        """
+        try:
+            logger.info(f"Validando URL: {self.dominio}")
+            response = requests.head(self.dominio, timeout=10, allow_redirects=True)
+            if response.status_code != 200:
+                logger.error(f"URL no válida: {self.dominio} - Estado: {response.status_code}")
+                raise ValidationError("La URL proporcionada no es válida o no responde correctamente.")
+        except requests.RequestException as e:
+            logger.error(f"Error al validar la URL: {e}")
+            raise ValidationError(f"Error al validar la URL: {e}")
+
+    def detectar_plataforma(self):
+        """
+        Detecta la plataforma basada en patrones en la URL.
+        """
+        if self.plataforma:  # Si ya tiene una plataforma asignada, no la sobrescribe
+            logger.info(f"Plataforma ya definida manualmente: {self.plataforma}")
+            return
+
+        url_lower = self.dominio.lower()
+        patrones = {
+            'workday': r'workday\.com',
+            'oracle_hcm': r'oracle\.com',
+            'sap_successfactors': r'sap\.com',
+            'cornerstone': r'cornerstoneondemand\.com',
+            'amigro': r'amigro\.org',
+        }
+
+        for plataforma, patron in patrones.items():
+            if re.search(patron, url_lower):
+                self.plataforma = plataforma
+                self.verificado = True
+                logger.info(f"Plataforma detectada automáticamente: {plataforma}")
+                return
+
+        self.plataforma = "otro"
+        self.verificado = False
+        logger.warning(f"No se detectó una plataforma conocida para: {self.dominio}")
+
+    def clean(self):
+        """
+        Valida y ajusta la instancia antes de guardar.
+        """
+        self.validar_url()
+        self.detectar_plataforma()
+
+    def save(self, *args, **kwargs):
+        """
+        Sobrescribe el método save para incluir validaciones y ajustes.
+        """
+        if not kwargs.pop("skip_clean", False):  # Permite omitir `clean` si es necesario
+            self.full_clean()
+        super().save(*args, **kwargs)
 
 class BusinessUnit(models.Model):
     BUSINESS_UNIT_CHOICES = [
@@ -30,13 +172,21 @@ class BusinessUnit(models.Model):
 
     name = models.CharField(max_length=50, choices=BUSINESS_UNIT_CHOICES, unique=True)
     description = models.TextField(blank=True)
+    associated_flow = models.OneToOneField(
+        'FlowModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='associated_business_unit_flow'  # Cambiado a un nombre único
+    )
     whatsapp_enabled = models.BooleanField(default=True)
     telegram_enabled = models.BooleanField(default=True)
     messenger_enabled = models.BooleanField(default=True)
     instagram_enabled = models.BooleanField(default=True)
     scrapping_enabled = models.BooleanField(default=True)
-    scraping_domains = models.JSONField(default=list, help_text="Lista de dominios para el scraping")
-
+    scraping_domains = models.ManyToManyField(
+        DominioScraping, related_name="business_units", blank=True
+    )
 
     def __str__(self):
         # Mostrar el nombre completo de la unidad en lugar del código
@@ -51,9 +201,13 @@ class ConfiguracionBU(models.Model):
     jwt_token = models.CharField(max_length=255, blank=True, null=True, default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJQYWJsbyIsImlhdCI6MTczMTAwNzY0OCwiZXhwIjoxODg4Njg3NjQ4fQ.BQezJzmVVpcaG2ZIbkMagezkt-ORoO5wyrG0odWZrlg")
     dominio_bu = models.URLField(max_length=255, blank=True, null=True)
     dominio_rest_api = models.URLField(max_length=255, blank=True, null=True)
-    scraping_domains = models.JSONField(default=list)
-
-        # Configuración SMTP específica por Business Unit
+    scraping_domains = models.ManyToManyField(
+        'DominioScraping',
+        related_name='configuracion_business_units',  # Cambiado a un nombre único
+        blank=True,
+        help_text="Selecciona los dominios de scraping asociados a esta unidad de negocio."
+    )
+    # Configuración SMTP específica por Business Unit
     smtp_host = models.CharField(max_length=255, blank=True, null=True)
     smtp_port = models.IntegerField(blank=True, null=True, default=587)
     smtp_username = models.CharField(max_length=255, blank=True, null=True)
@@ -63,20 +217,102 @@ class ConfiguracionBU(models.Model):
 
     def __str__(self):
         return f"Configuración de {self.business_unit.name if self.business_unit else 'Unidad de Negocio'}"
+  
+class RegistroScraping(models.Model):
+    dominio = models.ForeignKey(DominioScraping, on_delete=models.CASCADE)
+    fecha_inicio = models.DateTimeField(auto_now_add=True)
+    fecha_fin = models.DateTimeField(null=True)
+    vacantes_encontradas = models.IntegerField(default=0)
+    estado = models.CharField(max_length=50, choices=[
+        ('exitoso', 'Exitoso'),
+        ('fallido', 'Fallido'),
+        ('parcial', 'Parcial'),
+    ])
+    error_log = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Registro {self.dominio.empresa} - {self.estado} - {self.fecha_inicio}"
+   
+class Vacante(models.Model):
+    titulo = models.CharField(max_length=300)
+    empresa = models.CharField(max_length=200)
+    salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    ubicacion = models.CharField(max_length=300, blank=True, null=True)
+    descripcion = models.TextField(blank=True, null=True)
+    requisitos = models.TextField(blank=True, null=True)
+    beneficios = models.TextField(blank=True, null=True)
+    skills_required = models.JSONField(blank=True, null=True)
+    modalidad = models.CharField(max_length=20, choices=[
+        ('presencial', 'Presencial'),
+        ('remoto', 'Remoto'),
+        ('hibrido', 'Híbrido')
+    ], null=True, blank=True)
+    remote_friendly = models.BooleanField(default=False)
+    dominio_origen = models.ForeignKey(DominioScraping, on_delete=models.SET_NULL, null=True)
+    url_original = models.URLField(max_length=500, blank=True, null=True)
+    fecha_publicacion = models.DateTimeField(null=True, blank=True)
+    fecha_scraping = models.DateTimeField(auto_now_add=True)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ['titulo', 'empresa', 'url_original']
+        ordering = ['-fecha_publicacion']
+
+    def __str__(self):
+        return f"{self.titulo} - {self.empresa}"
+ 
+#CHAT, FLOW y sus derivados
+# Estado del Chat
+class FlowModel(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    preguntas = models.ManyToManyField('Pregunta', related_name='flowmodels')
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='flows', null=True, blank=True)
+    flow_data_json = models.JSONField(blank=True, null=True)  # Añadir este campo
+
+    def generate_flow_diagram(self):
+        dot = graphviz.Digraph()
+        # Generar nodos y conexiones basadas en las preguntas del flujo
+        for pregunta in self.preguntas.all():
+            dot.node(str(pregunta.id), pregunta.name)  # Nombre de la pregunta como nodo
+            if pregunta.next_si:
+                dot.edge(str(pregunta.id), str(pregunta.next_si.id), label='Sí')
+            if pregunta.next_no:
+                dot.edge(str(pregunta.id), str(pregunta.next_no.id), label='No')
+
+        # Guarda el diagrama
+        dot.render(f'/home/amigro/media/flow_diagram_{self.id}', format='png')
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.generate_flow_diagram()  # Genera el diagrama al guardar
+
+    def __str__(self):
+        return self.name
 
 class ApiConfig(models.Model):
-    business_unit = models.ForeignKey(BusinessUnit, related_name='api_configs', on_delete=models.CASCADE)
-    api_type = models.CharField(max_length=50)  # e.g., 'WhatsApp', 'Telegram', etc.
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        related_name='api_configs',
+        on_delete=models.CASCADE
+    )
+    api_type = models.CharField(
+        max_length=50,
+        choices=COMUNICATION_CHOICES
+    )  # e.g., 'WhatsApp', 'Telegram', etc.
     api_key = models.CharField(max_length=255)
     api_secret = models.CharField(max_length=255, blank=True, null=True)
-    additional_settings = models.JSONField(blank=True, null=True)  # Para configuraciones adicionales como tokens, etc.
+    additional_settings = models.JSONField(
+        blank=True,
+        null=True
+    )  # Para configuraciones adicionales como tokens, etc.
 
     def __str__(self):
         return f"{self.business_unit.name} - {self.api_type}"
-# Estado del Chat
+
 class ChatState(models.Model):
     user_id = models.CharField(max_length=50, db_index=True)  # Index para optimizar búsqueda por usuario
-    platform = models.CharField(max_length=20)  # 'telegram', 'whatsapp', 'messenger'
+    platform = models.CharField(max_length=20, choices=COMUNICATION_CHOICES)  # 'telegram', 'whatsapp', 'messenger'
     current_question = models.ForeignKey('Pregunta', on_delete=models.CASCADE, null=True, blank=True)
     last_interaction = models.DateTimeField(auto_now=True)
     context = models.JSONField(blank=True, null=True, default=dict)
@@ -100,32 +336,6 @@ class Etapa(models.Model):
     def __str__(self):
         return self.nombre
 
-class FlowModel(models.Model):
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True, null=True)
-    preguntas = models.ManyToManyField('Pregunta', related_name='flowmodels')
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='flows', null=True, blank=True)
-    flow_data_json = models.JSONField(blank=True, null=True)  # Añadir este campo
-
-    def generate_flow_diagram(self):
-        dot = graphviz.Digraph()
-        # Generar nodos y conexiones basadas en las preguntas del flujo
-        for pregunta in self.preguntas.all():
-            dot.node(str(pregunta.id), pregunta.name)  # Nombre de la pregunta como nodo
-            if pregunta.next_si:
-                dot.edge(str(pregunta.id), str(pregunta.next_si.id), label='Sí')
-            if pregunta.next_no:
-                dot.edge(str(pregunta.id), str(pregunta.next_no.id), label='No')
-        
-        # Guarda el diagrama
-        dot.render(f'/home/amigro/media/flow_diagram_{self.id}', format='png')
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.generate_flow_diagram()  # Genera el diagrama al guardar
-    def __str__(self):
-        return self.name
-
 class Pregunta(models.Model):
     INPUT_TYPE_CHOICES = [
         ('text', 'Texto'),
@@ -147,7 +357,7 @@ class Pregunta(models.Model):
         ('refugio', 'Refugio'),
         ('perm_humanitario', 'Permiso Humanitario'),
         ('solicita_refugio', 'Solicitud de Refugio'),
-        ('cita', 'Fecha de Cita'),
+        ('cita', 'Fecha de Cita de Refugio'),
         ('piensa_solicitar_refugio', 'Contempla Solicitud de Refugio'),
         ('industria_work', 'Industria de Trabajo'),
         ('licencia', 'Licencia para Trabajar'),
@@ -192,151 +402,27 @@ class Pregunta(models.Model):
     next_no = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='pregunta_no')  # Pregunta siguiente si es "No"
     input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
     action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
-    #NO se si se estan utilizando ya en el chatbot, pero las dejo para no romper el app
+    # NO se si se están utilizando ya en el chatbot, pero las dejo para no romper el app
     field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la pregunta con el campo de Person
     condiciones = models.ManyToManyField(Condicion, blank=True)
     decision = models.JSONField(blank=True, null=True, default=dict)  # {respuesta: id_pregunta_siguiente}
 
     def __str__(self):
         return f"{self.id} - {self.flow.name} - {self.name}"
+
     def save(self, *args, **kwargs):
         # Puedes agregar lógica para establecer valores por defecto o validaciones aquí.
         if not self.name:
             self.name = "Nombre por defecto"  # Asignar un valor por defecto si no se proporciona.
         super().save(*args, **kwargs)
 
-
-class MetaAPI(models.Model):
-    business_unit = models.OneToOneField(
-        BusinessUnit,
-        on_delete=models.CASCADE,
-        related_name='meta_api_config',  # Cambiar el related_name
-    )
-    app_id = models.CharField(max_length=255, default='662158495636216')
-    app_secret = models.CharField(max_length=255, default='7732534605ab6a7b96c8e8e81ce02e6b')
-    verify_token = models.CharField(max_length=255, default='amigro_secret_token')
+class Buttons(models.Model):
+    name = models.CharField(max_length=20)
+    active = models.BooleanField()
+    pregunta = models.ManyToManyField('Pregunta', related_name='botones_pregunta', blank=True)
 
     def __str__(self):
-        return f"MetaAPI {self.business_unit.name} ({self.app_id})"
-
-class WhatsAppAPI(models.Model):
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='whatsapp_apis', null=True, blank=True)
-    name = models.CharField(max_length=50)
-    phoneID = models.CharField(max_length=20, default='114521714899382') 
-    api_token = models.CharField(max_length=500, default='EAAJaOsnq2vgBOxatkizgaMhE6dk4jEtbWchTiuHK7XXDbsZAlekvZCldWTajCXABVAGQW9XUbZAdy6IZBoUqZBctEHm6H5mSfP9nAbQ5dZAPbf9P1WkHh4keLT400yhvvbZAEq34e9dlkIp2RwsPqK9ghG6H244SZAFK4V5Oo7FiDl9DdM5j5EhXCY5biTrn7cmzYwZDZD')
-    WABID = models.CharField(max_length=20, default='104851739211207')
-    v_api = models.CharField(max_length=10)
-    meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, null=True, blank=True)
-    is_active = models.BooleanField(default=True)  # Campo para activar o desactivar el canal
-
-    def __str__(self):
-        return f"{self.business_unit.name} - WhatsApp API {self.phoneID} - {self.associated_flow}"
-
-class MessengerAPI(models.Model):
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='messenger_apis', null=True, blank=True)
-    page_access_token = models.CharField(max_length=255)
-    meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='messenger_flows', null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"{self.business_unit.name} - Messenger API - {self.associated_flow.name}"
-
-class InstagramAPI(models.Model):
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='instagram_apis', null=True, blank=True)
-    app_id = models.CharField(max_length=255, default='1615393869401916')
-    access_token = models.CharField(max_length=255, default='5d8740cb80ae42d8b5cafb47e6c461d5')
-    instagram_account_id = models.CharField(max_length=255, default='17841457231476550')
-    meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='instagram_flows', null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"{self.business_unit.name} - Instagram API - {self.associated_flow.name}"
-    
-class TelegramAPI(models.Model):
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='telegram_apis', null=True, blank=True)
-    api_key = models.CharField(max_length=255)
-    bot_name = models.CharField(max_length=255, blank=True, null=True)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='telegram_flows', null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"{self.business_unit.name} - Telegram Bot - {self.associated_flow.name}"
-
-class GptApi(models.Model):
-    api_token = models.CharField(max_length=500)
-    organization = models.CharField(max_length=100, blank=True, null=True)
-    project = models.CharField(max_length=100, blank=True, null=True)
-    model = models.CharField(max_length=100)
-    form_pregunta = models.CharField(max_length=500)
-    work_pregunta = models.CharField(max_length=500)
-
-    def __str__(self):
-        return f"Model: {self.model} | Organization: {self.organization} | Project: {self.project}"
-
-class Chat(models.Model):
-    body = models.TextField(max_length=1000)
-    SmsStatus = models.CharField(max_length=15, null=True, blank=True)
-    From = models.CharField(max_length=15)
-    To = models.CharField(max_length=15)
-    ProfileName = models.CharField(max_length=50)
-    ChannelPrefix = models.CharField(max_length=50)
-    MessageSid = models.CharField(max_length=100, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True) #Agregando campo de fecha de creación
-    updated_at = models.DateTimeField(auto_now_add=True) #Agregando campo de fecha de creación
-    message_count = models.IntegerField(default=0)
-
-    def __str__(self):
-        return str(self.body)
-
-class Worker(models.Model):
-    name = models.CharField(max_length=100) #nombre del responsable
-    whatsapp = models.CharField(max_length=20, blank=True, null=True)  # Campo para almacenar WhatsApp del empleador
-    company = models.CharField(max_length=100, blank=True, null=True) #nombre de la empresa
-    img_company = models.CharField(max_length=500, blank=True, null=True)
-    job_id = models.CharField(max_length=100, blank=True, null=True)
-    url_name = models.CharField(max_length=100, blank=True, null=True)
-    salary = models.CharField(max_length=100, blank=True, null=True)
-    job_type = models.CharField(max_length=100, blank=True, null=True)
-    address = models.CharField(max_length=200, blank=True, null=True)
-    longitude = models.CharField(max_length=100, blank=True, null=True)
-    latitude = models.CharField(max_length=100, blank=True, null=True)
-    required_skills = models.TextField(blank=True, null=True)
-    experience_required = models.IntegerField(blank=True, null=True)
-    job_description = models.TextField(blank=True, null=True)
-    
-    interview_slots = models.JSONField(blank=True, null=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['name']),
-            models.Index(fields=['job_id']),
-            models.Index(fields=['company']),
-        ]
-
-    def __str__(self) -> str:
         return str(self.name)
-
-class Interview(models.Model):
-    INTERVIEW_TYPE_CHOICES = [
-        ('presencial', 'Presencial'),
-        ('virtual', 'Virtual'),
-    ]
-    person = models.ForeignKey('app.Person', on_delete=models.CASCADE)  # Referencia al modelo Person mediante una cadena
-    job = models.ForeignKey(Worker, on_delete=models.CASCADE)
-    interview_date = models.DateTimeField()  # Fecha de la entrevista
-    application_date = models.DateTimeField(auto_now_add=True)  # Fecha de aplicación
-    slot = models.CharField(max_length=50)  # Slot de entrevista reservado
-    candidate_latitude = models.CharField(max_length=100, blank=True, null=True)
-    candidate_longitude = models.CharField(max_length=100, blank=True, null=True)
-    location_verified = models.BooleanField(default=False)
-    interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPE_CHOICES, default='presencial')
-    candidate_confirmed = models.BooleanField(default=False)  # Nuevo campo para confirmar asistencia
-
-    def days_until_interview(self):
-        return (self.interview_date - timezone.now()).days
 
 class Person(models.Model):
     number_interaction = models.CharField(max_length=40, unique=True)
@@ -377,6 +463,7 @@ class Person(models.Model):
 
     def __str__(self):
         return f"{self.name} {self.apellido_paterno} {self.apellido_materno}"
+
     def is_profile_complete(self):
         """
         Verifica si todos los campos necesarios están completos en el perfil del usuario.
@@ -384,11 +471,187 @@ class Person(models.Model):
         required_fields = ['name', 'apellido_paterno', 'email', 'phone', 'skills']
         missing_fields = [field for field in required_fields if not getattr(self, field)]
         return not missing_fields  # Retorna True si está completo, False si falta algo
+class Application(models.Model):
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='applications')
+    vacancy = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='applications')
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('applied', 'Applied'),
+            ('interview', 'Interview'),
+            ('rejected', 'Rejected'),
+            ('hired', 'Hired'),
+        ],
+        default='applied'
+    )
+    applied_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    additional_notes = models.TextField(blank=True, null=True)
 
+    def __str__(self):
+        return f"{self.user} - {self.vacancy} - {self.status}"
+    
 class Invitacion(models.Model):
     referrer = models.ForeignKey(Person, related_name='invitaciones_enviadas', on_delete=models.CASCADE)
     invitado = models.ForeignKey(Person, related_name='invitaciones_recibidas', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+
+# APIS y sus derivados
+class MetaAPI(models.Model):
+    business_unit = models.OneToOneField(
+        BusinessUnit,
+        on_delete=models.CASCADE,
+        related_name='meta_api_config',  # Cambiar el related_name a uno único
+    )
+    app_id = models.CharField(max_length=255, default='662158495636216')
+    app_secret = models.CharField(max_length=255, default='7732534605ab6a7b96c8e8e81ce02e6b')
+    verify_token = models.CharField(max_length=255, default='amigro_secret_token')
+
+    def __str__(self):
+        return f"MetaAPI {self.business_unit.name} ({self.app_id})"
+
+class WhatsAppAPI(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='whatsapp_apis', null=True, blank=True)
+    name = models.CharField(max_length=50)
+    phoneID = models.CharField(max_length=20, default='114521714899382') 
+    api_token = models.CharField(max_length=500, default='EAAJaOsnq2vgBOxatkizgaMhE6dk4jEtbWchTiuHK7XXDbsZAlekvZCldWTajCXABVAGQW9XUbZAdy6IZBoUqZBctEHm6H5mSfP9nAbQ5dZAPbf9P1WkHh4keLT400yhvvbZAEq34e9dlkIp2RwsPqK9ghG6H244SZAFK4V5Oo7FiDl9DdM5j5EhXCY5biTrn7cmzYwZDZD')
+    WABID = models.CharField(max_length=20, default='104851739211207')
+    v_api = models.CharField(max_length=10)
+    meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
+    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, null=True, blank=True)
+    is_active = models.BooleanField(default=True)  # Campo para activar o desactivar el canal
+
+    def __str__(self):
+        return f"{self.business_unit.name} - WhatsApp API {self.phoneID} - {self.associated_flow}"
+
+class Template(models.Model):
+    TEMPLATE_TYPES = [
+        ('FLOW', 'Flow'),
+        ('BUTTON', 'Button'),
+        ('URL', 'URL'),
+        ('IMAGE', 'Image'),
+        # Agrega otros tipos según tus necesidades
+    ]
+    whatsapp_api = models.ForeignKey(WhatsAppAPI, on_delete=models.CASCADE, related_name='templates')
+    name = models.CharField(max_length=100)
+    is_flow = models.BooleanField(default=False)
+    template_type = models.CharField(max_length=20, choices=TEMPLATE_TYPES)
+    image_url = models.URLField(blank=True, null=True)
+    language_code = models.CharField(max_length=10, default='es_MX')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # Agrega otros campos esenciales según la estructura de tus plantillas
+
+    class Meta:
+        unique_together = ('whatsapp_api', 'name', 'language_code')
+    def __str__(self):
+        return f"{self.name} ({self.language_code}) - {self.whatsapp_api.business_unit.name}"
+    
+class MessengerAPI(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='messenger_apis', null=True, blank=True)
+    page_access_token = models.CharField(max_length=255)
+    meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
+    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='messenger_flows', null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.business_unit.name} - Messenger API - {self.associated_flow.name}"
+
+class InstagramAPI(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='instagram_apis', null=True, blank=True)
+    app_id = models.CharField(max_length=255, default='1615393869401916')
+    access_token = models.CharField(max_length=255, default='5d8740cb80ae42d8b5cafb47e6c461d5')
+    instagram_account_id = models.CharField(max_length=255, default='17841457231476550')
+    meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
+    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='instagram_flows', null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.business_unit.name} - Instagram API - {self.associated_flow.name}"
+
+class TelegramAPI(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='telegram_apis', null=True, blank=True)
+    api_key = models.CharField(max_length=255)
+    bot_name = models.CharField(max_length=255, blank=True, null=True)
+    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='telegram_flows', null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.business_unit.name} - Telegram Bot - {self.associated_flow.name}"
+
+class GptApi(models.Model):
+    api_token = models.CharField(max_length=500)
+    organization = models.CharField(max_length=100, blank=True, null=True)
+    project = models.CharField(max_length=100, blank=True, null=True)
+    model = models.CharField(max_length=100)
+    form_pregunta = models.CharField(max_length=500)
+    work_pregunta = models.CharField(max_length=500)
+
+    def __str__(self):
+        return f"Model: {self.model} | Organization: {self.organization} | Project: {self.project}"
+
+class Chat(models.Model):
+    body = models.TextField(max_length=1000)
+    SmsStatus = models.CharField(max_length=15, null=True, blank=True)
+    From = models.CharField(max_length=15)
+    To = models.CharField(max_length=15)
+    ProfileName = models.CharField(max_length=50)
+    ChannelPrefix = models.CharField(max_length=50)
+    MessageSid = models.CharField(max_length=100, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)  # Agregando campo de fecha de creación
+    updated_at = models.DateTimeField(auto_now=True)      # Agregando campo de actualización
+    message_count = models.IntegerField(default=0)
+
+    def __str__(self):
+        return str(self.body)
+
+class Worker(models.Model):
+    name = models.CharField(max_length=100)  # Nombre del responsable
+    whatsapp = models.CharField(max_length=20, blank=True, null=True)  # Campo para almacenar WhatsApp del empleador
+    company = models.CharField(max_length=100, blank=True, null=True)  # Nombre de la empresa
+    img_company = models.CharField(max_length=500, blank=True, null=True)
+    job_id = models.CharField(max_length=100, blank=True, null=True)
+    url_name = models.CharField(max_length=100, blank=True, null=True)
+    salary = models.CharField(max_length=100, blank=True, null=True)
+    job_type = models.CharField(max_length=100, blank=True, null=True)
+    address = models.CharField(max_length=200, blank=True, null=True)
+    longitude = models.CharField(max_length=100, blank=True, null=True)
+    latitude = models.CharField(max_length=100, blank=True, null=True)
+    required_skills = models.TextField(blank=True, null=True)
+    experience_required = models.IntegerField(blank=True, null=True)
+    job_description = models.TextField(blank=True, null=True)
+    
+    interview_slots = models.JSONField(blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['job_id']),
+            models.Index(fields=['company']),
+        ]
+
+    def __str__(self) -> str:
+        return str(self.name)
+
+class Interview(models.Model):
+    INTERVIEW_TYPE_CHOICES = [
+        ('presencial', 'Presencial'),
+        ('virtual', 'Virtual'),
+    ]
+    person = models.ForeignKey('Person', on_delete=models.CASCADE)  # Referencia al modelo Person mediante una cadena
+    interviewer = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='conducted_interviews', blank=True, null=True)
+    job = models.ForeignKey(Worker, on_delete=models.CASCADE)
+    interview_date = models.DateTimeField()  # Fecha de la entrevista
+    application_date = models.DateTimeField(auto_now_add=True)  # Fecha de aplicación
+    slot = models.CharField(max_length=50)  # Slot de entrevista reservado
+    candidate_latitude = models.CharField(max_length=100, blank=True, null=True)
+    candidate_longitude = models.CharField(max_length=100, blank=True, null=True)
+    location_verified = models.BooleanField(default=False)
+    interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPE_CHOICES, default='presencial')
+    candidate_confirmed = models.BooleanField(default=False)  # Nuevo campo para confirmar asistencia
+
+    def days_until_interview(self):
+        return (self.interview_date - timezone.now()).days
 
 class SmtpConfig(models.Model):
     host = models.CharField(max_length=255)
@@ -401,27 +664,21 @@ class SmtpConfig(models.Model):
     def __str__(self):
         return f"{self.host}:{self.port}"
 
-class Buttons(models.Model):
-    name = models.CharField(max_length=20)
-    active = models.BooleanField()
-    pregunta = models.ManyToManyField(Pregunta, related_name='botones_pregunta', blank=True)
 
-    def __str__(self):
-        return str(self.name)
 
 
 #________________________________________________________________________________________________
-#Esto es para la aplicación de Milkyleak, independiente del chatbot de amigro, solo se utiliza el servidor.
+# Esto es para la aplicación de Milkyleak, independiente del chatbot de amigro, solo se utiliza el servidor.
 class MilkyLeak(models.Model):
     # Configuraciones de la API de Twitter
-    twitter_api_key = models.CharField(max_length=255) #YVIxTWtkZ0NheGRiamNlem5UbkQ6MTpjaQ Client ID   / 2fIV8CDPV13tZ18VpCzzK7Yu2 Api Key
-    twitter_api_secret_key = models.CharField(max_length=255) #cSuwv9VXrxZI4yr1oaVrkCj6p6feuu4dy1QoaID1lQe7lbjXdb   / 85KIRnuNGdWhJOiglSg8ramGBT4OzCqMts17uxkUIBm1tR8avu API secret
-    twitter_access_token = models.CharField(max_length=255) # 235862444-UWHrUObIvUoNcMVSL0S5kPx0geKu88M9nawe43YM
-    twitter_access_token_secret = models.CharField(max_length=255) # tUCYmHzpWI0YwCQ8AedFfEMHaa9pNHAt2r0AKQUdIWT78
+    twitter_api_key = models.CharField(max_length=255)  # YVIxTWtkZ0NheGRiamNlem5UbkQ6MTpjaQ Client ID / 2fIV8CDPV13tZ18VpCzzK7Yu2 Api Key
+    twitter_api_secret_key = models.CharField(max_length=255)  # cSuwv9VXrxZI4yr1oaVrkCj6p6feuu4dy1QoaID1lQe7lbjXdb / 85KIRnuNGdWhJOiglSg8ramGBT4OzCqMts17uxkUIBm1tR8avu API secret
+    twitter_access_token = models.CharField(max_length=255)  # 235862444-UWHrUObIvUoNcMVSL0S5kPx0geKu88M9nawe43YM
+    twitter_access_token_secret = models.CharField(max_length=255)  # tUCYmHzpWI0YwCQ8AedFfEMHaa9pNHAt2r0AKQUdIWT78
 
     # Configuraciones de Mega.nz
-    mega_email = models.EmailField() #milkyleak@gmail.com
-    mega_password = models.CharField(max_length=255) #PLLH_huntred2009!
+    mega_email = models.EmailField()  # milkyleak@gmail.com
+    mega_password = models.CharField(max_length=255)  # PLLH_huntred2009!
 
     # Configuraciones adicionales
     folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")
@@ -434,7 +691,7 @@ class MilkyLeak(models.Model):
     min_interval = models.PositiveIntegerField(default=10, help_text="Tiempo mínimo de espera entre publicaciones (minutos)")
     max_interval = models.PositiveIntegerField(default=20, help_text="Tiempo máximo de espera entre publicaciones (minutos)")
 
-    #Configuración de Dropbos  (App Key brg4mvkdjisvo67  /  App Secret  szbinvambk7anvv)
+    # Configuración de Dropbox (App Key brg4mvkdjisvo67 / App Secret szbinvambk7anvv)
     dropbox_access_token = models.CharField(max_length=255, blank=True, null=True)  # Token para Dropbox sl.B-gJAWUpS-lHTLRkq64AC_rz2xSwijP_fITCv9iZtmfSfywYyZYU6qUliXFi1EEy1KmPU7XLZzPcFzFR4_HBuMg9PpK6hgF96tmMeaPabPNmcfXjfIOL7jLG7EmOf-SkePCKBC5m63mf
     dropbox_refresh_token = models.CharField(max_length=255, blank=True, null=True)  # Añadir refresh token
     dropbox_token_expires_at = models.DateTimeField(blank=True, null=True)
@@ -446,6 +703,7 @@ class MilkyLeak(models.Model):
 
     def __str__(self):
         return f"MilkyLeak Config ({self.twitter_api_key})"
+
     def increment_image_counter(self):
         """
         Incrementa el contador de imágenes y guarda el modelo.

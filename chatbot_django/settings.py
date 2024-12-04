@@ -35,7 +35,8 @@ ALLOWED_HOSTS = [
     "chatbot.amigro.org",
     "*.amigro.org",
     "localhost",
-    "127.0.0.1"
+    "127.0.0.1",
+    "0.0.0.0"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -68,6 +69,7 @@ INSTALLED_APPS = [
     'corsheaders',  # Correcto
     'django_extensions',  # Agregar esta línea
     'django_celery_beat',
+    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
@@ -80,6 +82,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Para archivos estáticos en producción
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'chatbot_django.urls'
@@ -114,7 +117,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 20,  # Aumenta el tiempo de espera en segundos
     }
+}
 }
 #DATABASES = {
 #    'default': {
@@ -178,17 +184,20 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_RETRY_DELAY = 180  # Reintentar cada 3 minutos
-CELERY_TASK_MAX_RETRIES = 5  # Máximo 5 reintentos
-CELERY_TASK_RESULT_EXPIRES = 3600  # Expira en 1 hora
 
 CELERY_WORKER_LOG_FILE = '/home/amigro/logs/worker.log'
 CELERY_WORKER_LOG_LEVEL = 'INFO'
 CELERY_WORKER_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-CELERYD_WORKER_TYPE = 'prefork'
-CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Prefetch una tarea a la vez
+CELERY_TASK_RETRY_DELAY = 240           # Reintentar cada 4 minutos
+CELERY_TASK_MAX_RETRIES = 3             # Máximo 3 reintentos
+CELERY_TASK_RESULT_EXPIRES = 3600       # Expira en 1 hora
 
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1     # Prefetch una tarea a la vez
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200  # Restart worker after 200MB
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 100   # Restart worker after processing 100 tasks
+CELERY_TASK_ACKS_LATE = True              # Reduce task loss probability
+CELERY_PREFETCH_MULTIPLIER = 1            # Limit number of tasks prefetched per worker
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BROKER_HEARTBEAT = 10
 CELERY_BROKER_CONNECTION_TIMEOUT = 30

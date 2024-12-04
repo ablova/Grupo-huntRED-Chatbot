@@ -22,7 +22,6 @@ from django.contrib.auth.decorators import login_required
 from django.template.response import TemplateResponse
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
-from app.models import BusinessUnit, ChatState
 
 @staff_member_required
 def interacciones_por_unidad(request):
@@ -34,28 +33,23 @@ def interacciones_por_unidad(request):
     return render(request, 'admin/estadisticas/interacciones.html', {'data': data})
 
 # Importaciones de utilidades y funciones internas
-from .nlp_utils import analyze_text
-from .gpt import gpt_message
+from app.utils import analyze_text
+from app.gpt import gpt_message
 from app.chatbot import ChatBotHandler
 
 # Importaciones de integraciones
 from app.integrations.services import (
-    send_message, send_image, send_menu,
-    send_logo, render_dynamic_content
+    send_message, send_image, send_menu, send_logo, render_dynamic_content
 )
-from app.integrations.whatsapp import (
-    registro_amigro, nueva_posicion_amigro
-)
-from app.wordpress_integration import (
+#from app.integrations.whatsapp import (    registro_amigro, nueva_posicion_amigro)
+from app.scraping import (
     login, register, solicitud, consult
 )
-
 # Importaciones de modelos
-from .models import (
-    GptApi, SmtpConfig, Pregunta,
-    FlowModel, ChatState, Condicion,
-    Etapa, Person, BusinessUnit, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI
+from app.models import (
+    GptApi, SmtpConfig, Pregunta, ConfiguracionBU, Configuracion, BusinessUnit, FlowModel, ChatState, Condicion, Etapa, Person, BusinessUnit, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +58,9 @@ nlp = spacy.load("es_core_news_sm")
 
 # Vista para la página principal
 def index(request):
-    return render(request, "index.html")
+    business_units = BusinessUnit.objects.all()
+    config = Configuracion.objects.first()
+    return render(request, "index.html", {'business_units': business_units, 'config': config})
 # SECCIÓN PARA EL VISUALIZADOR
 # Vista para cargar los datos del flujo desde el modelo
 def load_flow(request):
@@ -300,48 +296,97 @@ async def send_test_message(request):
 
             # Validar plataforma
             if not platform:
-                return JsonResponse({'error': 'Platform is required.'}, status=400)
+                return JsonResponse({'error': 'Se requiere una plataforma.'}, status=400)
 
             # Validar funciones
             if not functions:
-                return JsonResponse({'error': 'At least one function must be selected.'}, status=400)
+                return JsonResponse({'error': 'Debe seleccionar al menos una función.'}, status=400)
 
             # Obtener destinatario basado en la plataforma
             recipient = obtener_destinatario(platform, {'whatsapp_number': phone_number})
 
+            responses = []  # Lista para almacenar las respuestas
+
             # Procesar cada función seleccionada
             for func in functions:
                 if func == 'send_message':
-                    await send_message(platform, recipient, action)
+                    response = await send_message(platform, recipient, action)
+                    responses.append({'function': func, 'response': response})
                 elif func == 'send_image':
-                    await send_image(platform, recipient, action)
+                    response = await send_image(platform, recipient, action)  # action contiene la URL de la imagen
+                    responses.append({'function': func, 'response': response})
                 elif func == 'send_menu':
-                    await send_menu(platform, recipient)
+                    response = await send_menu(platform, recipient)
+                    responses.append({'function': func, 'response': response})
                 elif func == 'enviar_logo':
-                    await send_logo(platform, recipient)
+                    response = await send_logo(platform, recipient)
+                    responses.append({'function': func, 'response': response})
                 elif func == 'mostrar_vacantes':
-                    # Aquí puedes implementar la lógica para mostrar vacantes
-                    await send_message(platform, recipient, "Aquí están las vacantes disponibles...")
+                    # Obtener las vacantes almacenadas o disponibles
+                    vacantes = await obtener_vacantes_almacenadas()
+                    mensaje_vacantes = formatear_vacantes(vacantes)
+                    response = await send_message(platform, recipient, mensaje_vacantes)
+                    responses.append({'function': func, 'response': response})
+
+                elif func == 'execute_scraping':
+                    # Ejecutar el scraping y devolver los resultados
+                    business_unit_name = data.get('business_unit', 'amigro')
+                    vacantes = await ejecutar_scraping_amigro(business_unit_name)
+                    responses.append({'function': func, 'response': vacantes})
                 elif func == 'enviar_whatsapp_plantilla':
                     whatsapp_api = await sync_to_async(WhatsAppAPI.objects.first)()
-                    await registro_amigro(recipient, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api, {})
+                    response = await registro_amigro(recipient, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api, {})
+                    responses.append({'function': func, 'response': response})
                 elif func == 'send_question':
                     if question_id:
                         question = await sync_to_async(Pregunta.objects.get)(id=question_id)
-                        response = render_dynamic_content(question.content, {})
-                        await send_message(platform, recipient, response)
+                        response_text = question.content
+                        response = await send_message(platform, recipient, response_text)
+                        responses.append({'function': func, 'response': response})
                     else:
-                        return JsonResponse({"error": "Question ID is required for 'send_question' function."}, status=400)
+                        return JsonResponse({"error": "Se requiere el ID de la pregunta para 'Enviar Pregunta'."}, status=400)
+                elif func == 'send_buttons':
+                    # Implementar lógica para enviar botones
+                    botones = [{'title': 'Opción 1'}, {'title': 'Opción 2'}]
+                    response = await send_buttons(platform, recipient, action, botones)
+                    responses.append({'function': func, 'response': response})
+                elif func == 'send_template_message':
+                    # Implementar lógica para enviar mensaje de plantilla
+                    response = await send_template_message(platform, recipient, template_name=action)
+                    responses.append({'function': func, 'response': response})
+                elif func == 'send_media_message':
+                    # Implementar lógica para enviar mensaje multimedia
+                    media_url = action  # URL del archivo multimedia
+                    response = await send_media_message(platform, recipient, media_url)
+                    responses.append({'function': func, 'response': response})
+                elif func == 'execute_scraping':
+                    # Ejecutar el scraping y devolver los resultados
+                    vacantes = await ejecutar_scraping_amigro()
+                    responses.append({'function': func, 'response': vacantes})
+                elif func == 'send_notification':
+                    # Enviar notificación
+                    message = action
+                    await send_notification_task(recipient, message)
+                    responses.append({'function': func, 'response': 'Notificación enviada'})
+                elif func == 'follow_up_interview':
+                    # Seguir con la entrevista
+                    await follow_up_notifications_task(recipient)
+                    responses.append({'function': func, 'response': 'Seguimiento de entrevista enviado'})
+                elif func == 'get_location':
+                    # Solicitar ubicación al usuario
+                    await request_location(platform, recipient)
+                    responses.append({'function': func, 'response': 'Solicitud de ubicación enviada'})
                 else:
-                    return JsonResponse({"error": f"Function '{func}' not recognized."}, status=400)
+                    responses.append({"error": f"Función '{func}' no reconocida."})
+                    return JsonResponse({"error": f"Función '{func}' no reconocida."}, status=400)
 
-            return JsonResponse({'status': 'success', 'message': 'Test sent successfully'}, status=200)
+            return JsonResponse({'status': 'success', 'message': 'Prueba enviada exitosamente', 'responses': responses}, status=200)
 
         except Exception as e:
-            logger.error(f"Error during testing: {e}", exc_info=True)
+            logger.error(f"Error durante las pruebas: {e}", exc_info=True)
             return JsonResponse({'error': str(e)}, status=500)
 
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
+    return JsonResponse({'error': 'Método de solicitud inválido'}, status=400)
 
 # Función auxiliar para enviar imágenes
 async def enviar_imagen(platform, variables, image_url):
@@ -400,11 +445,33 @@ def submit_application(request, job_id):
         solicitud_response = solicitud("https://amigro.org/solicitud/", name, email, message, job_id)
         return JsonResponse({"status": "success", "message": solicitud_response})
     
-def test_scraping_view(request):
-    bu_name = request.GET.get("business_unit", "amigro")
-    business_unit = BusinessUnit.objects.get(name=bu_name)
-    vacantes = consult(page=1, url="https://amigro.org/job-listings/", business_unit=business_unit)
-    return JsonResponse({"vacantes": vacantes})
+async def ejecutar_scraping_amigro(business_unit_name="amigro"):
+    """
+    Realiza el scraping de vacantes para una BusinessUnit especificada y devuelve los resultados.
+    """
+    # Obtener la BusinessUnit por nombre
+    business_unit = await sync_to_async(BusinessUnit.objects.get)(name=business_unit_name)
+
+    # Obtener la configuración para esa BusinessUnit
+    configuracion = await sync_to_async(ConfiguracionBU.objects.filter(business_unit=business_unit).first)()
+    if not configuracion:
+        return {'error': f'Configuración no encontrada para {business_unit_name}'}
+
+    url = f"{configuracion.dominio_rest_api}/wp/v2/job-listings/"
+    headers = {
+        'Authorization': f'Bearer {configuracion.jwt_token}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'AmigroClient/1.0'
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        vacantes = response.json()
+        # Aquí puedes guardar las vacantes en la base de datos si lo deseas
+        await guardar_vacantes_en_bd(vacantes)
+        return vacantes
 
 def send_test_notification(request):
     try:

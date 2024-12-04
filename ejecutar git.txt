@@ -17,7 +17,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git .
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Actualización del panel de administración, modelos (quitamos subpregunta), editor de flujo, y mucho más" &&
+git commit -m "Actualización del panel de pruebas" &&
 git push origin main
 
 
@@ -303,3 +303,174 @@ async def handle_incoming_message(request):
 
 
         sudo rm /home/amigro/app/chatbot.py && sudo nano /home/amigro/app/chatbot.py && sudo systemctl restart gunicorn nginx && sudo truncate -s 0 /home/amigro/logs/*.log
+
+
+POR SI NO JALA LA VERSION BRINDADA.
+@csrf_exempt
+async def whatsapp_webhook(request):
+    """
+    Webhook de WhatsApp para manejar mensajes entrantes y verificación de token.
+    """
+    try:
+        logger.info(f"Solicitud entrante: {request.method}, Headers: {dict(request.headers)}")
+        # Loggear el cuerpo de la solicitud
+        try:
+            body = await sync_to_async(request.body.decode)('utf-8')
+            logger.debug(f"Cuerpo de la solicitud recibido: {body}")
+        except Exception as e:
+            logger.error(f"Error al leer el cuerpo de la solicitud: {str(e)}", exc_info=True)
+            return JsonResponse({"error": f"Error al leer el cuerpo de la solicitud: {str(e)}"}, status=500)
+
+        # Manejo del método GET para verificación de token
+        if request.method == 'GET':
+            return await verify_whatsapp_token(request)
+
+        # Manejo del método POST para mensajes entrantes
+        elif request.method == 'POST':
+            try:
+                payload = json.loads(body)
+                logger.info(f"Payload recibido: {json.dumps(payload, indent=4)}")
+
+                # Verificar y obtener el parámetro phoneID
+                phone_id = payload.get('entry', [])[0].get('changes', [])[0].get('value', {}).get('metadata', {}).get('phone_number_id')
+                if not phone_id:
+                    logger.error("Falta el parámetro phoneID en el payload")
+                    return JsonResponse({"error": "Falta el parámetro phoneID o phone_number_id como se extrae - value.metadata.phone_number_id."}, status=400)
+
+                # Llamar a la función para manejar el mensaje entrante
+                response = await handle_incoming_message(payload)
+                logger.info(f"Respuesta generada: {response}")
+                return response
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Error al decodificar JSON: {str(e)}", exc_info=True)
+                return JsonResponse({"error": "Error al decodificar el cuerpo de la solicitud"}, status=400)
+            except Exception as e:
+                logger.error(f"Error inesperado al manejar la solicitud POST: {str(e)}", exc_info=True)
+                return JsonResponse({"error": f"Error inesperado: {str(e)}"}, status=500)
+
+        # Manejar métodos no permitidos
+        else:
+            logger.warning(f"Método no permitido: {request.method}")
+            return HttpResponse(status=405)
+
+    except Exception as e:
+        logger.error(f"Error crítico en el webhook de WhatsApp: {str(e)}", exc_info=True)
+        return JsonResponse({"error": f"Error crítico: {str(e)}"}, status=500)
+
+
+
+@csrf_exempt
+async def handle_incoming_message(request):
+    """
+    Manejo de mensajes entrantes de WhatsApp con conexión al chatbot.
+    """
+    try:
+        # Obtener configuración global
+        config = await sync_to_async(lambda: Configuracion.objects.first())()
+        if not config:
+            logger.error("Configuración global no encontrada")
+            return JsonResponse({'error': 'Configuración no encontrada'}, status=500)
+
+        test_phone_number = config.test_phone_number
+        is_test_mode = config.is_test_mode
+        default_platform = config.default_platform
+
+        # Decodificar el cuerpo de la solicitud
+        try:
+            payload = request if isinstance(request, dict) else json.loads(request.body.decode('utf-8'))
+            logger.info(f"Payload recibido: {json.dumps(payload, indent=4)}")
+        except json.JSONDecodeError as e:
+            logger.error("Error al decodificar JSON", exc_info=True)
+            return JsonResponse({'error': 'Error al decodificar el JSON'}, status=400)
+
+        # Procesar el payload
+        if 'entry' not in payload:
+            logger.error("El payload no contiene la clave 'entry'")
+            return JsonResponse({'error': "El payload no contiene la clave 'entry'"}, status=400)
+
+        for entry in payload.get('entry', []):
+            if 'changes' not in entry:
+                logger.warning("La entrada no contiene cambios (changes)")
+                continue
+
+            for change in entry.get('changes', []):
+                value = change.get('value', {})
+                messages = value.get('messages', [])
+                if not messages:
+                    logger.info("No se encontraron mensajes en el cambio")
+                    continue
+
+                for message in messages:
+                    sender_id = message.get('from')
+                    message_type = message.get('type', 'text')
+                    logger.info(f"Mensaje recibido de {sender_id} con tipo {message_type}")
+
+                    # Validar si es un mensaje de prueba
+                    if is_test_mode and sender_id == test_phone_number:
+                        logger.info("Modo de prueba activado. Mensaje recibido del número de prueba.")
+                        await send_test_notification(sender_id)
+                        continue
+
+                    # Obtener el phone_id del payload
+                    phone_id = value.get('metadata', {}).get('phone_number_id')
+
+                    # Obtener WhatsAppAPI y unidad de negocio
+                    whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(phoneID=phone_id).first)()
+                    if not whatsapp_api:
+                        logger.error(f"No se encontró WhatsAppAPI para phoneID: {phone_id}")
+                        return JsonResponse({'error': 'WhatsAppAPI no encontrada'}, status=404)
+
+                    business_unit = await sync_to_async(lambda: whatsapp_api.business_unit)()
+
+                    # Instancia del chatbot
+                    chatbot_handler = ChatBotHandler()
+
+                    # Procesar según el tipo de mensaje
+                    try:
+                        if message_type == 'text':
+                            message_text = message.get('text', {}).get('body', '')
+                            logger.info(f"Mensaje de texto recibido: {message_text}")
+
+                            # Llamar al chatbot para procesar el mensaje
+                            await chatbot_handler.process_message(
+                                platform='whatsapp',
+                                user_id=sender_id,
+                                text=message_text,
+                                business_unit=business_unit
+                            )
+                            logger.info(f"Mensaje procesado por el chatbot para el usuario {sender_id}")
+
+                        elif message_type == 'image':
+                            image_id = message.get('image', {}).get('id')
+                            if image_id:
+                                await process_media_message('whatsapp', sender_id, image_id, 'image')
+                            else:
+                                logger.warning("Mensaje de imagen recibido sin 'id'")
+
+                        elif message_type == 'audio':
+                            audio_id = message.get('audio', {}).get('id')
+                            if audio_id:
+                                await process_media_message('whatsapp', sender_id, audio_id, 'audio')
+                            else:
+                                logger.warning("Mensaje de audio recibido sin 'id'")
+
+                        elif message_type == 'location':
+                            location = message.get('location')
+                            if location:
+                                await process_location_message('whatsapp', sender_id, location)
+                            else:
+                                logger.warning("Mensaje de ubicación recibido sin datos de ubicación")
+
+                        else:
+                            logger.warning(f"Tipo de mensaje no soportado: {message_type}")
+
+                    except Exception as e:
+                        logger.error(f"Error al procesar el mensaje de tipo {message_type}: {e}", exc_info=True)
+                        return JsonResponse({'error': f"Error al procesar el mensaje: {e}"}, status=500)
+
+        return JsonResponse({'status': 'success'}, status=200)
+
+    except Exception as e:
+        logger.error(f"Error inesperado al manejar la solicitud: {e}", exc_info=True)
+        return JsonResponse({'error': f"Error inesperado: {e}"}, status=500)

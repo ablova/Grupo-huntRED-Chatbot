@@ -38,12 +38,12 @@ def gpt_message(api_token, text, model):
         return response
     except Exception as e:
         logger.error(f"Error al llamar a la API de OpenAI: {e}", exc_info=True)
-        raise e  # Re-lanzar la excepción para que pueda ser manejada por el llamador
+        return {"error": "Ocurrió un error al generar la respuesta."}
 
 if __name__ == "__main__":
-    # No incluyas tu API Key directamente en el código
-    api_token = "TU_API_KEY_AQUÍ"
-    text = "Formúleme la siguiente pregunta de una manera realista..."
+    # Ejemplo de uso
+    api_token = os.getenv("OPENAI_API_KEY")
+    text = "Formúleme la siguiente pregunta de otra manera para que pueda comprenderle..."
     model = "gpt-3.5-turbo"
 
     response = gpt_message(api_token, text, model)

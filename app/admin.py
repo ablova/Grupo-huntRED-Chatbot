@@ -1,23 +1,28 @@
 # /home/amigro/app/admin.py
 
 import json
-from django.urls import reverse
+from django.urls import reverse, path
 from django.utils.html import format_html
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django import forms
 from asgiref.sync import async_to_sync
 from django.contrib import admin, messages
 from app.models import (
     BusinessUnit, ApiConfig, MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
     Person, Pregunta, Worker, Buttons, Etapa, GptApi,
-    SmtpConfig, Chat, FlowModel, ChatState, Configuracion, ConfiguracionBU,
-    MilkyLeak
+    SmtpConfig, Chat, FlowModel, ChatState, Configuracion, ConfiguracionBU, DominioScraping, Vacante, RegistroScraping,
+    MilkyLeak, Template
 )
 from app.chatbot import ChatBotHandler
 from app.vacantes import VacanteManager
+from app.tasks import ejecutar_scraping, validar_url, send_message
+from django.template.response import TemplateResponse
+from io import BytesIO
+import base64
+import matplotlib.pyplot as plt
+import nested_admin  # Importa nested_admin
 
-from django.contrib import admin
-
+# Configuración del encabezado del admin
 admin.site.site_header = "Administración de Chatbots y servicios de Grupo huntRED®"
 admin.site.site_title = "Portal Administrativo de Grupo huntRED®"
 admin.site.index_title = "Bienvenido al Panel de Administración de Grupo huntRED®"
@@ -26,6 +31,125 @@ admin.site.index_title = "Bienvenido al Panel de Administración de Grupo huntRE
 @admin.register(Configuracion)
 class ConfiguracionAdmin(admin.ModelAdmin):
     list_display = ('secret_key', 'debug_mode', 'sentry_dsn')
+
+@admin.register(DominioScraping)
+class DominioScrapingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'empresa', 'plataforma', 'verificado', 'ultima_verificacion', 'estado')
+    search_fields = ('empresa', 'dominio', 'plataforma')
+    list_filter = ('estado', 'plataforma')
+    ordering = ("-id",)
+    list_editable = ("plataforma", "estado")
+    actions = ["marcar_como_definido", "ejecutar_scraping_action", "desactivar_dominios_invalidos"]
+
+    def verificar_scraping_button(self, obj):
+        return format_html(
+            '<a class="button" href="{}">Ejecutar Scraping</a>',
+            reverse("admin:ejecutar_scraping", args=[obj.id])
+        )
+    verificar_scraping_button.short_description = "Ejecutar Scraping"
+    verificar_scraping_button.allow_tags = True
+
+    def get_urls(self):
+        # Añadir la URL personalizada para ejecutar scraping
+        urls = super().get_urls()
+        custom_urls = [
+            path('dashboard/', self.admin_site.admin_view(self.dashboard_view), name='dashboard'),
+            path("<int:dominio_id>/ejecutar-scraping/", self.admin_site.admin_view(self.ejecutar_scraping_view), name="ejecutar_scraping",),
+        ]
+        return custom_urls + urls
+
+    def dashboard_view(self, request):
+        # Datos para el gráfico
+        total_dominios = DominioScraping.objects.count()
+        total_vacantes = Vacante.objects.count()
+        scraping_activo = DominioScraping.objects.filter(estado="definido").count()
+        vacantes_por_estado = Vacante.objects.values('estado').annotate(count=models.Count('estado'))
+
+        # Gráfico de Vacantes por Estado
+        estados = [item['estado'] for item in vacantes_por_estado]
+        cantidades = [item['count'] for item in vacantes_por_estado]
+
+        plt.figure(figsize=(6, 4))
+        plt.bar(estados, cantidades, color="skyblue")
+        plt.title("Vacantes por Estado")
+        plt.xlabel("Estado")
+        plt.ylabel("Cantidad")
+        plt.tight_layout()
+
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        grafico_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        buffer.close()
+
+        # Contexto para la plantilla
+        context = {
+            'total_dominios': total_dominios,
+            'total_vacantes': total_vacantes,
+            'scraping_activo': scraping_activo,
+            'grafico_vacantes': grafico_base64,
+            'estados': json.dumps(estados),
+            'cantidades': json.dumps(cantidades),
+        }
+        return TemplateResponse(request, "admin/dashboard.html", context)
+
+    def dashboard_link(self, obj):
+        return format_html(
+            '<a href="{}" target="_blank">Ver Dashboard</a>',
+            reverse('admin:dashboard')
+        )
+    dashboard_link.short_description = "Dashboard"
+
+    def ejecutar_scraping_view(self, request, dominio_id):
+        try:
+            dominio = DominioScraping.objects.get(pk=dominio_id)
+            ejecutar_scraping.delay()
+            self.message_user(request, f"Scraping iniciado para el dominio: {dominio.empresa} ({dominio.dominio}).", level=messages.SUCCESS)
+        except DominioScraping.DoesNotExist:
+            self.message_user(request, "El dominio especificado no existe.", level=messages.ERROR)
+        except Exception as e:
+            self.message_user(request, f"Error al iniciar el scraping: {str(e)}.", level=messages.ERROR)
+        return redirect("admin:app_dominioscraping_changelist")
+
+    def desactivar_dominios_invalidos(self, request, queryset):
+        desactivados = 0
+        for dominio in queryset:
+            # Llamar a validar_url de forma asíncrona
+            is_valid = async_to_sync(validar_url)(dominio.dominio)
+            if not is_valid:
+                dominio.estado = "libre"
+                dominio.save()
+                desactivados += 1
+        self.message_user(request, f"{desactivados} dominios desactivados por ser no válidos.")
+    desactivar_dominios_invalidos.short_description = "Desactivar dominios no válidos"
+
+    def marcar_como_definido(self, request, queryset):
+        queryset.update(estado="definido")
+        self.message_user(request, f"{queryset.count()} dominios marcados como 'definidos'.")
+    marcar_como_definido.short_description = "Marcar seleccionados como definidos"
+
+    def ejecutar_scraping_action(self, request, queryset):
+        # Acción para ejecutar scraping desde la lista
+        for dominio in queryset:
+            ejecutar_scraping.delay()  # Ejecutar la tarea de scraping
+        self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios seleccionados.")
+    ejecutar_scraping_action.short_description = "Ejecutar scraping para dominios seleccionados"
+
+class ScrapingScheduleAdmin(admin.ModelAdmin):
+    list_filter = ('activo', 'dia')
+    list_display = ('dominio', 'dia', 'activo')
+
+@admin.register(Vacante)
+class VacanteAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion')
+    search_fields = ('titulo', 'empresa', 'ubicacion')
+    list_filter = ('activa', 'modalidad', 'dominio_origen')
+
+@admin.register(RegistroScraping)
+class RegistroScrapingAdmin(admin.ModelAdmin):
+    list_display = ('dominio', 'estado', 'fecha_inicio', 'fecha_fin', 'vacantes_encontradas')
+    search_fields = ('dominio__empresa',)
+    list_filter = ('estado', 'fecha_inicio')
 
 # Instanciamos el ChatBotHandler
 chatbot_handler = ChatBotHandler()
@@ -133,7 +257,6 @@ class PreguntaAdmin(admin.ModelAdmin):
         context['adminform'].form.fields['content'].help_text = self.get_help_text()
         return super().render_change_form(request, context, *args, **kwargs)
 
-
 @admin.register(Buttons)
 class ButtonsAdmin(admin.ModelAdmin):
     list_display = ('name', 'active', 'mostrar_preguntas', )
@@ -142,7 +265,6 @@ class ButtonsAdmin(admin.ModelAdmin):
     def mostrar_preguntas(self, obj):
         return ", ".join([pregunta.name for pregunta in obj.pregunta.all()])
     mostrar_preguntas.short_description = 'Preguntas'
-
 
 @admin.register(ChatState)
 class ChatStateAdmin(admin.ModelAdmin):
@@ -174,8 +296,15 @@ class InstagramAPIInline(admin.StackedInline):
     extra = 0
     fields = ('app_id', 'access_token', 'associated_flow', 'is_active')
 
+# Inline para Template dentro de WhatsAppAPI
+class TemplateInline(admin.StackedInline):
+    model = Template
+    extra = 1
+    fields = ('name', 'template_type', 'image_url', 'language_code')
+    show_change_link = True
 
-class ConfiguracionBUInline(admin.StackedInline):
+# Inline para ConfiguracionBU con Templates anidados (si deseas gestionarlo desde ConfiguracionBU)
+class ConfiguracionBUInline(nested_admin.NestedStackedInline):
     model = ConfiguracionBU
     can_delete = False  # Evitar borrar directamente desde el inline
     verbose_name = "Configuración de Unidad de Negocio"
@@ -193,18 +322,29 @@ class ConfiguracionBUInline(admin.StackedInline):
         }),
     )
     readonly_fields = ('jwt_token',)  # Ejemplo de campos solo lectura si es necesario
-    extra = 0
+    inlines = [TemplateInline]  # Anidar TemplateInline si decides gestionarlo desde ConfiguracionBU
 
-# Admin para Unidad de Negocio
+    def regenerate_jwt_token(self, request, queryset):
+        for configuracion in queryset:
+            configuracion.jwt_token = generate_new_token()
+            configuracion.save()
+        self.message_user(request, "Tokens JWT regenerados exitosamente.")
+    regenerate_jwt_token.short_description = "Regenerar tokens JWT"
+
+# Admin para Unidad de Negocio con inlines anidados
 @admin.register(BusinessUnit)
-class BusinessUnitAdmin(admin.ModelAdmin):
+class BusinessUnitAdmin(nested_admin.NestedModelAdmin):
     list_display = (
         'name', 'description', 'whatsapp_enabled', 'telegram_enabled',
         'messenger_enabled', 'instagram_enabled', 'scrapping_enabled'
     )
     inlines = [
-        MetaAPIInline, WhatsAppAPIInline, TelegramAPIInline,
-        MessengerAPIInline, InstagramAPIInline, ConfiguracionBUInline
+        ConfiguracionBUInline,  # Configuración de Unidad de Negocio con Templates
+        MetaAPIInline, 
+        WhatsAppAPIInline, 
+        TelegramAPIInline,
+        MessengerAPIInline, 
+        InstagramAPIInline
     ]
     list_editable = (
         'whatsapp_enabled', 'telegram_enabled',
@@ -215,6 +355,7 @@ class BusinessUnitAdmin(admin.ModelAdmin):
         'messenger_enabled', 'instagram_enabled', 'scrapping_enabled',
         'scraping_domains'
     )
+    filter_horizontal = ('scraping_domains',)  # Widget para facilitar selección múltiple
     search_fields = ['name', 'description']
 
 @admin.register(FlowModel)
@@ -224,7 +365,7 @@ class FlowModelAdmin(admin.ModelAdmin):
     list_filter = ('business_unit',)
 
     def editar_flujo(self, obj):
-        url = reverse('edit_flow', args=[obj.pk])
+        url = reverse('admin:edit_flow', args=[obj.pk])
         return format_html('<a class="button" href="{}">Editar Flujo</a>', url)
     editar_flujo.short_description = 'Editar Flujo'
     editar_flujo.allow_tags = True
@@ -244,6 +385,8 @@ class TelegramAPIAdmin(admin.ModelAdmin):
 @admin.register(WhatsAppAPI)
 class WhatsAppAPIAdmin(admin.ModelAdmin):
     list_display = ('name', 'business_unit', 'phoneID', 'associated_flow', 'is_active')
+
+    inlines = [TemplateInline]  # Añadir TemplateInline aquí si deseas gestionarlo desde WhatsAppAPI
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'associated_flow':
@@ -306,7 +449,6 @@ class ChatAdmin(admin.ModelAdmin):
     list_display = ('From', 'To', 'ProfileName', 'created_at')
     search_fields = ('From', 'To')
 
-# Aplicación de MilkyLeak
 @admin.register(MilkyLeak)
 class MilkyLeakAdmin(admin.ModelAdmin):
     list_display = ['id', 'twitter_api_key', 'storage_service']

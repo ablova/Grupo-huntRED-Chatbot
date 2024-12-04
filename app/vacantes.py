@@ -4,6 +4,7 @@ import requests
 import logging
 import numpy as np
 import openai
+from functools import lru_cache
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -11,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
 from app.models import Worker, Person, GptApi, ConfiguracionBU
 # from app.integrations.whatsapp import registro_amigro, nueva_posicion_amigro Importaciones locales
-from app.wordpress_integration import (
+from app.scraping import (
     get_session,
     consult,
     register,
@@ -19,13 +20,65 @@ from app.wordpress_integration import (
     solicitud,
     login_to_wordpress
 )
+import chainlit as cl
+#from some_ml_model import match_candidate_to_job  # Tu modelo personalizado
+
+@cl.on_message
+async def main(message):
+    # Procesa el mensaje del usuario
+    candidate_profile = extract_candidate_profile(message)
+    job_matches = match_candidate_to_job(candidate_profile)
+    await cl.Message(content=f"Encontré estas vacantes para ti: {job_matches}").send()
+    
+from geopy.distance import geodesic
+
+def match_person_with_jobs(person, job_list):
+    """
+    Coincide un usuario con una lista de vacantes.
+    :param person: Instancia de Person.
+    :param job_list: Lista de vacantes (queryset o REST API).
+    :return: Lista de vacantes ordenadas por puntaje.
+    """
+    matches = []
+    person_location = (person.lat, person.lon) if person.lat and person.lon else None
+
+    for job in job_list:
+        score = 0
+        # Comparar habilidades
+        person_skills = set(person.skills.split(","))
+        job_skills = set(job.requisitos.split(",")) if job.requisitos else set()
+        skill_match = len(person_skills & job_skills)
+        score += skill_match * 2
+
+        # Comparar ubicación
+        if person_location and job.lat and job.lon:
+            job_location = (job.lat, job.lon)
+            distance = geodesic(person_location, job_location).km
+            if distance <= 10:  # Por ejemplo, prioridad a vacantes en 10 km
+                score += 3
+            elif distance <= 50:
+                score += 1
+
+        # Comparar salario
+        if person.nivel_salarial and job.salario:
+            if job.salario >= person.nivel_salarial:
+                score += 2
+
+        # Fecha de publicación
+        if job.fecha_scraping and (timezone.now() - job.fecha_scraping).days <= 7:
+            score += 1
+
+        matches.append((job, score))
+
+    # Ordenar vacantes por puntaje
+    matches = sorted(matches, key=lambda x: x[1], reverse=True)
+    return matches
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
 
 # Sesión persistente de requests
 s = requests.session()
-
 
 class VacanteManager:
     def __init__(self, job_data):
@@ -38,12 +91,9 @@ class VacanteManager:
         }
         self.wp_url = self.configuracion.dominio_conexion  # Usar el dominio de conexión
 
-    def get_gpt_api_config(self):
-        """
-        Obtiene la configuración de la API de OpenAI desde la base de datos.
-
-        :return: Instancia de configuración de GptApi o None.
-        """
+    @staticmethod
+    @lru_cache(maxsize=1000)
+    def get_gpt_api_config():
         try:
             gpt_api = GptApi.objects.first()
             if gpt_api:
@@ -57,76 +107,62 @@ class VacanteManager:
             logger.error(f"Error obteniendo configuración de GptApi: {e}")
             return None
 
+    @lru_cache(maxsize=1000)
     def estimate_salary(self):
-        """
-        Estima el rango salarial utilizando GPT-3.5 de OpenAI.
-
-        :return: Tupla con el salario mínimo y máximo estimados.
-        """
         gpt_api = self.get_gpt_api_config()
         if not gpt_api:
             logger.warning("Configuración de OpenAI faltante.")
-            return "12000", "15000"  # Valores por defecto
+            return "12000", "15000"
 
         prompt = (
             f"Calcula el rango salarial para el puesto '{self.job_data['job_title']}' en México.\n"
             f"Descripción: {self.job_data['job_description']}\n"
+            f"Proporciona el salario mínimo y máximo estimados en pesos mexicanos."
         )
 
-        response = openai.Completion.create(
-            engine="gpt-3.5-turbo",
-            prompt=prompt,
-            max_tokens=50,
-            n=1,
-            temperature=0.5
-        )
-
-        salario_min, salario_max = self.parse_salary_text(response.choices[0].text.strip())
-        return salario_min, salario_max
+        try:
+            response = openai.Completion.create(
+                engine="gpt-3.5-turbo",
+                prompt=prompt,
+                max_tokens=50,
+                n=1,
+                temperature=0.5
+            )
+            salario_min, salario_max = self.parse_salary_text(response.choices[0].text.strip())
+            return salario_min, salario_max
+        except Exception as e:
+            logger.error(f"Error al estimar salario con OpenAI: {e}")
+            return "12000", "15000"
 
     def parse_salary_text(self, text):
-        """
-        Parseo del texto devuelto por OpenAI para obtener salarios mínimos y máximos.
-
-        :param text: Texto con el rango salarial estimado.
-        :return: Tupla con salario mínimo y máximo.
-        """
         try:
-            parts = text.replace(",", "").split()
-            return parts[0].replace("$", ""), parts[-2].replace("$", "")
-        except IndexError:
+            # Asumiendo que el texto tiene el formato "Salario mínimo: $XXXX, Salario máximo: $YYYY"
+            salarios = [s for s in text.split() if s.startswith('$')]
+            return salarios[0].replace("$", ""), salarios[1].replace("$", "")
+        except Exception:
             logger.warning("Error al parsear salario, valores predeterminados utilizados.")
             return "10000", "15000"
 
     def ensure_tags_exist(self, tags):
-        """
-        Verifica y crea etiquetas en WordPress si no existen.
-
-        :param tags: Lista de etiquetas a verificar o crear.
-        :return: Lista de IDs de etiquetas.
-        """
         tag_ids = []
         for tag in tags:
-            response = requests.get(f"{self.wp_url}/wp-json/wp/v2/tags", headers=self.headers, params={"search": tag})
-            if response.status_code == 200 and response.json():
-                tag_ids.append(response.json()[0]["id"])
-            else:
-                create_tag_response = requests.post(
-                    f"{self.wp_url}/wp-json/wp/v2/tags", headers=self.headers, json={"name": tag}
-                )
-                if create_tag_response.status_code == 201:
-                    tag_ids.append(create_tag_response.json()["id"])
+            try:
+                response = requests.get(f"{self.api_url}/tags", headers=self.headers, params={"search": tag})
+                if response.status_code == 200 and response.json():
+                    tag_ids.append(response.json()[0]["id"])
                 else:
-                    logger.error(f"Error creando tag '{tag}': {create_tag_response.text}")
+                    create_tag_response = requests.post(
+                        f"{self.api_url}/tags", headers=self.headers, json={"name": tag}
+                    )
+                    if create_tag_response.status_code == 201:
+                        tag_ids.append(create_tag_response.json()["id"])
+                    else:
+                        logger.error(f"Error creando tag '{tag}': {create_tag_response.text}")
+            except Exception as e:
+                logger.error(f"Error al asegurar existencia de tag '{tag}': {e}")
         return tag_ids
 
     def generate_tags(self, job_description):
-        """
-        Genera etiquetas para una descripción de trabajo usando OpenAI o TF-IDF como respaldo.
-
-        :param job_description: Descripción de la vacante.
-        :return: Lista de etiquetas generadas.
-        """
         gpt_api = self.get_gpt_api_config()
         if not gpt_api:
             logger.warning("Falta configuración de GptApi, no se puede usar OpenAI.")
@@ -140,19 +176,13 @@ class VacanteManager:
                 n=1,
                 temperature=0.5,
             )
-            return response.choices[0].text.strip().split(", ")
+            return [tag.strip() for tag in response.choices[0].text.strip().split(",")]
         except Exception as e:
             logger.warning(f"Error usando OpenAI para generar tags: {e}. Usando TF-IDF como respaldo.")
             return self.generate_tags_backup(job_description)
 
     def generate_tags_backup(self, job_description):
-        """
-        Genera etiquetas de respaldo utilizando TF-IDF.
-
-        :param job_description: Descripción de la vacante.
-        :return: Lista de etiquetas de respaldo.
-        """
-        vectorizer = TfidfVectorizer(max_features=5)
+        vectorizer = TfidfVectorizer(max_features=5, stop_words='english')
         tfidf_matrix = vectorizer.fit_transform([job_description])
         return vectorizer.get_feature_names_out()
 
@@ -256,7 +286,7 @@ class VacanteManager:
             f"Descripción: {self.job_data['job_description']}\n"
             f"Salario estimado: ${self.job_data['_salary_min']} - ${self.job_data['_salary_max']} MXN\n\n"
             f"Este salario se generó con base en indicadores nacionales y recomendaciones "
-            f"internacionales usando algoritmos de IA procesados específicamente para Amigro.org."
+            f"internacionales usando algoritmos de IA procesados específicamente para este proceso."
         )
         celular_responsable = self.job_data.get("celular_responsable")
         if celular_responsable:
@@ -347,7 +377,7 @@ class VacanteManager:
         job_list = []
 
         for job in all_jobs:
-            job_skills = job.get('required_skills', '').lower().split(',') if 'required_skills' in job else []
+            job_skills = job.required_skills.lower().split(',') if job.required_skills else []
             job_descriptions.append(' '.join(job_skills))
             job_list.append(job)
 
@@ -361,7 +391,7 @@ class VacanteManager:
 
         top_jobs = sorted(zip(job_list, similarity_scores), key=lambda x: x[1], reverse=True)
         return top_jobs[:5]
-
+    
 def create_or_update_job_on_wordpress(job_data):
     """
     Crea o actualiza una vacante en WordPress y envía una notificación al empleador si es necesario.
@@ -386,3 +416,23 @@ def create_or_update_job_on_wordpress(job_data):
     if worker.whatsapp:
         message = f"Hola {worker.name}, tu vacante {job_data['title']} ha sido actualizada y cargada en el sistema de agenda de Amigro con éxito. Yo seré quien te envíe los recordatorios de entrevista en su momento."
         notify_employer(worker, message)
+
+async def suggest_jobs(self, event):
+    """
+    Sugiere vacantes al usuario basado en su perfil.
+    """
+    person = await sync_to_async(Person.objects.get)(phone=event.user_id)
+    job_list = await sync_to_async(Vacante.objects.filter)(business_unit=event.business_unit)
+
+    # Obtener coincidencias
+    matches = await sync_to_async(match_person_with_jobs)(person, job_list)
+
+    if matches:
+        response = "Aquí tienes algunas vacantes recomendadas para ti:\n"
+        for idx, (job, score) in enumerate(matches[:5]):  # Top 5
+            response += f"{idx+1}. {job.titulo} en {job.empresa} - Puntaje: {score}\n"
+        response += "Por favor, ingresa el número de la vacante que te interesa."
+    else:
+        response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
+    
+    await self.send_response(event.platform, event.user_id, response)

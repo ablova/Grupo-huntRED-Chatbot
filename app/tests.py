@@ -8,12 +8,12 @@ from django.urls import reverse
 from django.http import HttpResponse
 from django.contrib.auth.models import User
 from app.models import (
-    Etapa, Pregunta, Person, WhatsAppAPI, MetaAPI, FlowModel,
+    Etapa, Pregunta, Person, WhatsAppAPI, MetaAPI, FlowModel, ChatState,
     BusinessUnit, Configuracion, ConfiguracionBU
 )
 from app.chatbot import ChatBotHandler
 from app.vacantes import VacanteManager
-from app.integrations.whatsapp import handle_incoming_message, registro_amigro, nueva_posicion_amigro
+from app.integrations.whatsapp import handle_incoming_message, registro_amigro, nueva_posicion_amigro, send_message
 from app.tasks import send_whatsapp_message
 from asgiref.sync import sync_to_async
 
@@ -52,6 +52,10 @@ def business_unit(db):
 
 @pytest.fixture
 def meta_api(business_unit):
+    assert META_APP_ID is not None, "El ID de la aplicación no puede ser nulo"
+    assert META_APP_SECRET is not None, "El secreto de la aplicación no puede ser nulo"
+    assert META_VERIFY_TOKEN is not None, "El token de verificación no puede ser nulo"
+    
     return MetaAPI.objects.create(
         business_unit=business_unit,
         app_id=META_APP_ID,
@@ -63,13 +67,12 @@ def meta_api(business_unit):
 def whatsapp_api(business_unit, meta_api):
     return WhatsAppAPI.objects.create(
         business_unit=business_unit,
-        name="Amigro WhatsApp",
+        name="Amigro® WhatsApp",
         phoneID=WHATSAPP_PHONE_ID,
         api_token=WHATSAPP_API_TOKEN,
         WABID=WHATSAPP_WABID,
-        v_api="v17.0",
+        v_api="v21.0",
         meta_api=meta_api,
-        is_active=True
     )
 
 @pytest.fixture
@@ -107,6 +110,14 @@ def person():
         phone="1234567890",
         skills="Python, Django",
         number_interaction="test_user_1"
+    )
+
+@pytest.fixture
+def chat_state(db, person, flow_model):
+    return ChatState.objects.create(
+        user_id=person.phone,
+        platform="whatsapp",
+        current_question=None
     )
 
 # -----------------------------------
@@ -275,22 +286,33 @@ async def test_enviar_mensaje_whatsapp(whatsapp_api):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chatbot_process_message(whatsapp_api, flow_model, person):
+async def test_chatbot_process_message_with_user_and_event(whatsapp_api, flow_model, person):
     """
-    Prueba el procesamiento de un mensaje entrante por el chatbot.
+    Prueba el procesamiento de un mensaje entrante por el chatbot, incluyendo la creación de usuarios y eventos.
     """
     chatbot_handler = ChatBotHandler()
-    user_id = person.phone
+    user_id = "525518490291"  # ID específico para la prueba
     text = "Hola"
     business_unit = whatsapp_api.business_unit
 
-    # Simular el análisis de texto y las llamadas a funciones externas
+    # Simular análisis de texto
     with patch('app.chatbot.analyze_text', return_value={"intents": ["saludo"]}), \
          patch('app.chatbot.send_message', new_callable=AsyncMock) as mock_send_message:
 
-        response, options = await chatbot_handler.process_message('whatsapp', user_id, text, business_unit)
+        # Ejecutar el método a probar
+        await chatbot_handler.process_message('whatsapp', user_id, text, business_unit)
 
-        assert response is not None
+        # Verificar que se haya creado el evento
+        from app.models import ChatState, Person
+        event = await sync_to_async(ChatState.objects.filter(user_id=user_id, platform='whatsapp').first)()
+        assert event is not None, "El evento debería haberse creado."
+
+        # Verificar que se haya creado el usuario
+        user = await sync_to_async(Person.objects.filter(phone=user_id).first)()
+        assert user is not None, "El usuario debería haberse creado."
+        assert user.phone == user_id, "El teléfono del usuario debería coincidir."
+
+        # Verificar que el mensaje fue enviado
         mock_send_message.assert_awaited()
 
 # -----------------------------------
@@ -401,3 +423,250 @@ async def test_send_whatsapp_template(whatsapp_api):
 
     # Aquí podrías agregar lógica para verificar que la respuesta se haya almacenado correctamente
 # Puedes agregar más pruebas siguiendo este formato, cubriendo las funcionalidades que consideres importantes.
+
+@pytest.mark.django_db(transaction=True)
+def test_scraping_with_fallback_methods(configuracion):
+    """
+    Prueba que el scraping intente con Selenium si requests falla.
+    """
+    from app.models import DominioScraping
+    from app.scraping import run_scraper
+
+    # Crear un dominio de prueba
+    dominio = DominioScraping.objects.create(
+        empresa="Empresa de Prueba",
+        dominio="https://www.ejemplo.com",
+        activo=True
+    )
+
+    # Simular que requests falla y Selenium funciona
+    with patch('app.scraping.fetch_with_requests', return_value=None) as mock_requests, \
+         patch('app.scraping.fetch_with_selenium', return_value="<html>Contenido con Selenium</html>") as mock_selenium, \
+         patch('app.scraping.extract_json_ld', return_value=[{"title": "Vacante Selenium"}]) as mock_extract_json_ld:
+
+        vacantes = asyncio.run(run_scraper(dominio))
+
+        # Verificar que fetch_with_requests fue llamado y devolvió None
+        mock_requests.assert_called_once()
+        # Verificar que fetch_with_selenium fue llamado
+        mock_selenium.assert_called_once()
+        # Verificar que se obtuvo la vacante
+        assert len(vacantes) == 1
+        assert vacantes[0]["title"] == "Vacante Selenium"
+
+@pytest.mark.django_db(transaction=True)
+def test_scraping_all_methods_fail(configuracion):
+    """
+    Prueba que el scraping maneje adecuadamente cuando todos los métodos fallan.
+    """
+    from app.models import DominioScraping
+    from app.scraping import run_scraper
+
+    # Crear un dominio de prueba
+    dominio = DominioScraping.objects.create(
+        empresa="Empresa de Prueba",
+        dominio="https://www.ejemplo.com",
+        activo=True
+    )
+
+    # Simular que ambos métodos fallan
+    with patch('app.scraping.fetch_with_requests', return_value=None) as mock_requests, \
+         patch('app.scraping.fetch_with_selenium', return_value=None) as mock_selenium:
+
+        vacantes = asyncio.run(run_scraper(dominio))
+
+        # Verificar que fetch_with_requests fue llamado
+        mock_requests.assert_called_once()
+        # Verificar que fetch_with_selenium fue llamado
+        mock_selenium.assert_called_once()
+        # Verificar que no se obtuvieron vacantes
+        assert len(vacantes) == 0
+
+
+# ------------------------
+# Pruebas de Integración
+# ------------------------
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_process_message(whatsapp_api, flow_model, person):
+    """
+    Prueba el procesamiento de un mensaje entrante por el chatbot.
+    """
+    chatbot_handler = ChatBotHandler()
+    user_id = person.phone
+    text = "Hola"
+    business_unit = whatsapp_api.business_unit
+
+    with patch('app.chatbot.send_message', new_callable=AsyncMock) as mock_send_message:
+        response, _ = await chatbot_handler.process_message('whatsapp', user_id, text, business_unit)
+
+        assert response is not None
+        mock_send_message.assert_awaited()
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_enviar_mensaje_whatsapp(whatsapp_api):
+    """
+    Envía un mensaje real a través de la API de WhatsApp.
+    """
+    user_id = "525518490291"  # Número de teléfono de prueba en formato internacional
+
+    response = await send_whatsapp_message(
+        user_id=user_id,
+        message="Mensaje de prueba.",
+        phone_id=whatsapp_api.phoneID
+    )
+
+    assert response is not None
+
+    """
+    Prueba la creación de una nueva pregunta.
+    """
+    user = User.objects.create_user(username='testuser', password='testpass')
+    client.login(username='testuser', password='testpass')
+
+    etapa = Etapa.objects.create(nombre="Etapa de Prueba")
+
+    data = {
+        "name": "Nueva Pregunta",
+        "content": "Contenido de la nueva pregunta",
+        "input_type": "text",
+        "flow": flow_model.id,
+        "etapa": etapa.id,
+    }
+    response = client.post(
+        reverse('create_pregunta'),
+        data=data,
+        content_type='application/json'
+    )
+
+    assert response.status_code == 200
+
+# -----------------------------------
+# Pruebas de las etapas principales
+# -----------------------------------
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_process_message_basic_interaction(chat_state, business_unit):
+    chatbot = ChatBotHandler()
+    user_id = chat_state.user_id
+    platform = chat_state.platform
+    text = "Hola"
+
+    with patch("app.integrations.services.send_message", new_callable=AsyncMock) as mock_send_message:
+        await chatbot.process_message(platform, user_id, text, business_unit)
+
+        mock_send_message.assert_awaited_once()
+        assert chat_state.current_question == "Pregunta de bienvenida"
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_handle_known_intents(chat_state, business_unit):
+    chatbot = ChatBotHandler()
+    user_id = chat_state.user_id
+    platform = chat_state.platform
+    intents = [{"name": "saludo", "confidence": 0.9}]
+
+    with patch("app.integrations.services.send_message", new_callable=AsyncMock) as mock_send_message:
+        result = await chatbot.handle_known_intents(intents, platform, user_id, chat_state, business_unit)
+
+        mock_send_message.assert_awaited_once_with(
+            platform, user_id, "¡Hola! ¿Cómo puedo ayudarte hoy?", business_unit
+        )
+        assert result is True
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_first_question(flow_model, pregunta):
+    chatbot = ChatBotHandler()
+    question = await chatbot.get_first_question(flow_model)
+
+    assert question == pregunta
+    assert question.content == "Por favor, ingresa tu nombre completo."
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_determine_next_question(chat_state, pregunta):
+    chatbot = ChatBotHandler()
+    chat_state.current_question = pregunta
+    await chat_state.asave()
+
+    user_message = "Mi nombre es Pablo"
+    analysis = {}
+    context = {}
+
+    response, options = await chatbot.determine_next_question(chat_state, user_message, analysis, context)
+
+    assert response is not None
+    assert "No hay más preguntas en este flujo." in response
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_send_profile_completion_email(person):
+    chatbot = ChatBotHandler()
+
+    with patch("app.integrations.services.send_email", new_callable=AsyncMock) as mock_send_email:
+        await chatbot.send_profile_completion_email(person.phone, {"user_name": person.name})
+
+        mock_send_email.assert_awaited_once()
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_handle_user_deviation(chat_state):
+    chatbot = ChatBotHandler()
+
+    with patch("app.integrations.services.send_options", new_callable=AsyncMock) as mock_send_options:
+        await chatbot.handle_user_deviation(chat_state, "Mensaje inesperado")
+
+        mock_send_options.assert_awaited_once()
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_process_user_message(chat_state):
+    chatbot = ChatBotHandler()
+    user_message = "¿Qué hay de nuevo?"
+    analysis = {}
+    context = {}
+
+    response, options = await chatbot.process_user_message(chat_state, user_message, analysis, context)
+
+    assert response == "No hay una pregunta actual en el flujo."
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_handle_whatsapp_template(chat_state, pregunta):
+    chatbot = ChatBotHandler()
+    chat_state.current_question = pregunta
+    await chat_state.asave()
+
+    with patch("app.integrations.services.send_message", new_callable=AsyncMock) as mock_send_message:
+        response, _ = await chatbot._handle_whatsapp_template(chat_state, pregunta, {})
+
+        mock_send_message.assert_awaited_once_with(
+            chat_state.platform, chat_state.user_id, f"Enviando template: {pregunta.option}"
+        )
+        assert response is None
+
+# -----------------------------------
+# Pruebas adicionales específicas
+# -----------------------------------
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_or_create_event(chat_state, flow_model):
+    chatbot = ChatBotHandler()
+    event = await chatbot.get_or_create_event(chat_state.user_id, chat_state.platform, flow_model)
+
+    assert event.user_id == chat_state.user_id
+    assert event.flow_model == flow_model
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_verify_user_profile(person):
+    chatbot = ChatBotHandler()
+    missing_message = await chatbot.verify_user_profile(person)
+
+    assert missing_message is not None
+    assert "Para continuar, completa estos datos:" in missing_message

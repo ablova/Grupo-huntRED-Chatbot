@@ -1,0 +1,25 @@
+<!-- /home/amigro/templates/admin/dashboard.html -->
+
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Dashboard de Estadísticas</h1>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-around; margin-bottom: 20px;">
+    <div style="text-align: center; margin: 10px;">
+        <h3>Total de Dominios</h3>
+        <p style="font-size: 24px; font-weight: bold;">{{ total_dominios }}</p>
+    </div>
+    <div style="text-align: center; margin: 10px;">
+        <h3>Total de Vacantes</h3>
+        <p style="font-size: 24px; font-weight: bold;">{{ total_vacantes }}</p>
+    </div>
+    <div style="text-align: center; margin: 10px;">
+        <h3>Scraping Activo</h3>
+        <p style="font-size: 24px; font-weight: bold;">{{ scraping_activo }}</p>
+    </div>
+</div>
+
+<div style="text-align: center;">
+    <h3>Vacantes por Estado</h3>
+    <img src="data:image/png;base64,{{ grafico_vacantes }}" alt="Gráfico de Vacantes">
+</div>
+{% endblock %}

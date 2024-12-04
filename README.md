@@ -1,2221 +1,1033 @@
-# /home/amigro/app/integrations/instagram.py
-
-import logging
-import requests
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from app.chatbot import ChatBotHandler
-
-logger = logging.getLogger(__name__)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def instagram_webhook(request):
-    """
-    Webhook para manejar mensajes entrantes desde Instagram.
-    """
-    try:
-        data = request.body.decode('utf-8')
-        # Aquí puedes procesar el mensaje de Instagram
-        logger.info(f"Mensaje recibido desde Instagram: {data}")
-        
-        # Ejemplo de interacción con el chatbot
-        chatbot_handler = ChatBotHandler()
-        response, options = chatbot_handler.process_message('instagram', data['sender']['id'], data['message']['text'])
-
-        return JsonResponse({'status': 'success', 'response': response}, status=200)
-    except Exception as e:
-        logger.error(f"Error en el webhook de Instagram: {e}")
-        return JsonResponse({'status': 'error', 'message': 'Error interno del servidor'}, status=500)
-
-async def send_instagram_message(recipient_id, message, access_token):
-    """
-    Envía un mensaje a un usuario de Instagram.
-    """
-    url = f"https://graph.facebook.com/v11.0/me/messages"
-    params = {"access_token": access_token}
-    data = {
-        "recipient": {"id": recipient_id},
-        "message": {"text": message},
-    }
-    response = requests.post(url, json=data, params=params)
-    if response.status_code != 200:
-        logger.error(f"Error enviando mensaje a Instagram: {response.text}")
-    else:
-        logger.info(f"Mensaje enviado correctamente a Instagram: {message}")
-
-_____
-
-# /home/amigro/app/integrations/messenger.py
-
-import logging
-import requests
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from app.chatbot import ChatBotHandler
-
-logger = logging.getLogger(__name__)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def messenger_webhook(request):
-    """
-    Webhook para manejar mensajes entrantes desde Messenger.
-    """
-    try:
-        data = request.body.decode('utf-8')
-        # Aquí puedes procesar el mensaje de Messenger
-        logger.info(f"Mensaje recibido desde Messenger: {data}")
-        
-        # Ejemplo de interacción con el chatbot
-        chatbot_handler = ChatBotHandler()
-        response, options = chatbot_handler.process_message('messenger', data['sender']['id'], data['message']['text'])
-
-        return JsonResponse({'status': 'success', 'response': response}, status=200)
-    except Exception as e:
-        logger.error(f"Error en el webhook de Messenger: {e}")
-        return JsonResponse({'status': 'error', 'message': 'Error interno del servidor'}, status=500)
-
-async def send_messenger_message(recipient_id, message, access_token):
-    """
-    Envía un mensaje a un usuario de Messenger.
-    """
-    url = f"https://graph.facebook.com/v11.0/me/messages"
-    params = {"access_token": access_token}
-    data = {
-        "recipient": {"id": recipient_id},
-        "message": {"text": message},
-    }
-    response = requests.post(url, json=data, params=params)
-    if response.status_code != 200:
-        logger.error(f"Error enviando mensaje a Messenger: {response.text}")
-    else:
-        logger.info(f"Mensaje enviado correctamente a Messenger: {message}")
-
-_____
-
-# /home/amigro/app/integrations/services.py
-
-import logging
-from app.models import TelegramAPI, WhatsAppAPI, MessengerAPI, InstagramAPI
-
-logger = logging.getLogger(__name__)
-
-def send_message(platform, user_id, message):
-    """
-    Envía un mensaje de texto a través de la plataforma especificada.
-    """
-    try:
-        if platform == 'telegram':
-            telegram_api = TelegramAPI.objects.first()
-            if telegram_api:
-                send_telegram_message(user_id, message, telegram_api.api_key)
-            else:
-                logger.error("No se encontró configuración de API de Telegram")
-
-        elif platform == 'whatsapp':
-            whatsapp_api = WhatsAppAPI.objects.first()
-            if whatsapp_api:
-                send_whatsapp_message(user_id, message, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api)
-            else:
-                logger.error("No se encontró configuración de API de WhatsApp")
-
-        elif platform == 'messenger':
-            messenger_api = MessengerAPI.objects.first()
-            if messenger_api:
-                send_messenger_message(user_id, message, messenger_api.page_access_token)
-            else:
-                logger.error("No se encontró configuración de API de Messenger")
-
-        elif platform == 'instagram':
-            instagram_api = InstagramAPI.objects.first()
-            if instagram_api:
-                send_instagram_message(user_id, message, instagram_api.access_token)
-            else:
-                logger.error("No se encontró configuración de API de Instagram")
-
-        else:
-            logger.error(f"Plataforma desconocida: {platform}")
-
-    except Exception as e:
-        logger.error(f"Error enviando mensaje a través de {platform}: {e}", exc_info=True)
-
-
-def send_options(platform, user_id, message, options):
-    """
-    Envía un mensaje con opciones/botones en la plataforma.
-    """
-    try:
-        if platform == 'whatsapp':
-            whatsapp_api = WhatsAppAPI.objects.first()
-            if whatsapp_api:
-                send_whatsapp_message(user_id, message, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api, options)
-            else:
-                logger.error("No se encontró configuración de API de WhatsApp")
-
-        # Aquí puedes expandir para enviar botones en otras plataformas
-        else:
-            logger.error(f"Envío de opciones no soportado para la plataforma {platform}")
-    except Exception as e:
-        logger.error(f"Error enviando opciones en {platform}: {e}", exc_info=True)
-
-
-def send_image(platform, user_id, image_url):
-    """
-    Envía una imagen a través de la plataforma especificada.
-    """
-    try:
-        if platform == 'whatsapp':
-            whatsapp_api = WhatsAppAPI.objects.first()
-            if whatsapp_api:
-                send_whatsapp_message(user_id, '', whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api, image_url=image_url)
-            else:
-                logger.error("No se encontró configuración de API de WhatsApp")
-        else:
-            logger.error(f"Envío de imágenes no soportado para la plataforma {platform}")
-
-    except Exception as e:
-        logger.error(f"Error enviando imagen en {platform}: {e}", exc_info=True)
-
-
-def send_menu(platform, user_id):
-    """
-    Envía el menú persistente en la plataforma.
-    """
-    menu_message = """
-    1 - Bienvenida
-    2 - Registro
-    3 - Ver Oportunidades
-    4 - Actualizar Perfil
-    5 - Invitar Familiares o Amigos
-    6 - Términos y Condiciones
-    7 - Contacto
-    8 - Solicitar Ayuda
-    """
-    
-    try:
-        if platform == 'whatsapp':
-            whatsapp_api = WhatsAppAPI.objects.first()
-            if whatsapp_api:
-                send_whatsapp_message(user_id, menu_message, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api)
-            else:
-                logger.error("No se encontró configuración de API de WhatsApp")
-
-        elif platform == 'telegram':
-            telegram_api = TelegramAPI.objects.first()
-            if telegram_api:
-                send_telegram_message(user_id, menu_message, telegram_api.api_key)
-            else:
-                logger.error("No se encontró configuración de API de Telegram")
-
-        elif platform == 'messenger':
-            messenger_api = MessengerAPI.objects.first()
-            if messenger_api:
-                send_messenger_message(user_id, menu_message, messenger_api.page_access_token)
-            else:
-                logger.error("No se encontró configuración de API de Messenger")
-
-        elif platform == 'instagram':
-            instagram_api = InstagramAPI.objects.first()
-            if instagram_api:
-                send_instagram_message(user_id, menu_message, instagram_api.access_token)
-            else:
-                logger.error("No se encontró configuración de API de Instagram")
-
-        else:
-            logger.error(f"Plataforma desconocida: {platform}")
-
-    except Exception as e:
-        logger.error(f"Error enviando el menú a través de {platform}: {e}", exc_info=True)
-
-______
-
-# /home/amigro/app/integrations/telegram.py
-
-import requests
-import logging
-
-logger = logging.getLogger(__name__)
-
-def send_telegram_message(user_id, message, api_key):
-    """
-    Envía un mensaje de Telegram al usuario especificado.
-    """
-    url = f"https://api.telegram.org/bot{api_key}/sendMessage"
-    payload = {'chat_id': user_id, 'text': message}
-
-    try:
-        response = requests.post(url, json=payload)
-        if response.status_code != 200:
-            logger.error(f"Error al enviar mensaje de Telegram: {response.text}")
-    except Exception as e:
-        logger.error(f"Error enviando mensaje de Telegram: {e}", exc_info=True)
-
-def telegram_webhook(request):
-    """
-    Webhook para recibir mensajes desde Telegram.
-    """
-    if request.method == 'POST':
-        data = request.json()
-        message = data['message']['text']
-        user_id = data['message']['from']['id']
-        # Lógica para procesar el mensaje de Telegram
-        return JsonResponse({'status': 'received'})
-
-    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
-
-
-_____
-
-
-# /home/amigro/app/integrations/whatsapp.py
-
-import logging
-import requests
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from app.chatbot import ChatBotHandler
-
-logger = logging.getLogger(__name__)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def whatsapp_webhook(request):
-    """
-    Webhook para manejar mensajes entrantes desde WhatsApp.
-    """
-    try:
-        data = request.body.decode('utf-8')
-        # Aquí puedes procesar el mensaje de WhatsApp
-        logger.info(f"Mensaje recibido desde WhatsApp: {data}")
-        
-        # Ejemplo de interacción con el chatbot
-        chatbot_handler = ChatBotHandler()
-        response, options = chatbot_handler.process_message('whatsapp', data['From'], data['Body'])
-
-        return JsonResponse({'status': 'success', 'response': response}, status=200)
-    except Exception as e:
-        logger.error(f"Error en el webhook de WhatsApp: {e}")
-        return JsonResponse({'status': 'error', 'message': 'Error interno del servidor'}, status=500)
-
-async def send_whatsapp_message(recipient, message, api_token, phone_id, version_api):
-    """
-    Envía un mensaje a un usuario de WhatsApp utilizando la API.
-    """
-    url = f"https://graph.facebook.com/{version_api}/{phone_id}/messages"
-    headers = {
-        "Authorization": f"Bearer {api_token}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "messaging_product": "whatsapp",
-        "to": recipient,
-        "text": {
-            "body": message
-        }
-    }
-    response = requests.post(url, json=data, headers=headers)
-    if response.status_code != 200:
-        logger.error(f"Error enviando mensaje a WhatsApp: {response.text}")
-    else:
-        logger.info(f"Mensaje enviado correctamente a WhatsApp: {message}")
-
-
-
-async def invite_known_person(referrer, name, apellido, phone_number):
-    """
-    Función para invitar a un conocido por WhatsApp y crear un pre-registro del invitado.
-    
-    :param referrer: Usuario que realizó la invitación.
-    :param name: Nombre del invitado.
-    :param apellido: Apellido del invitado.
-    :param phone_number: Número de contacto del invitado.
-    """
-    # Crear pre-registro del invitado
-    invitado, created = await Person.objects.aget_or_create(phone=phone_number, defaults={
-        'name': name,
-        'apellido': apellido
-    })
-    
-    # Crear el registro de la invitación
-    await Invitacion.objects.acreate(referrer=referrer, invitado=invitado)
-
-    # Enviar mensaje de invitación por WhatsApp
-    if created:
-        mensaje = f"Hola {name}, has sido invitado por {referrer.name} a unirte a Amigro.org. ¡Únete a nuestra comunidad!"
-        await send_whatsapp_message(phone_number, mensaje)
-
-    return invitado
-
-
-_____
-
-<!-- /home/amigro/app/templates/admin/base_site.html -->
-{% block branding %}
-    <div id="site-name">
-        <img src="https://amigro.org/wp-content/uploads/2019/11/logo2-1.png" alt="Amigro" style="max-height: 50px;">
-        <h1>{{ site_title|default:_('Django site admin') }}</h1>
-    </div>
-{% endblock %}
-
-_____
-
-<!--#/home/amigro/app/templates/admin/change_form_with_edit_button.html -->
-{% extends "admin/change_form.html" %}
-
-{% block submit_buttons_bottom %}
-    {{ block.super }}
-    <a href="{{ edit_flow_url }}" class="button">Editar Flujo</a>
-{% endblock %}
-_____
-
-<!-- /home/amigro/app/templates/admin/chatbot_flow.html -->
-{% extends "admin/base_site.html" %}
-
-{% block extrahead %}
-{{ block.super }}
-<!-- Inclusión de GoJS desde CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gojs/2.1.53/go.js"></script>
-<!-- Inclusión de Font Awesome para iconos -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-<style>
-    /* Estilo para el contenedor del diagrama */
-    #myDiagramDiv {
-        width: 100%;
-        height: 600px;
-        background-color: #DAE4E4;
-        border: 1px solid #ccc;
-    }
-    .controls {
-        margin-top: 20px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    .controls button {
-        padding: 10px;
-        border: none;
-        background-color: #007bff;
-        color: white;
-        cursor: pointer;
-        border-radius: 4px;
-    }
-    .controls button:hover {
-        background-color: #0056b3;
-    }
-    #nodeProperties {
-        width: 300px;
-        padding: 10px;
-        border: 1px solid #ccc;
-        margin-top: 20px;
-    }
-    #simulator {
-        margin-top: 40px;
-    }
-    #flowSelectorContainer {
-        margin-bottom: 20px;
-    }
-    #flowSelector {
-        padding: 5px;
-        border-radius: 4px;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<h1>Editor de Flujo del Chatbot</h1>
-
-<!-- Selector de Flujos (si manejas múltiples flujos) -->
-<div id="flowSelectorContainer">
-    <label for="flowSelector"><strong>Seleccionar Flujo:</strong></label>
-    <select id="flowSelector" onchange="loadSelectedFlow()">
-        {% for fl in flows %}
-            <option value="{{ fl.id }}" {% if fl.id == flow.id %}selected{% endif %}>{{ fl.name }}</option>
-        {% endfor %}
-    </select>
-</div>
-
-<!-- Contenedor del diagrama -->
-<div id="myDiagramDiv"></div>
-
-<!-- Controles para agregar nodos, fases y guardar el flujo -->
-<div class="controls">
-    <button onclick="addNode('text')"><i class="fas fa-comment-alt"></i> Añadir Pregunta/Texto</button>
-    <button onclick="addNode('decision')"><i class="fas fa-question-circle"></i> Añadir Decisión</button>
-    <button onclick="addNode('input')"><i class="fas fa-keyboard"></i> Añadir Input</button>
-    <button onclick="addNode('menu')"><i class="fas fa-list"></i> Añadir Menú</button>
-    <button onclick="addNode('image')"><i class="fas fa-image"></i> Añadir Imagen</button>
-    <button onclick="addNode('link')"><i class="fas fa-link"></i> Añadir Link</button>
-    <button onclick="saveFlow()"><i class="fas fa-save"></i> Guardar Flujo</button>
-    <button onclick="exportFlow()"><i class="fas fa-file-export"></i> Exportar Flujo</button>
-    <button onclick="importFlow()"><i class="fas fa-file-import"></i> Importar Flujo</button>
-</div>
-
-<!-- Panel para editar las propiedades del nodo seleccionado -->
-<div id="nodeProperties">
-    <h3>Propiedades del Nodo</h3>
-    <label for="nodeText">Texto del nodo:</label>
-    <input type="text" id="nodeText" placeholder="Texto del nodo"><br><br>
-    <label for="nodeType">Tipo de nodo:</label>
-    <select id="nodeType" onchange="updatePropertiesPanel()">
-        <option value="text">Pregunta/Texto</option>
-        <option value="decision">Decisión</option>
-        <option value="input">Input</option>
-        <option value="menu">Menú</option>
-        <option value="image">Imagen</option>
-        <option value="link">Link</option>
-        <option value="registration">Registro</option>
-        <option value="document_verification">Verificación de Documentos</option>
-        <option value="skill_assessment">Evaluación de Habilidades</option>
-        <option value="job_recommendation">Recomendación de Trabajo</option>
-        <option value="legal_info">Información Legal</option>
-    </select><br><br>
-
-    <!-- Opciones para nodos de decisión -->
-    <div id="decisionOptions" style="display: none;">
-        <label for="option1">Opción 1:</label>
-        <input type="text" id="option1" placeholder="Opción 1"><br>
-        <label for="option2">Opción 2:</label>
-        <input type="text" id="option2" placeholder="Opción 2"><br>
-        <label for="option3">Opción 3:</label>
-        <input type="text" id="option3" placeholder="Opción 3"><br>
-    </div>
-
-    <!-- Placeholder para input -->
-    <div id="inputProperties" style="display: none;">
-        <label for="inputPlaceholder">Placeholder del input:</label>
-        <input type="text" id="inputPlaceholder" placeholder="Placeholder del input"><br>
-    </div>
-
-    <!-- URL de imagen -->
-    <div id="imageProperties" style="display: none;">
-        <label for="imgSrc">URL de la imagen:</label>
-        <input type="text" id="imgSrc" placeholder="URL de la imagen"><br>
-    </div>
-
-    <!-- URL del enlace -->
-    <div id="linkProperties" style="display: none;">
-        <label for="linkUrl">URL del link:</label>
-        <input type="text" id="linkUrl" placeholder="URL del link"><br>
-    </div>
-
-    <button onclick="updateSelectedNode()"><i class="fas fa-edit"></i> Actualizar Nodo</button>
-</div>
-
-<!-- Simulador -->
-<div id="simulator">
-    <h3>Simulador</h3>
-    <div id="simulatorContent"></div>
-    <button onclick="simulateFlow()"><i class="fas fa-play"></i> Probar Chatbot</button>
-</div>
-
-<script>
-    var myDiagram;
-    var selectedNode = null;
-    var flowmodel_id = "{{ flow.id }}";  // Obtener el ID del flujo actual
-
-    function init() {
-        var $ = go.GraphObject.make;
-
-        myDiagram =
-            $(go.Diagram, "myDiagramDiv", {
-                "undoManager.isEnabled": true,
-                initialContentAlignment: go.Spot.Center,
-                "linkingTool.direction": go.Link.AvoidsNodes,
-                "draggingTool.isGridSnapEnabled": true,
-                "grid.visible": true,
-                "grid.gridCellSize": new go.Size(10, 10),
-                "animationManager.isEnabled": false,
-                "toolManager.hoverDelay": 100,
-                allowDrop: true,
-                "linkingTool.isUnconnectedLinkValid": true,
-                "linkingTool.portGravity": 20,
-                "relinkingTool.isUnconnectedLinkValid": true,
-                "relinkingTool.portGravity": 20,
-                "relinkingTool.fromHandleArchetype":
-                    $(go.Shape, "Diamond", { segmentIndex: 0, cursor: "pointer", desiredSize: new go.Size(8, 8), fill: "tomato", stroke: "darkred" }),
-                "relinkingTool.toHandleArchetype":
-                    $(go.Shape, "Diamond", { segmentIndex: -1, cursor: "pointer", desiredSize: new go.Size(8, 8), fill: "darkred", stroke: "tomato" }),
-                "linkReshapingTool.handleArchetype":
-                    $(go.Shape, "Diamond", { desiredSize: new go.Size(7, 7), fill: "lightblue", stroke: "deepskyblue" }),
-                "InitialLayoutCompleted": onLayoutCompleted,
-                "ExternalObjectsDropped": onObjectsDropped,
-                model: $(go.GraphLinksModel, {
-                    linkKeyProperty: "key",
-                    nodeKeyProperty: "key"
-                })
-            });
-
-        // Definir las plantillas de nodos
-        myDiagram.nodeTemplateMap.add("text", createNodeTemplate("RoundedRectangle", "lightblue"));
-        myDiagram.nodeTemplateMap.add("decision", createDecisionTemplate());
-        myDiagram.nodeTemplateMap.add("input", createNodeTemplate("Ellipse", "lightyellow"));
-        myDiagram.nodeTemplateMap.add("menu", createMenuTemplate());
-        myDiagram.nodeTemplateMap.add("image", createImageTemplate());
-        myDiagram.nodeTemplateMap.add("link", createLinkTemplate());
-        myDiagram.nodeTemplateMap.add("registration", createNodeTemplate("RoundedRectangle", "lightgreen"));
-        myDiagram.nodeTemplateMap.add("document_verification", createNodeTemplate("RoundedRectangle", "lightcoral"));
-        myDiagram.nodeTemplateMap.add("skill_assessment", createNodeTemplate("RoundedRectangle", "lightyellow"));
-        myDiagram.nodeTemplateMap.add("job_recommendation", createNodeTemplate("RoundedRectangle", "lightblue"));
-        myDiagram.nodeTemplateMap.add("legal_info", createNodeTemplate("RoundedRectangle", "lightpink"));
-
-        // Definir la plantilla de enlaces (conectores)
-        myDiagram.linkTemplate =
-            $(go.Link,
-                { routing: go.Link.AvoidsNodes, curve: go.Link.JumpOver, corner: 5 },
-                $(go.Shape, { strokeWidth: 2, stroke: "#555" }),
-                $(go.Shape, { toArrow: "Standard", stroke: null, fill: "#555" }),
-                $(go.Panel, "Auto",
-                    $(go.Shape, "Rectangle", { fill: "#F8F8F8", stroke: "#E0E0E0" }),
-                    $(go.TextBlock, { margin: 3, editable: true },
-                        new go.Binding("text").makeTwoWay())
-                )
-            );
-
-        // Evento para mostrar las propiedades del nodo seleccionado
-        myDiagram.addDiagramListener("ChangedSelection", showNodeProperties);
-    }
-
-    // Crear plantillas de nodos
-    function createNodeTemplate(shapeType, color) {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, shapeType, { fill: color, strokeWidth: 2 }),
-            go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-            { fromLinkable: true, toLinkable: true }  // Permitir que el nodo sea conectado
-        );
-    }
-
-    // Plantilla para nodos de decisión
-    function createDecisionTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "Diamond", { fill: "lightgreen", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.Panel, "Vertical",
-                    { itemTemplate: go.GraphObject.make(go.TextBlock, new go.Binding("text")) },
-                    new go.Binding("itemArray", "options")
-                )
-            ),
-            { fromLinkable: true, toLinkable: true }  // Permitir conexiones hacia/desde el nodo
-        );
-    }
-
-    // Plantilla para nodos de menú
-    function createMenuTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "RoundedRectangle", { fill: "lightcoral", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.Panel, "Vertical",
-                    { itemTemplate: go.GraphObject.make(go.TextBlock, new go.Binding("text")) },
-                    new go.Binding("itemArray", "options")
-                )
-            ),
-            { fromLinkable: true, toLinkable: true }  // Permitir conexiones
-        );
-    }
-
-    // Plantilla para nodos de imagen
-    function createImageTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "Rectangle", { fill: "lightpink", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.Picture, { margin: 4, width: 80, height: 80 }, new go.Binding("source", "imgSrc"))
-            ),
-            { fromLinkable: true, toLinkable: true }  // Conectores habilitados
-        );
-    }
-
-    // Plantilla para nodos de enlace
-    function createLinkTemplate() {
-        return go.GraphObject.make(go.Node, "Auto",
-            go.GraphObject.make(go.Shape, "Rectangle", { fill: "lightblue", strokeWidth: 2 }),
-            go.GraphObject.make(go.Panel, "Vertical",
-                go.GraphObject.make(go.TextBlock, { margin: 8, editable: true }, new go.Binding("text").makeTwoWay()),
-                go.GraphObject.make(go.TextBlock, { margin: 4, font: "italic 10px sans-serif" }, new go.Binding("text", "linkUrl").makeTwoWay())
-            ),
-            { fromLinkable: true, toLinkable: true }  // Conexiones habilitadas
-        );
-    }
-
-    // Añadir nodo al diagrama
-    function addNode(type) {
-        var nodeData = { 
-            key: 'node' + Date.now(),  // Generar una clave única
-            text: "Nuevo " + capitalizeFirstLetter(type), 
-            type: type, 
-            fill: getNodeColor(type),
-            isNew: true  // Marcar como nuevo
-        };
-        if (type === "decision") {
-            nodeData.options = ["Opción 1", "Opción 2", "Opción 3"];
-        }
-        if (type === "menu") {
-            nodeData.options = ["Registro", "Vacantes", "Agenda", "Información"];
-        }
-        if (type === "image") {
-            nodeData.imgSrc = "URL de la imagen";
-        }
-        if (type === "link") {
-            nodeData.linkUrl = "URL del link";
-        }
-        myDiagram.model.addNodeData(nodeData);
-    }
-
-    // Capitalizar la primera letra de una cadena
-    function capitalizeFirstLetter(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
-    }
-
-    // Asignar colores diferentes para cada tipo de nodo
-    function getNodeColor(type) {
-        switch (type) {
-            case "text": return "lightblue";
-            case "decision": return "lightgreen";
-            case "menu": return "lightcoral";
-            case "input": return "lightyellow";
-            case "image": return "lightpink";
-            case "link": return "lightblue";
-            case "registration": return "lightgreen";
-            case "document_verification": return "lightcoral";
-            case "skill_assessment": return "lightyellow";
-            case "job_recommendation": return "lightblue";
-            case "legal_info": return "lightpink";
-            default: return "white";
-        }
-    }
-
-    // Mostrar las propiedades del nodo seleccionado
-    function showNodeProperties(e) {
-        var node = myDiagram.selection.first();
-        if (node instanceof go.Node) {
-            selectedNode = node;
-            document.getElementById("nodeText").value = node.data.text;
-            document.getElementById("nodeType").value = node.data.type;
-            updatePropertiesPanel();
-            if (node.data.type === "decision" && node.data.options) {
-                document.getElementById("option1").value = node.data.options[0] || "";
-                document.getElementById("option2").value = node.data.options[1] || "";
-                document.getElementById("option3").value = node.data.options[2] || "";
-            }
-            if (node.data.type === "input" && node.data.placeholder) {
-                document.getElementById("inputPlaceholder").value = node.data.placeholder;
-            }
-            if (node.data.type === "image" && node.data.imgSrc) {
-                document.getElementById("imgSrc").value = node.data.imgSrc;
-            }
-            if (node.data.type === "link" && node.data.linkUrl) {
-                document.getElementById("linkUrl").value = node.data.linkUrl;
-            }
-        }
-    }
-
-    // Actualizar panel de propiedades basado en el tipo de nodo
-    function updatePropertiesPanel() {
-        var type = document.getElementById("nodeType").value;
-        document.getElementById("decisionOptions").style.display = type === "decision" ? "block" : "none";
-        document.getElementById("inputProperties").style.display = type === "input" ? "block" : "none";
-        document.getElementById("imageProperties").style.display = type === "image" ? "block" : "none";
-        document.getElementById("linkProperties").style.display = type === "link" ? "block" : "none";
-    }
-
-    // Actualizar el nodo seleccionado con la nueva información
-    function updateSelectedNode() {
-        if (selectedNode) {
-            var newType = document.getElementById("nodeType").value;
-            myDiagram.model.setDataProperty(selectedNode.data, "text", document.getElementById("nodeText").value);
-            myDiagram.model.setDataProperty(selectedNode.data, "type", newType);
-            myDiagram.model.setDataProperty(selectedNode.data, "fill", getNodeColor(newType));
-
-            if (newType === "decision") {
-                myDiagram.model.setDataProperty(selectedNode.data, "options", [
-                    document.getElementById("option1").value,
-                    document.getElementById("option2").value,
-                    document.getElementById("option3").value
-                ]);
-            } else if (newType === "input") {
-                myDiagram.model.setDataProperty(selectedNode.data, "placeholder", document.getElementById("inputPlaceholder").value);
-            } else if (newType === "image") {
-                myDiagram.model.setDataProperty(selectedNode.data, "imgSrc", document.getElementById("imgSrc").value);
-            } else if (newType === "link") {
-                myDiagram.model.setDataProperty(selectedNode.data, "linkUrl", document.getElementById("linkUrl").value);
-            } else {
-                // Limpiar propiedades si el nodo es diferente
-                delete selectedNode.data.options;
-                delete selectedNode.data.placeholder;
-                delete selectedNode.data.imgSrc;
-                delete selectedNode.data.linkUrl;
-                myDiagram.model.setDataProperty(selectedNode.data, "options", null);
-                myDiagram.model.setDataProperty(selectedNode.data, "placeholder", null);
-                myDiagram.model.setDataProperty(selectedNode.data, "imgSrc", null);
-                myDiagram.model.setDataProperty(selectedNode.data, "linkUrl", null);
-            }
-            myDiagram.model.updateTargetBindings(selectedNode.data);
-        }
-    }
-
-    // Validar el flujo
-    function validateFlow(nodes, links) {
-        const errors = [];
-
-        // Verificar que haya exactamente un nodo de inicio
-        const startNodes = nodes.filter(node => node.type === 'text' && node.text.toLowerCase() === 'inicio');
-        if (startNodes.length !== 1) {
-            errors.push('Debe haber exactamente un nodo de inicio (Pregunta/Texto con texto "Inicio").');
-        }
-
-        // Verificar que todos los nodos estén conectados (excepto el nodo de inicio)
-        const connectedNodes = new Set();
-        links.forEach(link => {
-            connectedNodes.add(link.from);
-            connectedNodes.add(link.to);
-        });
-        nodes.forEach(node => {
-            if (node.type !== 'text' || node.text.toLowerCase() !== 'inicio') {  // El nodo de inicio ya está conectado
-                if (!connectedNodes.has(node.key)) {
-                    errors.push(`El nodo "${node.text}" no está conectado al flujo.`);
-                }
-            }
-        });
-
-        // Verificar que los nodos de decisión tengan al menos dos opciones
-        nodes.forEach(node => {
-            if (node.type === 'decision') {
-                if (!node.options || node.options.length < 2) {
-                    errors.push(`El nodo de decisión "${node.text}" debe tener al menos dos opciones.`);
-                }
-            }
-        });
-
-        // Evitar ciclos simples (auto-conexiones)
-        links.forEach(link => {
-            if (link.from === link.to) {
-                errors.push(`El nodo "${getNodeText(link.from)}" tiene una auto-conexión.`);
-            }
-        });
-
-        return errors;
-    }
-
-    function getNodeText(key) {
-        var node = myDiagram.findNodeForKey(key);
-        return node ? node.data.text : '';
-    }
-
-    // Guardar el flujo
-    function saveFlow() {
-        const nodes = myDiagram.model.nodeDataArray;
-        const links = myDiagram.model.linkDataArray;
-        const validationErrors = validateFlow(nodes, links);
-        if (validationErrors.length > 0) {
-            alert(`Errores de validación:\n${validationErrors.join('\n')}`);
-            return;
-        }
-        fetch("{% url 'admin:save_flow' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ 
-                flowmodel_id: flowmodel_id,
-                nodes, 
-                links
-            })
-        }).then(response => response.json())
-          .then(data => {
-              if (data.status === 'success') {
-                  alert('Flujo guardado exitosamente.');
-              } else {
-                  alert('Error al guardar el flujo: ' + data.message);
-              }
-          })
-          .catch(error => console.error('Error al guardar el flujo:', error));
-    }
-
-    // Simular el flujo del chatbot
-    function simulateFlow() {
-        const nodes = myDiagram.model.nodeDataArray;
-        const links = myDiagram.model.linkDataArray;
-        const simulatorContent = document.getElementById('simulatorContent');
-        simulatorContent.innerHTML = '';
-
-        // Encontrar el nodo de inicio
-        let currentNode = nodes.find(node => node.type === 'text' && node.text.toLowerCase() === 'inicio');
-        if (!currentNode) {
-            alert('No se encontró un nodo de inicio (Pregunta/Texto con texto "Inicio").');
-            return;
-        }
-
-        while (currentNode) {
-            simulatorContent.innerHTML += `<p><strong>Bot:</strong> ${currentNode.text}</p>`;
-            
-            if (currentNode.type === 'decision') {
-                // Solicitar al usuario una opción
-                let userChoice = prompt(`Decisión: ${currentNode.text}\nOpciones: ${currentNode.options.join(', ')}`);
-                if (!userChoice) {
-                    alert('Simulación cancelada.');
-                    return;
-                }
-                // Encontrar el enlace que corresponde a la elección
-                let nextLink = links.find(link => link.from === currentNode.key && link.text.trim().toLowerCase() === userChoice.trim().toLowerCase());
-                if (nextLink) {
-                    currentNode = nodes.find(node => node.key === nextLink.to);
-                } else {
-                    alert(`Opción inválida: "${userChoice}"`);
-                    return;
-                }
-            } else if (currentNode.type === 'link') {
-                simulatorContent.innerHTML += `<p><strong>Bot:</strong> ${currentNode.linkUrl}</p>`;
-                let nextLink = links.find(link => link.from === currentNode.key);
-                currentNode = nextLink ? nodes.find(node => node.key === nextLink.to) : null;
-            } else {
-                // Obtener el siguiente enlace
-                let nextLink = links.find(link => link.from === currentNode.key);
-                currentNode = nextLink ? nodes.find(node => node.key === nextLink.to) : null;
-            }
-        }
-
-        simulatorContent.innerHTML += `<p><strong>Bot:</strong> Gracias por usar el chatbot.</p>`;
-    }
-
-    // Exportar el flujo a JSON
-    function exportFlow() {
-        const flowData = myDiagram.model.toJson();
-        const blob = new Blob([flowData], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'chatbot_flow.json';
-        a.click();
-    }
-
-    // Importar el flujo desde un archivo JSON
-    function importFlow() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'application/json';
-        input.onchange = e => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = event => {
-                try {
-                    const importedModel = go.Model.fromJson(event.target.result);
-                    myDiagram.model = importedModel;
-                    alert('Flujo importado correctamente.');
-                } catch (error) {
-                    alert('Error al importar el flujo: ' + error.message);
-                    console.error('Error al importar el flujo:', error);
-                }
-            };
-            reader.readAsText(file);
-        };
-        input.click();
-    }
-
-    // Función para crear nodos arrastrables (Opcional si decides incluir una paleta)
-    function makeDraggableNode(text, nodeType) {
-        var $ = go.GraphObject.make;
-        var node = $(go.Node, "Auto",
-            { locationSpot: go.Spot.Center },
-            $(go.Shape, "RoundedRectangle", { fill: getNodeColor(nodeType) }),
-            $(go.TextBlock, text, { margin: 8 })
-        );
-        return node;
-    }
-
-    // Inicializar paleta de nodos (Opcional)
-    function initPalette() {
-        var $ = go.GraphObject.make;
-        var palette = $(go.Palette, "palette", {
-            nodeTemplateMap: myDiagram.nodeTemplateMap,
-            model: new go.GraphLinksModel([
-                { key: "node1", text: "Pregunta/Texto", type: "text" },
-                { key: "node2", text: "Decisión", type: "decision" },
-                { key: "node3", text: "Input", type: "input" },
-                { key: "node4", text: "Menú", type: "menu" },
-                { key: "node5", text: "Imagen", type: "image" },
-                { key: "node6", text: "Link", type: "link" },
-                { key: "node7", text: "Registro", type: "registration" },
-                { key: "node8", text: "Verificación de Documentos", type: "document_verification" },
-                { key: "node9", text: "Evaluación de Habilidades", type: "skill_assessment" },
-                { key: "node10", text: "Recomendación de Trabajo", type: "job_recommendation" },
-                { key: "node11", text: "Información Legal", type: "legal_info" }
-            ])
-        });
-    }
-
-    // Función para editar el texto del nodo (Opcional)
-    function editNodeText(e, obj) {
-        var node = obj.part;
-        if (node) {
-            var tb = node.findObject("TextBlock");
-            if (tb) myDiagram.commandHandler.editTextBlock(tb);
-        }
-    }
-
-    // Evento llamado cuando se completa el layout inicial
-    function onLayoutCompleted(e) {
-        var newNodes = e.diagram.findNodesByExample({ isNew: true });
-        newNodes.each(function(node) {
-            var tb = node.findObject("TextBlock");
-            if (tb) e.diagram.commandHandler.editTextBlock(tb);
-            myDiagram.model.setDataProperty(node.data, "isNew", false);
-        });
-    }
-
-    // Evento llamado cuando se sueltan objetos externos en el diagrama
-    function onObjectsDropped(e) {
-        var newNodes = e.subject;
-        newNodes.each(function(node) {
-            if (node instanceof go.Node) {
-                var tb = node.findObject("TextBlock");
-                if (tb) e.diagram.commandHandler.editTextBlock(tb);
-                myDiagram.model.setDataProperty(node.data, "isNew", false);
-            }
-        });
-    }
-
-    // Inicializar el diagrama cuando la página esté cargada
-    window.onload = function() {
-        init();
-        initPalette();
-        loadFlow();
-    };
-
-    // Cargar el flujo desde la base de datos
-    function loadFlow() {
-        fetch("{% url 'admin:load_flow' %}?flowmodel_id=" + flowmodel_id)
-            .then(response => response.json())
-            .then(data => {
-                if (data.nodes && data.links) {
-                    var model = go.Model.fromJson(JSON.stringify({
-                        class: "GraphLinksModel",
-                        nodeDataArray: data.nodes,
-                        linkDataArray: data.links
-                    }));
-                    myDiagram.model = model;
-                }
-            })
-            .catch(error => console.error('Error al cargar el flujo:', error));
-    }
-
-</script>
-{% endblock %}
-
-_____
-
-<!-- /home/amigro/app/templates/django_admin_template.html -->
-{% extends 'admin/base_site.html' %}
-{% block content %}
-<div id="flow-canvas" style="width: 100%; height: 400px; background: #f4f4f4; border: 1px solid #ccc;"></div>
-
-<script>
-    jsPlumb.ready(function() {
-        var instance = jsPlumb.getInstance({
-            // Configuración básica
-            PaintStyle: { stroke: '#456', strokeWidth: 3 },
-            Connector: ["Straight"],
-            Anchor: "Continuous"
-        });
-
-        // Crear nodos
-        var node1 = document.createElement('div');
-        node1.innerText = 'Pregunta 1';
-        node1.style.width = '100px';
-        node1.style.height = '100px';
-        node1.style.background = '#fff';
-        node1.style.position = 'absolute';
-        node1.style.left = '50px';
-        node1.style.top = '50px';
-
-        var node2 = document.createElement('div');
-        node2.innerText = 'Pregunta 2';
-        node2.style.width = '100px';
-        node2.style.height = '100px';
-        node2.style.background = '#fff';
-        node2.style.position = 'absolute';
-        node2.style.left = '200px';
-        node2.style.top = '50px';
-
-        document.getElementById('flow-canvas').appendChild(node1);
-        document.getElementById('flow-canvas').appendChild(node2);
-
-        instance.draggable(node1);
-        instance.draggable(node2);
-
-        // Conectar nodos
-        instance.connect({ source: node1, target: node2 });
-    });
-</script>
-{% endblock %}
-
-_____
-
-
-<!-- /home/amigro/app/templates/index.html -->
-<!DOCTYPE html>
-<html lang="es">
-
-<head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-        integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-    <!-- Font Awesome para iconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <title>Prueba de envíos para el Chatbot de Amigro</title>
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-
-        .container {
-            margin-top: 50px;
-            margin-bottom: 50px;
-        }
-
-        .form-section {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .form-section h2 {
-            margin-bottom: 20px;
-        }
-
-        .preloaded-vars {
-            margin-top: 15px;
-        }
-
-        .preloaded-vars input {
-            margin-bottom: 10px;
-        }
-
-        .send-button {
-            margin-top: 20px;
-        }
-
-        .chat-textarea {
-            height: 300px;
-            resize: none;
-        }
-
-        .loading-spinner {
-            display: none;
-            text-align: center;
-            margin-top: 10px;
-        }
-
-        .alert {
-            display: none;
-            margin-top: 20px;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <!-- Sección de Pruebas -->
-        <div class="form-section">
-            <h2>Ejecutor de Pruebas del Chatbot de Amigro</h2>
-            <form id="test-form">
-                <!-- Selección de Funciones -->
-                <div class="form-group">
-                    <label for="functions"><strong>Selecciona Funciones:</strong></label>
-                    <select multiple class="form-control" id="functions" required>
-                        <option value="send_message">Enviar Mensaje</option>
-                        <option value="send_link">Enviar Link</option>
-                        <option value="execute_action">Ejecutar Acción</option>
-                        <option value="send_image">Enviar Imagen</option>
-                        <!-- Agrega más funciones según sea necesario -->
-                    </select>
-                    <small class="form-text text-muted">Mantén presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar múltiples opciones.</small>
-                </div>
-
-                <!-- Selección de Plataforma -->
-                <div class="form-group">
-                    <label for="platform"><strong>Selecciona Plataforma:</strong></label>
-                    <select class="form-control" id="platform" required>
-                        <option value="">-- Selecciona una Plataforma --</option>
-                        <option value="telegram">Telegram</option>
-                        <option value="whatsapp">WhatsApp</option>
-                        <option value="messenger">Messenger</option>
-                        <option value="instagram">Instagram</option>
-                    </select>
-                </div>
-
-                <!-- Variables Pre-Cargadas -->
-                <div class="preloaded-vars" id="preloadedVars">
-                    <!-- Las variables se agregarán aquí dinámicamente -->
-                </div>
-
-                <!-- Definición del Mensaje o Acción -->
-                <div class="form-group">
-                    <label for="action"><strong>Define el Mensaje/Acción:</strong></label>
-                    <textarea class="form-control chat-textarea" id="action" placeholder="Escribe el mensaje, link o acción a ejecutar aquí..." required></textarea>
-                </div>
-
-                <!-- Botón de Envío -->
-                <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Enviar Prueba</button>
-
-                <!-- Spinner de Carga -->
-                <div class="loading-spinner" id="loadingSpinner">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="sr-only">Enviando...</span>
-                    </div>
-                </div>
-
-                <!-- Alertas -->
-                <div class="alert alert-success" role="alert" id="successAlert">
-                    Prueba enviada exitosamente.
-                </div>
-                <div class="alert alert-danger" role="alert" id="errorAlert">
-                    Ocurrió un error al enviar la prueba.
-                </div>
-            </form>
-        </div>
-
-        <!-- Sección de Chatbot (opcional) -->
-        <div class="row d-flex justify-content-center mt-5">
-            <div class="col-12 text-center">
-                <h1 class="h3">Prueba de envíos para el Chatbot de Amigro</h1>
-                <p>Solo es para uso del Administrador - Pablo Lelo de Larrea H.</p>
-            </div>
-        </div>
-
-        <div class="row d-flex justify-content-center mt-4">
-            <div class="col-6">
-                <form id="chat-form">
-                    <div class="form-group">
-                        <label for="exampleFormControlTextarea1" class="h4">Chatbot</label>
-                        <textarea class="form-control chat-textarea" id="chat-text" readonly rows="10"></textarea><br>
-                    </div>
-                    <div class="form-group">
-                        <input class="form-control" placeholder="Enter text here" id="input" type="text" required></br>
-                    </div>
-                    <div class="form-group">
-                        <label for="platform">Selecciona Plataforma</label>
-                        <select class="form-control" id="platform" required>
-                            <option value="telegram">Telegram</option>
-                            <option value="whatsapp">WhatsApp</option>
-                            <option value="messenger">Messenger</option>
-                            <option value="instagram">Instagram</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="use-gpt">¿Usar GPT?</label>
-                        <select class="form-control" id="use-gpt" required>
-                            <option value="true">Sí</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-                    <input class="btn btn-primary btn-lg btn-block" id="submit" type="button" value="Send">
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bootstrap JS, Popper.js, and jQuery -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
-        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous">
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
-        integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous">
-    </script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
-        integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous">
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Variables para la sección de pruebas
-            const testForm = document.getElementById('test-form');
-            const preloadedVarsContainer = document.getElementById('preloadedVars');
-            const platformSelectTest = document.getElementById('platform');
-            const functionsSelect = document.getElementById('functions');
-            const actionInput = document.getElementById('action');
-            const loadingSpinner = document.getElementById('loadingSpinner');
-            const successAlert = document.getElementById('successAlert');
-            const errorAlert = document.getElementById('errorAlert');
-
-            // Funciones disponibles con sus campos
-            const availableFunctions = {
-                'send_message': {
-                    name: 'Enviar Mensaje',
-                    fields: [
-                        { label: 'Número de WhatsApp', id: 'whatsapp_number', type: 'text', placeholder: 'Ej. +1234567890' },
-                        { label: 'ID de Telegram', id: 'telegram_id', type: 'text', placeholder: 'Ej. @usuario' },
-                        { label: 'ID de Messenger', id: 'messenger_id', type: 'text', placeholder: 'Ej. 123456789' },
-                        { label: 'ID de Instagram', id: 'instagram_id', type: 'text', placeholder: 'Ej. usuario_instagram' }
-                    ]
-                },
-                'send_link': {
-                    name: 'Enviar Link',
-                    fields: [
-                        { label: 'Link a Enviar', id: 'link', type: 'url', placeholder: 'Ej. https://ejemplo.com' }
-                    ]
-                },
-                'execute_action': {
-                    name: 'Ejecutar Acción',
-                    fields: [
-                        { label: 'Nombre de la Acción', id: 'action_name', type: 'text', placeholder: 'Ej. CrearUsuario' },
-                        { label: 'Parámetros de la Acción', id: 'action_params', type: 'text', placeholder: 'Ej. {"nombre":"Juan","edad":30}' }
-                    ]
-                },
-                'send_image': {
-                    name: 'Enviar Imagen',
-                    fields: [
-                        { label: 'URL de la Imagen', id: 'image_url', type: 'url', placeholder: 'Ej. https://ejemplo.com/imagen.jpg' }
-                    ]
-                }
-                // Agrega más funciones según sea necesario
-            };
-
-            // Actualizar variables pre-cargadas según las funciones y plataforma seleccionadas
-            function updatePreloadedVars() {
-                const selectedFunctions = Array.from(functionsSelect.selectedOptions).map(option => option.value);
-                const selectedPlatform = platformSelectTest.value;
-
-                // Limpiar contenedor
-                preloadedVarsContainer.innerHTML = '';
-
-                // Iterar sobre las funciones seleccionadas y agregar campos necesarios
-                selectedFunctions.forEach(func => {
-                    if (availableFunctions[func]) {
-                        availableFunctions[func].fields.forEach(field => {
-                            // Mostrar campos relevantes para la plataforma seleccionada o campos generales
-                            if (field.id.includes(selectedPlatform) || ['link', 'action_name', 'action_params', 'image_url'].includes(field.id)) {
-                                const formGroup = document.createElement('div');
-                                formGroup.classList.add('form-group');
-
-                                const label = document.createElement('label');
-                                label.setAttribute('for', field.id);
-                                label.innerHTML = field.label;
-
-                                const input = document.createElement('input');
-                                input.classList.add('form-control');
-                                input.setAttribute('type', field.type);
-                                input.setAttribute('id', field.id);
-                                input.setAttribute('placeholder', field.placeholder);
-                                input.required = true;
-
-                                formGroup.appendChild(label);
-                                formGroup.appendChild(input);
-                                preloadedVarsContainer.appendChild(formGroup);
-                            }
-                        });
-                    }
-                });
-            }
-
-            // Escuchar cambios en la selección de funciones
-            functionsSelect.addEventListener('change', updatePreloadedVars);
-
-            // Escuchar cambios en la selección de plataforma
-            platformSelectTest.addEventListener('change', updatePreloadedVars);
-
-            // Manejar el envío del formulario de pruebas
-            testForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-
-                // Obtener funciones seleccionadas
-                const selectedFunctions = Array.from(functionsSelect.selectedOptions).map(option => option.value);
-                if (selectedFunctions.length === 0) {
-                    alert('Por favor selecciona al menos una función.');
-                    return;
-                }
-
-                // Obtener plataforma seleccionada
-                const platform = platformSelectTest.value;
-                if (!platform) {
-                    alert('Por favor selecciona una plataforma.');
-                    return;
-                }
-
-                // Obtener valores de las variables pre-cargadas
-                const formData = {};
-                selectedFunctions.forEach(func => {
-                    if (availableFunctions[func]) {
-                        availableFunctions[func].fields.forEach(field => {
-                            if (field.id.includes(platform) || ['link', 'action_name', 'action_params', 'image_url'].includes(field.id)) {
-                                const value = document.getElementById(field.id).value.trim();
-                                formData[field.id] = value;
-                            }
-                        });
-                    }
-                });
-
-                // Obtener el mensaje o acción a ejecutar
-                const action = actionInput.value.trim();
-                if (!action) {
-                    alert('Por favor define el mensaje, link o acción a ejecutar.');
-                    return;
-                }
-
-                // Mostrar spinner de carga
-                loadingSpinner.style.display = 'block';
-                successAlert.style.display = 'none';
-                errorAlert.style.display = 'none';
-
-                try {
-                    // Enviar datos al backend
-                    const response = await fetch('/send-test-message/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: JSON.stringify({
-                            'functions': selectedFunctions,
-                            'platform': platform,
-                            'variables': formData,
-                            'action': action
-                        })
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok) {
-                        successAlert.style.display = 'block';
-                        testForm.reset();
-                        preloadedVarsContainer.innerHTML = '';
-                    } else {
-                        throw new Error(data.error || 'Error desconocido');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    errorAlert.textContent = `Error: ${error.message}`;
-                    errorAlert.style.display = 'block';
-                } finally {
-                    // Ocultar spinner de carga
-                    loadingSpinner.style.display = 'none';
-                }
-            });
-
-            // Inicializar variables pre-cargadas al cargar la página
-            updatePreloadedVars();
-
-            // Variables para la sección de chat (opcional)
-            const chatForm = document.getElementById('chat-form');
-            const chatMessages = document.getElementById('chatMessages');
-            const messageInput = document.getElementById('input');
-            const platformSelectChat = document.getElementById('platform');
-            const useGptSelect = document.getElementById('use-gpt');
-            const loadingSpinnerChat = document.getElementById('loadingSpinner');
-            const platformIcon = document.getElementById('platformIcon');
-
-            // Actualizar icono según la plataforma seleccionada
-            function updatePlatformIconChat() {
-                const platform = platformSelectChat.value;
-                platformIcon.className = ''; // Limpiar clases anteriores
-                switch (platform) {
-                    case 'telegram':
-                        platformIcon.classList.add('fab', 'fa-telegram-plane');
-                        platformIcon.style.color = '#0088cc';
-                        break;
-                    case 'whatsapp':
-                        platformIcon.classList.add('fab', 'fa-whatsapp');
-                        platformIcon.style.color = '#25D366';
-                        break;
-                    case 'messenger':
-                        platformIcon.classList.add('fab', 'fa-facebook-messenger');
-                        platformIcon.style.color = '#0084ff';
-                        break;
-                    case 'instagram':
-                        platformIcon.classList.add('fab', 'fa-instagram');
-                        platformIcon.style.color = '#C13584';
-                        break;
-                    default:
-                        platformIcon.classList.add('fas', 'fa-robot');
-                        platformIcon.style.color = '#ffffff';
-                }
-            }
-
-            // Inicializar icono al cargar la página
-            updatePlatformIconChat();
-
-            // Cambiar icono cuando se cambia la plataforma
-            platformSelectChat.addEventListener('change', updatePlatformIconChat);
-
-            // Función para agregar un mensaje al chat
-            function addMessage(content, sender = 'bot') {
-                const messageElement = document.createElement('div');
-                messageElement.classList.add('message', sender);
-
-                const messageBody = document.createElement('div');
-                messageBody.classList.add('message-body');
-                messageBody.innerHTML = content;
-
-                messageElement.appendChild(messageBody);
-                chatMessages.appendChild(messageElement);
-
-                // Scroll al final
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            // Función para simular la respuesta del bot
-            function simulateBotResponse(userMessage, platform, useGpt) {
-                // Aquí puedes integrar lógica más compleja o llamadas a APIs
-                // Por ahora, responderemos con una respuesta simple
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        let response = '';
-
-                        if (useGpt === 'true') {
-                            response = `GPT: Procesando tu mensaje en ${platform}: "${userMessage}"`;
-                        } else {
-                            response = `Bot: Recibí tu mensaje en ${platform}: "${userMessage}"`;
-                        }
-
-                        resolve(response);
-                    }, 1000); // Simular tiempo de respuesta
-                });
-            }
-
-            // Manejar el envío del formulario de chat
-            chatForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-
-                const message = messageInput.value.trim();
-                const platform = platformSelectChat.value;
-                const useGpt = useGptSelect.value;
-
-                if (message === "") {
-                    alert("Por favor ingrese un mensaje.");
-                    return;
-                }
-
-                // Agregar mensaje del usuario
-                addMessage(message, 'user');
-
-                // Limpiar el input
-                messageInput.value = '';
-
-                // Mostrar spinner de carga
-                loadingSpinnerChat.style.display = 'block';
-
-                try {
-                    // Enviar mensaje al backend
-                    const response = await fetch('/send-message/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: JSON.stringify({
-                            'message': message,
-                            'platform': platform,
-                            'use_gpt': useGpt
-                        })
-                    });
-
-                    const data = await response.json();
-
-                    // Simular la respuesta del bot
-                    let botResponse = '';
-                    if (data.response) {
-                        botResponse = data.response;
-                    } else {
-                        // Si no hay respuesta del backend, usar la simulación local
-                        botResponse = await simulateBotResponse(message, platform, useGpt);
-                    }
-
-                    // Agregar respuesta del bot
-                    addMessage(botResponse, 'bot');
-                } catch (error) {
-                    console.error('Error:', error);
-                    addMessage("Bot: Ocurrió un error al procesar tu mensaje.", 'bot');
-                } finally {
-                    // Ocultar spinner de carga
-                    loadingSpinnerChat.style.display = 'none';
-                }
-            });
-
-            // Opcional: manejar la tecla Enter para enviar el mensaje
-            messageInput.addEventListener('keypress', function (e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    chatForm.dispatchEvent(new Event('submit'));
-                }
-            });
-        });
-    </script>
-</body>
-
-</html>
-
-_____
-
-
-# /home/amigro/chatbot_django/asgi.py
-"""
-ASGI config for chatbot_django project.
-
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/3.2/howto/deployment/asgi/
-"""
-
-import os
-
-from django.core.asgi import get_asgi_application
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chatbot_django.settings')
-
-application = get_asgi_application()
-_____
-
-# /home/amigro/chatbot_django/celery.py
-from __future__ import absolute_import, unicode_literals
-import os
-from celery import Celery
-from celery.schedules import crontab
-
-# Establecer el entorno predeterminado de Django para las configuraciones de Celery
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chatbot_django.settings')
-
-app = Celery('chatbot_django')
-
-# Carga las configuraciones de Celery desde el archivo settings.py
-app.config_from_object('django.conf:settings', namespace='CELERY')
-
-# Auto-detecta las tareas dentro de los apps instalados
-app.autodiscover_tasks()
-
-app.conf.beat_schedule = {
-    'check_and_renew_whatsapp_token_every_day': {
-        'task': 'app.tasks.check_and_renew_whatsapp_token',
-        'schedule': crontab(minute=0, hour=0),  # Se ejecuta diariamente a la medianoche
-    },
-    'check-whatsapp-token-every-day': {
-        'task': 'app.tasks.check_and_update_whatsapp_token',
-        'schedule': crontab(hour=0, minute=0),  # Ejecuta la tarea todos los días a medianoche
-    },
-    'clean_old_chat_logs': {
-        'task': 'app.tasks.clean_old_chat_logs',
-        'schedule': crontab(hour=1, minute=0),  # Ejecuta la tarea todos los días a la 1 AM
-    },
-    
-} 
-
-@app.task(bind=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}')
-
-____
-
-# /home/amigro/chatbot_django/settings.py
-import os
-import sentry_sdk
-from pathlib import Path
-from django.conf import settings
-from sentry_sdk.integrations.django import DjangoIntegration
-
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN"),
-    integrations=[DjangoIntegration()],
-    traces_sample_rate=1.0,
-    send_default_pii=True
-)
-
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-rxkhgtlsk84*0)-ivntl4&cnt8sp9ahu0aib$709q^crthve&u')
-
-DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
-
-ALLOWED_HOSTS = [
-    "35.209.109.141",
-    "chatbot.amigro.org",
-    "*.amigro.org",
-    "localhost",
-    "127.0.0.1"
-]
-
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'app',
-    'corsheaders',  # Correcto
-]
-
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS middleware
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Para archivos estáticos en producción
-]
-
-ROOT_URLCONF = 'chatbot_django.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
-WSGI_APPLICATION = 'chatbot_django.wsgi.application'
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-#DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.postgresql',
-#        'NAME': os.getenv('DB_NAME'),
-#        'USER': os.getenv('DB_USER'),
-#        'PASSWORD': os.getenv('DB_PASSWORD'),
-#        'HOST': os.getenv('DB_HOST'),
-#        'PORT': os.getenv('DB_PORT', '5432'),
-#    }
-#}
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'America/Mexico_City'
-USE_TZ = True
-
-USE_I18N = True
-
-USE_L10N = True
-
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# CORS configuration
-# CORS_ORIGIN_ALLOW_ALL = True  # Cambia a False en producción y define los dominios permitidos
-CORS_ORIGIN_ALLOW_ALL = False
-CORS_ORIGIN_WHITELIST = [
-     'https://chatbot.amigro.org',
-     'https://amigro.org',
-]
-
-
-# Celery configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_RETRY_DELAY = 300  # Reintentar cada 5 minutos
-CELERY_TASK_MAX_RETRIES = 5  # Máximo 5 reintentos
-
-CELERY_WORKER_LOG_FILE = '/home/amigro/logs/worker.log'
-CELERY_WORKER_LOG_LEVEL = 'INFO'
-CELERY_WORKER_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/error.log'),
-            'formatter': 'verbose',
-        },
-        'telegram_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/telegram.log'),
-            'formatter': 'verbose',
-        },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'whatsapp_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/whatsapp.log'),
-            'formatter': 'verbose',
-        },
-        'messenger_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/messenger.log'),
-            'formatter': 'verbose',
-        },
-        'instagram_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/instagram.log'),
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': True,
-        },
-        'django.request': {
-            'handlers': ['file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'telegram': {
-            'handlers': ['telegram_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'whatsapp': {
-            'handlers': ['whatsapp_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'messenger': {
-            'handlers': ['messenger_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'instagram': {
-            'handlers': ['instagram_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
-}
-
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
-    }
-}
-_____
-
-# /home/amigro/chatbot_django/urls.py
-"""chatbot_django URL Configuration
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/3.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-from app.admin import admin_site
-from django.contrib import admin
-from django.urls import path, include
-from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-from django.http import HttpResponse
-
-def health_check(request):
-    return HttpResponse("OK")
-
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include("app.urls")),
-    path('health/', health_check, name='health_check'),
-]
-urlpatterns += staticfiles_urlpatterns()
-_____
-
-
-# /home/amigro/chatbot_django/wsgi.py
-"""
-WSGI config for chatbot_django project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/3.2/howto/deployment/wsgi/
-"""
-
-import os
-
-from django.core.wsgi import get_wsgi_application
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chatbot_django.settings')
-
-application = get_wsgi_application()
-_____
-
-
-# /home/amigro/app/admin.py
-
-import json
-from django.urls import path, reverse
-from django.contrib import admin
-from django.utils.html import format_html
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from .models import (
-    MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
-    Person, Pregunta, Worker, Buttons, Etapa, SubPregunta, GptApi,
-    SmtpConfig, Chat, FlowModel, ChatState
-)
-
-# Definición personalizada del AdminSite
-class CustomAdminSite(admin.AdminSite):
-    site_header = "Amigro Admin"
-    site_title = "Amigro Admin Portal"
-    index_title = "Bienvenido a Amigro.org parte de Grupo huntRED®"
-
-    def each_context(self, request):
-        context = super().each_context(request)
-        context['admin_css'] = 'admin/css/custom_admin.css'  # Estilos personalizados, si tienes alguno.
-        return context
-
-# Instancia de CustomAdminSite
-admin_site = CustomAdminSite(name='custom_admin')
-
-# Registrar los modelos con CustomAdminSite
-@admin.register(Person, site=admin_site)
-class PersonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'apellido_paterno', 'apellido_materno', 'phone', 'nationality', 'skills', 'ubication', 'email', 'preferred_language')
-    search_fields = ('name', 'apellido_paterno', 'phone', 'email', 'nationality')
-
-@admin.register(Worker, site=admin_site)
-class WorkerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'job_id', 'company', 'job_type', 'salary', 'address', 'experience_required')
-    search_fields = ('name', 'company', 'job_type')
-
-@admin.register(Pregunta, site=admin_site)
-class PreguntaAdmin(admin.ModelAdmin):
-    list_display = ('name', 'etapa', 'option', 'input_type', 'requires_response')
-    search_fields = ('name', 'etapa__nombre')  # Asegúrate de que 'nombre' exista en Etapa
-
-@admin.register(SubPregunta, site=admin_site)
-class SubPreguntaAdmin(admin.ModelAdmin):
-    list_display = ('name', 'option', 'input_type', 'requires_response')
-    search_fields = ('name', 'parent_sub_pregunta__name')
-
-@admin.register(ChatState, site=admin_site)
-class ChatStateAdmin(admin.ModelAdmin):
-    list_display = ('user_id', 'platform', 'current_question', 'last_interaction', 'context')
-    search_fields = ('user_id', 'platform')
-
-@admin.register(FlowModel, site=admin_site)
-class FlowModelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
-    search_fields = ('name',)
-
-@admin.register(TelegramAPI, site=admin_site)
-class TelegramAPIAdmin(admin.ModelAdmin):
-    list_display = ('bot_name', 'api_key')
-
-@admin.register(WhatsAppAPI, site=admin_site)
-class WhatsAppAPIAdmin(admin.ModelAdmin):
-    list_display = ('phoneID', 'api_token')
-
-@admin.register(MessengerAPI, site=admin_site)
-class MessengerAPIAdmin(admin.ModelAdmin):
-    list_display = ('page_access_token',)
-
-@admin.register(InstagramAPI, site=admin_site)
-class InstagramAPIAdmin(admin.ModelAdmin):
-    list_display = ('app_id', 'access_token', 'instagram_account_id')
-
-@admin.register(MetaAPI, site=admin_site)
-class MetaAPIAdmin(admin.ModelAdmin):
-    list_display = ('app_id', 'app_secret', 'verify_token')
-
-@admin.register(GptApi, site=admin_site)
-class GptApiAdmin(admin.ModelAdmin):
-    list_display = ('api_token', 'model', 'organization')
-    search_fields = ('model', 'organization')
-
-@admin.register(Buttons, site=admin_site)
-class ButtonsAdmin(admin.ModelAdmin):
-    list_display = ('name', 'active')
-    search_fields = ('name',)
-
-@admin.register(Etapa, site=admin_site)
-class EtapaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'descripcion', 'activo')  # Asegúrate de que 'nombre' y 'descripcion' existan en Etapa
-    search_fields = ('nombre', 'descripcion')
-
-@admin.register(SmtpConfig, site=admin_site)
-class SmtpConfigAdmin(admin.ModelAdmin):
-    list_display = ('host', 'port', 'use_tls', 'use_ssl')
-    search_fields = ('host',)
-
-@admin.register(Chat, site=admin_site)
-class ChatAdmin(admin.ModelAdmin):
-    list_display = ('From', 'To', 'ProfileName', 'created_at')  # Ajusta según los campos en Chat
-    search_fields = ('From', 'To')
-
-_____
-
-# /home/amigro/app/apps.py
-
-from django.apps import AppConfig
-
-class AppConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'app'
-
-_____
+# Documentación del Sistema de Chatbot de Amigro.org
 
+## Índice
+
+1. [Introducción](#introducción)
+2. [Arquitectura del Sistema](#arquitectura-del-sistema)
+3. [Integraciones de Plataformas](#integraciones-de-plataformas)
+    - [WhatsApp](#whatsapp)
+    - [Messenger](#messenger)
+    - [Telegram](#telegram)
+    - [Instagram](#instagram)
+4. [Flujo de Conversación](#flujo-de-conversación)
+5. [Manejo de Estados de Chat](#manejo-de-estados-de-chat)
+6. [Envío de Mensajes](#envío-de-mensajes)
+7. [Manejo de Errores y Logs](#manejo-de-errores-y-logs)
+8. [Configuración y Despliegue](#configuración-y-despliegue)
+9. [Pruebas](#pruebas)
+10. [Mantenimiento](#mantenimiento)
+
+---
+
+## Introducción
+
+Este documento describe la arquitectura, las funcionalidades y las integraciones del sistema de chatbot de Amigro.org. El chatbot está diseñado para interactuar con los usuarios a través de múltiples plataformas de mensajería, proporcionando asistencia en tiempo real, gestión de perfiles, búsqueda de vacantes laborales y más.
+
+## Arquitectura del Sistema
+
+El sistema de chatbot de Amigro.org está construido utilizando Django como framework principal, aprovechando la capacidad asíncrona de Python para manejar múltiples solicitudes simultáneamente. Las principales componentes incluyen:
+
+- **Django Models:** Definen las estructuras de datos para usuarios, estados de chat, configuraciones de API, y flujos de conversación.
+- **Integraciones de Plataformas:** Módulos dedicados para manejar la comunicación con diferentes plataformas de mensajería (WhatsApp, Messenger, Telegram, Instagram).
+- **Servicios de Mensajería:** Funciones reutilizables para enviar mensajes, imágenes, botones y otros elementos interactivos.
+- **ChatBotHandler:** Núcleo del chatbot que procesa los mensajes entrantes, determina las respuestas y gestiona el flujo de conversación.
+- **Utilidades NLP:** Herramientas para análisis de texto, detección de intenciones y sentimientos.
+
+## Integraciones de Plataformas
+
+### WhatsApp
+
+- **Archivo:** `/home/amigro/app/integrations/whatsapp.py`
+- **Funciones Principales:**
+    - `whatsapp_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
+    - `send_whatsapp_response`: Envía respuestas al usuario, incluyendo botones interactivos.
+    - `send_whatsapp_buttons`: Envía botones de decisión (Sí/No) al usuario.
+
+- **Configuraciones Clave:**
+    - **WhatsAppAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de WhatsApp.
+
+### Messenger
+
+- **Archivo:** `/home/amigro/app/integrations/messenger.py`
+- **Funciones Principales:**
+    - `messenger_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
+    - `send_messenger_response`: Envía respuestas al usuario, incluyendo botones interactivos.
+    - `send_messenger_buttons`: Envía botones de respuesta rápida al usuario.
+
+- **Configuraciones Clave:**
+    - **MessengerAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de Messenger.
+
+### Telegram
+
+- **Archivo:** `/home/amigro/app/integrations/telegram.py`
+- **Funciones Principales:**
+    - `telegram_webhook`: Maneja los mensajes entrantes y las configuraciones de webhook.
+    - `send_telegram_response`: Envía respuestas al usuario, incluyendo botones interactivos.
+    - `send_telegram_buttons`: Envía botones de respuesta rápida al usuario.
+
+- **Configuraciones Clave:**
+    - **TelegramAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de Telegram.
+
+### Instagram
+
+- **Archivo:** `/home/amigro/app/integrations/instagram.py`
+- **Funciones Principales:**
+    - `instagram_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
+    - `send_instagram_response`: Envía respuestas al usuario, incluyendo botones interactivos.
+    - `send_instagram_buttons`: Envía botones de respuesta rápida al usuario.
+
+- **Configuraciones Clave:**
+    - **InstagramAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de Instagram.
+
+## Flujo de Conversación
+
+1. **Recepción del Mensaje:**
+    - El usuario envía un mensaje a través de una plataforma soportada.
+    - El webhook correspondiente recibe el mensaje y lo procesa.
+
+2. **Procesamiento del Mensaje:**
+    - `ChatBotHandler` analiza el mensaje utilizando herramientas NLP para detectar intenciones y entidades.
+    - Basado en el análisis, determina la respuesta adecuada y el siguiente paso en el flujo de conversación.
+
+3. **Envío de Respuesta:**
+    - La respuesta es enviada al usuario a través de la plataforma correspondiente.
+    - Si se requieren botones o elementos interactivos, se incluyen en el mensaje.
+
+4. **Gestión del Estado de Chat:**
+    - El estado de la conversación se almacena en `ChatState`, permitiendo mantener el contexto entre mensajes.
+
+## Manejo de Estados de Chat
+
+El modelo `ChatState` almacena información relevante sobre la conversación actual con cada usuario, incluyendo:
+
+- **user_id:** Identificador único del usuario en la plataforma.
+- **platform:** Plataforma de mensajería (WhatsApp, Messenger, etc.).
+- **business_unit:** Unidad de negocio asociada.
+- **current_question:** Pregunta actual en el flujo de conversación.
+- **context:** Información adicional relevante para la conversación.
+
+## Envío de Mensajes
+
+Las funciones de envío de mensajes (`send_message`, `send_whatsapp_buttons`, `send_messenger_buttons`, etc.) están diseñadas para ser reutilizables y manejar diferentes tipos de contenido, incluyendo texto, imágenes y botones interactivos.
+
+### Envío de Botones Interactivos
+
+Los botones interactivos permiten a los usuarios responder rápidamente a través de opciones predefinidas, mejorando la experiencia de usuario y facilitando la navegación en el flujo de conversación.
+
+## Manejo de Errores y Logs
+
+El sistema utiliza el módulo `logging` para registrar eventos importantes, errores y información de depuración. Esto facilita el monitoreo y la resolución de problemas.
+
+- **Niveles de Log:**
+    - **INFO:** Información general sobre el funcionamiento del sistema.
+    - **DEBUG:** Información detallada para depuración.
+    - **WARNING:** Advertencias sobre situaciones inesperadas que no detienen el sistema.
+    - **ERROR:** Errores que impiden la correcta ejecución de una función.
+    - **CRITICAL:** Errores graves que pueden requerir intervención inmediata.
+
+## Configuración y Despliegue
+
+### Requisitos Previos
+
+- **Python 3.8+**
+- **Django 3.2+**
+- **Dependencias Asíncronas:**
+    - `httpx`
+    - `asgiref`
+    - `celery` (para tareas asíncronas en Telegram)
+- **Configuraciones de API:** Asegúrate de tener las credenciales y tokens necesarios para cada plataforma de mensajería.
+
+### Pasos de Configuración
+
+1. **Renombrar Archivos Actuales:**
+    - Antes de cargar los nuevos archivos, renombra los existentes añadiendo `_old` para preservarlos.
+        ```bash
+        mv /home/amigro/app/integrations/messenger.py /home/amigro/app/integrations/messenger_old.py
+        mv /home/amigro/app/integrations/telegram.py /home/amigro/app/integrations/telegram_old.py
+        mv /home/amigro/app/integrations/instagram.py /home/amigro/app/integrations/instagram_old.py
+        ```
+
+2. **Cargar los Nuevos Archivos:**
+    - Reemplaza los archivos antiguos con los nuevos proporcionados anteriormente.
+
+3. **Instalar Dependencias:**
+    - Asegúrate de instalar todas las dependencias necesarias.
+        ```bash
+        pip install httpx asgiref celery
+        ```
+
+4. **Configurar Webhooks:**
+    - Configura los webhooks en cada plataforma de mensajería para apuntar a los endpoints correspondientes de tu servidor.
+
+5. **Migraciones de Base de Datos:**
+    - Aplica las migraciones para asegurarte de que todos los modelos estén actualizados.
+        ```bash
+        python manage.py migrate
+        ```
+
+6. **Iniciar el Servidor:**
+    - Inicia el servidor de Django y cualquier worker de Celery si estás utilizando tareas asíncronas.
+        ```bash
+        python manage.py runserver
+        celery -A amigro worker --loglevel=info
+        ```
+
+## Pruebas
+
+1. **Verificación de Webhooks:**
+    - Asegúrate de que los webhooks estén correctamente configurados y que la verificación funcione sin errores.
+
+2. **Envío de Mensajes de Prueba:**
+    - Envía mensajes de prueba desde cada plataforma para verificar que el chatbot responde adecuadamente.
+
+3. **Prueba de Botones Interactivos:**
+    - Verifica que los botones interactivos se muestren correctamente y que las respuestas sean manejadas adecuadamente.
+
+4. **Manejo de Errores:**
+    - Prueba escenarios de errores, como mensajes vacíos o fallos en la API, para asegurar que el sistema maneja estos casos sin interrupciones.
+
+## Mantenimiento
+
+1. **Monitoreo de Logs:**
+    - Revisa regularmente los logs para identificar y solucionar problemas.
+
+2. **Actualización de Dependencias:**
+    - Mantén las dependencias actualizadas para aprovechar mejoras y parches de seguridad.
+
+3. **Mejoras Continuas:**
+    - Añade nuevas funcionalidades y patrones de conversación según las necesidades de los usuarios y del negocio.
+
+4. **Respaldo de Datos:**
+    - Implementa estrategias de respaldo para asegurar que los datos importantes estén protegidos.
+
+## Integraciones de Servicios
+
+### `services.py`
+
+Este módulo contiene funciones de utilidad para interactuar con servicios externos y realizar tareas reutilizables en todo el proyecto.
+
+**Funciones Principales:**
+- `send_message`: Envía mensajes a diferentes plataformas de mensajería.
+- `send_email`: Envía correos electrónicos utilizando configuraciones SMTP.
+- `reset_chat_state`: Reinicia el estado de chat de un usuario.
+- `get_api_instance`: Obtiene configuraciones de API para plataformas específicas.
+- Otras funciones de servicio necesarias.
+
+### `chatbot.py`
+
+Este módulo maneja la lógica central del chatbot, incluyendo el procesamiento de mensajes entrantes, gestión de estados de chat y determinación de respuestas basadas en el flujo de conversación.
+
+**Funciones Principales:**
+- `process_message`: Procesa mensajes recibidos y coordina respuestas.
+- `handle_intents`: Maneja diferentes intenciones detectadas en los mensajes.
+- `notify_employer`: Envía notificaciones específicas al empleador.
+- Otras funciones relacionadas directamente con la interacción del chatbot.
+---
+
+## Conclusión
+
+Con estas mejoras, tu sistema de chatbot debería ser más robusto, eficiente y fácil de mantener. La estructura modular y las funciones claras facilitan la adición de nuevas funcionalidades y la integración con más plataformas en el futuro. No dudes en realizar pruebas exhaustivas para asegurar que todo funcione según lo esperado y en mantener una documentación actualizada para facilitar el desarrollo continuo.
+
+¡Éxito en tus pruebas y en la implementación del chatbot!
+
+
+
+___________
 # /home/amigro/app/chatbot.py
-
 import logging
-from .models import ChatState, Pregunta, Person, FlowModel, Invitacion
-from app.vacantes import match_person_with_jobs, get_available_slots, book_interview_slot, solicitud
-from app.integrations.services import send_message, send_options, send_menu
+import asyncio
+import re
+from typing import Optional, Tuple, List, Dict, Any
+from asgiref.sync import sync_to_async
+from app.models import (
+    ChatState, Pregunta, Person, FlowModel, Invitacion,
+    MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI,
+    InstagramAPI, Interview, BusinessUnit
+)
+from app.vacantes import VacanteManager
+from app.integrations.services import (
+    send_message, send_options, send_menu, render_dynamic_content, send_image, 
+    send_logo, send_email, reset_chat_state, get_api_instance
+)
+from app.integrations.whatsapp import send_whatsapp_decision_buttons  # Asegúrate de que esta función existe
+from app.utils import analyze_text, clean_text, detect_intents, matcher, nlp  # Importa detect_intents
+from django.core.cache import cache
 
-# Inicializa el logger
+# Inicializa el logger y Cache
 logger = logging.getLogger(__name__)
+CACHE_TIMEOUT = 600  # 10 minutes
 
 class ChatBotHandler:
-    def __init__(self):
-        self.flow_model = None
-
-    async def process_message(self, platform, user_id, text):
+    async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
         """
-        Procesa el mensaje del usuario y gestiona la conversación según el flujo de preguntas.
+        Procesa un mensaje entrante del usuario y gestiona el flujo de conversación.
         """
-        if not self.flow_model:
-            self.flow_model = await FlowModel.objects.afirst()
+        logger.info(f"Processing message for {user_id} on {platform} for business unit {business_unit}")
 
-        event = await self.get_or_create_event(user_id, platform)
-        analysis = analyze_text(text)
+        try:
+            # Etapa 1: Preprocesamiento del Mensaje
+            logger.info("Stage 1: Preprocessing the message")
+            text = clean_text(text)
+            analysis = analyze_text(text)
+            intents = analysis.get("intents", [])
+            entities = analysis.get("entities", {})
+            if not isinstance(intents, list):
+                logger.error(f"Invalid intents format: {intents}")
+                intents = []
+            cache_key = f"analysis_{user_id}"
+            cache.set(cache_key, analysis, CACHE_TIMEOUT)
+            logger.info(f"Message analysis cached with key {cache_key}")
 
-        if not event.current_question:
-            event.current_question = await self.flow_model.preguntas.afirst()  # Cambiado a 'preguntas'
+            # Etapa 2: Inicialización del Contexto de Conversación
+            logger.info("Stage 2: Initializing conversation context")
+            logger.info(f"Initializing context for user_id {user_id}")
+            event = await self.get_or_create_event(user_id, platform, business_unit)
+            if not event:
+                    logger.error(f"No se pudo crear el evento para el usuario {user_id}.")
+                    await send_message(platform, user_id, "Error al inicializar el contexto. Inténtalo más tarde.", business_unit)
+                    return
+            logger.info(f"Event initialized: {event}")
+            user, created = await self.get_or_create_user(user_id, event, {})
+            logger.info(f"User fetched/created: {user}, Created: {created}")
+            if not user:
+                    logger.error(f"No se pudo crear o recuperar el usuario {user_id}.")
+                    await send_message(platform, user_id, "Error al recuperar tu información. Inténtalo más tarde.", business_unit)
+                    return
+            context = self.build_context(user)
+            logger.info(f"User context initialized: {context}")
 
-        response, options = await self.process_user_response(event, text, analysis)
+            # Etapa 3: Manejo de Intents Conocidos
+            logger.info("Stage 3: Handling known intents")
+            if await self.handle_known_intents(intents, platform, user_id, event, business_unit):
+                logger.info("Known intent handled, ending process_message")
+                return
 
-        await event.asave()
-        await self.send_response(platform, user_id, response, options)
-
-        return response, options
-
-    async def get_or_create_event(self, user_id, platform):
-        """
-        Crea o recupera el estado del chat del usuario.
-        """
-        event, created = await ChatState.objects.aget_or_create(user_id=user_id)
-        if created:
-            event.flow_model = self.flow_model
-            event.platform = platform
-            await event.asave()
-        else:
-            if event.platform != platform:
-                event.platform = platform
-                await event.asave()
-        return event
-
-    async def process_user_response(self, event, user_message, analysis):
-        """
-        Procesa la respuesta del usuario y determina la siguiente pregunta en base a condiciones.
-        """
-        intents = analysis.get('intents', [])
-        entities = analysis.get('entities', [])
-
-        logger.info(f"Intenciones detectadas: {intents}")
-        logger.info(f"Entidades detectadas: {entities}")
-
-        # Menú Persistente
-        if user_message.lower() in ['menu', 'inicio', 'volver', 'menu principal']:
-            return await handle_persistent_menu(event)
-
-        if 'saludo' in intents:
-            response = "¡Hola! ¿En qué puedo ayudarte hoy?"
-            return response, []
-
-        elif 'despedida' in intents:
-            response = "¡Hasta luego!"
-            event.current_question = None
-            return response, []
-
-        elif 'buscar_vacante' in intents:
-            response = "Claro, puedo ayudarte a buscar vacantes. ¿En qué área estás interesado?"
-            event.current_question = await Pregunta.objects.aget(option='buscar_vacante')
-            return response, []
-
-        elif 'postular_vacante' in intents:
-            response = "Para postularte a una vacante, necesito algunos datos. ¿Puedes proporcionarme tu nombre y habilidades?"
-            event.current_question = await Pregunta.objects.aget(option='solicitar_datos')
-            return response, []
-
-        return await self.determine_next_question(event, user_message, analysis)
-
-    async def determine_next_question(self, event, user_message, analysis):
-        """
-        Determina la siguiente pregunta en el flujo basado en la intención y entidades extraídas del mensaje.
-        """
-        # Si no hay una pregunta actual, asignar la primera pregunta del flujo
-        if not event.current_question:
-            event.current_question = await self.flow_model.preguntas.afirst()
-            if not event.current_question:
-                return "Lo siento, no se encontró una pregunta inicial en el flujo.", []
-
-        # Obtener o crear un usuario asociado con el evento
-        user, _ = await Person.objects.aget_or_create(number_interaction=event.user_id)
-
-        # Verificar si la pregunta actual requiere habilidades
-        if event.current_question.input_type == 'skills':
-            user.skills = user_message
-            await user.asave()
-
-            recommended_jobs = match_person_with_jobs(user)
-            if recommended_jobs:
-                response = "Aquí tienes algunas vacantes que podrían interesarte:\n"
-                for idx, (job, score) in enumerate(recommended_jobs[:5]):
-                    response += f"{idx + 1}. {job['title']} en {job['company']}\n"
-                response += "Por favor, ingresa el número de la vacante que te interesa."
-                event.context = {'recommended_jobs': recommended_jobs}
-                return response, []
-            else:
-                response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
-                return response, []
-
-        # Manejo de selección de vacante
-        elif event.current_question.input_type == 'select_job':
-            try:
-                job_index = int(user_message) - 1
-            except ValueError:
-                return "Por favor, ingresa un número válido.", []
-
-            recommended_jobs = event.context.get('recommended_jobs')
-            if recommended_jobs and 0 <= job_index < len(recommended_jobs):
-                selected_job = recommended_jobs[job_index]
-                event.context['selected_job'] = selected_job
-                event.current_question = await Pregunta.objects.aget(option='schedule_interview')
-                return event.current_question.content, []
-            else:
-                return "Selección inválida.", []
-
-        # Procesar agendado de entrevista
-        elif event.current_question.input_type == 'schedule_interview':
-            selected_job = event.context.get('selected_job')
-            if not selected_job:
-                return "No se encontró la vacante seleccionada.", []
-
-            available_slots = get_available_slots(selected_job)
-            if available_slots:
-                response = "Estos son los horarios disponibles para la entrevista:\n"
-                for idx, slot in enumerate(available_slots):
-                    response += f"{idx + 1}. {slot}\n"
-                response += "Por favor, selecciona el número del horario que prefieras."
-                event.context['available_slots'] = available_slots
-                return response, []
-            else:
-                return "No hay horarios disponibles.", []
-
-        # Reserva de entrevista
-        elif event.current_question.input_type == 'confirm_interview_slot':
-            try:
-                slot_index = int(user_message) - 1
-            except ValueError:
-                return "Por favor, ingresa un número válido.", []
-
-            available_slots = event.context.get('available_slots')
-            if available_slots and 0 <= slot_index < len(available_slots):
-                selected_slot = available_slots[slot_index]
-                if book_interview_slot(event.context['selected_job'], slot_index, user):
-                    response = f"Has reservado tu entrevista en el horario: {selected_slot}."
-                    return response, []
+            # Etapa 4: Continuación del Flujo de Conversación
+            logger.info("Stage 4: Continuing conversation flow")
+            current_question = event.current_question
+            if not current_question:
+                first_question = await self.get_first_question(event.flow_model)
+                if first_question:
+                    event.current_question = first_question
+                    await event.asave()
+                    logger.info(f"Conversation started with the first question: {first_question.content}")
+                    await send_message(platform, user_id, first_question.content, business_unit)
                 else:
-                    return "No se pudo reservar el slot, por favor intenta nuevamente.", []
-            else:
-                return "Selección inválida.", []
+                    logger.error("No first question found in the flow model")
+                    await send_message(platform, user_id, "Lo siento, no se pudo iniciar la conversación en este momento.", business_unit)
+                return
 
-        # Guardar el estado del evento
-        await event.asave()
-        next_question = await Pregunta.objects.filter(id__gt=event.current_question.id).first()
+            # Etapa 5: Procesamiento de la Respuesta del Usuario
+            logger.info("Stage 5: Processing user's response")
+            response, options = await self.determine_next_question(event, text, analysis, context)
+
+            # Etapa 6: Guardar estado y enviar respuesta
+            logger.info("Stage 6: Saving updated chat state and sending response")
+            await event.asave()
+            await self.send_response(platform, user_id, response, business_unit, options)
+            logger.info(f"Response sent to user {user_id}")
+
+            # Etapa 7: Manejo de Desviaciones en la Conversación
+            logger.info("Stage 7: Handling conversation deviations")
+            if await self.detect_and_handle_deviation(event, text, analysis):
+                logger.info("Deviation handled, ending process_message")
+                return
+
+            # Etapa 8: Verificación del Perfil del Usuario
+            logger.info("Stage 8: Verifying user profile")
+            profile_check = await self.verify_user_profile(user)
+            if profile_check:
+                await send_message(platform, user_id, profile_check, business_unit)
+                logger.info("User profile incomplete, notification sent")
+                return
+
+        except Exception as e:
+            logger.error(f"Error processing message for {user_id}: {e}", exc_info=True)
+            await send_message(platform, user_id, "Ha ocurrido un error. Por favor, inténtalo de nuevo más tarde.", business_unit)
+# METODOS AUXILIARES
+# Etapa 1: Preprocesamiento del Mensaje
+# Etapa 2: Inicialización del Contexto de Conversación
+# Etapa 3: Manejo de Intents Conocidos
+# Etapa 4: Continuación del Flujo de Conversación
+# Etapa 5: Procesamiento de la Respuesta del Usuario
+# Etapa 6: Guardar estado y enviar respuesta
+# Etapa 7: Manejo de Desviaciones en la Conversación
+# Etapa 8: Verificación del Perfil del Usuario
+# -------------------------------------------
+# Etapa 1: Preprocesamiento del Mensaje
+# -------------------------------------------
+# Métodos auxiliares para esta etapa
+# (No se requieren métodos adicionales aquí)
+# -------------------------------------------
+# Etapa 2: Inicialización del Contexto de Conversación
+# -------------------------------------------
+    async def get_or_create_event(self, user_id: str, platform: str, flow_model: FlowModel) -> ChatState:
+        try:
+            chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
+                user_id=user_id,
+                defaults={
+                    'platform': platform,
+#                    'business_unit': flow_model.unit if hasattr(flow_model, 'unit') else None,   #'business_unit': flow_model.business_unit if flow_model else None,
+#                    'flow_model': flow_model,
+                    'current_question': None
+                }
+            )
+            if created:
+                logger.debug(f"ChatState creado para usuario {user_id}")
+            else:
+                logger.debug(f"ChatState obtenido para usuario {user_id}")
+            return chat_state
+        except Exception as e:
+            logger.error(f"Error en get_or_create_event para usuario {user_id}: {e}", exc_info=True)
+            raise e
+
+    async def get_or_create_user(self, user_id: str, event: ChatState, analysis: dict) -> Tuple[Person, bool]:
+        try:
+            entities = analysis.get('entities', {})
+            name = entities.get('name') or event.platform or 'Usuario'
+
+            user, created = await sync_to_async(Person.objects.get_or_create)(
+                phone=user_id,
+                defaults={'name': name}
+            )
+            if created:
+                logger.debug(f"Persona creada: {user}")
+            else:
+                logger.debug(f"Persona obtenida: {user}")
+            return user, created
+        except Exception as e:
+            logger.error(f"Error en get_or_create_user para usuario {user_id}: {e}", exc_info=True)
+            raise e
+
+    def build_context(self, user: Person) -> dict:
+        """
+        Construye el contexto de la conversación basado en la información del usuario.
+        
+        :param user: Instancia de Person.
+        :return: Diccionario de contexto.
+        """
+        context = {
+            'user_name': user.name,
+            'user_phone': user.phone,
+            # Agrega más campos según sea necesario
+        }
+        logger.debug(f"Contexto construido para usuario {user.phone}: {context}")
+        return context
+# -------------------------------------------
+# Etapa 3: Manejo de Intents Conocidos
+# -------------------------------------------
+    async def handle_known_intents(
+        self, intents: List[dict], platform: str, user_id: str, event: ChatState, business_unit
+    ) -> bool:
+        for intent in intents:
+            intent_name = intent.get('name')
+            confidence = intent.get('confidence', 0)
+            logger.debug(f"Intent detectado: {intent_name} con confianza {confidence}")
+            if confidence < 0.5:
+                continue  # Ignorar intents con baja confianza
+
+            if intent == "saludo":
+                # Generar mensaje dinámico basado en la unidad de negocio
+                greeting_message = f"Hola, buenos días. ¿Quieres conocer más acerca de {business_unit.name}?"
+                
+                # Enviar mensaje con botones de quick-reply
+                quick_replies = [{"title": "Sí"}, {"title": "No"}]
+                await send_whatsapp_decision_buttons(
+                    user_id=user_id,
+                    message=greeting_message,
+                    decision_buttons=quick_replies,
+                    api_token=business_unit.whatsapp_api_token,
+                    phone_id=business_unit.phoneID,
+                    v_api=business_unit.whatsapp_api_version
+                )
+                logger.info(f"Intent 'saludo' manejado para usuario {user_id}")
+                return True
+            elif intent_name == 'despedida':
+                await send_message(platform, user_id, "¡Hasta luego! Si necesitas más ayuda, no dudes en contactarnos.", business_unit)
+                logger.info(f"Intent 'despedida' manejado para usuario {user_id}")
+                # Opcional: Resetear el estado del chat
+                await self.reset_chat_state(user_id)
+                return True
+            elif intent_name == 'iniciar_conversacion':
+                # Reiniciar el flujo de conversación
+                event.current_question = None
+                await event.asave()
+                await send_message(platform, user_id, "¡Claro! Empecemos de nuevo. ¿En qué puedo ayudarte?", business_unit)
+                logger.info(f"Intent 'iniciar_conversacion' manejado para usuario {user_id}")
+                return True
+            elif intent_name == 'menu':
+                # Acceder al menú persistente
+                await self.handle_persistent_menu(event)
+                logger.info(f"Intent 'menu' manejado para usuario {user_id}")
+                return True
+            elif intent_name == 'solicitar_ayuda_postulacion':
+                # Manejar la solicitud de ayuda para postulación
+                ayuda_message = "Claro, puedo ayudarte con el proceso de postulación. ¿Qué necesitas saber específicamente?"
+                await send_message(platform, user_id, ayuda_message, business_unit)
+                logger.info(f"Intent 'solicitar_ayuda_postulacion' manejado para usuario {user_id}")
+                return True
+            elif intent_name == 'consultar_estatus':
+                # Manejar la consulta de estatus de aplicación
+                estatus_message = "Para consultar el estatus de tu aplicación, por favor proporciona tu número de aplicación o correo electrónico asociado."
+                await send_message(platform, user_id, estatus_message, business_unit)
+                logger.info(f"Intent 'consultar_estatus' manejado para usuario {user_id}")
+                return True
+            # Agrega más intents conocidos y sus manejadores aquí
+
+        return False  # No se manejó ningún intent conocido
+
+    async def process_decision_response(user_response, event, platform, user_id, business_unit): #Para iniciar la conversacion con un quick reply
+        if user_response.lower() in ["sí", "si"]:
+            # Obtener la primera pregunta del flujo
+            first_question = await self.get_first_question(event.flow_model)
+            if first_question:
+                event.current_question = first_question
+                await event.asave()
+
+                # Enviar la primera pregunta
+                await send_message(
+                    platform=platform,
+                    user_id=user_id,
+                    message=first_question.content,
+                    business_unit=business_unit
+                )
+            else:
+                await send_message(
+                    platform=platform,
+                    user_id=user_id,
+                    message="Lo siento, no puedo continuar en este momento. Intenta más tarde.",
+                    business_unit=business_unit
+                )
+        elif user_response.lower() == "no":
+            await send_message(
+                platform=platform,
+                user_id=user_id,
+                message="Entendido, si necesitas más información, no dudes en escribirnos.",
+                business_unit=business_unit
+            )
+            
+    async def reset_chat_state(self, user_id: str):
+        """
+        Resetea el estado del chat para un usuario específico.
+        
+        :param user_id: Identificador único del usuario.
+        """
+        await reset_chat_state(user_id=user_id)
+        logger.info(f"Chat state reset for user {user_id}")
+# -------------------------------------------
+# Etapa 4: Continuación del Flujo de Conversación
+# -------------------------------------------
+    async def get_first_question(self, flow_model: FlowModel) -> Optional[Pregunta]:
+        """
+        Obtiene la primera pregunta del FlowModel.
+        
+        :param flow_model: Instancia de FlowModel.
+        :return: Instancia de Pregunta o None si no existe.
+        """
+        first_question = await sync_to_async(flow_model.preguntas.order_by('order').first)()
+        if first_question:
+            logger.debug(f"Primera pregunta obtenida: {first_question.content}")
+        else:
+            logger.debug("No se encontró la primera pregunta en el FlowModel.")
+        return first_question
+
+# -------------------------------------------
+# Etapa 5: Procesamiento de la Respuesta del Usuario
+# -------------------------------------------
+    async def determine_next_question(self, event: ChatState, user_message: str, analysis: dict, context: dict) -> Tuple[Optional[str], List]:
+        current_question = event.current_question
+        logger.info(f"Procesando la pregunta actual: {current_question.content}")
+
+        try:
+            # 1. Manejar acciones basadas en action_type
+            if current_question.action_type:
+                response, options = await self._handle_action_type(event, current_question, context)
+                return response, options
+
+            # 2. Manejar respuestas de botones
+            if current_question.botones_pregunta.exists():
+                response, options = await self._handle_button_response(event, current_question, user_message, context)
+                return response, options
+
+            # 3. Manejar diferentes input_type
+            input_type_handlers = {
+                'skills': self._handle_skills_input,
+                'select_job': self._handle_select_job_input,
+                'schedule_interview': self._handle_schedule_interview_input,
+                'confirm_interview_slot': self._handle_confirm_interview_slot_input,
+                'finalizar_perfil': self._handle_finalize_profile_input,
+                'confirm_recap': self._handle_confirm_recap_input,
+                # Agrega más input_types si es necesario
+            }
+
+            handler = input_type_handlers.get(current_question.input_type)
+            if handler:
+                response, options = await handler(event, current_question, user_message, context)
+                return response, options
+
+            # 4. Flujo estándar: avanzar a la siguiente pregunta
+            next_question = await self.get_next_question(current_question, user_message)
+            if next_question:
+                event.current_question = next_question
+                await event.asave()
+                response = render_dynamic_content(next_question.content, context)
+                return response, []
+            else:
+                return "No hay más preguntas en este flujo.", []
+
+        except Exception as e:
+            logger.error(f"Error determinando la siguiente pregunta: {e}", exc_info=True)
+            return "Ha ocurrido un error al procesar tu respuesta. Por favor, inténtalo de nuevo más tarde.", []
+    # Métodos auxiliares para cada input_type
+    async def _handle_skills_input(self, event, current_question, user_message, context):
+        # Asignar habilidades al usuario
+        user = context.get('user')
+        if not user:
+            user = await sync_to_async(Person.objects.get)(phone=event.user_id)
+            context['user'] = user
+
+        user.skills = user_message
+        await sync_to_async(user.save)()
+
+        vacante_manager = VacanteManager(context)
+        recommended_jobs = await sync_to_async(vacante_manager.match_person_with_jobs)(user)
+
+        if recommended_jobs:
+            response = "Aquí tienes algunas vacantes que podrían interesarte:\n"
+            for idx, (job, score) in enumerate(recommended_jobs[:5]):
+                response += f"{idx + 1}. {job['title']} en {job['company']}\n"
+            response += "Por favor, ingresa el número de la vacante que te interesa."
+            event.context = {'recommended_jobs': recommended_jobs}
+            await event.asave()
+            return response, []
+        else:
+            response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
+            return response, []
+
+    async def _handle_select_job_input(self, event, current_question, user_message, context):
+        try:
+            job_index = int(user_message.strip()) - 1
+        except ValueError:
+            return "Por favor, ingresa un número válido.", []
+
+        recommended_jobs = event.context.get('recommended_jobs')
+        if recommended_jobs and 0 <= job_index < len(recommended_jobs):
+            selected_job = recommended_jobs[job_index]
+            event.context['selected_job'] = selected_job
+            # Obtener la pregunta 'schedule_interview' relacionada al flujo actual
+            next_question = await self.get_question_by_option(event.flow_model, 'schedule_interview')
+            if next_question:
+                event.current_question = next_question
+                await event.asave()
+                return next_question.content, []
+            else:
+                logger.error("Pregunta 'schedule_interview' no encontrada.")
+                return "No se pudo continuar con el proceso.", []
+        else:
+            return "Selección inválida.", []
+
+    async def _handle_schedule_interview_input(self, event, current_question, user_message, context):
+        selected_job = event.context.get('selected_job')
+        if not selected_job:
+            return "No se encontró la vacante seleccionada.", []
+
+        vacante_manager = VacanteManager(context)
+        available_slots = await sync_to_async(vacante_manager.get_available_slots)(selected_job)
+        if available_slots:
+            response = "Estos son los horarios disponibles para la entrevista:\n"
+            for idx, slot in enumerate(available_slots):
+                response += f"{idx + 1}. {slot}\n"
+            response += "Por favor, selecciona el número del horario que prefieras."
+            event.context['available_slots'] = available_slots
+            await event.asave()
+            return response, []
+        else:
+            return "No hay horarios disponibles.", []
+
+    async def _handle_confirm_interview_slot_input(self, event, current_question, user_message, context):
+        try:
+            slot_index = int(user_message.strip()) - 1
+        except ValueError:
+            return "Por favor, ingresa un número válido.", []
+
+        available_slots = event.context.get('available_slots')
+        selected_job = event.context.get('selected_job')
+        user = context.get('user')
+        if available_slots and 0 <= slot_index < len(available_slots):
+            selected_slot = available_slots[slot_index]
+            vacante_manager = VacanteManager(context)
+            success = await sync_to_async(vacante_manager.book_interview_slot)(selected_job, selected_slot, user)
+            if success:
+                response = f"Has reservado tu entrevista en el horario: {selected_slot}."
+                await event.asave()
+                return response, []
+            else:
+                return "No se pudo reservar el horario, por favor intenta nuevamente.", []
+        else:
+            return "Selección inválida. Por favor, intenta nuevamente.", []
+
+    async def _handle_finalize_profile_input(self, event, current_question, user_message, context):
+        user = context.get('user')
+        if not user:
+            user = await sync_to_async(Person.objects.get)(phone=event.user_id)
+            context['user'] = user
+
+        recap_message = await self.recap_information(user)
+        await send_message(event.platform, event.user_id, recap_message, event.business_unit)
+        # Obtener la pregunta 'confirm_recap' relacionada al flujo actual
+        next_question = await self.get_question_by_option(event.flow_model, 'confirm_recap')
         if next_question:
             event.current_question = next_question
+            await event.asave()
             return next_question.content, []
         else:
-            event.current_question = None
-            return "No hay más preguntas.", []
+            logger.error("Pregunta 'confirm_recap' no encontrada.")
+            return "No se pudo continuar con el proceso.", []
 
-    async def send_response(self, platform, user_id, response, options=None):
+    async def _handle_confirm_recap_input(self, event, current_question, user_message, context):
+        if user_message.strip().lower() in ['sí', 'si', 's']:
+            response = "¡Perfecto! Continuemos."
+            # Obtener la pregunta 'next_step' relacionada al flujo actual
+            next_question = await self.get_question_by_option(event.flow_model, 'next_step')
+            if next_question:
+                event.current_question = next_question
+                await event.asave()
+                return response, []
+            else:
+                logger.error("Pregunta 'next_step' no encontrada.")
+                return "No se pudo continuar con el proceso.", []
+        else:
+            await self.handle_correction_request(event, user_message)
+            return None, []
+
+    # Método auxiliar para obtener una pregunta por su opción
+    async def get_question_by_option(self, flow_model, option):
+        question = await sync_to_async(Pregunta.objects.filter(flow_model=flow_model, option=option).first)()
+        return question
+
+# -------------------------------------------
+# Etapa 6: Guardar estado y enviar respuesta
+# -------------------------------------------
+    async def send_response(self, platform: str, user_id: str, response: str, business_unit, options: Optional[List] = None):
         """
-        Envía la respuesta generada al usuario, con opciones si están disponibles.
+        Envía una respuesta al usuario, incluyendo opciones si las hay.
+        
+        :param platform: Plataforma desde la cual se enviará el mensaje.
+        :param user_id: Identificador único del usuario.
+        :param response: Mensaje a enviar.
+        :param business_unit: Instancia de BusinessUnit asociada.
+        :param options: Lista de opciones para enviar junto al mensaje.
         """
-        await send_message(platform, user_id, response)
+        logger.debug(f"Preparando para enviar respuesta al usuario {user_id}: {response} con opciones: {options}")
+        
+        # Obtener el phone_id desde la configuración de la BusinessUnit
+        whatsapp_api = await get_api_instance('whatsapp', business_unit)
+        if not whatsapp_api:
+            logger.error(f"No se encontró configuración de WhatsAppAPI para la unidad de negocio {business_unit}.")
+            return
+        
+        phone_id = whatsapp_api.phoneID
+        
+        # Enviar el mensaje
+        await send_whatsapp_message(user_id, response, phone_id, image_url=None, options=options)
+        
+        logger.info(f"Respuesta enviada al usuario {user_id}")
 
-        if options:
-            await send_options(platform, user_id, options)
+# -------------------------------------------
+# Etapa 7: Manejo de Desviaciones en la Conversación
+# -------------------------------------------
+    async def detect_and_handle_deviation(self, event, text, analysis):
+        # Define deviation thresholds and strategies
+        if self.is_significant_deviation(event, text, analysis):
+            await self.handle_user_deviation(event, text)
+            return True
+        return False
 
+    def is_significant_deviation(self, event, text, analysis):
+        # Implement deviation detection logic
+        current_intent = event.current_question.intent if event.current_question else None
+        detected_intents = analysis.get('intents', [])
+        
+        # Compare current context with detected intents
+        deviation_score = self.calculate_deviation_score(current_intent, detected_intents)
+        
+        return deviation_score > DEVIATION_THRESHOLD
+
+    def calculate_deviation_score(self, current_intent, detected_intents):
+        # Custom scoring mechanism to assess conversation deviation
+        pass
+
+    async def handle_user_deviation(self, event, user_message):
+        # Intelligent rerouting strategies
+        strategies = [
+            self.offer_menu_reset,
+            self.provide_context_clarification,
+            self.suggest_alternative_paths
+        ]
+        
+        for strategy in strategies:
+            if await strategy(event, user_message):
+                break
+    
+    async def offer_menu_reset(self, event, user_message):
+        # Offer to return to main menu or restart flow
+        reset_options = [
+            "Volver al menú principal",
+            "Reiniciar conversación",
+            "Continuar con el flujo actual"
+        ]
+        await send_options(event.platform, event.user_id, reset_options)
+        return True
+
+    async def provide_context_clarification(self, event, user_message):
+        # Help user understand current conversation context
+        context_message = (
+            f"Estamos actualmente en: {event.current_question.content}\n"
+            "¿Deseas continuar o necesitas ayuda?"
+        )
+        await send_message(event.platform, event.user_id, context_message)
+        return True
+
+    async def suggest_alternative_paths(self, event, user_message):
+        # Suggest related conversation paths based on detected intent
+        related_flows = self.find_related_flows(user_message)
+        if related_flows:
+            await send_options(event.platform, event.user_id, related_flows)
+            return True
+        return False
+    
+# -------------------------------------------
+# Etapa 8: Verificación del Perfil del Usuario
+# -------------------------------------------
+    async def send_profile_completion_email(self, user_id: str, context: dict):
+        """
+        Envía un correo electrónico para completar el perfil del usuario.
+        
+        :param user_id: Identificador único del usuario.
+        :param context: Contexto de la conversación.
+        """
+        # Implementa la lógica para enviar el correo electrónico
+        # Esto podría incluir llamar a send_email desde services.py
+        # Ejemplo:
+        from app.integrations.services import send_email
+
+        # Obtener el usuario para obtener su email
+        try:
+            user = await sync_to_async(Person.objects.get)(phone=user_id)
+            email = user.email
+            if email:
+                subject = "Completa tu perfil en Amigro.org"
+                body = f"Hola {user.name},\n\nPor favor completa tu perfil en Amigro.org para continuar."
+                await send_email(
+                    business_unit_name=user.business_unit.name,
+                    subject=subject,
+                    to_email=email,
+                    body=body
+                )
+                logger.info(f"Correo de completación de perfil enviado a {email}")
+            else:
+                logger.warning(f"Usuario {user_id} no tiene email registrado.")
+        except Person.DoesNotExist:
+            logger.error(f"No se encontró usuario con phone {user_id} para enviar correo de completación de perfil.")
+        except Exception as e:
+            logger.error(f"Error enviando correo de completación de perfil a {user_id}: {e}", exc_info=True)
+
+    async def verify_user_profile(self, user: Person) -> Optional[str]:
+        """
+        Verifica si el perfil del usuario está completo.
+        
+        :param user: Instancia de Person.
+        :return: Mensaje de error si el perfil está incompleto, de lo contrario None.
+        """
+        required_fields = ['name', 'apellido_paterno', 'skills', 'ubicacion', 'email']
+        missing_fields = [field for field in required_fields if not getattr(user, field, None)]
+        if missing_fields:
+            fields_str = ", ".join(missing_fields)
+            return f"Para continuar, completa estos datos: {fields_str}."
+        logger.debug(f"Perfil completo para usuario {user.phone}.")
+        return None
+# -------------------------------------------
+# Métodos Auxiliares
+# -------------------------------------------
+    async def get_next_question(self, current_question: Pregunta, user_message: str) -> Optional[Pregunta]:
+        """
+        Determina la siguiente pregunta basada en la respuesta del usuario.
+        
+        :param current_question: Pregunta actual en el flujo.
+        :param user_message: Respuesta del usuario.
+        :return: Siguiente Pregunta o None si el flujo termina.
+        """
+        # Lógica para determinar la siguiente pregunta
+        # Puede ser basada en las opciones seleccionadas, entidades extraídas, etc.
+        # Aquí un ejemplo simple basado en la respuesta "sí" o "no"
+
+        response = user_message.strip().lower()
+        if response in ['sí', 'si', 's']:
+            next_question = current_question.next_si
+        else:
+            next_question = current_question.next_no
+
+        if next_question:
+            logger.debug(f"Siguiente pregunta basada en la respuesta '{response}': {next_question.content}")
+        else:
+            logger.debug("No hay siguiente pregunta definida en el flujo.")
+        return next_question
+
+    async def _handle_action_type(
+            self, event: ChatState, current_question: Pregunta, context: dict
+        ) -> Tuple[str, List]:
+        """
+        Maneja preguntas que requieren realizar una acción específica en lugar de continuar el flujo.
+        
+        :param event: Instancia de ChatState.
+        :param current_question: Pregunta actual.
+        :param context: Contexto de la conversación.
+        :return: Respuesta y opciones.
+        """
+        # Implementa la lógica para manejar diferentes tipos de acciones
+        # Por ejemplo, enviar un correo electrónico, iniciar un proceso, etc.
+        # Este es un ejemplo genérico
+        action = current_question.action_type
+        logger.info(f"Handling action type '{action}' para pregunta {current_question.id}")
+        
+        if action == 'send_email':
+            # Implementa la lógica para enviar un correo electrónico
+            await self.send_profile_completion_email(event.user_id, context)
+            response = "Te hemos enviado un correo electrónico con más información."
+            return response, []
+        elif action == 'start_process':
+            # Implementa otra acción
+            response = "Estamos iniciando el proceso solicitado."
+            return response, []
+        else:
+            logger.warning(f"Tipo de acción desconocida: {action}")
+            response = "Ha ocurrido un error al procesar tu solicitud."
+            return response, []
+
+    async def _handle_button_response(
+            self, event: ChatState, current_question: Pregunta, user_message: str, context: dict
+        ) -> Tuple[str, List]:
+        """
+        Maneja respuestas a preguntas con botones.
+        
+        :param event: Instancia de ChatState.
+        :param current_question: Pregunta actual.
+        :param user_message: Respuesta del usuario.
+        :param context: Contexto de la conversación.
+        :return: Respuesta y opciones.
+        """
+        # Suponiendo que los botones están definidos y se esperan respuestas específicas
+        # Puedes mapear los títulos de los botones a acciones o siguientes preguntas
+        logger.info(f"Manejando respuesta de botón: {user_message}")
+        button = await sync_to_async(current_question.botones_pregunta.filter(name__iexact=user_message).first)()
+        
+        if button:
+            next_question = button.next_question
+            if next_question:
+                event.current_question = next_question
+                await event.asave()
+                response = render_dynamic_content(next_question.content, context)
+                return response, []
+            else:
+                # Si no hay siguiente pregunta, finalizar el flujo o realizar otra acción
+                await send_message(event.platform, event.user_id, "Gracias por tu participación.", event.business_unit)
+                event.current_question = None
+                await event.asave()
+                return "Gracias por tu participación.", []
+        else:
+            logger.warning(f"No se encontró botón correspondiente para la respuesta: {user_message}")
+            response = "No entendí tu selección. Por favor, elige una opción válida."
+            return response, []
+
+    async def handle_persistent_menu(self, event):
+        user = await sync_to_async(Person.objects.get)(phone=event.user_id)
+        context = {
+            'name': user.name or ''
+        }
+        response = f"Aquí tienes el menú principal, {context['name']}:"
+        await send_menu(event.platform, event.user_id)
+        return response, []
+# -------------------------------------------
+# Funciones bajo revisión en otros archivos para ver si se eliminan
+# -------------------------------------------
+# Estas funciones pueden ser eliminadas si no se utilizan en otros archivos.
+# He revisado el archivo tasks.py que proporcionaste y encontré que la función
+    async def notify_interviewer(self, interview):
+        """
+        Notifica al entrevistador que el candidato ha confirmado su asistencia.
+        """
+        job = interview.job
+        interviewer = interview.interviewer  # Asegúrate de que este campo existe
+        interviewer_phone = job.whatsapp or interviewer.phone  # WhatsApp del entrevistador
+        interviewer_email = job.email or interviewer.email     # Email del entrevistador
+
+        message = (
+            f"El candidato {interview.person.name} ha confirmado su asistencia a la entrevista para la posición {job.title}.\n"
+            f"Fecha de la entrevista: {interview.interview_date.strftime('%Y-%m-%d %H:%M')}\n"
+            f"Tipo de entrevista: {'Presencial' if interview.interview_type == 'presencial' else 'Virtual'}"
+        )
+        try:
+            # Enviar notificación por WhatsApp
+            if interviewer_phone:
+                await send_message('whatsapp', interviewer_phone, message)
+                logger.info(f"Notificación enviada al entrevistador vía WhatsApp: {interviewer_phone}")
+
+            # Enviar notificación por correo electrónico
+            if interviewer_email:
+                subject = f"Confirmación de asistencia para {job.title}"
+                await send_email(
+                    business_unit_name=job.business_unit.name,
+                    subject=subject,
+                    to_email=interviewer_email,  # Asegurado que el parámetro es 'to_email'
+                    body=message
+                )
+                logger.info(f"Notificación enviada al entrevistador vía email: {interviewer_email}")
+
+        except Exception as e:
+            logger.error(f"Error enviando notificación al entrevistador: {e}")
+# `notify_interviewer` es llamada desde tasks.py. Por lo tanto, esa función debe mantenerse.
+
+    async def process_user_message(self, event, text, analysis, context):
+        """
+        Procesa el mensaje del usuario y determina la respuesta.
+
+        :param event: Instancia de ChatState.
+        :param text: Mensaje del usuario.
+        :param analysis: Resultado del análisis NLP.
+        :param context: Contexto de la conversación.
+        :return: Respuesta y opciones.
+        """
+        try:
+            current_question = event.current_question
+
+            if not current_question:
+                return "No hay una pregunta actual en el flujo.", []
+
+            # Determine the next question or action
+            response, options = await self.determine_next_question(
+                event, text, analysis, context
+            )
+            return response, options
+        except Exception as e:
+            logger.error(f"Error processing user message in process_user_message: {e}", exc_info=True)
+            return "Ha ocurrido un error al procesar tu mensaje. Por favor, intenta nuevamente.", []
+
+    def get_flow_model(self, business_unit):
+            """
+            Obtiene el FlowModel asociado a la unidad de negocio.
+            """
+            try:
+                return FlowModel.objects.filter(business_unit=business_unit).first()
+            except Exception as e:
+                logger.error(f"Error obteniendo FlowModel: {e}")
+                return None
+        
     async def recap_information(self, user):
         """
-        Función para hacer un recap de la información proporcionada por el usuario y permitirle hacer ajustes.
+        Proporciona un resumen de la información del usuario y le permite hacer ajustes.
+
+        :param user: Instancia de Person.
+        :return: Mensaje de recapitulación.
         """
         recap_message = (
             f"Recapitulación de tu información:\n"
@@ -2229,1283 +1041,1538 @@ class ChatBotHandler:
             f"CURP: {user.curp}\n"
             f"Ubicación: {user.ubicacion}\n"
             f"Experiencia Laboral: {user.work_experience}\n"
-            f"Nivel Salarial Esperado: {user.nivel_salarial}"
+            f"Nivel Salarial Esperado: {user.nivel_salarial}\n\n"
+            "¿Es correcta esta información? Responde 'Sí' o 'No'."
         )
         return recap_message
 
+    async def handle_correction_request(self, event, user_response):
+        """
+        Permite que el usuario corrija su información tras la recapitulación.
+
+        :param event: Instancia de ChatState.
+        :param user_response: Respuesta del usuario.
+        """
+        correction_message = "Por favor, indica qué dato deseas corregir (e.g., 'nombre', 'email')."
+        await self.send_response(event.platform, event.user_id, correction_message)
+        event.awaiting_correction = True
+        await event.asave()
+
+    async def update_user_information(self, user, user_input):
+        """
+        Actualiza la información del usuario basada en la entrada de corrección.
+
+        :param user: Instancia de Person.
+        :param user_input: Entrada del usuario para actualizar datos.
+        """
+        field_mapping = {
+            "nombre": "name",
+            "apellido paterno": "apellido_paterno",
+            "apellido materno": "apellido_materno",
+            "nacionalidad": "nationality",
+            "email": "email",
+            "ubicación": "ubicacion",
+            "experiencia laboral": "work_experience",
+            "nivel salarial": "nivel_salarial",
+        }
+        try:
+            field, new_value = user_input.split(':', 1)
+            field = field_mapping.get(field.strip().lower())
+            if field:
+                setattr(user, field, new_value.strip())
+                await user.asave()
+            else:
+                logger.info(f"Campo no encontrado para actualizar: {user_input}")
+        except ValueError:
+            logger.warning(f"Entrada de usuario inválida para actualización: {user_input}")
+
     async def invite_known_person(self, referrer, name, apellido, phone_number):
         """
-        Función para invitar a un conocido por WhatsApp y crear un pre-registro del invitado.
+        Invita a una persona conocida vía WhatsApp y crea un pre-registro.
+
+        :param referrer: Usuario que refiere.
+        :param name: Nombre del invitado.
+        :param apellido: Apellido del invitado.
+        :param phone_number: Número de teléfono del invitado.
+        :return: Instancia de Person creada o existente.
         """
-        invitado, created = await Person.objects.aget_or_create(phone=phone_number, defaults={
-            'name': name,
-            'apellido_paterno': apellido
-        })
+        invitado, created = await Person.objects.aget_or_create(
+            phone=phone_number,
+            defaults={'name': name, 'apellido_paterno': apellido},
+        )
 
         await Invitacion.objects.acreate(referrer=referrer, invitado=invitado)
 
         if created:
-            mensaje = f"Hola {name}, has sido invitado por {referrer.name} a unirte a Amigro.org. ¡Únete a nuestra comunidad!"
+            mensaje = (
+                f"Hola {name}, has sido invitado por {referrer.name} a unirte a Amigro.org. "
+                "¡Encuentra empleo en México de manera segura, gratuita e incluso podemos asesorarte en temas migrantes!"
+            )
             await send_message("whatsapp", phone_number, mensaje)
 
         return invitado
+# Métodos usados al momento de aplicar, agendar y enviar invitaciones
+# Revisé el archivo tasks.py y encontré que `notify_interviewer` es utilizado en `notify_interviewer_task`
+# Por lo tanto, la función `notify_interviewer` debe mantenerse.
+    async def _get_next_main_question(self, event, current_question):
+        return await sync_to_async(lambda: current_question.next_si)()
 
-
-
-____
-
-#/home/amigro/app/Event.py
-
-import json
-import os
-import os.path as path
-from typing import Dict, List, Tuple, Any
-from django.conf import settings
-from app.models import Pregunta, Buttons, SubPregunta
-from app.singleton import singleton
-import logging
-
-# Inicializa el logger
-logger = logging.getLogger('event')
-
-#@singleton  # Si necesitas que sea singleton, descomenta esta línea.
-class PersonData:
-
-    @classmethod
-    def getter(cls, user_id: str) -> Tuple[str, List[Dict[str, str]], str]:
-        """
-        Obtiene los datos del usuario.
-        """
-        logger.info(f"Obteniendo datos para usuario: {user_id}")
-        return cls.valid_response(user_id)
-    
-    @classmethod
-    def get_all(cls, user_id: str) -> Dict[str, Any]:
-        """
-        Obtiene todos los datos del usuario.
-        """
-        logger.info(f"Obteniendo todos los datos para usuario: {user_id}")
-        return cls.read_json(user_id)
-
-    @classmethod
-    def setter(cls, user_id: str, user_response: str) -> None:
-        """
-        Establece la respuesta del usuario.
-        """
-        logger.info(f"Guardando respuesta para usuario {user_id}: {user_response}")
-        interact = cls.initialize(Pregunta.objects.all()) if not cls.valid(user_id) else cls.read_json(user_id)
-
-        # Refactoriza para manejar preguntas y sub-preguntas de forma separada
-        for key, value in interact.items():
-            if not value["response"]:
-                value["response"] = user_response
-                break
-            for sub_preguntas in value["sub_pregunta"].values():
-                for sub_pregunta in sub_preguntas:
-                    if not sub_pregunta["response"]:
-                        logger.info(f"SubPregunta: {sub_pregunta['request']}")
-                        sub_pregunta["response"] = user_response
-                        cls.write_json(user_id, interact)
-                        return
-
-        cls.write_json(user_id, interact)
-
-    @classmethod
-    def clear(cls, user_id: str) -> None:
-        """
-        Limpia los datos del usuario.
-        """
-        logger.info(f"Limpieza de datos para usuario {user_id}")
-        interact = cls.read_json(user_id)
-        if interact:
-            interact.pop(next(iter(interact)))
-            cls.write_json(user_id, interact)
-
-    @classmethod
-    def clear_all(cls) -> None:
-        """
-        Limpia todos los datos de todos los usuarios.
-        """
-        logger.warning("Limpieza de todos los datos de los usuarios.")
-        media_dir = os.path.join(settings.MEDIA_ROOT)
-        for filename in os.listdir(media_dir):
-            if filename.endswith('.json'):
-                os.remove(os.path.join(media_dir, filename))
-
-    @classmethod
-    def valid(cls, user_id: str) -> bool:
-        """
-        Verifica si existen datos para el usuario.
-        """
-        return path.exists(os.path.join(settings.MEDIA_ROOT, f"{user_id}.json"))
-
-    @classmethod
-    def valid_response(cls, user_id: str) -> Tuple[str, List[Dict[str, str]], str]:
-        """
-        Obtiene la respuesta válida para el usuario.
-        """
-        request, _button, p = "", [], ""
-        interact = cls.read_json(user_id)
-        for p, value in interact.items():
-            if not value["response"]:
-                return value["request"], value["buttons"], p
-            for sub_preguntas in value["sub_pregunta"].values():
-                for sp_data in sub_preguntas:
-                    logger.info(f"SubPregunta: {sp_data['request']}")
-                    if not sp_data["response"]:
-                        return sp_data["request"], sp_data["buttons"], p
-        return request, _button, p
-
-    @classmethod
-    def read_json(cls, user_id: str) -> Dict[str, Any]:
-        """
-        Lee el archivo JSON de interacciones del usuario.
-        """
-        file_path = os.path.join(settings.MEDIA_ROOT, f"{user_id}.json")
-        try:
-            with open(file_path, "r") as file:
-                return json.load(file)
-        except FileNotFoundError:
-            logger.error(f"Archivo no encontrado para el usuario {user_id}")
-            return {}
-        except json.JSONDecodeError:
-            logger.error(f"Error al decodificar JSON para el usuario {user_id}")
-            return {}
-
-    @classmethod
-    def initialize(cls, preguntas: List[Pregunta]) -> Dict[str, Any]:
-        """
-        Inicializa los datos del usuario.
-        """
-        logger.info(f"Inicializando datos de usuario con {len(preguntas)} preguntas.")
-        interact = {"init": {"request": "init", "response": "", "valid": "", "yes_or_not": "", "buttons": [], "sub_pregunta": {}}}
-        for p in preguntas:
-            buttons = [{"title": str(button.name), "id": str(button.id)} for button in Buttons.objects.filter(pregunta=p)]
-            sub_pregunta_data = cls.build_subpreguntas(p)
-            interact[p.option] = {
-                "request": p.name,
-                "response": "",
-                "valid": p.valid,
-                "yes_or_not": p.yes_or_not,
-                "buttons": buttons,
-                "sub_pregunta": sub_pregunta_data
-            }
-        return interact
-
-    @staticmethod
-    def build_subpreguntas(pregunta: Pregunta) -> Dict[str, Any]:
-        """
-        Crea la estructura de subpreguntas para una pregunta.
-        """
-        sub_pregunta_data = {}
-        for sec in SubPregunta.objects.filter(pregunta=pregunta):
-            buttons_sub = [{"title": str(button.name), "id": str(button.id)} for button in Buttons.objects.filter(sub_pregunta=sec)]
-            etape_number = sec.etape.number if sec.etape else ""
-            sub_pregunta_data.setdefault(etape_number, []).append({
-                "request": sec.name,
-                "response": "",
-                "valid": sec.valid,
-                "yes_or_not": sec.yes_or_not,
-                "buttons": buttons_sub,
-                "secuence": sec.secuence,
-                "etape": etape_number
-            })
-        return sub_pregunta_data
-
-    @classmethod
-    def write_json(cls, user_id: str, data: Dict[str, Any]) -> None:
-        """
-        Escribe los datos del usuario en un archivo JSON.
-        """
-        file_path = os.path.join(settings.MEDIA_ROOT, f"{user_id}.json")
-        with open(file_path, "w") as file:
-            json.dump(data, file, indent=2)
-
-    @classmethod
-    def rename_file(cls, user_id: str) -> None:
-        """
-        Renombra el archivo JSON del usuario.
-        """
-        old_name = os.path.join(settings.MEDIA_ROOT, f"{user_id}.json")
-        for i in range(20):
-            new_name = os.path.join(settings.MEDIA_ROOT, f"{user_id}-{i}.json")
-            if not path.exists(new_name):
-                os.rename(old_name, new_name)
-                logger.info(f"Archivo JSON renombrado para el usuario {user_id}")
-                break
-
-    @classmethod
-    def valid_full(cls, data: Dict[str, Any]) -> bool:
-        """
-        Verifica si todos los datos del usuario están completos.
-        """
-        return all(value["response"] for key, value in data.items() if key != "end")
-
-_____
-
-# /home/amigro/app/google_calendar.py
-
-from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
-
-def create_calendar_event(slot, user, job):
-    # Configurar las credenciales
-    creds = Credentials.from_authorized_user_file('path/to/credentials.json', ['https://www.googleapis.com/auth/calendar'])
-    service = build('calendar', 'v3', credentials=creds)
-    
-    # Crear el evento
-    event = {
-        'summary': f'Entrevista con {user.name} para {job.name}',
-        'start': {
-            'dateTime': f"{slot['date']}T{slot['time']}:00",
-            'timeZone': 'America/Mexico_City',
-        },
-        'end': {
-            'dateTime': f"{slot['date']}T{slot['time']}:30",  # Duración de 30 minutos
-            'timeZone': 'America/Mexico_City',
-        },
-        'attendees': [
-            {'email': user.email},
-        ],
-    }
-    
-    event = service.events().insert(calendarId='primary', body=event).execute()
-    return event.get('htmlLink')
-
-_____
-
-# /home/amigro/app/gpt.py
-import requests
-import json
-import os
-import openai
-import logging
-
-#openai.organization = "org-B19vTHzNZ5FIuzsFOgDmisDi"
-#openai.api_key = os.getenv("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")
-#openai.api_key = "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"
-#openai.Model.list()
-logger = logging.getLogger(__name__)
-
-def gpt_message(api_token, text, model):
-    """
-    Genera una respuesta utilizando la API de OpenAI GPT.
-
-    Args:
-        api_token (str): El token de autenticación para la API de OpenAI.
-        text (str): El texto de entrada para el modelo.
-        model (str): El modelo a utilizar (por ejemplo, 'gpt-3.5-turbo').
-
-    Returns:
-        dict: La respuesta de la API de OpenAI.
-
-    Raises:
-        Exception: Si ocurre un error al llamar a la API.
-    """
-    try:
-        openai.api_key = api_token
-
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[
-                {"role": "user", "content": text}
-            ]
+    async def _handle_whatsapp_template(
+        self, event, current_question, context
+    ) -> Tuple[str, List]:
+        await send_message(
+            event.platform, event.user_id, f"Enviando template: {current_question.option}"
         )
-        return response
-    except Exception as e:
-        logger.error(f"Error al llamar a la API de OpenAI: {e}", exc_info=True)
-        raise e  # Re-lanzar la excepción para que pueda ser manejada por el llamador
-
-if __name__ == "__main__":
-    # No incluyas tu API Key directamente en el código
-    api_token = "TU_API_KEY_AQUÍ"
-    text = "Formúleme la siguiente pregunta de una manera realista..."
-    model = "gpt-3.5-turbo"
-
-    response = gpt_message(api_token, text, model)
-    print(response)
-
-
-
-_____
-
-# /home/amigro/app/models.py
-
-from django.db import models
-from datetime import datetime
-
-# Estado del Chat
-class ChatState(models.Model):
-    user_id = models.CharField(max_length=50)
-    platform = models.CharField(max_length=20)  # 'telegram', 'whatsapp', 'messenger'
-    current_question = models.ForeignKey('Pregunta', on_delete=models.CASCADE, null=True, blank=True)
-    last_interaction = models.DateTimeField(auto_now=True)
-    context = models.JSONField(blank=True, null=True, default=dict)
-
-    def __str__(self):
-        return f"ChatState {self.user_id} - {self.platform}"
-
-class Condicion(models.Model):
-    nombre = models.CharField(max_length=100)
-    valor_esperado = models.CharField(max_length=100)
-    descripcion = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return f"Condicion: {self.nombre} (espera: {self.valor_esperado})"
-
-class Etapa(models.Model):
-    nombre = models.CharField(max_length=255)
-    descripcion = models.TextField(blank=True, null=True)
-    activo = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.nombre
-
-class Pregunta(models.Model):
-    INPUT_TYPE_CHOICES = [
-        ('text', 'Texto'),
-        ('name', 'Nombre'),
-        ('apellido_paterno', 'Apellido Paterno'),
-        ('apellido_materno', 'Apellido Materno'),
-        ('nationality', 'Nacionalidad'),
-        ('fecha_nacimiento', 'Fecha de Nacimiento'),
-        ('sexo', 'Sexo'),
-        ('email', 'Email'),
-        ('phone', 'Celular'),
-        ('family_traveling', 'Viaja con Familia'),
-        ('policie', 'Politica Migratoria'),
-        ('group_aditionality', 'Viaja en Grupo'),
-        ('passport', 'Pasaporte'),
-        ('additional_official_documentation', 'Documentación Adicional'),
-        ('int_work', 'Intención de Trabajo'),
-        ('menor', 'Menores'),
-        ('refugio', 'Refugio'),
-        ('perm_humanitario', 'Permiso Humanitario'),
-        ('solicita_refugio', 'Solicitud de Refugio'),
-        ('cita', 'Fecha de Cita'),
-        ('piensa_solicitar_refugio', 'Contempla Solicitud de Refugio'),
-        ('industria_work', 'Industria de Trabajo'),
-        ('licencia', 'Licencia para Trabajar'),
-        ('curp', 'CURP'),
-        ('date_permit', 'Fecha del Permiso'),
-        ('ubication', 'Ubicación'),
-        ('work_experience', 'Experiencia Laboral'),
-        ('saludo', 'Saludo'),
-        ('file', 'Archivo / CV'),
-        ('per_trabajo', 'Permiso de Trabajo'),
-        ('preferred_language', 'Idioma Preferido'),
-        ('skills', 'Habilidades'),
-        ('experience_years', 'Años de Experiencia'),
-        ('desired_job_types', 'Tipo de Trabajo Deseado'),
-        ('nivel_salarial', 'Nivel Salarial Deseado'),
-    ]
-
-    ACTION_TYPE_CHOICES = [
-        ('none', 'Ninguna acción'),
-        ('mostrar_vacantes', 'Mostrar Vacantes'),
-        ('enviar_whatsapp_plantilla', 'Enviar Plantilla WhatsApp'),
-        ('enviar_imagen', 'Enviar Imagen'),
-        ('enviar_url', 'Enviar URL'),
-        ('recap', 'Hacer Recapitulación'),
-        # Otras acciones personalizadas que necesites
-    ]
-
-    name = models.TextField(max_length=800)
-    etapa = models.ForeignKey('Etapa', on_delete=models.CASCADE, default=1)
-    option = models.CharField(max_length=50)
-    valid = models.BooleanField(null=True, blank=True)
-    active = models.BooleanField(default=True)
-    content = models.TextField(blank=True, null=True)
-    sub_pregunta = models.ManyToManyField('SubPregunta', blank=True, related_name='pregunta_principal')
-    decision = models.JSONField(blank=True, null=True, default=dict)  # {respuesta: id_pregunta_siguiente}
-    condiciones = models.ManyToManyField(Condicion, blank=True)
-    input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
-    requires_response = models.BooleanField(default=True)
-    field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la pregunta con el campo de Person
-    action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
-
-    def __str__(self):
-        return str(self.name)
-
-
-class SubPregunta(models.Model):
-    INPUT_TYPE_CHOICES = Pregunta.INPUT_TYPE_CHOICES
-    ACTION_TYPE_CHOICES = Pregunta.ACTION_TYPE_CHOICES  # Mismas opciones que Pregunta
-
-    name = models.CharField(max_length=800)
-    option = models.CharField(max_length=50)
-    valid = models.BooleanField(null=True, blank=True)
-    active = models.BooleanField(default=True)
-    content = models.TextField(blank=True, null=True)
-    parent_sub_pregunta = models.ForeignKey('self', blank=True, null=True, on_delete=models.SET_NULL)
-    decision = models.JSONField(blank=True, null=True, default=dict)
-    input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
-    requires_response = models.BooleanField(default=True)
-    field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la subpregunta con el campo de Person
-    action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
-
-    def __str__(self):
-        return str(self.name)
-
-class TelegramAPI(models.Model):
-    api_key = models.CharField(max_length=255)
-    bot_name = models.CharField(max_length=255, blank=True, null=True)
-
-    def __str__(self):
-        return self.bot_name or "Telegram Bot"
-
-class MetaAPI(models.Model):
-    app_id = models.CharField(max_length=255, default='662158495636216')
-    app_secret = models.CharField(max_length=255, default='7732534605ab6a7b96c8e8e81ce02e6b')
-    verify_token = models.CharField(max_length=255, default='amigro_secret_token')
-
-    def __str__(self):
-        return f"MetaAPI {self.app_id}"
-
-class WhatsAppAPI(models.Model):
-    phoneID = models.CharField(max_length=100)
-    api_token = models.CharField(max_length=500)
-    WABID = models.CharField(max_length=100, default='104851739211207')
-    v_api = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f"WhatsApp API {self.phoneID}"
-
-class MessengerAPI(models.Model):
-    page_access_token = models.CharField(max_length=255)
-
-    def __str__(self):
-        return "Messenger Configuration"
-
-class InstagramAPI(models.Model):
-    app_id = models.CharField(max_length=255, default='1615393869401916')
-    access_token = models.CharField(max_length=255, default='5d8740cb80ae42d8b5cafb47e6c461d5')
-    instagram_account_id = models.CharField(max_length=255, default='17841457231476550')
-
-    def __str__(self):
-        return f"InstagramAPI {self.app_id}"
-
-class GptApi(models.Model):
-    api_token = models.CharField(max_length=500)
-    organization = models.CharField(max_length=100, blank=True, null=True)
-    project = models.CharField(max_length=100, blank=True, null=True)
-    model = models.CharField(max_length=100)
-    form_pregunta = models.CharField(max_length=500)
-    work_pregunta = models.CharField(max_length=500)
-
-    def __str__(self):
-        return f"Model: {self.model} | Organization: {self.organization} | Project: {self.project}"
-
-class Chat(models.Model):
-    body = models.TextField(max_length=1000)
-    SmsStatus = models.CharField(max_length=15, null=True, blank=True)
-    From = models.CharField(max_length=15)
-    To = models.CharField(max_length=15)
-    ProfileName = models.CharField(max_length=50)
-    ChannelPrefix = models.CharField(max_length=50)
-    MessageSid = models.CharField(max_length=100, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True) #Agregando campo de fecha de creación
-    updated_at = models.DateTimeField(auto_now_add=True) #Agregando campo de fecha de creación
-    message_count = models.IntegerField(default=0)
-
-    def __str__(self):
-        return str(self.body)
-
-class Worker(models.Model):
-    name = models.CharField(max_length=100)
-    job_id = models.CharField(max_length=100, blank=True, null=True)
-    url_name = models.CharField(max_length=100, blank=True, null=True)
-    salary = models.CharField(max_length=100, blank=True, null=True)
-    job_type = models.CharField(max_length=100, blank=True, null=True)
-    img_company = models.CharField(max_length=500, blank=True, null=True)
-    company = models.CharField(max_length=100, blank=True, null=True)
-    address = models.CharField(max_length=200, blank=True, null=True)
-    longitude = models.CharField(max_length=100, blank=True, null=True)
-    latitude = models.CharField(max_length=100, blank=True, null=True)
-    required_skills = models.TextField(blank=True, null=True)
-    experience_required = models.IntegerField(blank=True, null=True)
-    job_description = models.TextField(blank=True, null=True)
-    interview_slots = models.JSONField(blank=True, null=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['name']),
-            models.Index(fields=['job_id']),
-            models.Index(fields=['company']),
-        ]
-
-    def __str__(self) -> str:
-        return str(self.name)
-
-class Person(models.Model):
-    number_interaction = models.CharField(max_length=40, unique=True)
-    name = models.CharField(max_length=100)
-    apellido_paterno = models.CharField(max_length=200, blank=True, null=True)
-    apellido_materno = models.CharField(max_length=200, blank=True, null=True)
-    nationality = models.CharField(max_length=100, blank=True, null=True)
-    fecha_nacimiento = models.DateField(blank=True, null=True)
-    sexo = models.CharField(max_length=20, choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')])
-    email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=40, blank=True, null=True)
-    family_traveling = models.BooleanField(default=False)
-    policie = models.BooleanField(default=False)
-    group_aditionality = models.BooleanField(default=False)
-    passport = models.CharField(max_length=50, blank=True, null=True)
-    additional_official_documentation = models.CharField(max_length=50, blank=True, null=True)
-    int_work = models.BooleanField(default=False)
-    menor = models.BooleanField(default=False)
-    refugio = models.BooleanField(default=False)
-    perm_humanitario = models.BooleanField(default=False)
-    solicita_refugio = models.BooleanField(default=False)
-    cita = models.DateTimeField(blank=True, null=True)
-    piensa_solicitar_refugio = models.BooleanField(default=False)
-    industria_work = models.BooleanField(default=False)
-    licencia = models.BooleanField(default=False)
-    curp = models.CharField(max_length=50, blank=True, null=True)
-    date_permit = models.DateField(blank=True, null=True)
-    ubication = models.CharField(max_length=100, blank=True, null=True)
-    work_experience = models.TextField(blank=True, null=True)
-    saludo = models.TextField(blank=True, null=True)
-    file = models.FileField(upload_to='person_files/', blank=True, null=True)
-    per_trabajo = models.TextField(blank=True, null=True)
-    preferred_language = models.CharField(max_length=5, default='es_MX')
-    skills = models.TextField(blank=True, null=True)
-    experience_years = models.IntegerField(blank=True, null=True)
-    desired_job_types = models.CharField(max_length=100, blank=True, null=True)
-    nivel_salarial = models.CharField(max_length=100, blank=True, null=True)
-
-    def __str__(self):
-        return f"{self.name} {self.lastname}"
-
-class Invitacion(models.Model):
-    referrer = models.ForeignKey(Person, related_name='invitaciones_enviadas', on_delete=models.CASCADE)
-    invitado = models.ForeignKey(Person, related_name='invitaciones_recibidas', on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-class SmtpConfig(models.Model):
-    host = models.CharField(max_length=255)
-    port = models.IntegerField()
-    username = models.CharField(max_length=255)
-    password = models.CharField(max_length=255)
-    use_tls = models.BooleanField(default=True)
-    use_ssl = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"{self.host}:{self.port}"
-
-class Buttons(models.Model):
-    name = models.CharField(max_length=800)
-    active = models.BooleanField()
-    pregunta = models.ManyToManyField(Pregunta, blank=True)
-    sub_pregunta = models.ManyToManyField(SubPregunta, blank=True)
-
-    def __str__(self):
-        return str(self.name)
-
-class FlowModel(models.Model):
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True, null=True)
-    preguntas = models.ManyToManyField(Pregunta, related_name='flowmodels')
-    flow_data_json = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-
-_____
-
-
-# /home/amigro/app/nlp_utils.py
-
-import spacy
-from spacy.matcher import Matcher
-import logging
-
-logger = logging.getLogger(__name__)
-
-try:
-    # Cargar el modelo en español de spaCy
-    nlp = spacy.load("es_core_news_sm")
-except Exception as e:
-    logger.error(f"Error al cargar el modelo de spaCy: {e}")
-    raise e  # Re-lanzar la excepción para que el programa pueda manejarlo adecuadamente
-
-# Inicializar el Matcher de spaCy
-matcher = Matcher(nlp.vocab)
-
-# Definir patrones para identificar intenciones
-patterns = [
-    {"label": "saludo", "pattern": [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "buenas noches"]}}]},
-    {"label": "despedida", "pattern": [{"LOWER": {"IN": ["adiós", "hasta luego", "nos vemos", "chao", "gracias"]}}]},
-    {"label": "buscar_vacante", "pattern": [{"LEMMA": "buscar"}, {"LEMMA": "vacante"}]},
-    {"label": "postular_vacante", "pattern": [{"LEMMA": "postular"}, {"LEMMA": "vacante"}]},
-    # Añade más patrones según tus necesidades
-]
-
-# Añadir patrones al Matcher
-for pattern in patterns:
-    matcher.add(pattern["label"], [pattern["pattern"]])
-
-def analyze_text(text):
-    """
-    Analiza el texto del usuario y extrae intenciones y entidades.
-
-    Args:
-        text (str): Mensaje del usuario.
-
-    Returns:
-        dict: Diccionario con intenciones y entidades extraídas.
-    """
-    try:
-        doc = nlp(text.lower())
-
-        # Buscar patrones de intención
-        matches = matcher(doc)
-        intents = []
-        for match_id, start, end in matches:
-            intent = nlp.vocab.strings[match_id]
-            intents.append(intent)
-
-        # Extraer entidades nombradas
-        entities = [(ent.text, ent.label_) for ent in doc.ents]
-
-        # Retornar análisis
-        return {
-            "intents": intents,
-            "entities": entities,
-        }
-    except Exception as e:
-        logger.error(f"Error al analizar el texto: {e}", exc_info=True)
-        return {
-            "intents": [],
-            "entities": [],
-        }
-
-_____
-
-# /home/amigro/app/singleton.py
-def singleton(cls):
-    instances = dict()
-
-    def wrap(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-        
-    return wrap
-
-
-_____
-
-# /home/amigro/app/tasks.py
-
-import requests
-from celery import shared_task
-from app.integrations.services import WhatsAppService, MessengerService, TelegramService, send_options, WhatsAppAPI, MessengerAPI, TelegramAPI, InstagramAPI
-from app.models import Person, Worker, WhatsAppAPI
-from app.vacantes import match_person_with_jobs
-import logging
-
-# Inicializa el logger
-logger = logging.getLogger('celery_tasks')
-
-# Tarea para enviar mensajes de WhatsApp de manera asíncrona
-@shared_task(bind=True, max_retries=3)
-def send_whatsapp_message(self, recipient, message):  # Añadir 'self' como primer argumento
-    try:
-        whatsapp_api = WhatsAppAPI.objects.first()
-        if whatsapp_api:
-            api_token = whatsapp_api.api_token
-            phone_id = whatsapp_api.phoneID
-            version_api = whatsapp_api.v_api
-            whatsapp_service = WhatsAppService(api_token=api_token, phone_id=phone_id, version_api=version_api)
-            whatsapp_service.send_message(recipient, message)
-            logger.info(f"Mensaje de WhatsApp enviado correctamente a {recipient}")
+        return await self._advance_to_next_question(event, current_question, context)
+
+    async def _handle_url(
+        self, event, current_question, context
+    ) -> Tuple[str, List]:
+        await send_message(event.platform, event.user_id, "Aquí tienes el enlace:")
+        await send_message(event.platform, event.user_id, current_question.content)
+        return await self._advance_to_next_question(event, current_question, context)
+
+    async def _handle_image(
+        self, event, current_question, context
+    ) -> Tuple[str, List]:
+        await send_message(event.platform, event.user_id, "Aquí tienes la imagen:")
+        await send_image(event.platform, event.user_id, current_question.content)
+        return await self._advance_to_next_question(event, current_question, context)
+
+    async def _handle_logo(
+        self, event, current_question, context
+    ) -> Tuple[str, List]:
+        await send_logo(event.platform, event.user_id)
+        return await self._advance_to_next_question(event, current_question, context)
+
+    async def _handle_yes_no_decision(
+        self, event, current_question, context
+    ) -> Tuple[None, List]:
+        from app.integrations.whatsapp import send_whatsapp_decision_buttons
+
+        decision_buttons = [{"title": "Sí"}, {"title": "No"}]
+        whatsapp_api = await WhatsAppAPI.objects.afirst()
+        await send_whatsapp_decision_buttons(
+            event.user_id,
+            current_question.content,
+            decision_buttons,
+            whatsapp_api.api_token,
+            whatsapp_api.phoneID,
+            whatsapp_api.v_api,
+        )
+        return None, []
+
+    async def _handle_no_response_required(self, event, current_question, context) -> Tuple[Optional[str], List]:
+        await self.send_response(event.platform, event.user_id, current_question.content)
+        await asyncio.sleep(3)
+        next_question = await sync_to_async(lambda: current_question.next_si)()
+        if next_question:
+            response = render_dynamic_content(next_question.content, context)
+            return response, []
         else:
-            logger.error("No se encontró configuración de API de WhatsApp.")
-    except Exception as e:
-        logger.error(f"Error enviando mensaje a WhatsApp: {e}")
-        self.retry(exc=e, countdown=60)  # Reintenta después de 60 segundos
+            return "No hay más preguntas en este flujo.", []
+        
+    async def _handle_multi_select(self, event, current_question, user_message: str, context) -> Tuple[Optional[str], List]:
+        selected_options = [option.strip().lower() for option in user_message.split(',')]
+        valid_options = []
+        for option in selected_options:
+            selected_button = await sync_to_async(
+                lambda: current_question.botones_pregunta.filter(name__iexact=option).first()
+            )()
+            if selected_button:
+                valid_options.append(selected_button.name)
+            else:
+                return "Opción no válida. Selecciona una opción válida.", []
 
-# Tarea para enviar botones de WhatsApp de manera asíncrona
-@shared_task(bind=True, max_retries=3)
-def send_whatsapp_options(self, recipient, message, options, api_token, phone_id, version_api):
-    try:
-        send_options('whatsapp', recipient, message)
-        logger.info(f"Opciones enviadas a WhatsApp {recipient}")
-    except Exception as e:
-        logger.error(f"Error enviando opciones a WhatsApp: {e}")
-        self.retry(exc=e, countdown=60)
+        return await self._advance_to_next_question(event, current_question, context)
 
-# Tarea para enviar mensajes de Telegram de manera asíncrona
-@shared_task(bind=True, max_retries=3)
-def send_telegram_message(self, chat_id, message, bot_token):
-    try:
-        telegram_service = TelegramService(bot_token=bot_token)
-        telegram_service.send_message(chat_id, message)
-        logger.info(f"Mensaje de Telegram enviado correctamente a {chat_id}")
-    except Exception as e:
-        logger.error(f"Error enviando mensaje a Telegram: {e}")
-        self.retry(exc=e, countdown=60)
+    async def _advance_to_next_question(
+        self, event, current_question, context
+    ) -> Tuple[str, List]:
+        next_question = current_question.next_si
+        if next_question:
+            event.current_question = next_question
+            await event.asave()
+            response = render_dynamic_content(next_question.content, context)
+            return response, []
+        else:
+            return "No hay más preguntas en este flujo.", []
+# Metodos usados al momento de aplicar, agendar y enviar invitaciones
+    async def handle_new_job_position(self, event):
+        """
+        Procesa la creación de una nueva posición laboral y envía la confirmación al usuario.
 
-# Tarea para enviar botones de Telegram de manera asíncrona
-@shared_task(bind=True, max_retries=3)
-def send_telegram_options(self, chat_id, message, options, bot_token):
-    try:
-        send_options('telegram', chat_id, message)
-        logger.info(f"Opciones enviadas a Telegram {chat_id}")
-    except Exception as e:
-        logger.error(f"Error enviando opciones a Telegram: {e}")
-        self.retry(exc=e, countdown=60)
+        :param event: Instancia de ChatState.
+        """
+        job_data = event.data  # Aquí recibimos los datos de la vacante recogidos en el flujo
 
-# Tarea para enviar mensajes de Messenger de manera asíncrona
-@shared_task(bind=True, max_retries=3)
-def send_messenger_message(self, recipient_id, message, access_token):
-    try:
-        messenger_service = MessengerService(access_token=access_token)
-        messenger_service.send_message(recipient_id, message)
-        logger.info(f"Mensaje de Messenger enviado correctamente a {recipient_id}")
-    except Exception as e:
-        logger.error(f"Error enviando mensaje a Messenger: {e}")
-        self.retry(exc=e, countdown=60)
+        # Llamar a la función para procesar la vacante y crearla en WordPress
+        result = await procesar_vacante(job_data)
 
-# Actualizar recomendaciones de trabajo para una persona
-@shared_task
-def update_job_recommendations():
-    try:
-        for person in Person.objects.filter(int_work=True):
-            matching_jobs = match_person_with_jobs(person)
-            logger.info(f"Recomendaciones de trabajo actualizadas para {person.name}")
-    except Exception as e:
-        logger.error(f"Error actualizando recomendaciones de trabajo: {e}")
+        # Verificar el resultado y notificar al usuario
+        if result["status"] == "success":
+            await send_message(
+                event.platform,
+                event.user_id,
+                "La vacante ha sido creada exitosamente en nuestro sistema.",
+            )
+        else:
+            await send_message(
+                event.platform,
+                event.user_id,
+                "Hubo un problema al crear la vacante. Por favor, inténtalo de nuevo.",
+            )
+            
+    async def request_candidate_location(self, event, interview):
+        """
+        Solicita al candidato que comparta su ubicación antes de la entrevista, solo si es presencial.
+        """
+        if interview.interview_type != 'presencial':
+            logger.info(f"No se solicita ubicación porque la entrevista es virtual para ID: {interview.id}")
+            return
 
-# Limpiar estados de chat antiguos
-@shared_task
-def clean_old_chat_states():
-    try:
-        # Agregar lógica para eliminar estados antiguos
-        logger.info("Estados de chat antiguos limpiados correctamente.")
-    except Exception as e:
-        logger.error(f"Error limpiando estados de chat antiguos: {e}")
-
-
-_____
-
-
-# /home/amigro/app/tests.py
-
-from django.test import TestCase
-from .models import FlowModel
-from django.urls import reverse
-import json
-
-class FlowModelTest(TestCase):
-    def setUp(self):
-        self.flow = FlowModel.objects.create(
-            name='Flujo de Prueba',
-            description='Descripción del flujo de prueba',
-            flow_data_json=json.dumps({
-                'nodes': [
-                    {'key': 'node1', 'text': 'Inicio', 'type': 'text', 'fill': 'lightblue'},
-                    {'key': 'node2', 'text': 'Pregunta 1', 'type': 'text', 'fill': 'lightblue'}
-                ],
-                'links': [
-                    {'key': 'link1', 'from': 'node1', 'to': 'node2', 'text': 'Sí'}
-                ]
-            })
+        message = (
+            "Hola, para confirmar tu asistencia a la entrevista presencial, por favor comparte tu ubicación actual. "
+            "Esto nos ayudará a verificar que estás en el lugar acordado."
         )
+        await send_message(event.platform, event.user_id, message)
 
-    def test_load_flow(self):
-        response = self.client.get(reverse('admin:load_flow') + f'?flowmodel_id={self.flow.id}')
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn('nodes', data)
-        self.assertIn('links', data)
-        self.assertEqual(len(data['nodes']), 2)
-        self.assertEqual(len(data['links']), 1)
+    async def handle_candidate_confirmation(self, platform, user_id, user_message):
+        """
+        Procesa la confirmación del candidato y guarda la información de ubicación si es presencial.
+        Notifica al entrevistador sobre la confirmación del candidato.
+        """
+        person = await sync_to_async(Person.objects.get)(phone=user_id)
+        interview = await sync_to_async(Interview.objects.filter)(person=person).first()
 
-    def test_save_flow(self):
-        new_flow_data = {
-            'flowmodel_id': self.flow.id,
-            'nodes': [
-                {'key': 'node1', 'text': 'Inicio', 'type': 'text', 'fill': 'lightblue'},
-                {'key': 'node2', 'text': 'Pregunta 1 Actualizada', 'type': 'text', 'fill': 'lightblue'}
-            ],
-            'links': [
-                {'key': 'link1', 'from': 'node1', 'to': 'node2', 'text': 'No'}
-            ]
-        }
-        response = self.client.post(reverse('admin:save_flow'), data=json.dumps(new_flow_data), content_type='application/json')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['status'], 'success')
-        self.flow.refresh_from_db()
-        updated_flow = json.loads(self.flow.flow_data_json)
-        self.assertEqual(updated_flow['nodes'][1]['text'], 'Pregunta 1 Actualizada')
-        self.assertEqual(updated_flow['links'][0]['text'], 'No')
-___
-# /home/amigro/app/urls.py
+        if not interview or interview.candidate_confirmed:
+            return
 
-from django.urls import path, include  # Asegúrate de importar `include`
-from django.conf.urls.static import static
-from django.conf import settings
-from . import views
-from .views import index
-from app.admin import admin_site
-from app.integrations.telegram import telegram_webhook
-from app.integrations.whatsapp import whatsapp_webhook
-from app.integrations.messenger import messenger_webhook
-from app.integrations.instagram import instagram_webhook
+        if user_message.lower() in ['sí', 'si', 'yes']:
+            interview.candidate_confirmed = True
+            message = "¡Gracias por confirmar tu asistencia!"
 
-urlpatterns = [
-    path('', index, name="index"),  # Página principal
+            # Si es presencial, solicitar ubicación
+            if interview.interview_type == 'presencial' and not interview.candidate_latitude:
+                message += "\nPor favor, comparte tu ubicación actual para validar que estás en el lugar correcto."
+            else:
+                message += "\nTe deseamos mucho éxito en tu entrevista."
 
-    # Webhooks para las distintas integraciones
-    path('webhook/whatsapp/048bd814-7716-4073-8acf-d491db68e9a1', whatsapp_webhook, name='whatsapp_webhook'),
-    path('webhook/telegram/871198362', telegram_webhook, name='telegram_webhook'),
-    path('webhook/messenger/109623338672452', messenger_webhook, name='messenger_webhook'),
-    path('webhook/instagram/109623338672452', instagram_webhook, name='instagram_webhook'),  # Token para Instagram
+            await send_message(platform, user_id, message)
+            await sync_to_async(interview.save)()
 
-    # Rutas para administrar preguntas
-    path('preguntas/', views.create_pregunta, name='create_pregunta'),
-    path('preguntas/<int:id>/', views.update_pregunta, name='update_pregunta'),
-    path('preguntas/<int:id>/position/', views.update_position, name='update_position'),
-    path('preguntas/<int:id>/delete/', views.delete_pregunta, name='delete_pregunta'),
+            # Notificar al entrevistador
+            await self.notify_interviewer(interview)
+        else:
+            await send_message(platform, user_id, "Por favor, confirma tu asistencia respondiendo con 'Sí'.")
+            
+_____________________
+# /home/amigro/app/integrations/services.py
 
-    # Rutas para la administración del flujo del chatbot
-    path('admin/', admin_site.urls),  # Admin personalizado
-
-    # Rutas relacionadas con el flujo del chatbot
-    path('admin/app/flowmodel/<int:flowmodel_id>/edit-flow/', views.edit_flow, name='edit_flow'),
-    path('admin/app/save_flow_structure/', views.save_flow_structure, name='save_flow_structure'),
-    path('admin/app/export_chatbot_flow/', views.export_chatbot_flow, name='export_chatbot_flow'),
-    path('admin/app/load_flow_data/', views.load_flow_data, name='load_flow_data'),
-
-    # Rutas para enviar mensajes
-    path('send-message/', views.send_message, name='send_message'),
-    path('send-test-message/', views.send_test_message, name='send_test_message'),
-]
-
-# Añadir rutas para archivos estáticos y media
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-#APP 713dd8c2-0801-4720-af2a-910da63c42d3   7732534605ab6a7b96c8e8e81ce02e6b
-_____
-
-# /home/amigro/app/vacantes.py
-
-import requests
-from bs4 import BeautifulSoup
-from app.models import Worker, Person
 import logging
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-# Configuración del logger
-logger = logging.getLogger(__name__)
-
-# Mantener la sesión abierta
-s = requests.session()
-
-def get_session():
-    headers = {'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N)'}
-    try:
-        response = requests.get("https://amigro.org/my-profile/", headers=headers)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        data = soup.find("input", {"id": "login_security"}).get("value")
-        return data
-    except requests.RequestException as e:
-        logger.error(f"Error obteniendo sesión: {e}")
-        return None
-
-def consult(page, url):
-    payload = (
-        'lang=&search_keywords=&search_location=&filter_job_type%5B%5D=freelance&'
-        'filter_job_type%5B%5D=full-time&filter_job_type%5B%5D=internship&'
-        'filter_job_type%5B%5D=part-time&filter_job_type%5B%5D=temporary&'
-        'per_page=6&orderby=title&order=DESC'
-    )
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'user-agent': 'Mozilla/5.0'}
-    try:
-        response = requests.post(url, headers=headers, data=payload)
-        response.raise_for_status()
-        html = response.json()
-        soup = BeautifulSoup(html["html"], "html.parser")
-        vacantes = []
-
-        for li in soup.find_all("li"):
-            if "data-title" in str(li):
-                vacantes.append({
-                    "id": li.get("data-job_id"),
-                    "title": li.get("data-title"),
-                    "salary": li.get("data-salary"),
-                    "job_type": li.get("data-job_type_class"),
-                    "company": li.get("data-company"),
-                    "location": {
-                        "address": li.get("data-address"),
-                        "longitude": li.get("data-longitude"),
-                        "latitude": li.get("data-latitude"),
-                    },
-                    "agenda": {
-                        "slot 1": li.get("job_booking_1"),
-                        "slot 2": li.get("job_booking_2"),
-                        "slot 3": li.get("job_booking_3"),
-                        "slot 4": li.get("job_booking_4"),
-                        "slot 5": li.get("job_booking_5"),
-
-                    } 
-                })
-        return vacantes
-    except requests.RequestException as e:
-        logger.error(f"Error consultando vacantes: {e}")
-        return []
-
-def register(username, email, password, name, lastname):
-    data_session = get_session()
-    if not data_session:
-        return "Error obteniendo la sesión para registro."
-
-    url = "https://amigro.org/wp-admin/admin-ajax.php"
-    payload = (
-        f'action=workscoutajaxregister&role=candidate&username={username}&email={email}'
-        f'&password={password}&first-name={name}&last-name={lastname}&privacy_policy=on'
-        f'&register_security={data_session}'
-    )
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'user-agent': 'Mozilla/5.0'}
-    try:
-        response = s.post(url, headers=headers, data=payload)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        logger.error(f"Error registrando usuario: {e}")
-        return None
-
-def login(username, password):
-    data_session = get_session()
-    if not data_session:
-        return "Error obteniendo la sesión para login."
-
-    url = "https://amigro.org/wp-login.php"
-    payload = f'_wp_http_referer=%2Fmy-profile%2F&log={username}&pwd={password}&login_security={data_session}'
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'user-agent': 'Mozilla/5.0'}
-    try:
-        response = s.post(url, headers=headers, data=payload)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        return soup.find('div', {'class': 'user-avatar-title'})
-    except requests.RequestException as e:
-        logger.error(f"Error iniciando sesión: {e}")
-        return None
-
-def solicitud(vacante_url, name, email, message, job_id):
-    payload = f'candidate_email={email}&application_message={message}&job_id={job_id}&candidate_name={name}'
-    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'user-agent': 'Mozilla/5.0'}
-    try:
-        response = s.post(vacante_url, headers=headers, data=payload, allow_redirects=True)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        texto = soup.find("p", class_="job-manager-message").text
-        return texto
-    except requests.RequestException as e:
-        logger.error(f"Error enviando solicitud: {e}")
-        return None
-
-# Coincidencia de trabajos con habilidades del candidato
-def match_person_with_jobs(person):
-    logger.info(f"Buscando coincidencias de trabajo para {person.name}")
-    all_jobs = Worker.objects.all()
-    user_skills = person.skills.lower().split(',') if person.skills else []
-    user_skills_text = ' '.join(user_skills)
-
-    job_descriptions = []
-    job_list = []
-    for job in all_jobs:
-        job_skills = job.required_skills.lower().split(',') if job.required_skills else []
-        job_descriptions.append(' '.join(job_skills))
-        job_list.append(job)
-
-    if not job_descriptions:
-        return []
-
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(job_descriptions + [user_skills_text])
-    cosine_similarities = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])
-    similarity_scores = cosine_similarities[0]
-
-    top_jobs = sorted(zip(job_list, similarity_scores), key=lambda x: x[1], reverse=True)
-    return top_jobs[:5]  # Retorna las 5 mejores coincidencias
-
-def get_available_slots(job):
-    """
-    Extrae los slots de entrevista disponibles de una vacante.
-    """
-    agenda = job.get("agenda", {})
-    available_slots = [slot for slot in agenda.values() if slot]
-    
-    if available_slots:
-        return available_slots
-    else:
-        logger.info(f"No hay slots disponibles para la vacante {job['title']}")
-        return None
-
-def book_interview_slot(job, slot_index, person):
-    """
-    Reserva un slot de entrevista para una persona en una vacante específica.
-    
-    Args:
-        job (dict): Información de la vacante.
-        slot_index (int): Índice del slot seleccionado.
-        person (Person): Instancia de la persona que va a reservar el slot.
-
-    Returns:
-        bool: True si la reserva fue exitosa, False si no.
-    """
-    available_slots = get_available_slots(job)
-
-    if available_slots and 0 <= slot_index < len(available_slots):
-        selected_slot = available_slots[slot_index]
-
-        # Aquí puedes agregar la lógica para registrar el slot en el sistema de gestión de entrevistas
-        # Esto puede implicar enviar una solicitud a un sistema externo o registrar la información localmente.
-
-        logger.info(f"Slot reservado para {person.name} en {selected_slot} para la vacante {job['title']}")
-        return True
-    else:
-        logger.error(f"No se pudo reservar el slot para {person.name}. Slot no disponible o inválido.")
-        return False
-
-
-
-_____
-
-
-# /home/amigro/app/views.py
-
-import json
-import logging
+import smtplib
+import httpx
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from django.core.cache import cache
-from django.shortcuts import render, get_object_or_404
+from asgiref.sync import sync_to_async
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.template.response import TemplateResponse
-from django.conf import settings
-from .nlp_utils import analyze_text
-from .gpt import gpt_message
-from app.integrations.services import send_message as smg   
-from .models import GptApi, SmtpConfig, Pregunta, FlowModel, ChatState, Condicion, Etapa, Person
-import spacy
+from langdetect import detect, DetectorFactory
+from app.models import (
+    WhatsAppAPI, TelegramAPI, InstagramAPI, MessengerAPI, MetaAPI, BusinessUnit, ConfiguracionBU,
+    ChatState, Person, FlowModel, Pregunta
+)
+from typing import Optional, List, Dict
 
-logging.basicConfig(filename="logger.log", level=logging.ERROR)
+logger = logging.getLogger(__name__)
 
-# Configuración de spaCy
-nlp = spacy.load("es_core_news_sm")
+CACHE_TIMEOUT = 600  # 10 minutos
+AMIGRO_VERIFY_TOKEN = "amigro_secret_token"
+DetectorFactory.seed = 0  # Para resultados consistentes
 
-# Vista para la página principal
-def index(request):
-    return render(request, "index.html")
+# Dictionary mapping platforms to their respective send functions
+platform_send_functions = {
+    'telegram': 'send_telegram_message',
+    'whatsapp': 'send_whatsapp_message',
+    'messenger': 'send_messenger_message',
+    'instagram': 'send_instagram_message',
+}
 
-# Función para crear preguntas
-@csrf_exempt
-def create_pregunta(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        pregunta = Pregunta.objects.create(name=data['name'])
-        return JsonResponse({'id': pregunta.id})
 
-# Función para actualizar preguntas
-@csrf_exempt
-def update_pregunta(request, id):
-    if request.method == 'PUT':
-        data = json.loads(request.body)
-        pregunta = Pregunta.objects.get(id=id)
-        pregunta.name = data['name']
-        pregunta.save()
-        return JsonResponse({'status': 'success'})
-
-# Función para actualizar posiciones de preguntas
-@csrf_exempt
-def update_position(request, id):
-    if request.method == 'PUT':
-        data = json.loads(request.body)
-        pregunta = Pregunta.objects.get(id=id)
-        pregunta.position = data['position']  # Suponiendo que tienes un campo de posición
-        pregunta.save()
-        return JsonResponse({'status': 'success'})
-
-# Función para eliminar preguntas
-@csrf_exempt
-def delete_pregunta(request, id):
-    if request.method == 'DELETE':
-        pregunta = Pregunta.objects.get(id=id)
-        pregunta.delete()
-        return JsonResponse({'status': 'deleted'})
-
-# Función para imprimir pregunta y subpreguntas (recursiva)
-def print_pregunta_y_subpreguntas(pregunta):
-    print(f"Pregunta: {pregunta.name}")
-    for sub_pregunta in pregunta.sub_preguntas.all():
-        print(f"    SubPregunta: {sub_pregunta.name}")
-        print_pregunta_y_subpreguntas(sub_pregunta)  # Recursividad para explorar más
-
-# Cargar datos del flujo
-def load_flow_data(request, flowmodel_id):
+async def send_message(platform: str, user_id: str, message: str, business_unit, options: Optional[List[Dict]] = None):
     """
-    Carga los datos del flujo en formato JSON.
-    """
-    flow = get_object_or_404(FlowModel, pk=flowmodel_id)
-    flow_data_json = flow.flow_data_json  # Carga los datos del flujo en formato JSON
-    return JsonResponse({'flow_data': flow_data_json})
-
-# Vista para editar el flujo del chatbot
-def edit_flow(request, flowmodel_id):
-    flow = get_object_or_404(FlowModel, pk=flowmodel_id)
-    context = {
-        'flow': flow,
-        'questions_json': flow.flow_data_json or "[]"  # Asegúrate de pasar los datos en formato JSON o vacío
-    }
-    return TemplateResponse(request, "admin/chatbot_flow.html", context)
-
-# Guardar la estructura del flujo
-@csrf_exempt
-def save_flow_structure(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        flowmodel_id = data.get('flowmodel_id')
-        flow = get_object_or_404(FlowModel, pk=flowmodel_id)
-        flow.flow_data_json = json.dumps(data.get('nodes'))  # Guardar la estructura del flujo en formato JSON
-        flow.save()
-        return JsonResponse({'status': 'success'})
-    return JsonResponse({'status': 'error'}, status=400)
-
-# Exportar el flujo del chatbot
-@csrf_exempt
-def export_chatbot_flow(request):
-    if request.method == 'POST':
-        flow_data = json.loads(request.body)
-        return JsonResponse({'status': 'exported', 'data': flow_data})
-    return JsonResponse({'status': 'error'}, status=400)
-
-# Función para cargar preguntas y subpreguntas asociadas al flujo
-def load_flow_questions_data(request, flowmodel_id):
-    flow = FlowModel.objects.prefetch_related('preguntas__sub_preguntas').get(pk=flowmodel_id)
+    Envía un mensaje al usuario en la plataforma especificada, con opciones si las hay.
     
-    flow_structure = {
-        'flow_data': flow.flow_data_json,  # JSON del flujo
-        'preguntas': [
-            {
-                'id': pregunta.id,
-                'name': pregunta.name,
-                'sub_preguntas': [
-                    {'id': sub_pregunta.id, 'name': sub_pregunta.name}
-                    for sub_pregunta in pregunta.sub_preguntas.all()
+    :param platform: Plataforma desde la cual se enviará el mensaje.
+    :param user_id: Identificador único del usuario.
+    :param message: Mensaje a enviar.
+    :param business_unit: Instancia de BusinessUnit asociada.
+    :param options: Lista de opciones para enviar junto al mensaje.
+    """
+    try:
+        send_function_name = platform_send_functions.get(platform)
+        if not send_function_name:
+            logger.error(f"Unknown platform: {platform}")
+            return
+
+        # Obtener configuración de API por unidad de negocio
+        api_instance = await get_api_instance(platform, business_unit)
+        if not api_instance:
+            logger.error(f"No API configuration found for platform {platform} and business unit {business_unit}.")
+            return
+
+        # Importar dinámicamente la función de envío correspondiente
+        send_module = __import__(f'app.integrations.{platform}', fromlist=[send_function_name])
+        send_function = getattr(send_module, send_function_name)
+
+        # Preparar argumentos según la plataforma
+        if platform == 'whatsapp':
+            if options:
+                # Opcionalmente, manejar las opciones de otra manera o ignorarlas por ahora
+                logger.warning("Opciones no manejadas actualmente para WhatsApp.")
+                await send_function(user_id, message, api_instance.phoneID, image_url=None)
+            else:
+                await send_function(user_id, message, api_instance.phoneID, image_url=None)
+        elif platform == 'telegram':
+            if options:
+                await send_function(user_id, message, api_instance.api_key, options=options)
+            else:
+                await send_function(user_id, message, api_instance.api_key)
+        elif platform == 'messenger':
+            if options:
+                await send_function(user_id, message, api_instance.page_access_token, options=options)
+            else:
+                await send_function(user_id, message, api_instance.page_access_token)
+        elif platform == 'instagram':
+            if options:
+                await send_function(user_id, message, api_instance.access_token, options=options)
+            else:
+                await send_function(user_id, message, api_instance.access_token)
+        else:
+            logger.error(f"Unsupported platform: {platform}")
+
+        logger.info(f"Mensaje enviado a {user_id} en {platform}: {message}")
+
+    except Exception as e:
+        logger.error(f"Error sending message on {platform}: {e}", exc_info=True)
+
+async def send_email(business_unit_name: str, subject: str, to_email: str, body: str, from_email: Optional[str] = None):
+    """
+    Envía un correo electrónico utilizando la configuración SMTP de la unidad de negocio.
+    
+    :param business_unit_name: Nombre de la unidad de negocio.
+    :param subject: Asunto del correo.
+    :param to_email: Destinatario del correo.
+    :param body: Cuerpo del correo en HTML.
+    :param from_email: Remitente del correo. Si no se proporciona, se usa el SMTP username.
+    :return: Diccionario con el estado de la operación.
+    """
+    try:
+        # Obtener configuración SMTP desde la caché
+        cache_key = f"smtp_config:{business_unit_name}"
+        config_bu = cache.get(cache_key)
+
+        if not config_bu:
+            config_bu = await ConfiguracionBU.objects.select_related('business_unit').aget(
+                business_unit__name=business_unit_name
+            )
+            cache.set(cache_key, config_bu, CACHE_TIMEOUT)
+
+        smtp_host = config_bu.smtp_host
+        smtp_port = config_bu.smtp_port
+        smtp_username = config_bu.smtp_username
+        smtp_password = config_bu.smtp_password
+        use_tls = config_bu.smtp_use_tls
+        use_ssl = config_bu.smtp_use_ssl
+
+        # Crear el mensaje de correo
+        msg = MIMEMultipart()
+        msg['From'] = from_email or smtp_username
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'html'))
+
+        # Conectar al servidor SMTP
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port)
+
+        if use_tls and not use_ssl:
+            server.starttls()
+
+        # Autenticarse y enviar el correo
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+
+        logger.info(f"Correo enviado a {to_email} desde {msg['From']}")
+        return {"status": "success", "message": "Correo enviado correctamente."}
+
+    except ObjectDoesNotExist:
+        logger.error(f"Configuración SMTP no encontrada para la unidad de negocio: {business_unit_name}")
+        return {"status": "error", "message": "Configuración SMTP no encontrada para la Business Unit."}
+    except Exception as e:
+        logger.error(f"Error enviando correo electrónico: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+async def reset_chat_state(user_id: Optional[str] = None):
+    """
+    Resetea el estado del chatbot para un usuario específico o para todos los usuarios.
+    
+    :param user_id: Si se proporciona, resetea el estado solo para este usuario.
+                    Si es None, resetea el estado para todos los usuarios.
+    """
+    try:
+        if user_id:
+            chat_state = await ChatState.objects.aget(user_id=user_id)
+            await chat_state.adelete()
+            logger.info(f"Chatbot state reset for user {user_id}.")
+        else:
+            await ChatState.objects.all().adelete()
+            logger.info("Chatbot state reset for all users.")
+    except ChatState.DoesNotExist:
+        logger.warning(f"No chatbot state found for user {user_id}.")
+    except Exception as e:
+        logger.error(f"Error resetting chatbot state: {e}", exc_info=True)
+
+async def get_api_instance(platform: str, business_unit):
+    """
+    Recupera la instancia de API correspondiente a la plataforma y unidad de negocio, usando caché para minimizar consultas a la base de datos.
+    
+    :param platform: Plataforma de mensajería.
+    :param business_unit: Instancia de BusinessUnit.
+    :return: Instancia de API o None si no se encuentra.
+    """
+    cache_key = f"{platform}_api:{business_unit.id}"
+    api_instance = cache.get(cache_key)
+
+    if api_instance:
+        return api_instance
+
+    try:
+        if platform == 'whatsapp':
+            api_instance = await WhatsAppAPI.objects.filter(business_unit=business_unit).afirst()
+        elif platform == 'telegram':
+            api_instance = await TelegramAPI.objects.filter(business_unit=business_unit).afirst()
+        elif platform == 'messenger':
+            api_instance = await MessengerAPI.objects.filter(business_unit=business_unit).afirst()
+        elif platform == 'instagram':
+            api_instance = await InstagramAPI.objects.filter(business_unit=business_unit).afirst()
+        else:
+            logger.error(f"Unsupported platform: {platform}")
+            return None
+
+        if api_instance:
+            cache.set(cache_key, api_instance, CACHE_TIMEOUT)
+        return api_instance
+    except Exception as e:
+        logger.error(f"Error retrieving API instance for {platform} and business unit {business_unit}: {e}", exc_info=True)
+        return None
+# Mover importaciones dentro de las funciones para evitar referencias circulares
+async def send_logo(platform, user_id, business_unit):
+    try:
+        configuracion = await ConfiguracionBU.objects.filter(business_unit=business_unit).afirst()
+        image_url = configuracion.logo_url if configuracion else "https://amigro.org/logo.png"
+
+        if platform == 'whatsapp':
+            await send_message_with_image(platform, user_id, '', image_url, business_unit)
+        elif platform == 'messenger':
+            await send_message_with_image(platform, user_id, '', image_url, business_unit)
+        else:
+            logger.error(f"Image sending not supported for platform {platform}")
+
+    except Exception as e:
+        logger.error(f"Error sending image on {platform}: {e}", exc_info=True)
+
+async def send_image(platform, user_id, message, image_url, business_unit):
+    try:
+        send_function_name = platform_send_functions.get(platform)
+        if not send_function_name:
+            logger.error(f"Unknown platform: {platform}")
+            return
+
+        api_instance = await get_api_instance(platform, business_unit)
+        if not api_instance:
+            logger.error(f"No API configuration found for platform {platform} and business unit {business_unit}.")
+            return
+
+        send_module = __import__(f'app.integrations.{platform}', fromlist=[send_function_name])
+        send_function = getattr(send_module, send_function_name)
+
+        if platform == 'whatsapp':
+            await send_function(
+                user_id, message, api_instance.api_token, api_instance.phoneID, api_instance.v_api, image_url=image_url
+            )
+        elif platform == 'messenger':
+            await send_function(
+                user_id, image_url, api_instance.page_access_token
+            )
+        else:
+            logger.error(f"Image sending not supported for platform {platform}")
+
+    except Exception as e:
+        logger.error(f"Error sending message with image on {platform}: {e}", exc_info=True)
+
+async def send_menu(platform, user_id, business_unit):
+    menu_message = """
+El Menú Principal de Amigro.org
+1 - Bienvenida
+2 - Registro
+3 - Ver Oportunidades
+4 - Actualizar Perfil
+5 - Invitar Amigos
+6 - Términos y Condiciones
+7 - Contacto
+8 - Solicitar Ayuda
+"""
+    await send_message(platform, user_id, menu_message, business_unit)
+
+def render_dynamic_content(template_text, context):
+    """
+    Renders dynamic content in a message template using variables from the context.
+
+    :param template_text: Template text containing variables to replace.
+    :param context: Dictionary with variables to replace in the template.
+    :return: Rendered text with dynamic content.
+    """
+    try:
+        content = template_text.format(**context)
+        return content
+    except KeyError as e:
+        logger.error(f"Error rendering dynamic content: Missing variable {e}")
+        return template_text  # Return the original text in case of error
+
+async def process_text_message(platform, sender_id, message_text, business_unit):
+    from app.chatbot import ChatBotHandler  # Import within the function to avoid circular references
+    chatbot_handler = ChatBotHandler()
+
+    try:
+        await chatbot_handler.process_message(
+            platform, sender_id, message_text, business_unit
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing text message: {e}", exc_info=True)
+
+async def send_options(platform, user_id, message, buttons=None):
+    try:
+        if platform == 'whatsapp':
+            whatsapp_api = await WhatsAppAPI.objects.afirst()
+            if whatsapp_api and buttons:
+                from app.integrations.whatsapp import send_whatsapp_buttons
+                button_options = [
+                    {
+                        'type': 'reply',
+                        'reply': {'id': str(i), 'title': button.name},
+                    }
+                    for i, button in enumerate(buttons)
+                ]
+                await send_whatsapp_buttons(
+                    user_id,
+                    message,
+                    button_options,
+                    whatsapp_api.api_token,
+                    whatsapp_api.phoneID,
+                    whatsapp_api.v_api,
+                )
+            else:
+                logger.error("No se encontró configuración de WhatsAppAPI o botones.")
+
+        elif platform == 'telegram':
+            telegram_api = await TelegramAPI.objects.afirst()
+            if telegram_api and buttons:
+                from app.integrations.telegram import send_telegram_buttons
+                telegram_buttons = [
+                    [{'text': button.name, 'callback_data': button.name}]
+                    for button in buttons
+                ]
+                await send_telegram_buttons(
+                    user_id, message, telegram_buttons, telegram_api.api_key
+                )
+            else:
+                logger.error("No se encontró configuración de TelegramAPI o botones.")
+
+        elif platform == 'messenger':
+            messenger_api = await MessengerAPI.objects.afirst()
+            if messenger_api and buttons:
+                from app.integrations.messenger import send_messenger_quick_replies
+                quick_reply_options = [
+                    {'content_type': 'text', 'title': button.name, 'payload': button.name}
+                for button in buttons
+                ]
+                await send_messenger_quick_replies(
+                    user_id,
+                    message,
+                    quick_reply_options,
+                    messenger_api.page_access_token,
+                )
+            else:
+                logger.error("No se encontró configuración de MessengerAPI o botones.")
+
+        elif platform == 'instagram':
+            instagram_api = await InstagramAPI.objects.afirst()
+            if instagram_api and buttons:
+                from app.integrations.instagram import send_instagram_message
+                options_text = "\n".join(
+                    [f"{idx + 1}. {button.name}" for idx, button in enumerate(buttons)]
+                )
+                message_with_options = f"{message}\n\nOpciones:\n{options_text}"
+                await send_instagram_message(
+                    user_id, message_with_options, instagram_api.access_token
+                )
+            else:
+                logger.error("No se encontró configuración de InstagramAPI o botones.")
+
+        else:
+            logger.error(f"Plataforma desconocida para envío de opciones: {platform}")
+
+    except Exception as e:
+        logger.error(f"Error enviando opciones a través de {platform}: {e}", exc_info=True)
+
+def notify_employer(worker, message):
+    try:
+        if worker.whatsapp:
+            whatsapp_api = WhatsAppAPI.objects.first()
+            if whatsapp_api:
+                from app.integrations.whatsapp import send_whatsapp_message
+                send_whatsapp_message(
+                    worker.whatsapp,
+                    message,
+                    whatsapp_api.api_token,
+                    whatsapp_api.phoneID,
+                    whatsapp_api.v_api,
+                )
+                logger.info(f"Notificación enviada al empleador {worker.name}.")
+            else:
+                logger.error("No se encontró configuración de WhatsAppAPI.")
+        else:
+            logger.warning(f"El empleador {worker.name} no tiene número de WhatsApp configurado.")
+
+    except Exception as e:
+        logger.error(f"Error enviando notificación al empleador {worker.name}: {e}", exc_info=True)
+
+async def process_text_message(platform, sender_id, message_text):
+    from app.chatbot import ChatBotHandler  # Mover importación dentro de la función
+    chatbot_handler = ChatBotHandler()
+
+    try:
+        if platform == 'whatsapp':
+            whatsapp_api = await WhatsAppAPI.objects.afirst()
+            if whatsapp_api:
+                business_unit = whatsapp_api.business_unit
+                await chatbot_handler.process_message(
+                    platform, sender_id, message_text, business_unit
+                )
+            else:
+                logger.error("No se encontró configuración de WhatsAppAPI.")
+
+        # Agregar lógica similar para otras plataformas si es necesario
+
+    except Exception as e:
+        logger.error(f"Error procesando mensaje de texto: {e}", exc_info=True)
+
+async def send_message_with_image(platform: str, user_id: str, message: str, image_url: str, business_unit):
+    """
+    Envía un mensaje con una imagen a través de la plataforma especificada.
+    
+    :param platform: Plataforma desde la cual se enviará el mensaje.
+    :param user_id: Identificador único del usuario.
+    :param message: Mensaje a enviar.
+    :param image_url: URL de la imagen a enviar.
+    :param business_unit: Instancia de BusinessUnit asociada.
+    """
+    try:
+        await send_message(platform, user_id, message, business_unit, options=[{'type': 'image', 'url': image_url}])
+        logger.info(f"Mensaje con imagen enviado a {user_id} en {platform}")
+    except Exception as e:
+        logger.error(f"Error enviando mensaje con imagen en {platform} a {user_id}: {e}", exc_info=True)
+___________________
+# /home/amigro/app/integrations/whatsapp.py
+
+import json
+import httpx
+import logging
+from django.core.cache import cache
+from asgiref.sync import sync_to_async
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from langdetect import detect, DetectorFactory
+from app.models import WhatsAppAPI, MetaAPI, BusinessUnit, Configuracion, FlowModel, Person, ChatState
+from app.integrations.services import send_message, get_api_instance
+from typing import Optional, List, Dict
+
+logger = logging.getLogger('whatsapp')
+#Se crea un cache regenerativo para que no se hagan demasiadas llamadas al API
+CACHE_TIMEOUT = 600  # 10 minutos
+AMIGRO_VERIFY_TOKEN = "amigro_secret_token"
+DetectorFactory.seed = 0  # Para resultados consistentes
+
+@csrf_exempt
+async def whatsapp_webhook(request):
+    """
+    Webhook de WhatsApp para manejar mensajes entrantes y verificación de token.
+    """
+    try:
+        logger.info(f"Solicitud entrante: {request.method}, Headers: {dict(request.headers)}")
+
+        # Manejo del método GET para verificación de token
+        if request.method == 'GET':
+            return await verify_whatsapp_token(request)
+
+        # Manejo del método POST para mensajes entrantes
+        elif request.method == 'POST':
+            try:
+                body = await sync_to_async(request.body.decode)('utf-8')
+                payload = json.loads(body)
+                logger.info(f"Payload recibido: {json.dumps(payload, indent=4)}")
+
+                # Llamar a la función para manejar el mensaje entrante
+                response = await handle_incoming_message(payload)
+                logger.info(f"Respuesta generada: {response}")
+                return response
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Error al decodificar JSON: {str(e)}", exc_info=True)
+                return JsonResponse({"error": "Error al decodificar el cuerpo de la solicitud"}, status=400)
+            except Exception as e:
+                logger.error(f"Error inesperado al manejar la solicitud POST: {str(e)}", exc_info=True)
+                return JsonResponse({"error": f"Error inesperado: {str(e)}"}, status=500)
+
+        # Manejar métodos no permitidos
+        else:
+            logger.warning(f"Método no permitido: {request.method}")
+            return HttpResponse(status=405)
+
+    except Exception as e:
+        logger.error(f"Error crítico en el webhook de WhatsApp: {str(e)}", exc_info=True)
+        return JsonResponse({"error": f"Error crítico: {str(e)}"}, status=500)
+    
+@csrf_exempt
+async def verify_whatsapp_token(request):
+    try:
+        verify_token = request.GET.get('hub.verify_token')
+        challenge = request.GET.get('hub.challenge')
+        phone_id = request.GET.get('phoneID')
+
+        if not phone_id:
+            logger.error("Falta el parámetro phoneID en la solicitud de verificación")
+            return HttpResponse("Falta el parámetro phoneID", status=400)
+
+        # Obtener WhatsAppAPI desde la caché
+        cache_key_whatsapp = f"whatsappapi:{phone_id}"
+        whatsapp_api = cache.get(cache_key_whatsapp)
+
+        if not whatsapp_api:
+            whatsapp_api = await sync_to_async(
+                lambda: WhatsAppAPI.objects.filter(phoneID=phone_id).select_related('business_unit').first()
+            )()
+            if not whatsapp_api:
+                logger.error(f"PhoneID no encontrado: {phone_id}")
+                return HttpResponse('Configuración no encontrada', status=404)
+
+            # Guardar en caché
+            cache.set(cache_key_whatsapp, whatsapp_api, timeout=CACHE_TIMEOUT)
+
+        # Obtener MetaAPI usando la unidad de negocio
+        business_unit = whatsapp_api.business_unit
+        cache_key_meta = f"metaapi:{business_unit.id}"
+        meta_api = cache.get(cache_key_meta)
+
+        if not meta_api:
+            meta_api = await sync_to_async(
+                lambda: MetaAPI.objects.filter(business_unit=business_unit).first()
+            )()
+            if not meta_api:
+                logger.error(f"MetaAPI no encontrado para la unidad de negocio: {business_unit.name}")
+                return HttpResponse('Configuración no encontrada', status=404)
+
+            # Guardar en caché
+            cache.set(cache_key_meta, meta_api, timeout=CACHE_TIMEOUT)
+
+        # Validar el token de verificación
+        if verify_token == meta_api.verify_token:
+            logger.info(f"Token de verificación correcto para phoneID: {phone_id}")
+            return HttpResponse(challenge)
+        else:
+            logger.warning(f"Token de verificación inválido: {verify_token}")
+            return HttpResponse('Token de verificación inválido', status=403)
+
+    except Exception as e:
+        logger.exception(f"Error inesperado en verify_whatsapp_token: {str(e)}")
+        return JsonResponse({"error": "Error inesperado en la verificación de token"}, status=500)
+
+@csrf_exempt
+async def handle_incoming_message(payload):
+    """
+    Manejo de mensajes entrantes de WhatsApp con conexión al chatbot.
+    """
+    try:
+        from app.chatbot import ChatBotHandler
+        chatbot_handler = ChatBotHandler()
+
+        if 'entry' not in payload:
+            logger.error("El payload no contiene la clave 'entry'")
+            return JsonResponse({'error': "El payload no contiene la clave 'entry'"}, status=400)
+
+        for entry in payload.get('entry', []):
+            for change in entry.get('changes', []):
+                value = change.get('value', {})
+                messages = value.get('messages', [])
+                if not messages:
+                    logger.info("No se encontraron mensajes en el cambio")
+                    continue
+                for message in messages:
+                    sender_id = message.get('from')
+                    phone_id = value.get('metadata', {}).get('phone_number_id')
+                    if not phone_id:
+                        logger.error("No se encontró 'phone_number_id' en el metadata")
+                        continue
+
+                    # Obtener configuración de WhatsAppAPI y unidad de negocio
+                    cache_key_whatsapp = f"whatsappapi:{phone_id}"
+                    whatsapp_api = cache.get(cache_key_whatsapp)
+
+                    if not whatsapp_api:
+                        whatsapp_api = await sync_to_async(
+                            lambda: WhatsAppAPI.objects.filter(phoneID=phone_id).select_related('business_unit').first()
+                        )()
+                        if not whatsapp_api:
+                            logger.error(f"No se encontró WhatsAppAPI para phoneID: {phone_id}")
+                            continue
+                        cache.set(cache_key_whatsapp, whatsapp_api, timeout=CACHE_TIMEOUT)
+
+                    business_unit = whatsapp_api.business_unit
+
+                    # Obtener información del usuario y determinar idioma
+                    name = value.get('contacts', [{}])[0].get('profile', {}).get('name', 'Usuario')
+                    raw_text = message.get('text', {}).get('body', '')
+                    language = value.get('contacts', [{}])[0].get('language', {}).get('code', 'es')
+                    if not language and raw_text:
+                        try:
+                            language = detect(raw_text)
+                        except Exception as e:
+                            language = 'es_MX'
+                            logger.warning(f"Error detectando idioma: {e}")
+
+                    # Obtener o crear la instancia de Person
+                    person, _ = await sync_to_async(Person.objects.get_or_create)(
+                        phone=sender_id,
+                        defaults={'name': name}
+                    )
+
+                    # Obtener o crear la instancia de ChatState
+                    chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
+                        user_id=sender_id,
+                        defaults={'platform': 'whatsapp', 'business_unit': business_unit}
+                    )
+
+                    # Process the message using a dictionary mapping
+                    message_type = message.get('type', 'text')
+                    message_handlers = {
+                        'text': handle_text_message,
+                        'image': handle_media_message,
+                        'audio': handle_media_message,
+                        'location': handle_location_message,
+                        'interactive': handle_interactive_message,
+                        # Add more message types and their handlers here
+                    }
+
+                    handler = message_handlers.get(message_type, handle_unknown_message)
+                    await handler(message, sender_id, chatbot_handler, business_unit, person, chat_state)
+
+        return JsonResponse({'status': 'success'}, status=200)
+
+    except Exception as e:
+        logger.error(f"Unexpected error handling the message: {e}", exc_info=True)
+        return JsonResponse({'error': f"Unexpected error: {e}"}, status=500)
+# Define handler functions for each message type
+async def handle_text_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
+    text = message['text']['body']
+    await chatbot_handler.process_message(
+        platform='whatsapp',
+        user_id=sender_id,
+        text=text,
+        business_unit=business_unit,
+    )
+async def handle_media_message(message, sender_id, *args, **kwargs):
+    media_id = message.get('image', {}).get('id') or message.get('audio', {}).get('id')
+    media_type = message['type']
+    if media_id:
+        await process_media_message('whatsapp', sender_id, media_id, media_type)
+    else:
+        logger.warning(f"Media message received without 'id' for type {media_type}")
+async def handle_location_message(message, sender_id, *args, **kwargs):
+    location = message.get('location')
+    if location:
+        await process_location_message('whatsapp', sender_id, location)
+    else:
+        logger.warning("Location message received without location data")
+async def handle_interactive_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
+    interactive_type = message.get('interactive', {}).get('type')
+    interactive_handlers = {
+        'button_reply': handle_button_reply,
+        'list_reply': handle_list_reply,
+        'product': handle_product_message,
+        'product_list': handle_product_list_message,
+        'service': handle_service_message,
+        'service_list': handle_service_list_message,
+        # Add more interactive types and their handlers here
+    }
+    handler = interactive_handlers.get(interactive_type, handle_unknown_interactive)
+    await handler(message, sender_id, chatbot_handler, business_unit, person, chat_state)
+async def handle_button_reply(message, sender_id, chatbot_handler, business_unit, person, chat_state):
+    button_reply = message['interactive']['button_reply']
+    payload = button_reply.get('payload') or button_reply.get('id')  # Adjust according to your payload structure
+    logger.info(f"Button reply received: {payload}")
+    await chatbot_handler.process_button_reply(
+        platform='whatsapp',
+        user_id=sender_id,
+        payload=payload,
+        business_unit=business_unit,
+        person=person,
+        chat_state=chat_state
+    )
+async def handle_list_reply(message, sender_id, chatbot_handler, business_unit, person, chat_state):
+    list_reply = message['interactive']['list_reply']
+    payload = list_reply.get('payload') or list_reply.get('id')  # Adjust according to your payload structure
+    logger.info(f"List reply received: {payload}")
+    await chatbot_handler.process_list_reply(
+        platform='whatsapp',
+        user_id=sender_id,
+        payload=payload,
+        business_unit=business_unit,
+        person=person,
+        chat_state=chat_state
+    )
+async def handle_product_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
+    # Lógica para manejar mensajes de producto
+    pass
+async def handle_product_list_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
+    # Lógica para manejar mensajes de lista de productos
+    pass
+async def send_service_list(user_id, platform, business_unit):
+    api_instance = await get_api_instance(platform, business_unit)
+    if not api_instance:
+        logger.error(f"No se encontró configuración de API para {platform} y unidad de negocio {business_unit}.")
+        return
+    
+    api_token = api_instance.api_token
+    phone_id = api_instance.phoneID
+    version_api = api_instance.v_api
+
+    url = f"https://graph.facebook.com/{version_api}/{phone_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": user_id,
+        "type": "interactive",
+        "interactive": {
+            "type": "list",
+            "body": {"text": "Selecciona una unidad de negocio para continuar:"},
+            "footer": {"text": "Grupo huntRED®"},
+            "action": {
+                "button": "Ver Servicios",
+                "sections": [
+                    {
+                        "title": "Unidades de Negocio",
+                        "rows": [
+                            {"id": "amigro", "title": "Amigro® - Plataforma de AI para Migrantes en México"},
+                            {"id": "huntu", "title": "huntU® - Plataforma de AI para estudiantes y recién egresados a nivel licenciatura y Maestría"},
+                            {"id": "huntred", "title": "huntRED® - Nuestro reconocido Headhunter de Gerencia Media a nivel Directivo."},
+                            {"id": "huntred_executive", "title": "huntRED® Executive- Posiciones de Alta Dirección así como integración y participación en Consejos y Comités."},
+                            {"id": "huntred_solutions", "title": "huntRED® Solutions- Consultora de Recursos Humanos, Desarrollo Organizacional y Cultura."},
+                            {"id": "contacto", "title": "Contacta a nuestro Managing Partner - Pablo LLH."}
+                        ]
+                    }
                 ]
             }
-            for pregunta in flow.preguntas.all()
-        ]
+        }
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        logger.info(f"Lista de servicios enviada a {user_id}")
+    except Exception as e:
+        logger.error(f"Error enviando lista de servicios a {user_id}: {e}", exc_info=True)
+async def process_service_selection(platform, user_id, selected_service, person, chat_state):
+    # Mapear el servicio seleccionado a la unidad de negocio y plantilla correspondiente
+    business_units = {
+        'amigro': 'nueva_oportunidad_amigro',
+        'huntu': 'nueva_oportunidad_huntu',
+        'huntred': 'nueva_oportunidad_huntred',
+        'huntred_executive': 'nueva_oportunidad_huntred_executive',
+        'huntred_solutions': 'nueva_oportunidad_huntred_solutions',
     }
 
-    return JsonResponse(flow_structure)
-
-# Función para recibir mensajes del chatbot
-@csrf_exempt
-def recv_message(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body.decode('utf-8'))
-            message = data.get('message')
-            platform = data.get('platform')
-            use_gpt = data.get('use_gpt')
-
-            analysis = analyze_text(message)
-            response = process_spacy_analysis(analysis, message)
-
-            if not response and use_gpt == 'yes':
-                try:
-                    gpt_api = GptApi.objects.first()
-                    gpt_response = gpt_message(api_token=gpt_api.api_token, text=message, model=gpt_api.model)
-                    response = gpt_response['choices'][0]['message']['content']
-                except Exception as e:
-                    logging.error(f"Error llamando a GPT: {e}")
-                    response = "Lo siento, ocurrió un error al procesar tu solicitud."
-
-            if platform == 'telegram':
-                send_telegram_message(data['username'], response)
-            elif platform == 'whatsapp':
-                send_whatsapp_message(data['username'], response)
-            elif platform == 'messenger':
-                send_messenger_message(data['username'], response)
-
-            return JsonResponse({'status': 'success', 'response': response})
-        except json.JSONDecodeError:
-            logger.error("Error decodificando JSON")
-            return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
-        except Exception as e:
-            logger.error(f"Error inesperado: {e}")
-            return JsonResponse({'status': 'error', 'message': 'Error interno del servidor'}, status=500)
-
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
-
-# Enviar mensaje de prueba
-@csrf_exempt
-def send_test_message(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            platform = data.get('platform')
-            message = data.get('message')
-
-            if platform == 'whatsapp':
-                # Lógica para WhatsApp
-                pass
-            elif platform == 'telegram':
-                # Lógica para Telegram
-                pass
-            elif platform == 'messenger':
-                # Lógica para Messenger
-                pass
-
-            return JsonResponse({'status': 'success'})
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
+    if selected_service == 'contacto':
+        # Lógica para enviar notificación al administrador
+        await notify_admin_of_contact_request(person)
+        
+        # Enviar confirmación al usuario
+        await send_message(platform, user_id, "Gracias por tu interés. Nuestro Managing Partner se pondrá en contacto contigo a la brevedad.", chat_state.business_unit)
+        logger.info(f"Solicitud de contacto recibida de {person.name} ({person.phone})")
+    elif selected_service in business_units:
+        template_name = business_units[selected_service]
+        # Actualizar el chat_state con la unidad de negocio seleccionada
+        chat_state.business_unit = await BusinessUnit.objects.aget(name__iexact=selected_service)
+        await chat_state.asave()
+        
+        # Enviar la plantilla correspondiente
+        await send_whatsapp_template(user_id, template_name, chat_state.business_unit)
+        logger.info(f"Plantilla {template_name} enviada a {user_id}")
     else:
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
+        await send_message(platform, user_id, "Servicio no reconocido. Por favor, selecciona una opción válida.", chat_state.business_unit)
+        logger.warning(f"Servicio no reconocido: {selected_service}")
+async def notify_admin_of_contact_request(person):
+    admin_phone_number = '525518490291'
+    admin_email = 'pablo@huntred.com'
+    message = f"Solicitud de contacto de:\nNombre: {person.name}\nTeléfono: {person.phone}\nEmail: {person.email or 'No proporcionado'}"
 
-# Función para enviar mensajes
-@csrf_exempt
-def send_message(request):
-    """
-    Envía un mensaje a través de una plataforma específica.
-    """
-    if request.method == 'POST':
+    # Enviar mensaje de WhatsApp al administrador si se dispone del número
+    if admin_phone_number:
         try:
-            data = json.loads(request.body)
-            message = data.get('message')
-            platform = data.get('platform')
-
-            # Lógica de envío de mensajes basada en la plataforma
-            if platform == 'whatsapp':
-                # Envía un mensaje por WhatsApp (lógica necesaria)
-                response = f"Mensaje enviado a WhatsApp: {message}"
-            elif platform == 'telegram':
-                # Envía un mensaje por Telegram (lógica necesaria)
-                response = f"Mensaje enviado a Telegram: {message}"
-            elif platform == 'messenger':
-                # Envía un mensaje por Messenger (lógica necesaria)
-                response = f"Mensaje enviado a Messenger: {message}"
-            elif platform == 'instagram':
-                # Envía un mensaje por Instagram (lógica necesaria)
-                response = f"Mensaje enviado a Instagram: {message}"
+            # Obtener la instancia de WhatsAppAPI para enviar el mensaje
+            whatsapp_api = await get_api_instance('whatsapp', person.business_unit)
+            if whatsapp_api:
+                await send_whatsapp_message(
+                    admin_phone_number,
+                    message,
+                    whatsapp_api.api_token,
+                    whatsapp_api.phoneID,
+                    whatsapp_api.v_api
+                )
+                logger.info(f"Notificación de contacto enviada al administrador vía WhatsApp: {admin_phone_number}")
             else:
-                return JsonResponse({'error': 'Plataforma no soportada.'}, status=400)
-
-            return JsonResponse({'status': 'success', 'response': response})
+                logger.error("No se pudo obtener la configuración de WhatsAppAPI para enviar la notificación.")
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+            logger.error(f"Error enviando notificación al administrador vía WhatsApp: {e}", exc_info=True)
+    
+    # Enviar correo electrónico al administrador si se dispone del email
+    if admin_email:
+        try:
+            await send_email(
+                business_unit_name=person.business_unit.name,
+                subject='Solicitud de contacto de un usuario',
+                to_email=admin_email,
+                body=message
+            )
+            logger.info(f"Notificación de contacto enviada al administrador vía email: {admin_email}")
+        except Exception as e:
+            logger.error(f"Error enviando notificación al administrador vía email: {e}", exc_info=True)
+async def handle_unknown_interactive(message, sender_id, *args, **kwargs):
+    interactive_type = message.get('interactive', {}).get('type')
+    logger.warning(f"Unsupported interactive type: {interactive_type}")
+async def handle_unknown_message(message, sender_id, *args, **kwargs):
+    message_type = message.get('type', 'unknown')
+    logger.warning(f"Unsupported message type: {message_type}")
+      
+async def process_media_message(platform, sender_id, media_id, media_type):
+    """
+    Procesa mensajes de medios (imágenes, audio, etc.) entrantes.
+    """
+    try:
+        whatsapp_api = await WhatsAppAPI.objects.afirst()
+        if not whatsapp_api:
+            logger.error("No se encontró configuración de WhatsAppAPI.")
+            return
+
+        # Obtener la URL de descarga del medio
+        media_url = await get_media_url(media_id, whatsapp_api.api_token)
+        if not media_url:
+            logger.error(f"No se pudo obtener la URL del medio {media_id}")
+            return
+
+        # Descargar el archivo
+        media_data = await download_media(media_url, whatsapp_api.api_token)
+        if not media_data:
+            logger.error(f"No se pudo descargar el medio {media_url}")
+            return
+
+        # Procesar el archivo según el tipo
+        if media_type == 'image':
+            await handle_image_message(platform, sender_id, media_data)
+        elif media_type == 'audio':
+            await handle_audio_message(platform, sender_id, media_data)
+        else:
+            logger.warning(f"Tipo de medio no soportado: {media_type}")
+
+    except Exception as e:
+        logger.error(f"Error procesando mensaje de medios: {e}", exc_info=True)
+
+async def get_media_url(media_id, api_token):
+    """
+    Obtiene la URL de descarga para un medio específico.
+    """
+    url = f"https://graph.facebook.com/v17.0/{media_id}"
+    headers = {
+        "Authorization": f"Bearer {api_token}"
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return data.get('url')
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error obteniendo la URL del medio: {e.response.text}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Error general obteniendo la URL del medio: {e}", exc_info=True)
+
+    return None
+
+async def download_media(media_url, api_token):
+    """
+    Descarga el contenido de un medio desde la URL proporcionada.
+    """
+    headers = {
+        "Authorization": f"Bearer {api_token}"
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(media_url, headers=headers)
+            response.raise_for_status()
+            return response.content
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error descargando el medio: {e.response.text}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Error general descargando el medio: {e}", exc_info=True)
+
+    return None
+
+async def handle_image_message(platform, sender_id, image_data):
+    """
+    Procesa una imagen recibida.
+    """
+    # Aquí puedes guardar la imagen, procesarla o extraer información
+    # Por ejemplo, podrías guardar la imagen en el sistema de archivos o en una base de datos
+
+    logger.info(f"Imagen recibida de {sender_id}. Procesando imagen...")
+
+    # Ejemplo: Guardar la imagen en el sistema de archivos
+    image_path = f"/path/to/save/images/{sender_id}_{int(time.time())}.jpg"
+    with open(image_path, 'wb') as f:
+        f.write(image_data)
+
+    # Enviar una respuesta al usuario
+    response_message = "Gracias por enviar la imagen. La hemos recibido correctamente."
+    await send_message(platform, sender_id, response_message)
+
+async def handle_audio_message(platform, sender_id, audio_data):
+    """
+    Procesa un archivo de audio recibido.
+    """
+    # Aquí puedes guardar el audio, procesarlo o extraer información
+    # Por ejemplo, podrías transcribir el audio o guardarlo para análisis posterior
+
+    logger.info(f"Audio recibido de {sender_id}. Procesando audio...")
+
+    # Ejemplo: Guardar el audio en el sistema de archivos
+    audio_path = f"/path/to/save/audio/{sender_id}_{int(time.time())}.ogg"
+    with open(audio_path, 'wb') as f:
+        f.write(audio_data)
+
+    # Enviar una respuesta al usuario
+    response_message = "Gracias por enviar el audio. Lo hemos recibido correctamente."
+    await send_message(platform, sender_id, response_message)
+
+async def process_location_message(platform, sender_id, location):
+    latitude = location.get('latitude')
+    longitude = location.get('longitude')
+    logger.info(f"Ubicación recibida de {sender_id}: Latitud {latitude}, Longitud {longitude}")
+
+    # Almacenar la ubicación en la base de datos
+    person, created = await Person.objects.aupdate_or_create(
+        phone=sender_id,
+        defaults={'latitude': latitude, 'longitude': longitude}
+    )
+
+    # Buscar vacantes cercanas
+    vacantes_cercanas = await obtener_vacantes_cercanas(latitude, longitude)
+    # Verificar si el usuario tiene una entrevista programada
+    interview = await Interview.objects.afilter(person__phone=sender_id, interview_date__gte=timezone.now()).afirst()
+    if interview and interview.interview_type == 'presencial':
+        distance = calcular_distancia(float(latitude), float(longitude), interview.job.latitude, interview.job.longitude)
+        if distance <= 0.2:
+            await send_message(platform, sender_id, "Has llegado al lugar de la entrevista. ¡Buena suerte!")
+        else:
+            await send_message(platform, sender_id, "Parece que aún no estás en el lugar de la entrevista. ¡Te esperamos!")
+
+    # Formatear y enviar las vacantes al usuario
+    if vacantes_cercanas:
+        mensaje_vacantes = formatear_vacantes(vacantes_cercanas)
+        await send_message(platform, sender_id, mensaje_vacantes)
     else:
-        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        await send_message(platform, sender_id, "No se encontraron vacantes cercanas a tu ubicación.")
+
+async def obtener_vacantes_cercanas(latitude, longitude):
+    # Implementa la lógica para obtener vacantes cercanas basadas en la ubicación
+    # Por ejemplo, podrías filtrar las vacantes en tu base de datos usando una consulta geoespacial
+    pass
+
+async def send_whatsapp_message(user_id, message, phone_id, image_url=None, options: Optional[List[Dict]] = None):
+    """
+    Envía un mensaje a través de WhatsApp usando la configuración de WhatsAppAPI.
+    
+    :param user_id: Número de WhatsApp del destinatario.
+    :param message: Mensaje de texto a enviar.
+    :param phone_id: Phone Number ID de WhatsApp.
+    :param image_url: URL de la imagen a enviar (opcional).
+    :param options: Lista de opciones para botones interactivos (opcional).
+    """
+    try:
+        # Obtener la configuración de WhatsAppAPI para el phone_id proporcionado
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(phoneID=phone_id, is_active=True).first)()
+        if not whatsapp_api:
+            logger.error(f"No se encontró configuración activa para phoneID: {phone_id}")
+            return
+
+        token = whatsapp_api.api_token
+        api_version = whatsapp_api.v_api
+
+        url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        # Construir el payload de manera condicional
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": user_id,
+            "type": "image" if image_url else "text",
+        }
+
+        if image_url:
+            payload["image"] = {
+                "link": image_url,
+                # "caption": "Aquí va tu leyenda opcional"  # Opcional: Añadir caption si es necesario
+            }
+        else:
+            payload["text"] = {
+                "body": message
+            }
+
+        if options:
+            # Añadir opciones como botones interactivos
+            payload["interactive"] = {
+                "type": "button",
+                "body": {
+                    "text": message
+                },
+                "action": {
+                    "buttons": [
+                        {"type": "reply", "reply": {"id": option["id"], "title": option["title"]}} for option in options
+                    ]
+                }
+            }
+            # Eliminar el campo 'text' si se usa 'interactive'
+            del payload["text"]
+
+        logger.debug(f"Enviando mensaje a WhatsApp con payload: {payload}")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info(f"Mensaje enviado exitosamente a {user_id}: {message}")
+            return response.json()
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error HTTP al enviar mensaje a {user_id}: {e.response.status_code} - {e.response.text}")
+    except Exception as e:
+        logger.error(f"Error inesperado al enviar mensaje a {user_id}: {e}", exc_info=True)
+    
+async def send_whatsapp_decision_buttons(user_id, message, buttons, phone_id):
+    """
+    Envía botones interactivos de decisión (Sí/No) a través de WhatsApp usando MetaAPI.
+    """
+    # Obtener configuración de MetaAPI usando el phoneID
+    whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(phoneID=phone_id).first)()
+    if not meta_api:
+        logger.error(f"No se encontró configuración para phoneID: {phone_id}")
+        return
+
+    api_token = whatsapp_api.api_token
+    version_api = meta_api.version_api
+
+    url = f"https://graph.facebook.com/{version_api}/{phone_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json"
+    }
+
+    # Validación de botones para asegurarse de que sean sólo "Sí" y "No"
+    if not isinstance(buttons, list) or len(buttons) != 2:
+        raise ValueError("Se deben proporcionar exactamente 2 botones: Sí y No.")
+
+    # Formatear los botones para WhatsApp
+    formatted_buttons = []
+    for idx, button in enumerate(buttons):
+        formatted_button = {
+            "type": "reply",
+            "reply": {
+                "id": f"btn_{idx}",  # ID único para cada botón
+                "title": button['title'][:20]  # Límite de 20 caracteres
+            }
+        }
+        formatted_buttons.append(formatted_button)
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": user_id,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {
+                "text": message  # El mensaje que acompaña los botones
+            },
+            "action": {
+                "buttons": formatted_buttons
+            }
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info(f"Botones de Sí/No enviados a {user_id} correctamente.")
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error enviando botones de decisión (Sí/No): {e.response.text}", exc_info=True)
+        raise e
+    except Exception as e:
+        logger.error(f"Error general enviando botones de decisión (Sí/No): {e}", exc_info=True)
+        raise e
+
+async def invite_known_person(referrer, name, apellido, phone_number):
+    """
+    Invita a una persona conocida vía WhatsApp y crea un pre-registro.
+    """
+    try:
+        invitado, created = await sync_to_async(lambda: Person.objects.update_or_create(
+            telefono=phone_number, defaults={'nombre': name, 'apellido_paterno': apellido}))()
+
+        await sync_to_async(Invitacion.objects.create)(referrer=referrer, invitado=invitado)
+
+        if created:
+            mensaje = f"Hola {name}, has sido invitado por {referrer.nombre} a unirte a Amigro.org. ¡Únete a nuestra comunidad!"
+            await send_whatsapp_message(phone_number, mensaje, referrer.api_token, referrer.phoneID, referrer.v_api)
+
+        return invitado
+
+    except Exception as e:
+        logger.error(f"Error al invitar a {name}: {e}")
+        raise
+
+async def registro_amigro(recipient, access_token, phone_id, version_api, form_data):
+    """
+    Envía una plantilla de mensaje de registro personalizado a un nuevo usuario en WhatsApp.
+
+    :param recipient: Número de teléfono del destinatario en formato internacional.
+    :param access_token: Token de acceso para la API de WhatsApp.
+    :param phone_id: ID del teléfono configurado para el envío de mensajes.
+    :param version_api: Versión de la API de WhatsApp.
+    :param form_data: Diccionario con datos del usuario para personalizar la plantilla.
+    """
+    try:
+        url = f"https://graph.facebook.com/{version_api}/{phone_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": recipient,
+            "type": "template",
+            "template": {
+                "name": "registro_amigro",
+                "language": {"code": "es_MX"},
+                "components": [
+                    {
+                        "type": "header",
+                        "parameters": [{"type": "image", "image": {"link": "https://amigro.org/registro2.png"}}]
+                    },
+                    {"type": "body", "parameters": []},
+                    {
+                        "type": "button",
+                        "sub_type": "FLOW",
+                        "index": "0",
+                        "parameters": [{"type": "text", "text": "https://amigro.org"}]
+                    }
+                ]
+            }
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        logger.info(f"Plantilla de registro enviada correctamente a {recipient}")
+        return response.json()
+
+    except Exception as e:
+        logger.error(f"Error enviando plantilla de registro a {recipient}: {e}", exc_info=True)
+        raise e
+
+async def nueva_posicion_amigro(recipient, access_token, phone_id, version_api, form_data):
+    """
+    Envía una plantilla de mensaje para notificar al usuario de una nueva oportunidad laboral.
+
+    :param recipient: Número de teléfono del destinatario en formato internacional.
+    :param access_token: Token de acceso para la API de WhatsApp.
+    :param phone_id: ID del teléfono configurado para el envío de mensajes.
+    :param version_api: Versión de la API de WhatsApp.
+    :param form_data: Diccionario con datos de la vacante para personalizar la plantilla.
+    """
+    try:
+        url = f"https://graph.facebook.com/{version_api}/{phone_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": recipient,
+            "type": "template",
+            "template": {
+                "name": "nueva_posicion_amigro",
+                "language": {"code": "es_MX"},
+                "components": [
+                    {
+                        "type": "header",
+                        "parameters": [{"type": "image", "image": {"link": "https://amigro.org/registro.png"}}]
+                    },
+                    {"type": "body", "parameters": [{"type": "text", "text": "Hola, bienvenido a Amigro!"}]},
+                    {
+                        "type": "button",
+                        "sub_type": "FLOW",
+                        "index": "0",
+                        "parameters": [{"type": "text", "text": "https://amigro.org"}]
+                    }
+                ]
+            }
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        logger.info(f"Plantilla de nueva posición enviada correctamente a {recipient}")
+        return response.json()
+
+    except Exception as e:
+        logger.error(f"Error enviando plantilla de nueva posición a {recipient}: {e}", exc_info=True)
+        raise e
+
+async def send_whatsapp_template(user_id, template_name, business_unit):
+    api_instance = await get_api_instance('whatsapp', business_unit)
+    if not api_instance:
+        logger.error(f"No se encontró configuración de WhatsAppAPI para la unidad de negocio {business_unit}.")
+        return
+    
+    api_token = api_instance.api_token
+    phone_id = api_instance.phoneID
+    version_api = api_instance.v_api
+
+    url = f"https://graph.facebook.com/{version_api}/{phone_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": user_id,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": "es_MX"}
+        }
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        logger.info(f"Plantilla {template_name} enviada correctamente a {user_id}")
+    except Exception as e:
+        logger.error(f"Error enviando plantilla {template_name} a {user_id}: {e}", exc_info=True)
+
+def dividir_botones(botones, n):
+    """
+    Divide la lista de botones en grupos de tamaño `n`, útil para cuando una plataforma tiene límite en el número de botones.
+
+    :param botones: Lista de botones para dividir.
+    :param n: Tamaño del grupo de botones.
+    :return: Generador que produce grupos de botones.
+    """
+    for i in range(0, len(botones), n):
+        yield botones[i:i + n]
+
+async def send_pregunta_with_buttons(user_id, pregunta, phone_id):
+    """
+    Envía una pregunta con botones de respuesta en WhatsApp.
+
+    :param user_id: ID del usuario destinatario.
+    :param pregunta: Objeto Pregunta con el contenido y los botones a enviar.
+    :param phone_id: ID del teléfono de WhatsApp para obtener la configuración.
+    """
+    from app.integrations.whatsapp import send_whatsapp_buttons
+
+    if pregunta.botones_pregunta.exists():
+        botones = pregunta.botones_pregunta.all()
+        whatsapp_api = await WhatsAppAPI.objects.afirst(phoneID__exact=phone_id)
+
+        if not meta_api:
+            logger.error(f"No se encontró configuración para phoneID: {phone_id}")
+            return
+
+        message = pregunta.content
+        tasks = []
+
+        # Dividir los botones en grupos de tres para WhatsApp
+        for tercia in dividir_botones(list(botones), 3):
+            buttons = [{"title": boton.name} for boton in tercia]
+            logger.info(f"Enviando botones: {[boton['title'] for boton in buttons]} a {user_id}")
+            tasks.append(send_whatsapp_buttons(
+                user_id,
+                message,
+                buttons,
+                meta_api.api_token,
+                meta_api.phoneID,
+                meta_api.version_api
+            ))
+
+        await asyncio.gather(*tasks)
+    else:
+        logger.warning(f"La pregunta {pregunta.id} no tiene botones asignados.")
+    
+async def send_test_notification(user_id):
+    """
+    Envía una notificación de prueba al número configurado.
+    """
+    from app.integrations.whatsapp import send_whatsapp_message
+    config = await sync_to_async(lambda: Configuracion.objects.first())()
+    message = "🔔 Notificación de prueba recibida. El sistema está operativo."
+    
+    await send_whatsapp_message(
+        user_id,
+        message,
+        config.default_platform
+    )
+    logger.info(f"Notificación de prueba enviada a {user_id}.")
 
 
-____
-
-
-FIN DEL ENVIO DE ARCHIVOS# Grupo-huntRED-Chatbot
+    _______
+sudo nano app/chatbot.py && cd app/integrations && sudo nano services.py whatsapp.py instagram.py messenger.py telegram.py && sudo systemctl restart gunicorn && cd /home/amigro && python manage.py migrate

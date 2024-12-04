@@ -1,197 +1,388 @@
-# /home/amigro/app/chatbot.py
 import logging
 import asyncio
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List
 from asgiref.sync import sync_to_async
 from app.models import (
-    ChatState,
-    Pregunta,
-    Person,
-    FlowModel,
-    Invitacion,
-    MetaAPI,
-    WhatsAppAPI,
-    TelegramAPI,
-    MessengerAPI,
-    InstagramAPI,
-    Interview
+    ChatState, Pregunta, Person, FlowModel, BusinessUnit
 )
 from app.vacantes import VacanteManager
 from app.integrations.services import (
-    send_message,
-    send_options,
-    send_menu,
-    render_dynamic_content,
-    send_logo,
-    send_email
+    send_message, send_whatsapp_decision_buttons, reset_chat_state, get_api_instance
 )
+from app.utils import analyze_text, clean_text
+from django.core.cache import cache
 
-from app.nlp_utils import analyze_text
-
-# Inicializa el logger
 logger = logging.getLogger(__name__)
+CACHE_TIMEOUT = 600  # 10 minutes
 
 class ChatBotHandler:
-    async def process_message(self, platform, user_id, text, business_unit):
+    async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
         """
-        Procesa el mensaje del usuario y gestiona la conversación.
-
-        :param platform: Plataforma de mensajería (e.g., 'whatsapp').
-        :param user_id: ID del usuario.
-        :param text: Mensaje de texto recibido.
-        :param business_unit: Unidad de negocio asociada.
-        :return: Respuesta generada y opciones.
+        Procesa un mensaje entrante del usuario y gestiona el flujo de conversación.
         """
-        logger.info(
-            f"Procesando mensaje para {user_id} en {platform} para la unidad de negocio {business_unit}"
-        )
+        logger.info(f"Processing message for {user_id} on {platform} for business unit {business_unit.name}")
 
-        # Obtener configuración dinámica para la plataforma utilizando MetaAPI
-        meta_api = await MetaAPI.objects.filter(business_unit=business_unit).afirst()
-        if not meta_api:
-            logger.error(f"No se encontró configuración de MetaAPI para {platform} y unidad de negocio {business_unit}.")
-            return
+        try:
+            # Etapa 1: Preprocesamiento del Mensaje
+            text = clean_text(text)
+            analysis = analyze_text(text)
+            intents = analysis.get("intents", [])
+            entities = analysis.get("entities", {})
+            if not isinstance(intents, list):
+                logger.error(f"Invalid intents format: {intents}")
+                intents = []
+            cache_key = f"analysis_{user_id}"
+            cache.set(cache_key, analysis, CACHE_TIMEOUT)
+            logger.debug(f"Message analysis cached with key {cache_key}")
 
-        # Instanciar la API según la plataforma
-        if platform == 'whatsapp':
-            whatsapp_api = await WhatsAppAPI.objects.filter(business_unit=business_unit).afirst()
-            if not whatsapp_api:
-                logger.error(f"No se encontró configuración de WhatsAppAPI para la unidad de negocio {business_unit}.")
+            # Etapa 2: Inicialización del Contexto de Conversación
+            event = await self.get_or_create_event(user_id, platform, business_unit)
+            if not event:
+                logger.error(f"No se pudo crear el evento para el usuario {user_id}.")
+                await send_message(platform, user_id, "Error al inicializar el contexto. Inténtalo más tarde.", business_unit)
                 return
-            phone_id = whatsapp_api.phoneID
-            api_instance, _ = await WhatsAppAPI.objects.aget_or_create(
-                business_unit=business_unit, phoneID=phone_id
-            )
-        elif platform == 'telegram':
-            api_instance, _ = await TelegramAPI.objects.aget_or_create(
-                business_unit=business_unit
-            )
-        elif platform == 'messenger':
-            api_instance, _ = await MessengerAPI.objects.aget_or_create(
-                business_unit=business_unit
-            )
-        elif platform == 'instagram':
-            api_instance, _ = await InstagramAPI.objects.aget_or_create(
-                business_unit=business_unit
-            )
-        else:
-            raise ValueError(f"Plataforma no soportada: {platform}")
+            user, created = await self.get_or_create_user(user_id, event, analysis)
+            if not user:
+                logger.error(f"No se pudo crear o recuperar el usuario {user_id}.")
+                await send_message(platform, user_id, "Error al recuperar tu información. Inténtalo más tarde.", business_unit)
+                return
+            context = self.build_context(user)
 
-        # Asignar el flujo asociado a la instancia de API
-        flow_model = await sync_to_async(lambda: api_instance.associated_flow)()
+            # Etapa 3: Manejo de Intents Conocidos
+            if await self.handle_known_intents(intents, platform, user_id, event, business_unit):
+                return
 
-        # Obtener o crear el estado de chat (evento) para el usuario
-        event = await self.get_or_create_event(user_id, platform, flow_model)
+            # Etapa 4: Continuación del Flujo de Conversación
+            current_question = event.current_question
+            if not current_question:
+                first_question = await self.get_first_question(event.flow_model)
+                if first_question:
+                    event.current_question = first_question
+                    await event.asave()
+                    await send_message(platform, user_id, first_question.content, business_unit)
+                else:
+                    logger.error("No first question found in the flow model")
+                    await send_message(platform, user_id, "Lo siento, no se pudo iniciar la conversación en este momento.", business_unit)
+                return
 
-        # Realizar el análisis de intención en el mensaje
-        analysis = analyze_text(text)
-        intents = analysis.get("intents", [])
-        logger.info(f"Análisis del mensaje completado para el texto '{text}': {analysis}")
+            # Etapa 5: Procesamiento de la Respuesta del Usuario
+            response, options = await self.determine_next_question(event, text, analysis, context)
 
-        # Procesar intenciones conocidas
-        if "menu" in intents:
-            logger.info(f"El usuario {user_id} solicitó el menú principal.")
-            await send_menu(platform, user_id)
-            return
-
-        if "reiniciar" in intents:
-            logger.info(f"El usuario {user_id} solicitó reiniciar la conversación.")
-            await reset_chat_state(user_id)
-            await send_message(platform, user_id, "Se ha reiniciado tu conversación. ¿Cómo puedo ayudarte?")
-            return
-
-        if "recapitulación" in intents or "recap" in intents:
-            logger.info(f"El usuario {user_id} solicitó recapitulación.")
-            recap = await self.recap_information(event.user_id)
-            if recap:
-                await self.send_response(platform, user_id, recap)
-            return
-
-        # Obtener o crear el usuario y preparar el contexto
-        user, _ = await Person.objects.aget_or_create(number_interaction=event.user_id)
-        context = {
-            'name': user.name or '',
-            'apellido_paterno': user.apellido_paterno or '',
-            'apellido_materno': user.apellido_materno or '',
-            'sexo': user.sexo or '',
-            'email': user.email or '',
-            'phone': user.phone or '',
-            'nacionalidad': user.nationality or '',
-            'fecha_nacimiento': user.fecha_nacimiento or '',
-        }
-
-        # Verificar si el perfil del usuario está completo
-        profile_check = await self.verify_user_profile(user)
-        if profile_check:
-            return await self.send_response(platform, user_id, profile_check)
-
-        # Confirmar la información antes de proceder con vacantes
-        recap = await self.recap_information(user)
-        if recap:
-            return await self.send_response(platform, user_id, recap)
-
-        # Obtener la pregunta actual y continuar el flujo
-        current_question = event.current_question
-
-        if not current_question:
-            # Si no hay pregunta actual, asignar la primera pregunta del flujo
-            event.current_question = await flow_model.preguntas.afirst()
-            logger.info(f"Conversación iniciada con la primera pregunta: {event.current_question}")
-
-        # Procesar el mensaje del usuario y generar respuesta y opciones
-        response, options = await self.process_user_message(event, text, analysis, context)
-        logger.info(f"Respuesta generada: {response}, con opciones: {options}")
-
-        # Guardar el estado actualizado del chat
-        await event.asave()
-        logger.info(f"Estado del chat guardado para el usuario {user_id}")
-
-        # Enviar la respuesta al usuario
-        await self.send_response(platform, user_id, response, options)
-
-        return response, options
-
-    async def get_or_create_event(self, user_id, platform, flow_model):
-        """
-        Obtiene o crea un estado de chat (evento) para el usuario.
-
-        :param user_id: ID del usuario.
-        :param platform: Plataforma de mensajería.
-        :param flow_model: Modelo de flujo asociado.
-        :return: Instancia de ChatState.
-        """
-        event, created = await ChatState.objects.aget_or_create(user_id=user_id)
-        if created:
-            event.flow_model = flow_model
-            event.platform = platform
+            # Etapa 6: Guardar estado y enviar respuesta
             await event.asave()
-        else:
-            if event.platform != platform:
-                event.platform = platform
+            await self.send_response(platform, user_id, response, business_unit, options)
+
+            # Etapa 7: Manejo de Desviaciones en la Conversación
+            if await self.detect_and_handle_deviation(event, text, analysis):
+                return
+
+            # Etapa 8: Verificación del Perfil del Usuario
+            profile_check = await self.verify_user_profile(user)
+            if profile_check:
+                await send_message(platform, user_id, profile_check, business_unit)
+                return
+
+        except Exception as e:
+            logger.error(f"Error processing message for {user_id}: {e}", exc_info=True)
+            await send_message(platform, user_id, "Ha ocurrido un error. Por favor, inténtalo de nuevo más tarde.", business_unit)
+
+    # -------------------------------------------
+    # Métodos Auxiliares
+    # -------------------------------------------
+
+    async def get_or_create_event(self, user_id: str, platform: str, business_unit: BusinessUnit) -> Optional[ChatState]:
+        try:
+            chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
+                user_id=user_id,
+                defaults={
+                    'platform': platform,
+                    'business_unit': business_unit,
+                    'current_question': None
+                }
+            )
+            if created:
+                logger.debug(f"ChatState creado para usuario {user_id}")
+            else:
+                logger.debug(f"ChatState obtenido para usuario {user_id}")
+            return chat_state
+        except Exception as e:
+            logger.error(f"Error en get_or_create_event para usuario {user_id}: {e}", exc_info=True)
+            raise
+
+    async def get_or_create_user(self, user_id: str, event: ChatState, analysis: dict) -> Tuple[Person, bool]:
+        try:
+            entities = analysis.get('entities', {})
+            name = entities.get('name') or event.platform or 'Usuario'
+
+            user, created = await sync_to_async(Person.objects.get_or_create)(
+                phone=user_id,
+                defaults={'name': name}
+            )
+            if created:
+                logger.debug(f"Persona creada: {user}")
+            else:
+                logger.debug(f"Persona obtenida: {user}")
+            return user, created
+        except Exception as e:
+            logger.error(f"Error en get_or_create_user para usuario {user_id}: {e}", exc_info=True)
+            raise
+
+    def build_context(self, user: Person) -> dict:
+        """
+        Construye el contexto de la conversación basado en la información del usuario.
+        """
+        context = {
+            'user_name': user.name,
+            'user_phone': user.phone,
+            # Agrega más campos según sea necesario
+        }
+        logger.debug(f"Contexto construido para usuario {user.phone}: {context}")
+        return context
+
+    async def handle_known_intents(
+        self, intents: List[str], platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit
+    ) -> bool:
+        for intent in intents:
+            logger.debug(f"Intent detectado: {intent}")
+            if intent == "saludo":
+                greeting_message = f"Hola, buenos días. ¿Quieres conocer más acerca de {business_unit.name}?"
+                quick_replies = [{"title": "Sí"}, {"title": "No"}]
+                await send_whatsapp_decision_buttons(
+                    user_id=user_id,
+                    message=greeting_message,
+                    buttons=quick_replies,
+                    phone_id=business_unit.whatsapp_api.phoneID
+                )
+                logger.info(f"Intent 'saludo' manejado para usuario {user_id}")
+                return True
+            elif intent == 'despedida':
+                await send_message(platform, user_id, "¡Hasta luego! Si necesitas más ayuda, no dudes en contactarnos.", business_unit)
+                logger.info(f"Intent 'despedida' manejado para usuario {user_id}")
+                await self.reset_chat_state(user_id)
+                return True
+            elif intent == 'iniciar_conversacion':
+                event.current_question = None
                 await event.asave()
-        return event
+                await send_message(platform, user_id, "¡Claro! Empecemos de nuevo. ¿En qué puedo ayudarte?", business_unit)
+                logger.info(f"Intent 'iniciar_conversacion' manejado para usuario {user_id}")
+                return True
+            elif intent == 'menu':
+                await self.handle_persistent_menu(event)
+                logger.info(f"Intent 'menu' manejado para usuario {user_id}")
+                return True
+            elif intent == 'solicitar_ayuda_postulacion':
+                ayuda_message = "Claro, puedo ayudarte con el proceso de postulación. ¿Qué necesitas saber específicamente?"
+                await send_message(platform, user_id, ayuda_message, business_unit)
+                logger.info(f"Intent 'solicitar_ayuda_postulacion' manejado para usuario {user_id}")
+                return True
+            elif intent == 'consultar_estatus':
+                estatus_message = "Para consultar el estatus de tu aplicación, por favor proporciona tu número de aplicación o correo electrónico asociado."
+                await send_message(platform, user_id, estatus_message, business_unit)
+                logger.info(f"Intent 'consultar_estatus' manejado para usuario {user_id}")
+                return True
+            # Agrega más intents conocidos y sus manejadores aquí
 
-    async def verify_user_profile(self, user):
-        """
-        Verifica si el perfil del usuario tiene toda la información necesaria para continuar.
+        return False  # No se manejó ningún intent conocido
 
-        :param user: Instancia de Person.
-        :return: Mensaje de solicitud de datos faltantes o None si está completo.
+    async def handle_persistent_menu(self, event: ChatState):
         """
+        Maneja el acceso al menú persistente.
+        """
+        business_unit = event.business_unit
+        menu_message = f"Aquí tienes el menú principal de {business_unit.name}:"
+        await send_message(event.platform, event.user_id, menu_message, business_unit)
+        await send_menu(event.platform, event.user_id, business_unit)
+        return
+
+    async def determine_next_question(self, event: ChatState, user_message: str, analysis: dict, context: dict) -> Tuple[Optional[str], List]:
+        current_question = event.current_question
+        logger.info(f"Procesando la pregunta actual: {current_question.content}")
+
+        try:
+            # 1. Manejar acciones basadas en action_type
+            if current_question.action_type:
+                response, options = await self._handle_action_type(event, current_question, context)
+                return response, options
+
+            # 2. Manejar respuestas de botones
+            if current_question.botones_pregunta.exists():
+                response, options = await self._handle_button_response(event, current_question, user_message, context)
+                return response, options
+
+            # 3. Manejar diferentes input_type
+            input_type_handlers = {
+                'skills': self._handle_skills_input,
+                'select_job': self._handle_select_job_input,
+                'schedule_interview': self._handle_schedule_interview_input,
+                'confirm_interview_slot': self._handle_confirm_interview_slot_input,
+                'finalizar_perfil': self._handle_finalize_profile_input,
+                'confirm_recap': self._handle_confirm_recap_input,
+                # Agrega más input_types si es necesario
+            }
+
+            handler = input_type_handlers.get(current_question.input_type)
+            if handler:
+                response, options = await handler(event, current_question, user_message, context)
+                return response, options
+
+            # 4. Flujo estándar: avanzar a la siguiente pregunta
+            next_question = await self.get_next_question(current_question, user_message)
+            if next_question:
+                event.current_question = next_question
+                await event.asave()
+                response = render_dynamic_content(next_question.content, context)
+                return response, []
+            else:
+                return "No hay más preguntas en este flujo.", []
+
+        except Exception as e:
+            logger.error(f"Error determinando la siguiente pregunta: {e}", exc_info=True)
+            return "Ha ocurrido un error al procesar tu respuesta. Por favor, inténtalo de nuevo más tarde.", []
+
+    async def _handle_skills_input(self, event, current_question, user_message, context):
+        user = await sync_to_async(Person.objects.get)(phone=event.user_id)
+        user.skills = user_message
+        await sync_to_async(user.save)()
+
+        vacante_manager = VacanteManager(context)
+        recommended_jobs = await sync_to_async(vacante_manager.match_person_with_jobs)(user)
+
+        if recommended_jobs:
+            response = "Aquí tienes algunas vacantes que podrían interesarte:\n"
+            for idx, job in enumerate(recommended_jobs[:5]):
+                response += f"{idx + 1}. {job['title']} en {job['company']}\n"
+            response += "Por favor, ingresa el número de la vacante que te interesa."
+            event.context = {'recommended_jobs': recommended_jobs}
+            await event.asave()
+            return response, []
+        else:
+            response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
+            return response, []
+
+    async def _handle_select_job_input(self, event, current_question, user_message, context):
+        try:
+            job_index = int(user_message.strip()) - 1
+        except ValueError:
+            return "Por favor, ingresa un número válido.", []
+
+        recommended_jobs = event.context.get('recommended_jobs')
+        if recommended_jobs and 0 <= job_index < len(recommended_jobs):
+            selected_job = recommended_jobs[job_index]
+            event.context['selected_job'] = selected_job
+            next_question = await self.get_question_by_option(event.flow_model, 'schedule_interview')
+            if next_question:
+                event.current_question = next_question
+                await event.asave()
+                return next_question.content, []
+            else:
+                logger.error("Pregunta 'schedule_interview' no encontrada.")
+                return "No se pudo continuar con el proceso.", []
+        else:
+            return "Selección inválida.", []
+
+    async def _handle_schedule_interview_input(self, event, current_question, user_message, context):
+        selected_job = event.context.get('selected_job')
+        if not selected_job:
+            return "No se encontró la vacante seleccionada.", []
+
+        vacante_manager = VacanteManager(context)
+        available_slots = await sync_to_async(vacante_manager.get_available_slots)(selected_job)
+        if available_slots:
+            response = "Estos son los horarios disponibles para la entrevista:\n"
+            for idx, slot in enumerate(available_slots):
+                response += f"{idx + 1}. {slot}\n"
+            response += "Por favor, selecciona el número del horario que prefieras."
+            event.context['available_slots'] = available_slots
+            await event.asave()
+            return response, []
+        else:
+            return "No hay horarios disponibles.", []
+
+    async def _handle_confirm_interview_slot_input(self, event, current_question, user_message, context):
+        try:
+            slot_index = int(user_message.strip()) - 1
+        except ValueError:
+            return "Por favor, ingresa un número válido.", []
+
+        available_slots = event.context.get('available_slots')
+        selected_job = event.context.get('selected_job')
+        user = await sync_to_async(Person.objects.get)(phone=event.user_id)
+        if available_slots and 0 <= slot_index < len(available_slots):
+            selected_slot = available_slots[slot_index]
+            vacante_manager = VacanteManager(context)
+            success = await sync_to_async(vacante_manager.book_interview_slot)(selected_job, selected_slot, user)
+            if success:
+                response = f"Has reservado tu entrevista en el horario: {selected_slot}."
+                await event.asave()
+                return response, []
+            else:
+                return "No se pudo reservar el horario, por favor intenta nuevamente.", []
+        else:
+            return "Selección inválida. Por favor, intenta nuevamente.", []
+
+    async def _handle_finalize_profile_input(self, event, current_question, user_message, context):
+        user = await sync_to_async(Person.objects.get)(phone=event.user_id)
+        recap_message = await self.recap_information(user)
+        await send_message(event.platform, event.user_id, recap_message, event.business_unit)
+        next_question = await self.get_question_by_option(event.flow_model, 'confirm_recap')
+        if next_question:
+            event.current_question = next_question
+            await event.asave()
+            return next_question.content, []
+        else:
+            logger.error("Pregunta 'confirm_recap' no encontrada.")
+            return "No se pudo continuar con el proceso.", []
+
+    async def _handle_confirm_recap_input(self, event, current_question, user_message, context):
+        if user_message.strip().lower() in ['sí', 'si', 's']:
+            response = "¡Perfecto! Continuemos."
+            next_question = await self.get_question_by_option(event.flow_model, 'next_step')
+            if next_question:
+                event.current_question = next_question
+                await event.asave()
+                return response, []
+            else:
+                logger.error("Pregunta 'next_step' no encontrada.")
+                return "No se pudo continuar con el proceso.", []
+        else:
+            await self.handle_correction_request(event, user_message)
+            return None, []
+
+    async def get_question_by_option(self, flow_model, option):
+        question = await sync_to_async(Pregunta.objects.filter(flow_model=flow_model, option=option).first)()
+        return question
+
+    async def reset_chat_state(self, user_id: str):
+        await reset_chat_state(user_id=user_id)
+        logger.info(f"Chat state reset for user {user_id}")
+
+    async def send_response(self, platform: str, user_id: str, response: str, business_unit: BusinessUnit, options: Optional[List] = None):
+        """
+        Envía una respuesta al usuario, incluyendo opciones si las hay.
+        """
+        logger.debug(f"Preparando para enviar respuesta al usuario {user_id}: {response} con opciones: {options}")
+
+        # Enviar el mensaje
+        await send_message(platform, user_id, response, business_unit, options=options)
+
+        logger.info(f"Respuesta enviada al usuario {user_id}")
+
+    async def detect_and_handle_deviation(self, event, text, analysis):
+        # Define deviation thresholds and strategies
+        # Placeholder para lógica de desviación
+        # Implementa tu lógica específica aquí
+        return False  # Asumiendo que no hay desviación por ahora
+
+    async def verify_user_profile(self, user: Person) -> Optional[str]:
         required_fields = ['name', 'apellido_paterno', 'skills', 'ubicacion', 'email']
-        missing_fields = [field for field in required_fields if not getattr(user, field)]
+        missing_fields = [field for field in required_fields if not getattr(user, field, None)]
         if missing_fields:
             fields_str = ", ".join(missing_fields)
-            return f"Para continuar, completa estos datos: {fields_str}"
-        return None  # Todo está completo
+            return f"Para continuar, completa estos datos: {fields_str}."
+        logger.debug(f"Perfil completo para usuario {user.phone}.")
+        return None
 
     async def recap_information(self, user):
-        """
-        Proporciona un resumen de la información del usuario y le permite hacer ajustes.
-
-        :param user: Instancia de Person.
-        :return: Mensaje de recapitulación.
-        """
         recap_message = (
             f"Recapitulación de tu información:\n"
             f"Nombre: {user.name}\n"
@@ -210,24 +401,12 @@ class ChatBotHandler:
         return recap_message
 
     async def handle_correction_request(self, event, user_response):
-        """
-        Permite que el usuario corrija su información tras la recapitulación.
-
-        :param event: Instancia de ChatState.
-        :param user_response: Respuesta del usuario.
-        """
         correction_message = "Por favor, indica qué dato deseas corregir (e.g., 'nombre', 'email')."
-        await self.send_response(event.platform, event.user_id, correction_message)
+        await self.send_response(event.platform, event.user_id, correction_message, event.business_unit)
         event.awaiting_correction = True
         await event.asave()
 
     async def update_user_information(self, user, user_input):
-        """
-        Actualiza la información del usuario basada en la entrada de corrección.
-
-        :param user: Instancia de Person.
-        :param user_input: Entrada del usuario para actualizar datos.
-        """
         field_mapping = {
             "nombre": "name",
             "apellido paterno": "apellido_paterno",
@@ -243,453 +422,89 @@ class ChatBotHandler:
             field = field_mapping.get(field.strip().lower())
             if field:
                 setattr(user, field, new_value.strip())
-                await user.asave()
+                await sync_to_async(user.save)()
             else:
                 logger.info(f"Campo no encontrado para actualizar: {user_input}")
         except ValueError:
             logger.warning(f"Entrada de usuario inválida para actualización: {user_input}")
 
-    async def send_response(self, platform, user_id, response, options=None):
-        """
-        Envía la respuesta generada al usuario, con opciones si están disponibles.
-
-        :param platform: Plataforma de mensajería.
-        :param user_id: ID del usuario.
-        :param response: Mensaje de respuesta.
-        :param options: Opciones adicionales.
-        """
-        await send_message(platform, user_id, response)
-        if options:
-            await send_options(platform, user_id, response, options)
-        return response, options or []
-
-    async def handle_standard_flow(self, event, user_message, analysis):
-        """
-        Continúa el flujo estándar del chatbot cuando no hay botones o condiciones específicas.
-        """
-        # Si no hay una pregunta actual, asignar la primera pregunta del flujo
-        if not event.current_question:
-            event.current_question = await sync_to_async(self.flow_model.preguntas.first)()
-            if not event.current_question:
-                return "Lo siento, no se encontró una pregunta inicial en el flujo.", []
-
-        # Obtener o crear un usuario asociado con el evento
-        user, _ = await Person.objects.aget_or_create(number_interaction=event.user_id)
-        
-        # Inicializar VacanteManager
-        vacante_manager = VacanteManager(event.context)  # Pasa el contexto del evento, si es necesario
-
-        # Verificar si la pregunta actual requiere habilidades
-        if event.current_question.input_type == 'skills':
-            user.skills = user_message
-            await sync_to_async(user.save)()
-
-            recommended_jobs = await sync_to_async(vacante_manager.match_person_with_jobs)(user)
-            if recommended_jobs:
-                response = "Aquí tienes algunas vacantes que podrían interesarte:\n"
-                for idx, (job, score) in enumerate(recommended_jobs[:5]):
-                    response += f"{idx + 1}. {job['title']} en {job['company']}\n"
-                response += "Por favor, ingresa el número de la vacante que te interesa."
-                event.context = {'recommended_jobs': recommended_jobs}
-                return response, []
-            else:
-                response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
-                return response, []
-
-        # Manejo de selección de vacante
-        elif event.current_question.input_type == 'select_job':
-            try:
-                job_index = int(user_message) - 1
-            except ValueError:
-                return "Por favor, ingresa un número válido.", []
-
-            recommended_jobs = event.context.get('recommended_jobs')
-            if recommended_jobs and 0 <= job_index < len(recommended_jobs):
-                selected_job = recommended_jobs[job_index]
-                event.context['selected_job'] = selected_job
-                event.current_question = await sync_to_async(Pregunta.objects.get)(option='schedule_interview')
-                return event.current_question.content, []
-            else:
-                return "Selección inválida.", []
-
-        # Procesar agendado de entrevista
-        elif event.current_question.input_type == 'schedule_interview':
-            selected_job = event.context.get('selected_job')
-            if not selected_job:
-                return "No se encontró la vacante seleccionada.", []
-
-            available_slots = await sync_to_async(vacante_manager.get_available_slots)(selected_job)
-            if available_slots:
-                response = "Estos son los horarios disponibles para la entrevista:\n"
-                for idx, slot in enumerate(available_slots):
-                    response += f"{idx + 1}. {slot}\n"
-                response += "Por favor, selecciona el número del horario que prefieras."
-                event.context['available_slots'] = available_slots
-                return response, []
-            else:
-                return "No hay horarios disponibles.", []
-
-        # Reserva de entrevista
-        elif event.current_question.input_type == 'confirm_interview_slot':
-            try:
-                slot_index = int(user_message) - 1
-            except ValueError:
-                return "Por favor, ingresa un número válido.", []
-
-            available_slots = event.context.get('available_slots')
-            if available_slots and 0 <= slot_index < len(available_slots):
-                selected_slot = available_slots[slot_index]
-                if await sync_to_async(vacante_manager.book_interview_slot)(selected_job, slot_index, user):
-                    response = f"Has reservado tu entrevista en el horario: {selected_slot}."
-                    return response, []
-                else:
-                    return "No se pudo reservar el slot, por favor intenta nuevamente.", []
-            else:
-                return "Selección inválida. Por favor, intenta nuevamente.", []
-
-        # Si no hay más preguntas, finalizar el flujo
-        await sync_to_async(event.save)()
-        next_question = await sync_to_async(Pregunta.objects.filter(id__gt=event.current_question.id).first)()
-        if next_question:
-            event.current_question = next_question
-            return next_question.content, []
-        else:
-            event.current_question = None
-            response = "No hay más preguntas. Aquí tienes el menú principal:"
-            await send_menu(event.platform, event.user_id)
-            return response, []
-
-    async def handle_persistent_menu(self, event):
-        """
-        Envía el menú persistente en cualquier momento de la conversación.
-        """
-        user = await sync_to_async(Person.objects.get)(number_interaction=event.user_id)
-        context = {
-            'name': user.name or ''
-        }
-        response = f"Aquí tienes el menú principal, {context['name']}:"
-        await send_menu(event.platform, event.user_id)
-        return response, []
-
     async def invite_known_person(self, referrer, name, apellido, phone_number):
-        """
-        Invita a una persona conocida vía WhatsApp y crea un pre-registro.
-
-        :param referrer: Usuario que refiere.
-        :param name: Nombre del invitado.
-        :param apellido: Apellido del invitado.
-        :param phone_number: Número de teléfono del invitado.
-        :return: Instancia de Person creada o existente.
-        """
-        invitado, created = await Person.objects.aget_or_create(
+        invitado, created = await sync_to_async(Person.objects.get_or_create)(
             phone=phone_number,
             defaults={'name': name, 'apellido_paterno': apellido},
         )
 
-        await Invitacion.objects.acreate(referrer=referrer, invitado=invitado)
+        await sync_to_async(Invitacion.objects.create)(referrer=referrer, invitado=invitado)
 
         if created:
             mensaje = (
                 f"Hola {name}, has sido invitado por {referrer.name} a unirte a Amigro.org. "
                 "¡Encuentra empleo en México de manera segura, gratuita e incluso podemos asesorarte en temas migrantes!"
             )
-            await send_message("whatsapp", phone_number, mensaje)
+            await send_message("whatsapp", phone_number, mensaje, referrer.business_unit)
 
         return invitado
 
-    async def determine_next_question(
-        self, event, user_message: str, analysis: dict, context: dict
-    ) -> Tuple[Optional[str], List]:
-        """
-        Determina la siguiente pregunta en el flujo basado en la respuesta del usuario y las entidades extraídas.
-
-        :param event: Instancia de ChatState.
-        :param user_message: Mensaje del usuario.
-        :param analysis: Análisis de NLP del mensaje.
-        :param context: Contexto de la conversación.
-        :return: Siguiente mensaje y opciones.
-        """
-        current_question = event.current_question
-        logger.info(f"Procesando la pregunta actual: {current_question}")
-
-        # Manejar diferentes tipos de preguntas y acciones
-        if current_question.action_type:
-            response, options = await self._handle_action_type(
-                event, current_question, context
-            )
-            return response, options
-
-        if current_question.botones_pregunta.exists():
-            response, options = await self._handle_button_response(
-                event, current_question, user_message, context
-            )
-            return response, options
-
-        # Flujo estándar: avanzar a la siguiente pregunta
-        next_question = current_question.next_si
-        if next_question:
-            event.current_question = next_question
-            await event.asave()
-            response = render_dynamic_content(next_question.content, context)
-            return response, []
+    async def get_first_question(self, flow_model: FlowModel) -> Optional[Pregunta]:
+        first_question = await sync_to_async(flow_model.preguntas.order_by('order').first)()
+        if first_question:
+            logger.debug(f"Primera pregunta obtenida: {first_question.content}")
         else:
-            return "No hay más preguntas en este flujo.", []
+            logger.debug("No se encontró la primera pregunta en el FlowModel.")
+        return first_question
 
-    async def verify_user_profile(self, user):
-        """
-        Verifica si el perfil del usuario tiene toda la información necesaria para continuar.
-        """
-        required_fields = ['name', 'apellido_paterno', 'skills', 'ubicacion', 'email']
-        missing_fields = [field for field in required_fields if not getattr(user, field)]
-        if missing_fields:
-            fields_str = ", ".join(missing_fields)
-            return f"Para continuar, completa estos datos: {fields_str}"
-        return None  # Todo está completo
+    async def get_next_question(self, current_question: Pregunta, user_message: str) -> Optional[Pregunta]:
+        response = user_message.strip().lower()
+        if response in ['sí', 'si']:
+            next_question = current_question.next_si
+        else:
+            next_question = current_question.next_no
 
-    async def process_user_message(self, event, text, analysis, context):
-        """
-        Procesa el mensaje del usuario y determina la respuesta.
-
-        :param event: Instancia de ChatState.
-        :param text: Mensaje del usuario.
-        :param analysis: Resultado del análisis NLP.
-        :param context: Contexto de la conversación.
-        :return: Respuesta y opciones.
-        """
-        # Aquí se implementa la lógica para procesar el mensaje del usuario.
-        # Este es un ejemplo simplificado.
-        current_question = event.current_question
-
-        if not current_question:
-            return "No hay una pregunta actual en el flujo.", []
-
-        # Determinar la siguiente pregunta o acción
-        response, options = await self.determine_next_question(
-            event, text, analysis, context
-        )
-        return response, options
+        if next_question:
+            logger.debug(f"Siguiente pregunta basada en la respuesta '{response}': {next_question.content}")
+        else:
+            logger.debug("No hay siguiente pregunta definida en el flujo.")
+        return next_question
 
     async def _handle_action_type(
-        self, event, current_question, context
-    ) -> Tuple[Optional[str], List]:
-        """
-        Maneja acciones específicas definidas en la pregunta actual.
+            self, event: ChatState, current_question: Pregunta, context: dict
+        ) -> Tuple[str, List]:
+        action = current_question.action_type
+        logger.info(f"Handling action type '{action}' para pregunta {current_question.id}")
 
-        :param event: Instancia de ChatState.
-        :param current_question: Pregunta actual.
-        :param context: Contexto de la conversación.
-        :return: Respuesta y opciones.
-        """
-        action_handlers = {
-            'enviar_whatsapp_plantilla': self._handle_whatsapp_template,
-            'enviar_url': self._handle_url,
-            'enviar_imagen': self._handle_image,
-            'enviar_logo': self._handle_logo,
-            'decision_si_no': self._handle_yes_no_decision,
-        }
-        handler = action_handlers.get(current_question.action_type)
-        if handler:
-            return await handler(event, current_question, context)
-        else:
-            return "Error: Acción no soportada.", []
-
-    async def _get_next_main_question(self, event, current_question):
-        return await sync_to_async(lambda: current_question.next_si)()
-
-    async def _handle_whatsapp_template(
-        self, event, current_question, context
-    ) -> Tuple[str, List]:
-        await send_message(
-            event.platform, event.user_id, f"Enviando template: {current_question.option}"
-        )
-        return await self._advance_to_next_question(event, current_question, context)
-
-    async def _handle_url(
-        self, event, current_question, context
-    ) -> Tuple[str, List]:
-        await send_message(event.platform, event.user_id, "Aquí tienes el enlace:")
-        await send_message(event.platform, event.user_id, current_question.content)
-        return await self._advance_to_next_question(event, current_question, context)
-
-    async def _handle_image(
-        self, event, current_question, context
-    ) -> Tuple[str, List]:
-        await send_message(event.platform, event.user_id, "Aquí tienes la imagen:")
-        await send_image(event.platform, event.user_id, current_question.content)
-        return await self._advance_to_next_question(event, current_question, context)
-
-    async def _handle_logo(
-        self, event, current_question, context
-    ) -> Tuple[str, List]:
-        await send_logo(event.platform, event.user_id)
-        return await self._advance_to_next_question(event, current_question, context)
-
-    async def _handle_yes_no_decision(
-        self, event, current_question, context
-    ) -> Tuple[None, List]:
-        from app.integrations.whatsapp import send_whatsapp_decision_buttons
-
-        decision_buttons = [{"title": "Sí"}, {"title": "No"}]
-        whatsapp_api = await WhatsAppAPI.objects.afirst()
-        await send_whatsapp_decision_buttons(
-            event.user_id,
-            current_question.content,
-            decision_buttons,
-            whatsapp_api.api_token,
-            whatsapp_api.phoneID,
-            whatsapp_api.v_api,
-        )
-        return None, []
-
-    async def _handle_no_response_required(self, event, current_question, context) -> Tuple[Optional[str], List]:
-        await self.send_response(event.platform, event.user_id, current_question.content)
-        await asyncio.sleep(3)
-        next_question = await sync_to_async(lambda: current_question.next_si)()
-        return render_dynamic_content(next_question.content, context), [] if next_question else ("No hay más preguntas en este flujo.", [])
-
-    async def _handle_multi_select(self, event, current_question, user_message: str, context) -> Tuple[Optional[str], List]:
-        selected_options = [option.strip().lower() for option in user_message.split(',')]
-        valid_options = []
-        for option in selected_options:
-            selected_button = await sync_to_async(
-                lambda: current_question.botones_pregunta.filter(name__iexact=option).first()
-            )()
-            if selected_button:
-                valid_options.append(selected_button.name)
-            else:
-                return "Opción no válida. Selecciona una opción válida.", []
-
-        return await self._advance_to_next_question(event, current_question, context)
-
-    async def _handle_button_response(
-        self, event, current_question, user_message: str, context
-    ) -> Tuple[Optional[str], List]:
-        user_response = user_message.lower().strip()
-
-        if user_response in ['sí', 'si', 'yes']:
-            next_question = current_question.next_si
-        elif user_response == 'no':
-            next_question = current_question.next_no
-        else:
-            return "Por favor responde con 'Sí' o 'No'.", []
-
-        if next_question:
-            event.current_question = next_question
-            await event.asave()
-            response = render_dynamic_content(next_question.content, context)
+        if action == 'send_email':
+            await self.send_profile_completion_email(event.user_id, context)
+            response = "Te hemos enviado un correo electrónico con más información."
+            return response, []
+        elif action == 'start_process':
+            response = "Estamos iniciando el proceso solicitado."
             return response, []
         else:
-            return "No hay más preguntas en este flujo.", []
-
-    async def _advance_to_next_question(
-        self, event, current_question, context
-    ) -> Tuple[str, List]:
-        next_question = current_question.next_si
-        if next_question:
-            event.current_question = next_question
-            await event.asave()
-            response = render_dynamic_content(next_question.content, context)
+            logger.warning(f"Tipo de acción desconocida: {action}")
+            response = "Ha ocurrido un error al procesar tu solicitud."
             return response, []
-        else:
-            return "No hay más preguntas en este flujo.", []
 
-    async def handle_new_job_position(self, event):
+    async def send_profile_completion_email(self, user_id: str, context: dict):
         """
-        Procesa la creación de una nueva posición laboral y envía la confirmación al usuario.
-
-        :param event: Instancia de ChatState.
+        Envía un correo electrónico para completar el perfil del usuario.
         """
-        job_data = event.data  # Aquí recibimos los datos de la vacante recogidos en el flujo
-
-        # Llamar a la función para procesar la vacante y crearla en WordPress
-        result = await procesar_vacante(job_data)
-
-        # Verificar el resultado y notificar al usuario
-        if result["status"] == "success":
-            await send_message(
-                event.platform,
-                event.user_id,
-                "La vacante ha sido creada exitosamente en nuestro sistema.",
-            )
-        else:
-            await send_message(
-                event.platform,
-                event.user_id,
-                "Hubo un problema al crear la vacante. Por favor, inténtalo de nuevo.",
-            )
-            
-    async def request_candidate_location(self, event, interview):
-        """
-        Solicita al candidato que comparta su ubicación antes de la entrevista, solo si es presencial.
-        """
-        if interview.interview_type != 'presencial':
-            logger.info(f"No se solicita ubicación porque la entrevista es virtual para ID: {interview.id}")
-            return
-
-        message = (
-            "Hola, para confirmar tu asistencia a la entrevista presencial, por favor comparte tu ubicación actual. "
-            "Esto nos ayudará a verificar que estás en el lugar acordado."
-        )
-        await send_message(event.platform, event.user_id, message)
-
-    async def handle_candidate_confirmation(self, platform, user_id, user_message):
-        """
-        Procesa la confirmación del candidato y guarda la información de ubicación si es presencial.
-        Notifica al entrevistador sobre la confirmación del candidato.
-        """
-        person = await sync_to_async(Person.objects.get)(number_interaction=user_id)
-        interview = await sync_to_async(Interview.objects.filter)(person=person).first()
-
-        if not interview or interview.candidate_confirmed:
-            return
-
-        if user_message.lower() in ['sí', 'si', 'yes']:
-            interview.candidate_confirmed = True
-            message = "¡Gracias por confirmar tu asistencia!"
-
-            # Si es presencial, solicitar ubicación
-            if interview.interview_type == 'presencial' and not interview.candidate_latitude:
-                message += "\nPor favor, comparte tu ubicación actual para validar que estás en el lugar correcto."
-            else:
-                message += "\nTe deseamos mucho éxito en tu entrevista."
-
-            await send_message(platform, user_id, message)
-            await sync_to_async(interview.save)()
-
-            # Notificar al entrevistador
-            await self.notify_interviewer(interview)
-        else:
-            await send_message(platform, user_id, "Por favor, confirma tu asistencia respondiendo con 'Sí'.")
-
-    async def notify_interviewer(self, interview):
-        """
-        Notifica al entrevistador que el candidato ha confirmado su asistencia.
-        """
-        job = interview.job
-        interviewer_phone = job.whatsapp or interview.person.phone  # WhatsApp del entrevistador
-        interviewer_email = job.email or interview.person.email     # Email del entrevistador
-
-        message = (
-            f"El candidato {interview.person.name} ha confirmado su asistencia a la entrevista para la posición {job.title}.\n"
-            f"Fecha de la entrevista: {interview.interview_date.strftime('%Y-%m-%d %H:%M')}\n"
-            f"Tipo de entrevista: {'Presencial' if interview.interview_type == 'presencial' else 'Virtual'}"
-        )
+        from app.integrations.services import send_email
         try:
-            # Enviar notificación por WhatsApp
-            if interviewer_phone:
-                await send_message('whatsapp', interviewer_phone, message)
-                logger.info(f"Notificación enviada al entrevistador vía WhatsApp: {interviewer_phone}")
-
-            # Enviar notificación por correo electrónico
-            if interviewer_email:
-                subject = f"Confirmación de asistencia para {job.title}"
-                send_email(
-                    business_unit_name=job.business_unit.name,
+            user = await sync_to_async(Person.objects.get)(phone=user_id)
+            email = user.email
+            if email:
+                subject = "Completa tu perfil en Amigro.org"
+                body = f"Hola {user.name},\n\nPor favor completa tu perfil en Amigro.org para continuar."
+                await send_email(
+                    business_unit_name=user.business_unit.name,
                     subject=subject,
-                    recipient=interviewer_email,
-                    body=message
+                    to_email=email,
+                    body=body
                 )
-                logger.info(f"Notificación enviada al entrevistador vía email: {interviewer_email}")
-
+                logger.info(f"Correo de completación de perfil enviado a {email}")
+            else:
+                logger.warning(f"Usuario {user_id} no tiene email registrado.")
+        except Person.DoesNotExist:
+            logger.error(f"No se encontró usuario con phone {user_id} para enviar correo de completación de perfil.")
         except Exception as e:
-            logger.error(f"Error enviando notificación al entrevistador: {e}")
+            logger.error(f"Error enviando correo de completación de perfil a {user_id}: {e}", exc_info=True)

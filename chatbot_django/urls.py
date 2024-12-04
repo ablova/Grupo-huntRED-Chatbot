@@ -27,11 +27,13 @@ def health_check(request):
 urlpatterns = [
     path('', include('app.urls')),
     path('admin/', admin.site.urls),
+    path('nested_admin/', include('nested_admin.urls')),  # Añadir esta línea
    # path('admin/', admin_site.urls, name='grupo_huntred_admin'),
     path('grappelli/', include('grappelli.urls')),  # Si utilizas Grappelli
     # Asegúrate de que esta sea la única inclusión de admin_patterns
     #path('admin/app/', include(admin_patterns)),
     # Incluye las URLs regulares de la app, pero no las admin_patterns
     path('health/', health_check, name='health_check'),
+    path('__debug__/', include('debug_toolbar.urls')),
 ]
 urlpatterns += staticfiles_urlpatterns()

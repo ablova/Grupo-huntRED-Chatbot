@@ -3,10 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Tus enlaces a CSS y JS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <title>Pruebas del Chatbot de Amigro</title>
     <style>
+        /* Tus estilos CSS */
         body {
             background-color: #f8f9fa;
         }
@@ -55,6 +56,14 @@
                         <option value="mostrar_vacantes">Mostrar Vacantes</option>
                         <option value="enviar_whatsapp_plantilla">Enviar Plantilla WhatsApp</option>
                         <option value="send_question">Enviar Pregunta</option>
+                        <option value="send_buttons">Enviar Botones</option>
+                        <option value="send_template_message">Enviar Mensaje de Plantilla</option>
+                        <option value="send_media_message">Enviar Mensaje Multimedia</option>
+                        <option value="execute_scraping">Ejecutar Scraping</option>
+                        <option value="send_notification">Enviar Notificación</option>
+                        <option value="follow_up_interview">Seguimiento de Entrevista</option>
+                        <option value="get_location">Obtener Ubicación</option>
+                        <!-- etc. -->
                     </select>
                     <small class="form-text text-muted">Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples.</small>
                 </div>
@@ -66,6 +75,15 @@
                         <option value="telegram">Telegram</option>
                         <option value="messenger">Messenger</option>
                         <option value="instagram">Instagram</option>
+                    </select>
+                </div>
+                <!-- Selección de BusinessUnit -->
+                <div class="form-group">
+                    <label for="business_unit_id"><strong>Selecciona Unidad de Negocio:</strong></label>
+                    <select class="form-control" id="business_unit_id" required>
+                        {% for bu in business_units %}
+                            <option value="{{ bu.id }}">{{ bu.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <!-- Campo para Número de Teléfono -->
@@ -81,7 +99,7 @@
                 <!-- Mensaje / Acción -->
                 <div class="form-group">
                     <label for="action"><strong>Mensaje/Acción:</strong></label>
-                    <textarea class="form-control" id="action" required></textarea>
+                    <textarea class="form-control" id="action"></textarea>
                 </div>
                 <!-- Botón de Envío -->
                 <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Enviar</button>
@@ -112,6 +130,11 @@
                 <input type="text" class="form-control" value="{{ config.test_email }}" readonly>
             </div>
         </div>
+        <!-- Historial de Mensajes -->
+        <div class="form-section">
+            <h2>Historial de Mensajes</h2>
+            <div id="messageHistory"></div>
+        </div>
     </div>
     <!-- Scripts -->
     <script>
@@ -131,6 +154,7 @@
                 const data = {
                     functions: Array.from(document.getElementById('functions').selectedOptions).map(option => option.value),
                     platform: document.getElementById('platform').value,
+                    business_unit_id: document.getElementById('business_unit_id').value,
                     phone_number: document.getElementById('phone_number').value.trim(),
                     question_id: document.getElementById('question_id').value.trim(),
                     action: document.getElementById('action').value.trim()
@@ -146,10 +170,18 @@
                         body: JSON.stringify(data)
                     });
 
+                    const result = await response.json();
+
                     if (response.ok) {
+                        const messageHistory = document.getElementById('messageHistory');
+                        result.responses.forEach(resp => {
+                            const messageDiv = document.createElement('div');
+                            messageDiv.innerHTML = `<strong>Función:</strong> ${resp.function}<br><strong>Respuesta:</strong><pre>${JSON.stringify(resp.response, null, 2)}</pre>`;
+                            messageHistory.appendChild(messageDiv);
+                        });
                         successAlert.style.display = 'block';
                     } else {
-                        errorAlert.textContent = `Error: ${response.statusText}`;
+                        errorAlert.textContent = `Error: ${result.error}`;
                         errorAlert.style.display = 'block';
                     }
                 } catch (error) {

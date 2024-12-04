@@ -7,21 +7,86 @@ git remote add production git@chatbot.amigro.org:/home/amigro/git/chatbot.git
 git push production main
 
 #git remote -v
-
 sudo journalctl -u gunicorn -f
 sudo journalctl -u celery -f
 cat /home/amigro/logs/error.log
-
 
 gcloud compute ssh pablollh@amigro --zone=us-central1-a --project=amigro 
 
 ssh -i ~/.ssh/id_rsa_chatbot git@35.209.109.141
 ssh chatbot.amigro.org
 
-
-
-sudo journalctl --vacuum-time=5days
+sudo journalctl --vacuum-time=2minutes
 sudo journalctl --rotate
+
+
+#______________
+# Manejo y mejora de memoria
+# Check detailed memory usage
+free -h
+# List top memory-consuming processes
+ps aux --sort=-%mem | head -n 15
+# Check specifically for Python and Celery processes
+ps aux | grep -E "python|celery"
+
+# Check Celery worker processes
+celery -A chatbot_django inspect stats
+celery -A chatbot_django inspect registered
+
+# List active Celery workers
+ps aux | grep celery-worker
+
+# Install memory profiler
+pip install memory_profiler
+
+# Run your Django application with memory profiling
+python -m memory_profiler manage.py
+# Analyze memory usage of specific tasks
+python -m memory_profiler app/tasks.py
+
+# Use Django's manage.py to run with proper environment
+# Use Django's manage.py to run with proper environment
+python manage.py shell
+
+# Then in the Python shell, you can import and profile specific tasks
+from memory_profiler import profile
+from app.tasks import your_specific_task
+
+# Example of profiling a specific task
+@profile
+def profile_task():
+    your_specific_task.delay()  # or call directly if needed
+
+profile_task()
+
+# Then in the Python shell, you can import and profile specific tasks
+from memory_profiler import profile
+from app.tasks import your_specific_task
+
+# Example of profiling a specific task
+@profile
+def profile_task():
+    your_specific_task.delay()  # or call directly if needed
+
+profile_task()
+
+# Use supervisord to manage and auto-restart workers
+pip install supervisor
+
+# Sample supervisord configuration
+[program:celery-worker]
+command=/path/to/venv/bin/celery -A chatbot_django worker
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/celery/worker.err.log
+stdout_logfile=/var/log/celery/worker.out.log
+
+# Example Celery worker configuration
+app.conf.update(
+    task_acks_late=True,
+    worker_max_memory_per_child=200000,  # Restart worker after 200MB
+    worker_max_tasks_per_child=1000
+)
 
 from app.models import WhatsAppAPI, MetaAPI, TelegramAPI, InstagramAPI, MessengerAPI
 whatsapp_api = WhatsAppAPI.objects.first()
@@ -133,8 +198,6 @@ send_menu('telegram', user_id)  # Reemplaza con tu chat ID
 # Envía el logo por Messenger
 send_menu('messenger', PSID)  # Reemplaza con tu PSID
 
-
-
 url = f"https://graph.facebook.com/{v_api}/{phone_id}/messages"
 headers = {
     "Authorization": f"Bearer {api_token}",
@@ -155,7 +218,6 @@ response = requests.post(url, headers=headers, data=json.dumps(payload))
 # Imprimir la respuesta JSON
 print(response.json())
 
-
 #separados en otro proceso
 curl -X POST https://graph.facebook.com/v20.0/114521714899382/messages \
 -H "Authorization: Bearer EAAJaOsnq2vgBO5ZB0Ub2E1v6VGMIA58Btx5jNAxIVm3yte05QUcy5ggf5k3IGf9EnZCqaZCBczuJT9jYcpMRWD93j24ZCabZA00B5VHP0rqNJDWJImWxtxoPayJxt8BaZAZALuqtL6UdFH3qT8aAdrtBnScrSSKXYqAje9Q9gxUJdbojefZCZAcFekVU7oHphwZC2q3xvyXVwU3M83yo2nwTEnMeyxRlVOhDbuZCnkBl9EZD" \
@@ -166,8 +228,7 @@ curl -X POST https://graph.facebook.com/v20.0/114521714899382/messages \
   "type": "text",
   "text": {
     "body": "Hello, this is a test message from Amigro from shell!"
-  }
-}'
+  }}'
 
 
 curl -X GET "https://api.telegram.org/bot5875713338:AAEl4RDu95KuB-oz4JqxMKLRnWr6j8bHky0/getWebhookInfo"
@@ -1311,3 +1372,168 @@ async def test_new_position_request():
 asyncio.run(test_new_position_request())
 
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJQYWJsbyIsImlhdCI6MTczMTAwNzY0OCwiZXhwIjoxODg4Njg3NjQ4fQ.BQezJzmVVpcaG2ZIbkMagezkt-ORoO5wyrG0odWZrlg
+
+
+
+from app.models import ConfiguracionBU, Person
+from app.scraping import consult, login_to_wordpress, register
+from app.vacantes import VacanteManager
+business_unit = ConfiguracionBU.objects.filter(name="amigro").first()
+if not business_unit:
+    print("No se encontró la configuración para la BusinessUnit de Amigro")
+else:
+    print(f"Configuración encontrada: {business_unit}")
+
+url_vacantes = f"{business_unit.dominio_bu}/wp-json/wp/v2/job-listings"  # Asegúrate que el URL esté correcto
+vacantes = consult(page=1, url=url_vacantes, business_unit=business_unit)
+print(vacantes)
+
+response_registro = register(
+    username="usuario_prueba",
+    email="usuario_prueba@amigro.org",
+    password="password123",
+    name="Nombre",
+    lastname="Apellido"
+)
+print(response_registro)
+
+login_exitoso = login_to_wordpress(username="admin_amigro", password="password_admin")
+print(f"Inicio de sesión: {'Exitoso' if login_exitoso else 'Fallido'}")
+
+job_data = {
+    "job_title": "Desarrollador Backend",
+    "job_description": "Responsable de APIs y mantenimiento de sistemas en Python",
+    "job_listing_type": "full-time",
+    "job_listing_region": "México",
+    "company_name": "Amigro S.A.",
+    "celular_responsable": "5555555555",
+    "job_tags": ["Python", "Django"],
+    "_job_expires": "2024-12-31"
+}
+
+vacante_manager = VacanteManager(job_data)
+resultado_creacion = vacante_manager.create_job_listing()
+print(resultado_creacion)
+
+from app.models import ConfiguracionBU
+print(list(ConfiguracionBU.objects.values()))
+
+business_unit = ConfiguracionBU.objects.filter(business_unit_id=4).first()
+if not business_unit:
+    print("No se encontró la configuración para la BusinessUnit de Amigro")
+else:
+    print(f"Configuración encontrada: {business_unit}")
+
+
+sudo journalctl --since "03:07" --until "03:27"
+crontab -l
+sudo crontab -l
+
+cat /etc/crontab
+ls /etc/cron.*
+cat /home/amigro/logs/*.log | grep "03:0"
+celery -A chatbot_django inspect active
+
+
+import asyncio
+from app.models import DominioScraping
+from app.scraping import run_scraper
+
+# Obtén una instancia del dominio a scrapear
+try:
+    dominio = DominioScraping.objects.get(empresa="Honeywell")  # Cambia "linkedin" según la plataforma.
+except DominioScraping.DoesNotExist:
+    print("El dominio especificado no existe en la base de datos.")
+    dominio = None
+
+if dominio:
+    # Ejecuta el scraper y muestra los resultados
+    vacantes = asyncio.run(run_scraper(dominio))
+    print(f"Total de vacantes extraídas: {len(vacantes)}")
+    for idx, vacante in enumerate(vacantes[:10], start=1):  # Muestra solo las primeras 10 vacantes
+        print(f"{idx}. Título: {vacante.get('title', 'No especificado')}")
+        print(f"   Ubicación: {vacante.get('location', 'No especificado')}")
+        print(f"   Enlace: {vacante.get('link', 'No disponible')}")
+        print(f"   Descripción: {vacante.get('details', {}).get('description', 'No disponible')}")
+        print("-------------------------------------------------------------")
+else:
+    print("No se pudo encontrar el dominio para scrapear.")
+
+
+dominio = DominioScraping.objects.get(empresa="Honeywell")
+dominio.plataforma = "oracle_hcm"  # Configura correctamente la plataforma
+dominio.save()  # Guarda el cambio en la base de datos
+print(f"Plataforma actualizada: {dominio.plataforma}")
+
+
+import asyncio
+from app.models import DominioScraping
+from app.scraping import run_scraper
+
+# Cargar el dominio y ejecutar el scraper
+dominio = DominioScraping.objects.get(empresa="Santander")
+
+# Ejecuta el scraping y muestra los resultados
+vacantes = asyncio.run(run_scraper(dominio))
+print(f"Total de vacantes extraídas: {len(vacantes)}")
+for idx, vacante in enumerate(vacantes[:10], start=1):  # Muestra solo las primeras 10 vacantes
+    print(f"{idx}. Título: {vacante.get('title', 'No especificado')}")
+    print(f"   Ubicación: {vacante.get('location', 'No especificado')}")
+    print(f"   Enlace: {vacante.get('link', 'No disponible')}")
+    print(f"   Descripción: {vacante.get('details', {}).get('description', 'No disponible')}")
+    print("-------------------------------------------------------------")
+
+
+
+INSERT INTO app_dominioscraping (empresa, dominio, plataforma, estado, verificado, cookies, creado_en, actualizado_en)
+VALUES 
+-- Carso (Oracle HCM)
+('Carso', 'https://carso.oracle.com/careers', 'oracle_hcm', 'definido', false, '{"CALYPSO_CSRF_TOKEN": "example-token"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Bimbo (Workday)
+('Bimbo', 'https://bimbo.wd3.myworkdayjobs.com/BimboCareers', 'workday', 'definido', false, '{"PLAY_SESSION": "example-session"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Walmart (SAP SuccessFactors)
+('Walmart', 'https://walmart.sapsf.com/careers', 'sap_successfactors', 'definido', false, '{"SAP_SESSION": "example-session"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Nu Bank (Workday)
+('Nu Bank', 'https://nubank.wd3.myworkdayjobs.com/NuBankCareers', 'workday', 'definido', false, '{"PLAY_SESSION": "example-session"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- Mondelez (Cornerstone)
+('Mondelez', 'https://mondelez.cornerstoneondemand.com/careers', 'cornerstone', 'definido', false, '{"CSRFTOKEN": "example-token"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+-- Femsa (Meta4)
+('Femsa', 'https://femsa.meta4.com/careers', 'meta4', 'definido', false, '{"META4_SESSION": "example-session"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Santander (Workday)
+('Santander', 'https://santander.wd3.myworkdayjobs.com/SantanderCareers', 'workday', 'definido', false, '{"PLAY_SESSION": "fb16fee74907ad1e6a2a94153f4e5402dac17ffe"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Honeywell (Phenom People)
+('Honeywell', 'https://careers.honeywell.com/mx/es', 'phenom_people', 'definido', false, '{"ORACLE_SESSION": "example-session"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+import asyncio
+from app.models import DominioScraping
+from app.scraping import run_scraper
+
+# Listado de empresas para probar
+empresas = ["Honeywell", "Santander", "Grupo Carso", "Grupo Bimbo", "Walmart de México y Centroamérica", "Nu Bank", "Incode", "Mondelez México"]
+
+for empresa in empresas:
+    try:
+        dominio = DominioScraping.objects.get(empresa=empresa)
+        print(f"Ejecutando scraping para: {empresa}")
+        vacantes = asyncio.run(run_scraper(dominio))
+        print(f"Total de vacantes extraídas para {empresa}: {len(vacantes)}")
+        for idx, vacante in enumerate(vacantes[:10], start=1):  # Muestra las primeras 10 vacantes
+            print(f"{idx}. Título: {vacante.get('title', 'No especificado')}")
+            print(f"   Ubicación: {vacante.get('location', 'No especificado')}")
+            print(f"   Enlace: {vacante.get('link', 'No disponible')}")
+            print(f"   Descripción: {vacante.get('details', {}).get('description', 'No disponible')}")
+            print("-------------------------------------------------------------")
+    except Exception as e:
+        print(f"Error ejecutando el scraper para {empresa}: {e}")
+
+
+
+
+
+
+        
