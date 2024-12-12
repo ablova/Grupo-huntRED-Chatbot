@@ -12,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
 from app.models import Worker, Person, GptApi, ConfiguracionBU
 # from app.integrations.whatsapp import registro_amigro, nueva_posicion_amigro Importaciones locales
-from app.ml_model import MatchMakingLearningSystem
+from app.ml_model import MatchmakingLearningSystem
 from app.scraping import (
     get_session,
     consult,
@@ -21,16 +21,19 @@ from app.scraping import (
     solicitud,
     login_to_wordpress
 )
-import chainlit as cl
+#import chainlit as cl
 #from some_ml_model import match_candidate_to_job  # Tu modelo personalizado
 
-@cl.on_message
-async def main(message):
-    # Procesa el mensaje del usuario
+#@cl.on_message
+#async def main(message):
+#    # Procesa el mensaje del usuario
+#    candidate_profile = extract_candidate_profile(message)
+#    job_matches = match_candidate_to_job(candidate_profile)
+#    await cl.Message(content=f"Encontré estas vacantes para ti: {job_matches}").send()
+def main(message):
     candidate_profile = extract_candidate_profile(message)
     job_matches = match_candidate_to_job(candidate_profile)
-    await cl.Message(content=f"Encontré estas vacantes para ti: {job_matches}").send()
-    
+    print(f"Encontré estas vacantes para ti: {job_matches}")   
 from geopy.distance import geodesic
 
 def match_person_with_jobs(person, job_list):

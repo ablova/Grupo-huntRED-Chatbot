@@ -17,7 +17,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git .
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Actualización del panel de admin, inclusion de templates y ajustes variados a chatbot, services, y canales" &&
+git commit -m "Actualización del panel de admin, inclusion de templates, parser, linkedin, y muchos features más..." &&
 git push origin main
 
 

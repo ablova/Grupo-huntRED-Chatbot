@@ -309,7 +309,7 @@ def process_linkedin_api_data_task(member_ids: list):
     logger.info("Datos vía API LinkedIn completado.")
 
 @shared_task
-def process_linkedin_csv_task(csv_path: str):
+def process_linkedin_csv_task(csv_path: str = "/home/amigro/connections.csv"):
     """
     Procesa el CSV de conexiones de LinkedIn.
     """

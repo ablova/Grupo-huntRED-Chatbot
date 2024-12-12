@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from encrypted_fields import EncryptedCharField
 import requests
 import logging
 import re
@@ -159,6 +160,8 @@ class DominioScraping(models.Model):
 class BusinessUnit(models.Model):
     name = models.CharField(max_length=50, choices=BUSINESS_UNIT_CHOICES, unique=True)
     description = models.TextField(blank=True)
+    admin_email = models.EmailField(null=True, blank=True)
+    admin_phone = models.CharField(max_length=20, null=True, blank=True)  # Número de WhatsApp del administrador
     whatsapp_enabled = models.BooleanField(default=True)
     telegram_enabled = models.BooleanField(default=True)
     messenger_enabled = models.BooleanField(default=True)
@@ -203,7 +206,7 @@ class ConfiguracionBU(models.Model):
     smtp_host = models.CharField(max_length=255, blank=True, null=True)
     smtp_port = models.IntegerField(blank=True, null=True, default=587)
     smtp_username = models.CharField(max_length=255, blank=True, null=True)
-    smtp_password = models.CharField(max_length=255, blank=True, null=True)
+    smtp_password = EncryptedCharField(max_length=255, blank=True, null=True)
     smtp_use_tls = models.BooleanField(default=True)
     smtp_use_ssl = models.BooleanField(default=False)
 
@@ -396,6 +399,9 @@ class Person(models.Model):
     #   }
     # }
     metadata = models.JSONField(default=dict, blank=True, help_text="Información adicional del candidato.")
+    hire_date = models.DateField(null=True, blank=True)  # Nuevo campo
+    points = models.IntegerField(default=0)
+    badges = models.ManyToManyField('Badge', blank=True)
 
     def __str__(self):
         nombre_completo = f"{self.nombre} {self.apellido_paterno or ''} {self.apellido_materno or ''}".strip()
@@ -414,6 +420,14 @@ class Person(models.Model):
         required_fields = ['nombre', 'apellido_paterno', 'email', 'phone', 'skills']
         missing_fields = [field for field in required_fields if not getattr(self, field, None)]
         return not missing_fields
+
+class Badge(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    icon = models.ImageField(upload_to='badges/', null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 class Application(models.Model):
     user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='applications')
@@ -594,7 +608,7 @@ class SmtpConfig(models.Model):
     host = models.CharField(max_length=255)
     port = models.IntegerField()
     username = models.CharField(max_length=255)
-    password = models.CharField(max_length=255)
+    password = EncryptedCharField(max_length=255)
     use_tls = models.BooleanField(default=True)
     use_ssl = models.BooleanField(default=False)
 
@@ -637,7 +651,7 @@ class MilkyLeak(models.Model):
 
     # Configuraciones de Mega.nz
     mega_email = models.EmailField()  # milkyleak@gmail.com
-    mega_password = models.CharField(max_length=255)  # PLLH_huntred2009!
+    mega_password = EncryptedCharField(max_length=255)  # PLLH_huntred2009!
 
     # Configuraciones adicionales
     folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")
@@ -799,3 +813,30 @@ class EnhancedNetworkGamificationProfile(models.Model):
             }
         ]
         return challenges
+    
+class VerificationCode(models.Model):
+    PURPOSE_CHOICES = [
+        ('update_whatsapp', 'Actualizar WhatsApp'),
+        # Añade otros propósitos aquí si es necesario
+    ]
+
+    person = models.ForeignKey(Person, on_delete=models.CASCADE)
+    key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.person.first_name} {self.person.last_name} - {self.purpose} - {'Usado' if self.is_used else 'No usado'}"
+
+class Interaction(models.Model):
+    """
+    Modelo para registrar las interacciones de los candidatos.
+    """
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='interactions')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    chat_state = models.CharField(max_length=100, null=True, blank=True)  # Puede almacenar el estado del chat o información relevante
+
+    def __str__(self):
+        return f"Interacción de {self.person} en {self.timestamp}"
