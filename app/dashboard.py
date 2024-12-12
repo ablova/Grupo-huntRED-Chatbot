@@ -1,47 +1,28 @@
-# /home/amigro/app/dashboard.py
-
+# Ubicación del archivo: /home/amigro/app/dashboard.py
 from admin_tools.dashboard import modules, Dashboard
-from django.utils.translation import ugettext_lazy as _
-from app.models import BusinessUnit, ChatState
 
 class CustomIndexDashboard(Dashboard):
-    title = 'Panel de Control de Grupo huntRED'
+    title = 'Panel de Control de Grupo huntRED®'
 
     def init_with_context(self, context):
         self.children.append(modules.ModelList(
-            title='Administración de Chatbots',
-            models=('app.models.Person', 'app.models.ChatState', 'app.models.Pregunta'),
+            title='Administración',
+            models=('app.models.Person', 'app.models.ChatState', 'app.models.Person', 'app.models.Application', 'app.models.Vacante'),
+        ))
+        
+        self.children.append(modules.ModelList(
+            title='Unidades de Negocio y Configuración',
+            models=('app.models.BusinessUnit', 'app.models.WhatsappAPI', 'app.models.TelegramAPI', 'app.models.MessengerAPI', 'app.models.InstagramAPI', 'app.models.MetaAPI', 'app.models.ConfiguracionBU'),
         ))
 
-        self.children.append(modules.Group(
-            title='Unidades de Negocio',
-            display='tabs',
-            children=[
-                modules.ModelList(
-                    title='Unidades de Negocio',
-                    models=('app.models.BusinessUnit', 'app.models.FlowModel'),
-                ),
-                modules.ModelList(
-                    title='APIs',
-                    models=('app.models.WhatsAppAPI', 'app.models.TelegramAPI', 'app.models.MetaAPI'),
-                ),
-            ]
+        self.children.append(modules.ModelList(
+            title='Scraping y Vacantes',
+            models=('app.models.DominioScraping', 'app.models.Vacante', 'app.models.RegistroScraping'),
         ))
 
-        # Agregar un módulo de estadísticas
-        self.children.append(modules.LinkList(
-            title='Estadísticas',
-            children=[
-                {
-                    'title': 'Interacciones por Unidad de Negocio',
-                    'url': '/admin/estadisticas/interacciones/',
-                    'external': False,
-                },
-                # Puedes agregar más enlaces o módulos de gráficos aquí
-            ]
+        self.children.append(modules.ModelList(
+            title='Otras Configuraciones',
+            models=('app.models.GptApi', 'app.models.SmtpConfig', 'app.models.ApiConfig', 'app.models.Template'),
         ))
 
-        self.children.append(modules.RecentActions(
-            title='Acciones Recientes',
-            limit=10,
-        ))
+        self.children.append(modules.RecentActions(title='Acciones Recientes', limit=10))

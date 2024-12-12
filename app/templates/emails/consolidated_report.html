@@ -1,0 +1,22 @@
+<!-- /home/amigro/app/templates/emails/consolidated_report.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte Consolidado</title>
+</head>
+<body>
+    <h2>📋 Reporte Consolidado del Día {{ today }}</h2>
+    <p>Estimado Administrador de {{ business_unit }},</p>
+    <p>A continuación, encontrarás los detalles de las nuevas posiciones agregadas y los usuarios que celebran su cumpleaños:</p>
+    <ul>
+        <li><a href="{{ scraping_report_link }}">Reporte de Nuevas Posiciones</a></li>
+        <li><a href="{{ birthday_report_link }}">Reporte de Cumpleaños</a></li>
+    </ul>
+    <p>Para contactar directamente a los usuarios de huntRED® y Executive, utiliza el siguiente enlace:</p>
+    <p><a href="{{ admin_contact_link }}">Contactar al Administrador</a></p>
+    <p>¡Saludos!</p>
+    <p>[Tu Empresa]</p>
+</body>
+</html>

@@ -1,4 +1,4 @@
-# /home/amigro/chatbot_django/urls.py
+# Ubicación del archivo: /home/amigro/chatbot_django/urls.py
 """chatbot_django URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -14,26 +14,29 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-#from app.admin import admin_site
+
+# Archivo simplificado para modularidad de rutas en el proyecto Django
+
 from django.contrib import admin
 from django.urls import path, include
-from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.http import HttpResponse
-#from app.urls import admin_patterns
 
 def health_check(request):
     return HttpResponse("OK")
 
 urlpatterns = [
-    path('', include('app.urls')),
+    # Administración
     path('admin/', admin.site.urls),
-    path('nested_admin/', include('nested_admin.urls')),  # Añadir esta línea
-   # path('admin/', admin_site.urls, name='grupo_huntred_admin'),
-    path('grappelli/', include('grappelli.urls')),  # Si utilizas Grappelli
-    # Asegúrate de que esta sea la única inclusión de admin_patterns
-    #path('admin/app/', include(admin_patterns)),
-    # Incluye las URLs regulares de la app, pero no las admin_patterns
+
+    # Grappelli (si está habilitado)
+    path('grappelli/', include('grappelli.urls')),
+
+    # APIs principales
+    path('api/chatbot/', include('chatbot.urls')),  # API del chatbot
+    path('api/users/', include('users.urls')),      # API de usuarios
+    path('api/tasks/', include('tasks.urls')),      # API de tareas
+
+    # Health Check
     path('health/', health_check, name='health_check'),
-    path('__debug__/', include('debug_toolbar.urls')),
 ]
 urlpatterns += staticfiles_urlpatterns()

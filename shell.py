@@ -50,7 +50,7 @@ python manage.py shell
 
 # Then in the Python shell, you can import and profile specific tasks
 from memory_profiler import profile
-from app.tasks import your_specific_task
+from chatbot_django import your_specific_task
 
 # Example of profiling a specific task
 @profile
@@ -61,7 +61,7 @@ profile_task()
 
 # Then in the Python shell, you can import and profile specific tasks
 from memory_profiler import profile
-from app.tasks import your_specific_task
+from chatbot_django import your_specific_task
 
 # Example of profiling a specific task
 @profile
@@ -120,7 +120,7 @@ else:
 send_message('whatsapp', 525518490291, f"Respuesta: Prueba desde shell de webhook")
 
 
-from app.tasks import send_whatsapp_message
+from chatbot_django import send_whatsapp_message
 
 # Ejecuta la tarea en segundo plano
 send_whatsapp_message.delay('525518490291', 'Hola desde el chatbot de Amigro, desde shell!')
@@ -134,7 +134,7 @@ debug_task.delay()
 celery -A chatbot_django worker --loglevel=info
 celery -A chatbot_django beat --loglevel=info
 
-from app.tasks import check_and_update_whatsapp_token
+from chatbot_django import check_and_update_whatsapp_token
 check_and_update_whatsapp_token.delay()
 
 from app.models import WhatsAppAPI
@@ -421,7 +421,7 @@ curl -X POST "https://graph.facebook.com/v20.0/{PAGE_ID}/messages" \
       -d "message={'text':'hello, world'}" \
       -d "access_token={PAGE_ACCESS_TOKEN}"
 
-from app.chatbot import ChatBotHandler
+from chatbot.chatbot import ChatBotHandler
 from app.models import Person, FlowModel
 
 # Crear una instancia del chatbot
@@ -454,7 +454,7 @@ response, options = await chatbot.process_message(platform, phone_number, messag
 print(response, options)
 
 import asyncio
-from app.chatbot import ChatBotHandler
+from chatbot.chatbot import ChatBotHandler
 
 async def run_test():
     chatbot = ChatBotHandler()
@@ -471,7 +471,7 @@ asyncio.run(run_test())
 
 
 import asyncio
-from app.chatbot import ChatBotHandler
+from chatbot.chatbot import ChatBotHandler
 
 async def run_test():
     chatbot = ChatBotHandler()
@@ -612,7 +612,7 @@ async_to_sync(send_options)(platform, user_id, message, buttons)
 from asgiref.sync import async_to_sync
 from app.models import Person  
 from app.vacantes import match_person_with_jobs  
-from app.chatbot import send_message  
+from chatbot.chatbot import send_message  
 person = Person.objects.get(phone='525518490291') 
 recommended_jobs = match_person_with_jobs(person)
 if recommended_jobs:
@@ -883,7 +883,7 @@ asyncio.run(send_whatsapp_decision_buttons(
 
 # Importar los modelos y funciones necesarios
 from app.models import Pregunta, ChatState, WhatsAppAPI
-from app.chatbot import ChatBotHandler
+from chatbot.chatbot import ChatBotHandler
 from app.integrations.whatsapp import send_message
 import asyncio
 
@@ -954,7 +954,7 @@ else:
 
 # Importar los modelos y funciones necesarios
 from app.models import Pregunta, ChatState, WhatsAppAPI
-from app.chatbot import ChatBotHandler
+from chatbot.chatbot import ChatBotHandler
 from app.integrations.whatsapp import send_message
 import asyncio
 
@@ -1351,7 +1351,7 @@ asyncio.run(test_whatsapp_message())
 
 
 import asyncio
-from app.chatbot import ChatBotHandler
+from chatbot.chatbot import ChatBotHandler
 from app.models import ChatState
 
 async def test_new_position_request():
@@ -1536,4 +1536,223 @@ for empresa in empresas:
 
 
 
-        
+from app.models import GptApi
+
+gpt_api, created = GptApi.objects.get_or_create(
+    organization="org-fUd3JSW3yVdvb47ZwnookNBm",
+    defaults={
+        "api_token": "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",
+        "project": "proj_CBAnjOYCKdqvT7ElOiKaJSJL",
+        "model": "gpt-3.5-turbo",
+        "form_pregunta": "Genera un formulario para recabar información de un candidato, para nuestras plataformas de atraccion de talento, particularmente para migrantes entrando a México.",
+        "work_pregunta": "Describe el perfil laboral de un candidato con base en su experiencia y cruzalo con un análisis de personalidad (MBL y Big 5).",
+    }
+)
+
+if not created:
+    # Si ya existía, actualizar:
+    gpt_api.api_token = "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"
+    gpt_api.organization = "org-fUd3JSW3yVdvb47ZwnookNBm"
+    gpt_api.project = "proj_CBAnjOYCKdqvT7ElOiKaJSJL"
+    gpt_api.model = "gpt-3.5-turbo"
+    gpt_api.form_pregunta = "Prompt por defecto para formularios"
+    gpt_api.work_pregunta = "Prompt por defecto para perfiles laborales"
+    gpt_api.save()
+
+
+
+from app.gpt import GPTHandler
+gpt_handler = GPTHandler()
+response = gpt_handler.generate_response("Hola, ¿puedes presentarte, y ayudarme en crear el perfil de usuarios de amigro.org?")
+print(response)
+
+
+from app.chatbot import ChatBotHandler
+from app.models import BusinessUnit
+from asgiref.sync import sync_to_async
+
+# Obtener la unidad de negocio de manera asíncrona
+amigro_bu = await sync_to_async(BusinessUnit.objects.get)(name="amigro")
+
+# Crear una instancia del chatbot handler
+chatbot_handler = ChatBotHandler()
+
+# Procesar el mensaje
+await chatbot_handler.process_message(
+    platform="whatsapp",
+    user_id="525518490291",
+    text="Hola",
+    business_unit=amigro_bu
+)
+await chatbot_handler.process_message(
+    platform="whatsapp",
+    user_id="525518490291",
+    text="Sí",
+    business_unit=amigro_bu
+)
+await chatbot_handler.process_message(
+    platform="whatsapp",
+    user_id="525518490291",
+    text="No",
+    business_unit=amigro_bu
+)
+await chatbot_handler.process_message(
+    platform="whatsapp",
+    user_id="525518490291",
+    text="Ver vacantes",
+    business_unit=amigro_bu
+)
+await chatbot_handler.process_message(
+    platform="whatsapp",
+    user_id="525518490291",
+    text="miemail@ejemplo.com",
+    business_unit=amigro_bu
+)
+from app.integrations.services import send_image
+
+configuracion_bu = amigro_bu.configuracionbu
+await send_image(
+    platform="whatsapp",
+    user_id="525518490291",
+    message="Aquí tienes nuestro logo:",
+    image_url=configuracion_bu.logo_url,
+    business_unit=amigro_bu
+)
+
+
+
+from app.scraping import run_scraper
+from app.models import DominioScraping
+import asyncio
+
+dominio = DominioScraping.objects.get(empresa="Accenture")
+vacantes = asyncio.run(run_scraper(dominio))
+print(vacantes)
+
+from app.scraping import run_all_scrapers
+
+await run_all_scrapers()
+
+from app.models import RegistroScraping
+
+registros = RegistroScraping.objects.filter(estado="fallido")
+for reg in registros:
+    print(reg.error_log)
+
+
+from app.models import DominioScraping
+
+# Empresas y dominios
+empresas = [
+    {"nombre": "AbbVie", "dominio": "https://abbvie.wd5.myworkdayjobs.com/abbvie"},
+    {"nombre": "Bristol Myers Squibb", "dominio": "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms"},
+    {"nombre": "GSK", "dominio": "https://gsk.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "MSD", "dominio": "https://msd.wd5.myworkdayjobs.com/external"},
+    {"nombre": "ExxonMobil", "dominio": "https://jobs.exxonmobil.com/"},
+    {"nombre": "Johnson Controls", "dominio": "https://johnsoncontrols.wd5.myworkdayjobs.com/en-US/external"},
+    {"nombre": "Fujifilm", "dominio": "https://fujifilm.wd5.myworkdayjobs.com/americas"},
+    {"nombre": "Diageo", "dominio": "https://diageo.wd5.myworkdayjobs.com/global"},
+    {"nombre": "Thales", "dominio": "https://thales.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Roche", "dominio": "https://roche.wd5.myworkdayjobs.com/global_external"},
+    {"nombre": "Toyota", "dominio": "https://toyota.wd5.myworkdayjobs.com/toyota"},
+    {"nombre": "AstraZeneca", "dominio": "https://astrazeneca.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Abbott", "dominio": "https://abbott.wd5.myworkdayjobs.com/abbott"},
+    {"nombre": "BD", "dominio": "https://bd.wd5.myworkdayjobs.com/en-US/External"},
+    {"nombre": "Sanofi", "dominio": "https://sanofi.wd5.myworkdayjobs.com/CAREERS"},
+    {"nombre": "Boston Scientific", "dominio": "https://bostonscientific.wd5.myworkdayjobs.com/bsc_jobs"},
+    {"nombre": "ThyssenKrupp", "dominio": "https://thyssenkrupp.wd5.myworkdayjobs.com/thyssenkrupp_careers"},
+    {"nombre": "AT&T", "dominio": "https://att.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Orange", "dominio": "https://orange.wd5.myworkdayjobs.com/orange"},
+    {"nombre": "Chevron", "dominio": "https://chevron.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Iberdrola", "dominio": "https://iberdrola.wd5.myworkdayjobs.com/iberdrola_external"},
+    {"nombre": "Veolia", "dominio": "https://veolia.wd5.myworkdayjobs.com/external"},
+    {"nombre": "ABB", "dominio": "https://abb.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Hulu", "dominio": "https://hulu.wd5.myworkdayjobs.com/Hulu"},
+    {"nombre": "Warner Bros", "dominio": "https://warnerbros.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Goodwill", "dominio": "https://goodwill.wd5.myworkdayjobs.com/external"},
+    {"nombre": "Home Depot", "dominio": "https://homedepot.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Puma", "dominio": "https://puma.wd5.myworkdayjobs.com/puma_careers"},
+    {"nombre": "Target", "dominio": "https://target.wd5.myworkdayjobs.com/targetjobs"},
+    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd5.myworkdayjobs.com/BofA_Careers"},
+    {"nombre": "Citi", "dominio": "https://citi.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Bupa", "dominio": "https://bupa.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.wd5.myworkdayjobs.com/MS"},
+    {"nombre": "Santander", "dominio": "https://santander.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Accenture", "dominio": "https://accenture.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Alight", "dominio": "https://alight.wd5.myworkdayjobs.com/alight"},
+    {"nombre": "PwC", "dominio": "https://pwc.wd5.myworkdayjobs.com/PwC"},
+    {"nombre": "Deloitte", "dominio": "https://deloitte.wd5.myworkdayjobs.com/deloitte"},
+    {"nombre": "Chubb", "dominio": "https://chubb.wd5.myworkdayjobs.com/chubb_external"},
+    {"nombre": "Argon", "dominio": "https://argon.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Aon", "dominio": "https://aon.wd5.myworkdayjobs.com/Aon"},
+    {"nombre": "BBVA", "dominio": "https://bbva.wd5.myworkdayjobs.com/BBVA"},
+    {"nombre": "Evercore", "dominio": "https://evercore.wd5.myworkdayjobs.com/External"},
+    {"nombre": "ING", "dominio": "https://ing.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Skandia", "dominio": "https://skandia.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Mastercard", "dominio": "https://mastercard.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Carlyle Group", "dominio": "https://carlyle.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Prudential", "dominio": "https://prudential.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Vector", "dominio": "https://vector.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Visa", "dominio": "https://visa.wd5.myworkdayjobs.com/Jobs"},
+    {"nombre": "BDO", "dominio": "https://bdo.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Teleperformance", "dominio": "https://teleperformance.wd5.myworkdayjobs.com/external"},
+    {"nombre": "Adobe", "dominio": "https://adobe.wd5.myworkdayjobs.com/en-US/external_experience"},
+    {"nombre": "HP", "dominio": "https://hp.wd5.myworkdayjobs.com/External"},
+    {"nombre": "LinkedIn", "dominio": "https://linkedin.wd5.myworkdayjobs.com/LinkedIn"},
+    {"nombre": "Salesforce", "dominio": "https://salesforce.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Okta", "dominio": "https://okta.wd5.myworkdayjobs.com/Okta_Careers"},
+    {"nombre": "Dell", "dominio": "https://dell.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Siemens", "dominio": "https://siemens.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Spotify", "dominio": "https://spotify.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Yahoo", "dominio": "https://yahoo.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "PepsiCo", "dominio": "https://pepsico.wd5.myworkdayjobs.com/PepsiCoCareers"},
+    {"nombre": "Unilever", "dominio": "https://unilever.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Nestlé", "dominio": "https://nestle.wd5.myworkdayjobs.com/Nestle"},
+    {"nombre": "Coca-Cola", "dominio": "https://coca-cola.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Procter & Gamble", "dominio": "https://pg.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Danone", "dominio": "https://danone.wd5.myworkdayjobs.com/DanoneCareers"},
+    {"nombre": "Mondelez", "dominio": "https://mondelez.wd5.myworkdayjobs.com/MDLZ"},
+    {"nombre": "Grupo Bimbo", "dominio": "https://grupobimbo.wd5.myworkdayjobs.com/GBIMBO"},
+    {"nombre": "General Electric", "dominio": "https://ge.wd5.myworkdayjobs.com/GE_Careers"},
+    {"nombre": "Kimberly-Clark", "dominio": "https://kimberlyclark.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Heineken", "dominio": "https://heineken.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Grupo Modelo (AB InBev)", "dominio": "https://abinbev.wd5.myworkdayjobs.com/abinbev"},
+    {"nombre": "Colgate-Palmolive", "dominio": "https://colgate.wd5.myworkdayjobs.com/ColgateCareers"},
+    {"nombre": "Johnson & Johnson", "dominio": "https://jnj.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Intel", "dominio": "https://intel.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Volkswagen", "dominio": "https://volkswagen.wd5.myworkdayjobs.com/Volkswagen_Careers"},
+    {"nombre": "BMW", "dominio": "https://bmw.wd5.myworkdayjobs.com/BMW_Group_Careers"},
+    {"nombre": "Mercedes-Benz", "dominio": "https://mercedesbenz.wd5.myworkdayjobs.com/MB_Careers"},
+    {"nombre": "Continental", "dominio": "https://continental.wd5.myworkdayjobs.com/continental_careers"},
+    {"nombre": "Samsung", "dominio": "https://samsung.wd5.myworkdayjobs.com/SamsungCareers"},
+    {"nombre": "LG Electronics", "dominio": "https://lg.wd5.myworkdayjobs.com/LG_Careers"},
+    {"nombre": "Nike", "dominio": "https://nike.wd5.myworkdayjobs.com/nike"},
+    {"nombre": "Adidas", "dominio": "https://adidas.wd5.myworkdayjobs.com/adidas"},
+    {"nombre": "Grupo Carso", "dominio": "https://carso.wd5.myworkdayjobs.com/CarsoCareers"},
+    {"nombre": "Kraft Heinz", "dominio": "https://kraftheinz.wd5.myworkdayjobs.com/KraftHeinzCareers"},
+    {"nombre": "Mars", "dominio": "https://mars.wd5.myworkdayjobs.com/Mars_Careers"},
+    {"nombre": "3M", "dominio": "https://3m.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Cisco", "dominio": "https://cisco.wd5.myworkdayjobs.com/Cisco_Careers"},
+    {"nombre": "Oracle", "dominio": "https://oracle.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "SAP", "dominio": "https://sap.wd5.myworkdayjobs.com/SAPCareers"},
+    {"nombre": "American Express", "dominio": "https://americanexpress.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Delta Airlines", "dominio": "https://delta.wd5.myworkdayjobs.com/Delta_Careers"},
+    {"nombre": "Aeroméxico", "dominio": "https://aeromexico.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Grupo Aeroportuario del Pacífico", "dominio": "https://gap.wd5.myworkdayjobs.com/GAP_Careers"},
+    {"nombre": "IKEA", "dominio": "https://ikea.wd5.myworkdayjobs.com/ikea_careers"},
+    {"nombre": "Walmart", "dominio": "https://walmart.wd5.myworkdayjobs.com/WalmartCareers"},
+    {"nombre": "Starbucks", "dominio": "https://starbucks.wd5.myworkdayjobs.com/StarbucksCareers"},
+]
+
+# Iterar sobre empresas para validar y agregar
+for empresa in empresas:
+    if not DominioScraping.objects.filter(nombre=empresa["nombre"]).exists():
+        DominioScraping.objects.create(
+            nombre=empresa["nombre"],
+            dominio=empresa["dominio"],
+            activo=True,  # Activar para scraping
+            plataforma="workday"  # Indicar plataforma de Workday
+        )
+        print(f"Empresa '{empresa['nombre']}' añadida exitosamente.")
+    else:
+        print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")

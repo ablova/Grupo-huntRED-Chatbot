@@ -6,8 +6,8 @@ import os
 from io import BytesIO
 from django.shortcuts import render, get_object_or_404
 from .models import MilkyLeak
-from .tasks import post_image_task  # Importar de Celery para manejar tareas asincrónicas
-from mega import Mega
+from ..chatbot_django import post_image_task  # Importar de Celery para manejar tareas asincrónicas
+#from mega import Mega
 import dropbox  # Añadido para manejar la API de Dropbox
 import tweepy
 

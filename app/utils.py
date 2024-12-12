@@ -1,144 +1,57 @@
-import spacy
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
-import re
+# /home/amigro/app/utils.py
+
 import math
-from spacy.matcher import Matcher
-from django.utils.timezone import now
+import re
 import logging
-from typing import Dict
-from spacy.tokens import Doc
+from datetime import datetime
+from app.nlp import NLPProcessor
+from itsdangerous import URLSafeTimedSerializer
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-try:
-    # Cargar el modelo en español de spaCy
-    nlp = spacy.load("es_core_news_sm")
-except Exception as e:
-    logger.error(f"Error al cargar el modelo de spaCy: {e}")
-    raise e  # Re-lanzar la excepción para que el programa pueda manejarlo adecuadamente
+# Inicializar el NLPProcessor una sola vez
+nlp_processor = NLPProcessor()
 
-# Inicializar el Matcher de spaCy
-matcher = Matcher(nlp.vocab)
-
-# Definir patrones para identificar intenciones
-patterns = [
-    {"label": "reiniciar", "pattern": [{"LOWER": {"IN": ["reiniciar", "reinicio", "reset", "empezar de nuevo"]}}]},
-    {"label": "menu", "pattern": [{"LOWER": {"IN": ["menu", "menú", "main menu", "menú principal"]}}]},
-    {"label": "recapitulación", "pattern": [{"LOWER": {"IN": ["recap", "recapitulación", "mi perfil", "ver información"]}}]},
-    # Otros patrones existentes
-    {"label": "saludo", "pattern": [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "buenas noches", "qué tal"]}}]},
-    {"label": "despedida", "pattern": [{"LOWER": {"IN": ["adiós", "hasta luego", "nos vemos", "chao", "ciao", "bye"]}}]},
-    {"label": "ayuda", "pattern": [{"LOWER": {"IN": ["ayuda", "soporte", "asistencia"]}}]},
-    {"label": "buscar_vacante", "pattern": [{"LEMMA": "buscar"}, {"LEMMA": "vacante"}]},
-    {"label": "postular_vacante", "pattern": [{"LEMMA": "postular"}, {"LEMMA": "vacante"}]},
-    {"label": "solicitar_ayuda_postulacion", "pattern": [{"LEMMA": "necesitar"}, {"LOWER": {"IN": ["ayuda", "asistencia"]}}, {"LEMMA": "postular"}]},
-    {"label": "consultar_estatus", "pattern": [{"LEMMA": "consultar"}, {"LEMMA": "estatus"}, {"LEMMA": "aplicación"}]},
-    # Añade más patrones según tus necesidades
-]
-
-# Añadir patrones al Matcher
-for pattern in patterns:
-    matcher.add(pattern["label"], [pattern["pattern"]])
-
-# Descargar recursos de NLTK
-nltk.download('punkt')
-nltk.download('vader_lexicon')
-
-# Inicializar Sentiment Analyzer
-sia = SentimentIntensityAnalyzer()
-
-def analyze_text(text):
-    """
-    Analiza el texto del usuario y extrae intenciones, entidades y sentimientos.
-
-    Args:
-        text (str): Mensaje del usuario.
-
-    Returns:
-        dict: Diccionario con intenciones, entidades y sentimiento.
-    """
-    try:
-        doc = nlp(text.lower())
-
-        # Buscar patrones de intención
-        matches = matcher(doc)
-        intents = []
-        for match_id, start, end in matches:
-            intent = nlp.vocab.strings[match_id]
-            intents.append(intent)
-
-        # Extraer entidades nombradas
-        entities = [(ent.text, ent.label_) for ent in doc.ents]
-
-        # Analizar sentimiento
-        sentiment = sia.polarity_scores(text)
-
-        # Registrar los logs para depuración
-        logger.debug(f"Text analyzed: {text}")
-        logger.debug(f"Detected intents: {intents}")
-        logger.debug(f"Entities found: {entities}")
-        logger.debug(f"Sentiment analysis: {sentiment}")
-
-        # Retornar análisis
-        return {
-            "intents": intents,
-            "entities": entities,
-            "sentiment": sentiment,
-        }
-    except Exception as e:
-        logger.error(f"Error al analizar el texto: {e}", exc_info=True)
-        return {
-            "intents": [],
-            "entities": [],
-            "sentiment": {},
-        }
-
-def clean_text(text):
+def clean_text(text: str) -> str:
     """
     Limpia texto eliminando caracteres especiales y espacios adicionales.
-
-    Args:
-        text (str): Texto a limpiar.
-
-    Returns:
-        str: Texto limpio.
     """
     if not text:
         return ""
-    text = re.sub(r'\s+', ' ', text)  # Sustituir múltiples espacios por uno solo
-    text = re.sub(r'[^\w\s]', '', text)  # Eliminar caracteres especiales
+    text = re.sub(r'\s+', ' ', text)  # Reducir múltiples espacios
+    text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)  # Eliminar caracteres especiales exceptuando tildes
     return text.strip()
 
-def detect_intents(doc: Doc, matcher) -> Dict[str, list]:
+def analyze_text(text: str) -> dict:
     """
-    Detecta intents usando patrones definidos en el Matcher.
-
-    Args:
-        doc (Doc): Objeto Doc procesado por spaCy.
-        matcher (Matcher): Objeto Matcher de spaCy con patrones cargados.
-
-    Returns:
-        dict: Diccionario con la lista de intents detectados.
+    Analiza el texto del usuario y extrae intenciones, entidades y sentimiento.
+    Hace uso del NLPProcessor definido en nlp.py.
     """
     try:
-        matches = matcher(doc)
-        intents = [doc.vocab.strings[match_id] for match_id, start, end in matches]
-        return {"intents": intents}
+        cleaned = clean_text(text)
+        return nlp_processor.analyze(cleaned)
     except Exception as e:
-        logger.error(f"Error detectando intents: {e}", exc_info=True)
-        return {"intents": []}
-    
+        logger.error(f"Error analizando texto: {e}", exc_info=True)
+        return {"intents": [], "entities": [], "sentiment": {}}
+
+def validate_date(date_str: str) -> bool:
+    """
+    Valida si un string es una fecha en formato DD/MM/AAAA.
+    """
+    match = re.match(r"^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[012])/\d{4}$", date_str)
+    return bool(match)
+
+def sanitize_business_unit_name(name: str) -> str:
+    """
+    Convierte el nombre de la BusinessUnit a un formato adecuado para filenames.
+    Por ejemplo: 'Hunt RED' -> 'huntred'
+    """
+    return re.sub(r'\W+', '', name).lower()
+
 def haversine_distance(lat1, lon1, lat2, lon2):
     """
     Calcula la distancia en kilómetros entre dos puntos geográficos usando la fórmula de Haversine.
-
-    Args:
-        lat1, lon1: Coordenadas del primer punto.
-        lat2, lon2: Coordenadas del segundo punto.
-
-    Returns:
-        float: Distancia en kilómetros.
     """
     R = 6371  # Radio de la Tierra en km
     phi1 = math.radians(lat1)
@@ -151,4 +64,30 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-    return R * c  # Distancia en km
+    return R * c
+
+def fetch_data_from_url(url):
+    """
+    Realiza una solicitud HTTP para obtener datos desde una URL.
+    """
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return {"error": f"Failed to fetch data from {url}"}
+    
+def generate_verification_token(key):
+    serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
+    return serializer.dumps(key, salt='verification-salt')
+
+def confirm_verification_token(token, expiration=3600):
+    serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
+    try:
+        key = serializer.loads(
+            token,
+            salt='verification-salt',
+            max_age=expiration
+        )
+    except Exception:
+        return False
+    return key

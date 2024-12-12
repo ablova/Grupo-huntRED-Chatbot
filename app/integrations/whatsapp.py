@@ -1,7 +1,10 @@
+# Ubicación /home/amigro/app/integrations/whatsapp.py
+
 import json
 import httpx
 import logging
 from django.core.cache import cache
+from django.http import JsonResponse, HttpResponse
 from asgiref.sync import sync_to_async
 from django.views.decorators.csrf import csrf_exempt
 from app.models import WhatsAppAPI, MetaAPI, BusinessUnit, ConfiguracionBU, Person, ChatState
@@ -50,6 +53,7 @@ async def whatsapp_webhook(request):
 
 @csrf_exempt
 async def verify_whatsapp_token(request):
+    """ Maneja la verificación del token para el webhook de WhatsApp. """
     try:
         verify_token = request.GET.get('hub.verify_token')
         challenge = request.GET.get('hub.challenge')
@@ -59,7 +63,6 @@ async def verify_whatsapp_token(request):
             logger.error("Falta el parámetro phoneID en la solicitud de verificación")
             return HttpResponse("Falta el parámetro phoneID", status=400)
 
-        # Obtener WhatsAppAPI desde la caché
         cache_key_whatsapp = f"whatsappapi:{phone_id}"
         whatsapp_api = cache.get(cache_key_whatsapp)
 
@@ -70,11 +73,8 @@ async def verify_whatsapp_token(request):
             if not whatsapp_api:
                 logger.error(f"PhoneID no encontrado: {phone_id}")
                 return HttpResponse('Configuración no encontrada', status=404)
-
-            # Guardar en caché
             cache.set(cache_key_whatsapp, whatsapp_api, timeout=CACHE_TIMEOUT)
 
-        # Obtener MetaAPI usando la unidad de negocio
         business_unit = whatsapp_api.business_unit
         cache_key_meta = f"metaapi:{business_unit.id}"
         meta_api = cache.get(cache_key_meta)
@@ -86,11 +86,8 @@ async def verify_whatsapp_token(request):
             if not meta_api:
                 logger.error(f"MetaAPI no encontrado para la unidad de negocio: {business_unit.name}")
                 return HttpResponse('Configuración no encontrada', status=404)
-
-            # Guardar en caché
             cache.set(cache_key_meta, meta_api, timeout=CACHE_TIMEOUT)
 
-        # Validar el token de verificación
         if verify_token == meta_api.verify_token:
             logger.info(f"Token de verificación correcto para phoneID: {phone_id}")
             return HttpResponse(challenge)
@@ -128,7 +125,6 @@ async def handle_incoming_message(payload):
                         logger.error("No se encontró 'phone_number_id' en el metadata")
                         continue
 
-                    # Obtener configuración de WhatsAppAPI y unidad de negocio
                     cache_key_whatsapp = f"whatsappapi:{phone_id}"
                     whatsapp_api = cache.get(cache_key_whatsapp)
 
@@ -143,49 +139,35 @@ async def handle_incoming_message(payload):
 
                     business_unit = whatsapp_api.business_unit
 
-                    # Obtener información del usuario y determinar idioma
                     name = value.get('contacts', [{}])[0].get('profile', {}).get('name', 'Usuario')
                     raw_text = message.get('text', {}).get('body', '')
-                    language = value.get('contacts', [{}])[0].get('language', {}).get('code', 'es')
-                    if not language and raw_text:
-                        try:
-                            from app.utils import detect_language
-                            language = detect_language(raw_text)
-                        except Exception as e:
-                            language = 'es_MX'
-                            logger.warning(f"Error detectando idioma: {e}")
 
-                    # Obtener o crear la instancia de Person
                     person, _ = await sync_to_async(Person.objects.get_or_create)(
                         phone=sender_id,
                         defaults={'name': name}
                     )
 
-                    # Obtener o crear la instancia de ChatState
                     chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
                         user_id=sender_id,
                         defaults={'platform': 'whatsapp', 'business_unit': business_unit}
                     )
+                    # Asociar chat_state al usuario si no está ya asociado
+                    if not hasattr(person, 'chat_state'):
+                        person.chat_state = chat_state
+                        await sync_to_async(person.save)()
 
-                    # Process the message based on its type
-                    message_type = message.get('type', 'text')
-                    message_handlers = {
-                        'text': handle_text_message,
-                        'image': handle_media_message,
-                        'audio': handle_media_message,
-                        'location': handle_location_message,
-                        'interactive': handle_interactive_message,
-                        # Add more message types and their handlers here
-                    }
-
-                    handler = message_handlers.get(message_type, handle_unknown_message)
-                    await handler(message, sender_id, chatbot_handler, business_unit, person, chat_state)
+                    await chatbot_handler.process_message(
+                        platform='whatsapp',
+                        user_id=sender_id,
+                        text=raw_text,
+                        business_unit=business_unit
+                    )
 
         return JsonResponse({'status': 'success'}, status=200)
 
     except Exception as e:
-        logger.error(f"Unexpected error handling the message: {e}", exc_info=True)
-        return JsonResponse({'error': f"Unexpected error: {e}"}, status=500)
+        logger.error(f"Error procesando el mensaje: {e}", exc_info=True)
+        return JsonResponse({'error': f"Error procesando el mensaje: {e}"}, status=500)
 
 # Define handler functions for each message type
 async def handle_text_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
@@ -292,13 +274,13 @@ async def get_media_url(media_id, api_token):
     """
     Obtiene la URL de descarga para un medio específico.
     """
-    url = f"https://graph.facebook.com/v17.0/{media_id}"
+    url = f"https://graph.facebook.com/{api_version}/{media_id}"
     headers = {
         "Authorization": f"Bearer {api_token}"
     }
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
@@ -319,7 +301,7 @@ async def download_media(media_url, api_token):
     }
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(media_url, headers=headers)
             response.raise_for_status()
             return response.content
@@ -337,7 +319,7 @@ async def handle_image_message(platform, sender_id, image_data, business_unit):
     logger.info(f"Imagen recibida de {sender_id}. Procesando imagen...")
 
     # Guardar la imagen en el sistema de archivos
-    image_path = f"/path/to/save/images/{sender_id}_{int(time.time())}.jpg"
+    image_path = f"/home/amigro/app/static/images/{sender_id}_{int(time.time())}.jpg"
     try:
         with open(image_path, 'wb') as f:
             f.write(image_data)
@@ -379,3 +361,68 @@ async def send_whatsapp_buttons(user_id, message, buttons, phone_id):
         )
     except Exception as e:
         logger.error(f"Error enviando botones de WhatsApp: {e}", exc_info=True)
+
+async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
+    """
+    Envía botones interactivos a través de WhatsApp usando la configuración asociada a la unidad de negocio.
+    """
+    from app.models import WhatsAppAPI
+
+    try:
+        # Obtener la configuración de WhatsAppAPI vinculada a la unidad de negocio
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(
+            business_unit=business_unit,
+            is_active=True
+        ).first)()
+
+        if not whatsapp_api:
+            raise ValueError(f"No se encontró configuración activa de WhatsAppAPI para la unidad de negocio: {business_unit.name}")
+
+        url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+        headers = {
+            "Authorization": f"Bearer {whatsapp_api.api_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Formatear botones para WhatsApp
+        formatted_buttons = [
+            {
+                "type": "reply",
+                "reply": {
+                    "id": button['payload'],
+                    "title": button['title'][:20]  # WhatsApp limita a 20 caracteres
+                }
+            }
+            for button in buttons
+        ]
+
+        # Construir el payload de la solicitud
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": user_id,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {
+                    "text": message
+                },
+                "action": {
+                    "buttons": formatted_buttons
+                }
+            }
+        }
+
+        # Enviar la solicitud
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info(f"Botones enviados correctamente a WhatsApp. Respuesta: {response.text}")
+
+    except ValueError as e:
+        logger.error(f"Error en configuración: {e}")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error al enviar botones a WhatsApp: {e.response.text}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Error general al enviar botones a WhatsApp: {e}", exc_info=True)
+

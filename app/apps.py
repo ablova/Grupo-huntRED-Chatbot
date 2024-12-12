@@ -14,6 +14,7 @@ class AppConfig(AppConfig):
         """
         Configura la señal para cargar configuraciones dinámicas después de que la aplicación esté completamente inicializada.
         """
+        import app.signals
         if not settings.DEBUG:
             return
 

@@ -3,10 +3,15 @@ venv/
 *.pyc
 __pycache__/
 .DS_Store
+# Archivos de respaldo
+*_old.py
+*.json
 
 # Archivos estáticos generados
 staticfiles/
 media/
+# Ignorar archivos temporales
+~*
 
 
 #omitir las bases de datos
@@ -15,3 +20,8 @@ db1.sqlite3
 db2.sqlite3
 
 no_borrar.json
+
+# Directorios no rastreados
+.chainlit/
+logs/
+app/migrations/

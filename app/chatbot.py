@@ -1,388 +1,571 @@
+# Ubicación: /home/amigro/app/chatbot.py
 import logging
 import asyncio
-from typing import Optional, Tuple, List
+import re
+from typing import Optional, List, Dict, Any, Tuple
 from asgiref.sync import sync_to_async
+from django.utils.timezone import now
+from django.core.cache import cache
+
 from app.models import (
-    ChatState, Pregunta, Person, FlowModel, BusinessUnit
+    ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, Vacante, WhatsAppAPI, EnhancedNetworkGamificationProfile
+)
+from app.integrations.services import (
+    send_message, send_email, reset_chat_state
 )
 from app.vacantes import VacanteManager
-from app.integrations.services import (
-    send_message, send_whatsapp_decision_buttons, reset_chat_state, get_api_instance
-)
-from app.utils import analyze_text, clean_text
-from django.core.cache import cache
+from app.utils import analyze_text  # Encargado del NLP y patrones de intents
+from app.parser import CVParser
 
 logger = logging.getLogger(__name__)
 CACHE_TIMEOUT = 600  # 10 minutes
 
+async def get_whatsapp_config(phone_id):
+    whatsapp_api = await sync_to_async(
+        WhatsAppAPI.objects.filter(phoneID=phone_id, is_active=True).select_related('business_unit').first
+    )()
+    if not whatsapp_api:
+        raise ValueError(f"No se encontró configuración para phoneID: {phone_id}")
+    return whatsapp_api
+
+class GPTHandler:
+    def generate_response(self, prompt: str, api_key: str, model: str = "gpt-3.5-turbo") -> str:
+        import openai
+        openai.api_key = api_key
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=150,
+                temperature=0.7
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"Error generando respuesta con GPT: {e}", exc_info=True)
+            return "Lo siento, no pude procesar tu solicitud."
+
 class ChatBotHandler:
+    def __init__(self):
+        self.gpt_handler = GPTHandler()
+
     async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
         """
-        Procesa un mensaje entrante del usuario y gestiona el flujo de conversación.
+        Procesa el mensaje entrante para un usuario en una plataforma específica dentro de una unidad de negocio.
         """
-        logger.info(f"Processing message for {user_id} on {platform} for business unit {business_unit.name}")
-
         try:
-            # Etapa 1: Preprocesamiento del Mensaje
-            text = clean_text(text)
-            analysis = analyze_text(text)
+            chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
+                user_id=user_id,
+                defaults={'platform': platform, 'business_unit': business_unit}
+            )
+            logger.info(f"Processing message for {user_id} on {platform} for BU {business_unit.name}")
+            text = text.strip()
+
+            # Obtener o crear el ChatState y User
+            event = await self.get_or_create_event(user_id, platform, business_unit)
+            user, _ = await self.get_or_create_user(user_id, event, {})
+
+            # Almacenar mensaje del usuario en el historial
+            await self.store_user_message(event, text)
+
+            analysis = analyze_text(text)  # { "intents": [...], "entities": [...], "sentiment": {...} }
+            if not analysis or not isinstance(analysis, dict):
+                raise ValueError(f"Invalid analysis result: {analysis}")
             intents = analysis.get("intents", [])
             entities = analysis.get("entities", {})
-            if not isinstance(intents, list):
-                logger.error(f"Invalid intents format: {intents}")
-                intents = []
-            cache_key = f"analysis_{user_id}"
-            cache.set(cache_key, analysis, CACHE_TIMEOUT)
-            logger.debug(f"Message analysis cached with key {cache_key}")
+            sentiment = analysis.get("sentiment", {})
 
-            # Etapa 2: Inicialización del Contexto de Conversación
-            event = await self.get_or_create_event(user_id, platform, business_unit)
-            if not event:
-                logger.error(f"No se pudo crear el evento para el usuario {user_id}.")
-                await send_message(platform, user_id, "Error al inicializar el contexto. Inténtalo más tarde.", business_unit)
-                return
-            user, created = await self.get_or_create_user(user_id, event, analysis)
-            if not user:
-                logger.error(f"No se pudo crear o recuperar el usuario {user_id}.")
-                await send_message(platform, user_id, "Error al recuperar tu información. Inténtalo más tarde.", business_unit)
-                return
-            context = self.build_context(user)
-
-            # Etapa 3: Manejo de Intents Conocidos
-            if await self.handle_known_intents(intents, platform, user_id, event, business_unit):
+            # Si se espera email para consultar estatus
+            if event.context.get('awaiting_status_email'):
+                await self.handle_status_email(platform, user_id, text, event, business_unit, user)
                 return
 
-            # Etapa 4: Continuación del Flujo de Conversación
-            current_question = event.current_question
-            if not current_question:
-                first_question = await self.get_first_question(event.flow_model)
-                if first_question:
-                    event.current_question = first_question
-                    await event.asave()
-                    await send_message(platform, user_id, first_question.content, business_unit)
-                else:
-                    logger.error("No first question found in the flow model")
-                    await send_message(platform, user_id, "Lo siento, no se pudo iniciar la conversación en este momento.", business_unit)
+            # Si se espera info de grupo para invitar
+            if event.context.get('awaiting_group_invitation'):
+                await self.handle_group_invitation_input(platform, user_id, text, event, business_unit, user)
                 return
 
-            # Etapa 5: Procesamiento de la Respuesta del Usuario
-            response, options = await self.determine_next_question(event, text, analysis, context)
-
-            # Etapa 6: Guardar estado y enviar respuesta
-            await event.asave()
-            await self.send_response(platform, user_id, response, business_unit, options)
-
-            # Etapa 7: Manejo de Desviaciones en la Conversación
-            if await self.detect_and_handle_deviation(event, text, analysis):
+            # Manejo de intents conocidos
+            if await self.handle_known_intents(intents, platform, user_id, event, business_unit, user):
                 return
 
-            # Etapa 8: Verificación del Perfil del Usuario
-            profile_check = await self.verify_user_profile(user)
-            if profile_check:
-                await send_message(platform, user_id, profile_check, business_unit)
+            # Verificar si el usuario seleccionó una vacante anteriormente
+            if event.context.get('recommended_jobs') and text.isdigit():
+                await self.handle_job_selection(platform, user_id, text, event, business_unit, user)
                 return
+
+            # Verificar acciones sobre vacantes (apply_x, details_x, schedule_x, tips_x, book_slot_x)
+            if text.startswith("apply_") or text.startswith("details_") or text.startswith("schedule_") or text.startswith("tips_") or text.startswith("book_slot_"):
+                await self.handle_job_action(platform, user_id, text, event, business_unit, user)
+                return
+
+            # Sin intent ni acción conocida -> GPT fallback
+            response = await self.generate_dynamic_response(user, event, text, entities, sentiment)
+            await send_message(platform, user_id, response, business_unit)
+            await self.store_bot_message(event, response)
 
         except Exception as e:
-            logger.error(f"Error processing message for {user_id}: {e}", exc_info=True)
-            await send_message(platform, user_id, "Ha ocurrido un error. Por favor, inténtalo de nuevo más tarde.", business_unit)
+            logger.error(f"Error processing message: {e}", exc_info=True)
+            await send_message(platform, user_id, "Ha ocurrido un error. Inténtalo más tarde.", business_unit)
 
-    # -------------------------------------------
-    # Métodos Auxiliares
-    # -------------------------------------------
-
-    async def get_or_create_event(self, user_id: str, platform: str, business_unit: BusinessUnit) -> Optional[ChatState]:
-        try:
-            chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
-                user_id=user_id,
-                defaults={
-                    'platform': platform,
-                    'business_unit': business_unit,
-                    'current_question': None
-                }
-            )
-            if created:
-                logger.debug(f"ChatState creado para usuario {user_id}")
-            else:
-                logger.debug(f"ChatState obtenido para usuario {user_id}")
-            return chat_state
-        except Exception as e:
-            logger.error(f"Error en get_or_create_event para usuario {user_id}: {e}", exc_info=True)
-            raise
+    async def get_or_create_event(self, user_id: str, platform: str, business_unit: BusinessUnit) -> ChatState:
+        chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
+            user_id=user_id,
+            defaults={'platform': platform, 'business_unit': business_unit}
+        )
+        return chat_state
 
     async def get_or_create_user(self, user_id: str, event: ChatState, analysis: dict) -> Tuple[Person, bool]:
-        try:
-            entities = analysis.get('entities', {})
-            name = entities.get('name') or event.platform or 'Usuario'
+        user, created = await sync_to_async(Person.objects.get_or_create)(
+            phone=user_id,
+            defaults={
+                'nombre': 'Usuario',
+                'number_interaction': 0,  # Inicializa el contador si el usuario es nuevo.
+                }
+        )
+        # Incrementar interacciones si ya existe
+        if not created:
+            user.number_interaction += 1
+            await sync_to_async(user.save)()
+        return user, created
 
-            user, created = await sync_to_async(Person.objects.get_or_create)(
-                phone=user_id,
-                defaults={'name': name}
-            )
-            if created:
-                logger.debug(f"Persona creada: {user}")
-            else:
-                logger.debug(f"Persona obtenida: {user}")
-            return user, created
-        except Exception as e:
-            logger.error(f"Error en get_or_create_user para usuario {user_id}: {e}", exc_info=True)
-            raise
-
-    def build_context(self, user: Person) -> dict:
-        """
-        Construye el contexto de la conversación basado en la información del usuario.
-        """
-        context = {
-            'user_name': user.name,
-            'user_phone': user.phone,
-            # Agrega más campos según sea necesario
-        }
-        logger.debug(f"Contexto construido para usuario {user.phone}: {context}")
-        return context
-
-    async def handle_known_intents(
-        self, intents: List[str], platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit
-    ) -> bool:
+    async def handle_known_intents(self, intents: List[str], platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit, user: Person) -> bool:
         for intent in intents:
             logger.debug(f"Intent detectado: {intent}")
+
             if intent == "saludo":
-                greeting_message = f"Hola, buenos días. ¿Quieres conocer más acerca de {business_unit.name}?"
-                quick_replies = [{"title": "Sí"}, {"title": "No"}]
-                await send_whatsapp_decision_buttons(
-                    user_id=user_id,
-                    message=greeting_message,
-                    buttons=quick_replies,
-                    phone_id=business_unit.whatsapp_api.phoneID
+                return await self.handle_greeting(platform, user_id, event, business_unit, user)
+
+            elif intent == "despedida":
+                response = "¡Hasta luego! Si necesitas más ayuda, contáctame de nuevo."
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                await reset_chat_state(user_id)
+                return True
+
+            elif intent == "iniciar_conversacion":
+                event.context = {}
+                await event.asave()
+                response = "¡Claro! Empecemos de nuevo. ¿En qué puedo ayudarte?"
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                return True
+
+            elif intent == "menu":
+                menu_options = [
+                    {'title': 'Ver Vacantes', 'payload': 'ver_vacantes'},
+                    {'title': 'Actualizar Perfil', 'payload': 'actualizar_perfil'},
+                    {'title': 'Ayuda Postulación', 'payload': 'ayuda_postulacion'},
+                    {'title': 'Consultar Estatus', 'payload': 'consultar_estatus'}
+                ]
+                await send_message(platform, user_id, "Aquí tienes el menú principal:", business_unit, options=menu_options)
+                await self.store_bot_message(event, "Aquí tienes el menú principal:")
+                return True
+
+            elif intent == "solicitar_ayuda_postulacion":
+                response = "Puedo guiarte en el proceso de postulación. ¿Qué necesitas saber?"
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                return True
+
+            elif intent == "consultar_estatus":
+                response = "Por favor, proporciona tu correo electrónico asociado a la aplicación."
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                event.context['awaiting_status_email'] = True
+                await event.asave()
+                return True
+
+            elif intent in ["travel_in_group", "travel_with_family"]:
+                response = (
+                    "Entiendo, ¿te gustaría invitar a tus acompañantes para que también obtengan oportunidades laborales? "
+                    "Envíame su nombre completo y teléfono en el formato: 'Nombre Apellido +52XXXXXXXXXX'."
                 )
-                logger.info(f"Intent 'saludo' manejado para usuario {user_id}")
-                return True
-            elif intent == 'despedida':
-                await send_message(platform, user_id, "¡Hasta luego! Si necesitas más ayuda, no dudes en contactarnos.", business_unit)
-                logger.info(f"Intent 'despedida' manejado para usuario {user_id}")
-                await self.reset_chat_state(user_id)
-                return True
-            elif intent == 'iniciar_conversacion':
-                event.current_question = None
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                event.context['awaiting_group_invitation'] = True
                 await event.asave()
-                await send_message(platform, user_id, "¡Claro! Empecemos de nuevo. ¿En qué puedo ayudarte?", business_unit)
-                logger.info(f"Intent 'iniciar_conversacion' manejado para usuario {user_id}")
                 return True
-            elif intent == 'menu':
-                await self.handle_persistent_menu(event)
-                logger.info(f"Intent 'menu' manejado para usuario {user_id}")
+
+            elif intent == "ver_vacantes":
+                recommended_jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
+                if recommended_jobs:
+                    event.context['recommended_jobs'] = recommended_jobs
+                    await event.asave()
+                    await self.present_job_listings(platform, user_id, recommended_jobs, business_unit, event)
+                else:
+                    resp = "No encontré vacantes para tu perfil por ahora."
+                    await send_message(platform, user_id, resp, business_unit)
+                    await self.store_bot_message(event, resp)
                 return True
-            elif intent == 'solicitar_ayuda_postulacion':
-                ayuda_message = "Claro, puedo ayudarte con el proceso de postulación. ¿Qué necesitas saber específicamente?"
-                await send_message(platform, user_id, ayuda_message, business_unit)
-                logger.info(f"Intent 'solicitar_ayuda_postulacion' manejado para usuario {user_id}")
+            elif intent == "agradecimiento":
+                response = "¡De nada! ¿En qué más puedo ayudarte?"
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
                 return True
-            elif intent == 'consultar_estatus':
-                estatus_message = "Para consultar el estatus de tu aplicación, por favor proporciona tu número de aplicación o correo electrónico asociado."
-                await send_message(platform, user_id, estatus_message, business_unit)
-                logger.info(f"Intent 'consultar_estatus' manejado para usuario {user_id}")
+            elif intent == "busqueda_impacto":
+                response = "Entiendo que buscas un trabajo con impacto social. Puedo mostrarte vacantes que destaquen proyectos con propósito. ¿Deseas verlas?"
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
                 return True
-            # Agrega más intents conocidos y sus manejadores aquí
+            elif intent == "solicitar_informacion_empresa":
+                response = "¿Sobre qué empresa necesitas información? Puedo contarte sobre sus valores, cultura o posiciones disponibles."
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                return True
+            elif intent == "solicitar_tips_entrevista":
+                # Puedes integrar GPT para dar consejos o tener una respuesta fija
+                response = "Para entrevistas: investiga la empresa, se puntual, muestra logros cuantificables y prepara ejemplos de situaciones pasadas."
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                return True
+            elif intent == "consultar_sueldo_mercado":
+                response = "¿Para qué posición o nivel buscas el rango salarial de mercado? Puedo darte una estimación."
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                return True
+            elif intent == "actualizar_perfil":
+                response = "Claro, ¿qué dato de tu perfil deseas actualizar? Ejemplo: nombre, email, experiencia, o expectativas salariales."
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                return True
 
-        return False  # No se manejó ningún intent conocido
+        return False
 
-    async def handle_persistent_menu(self, event: ChatState):
-        """
-        Maneja el acceso al menú persistente.
-        """
-        business_unit = event.business_unit
-        menu_message = f"Aquí tienes el menú principal de {business_unit.name}:"
-        await send_message(event.platform, event.user_id, menu_message, business_unit)
-        await send_menu(event.platform, event.user_id, business_unit)
-        return
 
-    async def determine_next_question(self, event: ChatState, user_message: str, analysis: dict, context: dict) -> Tuple[Optional[str], List]:
-        current_question = event.current_question
-        logger.info(f"Procesando la pregunta actual: {current_question.content}")
+    async def handle_tyc_acceptance(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit) -> bool:
+        configuracion_bu = await sync_to_async(ConfiguracionBU.objects.filter(business_unit=business_unit).first)()
+        email = configuracion_bu.correo_bu if configuracion_bu else "hola@amigro.org"
 
-        try:
-            # 1. Manejar acciones basadas en action_type
-            if current_question.action_type:
-                response, options = await self._handle_action_type(event, current_question, context)
-                return response, options
-
-            # 2. Manejar respuestas de botones
-            if current_question.botones_pregunta.exists():
-                response, options = await self._handle_button_response(event, current_question, user_message, context)
-                return response, options
-
-            # 3. Manejar diferentes input_type
-            input_type_handlers = {
-                'skills': self._handle_skills_input,
-                'select_job': self._handle_select_job_input,
-                'schedule_interview': self._handle_schedule_interview_input,
-                'confirm_interview_slot': self._handle_confirm_interview_slot_input,
-                'finalizar_perfil': self._handle_finalize_profile_input,
-                'confirm_recap': self._handle_confirm_recap_input,
-                # Agrega más input_types si es necesario
-            }
-
-            handler = input_type_handlers.get(current_question.input_type)
-            if handler:
-                response, options = await handler(event, current_question, user_message, context)
-                return response, options
-
-            # 4. Flujo estándar: avanzar a la siguiente pregunta
-            next_question = await self.get_next_question(current_question, user_message)
-            if next_question:
-                event.current_question = next_question
-                await event.asave()
-                response = render_dynamic_content(next_question.content, context)
-                return response, []
-            else:
-                return "No hay más preguntas en este flujo.", []
-
-        except Exception as e:
-            logger.error(f"Error determinando la siguiente pregunta: {e}", exc_info=True)
-            return "Ha ocurrido un error al procesar tu respuesta. Por favor, inténtalo de nuevo más tarde.", []
-
-    async def _handle_skills_input(self, event, current_question, user_message, context):
-        user = await sync_to_async(Person.objects.get)(phone=event.user_id)
-        user.skills = user_message
-        await sync_to_async(user.save)()
-
-        vacante_manager = VacanteManager(context)
-        recommended_jobs = await sync_to_async(vacante_manager.match_person_with_jobs)(user)
-
-        if recommended_jobs:
-            response = "Aquí tienes algunas vacantes que podrían interesarte:\n"
-            for idx, job in enumerate(recommended_jobs[:5]):
-                response += f"{idx + 1}. {job['title']} en {job['company']}\n"
-            response += "Por favor, ingresa el número de la vacante que te interesa."
-            event.context = {'recommended_jobs': recommended_jobs}
+        if text.lower() in ['sí', 'si', 'aceptar_tyc']:
+            response = (
+                "¡Gracias por aceptar los Términos y Condiciones! Ahora podemos continuar. 😊 "
+                "Cuéntame más sobre lo que buscas en un empleo para ayudarte mejor. Y platícame de ti,"
+                "para que logra conocer que tipo de oportunidad puede serte atractiva y relevante. "
+                "Entre más me platiques/escribas, mejor puedo conocer tus habilidades, intereses, etc."
+            )
+            await send_message(platform, user_id, response, business_unit)
+            await self.store_bot_message(event, response)
+            event.context['awaiting_tyc_acceptance'] = False
             await event.asave()
-            return response, []
+            return True
+
+        elif text.lower() in ['no', 'rechazar_tyc']:
+            response = (
+                f"Para utilizar nuestra plataforma, es necesario aceptar los Términos y Condiciones. "
+                f"Si tienes dudas, por favor contáctanos en {email}."
+            )
+            await send_message(platform, user_id, response, business_unit)
+            await self.store_bot_message(event, response)
+            return True
+
+        return False
+
+    async def handle_greeting(self, platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit, user: Person) -> bool:
+        configuracion_bu = await sync_to_async(ConfiguracionBU.objects.filter(business_unit=business_unit).first)()
+        tos_link = f"{configuracion_bu.dominio_bu}/tos" if configuracion_bu and configuracion_bu.dominio_bu else "https://amigro.org/tos"
+        logo_url = configuracion_bu.logo_url if configuracion_bu and configuracion_bu.logo_url else "https://amigro.org/logo.png"
+
+        # Primer mensaje: Saludo
+        response = (
+            f"¡Hola {user.name}! Somos {business_unit.name}, una plataforma diseñada para ayudarte a encontrar "
+            f"el empleo ideal basado en tu experiencia, momento tanto profesional como personal e intereses. "
+            f"¡Cuéntame un poco más sobre ti!, que para eso me han creado! 😊"
+        )
+        await send_message(platform, user_id, response, business_unit)
+        await self.store_bot_message(event, response)
+
+        # Pausa
+        await asyncio.sleep(2)
+
+        # Segundo mensaje: Información sobre la unidad de negocio y Términos
+        business_info = business_unit.description or (
+            "Nos especializamos en conectar talentos como tú con oportunidades laborales ideales."
+        )
+        tos_message = (
+            f"En {business_unit.name}, {business_info}.\n\n"
+            f"Para continuar, necesitamos que aceptes nuestros Términos y Condiciones. "
+            f"Puedes leerlos aquí: {tos_link}"
+        )
+        await send_message(platform, user_id, tos_message, business_unit)
+        await self.store_bot_message(event, tos_message)
+
+        # Pausa
+        await asyncio.sleep(2)
+
+        # Enviar logo
+        await send_image(platform, user_id, "Este es nuestro logo oficial:", logo_url, business_unit)
+
+        # Pausa
+        await asyncio.sleep(2)
+
+        # Tercer mensaje: Quick Reply
+        quick_reply_message = "¿Aceptas nuestros Términos y Condiciones? Esto es necesario para continuar usando la plataforma."
+        quick_reply_buttons = [
+            {'title': 'Sí', 'payload': 'aceptar_tyc'},
+            {'title': 'No', 'payload': 'rechazar_tyc'}
+        ]
+        await send_message(platform, user_id, quick_reply_message, business_unit, options=quick_reply_buttons)
+        await self.store_bot_message(event, quick_reply_message)
+
+        # Actualizar contexto
+        event.context['awaiting_tyc_acceptance'] = True
+        await event.asave()
+
+        return True
+    
+    async def handle_status_email(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
+        email_pattern = r"[^@]+@[^@]+\.[^@]+"
+        if re.match(email_pattern, text):
+            applications = await sync_to_async(Application.objects.filter)(user__email=text)
+            application = await sync_to_async(applications.first)()
+            if application:
+                msg = f"El estatus de tu aplicación es: {application.status}."
+            else:
+                msg = "No encuentro una aplicación con ese correo."
+            await send_message(platform, user_id, msg, business_unit)
+            await self.store_bot_message(event, msg)
+            event.context['awaiting_status_email'] = False
+            await event.asave()
         else:
-            response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
-            return response, []
+            msg = "Ese no parece un correo válido. Intenta nuevamente."
+            await send_message(platform, user_id, msg, business_unit)
+            await self.store_bot_message(event, msg)
 
-    async def _handle_select_job_input(self, event, current_question, user_message, context):
+    async def handle_group_invitation_input(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
+        parts = text.split()
+        if len(parts) >= 3:
+            phone_number = parts[-1]
+            name = parts[0]
+            apellido = parts[1]
+            await self.invite_known_person(user, name, apellido, phone_number)
+
+            resp = f"He invitado a {name} {apellido}. ¿Deseas invitar a alguien más? Responde 'sí' o 'no'."
+            await send_message(platform, user_id, resp, business_unit)
+            await self.store_bot_message(event, resp)
+
+            # Si el usuario responde luego 'no', en el próximo mensaje deberíamos manejarlo en el process_message.
+            # Por simplicidad, lo revisamos en intent. Si dice no se desactiva.
+            # Manejo simplificado: el usuario tendrá que decir 'no' en un próximo mensaje -> Intent "negacion".
+        else:
+            resp = "Formato no válido. Envía: 'Nombre Apellido +521234567890'"
+            await send_message(platform, user_id, resp, business_unit)
+            await self.store_bot_message(event, resp)
+
+    async def invite_known_person(self, referrer: Person, name: str, apellido: str, phone_number: str):
+        invitado, created = await sync_to_async(Person.objects.get_or_create)(
+            phone=phone_number,
+            defaults={'name': name, 'apellido_paterno': apellido}
+        )
+        await sync_to_async(Invitacion.objects.create)(referrer=referrer, invitado=invitado)
+        # Podríamos enviar un mensaje al invitado vía WhatsApp si se deseara, con send_message.
+
+    async def handle_job_selection(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
+        recommended_jobs = event.context.get('recommended_jobs', [])
         try:
-            job_index = int(user_message.strip()) - 1
+            job_index = int(text.strip()) - 1
         except ValueError:
-            return "Por favor, ingresa un número válido.", []
+            resp = "Por favor, ingresa un número válido."
+            await send_message(platform, user_id, resp, business_unit)
+            await self.store_bot_message(event, resp)
+            return
 
-        recommended_jobs = event.context.get('recommended_jobs')
-        if recommended_jobs and 0 <= job_index < len(recommended_jobs):
+        if 0 <= job_index < len(recommended_jobs):
             selected_job = recommended_jobs[job_index]
+            buttons = [
+                {'title': 'Aplicar', 'payload': f"apply_{job_index}"},
+                {'title': 'Ver Detalles', 'payload': f"details_{job_index}"},
+                {'title': 'Agendar Entrevista', 'payload': f"schedule_{job_index}"},
+                {'title': 'Tips Entrevista', 'payload': f"tips_{job_index}"}
+            ]
+            resp = f"Has seleccionado: {selected_job['title']}. ¿Qué deseas hacer?"
+            await send_message(platform, user_id, resp, business_unit, options=buttons)
+            await self.store_bot_message(event, resp)
             event.context['selected_job'] = selected_job
-            next_question = await self.get_question_by_option(event.flow_model, 'schedule_interview')
-            if next_question:
-                event.current_question = next_question
-                await event.asave()
-                return next_question.content, []
-            else:
-                logger.error("Pregunta 'schedule_interview' no encontrada.")
-                return "No se pudo continuar con el proceso.", []
-        else:
-            return "Selección inválida.", []
-
-    async def _handle_schedule_interview_input(self, event, current_question, user_message, context):
-        selected_job = event.context.get('selected_job')
-        if not selected_job:
-            return "No se encontró la vacante seleccionada.", []
-
-        vacante_manager = VacanteManager(context)
-        available_slots = await sync_to_async(vacante_manager.get_available_slots)(selected_job)
-        if available_slots:
-            response = "Estos son los horarios disponibles para la entrevista:\n"
-            for idx, slot in enumerate(available_slots):
-                response += f"{idx + 1}. {slot}\n"
-            response += "Por favor, selecciona el número del horario que prefieras."
-            event.context['available_slots'] = available_slots
             await event.asave()
-            return response, []
         else:
-            return "No hay horarios disponibles.", []
+            resp = "Selección inválida."
+            await send_message(platform, user_id, resp, business_unit)
+            await self.store_bot_message(event, resp)
 
-    async def _handle_confirm_interview_slot_input(self, event, current_question, user_message, context):
+    async def handle_job_action(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
+        recommended_jobs = event.context.get('recommended_jobs', [])
+
+        if text.startswith("apply_"):
+            job_index = int(text.split('_')[1])
+            if 0 <= job_index < len(recommended_jobs):
+                job = recommended_jobs[job_index]
+                await sync_to_async(Application.objects.create)(user=user, vacancy_id=job['id'], status='applied')
+                resp = "¡Has aplicado a la vacante con éxito!"
+                await send_message(platform, user_id, resp, business_unit)
+                await self.store_bot_message(event, resp)
+            else:
+                resp = "No encuentro esa vacante."
+                await send_message(platform, user_id, resp, business_unit)
+                await self.store_bot_message(event, resp)
+
+        elif text.startswith("details_"):
+            job_index = int(text.split('_')[1])
+            if 0 <= job_index < len(recommended_jobs):
+                job = recommended_jobs[job_index]
+                details = job.get('description', 'No hay descripción disponible.')
+                resp = f"Detalles de la posición:\n{details}"
+                await send_message(platform, user_id, resp, business_unit)
+                await self.store_bot_message(event, resp)
+            else:
+                resp = "No encuentro esa vacante."
+                await send_message(platform, user_id, resp, business_unit)
+                await self.store_bot_message(event, resp)
+
+        elif text.startswith("schedule_"):
+            job_index = int(text.split('_')[1])
+            if 0 <= job_index < len(recommended_jobs):
+                selected_job = recommended_jobs[job_index]
+                slots = await self.get_interview_slots(selected_job)
+                if not slots:
+                    resp = "No hay horarios disponibles por el momento."
+                    await send_message(platform, user_id, resp, business_unit)
+                    await self.store_bot_message(event, resp)
+                    return
+                buttons = [{'title': slot['label'], 'payload': f"book_slot_{idx}"} for idx, slot in enumerate(slots)]
+                event.context['available_slots'] = slots
+                event.context['selected_job'] = selected_job
+                await event.asave()
+                resp = "Elige un horario para la entrevista:"
+                await send_message(platform, user_id, resp, business_unit, options=buttons)
+                await self.store_bot_message(event, resp)
+            else:
+                resp = "No encuentro esa vacante."
+                await send_message(platform, user_id, resp, business_unit)
+                await self.store_bot_message(event, resp)
+
+        elif text.startswith("tips_"):
+            job_index = int(text.split('_')[1])
+            # GPT para tips
+            prompt = "Dame consejos para la entrevista en esta posición"
+            response = await self.generate_dynamic_response(user, event, prompt, {}, {})
+            if not response:
+                response = "Prepárate, investiga la empresa, sé puntual y comunica tus logros con seguridad."
+            await send_message(platform, user_id, response, business_unit)
+            await self.store_bot_message(event, response)
+
+        elif text.startswith("book_slot_"):
+            slot_index = int(text.split('_')[2])
+            available_slots = event.context.get('available_slots', [])
+            if 0 <= slot_index < len(available_slots):
+                selected_slot = available_slots[slot_index]
+                resp = f"Entrevista agendada para {selected_slot['label']} ¡Éxito!"
+                await send_message(platform, user_id, resp, business_unit)
+                await self.store_bot_message(event, resp)
+            else:
+                resp = "No encuentro ese horario."
+                await send_message(platform, user_id, resp, business_unit)
+                await self.store_bot_message(event, resp)
+
+    async def get_interview_slots(self, job: Dict[str, Any]) -> List[Dict[str, str]]:
+        # Slots simulados
+        return [
+            {'label': 'Mañana 10:00 AM', 'datetime': '2024-12-10T10:00:00'},
+            {'label': 'Mañana 11:00 AM', 'datetime': '2024-12-10T11:00:00'}
+        ]
+
+    async def generate_dynamic_response(self, user: Person, event: ChatState, user_message: str, entities, sentiment) -> str:
+        """
+        Genera una respuesta dinámica usando GPT. El prompt puede ser personalizado con el historial.
+        """
+        history = await self.get_conversation_history(event)
+        prompt = self.build_gpt_prompt(history, user_message, user, entities, sentiment)
+
+        gpt_api = await sync_to_async(GptApi.objects.first)()
+        if not gpt_api:
+            logger.warning("No se encontró configuración GptApi, no se puede usar GPT.")
+            return "Lo siento, no tengo suficiente información para responder."
+        
+        gpt_response = self.gpt_handler.generate_response(prompt, gpt_api.api_token, gpt_api.model or "gpt-3.5-turbo")
+        return gpt_response
+
+    def build_gpt_prompt(self, history, user_message, user: Person, entities, sentiment):
+        """
+        Construye el prompt para GPT incorporando historial y contexto.
+        """
+        roles_text = ""
+        for msg in history[-5:]:  # Últimos 5 mensajes
+            if msg["role"] == "user":
+                roles_text += f"Usuario: {msg['content']}\n"
+            else:
+                roles_text += f"Asistente: {msg['content']}\n"
+
+        roles_text += f"Usuario: {user_message}\nAsistente:"
+        return roles_text
+
+    async def get_conversation_history(self, event: ChatState):
+        history = event.metadata.get('history', [])
+        return history
+
+    async def store_user_message(self, event: ChatState, message: str):
+        history = event.metadata.get('history', [])
+        history.append({"role": "user", "content": message, "timestamp": now().isoformat()})
+        event.metadata['history'] = history
+        await sync_to_async(event.save)()
+
+    async def store_bot_message(self, event: ChatState, message: str):
+        history = event.metadata.get('history', [])
+        history.append({"role": "assistant", "content": message, "timestamp": now().isoformat()})
+        event.metadata['history'] = history
+        await sync_to_async(event.save)()
+
+    async def present_job_listings(self, platform: str, user_id: str, jobs: List[Dict[str, Any]], business_unit: BusinessUnit, event: ChatState):
+        """
+        Muestra las vacantes recomendadas al usuario.
+        """
+        response = "Aquí tienes algunas vacantes recomendadas:\n"
+        for idx, job in enumerate(jobs[:5]):
+            response += f"{idx+1}. {job['title']} en {job['company']}\n"
+        response += "Responde con el número de la vacante que te interesa."
+        await send_message(platform, user_id, response, business_unit)
+        await self.store_bot_message(event, response)
+
+    async def send_profile_completion_email(self, user_id: str, context: dict):
+        """
+        Envía un correo electrónico para completar el perfil del usuario, 
+        integrando el nombre y dominio de la BusinessUnit activa.
+        """
         try:
-            slot_index = int(user_message.strip()) - 1
-        except ValueError:
-            return "Por favor, ingresa un número válido.", []
+            # Obtener el usuario de manera asíncrona
+            user = await sync_to_async(Person.objects.get)(phone=user_id)
+            email = user.email
+            if email:
+                business_unit = user.business_unit
+                try:
+                    # Obtener la configuración de la BusinessUnit
+                    configuracion_bu = await sync_to_async(ConfiguracionBU.objects.get)(business_unit=business_unit)
+                    dominio_bu = configuracion_bu.dominio_bu
+                except ObjectDoesNotExist:
+                    logger.error(f"No se encontró ConfiguracionBU para la unidad de negocio {business_unit.name}.")
+                    dominio_bu = "tu_dominio.com"  # Valor por defecto o maneja según tu lógica
 
-        available_slots = event.context.get('available_slots')
-        selected_job = event.context.get('selected_job')
-        user = await sync_to_async(Person.objects.get)(phone=event.user_id)
-        if available_slots and 0 <= slot_index < len(available_slots):
-            selected_slot = available_slots[slot_index]
-            vacante_manager = VacanteManager(context)
-            success = await sync_to_async(vacante_manager.book_interview_slot)(selected_job, selected_slot, user)
-            if success:
-                response = f"Has reservado tu entrevista en el horario: {selected_slot}."
-                await event.asave()
-                return response, []
+                # Construir el asunto y cuerpo del correo
+                subject = f"Completa tu perfil en {business_unit.name} ({dominio_bu})"
+                body = (
+                    f"Hola {user.name},\n\n"
+                    f"Por favor completa tu perfil en {dominio_bu} para continuar."
+                )
+
+                # Enviar el correo electrónico
+                await send_email(
+                    business_unit_name=business_unit.name,
+                    subject=subject,
+                    to_email=email,
+                    body=body
+                )
+                logger.info(f"Correo de completación de perfil enviado a {email}")
             else:
-                return "No se pudo reservar el horario, por favor intenta nuevamente.", []
-        else:
-            return "Selección inválida. Por favor, intenta nuevamente.", []
-
-    async def _handle_finalize_profile_input(self, event, current_question, user_message, context):
-        user = await sync_to_async(Person.objects.get)(phone=event.user_id)
-        recap_message = await self.recap_information(user)
-        await send_message(event.platform, event.user_id, recap_message, event.business_unit)
-        next_question = await self.get_question_by_option(event.flow_model, 'confirm_recap')
-        if next_question:
-            event.current_question = next_question
-            await event.asave()
-            return next_question.content, []
-        else:
-            logger.error("Pregunta 'confirm_recap' no encontrada.")
-            return "No se pudo continuar con el proceso.", []
-
-    async def _handle_confirm_recap_input(self, event, current_question, user_message, context):
-        if user_message.strip().lower() in ['sí', 'si', 's']:
-            response = "¡Perfecto! Continuemos."
-            next_question = await self.get_question_by_option(event.flow_model, 'next_step')
-            if next_question:
-                event.current_question = next_question
-                await event.asave()
-                return response, []
-            else:
-                logger.error("Pregunta 'next_step' no encontrada.")
-                return "No se pudo continuar con el proceso.", []
-        else:
-            await self.handle_correction_request(event, user_message)
-            return None, []
-
-    async def get_question_by_option(self, flow_model, option):
-        question = await sync_to_async(Pregunta.objects.filter(flow_model=flow_model, option=option).first)()
-        return question
-
-    async def reset_chat_state(self, user_id: str):
-        await reset_chat_state(user_id=user_id)
-        logger.info(f"Chat state reset for user {user_id}")
-
-    async def send_response(self, platform: str, user_id: str, response: str, business_unit: BusinessUnit, options: Optional[List] = None):
-        """
-        Envía una respuesta al usuario, incluyendo opciones si las hay.
-        """
-        logger.debug(f"Preparando para enviar respuesta al usuario {user_id}: {response} con opciones: {options}")
-
-        # Enviar el mensaje
-        await send_message(platform, user_id, response, business_unit, options=options)
-
-        logger.info(f"Respuesta enviada al usuario {user_id}")
-
-    async def detect_and_handle_deviation(self, event, text, analysis):
-        # Define deviation thresholds and strategies
-        # Placeholder para lógica de desviación
-        # Implementa tu lógica específica aquí
-        return False  # Asumiendo que no hay desviación por ahora
-
-    async def verify_user_profile(self, user: Person) -> Optional[str]:
-        required_fields = ['name', 'apellido_paterno', 'skills', 'ubicacion', 'email']
-        missing_fields = [field for field in required_fields if not getattr(user, field, None)]
-        if missing_fields:
-            fields_str = ", ".join(missing_fields)
-            return f"Para continuar, completa estos datos: {fields_str}."
-        logger.debug(f"Perfil completo para usuario {user.phone}.")
-        return None
-
-    async def recap_information(self, user):
+                logger.warning(f"Usuario con phone {user_id} no tiene email registrado.")
+        except Person.DoesNotExist:
+            logger.error(f"No se encontró usuario con phone {user_id} para enviar correo.")
+        except Exception as e:
+            logger.error(f"Error enviando correo de completación de perfil a {user_id}: {e}", exc_info=True)
+    
+    async def recap_information(self, user: Person):
         recap_message = (
             f"Recapitulación de tu información:\n"
             f"Nombre: {user.name}\n"
@@ -399,112 +582,25 @@ class ChatBotHandler:
             "¿Es correcta esta información? Responde 'Sí' o 'No'."
         )
         return recap_message
+    
+    def handle_cv_upload(user, uploaded_file):
+        person, created = Person.objects.get_or_create(name=user.name)
+        person.cv_file = uploaded_file
+        person.cv_parsed = False  # Se marca como no analizado
+        person.save()
+        return "Tu CV ha sido recibido y será analizado."
+    
 
-    async def handle_correction_request(self, event, user_response):
-        correction_message = "Por favor, indica qué dato deseas corregir (e.g., 'nombre', 'email')."
-        await self.send_response(event.platform, event.user_id, correction_message, event.business_unit)
-        event.awaiting_correction = True
-        await event.asave()
-
-    async def update_user_information(self, user, user_input):
-        field_mapping = {
-            "nombre": "name",
-            "apellido paterno": "apellido_paterno",
-            "apellido materno": "apellido_materno",
-            "nacionalidad": "nationality",
-            "email": "email",
-            "ubicación": "ubicacion",
-            "experiencia laboral": "work_experience",
-            "nivel salarial": "nivel_salarial",
-        }
+    # Network Gamification - Word of Mouth
+    def award_gamification_points(self, user, activity_type):
+        """Otorga puntos de gamificación al usuario."""
         try:
-            field, new_value = user_input.split(':', 1)
-            field = field_mapping.get(field.strip().lower())
-            if field:
-                setattr(user, field, new_value.strip())
-                await sync_to_async(user.save)()
-            else:
-                logger.info(f"Campo no encontrado para actualizar: {user_input}")
-        except ValueError:
-            logger.warning(f"Entrada de usuario inválida para actualización: {user_input}")
+            profile = EnhancedNetworkGamificationProfile.objects.get(user=user)
+            profile.award_points(activity_type)
+        except EnhancedNetworkGamificationProfile.DoesNotExist:
+            print(f"No gamification profile found for user {user.id}")
 
-    async def invite_known_person(self, referrer, name, apellido, phone_number):
-        invitado, created = await sync_to_async(Person.objects.get_or_create)(
-            phone=phone_number,
-            defaults={'name': name, 'apellido_paterno': apellido},
-        )
-
-        await sync_to_async(Invitacion.objects.create)(referrer=referrer, invitado=invitado)
-
-        if created:
-            mensaje = (
-                f"Hola {name}, has sido invitado por {referrer.name} a unirte a Amigro.org. "
-                "¡Encuentra empleo en México de manera segura, gratuita e incluso podemos asesorarte en temas migrantes!"
-            )
-            await send_message("whatsapp", phone_number, mensaje, referrer.business_unit)
-
-        return invitado
-
-    async def get_first_question(self, flow_model: FlowModel) -> Optional[Pregunta]:
-        first_question = await sync_to_async(flow_model.preguntas.order_by('order').first)()
-        if first_question:
-            logger.debug(f"Primera pregunta obtenida: {first_question.content}")
-        else:
-            logger.debug("No se encontró la primera pregunta en el FlowModel.")
-        return first_question
-
-    async def get_next_question(self, current_question: Pregunta, user_message: str) -> Optional[Pregunta]:
-        response = user_message.strip().lower()
-        if response in ['sí', 'si']:
-            next_question = current_question.next_si
-        else:
-            next_question = current_question.next_no
-
-        if next_question:
-            logger.debug(f"Siguiente pregunta basada en la respuesta '{response}': {next_question.content}")
-        else:
-            logger.debug("No hay siguiente pregunta definida en el flujo.")
-        return next_question
-
-    async def _handle_action_type(
-            self, event: ChatState, current_question: Pregunta, context: dict
-        ) -> Tuple[str, List]:
-        action = current_question.action_type
-        logger.info(f"Handling action type '{action}' para pregunta {current_question.id}")
-
-        if action == 'send_email':
-            await self.send_profile_completion_email(event.user_id, context)
-            response = "Te hemos enviado un correo electrónico con más información."
-            return response, []
-        elif action == 'start_process':
-            response = "Estamos iniciando el proceso solicitado."
-            return response, []
-        else:
-            logger.warning(f"Tipo de acción desconocida: {action}")
-            response = "Ha ocurrido un error al procesar tu solicitud."
-            return response, []
-
-    async def send_profile_completion_email(self, user_id: str, context: dict):
-        """
-        Envía un correo electrónico para completar el perfil del usuario.
-        """
-        from app.integrations.services import send_email
-        try:
-            user = await sync_to_async(Person.objects.get)(phone=user_id)
-            email = user.email
-            if email:
-                subject = "Completa tu perfil en Amigro.org"
-                body = f"Hola {user.name},\n\nPor favor completa tu perfil en Amigro.org para continuar."
-                await send_email(
-                    business_unit_name=user.business_unit.name,
-                    subject=subject,
-                    to_email=email,
-                    body=body
-                )
-                logger.info(f"Correo de completación de perfil enviado a {email}")
-            else:
-                logger.warning(f"Usuario {user_id} no tiene email registrado.")
-        except Person.DoesNotExist:
-            logger.error(f"No se encontró usuario con phone {user_id} para enviar correo de completación de perfil.")
-        except Exception as e:
-            logger.error(f"Error enviando correo de completación de perfil a {user_id}: {e}", exc_info=True)
+    def handle_user_interaction(self, user, message):
+        # Manejar interacciones del usuario
+        if "complete_profile" in message:
+            self.award_gamification_points(user, 'profile_update')

@@ -47,7 +47,7 @@ from app.scraping import (
 )
 # Importaciones de modelos
 from app.models import (
-    GptApi, SmtpConfig, Pregunta, ConfiguracionBU, Configuracion, BusinessUnit, FlowModel, ChatState, Condicion, Etapa, Person, BusinessUnit, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI
+    GptApi, SmtpConfig, ConfiguracionBU, Configuracion, BusinessUnit, ChatState, Person, BusinessUnit, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI
 )
 
 
@@ -544,4 +544,3 @@ class CreateFlowView(View):
         except Exception as e:
             logger.error(f'Error al generar el diagrama: {e}')
             return None
-

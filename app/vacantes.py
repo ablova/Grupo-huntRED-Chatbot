@@ -12,6 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
 from app.models import Worker, Person, GptApi, ConfiguracionBU
 # from app.integrations.whatsapp import registro_amigro, nueva_posicion_amigro Importaciones locales
+from app.ml_model import MatchMakingLearningSystem
 from app.scraping import (
     get_session,
     consult,
@@ -122,7 +123,7 @@ class VacanteManager:
 
         try:
             response = openai.Completion.create(
-                engine="gpt-3.5-turbo",
+                engine="gpt-4.0-mini",
                 prompt=prompt,
                 max_tokens=50,
                 n=1,
@@ -349,7 +350,7 @@ class VacanteManager:
         Genera etiquetas utilizando GPT de OpenAI para una descripción de trabajo específica.
         """
         response = openai.Completion.create(
-            engine="gpt-3.5-turbo",
+            engine="gpt-4.0-mini",
             prompt=f"Genera etiquetas para esta descripción de trabajo:\n\n{job_description}\n\nEtiquetas:",
             max_tokens=50,
             n=1,
@@ -392,6 +393,52 @@ class VacanteManager:
         top_jobs = sorted(zip(job_list, similarity_scores), key=lambda x: x[1], reverse=True)
         return top_jobs[:5]
     
+    def calculate_match_score(person, vacante, weights):
+        """
+        Calcula el puntaje de coincidencia dinámicamente según los pesos proporcionados.
+        """
+        score = 0
+
+        # Hard Skills
+        if set(person.skills.split(",")).intersection(set(vacante.palabras_clave)):
+            score += weights["hard_skills"]
+
+        # Soft Skills
+        soft_skills = person.metadata.get("soft_skills", [])
+        if soft_skills and vacante.soft_skills:
+            matching_soft_skills = set(soft_skills).intersection(set(vacante.soft_skills))
+            if matching_soft_skills:
+                score += len(matching_soft_skills) / len(vacante.soft_skills) * weights["soft_skills"]
+
+        # Fit Cultural (personalidad)
+        personality_match = fit_personality(person.personality_data, vacante.metadata.get("desired_personality", {}))
+        score += personality_match * weights["personalidad"]
+
+        # Ubicación
+        if person.metadata.get("desired_locations") and vacante.ubicacion in person.metadata.get("desired_locations"):
+            score += weights["ubicacion"]
+
+        # Tipo de contrato
+        if person.desired_job_types and vacante.tipo_contrato in person.desired_job_types.split(","):
+            score += weights["tipo_contrato"]
+
+        return score
+
+
+    def fit_personality(personality_data, desired_personality):
+        """
+        Evalúa el ajuste de personalidad entre el candidato y la vacante.
+        """
+        if not personality_data or not desired_personality:
+            return 0  # Sin datos suficientes para evaluar
+
+        match_score = 0
+        for key, value in desired_personality.items():
+            if key in personality_data and personality_data[key] == value:
+                match_score += 1
+
+        return match_score / len(desired_personality)  # Normalizado
+
 def create_or_update_job_on_wordpress(job_data):
     """
     Crea o actualiza una vacante en WordPress y envía una notificación al empleador si es necesario.
@@ -436,3 +483,87 @@ async def suggest_jobs(self, event):
         response = "Lo siento, no encontré vacantes que coincidan con tu perfil."
     
     await self.send_response(event.platform, event.user_id, response)
+
+def calculate_match_score(person, vacante, weights):
+    """
+    Calcula el puntaje de coincidencia dinámicamente según los pesos proporcionados.
+    """
+    score = 0
+
+    # Hard Skills
+    if set(person.skills.split(",")).intersection(set(vacante.palabras_clave)):
+        score += weights["hard_skills"]
+
+    # Soft Skills
+    soft_skills = person.metadata.get("soft_skills", [])
+    if soft_skills and vacante.soft_skills:
+        matching_soft_skills = set(soft_skills).intersection(set(vacante.soft_skills))
+        if matching_soft_skills:
+            score += len(matching_soft_skills) / len(vacante.soft_skills) * weights["soft_skills"]
+
+    # Fit Cultural (personalidad)
+    personality_match = fit_personality(person.personality_data, vacante.metadata.get("desired_personality", {}))
+    score += personality_match * weights["personalidad"]
+
+    # Ubicación
+    if person.metadata.get("desired_locations") and vacante.ubicacion in person.metadata.get("desired_locations"):
+        score += weights["ubicacion"]
+
+    # Tipo de contrato
+    if person.desired_job_types and vacante.tipo_contrato in person.desired_job_types.split(","):
+        score += weights["tipo_contrato"]
+
+    return score
+
+def fit_personality(personality_data, desired_personality):
+    """
+    Evalúa el ajuste de personalidad entre el candidato y la vacante.
+    """
+    if not personality_data or not desired_personality:
+        return 0  # Sin datos suficientes para evaluar
+
+    match_score = 0
+    for key, value in desired_personality.items():
+        if key in personality_data and personality_data[key] == value:
+            match_score += 1
+
+    return match_score / len(desired_personality)  # Normalizado
+
+async def process_vacante_matching(vacante):
+    """
+    Procesa las coincidencias para una vacante específica.
+    """
+    business_unit = vacante.business_unit
+    position_level = vacante.nivel_puesto
+
+    # Cargar los pesos dinámicos
+    weights_model = WeightingModel(business_unit)
+    weights = weights_model.get_weights(position_level)
+
+    # Filtrar personas activas en búsqueda de empleo
+    candidates = await sync_to_async(list)(
+        Person.objects.filter(job_search_status__in=["activa", "pasiva"])
+    )
+    matches = []
+
+    for person in candidates:
+        relevancia = calculate_match_score(person, vacante, weights)
+        if relevancia >= 70:  # Mínimo requerido
+            matches.append(CandidatoVacanteMatch(
+                vacante=vacante,
+                person=person,
+                relevancia=relevancia,
+            ))
+
+            # Notificar al candidato
+            await notify_candidate(person, vacante)
+
+    CandidatoVacanteMatch.objects.bulk_create(matches)
+
+def recommend_candidates(vacancy):
+    """
+    Recomienda candidatos para una vacante específica.
+    """
+    system = MatchmakingLearningSystem(vacancy.business_unit)
+    predictions = system.rank_candidates(vacancy)
+    return predictions

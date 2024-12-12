@@ -1,6 +1,9 @@
+# Ubicación del archivo: /home/amigro/chatbot_django/tasks/__init__.py
+# Inicialización de tareas para la aplicación chatbot_django.
+
 from __future__ import absolute_import, unicode_literals
 
-# Esto asegura que Celery se importe cuando Django se carga
+# Importa Celery para detectar tareas
 from .celery import app as celery_app
 
 __all__ = ('celery_app',)

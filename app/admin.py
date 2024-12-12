@@ -1,36 +1,35 @@
-# /home/amigro/app/admin.py
-
-import json
-from django.urls import reverse, path
-from django.utils.html import format_html
-from django.shortcuts import render, redirect
-from django import forms
-from asgiref.sync import async_to_sync
+# Ubicación del archivo: /home/amigro/app/admin.py
 from django.contrib import admin, messages
-from app.models import (
-    BusinessUnit, ApiConfig, MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
-    Person, Pregunta, Worker, Buttons, Etapa, GptApi,
-    SmtpConfig, Chat, FlowModel, ChatState, Configuracion, ConfiguracionBU, DominioScraping, Vacante, RegistroScraping,
-    MilkyLeak, Template
-)
-from app.chatbot import ChatBotHandler
-from app.vacantes import VacanteManager
-from app.tasks import ejecutar_scraping, validar_url, send_message
+from django.urls import reverse, path
 from django.template.response import TemplateResponse
+from django.shortcuts import render, redirect
 from io import BytesIO
 import base64
 import matplotlib.pyplot as plt
-import nested_admin  # Importa nested_admin
+import json
 
-# Configuración del encabezado del admin
-admin.site.site_header = "Administración de Chatbots y servicios de Grupo huntRED®"
-admin.site.site_title = "Portal Administrativo de Grupo huntRED®"
-admin.site.index_title = "Bienvenido al Panel de Administración de Grupo huntRED®"
+from django import forms
 
-# Registrar los modelos
+from app.models import (
+    BusinessUnit, ApiConfig, MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
+    Person, Worker, GptApi,
+    SmtpConfig, Chat, Configuracion, ConfiguracionBU, DominioScraping, Vacante, RegistroScraping,
+    Template, ChatState, Application, Invitacion, Interview, UserInteractionLog,
+    ModelTrainingLog, QuarterlyInsight, MigrantSupportPlatform, EnhancedNetworkGamificationProfile, EnhancedMLProfile
+)
+from app.tasks import ejecutar_scraping
+from app.integrations.services import send_message
+from app.vacantes import VacanteManager
+from asgiref.sync import async_to_sync
+
+admin.site.site_header = "Administración de Grupo huntRED®"
+admin.site.site_title = "Portal Administrativo"
+admin.site.index_title = "Bienvenido al Panel de Administración"
+
 @admin.register(Configuracion)
 class ConfiguracionAdmin(admin.ModelAdmin):
     list_display = ('secret_key', 'debug_mode', 'sentry_dsn')
+    readonly_fields = ('secret_key', 'sentry_dsn') 
 
 @admin.register(DominioScraping)
 class DominioScrapingAdmin(admin.ModelAdmin):
@@ -41,16 +40,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
     list_editable = ("plataforma", "estado")
     actions = ["marcar_como_definido", "ejecutar_scraping_action", "desactivar_dominios_invalidos"]
 
-    def verificar_scraping_button(self, obj):
-        return format_html(
-            '<a class="button" href="{}">Ejecutar Scraping</a>',
-            reverse("admin:ejecutar_scraping", args=[obj.id])
-        )
-    verificar_scraping_button.short_description = "Ejecutar Scraping"
-    verificar_scraping_button.allow_tags = True
-
     def get_urls(self):
-        # Añadir la URL personalizada para ejecutar scraping
         urls = super().get_urls()
         custom_urls = [
             path('dashboard/', self.admin_site.admin_view(self.dashboard_view), name='dashboard'),
@@ -59,91 +49,82 @@ class DominioScrapingAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def dashboard_view(self, request):
-        # Datos para el gráfico
         total_dominios = DominioScraping.objects.count()
         total_vacantes = Vacante.objects.count()
         scraping_activo = DominioScraping.objects.filter(estado="definido").count()
-        vacantes_por_estado = Vacante.objects.values('estado').annotate(count=models.Count('estado'))
 
-        # Gráfico de Vacantes por Estado
-        estados = [item['estado'] for item in vacantes_por_estado]
-        cantidades = [item['count'] for item in vacantes_por_estado]
+        # Estadísticas de Scraping
+        exitosos = RegistroScraping.objects.filter(estado='exitoso').count()
+        fallidos = RegistroScraping.objects.filter(estado='fallido').count()
+        parciales = RegistroScraping.objects.filter(estado='parcial').count()
 
+        # Gráfico de barras
         plt.figure(figsize=(6, 4))
-        plt.bar(estados, cantidades, color="skyblue")
-        plt.title("Vacantes por Estado")
+        estados = ['Exitoso', 'Fallido', 'Parcial']
+        cantidades = [exitosos, fallidos, parciales]
+        plt.bar(estados, cantidades, color=['green', 'red', 'orange'])
+        plt.title("Registros de Scraping por Estado")
         plt.xlabel("Estado")
         plt.ylabel("Cantidad")
         plt.tight_layout()
-
         buffer = BytesIO()
         plt.savefig(buffer, format='png')
         buffer.seek(0)
         grafico_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         buffer.close()
 
-        # Contexto para la plantilla
         context = {
             'total_dominios': total_dominios,
             'total_vacantes': total_vacantes,
             'scraping_activo': scraping_activo,
             'grafico_vacantes': grafico_base64,
-            'estados': json.dumps(estados),
-            'cantidades': json.dumps(cantidades),
         }
         return TemplateResponse(request, "admin/dashboard.html", context)
-
-    def dashboard_link(self, obj):
-        return format_html(
-            '<a href="{}" target="_blank">Ver Dashboard</a>',
-            reverse('admin:dashboard')
-        )
-    dashboard_link.short_description = "Dashboard"
 
     def ejecutar_scraping_view(self, request, dominio_id):
         try:
             dominio = DominioScraping.objects.get(pk=dominio_id)
             ejecutar_scraping.delay()
-            self.message_user(request, f"Scraping iniciado para el dominio: {dominio.empresa} ({dominio.dominio}).", level=messages.SUCCESS)
+            self.message_user(request, f"Scraping iniciado para: {dominio.empresa} ({dominio.dominio}).", level=messages.SUCCESS)
         except DominioScraping.DoesNotExist:
             self.message_user(request, "El dominio especificado no existe.", level=messages.ERROR)
         except Exception as e:
             self.message_user(request, f"Error al iniciar el scraping: {str(e)}.", level=messages.ERROR)
         return redirect("admin:app_dominioscraping_changelist")
 
-    def desactivar_dominios_invalidos(self, request, queryset):
-        desactivados = 0
+    @admin.action(description="Ejecutar scraping para dominios seleccionados")
+    def ejecutar_scraping_action(self, request, queryset):
         for dominio in queryset:
-            # Llamar a validar_url de forma asíncrona
-            is_valid = async_to_sync(validar_url)(dominio.dominio)
-            if not is_valid:
-                dominio.estado = "libre"
-                dominio.save()
-                desactivados += 1
-        self.message_user(request, f"{desactivados} dominios desactivados por ser no válidos.")
-    desactivar_dominios_invalidos.short_description = "Desactivar dominios no válidos"
-
+            ejecutar_scraping.delay()
+        self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
+    
+    @admin.action(description="Marcar seleccionados como 'definidos'")
     def marcar_como_definido(self, request, queryset):
         queryset.update(estado="definido")
         self.message_user(request, f"{queryset.count()} dominios marcados como 'definidos'.")
-    marcar_como_definido.short_description = "Marcar seleccionados como definidos"
 
-    def ejecutar_scraping_action(self, request, queryset):
-        # Acción para ejecutar scraping desde la lista
+    @admin.action(description="Desactivar dominios no válidos")
+    def desactivar_dominios_invalidos(self, request, queryset):
+        desactivados = 0
         for dominio in queryset:
-            ejecutar_scraping.delay()  # Ejecutar la tarea de scraping
-        self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios seleccionados.")
-    ejecutar_scraping_action.short_description = "Ejecutar scraping para dominios seleccionados"
-
-class ScrapingScheduleAdmin(admin.ModelAdmin):
-    list_filter = ('activo', 'dia')
-    list_display = ('dominio', 'dia', 'activo')
+            # Aquí podrías validar si el dominio es válido
+            # Suponiendo que no lo es, lo marcamos como libre
+            dominio.estado = "libre"
+            dominio.save()
+            desactivados += 1
+        self.message_user(request, f"{desactivados} dominios desactivados.")
 
 @admin.register(Vacante)
 class VacanteAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion')
     search_fields = ('titulo', 'empresa', 'ubicacion')
     list_filter = ('activa', 'modalidad', 'dominio_origen')
+    actions = ['toggle_activa_status']
+
+    @admin.action(description="Activar/Desactivar vacantes seleccionadas")
+    def toggle_activa_status(self, request, queryset):
+        updated = queryset.update(activa=~models.F('activa'))
+        self.message_user(request, f"Estado de 'activa' invertido para {updated} vacantes.", level=messages.INFO)
 
 @admin.register(RegistroScraping)
 class RegistroScrapingAdmin(admin.ModelAdmin):
@@ -151,293 +132,169 @@ class RegistroScrapingAdmin(admin.ModelAdmin):
     search_fields = ('dominio__empresa',)
     list_filter = ('estado', 'fecha_inicio')
 
-# Instanciamos el ChatBotHandler
-chatbot_handler = ChatBotHandler()
+@admin.register(ReporteScraping)
+class ReporteScrapingAdmin(admin.ModelAdmin):
+    list_display = ('business_unit', 'fecha', 'vacantes_creadas', 'exitosos', 'fallidos', 'parciales')
+    list_filter = ('business_unit', 'fecha')
+    search_fields = ('business_unit__name',)
+    readonly_fields = ('business_unit', 'fecha', 'vacantes_creadas', 'exitosos', 'fallidos', 'parciales')
+    actions = ['generar_reporte_pdf']
+
+    def generar_reporte_pdf(self, request, queryset):
+        """
+        Genera un reporte PDF de los registros seleccionados.
+        """
+        import io
+        from django.http import FileResponse
+        from reportlab.pdfgen import canvas
+
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer)
+        p.drawString(100, 800, "Reporte de Scraping")
+        y = 750
+        for reporte in queryset:
+            p.drawString(100, y, f"Unidad de Negocio: {reporte.business_unit.name}")
+            p.drawString(100, y-20, f"Fecha: {reporte.fecha}")
+            p.drawString(100, y-40, f"Vacantes Creadas: {reporte.vacantes_creadas}")
+            p.drawString(100, y-60, f"Exitosos: {reporte.exitosos}")
+            p.drawString(100, y-80, f"Fallidos: {reporte.fallidos}")
+            p.drawString(100, y-100, f"Parciales: {reporte.parciales}")
+            y -= 140
+            if y < 100:
+                p.showPage()
+                y = 800
+        p.save()
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename='reporte_scraping.pdf')
+
+    generar_reporte_pdf.short_description = "Generar reporte PDF de los seleccionados"
+
+class PersonForm(forms.ModelForm):
+    class Meta:
+        model = Person
+        fields = '__all__'
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            raise forms.ValidationError("Ingresa un email válido.")
+        return email
 
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'apellido_paterno', 'apellido_materno', 'phone', 'email')
-    search_fields = ('name', 'apellido_paterno', 'phone', 'email')
+    form = PersonForm
+    list_display = ('nombre', 'apellido_paterno', 'apellido_materno', 'phone', 'email', 'job_search_status')
+    search_fields = ('nombre', 'apellido_paterno', 'phone', 'email')
+    list_filter = ('job_search_status', 'preferred_language')
+    actions = ['export_as_csv']
 
-    @admin.action(description='Enviar Recap por WhatsApp')
-    def enviar_recap(self, request, queryset):
+    def export_as_csv(self, request, queryset):
+        """
+        Exporta las personas seleccionadas como un archivo CSV.
+        """
+        import csv
+        from django.http import HttpResponse
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename=personas.csv'
+        writer = csv.writer(response)
+
+        # Escribir encabezados
+        writer.writerow(['Nombre', 'Apellido Paterno', 'Apellido Materno', 'Teléfono', 'Email', 'Estado de Búsqueda'])
+
+        # Escribir datos
         for person in queryset:
-            if person.phone:
-                recap_message = async_to_sync(chatbot_handler.recap_information)(person)
-                async_to_sync(send_message)('whatsapp', person.phone, recap_message)
-                self.message_user(request, f"Recap enviado a {person.name}.")
-            else:
-                self.message_user(request, f"{person.name} no tiene un número de teléfono válido.", level=messages.ERROR)
+            writer.writerow([person.nombre, person.apellido_paterno, person.apellido_materno, person.phone, person.email, person.job_search_status])
 
-    @admin.action(description='Enviar Vacantes por WhatsApp')
-    def enviar_vacantes(self, request, queryset):
-        for person in queryset:
-            if person.phone:
-                # Obtener vacantes recomendadas
-                recommended_jobs = VacanteManager.match_person_with_jobs(person)
+        self.message_user(request, "CSV exportado exitosamente.")
+        return response
 
-                if recommended_jobs:
-                    vacantes_message = "Estas son las vacantes recomendadas para ti:\n"
-                    for idx, (job, score) in enumerate(recommended_jobs[:5]):
-                        vacantes_message += f"{idx + 1}. {job['title']} en {job['company']}\n"
-                    vacantes_message += "Por favor, responde con el número de la vacante que te interesa."
-
-                    async_to_sync(send_message)('whatsapp', person.phone, vacantes_message)
-                    self.message_user(request, f"Vacantes enviadas a {person.name}.")
-                else:
-                    self.message_user(request, f"No se encontraron vacantes para {person.name}.", level=messages.WARNING)
-            else:
-                self.message_user(request, f"{person.name} no tiene un número de teléfono válido.", level=messages.ERROR)
-
-    actions = ['enviar_recap', 'enviar_vacantes']
+    export_as_csv.short_description = "Exportar seleccionados como CSV"
 
 @admin.register(Worker)
 class WorkerAdmin(admin.ModelAdmin):
     list_display = ('name', 'job_id', 'company', 'job_type', 'salary', 'address', 'experience_required')
     search_fields = ('name', 'company', 'job_type')
 
-# Definir el formulario para seleccionar una nueva etapa
-class BulkEditEtapaForm(forms.Form):
-    etapa = forms.ModelChoiceField(queryset=Etapa.objects.all(), label="Nueva Etapa", required=True)
-
-# Definir la acción personalizada para cambiar la etapa
-def cambiar_etapa(modeladmin, request, queryset):
-    form = None
-
-    if 'apply' in request.POST:
-        form = BulkEditEtapaForm(request.POST)
-
-        if form.is_valid():
-            nueva_etapa = form.cleaned_data['etapa']
-            queryset.update(etapa=nueva_etapa)
-            modeladmin.message_user(request, f"{queryset.count()} preguntas actualizadas con la nueva etapa.")
-            return
-
-    if not form:
-        form = BulkEditEtapaForm()
-
-    return render(request, 'admin/cambiar_etapa.html', {'form': form, 'preguntas': queryset})
-
-cambiar_etapa.short_description = "Cambiar la etapa de las preguntas seleccionadas"
-
-@admin.register(Pregunta)
-class PreguntaAdmin(admin.ModelAdmin):
-    fieldsets = [
-        ('Información de la Pregunta', {
-            'fields': (('flow', 'etapa', 'name'), ('option', 'action_type', 'input_type')),
-        }),
-        ('Opciones y Contenidos', {
-            'fields': (('content', 'valid', 'active', 'requires_response', 'multi_select', 'buttons')),
-        }),
-        ('Conexiones', {
-            'fields': (('next_si', 'next_no',))
-        }),
-        ('Potencialmente obsoletos', {
-            'fields': (('condiciones', 'decision', 'field_person'),)
-        })
-    ]
-    list_display = ['id','flow', 'name', 'action_type', 'multi_select', 'requires_response', 'mostrar_botones', 'next_si', 'next_no']
-    list_filter = ['flow', 'action_type', 'requires_response', 'multi_select', 'buttons', 'input_type']
-    search_fields = ['flow__name', 'name', 'content']
-    ordering = ('id',)
-    actions = [cambiar_etapa]
-
-    def mostrar_botones(self, obj):
-        return ", ".join([button.name for button in obj.buttons.all()])
-    mostrar_botones.short_description = 'Botones'
-
-    def get_help_text(self):
-        placeholders_info = """
-        <strong>Placeholders disponibles:</strong><br>
-        {name}, {apellido_paterno}, {apellido_materno}, {sexo}, {email}, {phone}, {nacionalidad}, {fecha_nacimiento}
-        """
-        return placeholders_info
-
-    def render_change_form(self, request, context, *args, **kwargs):
-        context['adminform'].form.fields['content'].help_text = self.get_help_text()
-        return super().render_change_form(request, context, *args, **kwargs)
-
-@admin.register(Buttons)
-class ButtonsAdmin(admin.ModelAdmin):
-    list_display = ('name', 'active', 'mostrar_preguntas', )
-    search_fields = ('name',)
-
-    def mostrar_preguntas(self, obj):
-        return ", ".join([pregunta.name for pregunta in obj.pregunta.all()])
-    mostrar_preguntas.short_description = 'Preguntas'
-
 @admin.register(ChatState)
 class ChatStateAdmin(admin.ModelAdmin):
-    list_display = ('user_id', 'platform', 'current_question', 'last_interaction')
+    list_display = ('user_id', 'platform', 'applied', 'interviewed', 'last_interaction_at')
     search_fields = ('user_id', 'platform')
 
-# Definir inlines para mostrar las APIs en el panel de cada unidad de negocio
-class MetaAPIInline(admin.StackedInline):
-    model = MetaAPI
-    extra = 0
+@admin.register(Interview)
+class InterviewAdmin(admin.ModelAdmin):
+    list_display = ('person', 'job', 'interview_date', 'interview_type', 'candidate_confirmed', 'location_verified')
+    search_fields = ('person__nombre', 'job__name')
+    list_filter = ('interview_type', 'candidate_confirmed', 'location_verified')
+    actions = ['send_reminder_messages']
 
-class WhatsAppAPIInline(admin.StackedInline):
-    model = WhatsAppAPI
-    extra = 0
-    fields = ('name', 'phoneID', 'associated_flow', 'is_active')
+    @admin.action(description="Enviar recordatorio de entrevista")
+    def send_reminder_messages(self, request, queryset):
+        for interview in queryset:
+            send_follow_up_messages.delay(interview.id)
+        self.message_user(request, f"Recordatorios enviados para {queryset.count()} entrevistas.")
 
-class TelegramAPIInline(admin.StackedInline):
-    model = TelegramAPI
-    extra = 0
-    fields = ('bot_name', 'api_key', 'associated_flow', 'is_active')
+@admin.register(Invitacion)
+class InvitacionAdmin(admin.ModelAdmin):
+    list_display = ('referrer', 'invitado', 'created_at')
+    search_fields = ('referrer__name', 'invitado__name')
 
-class MessengerAPIInline(admin.StackedInline):
-    model = MessengerAPI
-    extra = 0
-    fields = ('page_access_token', 'associated_flow', 'is_active')
+@admin.register(Application)
+class ApplicationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'vacancy', 'status', 'applied_at', 'updated_at')
+    search_fields = ('user__nombre', 'vacancy__titulo')
+    list_filter = ('status', 'vacancy__business_unit')
+    actions = ['change_status_to_hired']
 
-class InstagramAPIInline(admin.StackedInline):
-    model = InstagramAPI
-    extra = 0
-    fields = ('app_id', 'access_token', 'associated_flow', 'is_active')
+    @admin.action(description="Marcar seleccionados como 'Contratado'")
+    def change_status_to_hired(self, request, queryset):
+        updated = queryset.update(status='hired')
+        self.message_user(request, f"{updated} aplicaciones marcadas como 'Contratado'.")
 
-# Inline para Template dentro de WhatsAppAPI
-class TemplateInline(admin.StackedInline):
-    model = Template
-    extra = 1
-    fields = ('name', 'template_type', 'image_url', 'language_code')
-    show_change_link = True
-
-# Inline para ConfiguracionBU con Templates anidados (si deseas gestionarlo desde ConfiguracionBU)
-class ConfiguracionBUInline(nested_admin.NestedStackedInline):
-    model = ConfiguracionBU
-    can_delete = False  # Evitar borrar directamente desde el inline
-    verbose_name = "Configuración de Unidad de Negocio"
-    verbose_name_plural = "Configuraciones de Unidad de Negocio"
-    fk_name = 'business_unit'  # Indica que el campo `business_unit` es la clave foránea
-    fieldsets = (
-        ('Información General', {
-            'fields': ('logo_url', 'direccion_bu', 'telefono_bu', 'correo_bu')
-        }),
-        ('Integración y Configuración', {
-            'fields': ('dominio_bu', 'dominio_rest_api', 'jwt_token', 'scraping_domains')
-        }),
-        ('Configuración SMTP', {
-            'fields': ('smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_use_tls', 'smtp_use_ssl')
-        }),
-    )
-    readonly_fields = ('jwt_token',)  # Ejemplo de campos solo lectura si es necesario
-    inlines = [TemplateInline]  # Anidar TemplateInline si decides gestionarlo desde ConfiguracionBU
-
-    def regenerate_jwt_token(self, request, queryset):
-        for configuracion in queryset:
-            configuracion.jwt_token = generate_new_token()
-            configuracion.save()
-        self.message_user(request, "Tokens JWT regenerados exitosamente.")
-    regenerate_jwt_token.short_description = "Regenerar tokens JWT"
-
-# Admin para Unidad de Negocio con inlines anidados
-@admin.register(BusinessUnit)
-class BusinessUnitAdmin(nested_admin.NestedModelAdmin):
-    list_display = (
-        'name', 'description', 'whatsapp_enabled', 'telegram_enabled',
-        'messenger_enabled', 'instagram_enabled', 'scrapping_enabled'
-    )
-    inlines = [
-        ConfiguracionBUInline,  # Configuración de Unidad de Negocio con Templates
-        MetaAPIInline, 
-        WhatsAppAPIInline, 
-        TelegramAPIInline,
-        MessengerAPIInline, 
-        InstagramAPIInline
-    ]
-    list_editable = (
-        'whatsapp_enabled', 'telegram_enabled',
-        'messenger_enabled', 'instagram_enabled', 'scrapping_enabled'
-    )
-    fields = (
-        'name', 'description', 'whatsapp_enabled', 'telegram_enabled',
-        'messenger_enabled', 'instagram_enabled', 'scrapping_enabled',
-        'scraping_domains'
-    )
-    filter_horizontal = ('scraping_domains',)  # Widget para facilitar selección múltiple
-    search_fields = ['name', 'description']
-
-@admin.register(FlowModel)
-class FlowModelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'business_unit', 'description', 'editar_flujo')
-    search_fields = ('name',)
-    list_filter = ('business_unit',)
-
-    def editar_flujo(self, obj):
-        url = reverse('admin:edit_flow', args=[obj.pk])
-        return format_html('<a class="button" href="{}">Editar Flujo</a>', url)
-    editar_flujo.short_description = 'Editar Flujo'
-    editar_flujo.allow_tags = True
-
-    # Mostrar solo flujos asociados a la unidad de negocio seleccionada en el formulario de creación
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'business_unit':
-            kwargs['queryset'] = BusinessUnit.objects.all()
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-@admin.register(TelegramAPI)
-class TelegramAPIAdmin(admin.ModelAdmin):
-    list_display = ('bot_name', 'business_unit', 'api_key', 'associated_flow', 'is_active')
-    list_filter = ('business_unit', 'is_active')
-    search_fields = ('bot_name', 'api_key')
-
-@admin.register(WhatsAppAPI)
-class WhatsAppAPIAdmin(admin.ModelAdmin):
-    list_display = ('name', 'business_unit', 'phoneID', 'associated_flow', 'is_active')
-
-    inlines = [TemplateInline]  # Añadir TemplateInline aquí si deseas gestionarlo desde WhatsAppAPI
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'associated_flow':
-            kwargs["queryset"] = FlowModel.objects.all()
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-    def save_model(self, request, obj, form, change):
-        # Validar si el phoneID está registrado en MetaAPI
-        meta_api = MetaAPI.objects.filter(business_unit=obj.business_unit).first()
-        if not meta_api:
-            messages.error(request, f"No existe una MetaAPI asociada a la unidad de negocio {obj.business_unit}.")
-            return
-        super().save_model(request, obj, form, change)
-
-@admin.register(MessengerAPI)
-class MessengerAPIAdmin(admin.ModelAdmin):
-    list_display = ('business_unit', 'page_access_token', 'associated_flow', 'is_active')
-    list_filter = ('business_unit', 'is_active')
-    search_fields = ('page_access_token',)
-
-@admin.register(InstagramAPI)
-class InstagramAPIAdmin(admin.ModelAdmin):
-    list_display = ('business_unit', 'app_id', 'associated_flow', 'is_active')
-    list_filter = ('business_unit', 'is_active')
-    search_fields = ('app_id',)
+@admin.register(ApiConfig)
+class ApiConfigAdmin(admin.ModelAdmin):
+    list_display = ('business_unit', 'api_type', 'api_key')
+    list_filter = ('business_unit', 'api_type')
+    readonly_fields = ('api_key', 'api_secret')  # Proteger campos sensibles
 
 @admin.register(MetaAPI)
 class MetaAPIAdmin(admin.ModelAdmin):
     list_display = ('business_unit', 'app_id', 'app_secret', 'verify_token')
     search_fields = ('app_id', 'business_unit__name')
     list_filter = ('business_unit',)
+    readonly_fields = ('app_secret', 'verify_token')  # Proteger campos sensibles
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'business_unit':
-            kwargs["queryset"] = BusinessUnit.objects.all()
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+@admin.register(WhatsAppAPI)
+class WhatsAppAPIAdmin(admin.ModelAdmin):
+    list_display = ('name', 'business_unit', 'phoneID', 'is_active')
+    search_fields = ('name', 'phoneID')
+    list_filter = ('business_unit', 'is_active')
+
+    inlines = []  # TemplateInline si se desea
+
+@admin.register(MessengerAPI)
+class MessengerAPIAdmin(admin.ModelAdmin):
+    list_display = ('business_unit', 'page_access_token', 'is_active')
+    list_filter = ('business_unit', 'is_active')
+    search_fields = ('page_access_token',)
+
+@admin.register(InstagramAPI)
+class InstagramAPIAdmin(admin.ModelAdmin):
+    list_display = ('business_unit', 'app_id', 'is_active')
+    list_filter = ('business_unit', 'is_active')
+    search_fields = ('app_id',)
+
+@admin.register(TelegramAPI)
+class TelegramAPIAdmin(admin.ModelAdmin):
+    list_display = ('bot_name', 'business_unit', 'api_key', 'is_active')
+    list_filter = ('business_unit', 'is_active')
+    search_fields = ('bot_name', 'api_key')
 
 @admin.register(GptApi)
 class GptApiAdmin(admin.ModelAdmin):
     list_display = ('api_token', 'model', 'organization')
     search_fields = ('model', 'organization')
-
-@admin.register(ApiConfig)
-class ApiConfigAdmin(admin.ModelAdmin):
-    list_display = ('business_unit', 'api_type', 'api_key')
-    list_filter = ('business_unit', 'api_type')
-
-@admin.register(Etapa)
-class EtapaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'descripcion', 'activo')
-    search_fields = ('nombre', 'descripcion')
+    readonly_fields = ('api_token',)  # Proteger campo sensible
 
 @admin.register(SmtpConfig)
 class SmtpConfigAdmin(admin.ModelAdmin):
@@ -449,26 +306,155 @@ class ChatAdmin(admin.ModelAdmin):
     list_display = ('From', 'To', 'ProfileName', 'created_at')
     search_fields = ('From', 'To')
 
-@admin.register(MilkyLeak)
-class MilkyLeakAdmin(admin.ModelAdmin):
-    list_display = ['id', 'twitter_api_key', 'storage_service']
-    fields = ['twitter_api_key', 'twitter_api_secret_key', 'twitter_access_token',
-              'twitter_access_token_secret', 'mega_email', 'mega_password',
-              'dropbox_access_token', 'folder_location', 'image_prefix',
-              'local_directory', 'storage_service', 'min_interval',
-              'max_interval']
-    readonly_fields = ['image_counter']
+@admin.register(Template)
+class TemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'template_type', 'language_code', 'whatsapp_api')
+    search_fields = ('name', 'whatsapp_api__name')
+    list_filter = ('template_type', 'language_code', 'whatsapp_api')
 
-    def get_fields(self, request, obj=None):
-        fields = super().get_fields(request, obj)
-        if obj and obj.storage_service == 'mega':
-            fields += ['mega_email', 'mega_password']
-        elif obj and obj.storage_service == 'dropbox':
-            fields += ['dropbox_access_token']
-        return fields
+class WhatsAppAPIInline(admin.TabularInline):
+    model = WhatsAppAPI
+    extra = 1
+    readonly_fields = ('api_token',)  # Proteger campos sensibles
 
-    def reset_image_counter(self, request, queryset):
-        queryset.update(image_counter=1)  # Reiniciar el contador a 1
-        self.message_user(request, "El contador de imágenes ha sido reiniciado.", level=messages.SUCCESS)
+class MessengerAPIInline(admin.TabularInline):
+    model = MessengerAPI
+    extra = 1
 
-    reset_image_counter.short_description = "Reiniciar el contador de imágenes"
+class TelegramAPIInline(admin.TabularInline):
+    model = TelegramAPI
+    extra = 1
+
+class InstagramAPIInline(admin.TabularInline):
+    model = InstagramAPI
+    extra = 1
+
+class DominioScrapingInline(admin.TabularInline):
+    model = ConfiguracionBU.scraping_domains.through
+    extra = 1
+    verbose_name = "Dominio de Scraping"
+    verbose_name_plural = "Dominios de Scraping"
+
+@admin.register(BusinessUnit)
+class BusinessUnitAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description', 'whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
+    list_editable = ('whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
+    filter_horizontal = ('scraping_domains',)
+    search_fields = ['name', 'description']
+    readonly_fields = ('admin_email',)  # Para evitar que se edite manualmente
+
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'description', 'dominio_bu')
+        }),
+        ('Canales Habilitados', {
+            'fields': ('whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled'),
+        }),
+        ('Configuración de Scraping', {
+            'fields': ('scrapping_enabled', 'scraping_domains'),
+        }),
+        ('Información Administrativa', {
+            'fields': ('admin_email',),
+        }),
+    )
+    inlines = [WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline]  # Agregar inlines para APIs
+
+@admin.register(UserInteractionLog)
+class UserInteractionLogAdmin(admin.ModelAdmin):
+    list_display = ('user_id', 'platform', 'business_unit', 'timestamp', 'message_direction')
+    list_filter = ('platform', 'business_unit', 'message_direction')
+    search_fields = ('user_id',)
+
+@admin.register(QuarterlyInsight)
+class QuarterlyInsightAdmin(admin.ModelAdmin):
+    list_display = ('business_unit', 'created_at')
+    search_fields = ('business_unit__name',)
+    list_filter = ('business_unit', 'created_at')
+    readonly_fields = ('insights_data',)
+
+    def changelist_view(self, request, extra_context=None):
+        # Agregar gráficos o visualizaciones de insights
+        import matplotlib.pyplot as plt
+
+        extra_context = extra_context or {}
+        insights = QuarterlyInsight.objects.all()
+        
+        # Ejemplo: Gráfico de top_performing_skills
+        skills = {}
+        for insight in insights:
+            top_skills = insight.insights_data.get('top_performing_skills', [])
+            for skill, count in top_skills:
+                skills[skill] = skills.get(skill, 0) + count
+
+        sorted_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:10]
+        labels, values = zip(*sorted_skills)
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(labels, values, color='skyblue')
+        plt.xlabel('Habilidades')
+        plt.ylabel('Cantidad')
+        plt.title('Top 10 Habilidades Más Frecuentes en Candidatos Contratados')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        grafico_skills = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        buffer.close()
+
+        extra_context['grafico_skills'] = grafico_skills
+
+        return super().changelist_view(request, extra_context=extra_context)
+
+@admin.register(ModelTrainingLog)
+class ModelTrainingLogAdmin(admin.ModelAdmin):
+    list_display = ('business_unit', 'accuracy', 'trained_at', 'model_version')
+    search_fields = ('business_unit__name', 'model_version')
+    list_filter = ('business_unit', 'trained_at')
+    readonly_fields = ('accuracy', 'trained_at', 'model_version')
+
+    def changelist_view(self, request, extra_context=None):
+        # Agregar estadísticas adicionales al changelist
+        extra_context = extra_context or {}
+        insights = QuarterlyInsight.objects.filter(business_unit__in=BusinessUnit.objects.all())
+        extra_context['insights'] = insights
+        return super().changelist_view(request, extra_context=extra_context)
+
+@admin.register(EnhancedNetworkGamificationProfile)
+class EnhancedNetworkGamificationProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'professional_points', 'skill_endorsements', 'network_expansion_level')
+    search_fields = ('user__nombre', 'user__email')
+    list_filter = ('network_expansion_level',)
+    actions = ['reset_points', 'award_bonus_points']
+
+    @admin.action(description="Resetear puntos profesionales")
+    def reset_points(self, request, queryset):
+        queryset.update(professional_points=0)
+        self.message_user(request, "Puntos profesionales reseteados a 0 para los perfiles seleccionados.")
+
+    @admin.action(description="Otorgar puntos de bonificación")
+    def award_bonus_points(self, request, queryset):
+        for profile in queryset:
+            profile.professional_points += 100  # Otorgar 100 puntos como bonificación
+            profile.save()
+        self.message_user(request, "100 puntos de bonificación otorgados a los perfiles seleccionados.")
+
+@admin.register(UserInteractionLog)
+class UserInteractionLogAdmin(admin.ModelAdmin):
+    list_display = ('user_id', 'platform', 'business_unit', 'timestamp', 'message_direction')
+    list_filter = ('platform', 'business_unit', 'message_direction')
+    search_fields = ('user_id',)
+    readonly_fields = ('user_id', 'platform', 'business_unit', 'timestamp', 'message_direction')
+
+@admin.register(Chat)
+class ChatAdmin(admin.ModelAdmin):
+    list_display = ('From', 'To', 'ProfileName', 'created_at')
+    search_fields = ('From', 'To', 'ProfileName')
+    readonly_fields = ('From', 'To', 'ProfileName', 'body', 'SmsStatus', 'ChannelPrefix', 'MessageSid', 'created_at', 'updated_at', 'message_count')
+
+@admin.register(EnhancedMLProfile)
+class EnhancedMLProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'performance_score', 'model_version', 'last_prediction_timestamp')
+    search_fields = ('user__nombre', 'user__apellido_paterno', 'user__email')
+    list_filter = ('model_version',)
+    readonly_fields = ('model_version', 'last_prediction_timestamp')

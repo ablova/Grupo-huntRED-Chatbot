@@ -1,3 +1,5 @@
+# /home/amigro/app/integrations/services.py
+
 import logging
 import smtplib
 import httpx
@@ -8,9 +10,13 @@ from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist
 from app.models import (
     WhatsAppAPI, TelegramAPI, InstagramAPI, MessengerAPI, MetaAPI, BusinessUnit, ConfiguracionBU,
-    ChatState, Person, FlowModel, Pregunta, Vacante, Application
+    ChatState, Person, Vacante, Application, EnhancedNetworkGamificationProfile
 )
 from typing import Optional, List, Dict
+from django.conf import settings
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +29,7 @@ platform_send_functions = {
     'instagram': 'send_instagram_message',
 }
 
-async def send_message(platform: str, user_id: str, message: str, business_unit, options: Optional[List[Dict]] = None):
+async def send_message(platform: str, user_id: str, message: str, business_unit: BusinessUnit, options: Optional[List[Dict]] = None):
     """
     Envía un mensaje al usuario en la plataforma especificada, con opciones si las hay.
     """
@@ -43,7 +49,7 @@ async def send_message(platform: str, user_id: str, message: str, business_unit,
         send_module = __import__(f'app.integrations.{platform}', fromlist=[send_function_name])
         send_function = getattr(send_module, send_function_name)
 
-        # Preparar argumentos según la plataforma
+        # Enviar el mensaje utilizando la función específica de la plataforma
         if platform == 'whatsapp':
             await send_function(
                 user_id=user_id,
@@ -51,85 +57,54 @@ async def send_message(platform: str, user_id: str, message: str, business_unit,
                 buttons=options,
                 phone_id=api_instance.phoneID
             )
-        elif platform == 'telegram':
+        elif platform in ['telegram', 'messenger', 'instagram']:
             await send_function(
                 user_id=user_id,
                 message=message,
                 buttons=options,
-                api_token=api_instance.api_key
-            )
-        elif platform == 'messenger':
-            await send_function(
-                user_id=user_id,
-                message=message,
-                buttons=options,
-                access_token=api_instance.page_access_token
-            )
-        elif platform == 'instagram':
-            await send_function(
-                user_id=user_id,
-                message=message,
-                buttons=options,
-                access_token=api_instance.access_token
+                access_token=api_instance.page_access_token if platform == 'messenger' else api_instance.api_key
             )
         else:
             logger.error(f"Unsupported platform: {platform}")
 
+        # Registrar el contenido del mensaje enviado
         logger.info(f"Mensaje enviado a {user_id} en {platform}: {message}")
+        if options:
+            logger.info(f"Opciones incluidas: {options}")
 
     except Exception as e:
         logger.error(f"Error sending message on {platform}: {e}", exc_info=True)
 
-async def send_whatsapp_decision_buttons(user_id, message, buttons, phone_id):
+async def get_api_instance(platform: str, business_unit: BusinessUnit):
     """
-    Envía botones de decisión (Sí/No) a través de WhatsApp usando MetaAPI.
+    Obtiene la instancia de configuración de la API según la plataforma y unidad de negocio.
     """
-    url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
-    headers = {
-        "Authorization": f"Bearer {phone_id}",  # Asegúrate de que 'phone_id' contiene el token correcto
-        "Content-Type": "application/json"
-    }
+    cache_key = f"api_instance:{platform}:{business_unit.id}"
+    api_instance = cache.get(cache_key)
 
-    # Formatear los botones para WhatsApp
-    formatted_buttons = []
-    for idx, button in enumerate(buttons):
-        formatted_button = {
-            "type": "reply",
-            "reply": {
-                "id": f"btn_{idx}",  # ID único para cada botón
-                "title": button['title'][:20]  # Límite de 20 caracteres
-            }
+    if not api_instance:
+        model_mapping = {
+            'whatsapp': 'WhatsAppAPI',
+            'telegram': 'TelegramAPI',
+            'messenger': 'MessengerAPI',
+            'instagram': 'InstagramAPI'
         }
-        formatted_buttons.append(formatted_button)
+        model_name = model_mapping.get(platform)
+        if not model_name:
+            logger.error(f"No model mapping found for platform: {platform}")
+            return None
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": user_id,
-        "type": "interactive",
-        "interactive": {
-            "type": "button",
-            "body": {
-                "text": message  # El mensaje que acompaña los botones
-            },
-            "action": {
-                "buttons": formatted_buttons
-            }
-        }
-    }
+        model_class = getattr(__import__('app.models', fromlist=[model_name]), model_name)
+        api_instance = await sync_to_async(model_class.objects.filter(business_unit=business_unit, is_active=True).first)()
+        if not api_instance:
+            logger.error(f"No API instance found for platform: {platform}, BU: {business_unit.name}")
+            return None
 
-    try:
-        async with httpx.AsyncClient() as client:
-            logger.debug(f"Enviando botones a WhatsApp para el usuario {user_id}")
-            response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            logger.info(f"Botones enviados correctamente a WhatsApp. Respuesta: {response.text}")
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Error enviando botones a WhatsApp: {e.response.text}")
-    except Exception as e:
-        logger.error(f"Error enviando botones a WhatsApp: {e}", exc_info=True)
+        cache.set(cache_key, api_instance, CACHE_TIMEOUT)
 
-async def send_email(business_unit_name: str, subject: str, to_email: str, body: str, from_email: Optional[str] = None):
+    return api_instance
+
+async def send_email(business_unit_name: str, subject: str, to_email: str, body: str, from_email: Optional[str] = None, domain_bu: str = "tudominio.com"):
     """
     Envía un correo electrónico utilizando la configuración SMTP de la unidad de negocio.
     """
@@ -182,7 +157,54 @@ async def send_email(business_unit_name: str, subject: str, to_email: str, body:
         logger.error(f"Error enviando correo electrónico: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
-async def reset_chat_state(user_id: Optional[str] = None):
+async def send_whatsapp_decision_buttons(user_id, message, buttons, phone_id):
+    """
+    Envía botones de decisión (Sí/No) a través de WhatsApp usando MetaAPI.
+    """
+    url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {phone_id}",  # Asegúrate de que 'phone_id' contiene el token correcto
+        "Content-Type": "application/json"
+    }
+
+    # Formatear los botones para WhatsApp
+    formatted_buttons = []
+    for idx, button in enumerate(buttons):
+        formatted_button = {
+            "type": "reply",
+            "reply": {
+                "id": f"btn_{idx}",  # ID único para cada botón
+                "title": button['title'][:20]  # Límite de 20 caracteres
+            }
+        }
+        formatted_buttons.append(formatted_button)
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": user_id,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {
+                "text": message  # El mensaje que acompaña los botones
+            },
+            "action": {
+                "buttons": formatted_buttons
+            }
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            logger.debug(f"Enviando botones a WhatsApp para el usuario {user_id}")
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info(f"Botones enviados correctamente a WhatsApp. Respuesta: {response.text}")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Error enviando botones a WhatsApp: {e.response.text}")
+    except Exception as e:
+        logger.error(f"Error enviando botones a WhatsApp: {e}", exc_info=True)async def reset_chat_state(user_id: Optional[str] = None):
     """
     Resetea el estado del chatbot para un usuario específico o para todos los usuarios.
     """
@@ -198,36 +220,6 @@ async def reset_chat_state(user_id: Optional[str] = None):
         logger.warning(f"No chatbot state found for user {user_id}.")
     except Exception as e:
         logger.error(f"Error resetting chatbot state: {e}", exc_info=True)
-
-async def get_api_instance(platform: str, business_unit: BusinessUnit):
-    """
-    Recupera la instancia de API correspondiente a la plataforma y unidad de negocio, usando caché para minimizar consultas a la base de datos.
-    """
-    cache_key = f"{platform}_api:{business_unit.id}"
-    api_instance = cache.get(cache_key)
-
-    if api_instance:
-        return api_instance
-
-    try:
-        if platform == 'whatsapp':
-            api_instance = await sync_to_async(WhatsAppAPI.objects.filter(business_unit=business_unit).first)()
-        elif platform == 'telegram':
-            api_instance = await sync_to_async(TelegramAPI.objects.filter(business_unit=business_unit).first)()
-        elif platform == 'messenger':
-            api_instance = await sync_to_async(MessengerAPI.objects.filter(business_unit=business_unit).first)()
-        elif platform == 'instagram':
-            api_instance = await sync_to_async(InstagramAPI.objects.filter(business_unit=business_unit).first)()
-        else:
-            logger.error(f"Unsupported platform: {platform}")
-            return None
-
-        if api_instance:
-            cache.set(cache_key, api_instance, CACHE_TIMEOUT)
-        return api_instance
-    except Exception as e:
-        logger.error(f"Error retrieving API instance for {platform} and business unit {business_unit.name}: {e}", exc_info=True)
-        return None
 
 async def send_logo(platform, user_id, business_unit):
     """
@@ -370,3 +362,66 @@ async def notify_employer(worker, message):
             logger.warning(f"El empleador {worker.name} no tiene número de WhatsApp configurado.")
     except Exception as e:
         logger.error(f"Error enviando notificación al empleador {worker.name}: {e}", exc_info=True)
+
+class GamificationService:
+    def __init__(self):
+        pass
+
+    async def award_points(self, user: Person, activity_type: str, points: int = 10):
+        """
+        Otorga puntos al usuario basado en el tipo de actividad.
+        """
+        try:
+            profile, created = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get_or_create)(
+                user=user,
+                defaults={'points': 0, 'level': 1}
+            )
+            profile.award_points(activity_type, points)
+            await sync_to_async(profile.save)()
+            logger.info(f"Otorgados {points} puntos a {user.nombre} por {activity_type}. Total puntos: {profile.points}")
+        except Exception as e:
+            logger.error(f"Error otorgando puntos a {user.nombre}: {e}", exc_info=True)
+
+    async def notify_user_gamification_update(self, user: Person, activity_type: str):
+        """
+        Notifica al usuario sobre la actualización de puntos de gamificación.
+        """
+        try:
+            profile = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get)(user=user)
+            message = f"¡Has ganado puntos por {activity_type}! Ahora tienes {profile.points} puntos."
+            # Determinar la plataforma del usuario para enviar la notificación
+            platform = user.chat_state.platform if hasattr(user, 'chat_state') else 'whatsapp'  # Asumiendo WhatsApp por defecto
+            business_unit = user.chat_state.business_unit if hasattr(user, 'chat_state') else user.business_unit
+
+            if platform and business_unit:
+                await send_message(
+                    platform=platform,
+                    user_id=user.phone,
+                    message=message,
+                    business_unit=business_unit
+                )
+        except EnhancedNetworkGamificationProfile.DoesNotExist:
+            logger.warning(f"No perfil de gamificación encontrado para {user.nombre}")
+        except Exception as e:
+            logger.error(f"Error notificando actualización de gamificación a {user.nombre}: {e}", exc_info=True)
+
+    async def generate_challenges(self, user: Person):
+        """Genera desafíos personalizados para el usuario."""
+        try:
+            profile = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get)(user=user)
+            return profile.generate_networking_challenges()
+        except EnhancedNetworkGamificationProfile.DoesNotExist:
+            return []
+
+    async def notify_user_challenges(self, user: Person):
+        """Notifica al usuario sobre nuevos desafíos."""
+        challenges = await self.generate_challenges(user)
+        # Enviar desafíos al usuario a través del canal activo
+        if challenges:
+            message = f"Tienes nuevos desafíos: {', '.join(challenges)}"
+            await send_message(
+                platform=user.chat_state.platform if hasattr(user, 'chat_state') else 'whatsapp',
+                user_id=user.phone,
+                message=message,
+                business_unit=user.chat_state.business_unit if hasattr(user, 'chat_state') else user.business_unit
+            )

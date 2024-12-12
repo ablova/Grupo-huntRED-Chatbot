@@ -49,18 +49,6 @@ urlpatterns = [
     path('webhook/messenger/109623338672452/', messenger_webhook, name='messenger_webhook'),
     path('webhook/instagram/109623338672452/', instagram_webhook, name='instagram_webhook'),
 
-    # Rutas para CRUD de Preguntas
-    path('preguntas/', create_pregunta, name='create_pregunta'),
-    path('preguntas/<int:id>/', update_pregunta, name='update_pregunta'),
-    path('preguntas/<int:id>/position/', update_position, name='update_position'),
-    path('preguntas/<int:id>/delete/', delete_pregunta, name='delete_pregunta'),
-
-    # Rutas para la gestión del flujo
-    re_path(r'^create-flow/$', CreateFlowView.as_view(), name='create_flow'),
-    path('flowmodel/<int:flowmodel_id>/edit-flow/', edit_flow, name='edit_flow'),
-    path('save_flow_structure/', save_flow_structure, name='save_flow_structure'),
-    path('export_chatbot_flow/', export_chatbot_flow, name='export_chatbot_flow'),
-    path('load_flow_data/<int:flowmodel_id>/', load_flow_data, name='load_flow_data'),
 
     # Rutas de pruebas y utilidades
     path('send-test-message/', send_test_message, name='send_test_message'),

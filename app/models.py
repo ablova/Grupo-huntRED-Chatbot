@@ -1,24 +1,15 @@
-# /home/amigro/app/models.py
-
+# Ubicación del archivo: /home/amigro/app/models.py
 from django.db import models
-from datetime import datetime, timezone
-import graphviz  
+from django.core.exceptions import ValidationError
+from django.contrib.postgres.fields import ArrayField, JSONField
+from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
 import requests
 import logging
 import re
-import json
-from django.core.exceptions import ValidationError
 
-# Configurar el logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-# Configurar un handler si aún no está configurado
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 PLATFORM_CHOICES = [
     ("workday", "Workday"),
@@ -36,24 +27,15 @@ PLATFORM_CHOICES = [
     ("glassdoor", "Glassdoor"),
     ("computrabajo", "Computrabajo"),
     ("accenture", "Accenture"),
+    ("santander", "Santander"),
     ("otro", "Otro"),
 ]
 
 BUSINESS_UNIT_CHOICES = [
-    ('amigro', 'Amigro®'),
+    ('huntRED', 'huntRED®'),
+    ('huntRED_executive', 'huntRED® Executive'),
     ('huntu', 'huntU®'),
-    ('huntred', 'huntRED®'),
-    ('huntred_executive', 'huntRED® Executive'),
-]
-
-DAY_CHOICES = [
-    ('Monday', 'Lunes'),
-    ('Tuesday', 'Martes'),
-    ('Wednesday', 'Miércoles'),
-    ('Thursday', 'Jueves'),
-    ('Friday', 'Viernes'),
-    ('Saturday', 'Sábado'),
-    ('Sunday', 'Domingo'),
+    ('amigro', 'Amigro®'),
 ]
 
 COMUNICATION_CHOICES =[
@@ -64,8 +46,34 @@ COMUNICATION_CHOICES =[
     ("sms", "SMS"),
 ]
 
-# ... [Otros modelos y clases anteriores]
-# CONFIGURACION, Business UNIT y sus derivados
+# User agents
+USER_AGENTS = [
+    # Chrome en Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+
+    # Chrome en MacOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+
+    # Chrome en Linux 
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    
+    # Firefox en Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+    
+    # Firefox en MacOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
+    
+    # Safari en MacOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+
+    # Edge en Windows 
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.51",
+]
+
 class Configuracion(models.Model):
     secret_key = models.CharField(max_length=255, default='hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48')
     sentry_dsn = models.CharField(max_length=255, blank=True, null=True, default='https://94c6575f877d16a00cc74bcaaab5ae79@o4508258791653376.ingest.us.sentry.io/4508258794471424')
@@ -73,30 +81,29 @@ class Configuracion(models.Model):
     test_user = models.CharField(max_length=255, blank=True, null=True, default='Pablo Lelo de Larrea H.')
     test_phone_number = models.CharField(max_length=15, default='+525518490291', help_text='Número de teléfono para pruebas y reportes de ejecución')
     test_email = models.EmailField(max_length=50, default='pablo@huntred.com', help_text='Email para pruebas y reportes de ejecución')
-    default_platform = models.CharField(max_length=20, default='whatsapp', choices=COMUNICATION_CHOICES, help_text='Plataforma de pruebas por defecto (whatsapp, telegram, messenger)')
+    default_platform = models.CharField(max_length=20, default='whatsapp', choices=COMUNICATION_CHOICES, help_text='Plataforma de pruebas por defecto')
     notification_hour = models.TimeField(blank=True, null=True, help_text='Hora para enviar notificaciones diarias de pruebas')
-    is_test_mode = models.BooleanField(default=True, help_text='Indicador de si el sistema está en modo de pruebas')
-    default_flow_model = models.ForeignKey('FlowModel', on_delete=models.SET_NULL, blank=True, null=True, help_text='FlowModel de pruebas por defecto')
+    is_test_mode = models.BooleanField(default=True, help_text='Indicador de modo de pruebas')
+
+    def __str__(self):
+        return "Configuración General del Sistema"
 
 class DominioScraping(models.Model):
     empresa = models.CharField(max_length=75, unique=True, blank=True, null=True)
-    dominio = models.URLField(max_length=255, unique=True)  # Dominio principal
+    dominio = models.URLField(max_length=255, unique=True)
     plataforma = models.CharField(max_length=100, choices=PLATFORM_CHOICES, blank=True, null=True)
     estado = models.CharField(max_length=20, choices=[("definido", "Definido"), ("libre", "Indefinido")], default="libre")
     verificado = models.BooleanField(default=False)
     activo = models.BooleanField(default=True)
     cookies = models.JSONField(blank=True, null=True)
-    frecuencia_scraping = models.IntegerField(default=24)  # Horas entre ejecuciones
+    frecuencia_scraping = models.IntegerField(default=24)
     mensaje_error = models.TextField(blank=True, null=True)
     ultima_verificacion = models.DateTimeField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def generar_correo_asignado(self):
-        """
-        Genera dinámicamente el correo asignado según la configuración de la BusinessUnit.
-        """
-        from app.models import ConfiguracionBU  # Evitar dependencias circulares
+        from app.models import ConfiguracionBU
         configuracion = ConfiguracionBU.objects.filter(scraping_domains__dominio=self.dominio).first()
         dominio_bu = configuracion.dominio_bu if configuracion else "amigro.org"
         return f"{self.empresa.lower()}@{dominio_bu}" if self.empresa else None
@@ -105,9 +112,6 @@ class DominioScraping(models.Model):
         return f"{self.dominio} ({self.plataforma})"
 
     def validar_url(self):
-        """
-        Valida si la URL proporcionada responde correctamente.
-        """
         try:
             logger.info(f"Validando URL: {self.dominio}")
             response = requests.head(self.dominio, timeout=10, allow_redirects=True)
@@ -119,10 +123,7 @@ class DominioScraping(models.Model):
             raise ValidationError(f"Error al validar la URL: {e}")
 
     def detectar_plataforma(self):
-        """
-        Detecta la plataforma basada en patrones en la URL.
-        """
-        if self.plataforma:  # Si ya tiene una plataforma asignada, no la sobrescribe
+        if self.plataforma:
             logger.info(f"Plataforma ya definida manualmente: {self.plataforma}")
             return
 
@@ -147,38 +148,17 @@ class DominioScraping(models.Model):
         logger.warning(f"No se detectó una plataforma conocida para: {self.dominio}")
 
     def clean(self):
-        """
-        Valida y ajusta la instancia antes de guardar.
-        """
         self.validar_url()
         self.detectar_plataforma()
 
     def save(self, *args, **kwargs):
-        """
-        Sobrescribe el método save para incluir validaciones y ajustes.
-        """
-        if not kwargs.pop("skip_clean", False):  # Permite omitir `clean` si es necesario
+        if not kwargs.pop("skip_clean", False):
             self.full_clean()
         super().save(*args, **kwargs)
 
 class BusinessUnit(models.Model):
-    BUSINESS_UNIT_CHOICES = [
-        ('huntRED', 'huntRED®'),
-        ('huntRED_executive', 'huntRED® Executive'),
-        ('huntu', 'huntU®'),
-        ('amigro', 'Amigro®'),
-        # Añadir más opciones si es necesario en el futuro
-    ]
-
     name = models.CharField(max_length=50, choices=BUSINESS_UNIT_CHOICES, unique=True)
     description = models.TextField(blank=True)
-    associated_flow = models.OneToOneField(
-        'FlowModel',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='associated_business_unit_flow'  # Cambiado a un nombre único
-    )
     whatsapp_enabled = models.BooleanField(default=True)
     telegram_enabled = models.BooleanField(default=True)
     messenger_enabled = models.BooleanField(default=True)
@@ -189,8 +169,21 @@ class BusinessUnit(models.Model):
     )
 
     def __str__(self):
-        # Mostrar el nombre completo de la unidad en lugar del código
-        return dict(self.BUSINESS_UNIT_CHOICES).get(self.name, self.name)
+        return dict(BUSINESS_UNIT_CHOICES).get(self.name, self.name)
+    
+    def get_email_template_path(self):
+        """
+        Retorna la ruta de la plantilla de email basada en el nombre de la BusinessUnit.
+        """
+        sanitized_name = re.sub(r'\W+', '', self.name).lower()
+        return f'emails/template_{sanitized_name}.html'
+    @property
+    def admin_email(self):
+        """
+        Genera automáticamente el correo electrónico del administrador basado en el dominio.
+        Por ejemplo, 'amigro.org' -> 'hola@amigro.org'
+        """
+        return f'hola@{self.dominio_bu}'
 
 class ConfiguracionBU(models.Model):
     business_unit = models.OneToOneField(BusinessUnit, on_delete=models.CASCADE)
@@ -198,16 +191,15 @@ class ConfiguracionBU(models.Model):
     direccion_bu = models.CharField(max_length=255, default="Av. Santa Fe #428, Torre 3, Piso 15, CDMX")
     telefono_bu = models.CharField(max_length=20, default="+5255 59140089")
     correo_bu = models.CharField(max_length=20, default="hola@amigro.org")
-    jwt_token = models.CharField(max_length=255, blank=True, null=True, default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJQYWJsbyIsImlhdCI6MTczMTAwNzY0OCwiZXhwIjoxODg4Njg3NjQ4fQ.BQezJzmVVpcaG2ZIbkMagezkt-ORoO5wyrG0odWZrlg")
+    jwt_token = models.CharField(max_length=255, blank=True, null=True, default="...")
     dominio_bu = models.URLField(max_length=255, blank=True, null=True)
     dominio_rest_api = models.URLField(max_length=255, blank=True, null=True)
     scraping_domains = models.ManyToManyField(
         'DominioScraping',
-        related_name='configuracion_business_units',  # Cambiado a un nombre único
+        related_name='configuracion_business_units',
         blank=True,
         help_text="Selecciona los dominios de scraping asociados a esta unidad de negocio."
     )
-    # Configuración SMTP específica por Business Unit
     smtp_host = models.CharField(max_length=255, blank=True, null=True)
     smtp_port = models.IntegerField(blank=True, null=True, default=587)
     smtp_username = models.CharField(max_length=255, blank=True, null=True)
@@ -215,9 +207,67 @@ class ConfiguracionBU(models.Model):
     smtp_use_tls = models.BooleanField(default=True)
     smtp_use_ssl = models.BooleanField(default=False)
 
+    weight_location = models.IntegerField(default=10)
+    weight_hard_skills = models.IntegerField(default=45)
+    weight_soft_skills = models.IntegerField(default=35)
+    weight_contract = models.IntegerField(default=10)
+
     def __str__(self):
         return f"Configuración de {self.business_unit.name if self.business_unit else 'Unidad de Negocio'}"
-  
+    
+    def get_smtp_config(self):
+        """
+        Devuelve la configuración SMTP/IMAP como un diccionario.
+        """
+        return {
+            'host': self.smtp_host,
+            'port': self.smtp_port,
+            'username': self.smtp_username,
+            'password': self.smtp_password,
+            'use_tls': self.smtp_use_tls,
+            'use_ssl': self.smtp_use_ssl
+        }
+    
+class WeightingModel:
+    def __init__(self, business_unit):
+        self.business_unit = business_unit
+        self.weights = self._load_weights()
+
+    def _load_weights(self):
+        """
+        Carga los pesos dinámicos desde la configuración de la unidad de negocio.
+        """
+        try:
+            config = ConfiguracionBU.objects.get(business_unit=self.business_unit)
+            return {
+                "ubicacion": config.weight_location or 10,
+                "hard_skills": config.weight_hard_skills or 45,
+                "soft_skills": config.weight_soft_skills or 35,
+                "tipo_contrato": config.weight_contract or 10,
+                "personalidad": config.weight_personality or 15,  # Nuevo peso para fit cultural
+            }
+        except ConfiguracionBU.DoesNotExist:
+            # Valores por defecto
+            return {
+                "ubicacion": 5,
+                "hard_skills": 45,
+                "soft_skills": 35,
+                "tipo_contrato": 5,
+                "personalidad": 10,
+            }
+
+    def get_weights(self, position_level):
+        """
+        Ajusta los pesos según el nivel del puesto.
+        """
+        if position_level == "gerencia_media":
+            return {**self.weights, "soft_skills": 40, "hard_skills": 40, "ubicacion": 10, "personalidad": 20}
+        elif position_level == "alta_direccion":
+            return {**self.weights, "soft_skills": 45, "hard_skills": 30, "ubicacion": 10, "personalidad": 25}
+        elif position_level == "operativo":
+            return {**self.weights, "ubicacion": 15, "hard_skills": 50, "soft_skills": 25, "personalidad": 10}
+        return self.weights
+
 class RegistroScraping(models.Model):
     dominio = models.ForeignKey(DominioScraping, on_delete=models.CASCADE)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
@@ -232,7 +282,7 @@ class RegistroScraping(models.Model):
 
     def __str__(self):
         return f"Registro {self.dominio.empresa} - {self.estado} - {self.fecha_inicio}"
-   
+
 class Vacante(models.Model):
     titulo = models.CharField(max_length=300)
     empresa = models.CharField(max_length=200)
@@ -260,217 +310,111 @@ class Vacante(models.Model):
 
     def __str__(self):
         return f"{self.titulo} - {self.empresa}"
- 
-#CHAT, FLOW y sus derivados
-# Estado del Chat
-class FlowModel(models.Model):
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True, null=True)
-    preguntas = models.ManyToManyField('Pregunta', related_name='flowmodels')
-    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='flows', null=True, blank=True)
-    flow_data_json = models.JSONField(blank=True, null=True)  # Añadir este campo
-
-    def generate_flow_diagram(self):
-        dot = graphviz.Digraph()
-        # Generar nodos y conexiones basadas en las preguntas del flujo
-        for pregunta in self.preguntas.all():
-            dot.node(str(pregunta.id), pregunta.name)  # Nombre de la pregunta como nodo
-            if pregunta.next_si:
-                dot.edge(str(pregunta.id), str(pregunta.next_si.id), label='Sí')
-            if pregunta.next_no:
-                dot.edge(str(pregunta.id), str(pregunta.next_no.id), label='No')
-
-        # Guarda el diagrama
-        dot.render(f'/home/amigro/media/flow_diagram_{self.id}', format='png')
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.generate_flow_diagram()  # Genera el diagrama al guardar
-
-    def __str__(self):
-        return self.name
 
 class ApiConfig(models.Model):
     business_unit = models.ForeignKey(
-        'BusinessUnit',
+        BusinessUnit,
         related_name='api_configs',
         on_delete=models.CASCADE
     )
     api_type = models.CharField(
         max_length=50,
         choices=COMUNICATION_CHOICES
-    )  # e.g., 'WhatsApp', 'Telegram', etc.
+    )
     api_key = models.CharField(max_length=255)
     api_secret = models.CharField(max_length=255, blank=True, null=True)
-    additional_settings = models.JSONField(
-        blank=True,
-        null=True
-    )  # Para configuraciones adicionales como tokens, etc.
+    additional_settings = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.business_unit.name} - {self.api_type}"
 
-class ChatState(models.Model):
-    user_id = models.CharField(max_length=50, db_index=True)  # Index para optimizar búsqueda por usuario
-    platform = models.CharField(max_length=20, choices=COMUNICATION_CHOICES)  # 'telegram', 'whatsapp', 'messenger'
-    current_question = models.ForeignKey('Pregunta', on_delete=models.CASCADE, null=True, blank=True)
-    last_interaction = models.DateTimeField(auto_now=True)
-    context = models.JSONField(blank=True, null=True, default=dict)
-
-    def __str__(self):
-        return f"ChatState {self.user_id} - {self.platform}"
-
-class Condicion(models.Model):
-    nombre = models.CharField(max_length=100)
-    valor_esperado = models.CharField(max_length=100)
-    descripcion = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return f"Condicion: {self.nombre} (espera: {self.valor_esperado})"
-
-class Etapa(models.Model):
-    nombre = models.CharField(max_length=255)
-    descripcion = models.TextField(blank=True, null=True)
-    activo = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.nombre
-
-class Pregunta(models.Model):
-    INPUT_TYPE_CHOICES = [
-        ('text', 'Texto'),
-        ('name', 'Nombre'),
-        ('apellido_paterno', 'Apellido Paterno'),
-        ('apellido_materno', 'Apellido Materno'),
-        ('nationality', 'Nacionalidad'),
-        ('fecha_nacimiento', 'Fecha de Nacimiento'),
-        ('sexo', 'Sexo'),
-        ('email', 'Email'),
-        ('phone', 'Celular'),
-        ('family_traveling', 'Viaja con Familia'),
-        ('policie', 'Politica Migratoria'),
-        ('group_aditionality', 'Viaja en Grupo'),
-        ('passport', 'Pasaporte'),
-        ('additional_official_documentation', 'Documentación Adicional'),
-        ('int_work', 'Intención de Trabajo'),
-        ('menor', 'Menores'),
-        ('refugio', 'Refugio'),
-        ('perm_humanitario', 'Permiso Humanitario'),
-        ('solicita_refugio', 'Solicitud de Refugio'),
-        ('cita', 'Fecha de Cita de Refugio'),
-        ('piensa_solicitar_refugio', 'Contempla Solicitud de Refugio'),
-        ('industria_work', 'Industria de Trabajo'),
-        ('licencia', 'Licencia para Trabajar'),
-        ('curp', 'CURP'),
-        ('date_permit', 'Fecha del Permiso'),
-        ('ubication', 'Ubicación'),
-        ('work_experience', 'Experiencia Laboral'),
-        ('saludo', 'Saludo'),
-        ('file', 'Archivo / CV'),
-        ('per_trabajo', 'Permiso de Trabajo'),
-        ('preferred_language', 'Idioma Preferido'),
-        ('skills', 'Habilidades'),
-        ('experience_years', 'Años de Experiencia'),
-        ('desired_job_types', 'Tipo de Trabajo Deseado'),
-        ('nivel_salarial', 'Nivel Salarial Deseado'),
-    ]
-
-    ACTION_TYPE_CHOICES = [
-        ('none', 'Ninguna acción'),
-        ('mostrar_vacantes', 'Mostrar Vacantes'),
-        ('enviar_whatsapp_plantilla', 'Enviar Plantilla WhatsApp'),
-        ('enviar_logo', 'Enviar Logo de Amigro'),
-        ('enviar_imagen', 'Enviar Imagen'),
-        ('enviar_url', 'Enviar URL'),
-        ('recap', 'Hacer Recapitulación'),
-        ('decision_si_no', 'Decisión - Sí/No'),  # Nuevo tipo de acción para decisiones
-        ('botones', 'Botones'),  # Nuevo tipo de acción para botones personalizados
-        # Otras acciones personalizadas que necesites
-    ]
-
-    flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, default=1)
-    etapa = models.ForeignKey('Etapa', on_delete=models.CASCADE, default=1)
-    name = models.TextField(max_length=800)
-    content = models.TextField(blank=True, null=True)
-    option = models.CharField(max_length=50)
-    buttons = models.ManyToManyField('Buttons', related_name='preguntas', blank=True)
-    valid = models.BooleanField(null=True, blank=True)
-    active = models.BooleanField(default=True)
-    requires_response = models.BooleanField(default=True)
-    multi_select = models.BooleanField(default=False)  # Indica si es selección múltiple
-    next_si = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='pregunta_si')  # Pregunta siguiente si es "Sí"
-    next_no = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='pregunta_no')  # Pregunta siguiente si es "No"
-    input_type = models.CharField(max_length=100, choices=INPUT_TYPE_CHOICES, blank=True, null=True)
-    action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES, default='none')  # Acciones personalizadas
-    # NO se si se están utilizando ya en el chatbot, pero las dejo para no romper el app
-    field_person = models.CharField(max_length=50, blank=True, null=True)  # Relaciona la pregunta con el campo de Person
-    condiciones = models.ManyToManyField(Condicion, blank=True)
-    decision = models.JSONField(blank=True, null=True, default=dict)  # {respuesta: id_pregunta_siguiente}
-
-    def __str__(self):
-        return f"{self.id} - {self.flow.name} - {self.name}"
-
-    def save(self, *args, **kwargs):
-        # Puedes agregar lógica para establecer valores por defecto o validaciones aquí.
-        if not self.name:
-            self.name = "Nombre por defecto"  # Asignar un valor por defecto si no se proporciona.
-        super().save(*args, **kwargs)
-
-class Buttons(models.Model):
-    name = models.CharField(max_length=20)
-    active = models.BooleanField()
-    pregunta = models.ManyToManyField('Pregunta', related_name='botones_pregunta', blank=True)
-
-    def __str__(self):
-        return str(self.name)
-
 class Person(models.Model):
     number_interaction = models.CharField(max_length=40, unique=True)
-    name = models.CharField(max_length=100)
+
+    # Datos personales básicos
+    nombre = models.CharField(max_length=100)
     apellido_paterno = models.CharField(max_length=200, blank=True, null=True)
     apellido_materno = models.CharField(max_length=200, blank=True, null=True)
-    nationality = models.CharField(max_length=100, blank=True, null=True)
+    nacionalidad = models.CharField(max_length=100, blank=True, null=True)
     fecha_nacimiento = models.DateField(blank=True, null=True)
-    sexo = models.CharField(max_length=20, choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')])
+    sexo = models.CharField(
+        max_length=20,
+        choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')],
+        blank=True,
+        null=True
+    )
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=40, blank=True, null=True)
-    family_traveling = models.BooleanField(default=False)
-    policie = models.BooleanField(default=False)
-    group_aditionality = models.BooleanField(default=False)
-    passport = models.CharField(max_length=50, blank=True, null=True)
-    additional_official_documentation = models.CharField(max_length=50, blank=True, null=True)
-    int_work = models.BooleanField(default=False)
-    menor = models.BooleanField(default=False)
-    refugio = models.BooleanField(default=False)
-    perm_humanitario = models.BooleanField(default=False)
-    solicita_refugio = models.BooleanField(default=False)
-    cita = models.DateTimeField(blank=True, null=True)
-    piensa_solicitar_refugio = models.BooleanField(default=False)
-    industria_work = models.BooleanField(default=False)
-    permiso_trabajo = models.BooleanField(default=False)
-    curp = models.CharField(max_length=50, blank=True, null=True)
-    date_permit = models.DateField(blank=True, null=True)
-    ubicacion = models.CharField(max_length=100, blank=True, null=True)
-    work_experience = models.TextField(blank=True, null=True)
-    saludo = models.TextField(blank=True, null=True)
-    file = models.FileField(upload_to='person_files/', blank=True, null=True)
-    per_trabajo = models.TextField(blank=True, null=True)
-    preferred_language = models.CharField(max_length=5, default='es_MX')
-    skills = models.TextField(blank=True, null=True)
-    experience_years = models.IntegerField(blank=True, null=True)
-    desired_job_types = models.CharField(max_length=100, blank=True, null=True)
-    nivel_salarial = models.CharField(max_length=100, blank=True, null=True)
+    preferred_language = models.CharField(max_length=5, default='es_MX', help_text="Ej: es_MX, en_US")
+
+    # Estado de búsqueda de empleo (ejemplo de opciones: activa, pasiva, local, remota, etc.)
+    JOB_SEARCH_STATUS_CHOICES = [
+        ('activa', 'Activa'),
+        ('pasiva', 'Pasiva'),
+        ('local', 'Local'),
+        ('remota', 'Remota'),
+        ('no_busca', 'No en búsqueda'),
+    ]
+    job_search_status = models.CharField(
+        max_length=20,
+        choices=JOB_SEARCH_STATUS_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Estado actual de la búsqueda de empleo."
+    )
+
+    # Habilidades y experiencia
+    skills = models.TextField(blank=True, null=True, help_text="Listado libre de skills del candidato.")
+    experience_years = models.IntegerField(blank=True, null=True, help_text="Años totales de experiencia.")
+    desired_job_types = models.CharField(max_length=100, blank=True, null=True, help_text="Tipos de trabajo deseados, ej: tiempo completo, medio tiempo, freelance.")
+    cv_file = models.FileField(upload_to='person_files/', blank=True, null=True, help_text="CV u otro documento del candidato.")
+    cv_parsed = models.BooleanField(default=False, help_text="Indica si el CV ha sido analizado.")
+    cv_analysis = models.JSONField(blank=True, null=True, help_text="Datos analizados del CV.")
+
+    # Información salarial en formato JSON (ej: {"current_salary": 50000, "expected_salary": 60000, "benefits": ["SGMM", "Fondo de ahorro"]})
+    salary_data = models.JSONField(default=dict, blank=True, help_text="Información salarial, beneficios y expectativas.")
+
+    # Datos de personalidad (MBTI, Big Five, etc.)
+    personality_data = models.JSONField(default=dict, blank=True, help_text="Perfil de personalidad.")
+
+    # Datos de experiencia detallada (ej: [{"empresa": "X", "años": 2, "puesto": "Analista"}])
+    experience_data = models.JSONField(default=dict, blank=True, help_text="Experiencia profesional detallada.")
+
+    # Metadatos adicionales: Aquí podemos almacenar información migratoria (Amigro), preferencias culturales, certificaciones, etc.
+    # Ejemplo:
+    # {
+    #   "soft_skills": ["liderazgo", "comunicación"],
+    #   "certifications": ["PMP", "AWS Certified"],
+    #   "education": ["Licenciatura en Economía", "Maestría en TI"],
+    #   "preferred_sectors": ["financiero", "tecnología"],
+    #   "desired_companies": ["Google", "Amazon"],
+    #   "desired_locations": ["CDMX", "Monterrey"],
+    #   "migratory_status": {
+    #       "refugio": false,
+    #       "permiso_trabajo": true,
+    #       "detalles": "Información relevante..."
+    #   }
+    # }
+    metadata = models.JSONField(default=dict, blank=True, help_text="Información adicional del candidato.")
 
     def __str__(self):
-        return f"{self.name} {self.apellido_paterno} {self.apellido_materno}"
+        nombre_completo = f"{self.nombre} {self.apellido_paterno or ''} {self.apellido_materno or ''}".strip()
+        return nombre_completo
 
     def is_profile_complete(self):
         """
         Verifica si todos los campos necesarios están completos en el perfil del usuario.
+        Campos requeridos sugeridos:
+        - nombre
+        - apellido_paterno
+        - email
+        - phone
+        - skills
         """
-        required_fields = ['name', 'apellido_paterno', 'email', 'phone', 'skills']
-        missing_fields = [field for field in required_fields if not getattr(self, field)]
-        return not missing_fields  # Retorna True si está completo, False si falta algo
+        required_fields = ['nombre', 'apellido_paterno', 'email', 'phone', 'skills']
+        missing_fields = [field for field in required_fields if not getattr(self, field, None)]
+        return not missing_fields
+
 class Application(models.Model):
     user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='applications')
     vacancy = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='applications')
@@ -490,21 +434,20 @@ class Application(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.vacancy} - {self.status}"
-    
+
 class Invitacion(models.Model):
     referrer = models.ForeignKey(Person, related_name='invitaciones_enviadas', on_delete=models.CASCADE)
     invitado = models.ForeignKey(Person, related_name='invitaciones_recibidas', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-# APIS y sus derivados
 class MetaAPI(models.Model):
     business_unit = models.OneToOneField(
         BusinessUnit,
         on_delete=models.CASCADE,
-        related_name='meta_api_config',  # Cambiar el related_name a uno único
+        related_name='meta_api_config',
     )
     app_id = models.CharField(max_length=255, default='662158495636216')
-    app_secret = models.CharField(max_length=255, default='7732534605ab6a7b96c8e8e81ce02e6b')
+    app_secret = models.CharField(max_length=255, default='...')
     verify_token = models.CharField(max_length=255, default='amigro_secret_token')
 
     def __str__(self):
@@ -513,16 +456,15 @@ class MetaAPI(models.Model):
 class WhatsAppAPI(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='whatsapp_apis', null=True, blank=True)
     name = models.CharField(max_length=50)
-    phoneID = models.CharField(max_length=20, default='114521714899382') 
-    api_token = models.CharField(max_length=500, default='EAAJaOsnq2vgBOxatkizgaMhE6dk4jEtbWchTiuHK7XXDbsZAlekvZCldWTajCXABVAGQW9XUbZAdy6IZBoUqZBctEHm6H5mSfP9nAbQ5dZAPbf9P1WkHh4keLT400yhvvbZAEq34e9dlkIp2RwsPqK9ghG6H244SZAFK4V5Oo7FiDl9DdM5j5EhXCY5biTrn7cmzYwZDZD')
+    phoneID = models.CharField(max_length=20, default='114521714899382')
+    api_token = models.CharField(max_length=500, default='...')
     WABID = models.CharField(max_length=20, default='104851739211207')
     v_api = models.CharField(max_length=10)
     meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, null=True, blank=True)
-    is_active = models.BooleanField(default=True)  # Campo para activar o desactivar el canal
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.business_unit.name} - WhatsApp API {self.phoneID} - {self.associated_flow}"
+        return f"{self.business_unit.name if self.business_unit else ''} - WhatsApp API {self.phoneID}"
 
 class Template(models.Model):
     TEMPLATE_TYPES = [
@@ -530,7 +472,6 @@ class Template(models.Model):
         ('BUTTON', 'Button'),
         ('URL', 'URL'),
         ('IMAGE', 'Image'),
-        # Agrega otros tipos según tus necesidades
     ]
     whatsapp_api = models.ForeignKey(WhatsAppAPI, on_delete=models.CASCADE, related_name='templates')
     name = models.CharField(max_length=100)
@@ -540,44 +481,39 @@ class Template(models.Model):
     language_code = models.CharField(max_length=10, default='es_MX')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    # Agrega otros campos esenciales según la estructura de tus plantillas
-
     class Meta:
         unique_together = ('whatsapp_api', 'name', 'language_code')
     def __str__(self):
         return f"{self.name} ({self.language_code}) - {self.whatsapp_api.business_unit.name}"
-    
+
 class MessengerAPI(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='messenger_apis', null=True, blank=True)
     page_access_token = models.CharField(max_length=255)
     meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='messenger_flows', null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.business_unit.name} - Messenger API - {self.associated_flow.name}"
+        return f"{self.business_unit.name if self.business_unit else ''} - Messenger API"
 
 class InstagramAPI(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='instagram_apis', null=True, blank=True)
     app_id = models.CharField(max_length=255, default='1615393869401916')
-    access_token = models.CharField(max_length=255, default='5d8740cb80ae42d8b5cafb47e6c461d5')
+    access_token = models.CharField(max_length=255, default='...')
     instagram_account_id = models.CharField(max_length=255, default='17841457231476550')
     meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='instagram_flows', null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.business_unit.name} - Instagram API - {self.associated_flow.name}"
+        return f"{self.business_unit.name if self.business_unit else ''} - Instagram API"
 
 class TelegramAPI(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='telegram_apis', null=True, blank=True)
     api_key = models.CharField(max_length=255)
     bot_name = models.CharField(max_length=255, blank=True, null=True)
-    associated_flow = models.ForeignKey('FlowModel', on_delete=models.CASCADE, related_name='telegram_flows', null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.business_unit.name} - Telegram Bot - {self.associated_flow.name}"
+        return f"{self.business_unit.name if self.business_unit else ''} - Telegram Bot"
 
 class GptApi(models.Model):
     api_token = models.CharField(max_length=500)
@@ -588,7 +524,7 @@ class GptApi(models.Model):
     work_pregunta = models.CharField(max_length=500)
 
     def __str__(self):
-        return f"Model: {self.model} | Organization: {self.organization} | Project: {self.project}"
+        return f"Model: {self.model} | Org: {self.organization} | Project: {self.project}"
 
 class Chat(models.Model):
     body = models.TextField(max_length=1000)
@@ -598,17 +534,17 @@ class Chat(models.Model):
     ProfileName = models.CharField(max_length=50)
     ChannelPrefix = models.CharField(max_length=50)
     MessageSid = models.CharField(max_length=100, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)  # Agregando campo de fecha de creación
-    updated_at = models.DateTimeField(auto_now=True)      # Agregando campo de actualización
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     message_count = models.IntegerField(default=0)
 
     def __str__(self):
         return str(self.body)
 
 class Worker(models.Model):
-    name = models.CharField(max_length=100)  # Nombre del responsable
-    whatsapp = models.CharField(max_length=20, blank=True, null=True)  # Campo para almacenar WhatsApp del empleador
-    company = models.CharField(max_length=100, blank=True, null=True)  # Nombre de la empresa
+    name = models.CharField(max_length=100)
+    whatsapp = models.CharField(max_length=20, blank=True, null=True)
+    company = models.CharField(max_length=100, blank=True, null=True)
     img_company = models.CharField(max_length=500, blank=True, null=True)
     job_id = models.CharField(max_length=100, blank=True, null=True)
     url_name = models.CharField(max_length=100, blank=True, null=True)
@@ -620,8 +556,9 @@ class Worker(models.Model):
     required_skills = models.TextField(blank=True, null=True)
     experience_required = models.IntegerField(blank=True, null=True)
     job_description = models.TextField(blank=True, null=True)
-    
-    interview_slots = models.JSONField(blank=True, null=True)
+
+    # Información adicional en JSON
+    metadata = models.JSONField(default=dict, blank=True, help_text="Información adicional del puesto: sectores, requerimientos, etc.")
 
     class Meta:
         indexes = [
@@ -638,17 +575,17 @@ class Interview(models.Model):
         ('presencial', 'Presencial'),
         ('virtual', 'Virtual'),
     ]
-    person = models.ForeignKey('Person', on_delete=models.CASCADE)  # Referencia al modelo Person mediante una cadena
+    person = models.ForeignKey('Person', on_delete=models.CASCADE)
     interviewer = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='conducted_interviews', blank=True, null=True)
     job = models.ForeignKey(Worker, on_delete=models.CASCADE)
-    interview_date = models.DateTimeField()  # Fecha de la entrevista
-    application_date = models.DateTimeField(auto_now_add=True)  # Fecha de aplicación
-    slot = models.CharField(max_length=50)  # Slot de entrevista reservado
+    interview_date = models.DateTimeField()
+    application_date = models.DateTimeField(auto_now_add=True)
+    slot = models.CharField(max_length=50)
     candidate_latitude = models.CharField(max_length=100, blank=True, null=True)
     candidate_longitude = models.CharField(max_length=100, blank=True, null=True)
     location_verified = models.BooleanField(default=False)
     interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPE_CHOICES, default='presencial')
-    candidate_confirmed = models.BooleanField(default=False)  # Nuevo campo para confirmar asistencia
+    candidate_confirmed = models.BooleanField(default=False)
 
     def days_until_interview(self):
         return (self.interview_date - timezone.now()).days
@@ -664,7 +601,29 @@ class SmtpConfig(models.Model):
     def __str__(self):
         return f"{self.host}:{self.port}"
 
+class ChatState(models.Model):
+    user_id = models.CharField(max_length=100, db_index=True)
+    platform = models.CharField(max_length=50, blank=True, null=True, choices=COMUNICATION_CHOICES)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    conversation_history = models.JSONField(default=list, blank=True, help_text="Historial de la conversación con el candidato.")
+    applied = models.BooleanField(default=False)
+    interviewed = models.BooleanField(default=False)
+    last_interaction_at = models.DateTimeField(auto_now=True)
+    person = models.OneToOneField(Person, on_delete=models.SET_NULL, null=True, blank=True,
+                                  help_text="Perfil del candidato asociado.")
 
+    def __str__(self):
+        return f"ChatState user={self.user_id} platform={self.platform}"
+
+class UserInteractionLog(models.Model):
+    user_id = models.CharField(max_length=100, db_index=True)
+    platform = models.CharField(max_length=50, blank=True, null=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    message_direction = models.CharField(max_length=10, choices=[('in', 'Inbound'), ('out', 'Outbound')], default='in')
+
+    def __str__(self):
+        return f"{self.user_id} - {self.platform} - {self.timestamp}"
 
 
 #________________________________________________________________________________________________
@@ -710,3 +669,133 @@ class MilkyLeak(models.Model):
         """
         self.image_counter += 1
         self.save()
+
+
+##  ____________  PARA LOS MODELOS DE ENTRENAMIENTO Y MACHINE LEARNING
+
+class ReporteScraping(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    fecha = models.DateField(default=timezone.now)
+    vacantes_creadas = models.IntegerField(default=0)
+    exitosos = models.IntegerField(default=0)
+    fallidos = models.IntegerField(default=0)
+    parciales = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"Reporte de Scraping - {self.business_unit.name} - {self.fecha}"
+
+class EnhancedMLProfile(models.Model):
+    # Core User Relationship
+    user = models.OneToOneField('Person', on_delete=models.CASCADE, related_name='ml_profile')
+    
+    # Performance Tracking
+    performance_score = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
+        default=0.0
+    )
+    
+    # ML Model Metadata
+    model_version = models.CharField(max_length=50, default='v1.0')
+    last_prediction_timestamp = models.DateTimeField(null=True, blank=True)
+    
+    learning_potential = models.FloatField(default=0.5)
+    
+    # Feedback and Improvement Tracking
+    feedback_count = models.IntegerField(default=0)
+    improvement_suggestions = models.JSONField(null=True, blank=True)
+    
+    def update_performance_metrics(self, ml_insights):
+        """Update profile based on ML model predictions"""
+        self.performance_score = ml_insights.get('score', 0.0)
+        self.skill_adaptability_index = ml_insights.get('adaptability', 0.5)
+        self.improvement_suggestions = ml_insights.get('recommendations', [])
+        self.last_prediction_timestamp = timezone.now()
+        self.save()
+        logger.info(f"Actualizadas métricas de ML para {self.user}")
+
+    def log_model_feedback(self, feedback_data):
+        """Track model prediction feedback"""
+        self.feedback_count += 1
+        self.last_prediction_timestamp = timezone.now()
+        # Aquí puedes agregar lógica adicional para manejar el feedback
+        self.save()
+        logger.info(f"Feedback registrado para {self.user}: {feedback_data}")
+
+    def __str__(self):
+        return f"EnhancedMLProfile for {self.user.nombre} {self.user.apellido_paterno}"    
+
+class ModelTrainingLog(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    accuracy = models.FloatField()
+    trained_at = models.DateTimeField(auto_now_add=True)
+    model_version = models.CharField(max_length=50)
+
+class QuarterlyInsight(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    insights_data = JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class MigrantSupportPlatform(models.Model):
+    user = models.OneToOneField(Person, on_delete=models.CASCADE)
+    preferred_locations = JSONField(default=list)
+    work_authorization_status = models.CharField(max_length=50)
+    language_proficiencies = JSONField(default=dict)
+    family_members_seeking_work = models.IntegerField(default=0)
+    network_connections = models.ManyToManyField('self', blank=True)
+    cultural_training_completed = models.BooleanField(default=False)
+    legal_support_needed = models.BooleanField(default=False)
+    potential_business_units = models.ManyToManyField(BusinessUnit)
+
+    def match_cross_unit_opportunities(self):
+        matching_opportunities = []
+        for unit in self.potential_business_units.all():
+            opportunities = self._find_opportunities_in_unit(unit)
+            matching_opportunities.extend(opportunities)
+        return matching_opportunities
+
+class EnhancedNetworkGamificationProfile(models.Model):
+    user = models.OneToOneField(Person, on_delete=models.CASCADE)
+    professional_points = models.IntegerField(default=0)
+    skill_endorsements = models.IntegerField(default=0)
+    network_expansion_level = models.IntegerField(default=1)
+
+    def award_points(self, activity_type):
+        point_system = {
+            'profile_update': 10,
+            'skill_endorsement': 15,
+            'successful_referral': 50,
+            'completed_challenge': 25,
+            'connection_made': 5
+        }
+        points = point_system.get(activity_type, 0)
+        self.professional_points += points
+        self._update_network_level()
+        self.save()
+
+    def _update_network_level(self):
+        level_thresholds = [
+            (100, 2),
+            (250, 3),
+            (500, 4),
+            (1000, 5)
+        ]
+        for threshold, level in level_thresholds:
+            if self.professional_points >= threshold:
+                self.network_expansion_level = level
+
+    def generate_networking_challenges(self):
+        challenges = [
+            {
+                'title': 'Expand Your Network',
+                'description': 'Connect with 5 professionals in your industry',
+                'points_reward': 25,
+                'deadline': timezone.now() + timezone.timedelta(days=30)
+            },
+            {
+                'title': 'Skill Showcase',
+                'description': 'Get 3 endorsements for a new skill',
+                'points_reward': 30,
+                'deadline': timezone.now() + timezone.timedelta(days=45)
+            }
+        ]
+        return challenges
