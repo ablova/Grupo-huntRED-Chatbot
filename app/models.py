@@ -642,47 +642,47 @@ class UserInteractionLog(models.Model):
 
 #________________________________________________________________________________________________
 # Esto es para la aplicación de Milkyleak, independiente del chatbot de amigro, solo se utiliza el servidor.
-class MilkyLeak(models.Model):
+#class MilkyLeak(models.Model):
     # Configuraciones de la API de Twitter
-    twitter_api_key = models.CharField(max_length=255)  # YVIxTWtkZ0NheGRiamNlem5UbkQ6MTpjaQ Client ID / 2fIV8CDPV13tZ18VpCzzK7Yu2 Api Key
-    twitter_api_secret_key = models.CharField(max_length=255)  # cSuwv9VXrxZI4yr1oaVrkCj6p6feuu4dy1QoaID1lQe7lbjXdb / 85KIRnuNGdWhJOiglSg8ramGBT4OzCqMts17uxkUIBm1tR8avu API secret
-    twitter_access_token = models.CharField(max_length=255)  # 235862444-UWHrUObIvUoNcMVSL0S5kPx0geKu88M9nawe43YM
-    twitter_access_token_secret = models.CharField(max_length=255)  # tUCYmHzpWI0YwCQ8AedFfEMHaa9pNHAt2r0AKQUdIWT78
+#    twitter_api_key = models.CharField(max_length=255)  # YVIxTWtkZ0NheGRiamNlem5UbkQ6MTpjaQ Client ID / 2fIV8CDPV13tZ18VpCzzK7Yu2 Api Key
+#    twitter_api_secret_key = models.CharField(max_length=255)  # cSuwv9VXrxZI4yr1oaVrkCj6p6feuu4dy1QoaID1lQe7lbjXdb / 85KIRnuNGdWhJOiglSg8ramGBT4OzCqMts17uxkUIBm1tR8avu API secret
+#    twitter_access_token = models.CharField(max_length=255)  # 235862444-UWHrUObIvUoNcMVSL0S5kPx0geKu88M9nawe43YM
+#    twitter_access_token_secret = models.CharField(max_length=255)  # tUCYmHzpWI0YwCQ8AedFfEMHaa9pNHAt2r0AKQUdIWT78
 
     # Configuraciones de Mega.nz
-    mega_email = models.EmailField()  # milkyleak@gmail.com
-    mega_password = EncryptedCharField(max_length=255)  # PLLH_huntred2009!
+#    mega_email = models.EmailField()  # milkyleak@gmail.com
+#    mega_password = EncryptedCharField(max_length=255)  # PLLH_huntred2009!
 
     # Configuraciones adicionales
-    folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")
-    image_prefix = models.CharField(max_length=50, help_text='ML_')
-    local_directory = models.CharField(max_length=255, default='/home/amigro/media', help_text="Directorio local temporal para imágenes")
+#    folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")
+#    image_prefix = models.CharField(max_length=50, help_text='ML_')
+#    local_directory = models.CharField(max_length=255, default='/home/amigro/media', help_text="Directorio local temporal para imágenes")
 
     # Contador de imágenes
-    image_counter = models.PositiveIntegerField(default=1)
+#    image_counter = models.PositiveIntegerField(default=1)
     # Rango de tiempo aleatorio para publicaciones (en minutos)
-    min_interval = models.PositiveIntegerField(default=10, help_text="Tiempo mínimo de espera entre publicaciones (minutos)")
-    max_interval = models.PositiveIntegerField(default=20, help_text="Tiempo máximo de espera entre publicaciones (minutos)")
+#    min_interval = models.PositiveIntegerField(default=10, help_text="Tiempo mínimo de espera entre publicaciones (minutos)")
+#    max_interval = models.PositiveIntegerField(default=20, help_text="Tiempo máximo de espera entre publicaciones (minutos)")
 
     # Configuración de Dropbox (App Key brg4mvkdjisvo67 / App Secret szbinvambk7anvv)
-    dropbox_access_token = models.CharField(max_length=255, blank=True, null=True)  # Token para Dropbox sl.B-gJAWUpS-lHTLRkq64AC_rz2xSwijP_fITCv9iZtmfSfywYyZYU6qUliXFi1EEy1KmPU7XLZzPcFzFR4_HBuMg9PpK6hgF96tmMeaPabPNmcfXjfIOL7jLG7EmOf-SkePCKBC5m63mf
-    dropbox_refresh_token = models.CharField(max_length=255, blank=True, null=True)  # Añadir refresh token
-    dropbox_token_expires_at = models.DateTimeField(blank=True, null=True)
-    storage_service = models.CharField(
-        max_length=10, 
-        choices=[('mega', 'Mega.nz'), ('dropbox', 'Dropbox')],
-        default='dropbox'
-    )  # Selector entre Mega y Dropbox
+#    dropbox_access_token = models.CharField(max_length=255, blank=True, null=True)  # Token para Dropbox sl.B-gJAWUpS-lHTLRkq64AC_rz2xSwijP_fITCv9iZtmfSfywYyZYU6qUliXFi1EEy1KmPU7XLZzPcFzFR4_HBuMg9PpK6hgF96tmMeaPabPNmcfXjfIOL7jLG7EmOf-SkePCKBC5m63mf
+#    dropbox_refresh_token = models.CharField(max_length=255, blank=True, null=True)  # Añadir refresh token
+#    dropbox_token_expires_at = models.DateTimeField(blank=True, null=True)
+#    storage_service = models.CharField(
+#        max_length=10, 
+#        choices=[('mega', 'Mega.nz'), ('dropbox', 'Dropbox')],
+#        default='dropbox'
+#    )  # Selector entre Mega y Dropbox
 
-    def __str__(self):
-        return f"MilkyLeak Config ({self.twitter_api_key})"
+#    def __str__(self):
+#        return f"MilkyLeak Config ({self.twitter_api_key})"
 
-    def increment_image_counter(self):
-        """
-        Incrementa el contador de imágenes y guarda el modelo.
-        """
-        self.image_counter += 1
-        self.save()
+#    def increment_image_counter(self):
+#        """
+#        Incrementa el contador de imágenes y guarda el modelo.
+#        """
+#        self.image_counter += 1
+#        self.save()
 
 
 ##  ____________  PARA LOS MODELOS DE ENTRENAMIENTO Y MACHINE LEARNING

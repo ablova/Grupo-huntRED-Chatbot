@@ -86,12 +86,12 @@ WSGI_APPLICATION = 'chatbot_django.wsgi.application'
 # Base de Datos
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'chatbot_db'),
-        'USER': os.getenv('DB_USER', 'amigro_user'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'password'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'ENGINE': 'django.db.backends.postgresql',  # Motor para PostgreSQL
+        'NAME': os.getenv('DB_NAME', 'chatbot_db'),  # Nombre de la base de datos
+        'USER': os.getenv('DB_USER', 'amigro_user'),  # Usuario de la base de datos
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Natalia&Patricio1113!'),  # Contraseña
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # Dirección del servidor de base de datos
+        'PORT': os.getenv('DB_PORT', '5432'),  # Puerto de PostgreSQL
     }
 }
 

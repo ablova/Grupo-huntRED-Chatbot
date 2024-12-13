@@ -24,7 +24,7 @@ from app.integrations.telegram import telegram_webhook
 from app.integrations.whatsapp import whatsapp_webhook
 from app.integrations.messenger import messenger_webhook
 from app.integrations.instagram import instagram_webhook
-from app.milkyleak import milkyleak_view
+#from app.milkyleak import milkyleak_view
 
 # Vistas de error personalizadas
 def custom_404_view(request, *args, **kwargs):
@@ -53,7 +53,7 @@ urlpatterns = [
     # Rutas de pruebas y utilidades
     path('send-test-message/', send_test_message, name='send_test_message'),
     path('send-test-notification/', send_test_notification, name='send_test_notification'),
-    path('milkyleak/', milkyleak_view, name='milkyleak'),
+#å    path('milkyleak/', milkyleak_view, name='milkyleak'),
     path('sentry-debug/', trigger_error),
 
     path('admin/estadisticas/interacciones/', views.interacciones_por_unidad, name='interacciones_por_unidad'),

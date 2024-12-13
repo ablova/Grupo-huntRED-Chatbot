@@ -24,7 +24,7 @@ from app.models import (
     Interview,
     Person,
     BusinessUnit,
-    MilkyLeak,
+#    MilkyLeak,
     Application,  # Añade esta línea
 )
 from app.linkedin import (
