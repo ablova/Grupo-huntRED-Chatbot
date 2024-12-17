@@ -1,5 +1,5 @@
 # /home/amigro/chatbot_django/settings/development.py
-from .base import *
+from ..settings import *
 
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']

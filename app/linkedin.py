@@ -14,6 +14,8 @@ from django.db import transaction
 from django.utils import timezone
 from bs4 import BeautifulSoup
 from app.models import Person, BusinessUnit, USER_AGENTS
+from app.catalogs import DIVISION_SKILLS
+from app.nlp import sn  # SkillNer instance
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,20 @@ def deduplicate_persons(
 
     return possible_matches[0] if possible_matches else None
 
+def normalize_and_save_person(first_name, last_name, email, linkedin_url, business_unit):
+    """
+    Normaliza los datos y guarda la información del usuario.
+    """
+    first_name = normalize_name(first_name)
+    last_name = normalize_name(last_name)
+    email = email.lower() if email else None
+
+    person = save_person_record(first_name, last_name, linkedin_url, email, None, None, None, business_unit)
+    if person:
+        logger.info(f"Persona procesada: {person.nombre} {person.email}")
+    else:
+        logger.warning(f"No se pudo procesar: {first_name} {last_name}")
+
 def save_person_record(
     first_name: str,
     last_name: str,
@@ -63,55 +79,81 @@ def save_person_record(
     birthday: Optional[str],
     company: Optional[str],
     position: Optional[str],
-    business_unit: BusinessUnit
+    business_unit: BusinessUnit,
+    skills: Optional[List[str]] = None,
+    phone: Optional[str] = None
 ) -> Person:
+    """
+    Crea o actualiza un registro en la base de datos.
+    """
     with transaction.atomic():
         existing = deduplicate_persons(first_name, last_name, email, company, position)
         if existing:
-            # Actualiza datos si faltan
-            if email and not existing.email:
-                existing.email = email
-            if linkedin_url:
+            # Actualiza datos existentes
+            updated = False
+            if linkedin_url and 'linkedin_url' not in existing.metadata:
                 existing.metadata['linkedin_url'] = linkedin_url
+                updated = True
             if company:
                 existing.metadata['last_company'] = company
+                updated = True
             if position:
                 existing.metadata['last_position'] = position
+                updated = True
+            if email and not existing.email:
+                existing.email = email
+                updated = True
+            if skills:
+                extracted_skills = extract_skills(", ".join(skills))
+                existing.metadata['skills'] = list(set(existing.metadata.get('skills', []) + extracted_skills))
+                divisions = associate_divisions(extracted_skills)
+                existing.metadata['divisions'] = list(set(existing.metadata.get('divisions', []) + divisions))
+                updated = True
+            if phone and not existing.phone:
+                existing.phone = phone
+                updated = True
             if birthday and not existing.fecha_nacimiento:
                 try:
-                    dt = datetime.strptime(birthday, "%d/%m/%Y").date()
-                    existing.fecha_nacimiento = dt
-                except:
+                    existing.fecha_nacimiento = datetime.strptime(birthday, "%d/%m/%Y").date()
+                    updated = True
+                except ValueError:
                     pass
-            existing.save()
+            if updated:
+                existing.save()
             return existing
         else:
-            # Crear nuevo
-            number_interaction = f"LI-{int(time.time())}-{random.randint(100,999)}"
+            # Crear nuevo registro
             person = Person(
-                number_interaction=number_interaction,
+                number_interaction=f"LI-{int(time.time())}-{random.randint(100,999)}",
                 nombre=first_name,
-                apellido_paterno=last_name if last_name else '',
+                apellido_paterno=last_name,
                 email=email,
+                phone=phone,
+                fecha_nacimiento=datetime.strptime(birthday, "%d/%m/%Y").date() if birthday else None,
+                metadata={
+                    'linkedin_url': linkedin_url,
+                    'last_company': company,
+                    'last_position': position,
+                    'skills': extract_skills(", ".join(skills)) if skills else [],
+                    'divisions': associate_divisions(extract_skills(", ".join(skills))) if skills else []
+                }
             )
-            if birthday:
-                try:
-                    dt = datetime.strptime(birthday, "%d/%m/%Y").date()
-                    person.fecha_nacimiento = dt
-                except:
-                    pass
-
-            meta = {}
-            if linkedin_url:
-                meta['linkedin_url'] = linkedin_url
-            if company:
-                meta['last_company'] = company
-            if position:
-                meta['last_position'] = position
-
-            person.metadata = meta
             person.save()
             return person
+
+def normalize_skills(raw_skills):
+    """
+    Normaliza habilidades utilizando el catálogo de habilidades en `DIVISION_SKILLS`.
+    """
+    normalized = []
+    for skill in raw_skills:
+        # Buscar habilidades en el catálogo centralizado
+        normalized_skill = next((division_skill for division_skill in DIVISION_SKILLS if skill.lower() in division_skill.lower()), None)
+        if normalized_skill:
+            normalized.append(normalized_skill)
+        else:
+            normalized.append(skill)
+    return normalized
 
 # =========================================================
 # Manejo de CSV
@@ -119,21 +161,27 @@ def save_person_record(
 
 def process_csv(csv_path: str, business_unit: BusinessUnit):
     """
-    Procesa CSV con columnas: First Name, Last Name, URL, Email Address, Cumpleaños, Company, Position
+    Procesa un archivo CSV para crear o actualizar registros de personas.
+    Columnas esperadas: First Name, Last Name, URL, Email Address, Cumpleaños, Company, Position, Skills, Phone.
     """
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
             fn = normalize_name(row.get('First Name', ''))
             ln = normalize_name(row.get('Last Name', ''))
-            linkedin_url = row.get('URL','').strip()
-            email = row.get('Email Address','').strip() or None
-            birthday = row.get('Cumpleaños','').strip() or None
-            company = row.get('Company','').strip() or None
-            position = row.get('Position','').strip() or None
+            linkedin_url = row.get('URL', '').strip() or None
+            email = row.get('Email Address', '').strip() or None
+            birthday = row.get('Cumpleaños', '').strip() or None
+            company = row.get('Company', '').strip() or None
+            position = row.get('Position', '').strip() or None
+            skills = row.get('Skills', '').strip().split(',') if row.get('Skills') else []
+            phone = row.get('Phone', '').strip() or None
 
-            p = save_person_record(fn, ln, linkedin_url, email, birthday, company, position, business_unit)
-            logger.info(f"Persona procesada: {p.nombre} {p.apellido_paterno} - {p.email}")
+            # Guardar o actualizar registro
+            person = save_person_record(
+                fn, ln, linkedin_url, email, birthday, company, position, business_unit, skills, phone
+            )
+            logger.info(f"Persona procesada: {person.nombre} {person.apellido_paterno} - {person.email}")
     logger.info("Procesamiento CSV completado.")
 
 # =========================================================
@@ -207,61 +255,69 @@ def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            linkedin_url = row.get('URL','').strip()
-            fn = normalize_name(row.get('First Name',''))
-            ln = normalize_name(row.get('Last Name',''))
-            email = row.get('Email Address','').strip() or None
-            birthday = row.get('Cumpleaños','').strip() or None
-            company = row.get('Company','').strip() or None
-            position = row.get('Position','').strip() or None
+            linkedin_url = row.get('URL', '').strip()
+            fn = normalize_name(row.get('First Name', ''))
+            ln = normalize_name(row.get('Last Name', ''))
+            email = row.get('Email Address', '').strip() or None
+            birthday = row.get('Cumpleaños', '').strip() or None
+            company = row.get('Company', '').strip() or None
+            position = row.get('Position', '').strip() or None
+
+            # Verificar si ya se procesó usando metadata
+            existing_person = Person.objects.filter(
+                nombre__iexact=fn,
+                apellido_paterno__iexact=ln,
+                metadata__linkedin_url=linkedin_url
+            ).first()
+
+            if existing_person and existing_person.metadata.get('scraped', False):
+                logger.info(f"Perfil ya procesado: {fn} {ln}")
+                continue  # Saltar si ya fue procesado
 
             if linkedin_url:
+                # Realizar el scraping
                 try:
                     scraped_data = scrape_linkedin_profile(linkedin_url)
-                    # Combinar datos
-                    # Si scraped_data tiene first_name/last_name/empresa/posición, puedes usarlos:
-                    # ejemplo: new_company = scraped_data.get('company') or company
-                    # Por ahora asumo que scraped_data no da company directamente, sino en experience[0]
-                    # Ajustar según tu lógica.
-                    
-                    person = save_person_record(fn, ln, linkedin_url, email, birthday, company, position, business_unit)
-                    
-                    # Guardar skills, experiencia, etc. en metadata (ejemplo)
-                    changed = False
-                    if 'skills' in scraped_data:
-                        person.metadata['skills'] = scraped_data['skills']
-                        changed = True
-                    if 'experience' in scraped_data:
-                        person.metadata['experience_data'] = scraped_data['experience']
-                        changed = True
-                    if 'education' in scraped_data:
-                        person.metadata['education_data'] = scraped_data['education']
-                        changed = True
-                    if 'languages' in scraped_data:
-                        person.metadata['languages'] = scraped_data['languages']
-                        changed = True
-                    if 'contact_info' in scraped_data and scraped_data['contact_info']:
-                        ci = scraped_data['contact_info']
-                        if ci.get('email') and not person.email:
-                            person.email = ci['email']
-                            changed = True
-                        if ci.get('phone'):
-                            person.metadata['phone'] = ci['phone']
-                            changed = True
-                        if ci.get('birthday') and not person.fecha_nacimiento:
-                            # Intentar parsear birthday (sin año)
-                            # persona.fecha_nacimiento - no podemos sin año, lo guardamos en metadata
-                            person.metadata['birthday_day_month'] = ci['birthday']
-                            changed = True
-                    if changed:
+                    if scraped_data:
+                        # Guardar o actualizar el registro
+                        person = save_person_record(
+                            fn, ln, linkedin_url, email, birthday, company, position, business_unit
+                        )
+
+                        # Actualizar metadata si hay cambios en email o celular
+                        updated = False
+                        if 'contact_info' in scraped_data:
+                            contact_info = scraped_data['contact_info']
+
+                            if contact_info.get('email') and not person.email:
+                                person.email = contact_info['email']
+                                updated = True
+                                logger.info(f"📧 Email actualizado: {person.email}")
+
+                            if contact_info.get('phone'):
+                                person.metadata['phone'] = contact_info['phone']
+                                updated = True
+                                logger.info(f"📱 Celular actualizado: {contact_info['phone']}")
+
+                        # Marcar como procesado en metadata
+                        person.metadata['scraped'] = True
                         person.save()
 
-                    logger.info(f"Perfil enriquecido: {person.nombre} {person.apellido_paterno}")
+                        if updated:
+                            logger.info(f"✅ Perfil enriquecido y actualizado: {person.nombre} {person.apellido_paterno}")
+                        else:
+                            logger.info(f"Perfil enriquecido sin actualizaciones: {person.nombre} {person.apellido_paterno}")
+                    else:
+                        logger.warning(f"⚠️ No se encontraron datos para {fn} {ln} con URL {linkedin_url}")
+
                 except Exception as e:
-                    logger.error(f"Error scrapeando {linkedin_url}: {e}")
+                    logger.error(f"❌ Error scrapeando {linkedin_url}: {e}")
             else:
                 # Sin URL, solo guardamos básico
-                p = save_person_record(fn, ln, None, email, birthday, company, position, business_unit)
+                person = save_person_record(
+                    fn, ln, None, email, birthday, company, position, business_unit
+                )
+                logger.info(f"✅ Perfil básico guardado: {fn} {ln} ({email})")
 
 def extract_contact_link(soup):
     link = soup.find('a', id='top-card-text-details-contact-info')
@@ -370,8 +426,49 @@ def extract_languages(soup):
             language_list.append({'language': lname, 'level': level})
     return language_list
 
+def update_person_from_scrape(person: Person, scraped_data: dict):
+    """
+    Actualiza los datos de un perfil con la información scrapeada.
+    """
+    updated = False
+    if scraped_data.get("headline"):
+        person.metadata["headline"] = scraped_data["headline"]
+        updated = True
+    if scraped_data.get("experience"):
+        person.experience_data = scraped_data["experience"]
+        updated = True
+    if scraped_data.get("education"):
+        person.metadata["education"] = scraped_data["education"]
+        updated = True
+    if scraped_data.get("skills"):
+        extracted_skills = extract_skills(" ".join(scraped_data["skills"]))
+        person.metadata["skills"] = list(set(person.metadata.get("skills", []) + extracted_skills))
+        divisions = associate_divisions(extracted_skills)
+        person.metadata["divisions"] = list(set(person.metadata.get("divisions", []) + divisions))
+        updated = True
+    if scraped_data.get("languages"):
+        person.metadata["languages"] = scraped_data["languages"]
+        updated = True
+    if scraped_data.get("contact_info"):
+        contact_info = scraped_data["contact_info"]
+        if "email" in contact_info and not person.email:
+            person.email = contact_info["email"]
+            updated = True
+        if "phone" in contact_info and not person.phone:
+            person.phone = contact_info["phone"]
+            updated = True
+
+    person.metadata["linkedin_last_updated"] = timezone.now().isoformat()
+    person.metadata.pop("linkedin_pending", None)  # Remove pending flag
+    if updated:
+        person.save()
+        logger.info(f"Perfil actualizado: {person.nombre} {person.apellido_paterno}")
+
 @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=5)
-def scrape_linkedin_profile(link_url: str):
+def scrape_linkedin_profile(link_url: str) -> dict:
+    """
+    Realiza scraping en LinkedIn para un perfil individual usando su URL.    
+    """
     html = fetch_url(link_url)
     soup = BeautifulSoup(html, 'html.parser')
 
@@ -383,18 +480,46 @@ def scrape_linkedin_profile(link_url: str):
         'education': extract_education(soup),
         'skills': extract_skills(soup),
         'languages': extract_languages(soup),
-        'contact_info': {}
+        'contact_info': extract_contact_info(soup)
     }
-
-    contact_link = extract_contact_link(soup)
-    if contact_link:
-        base = "https://www.linkedin.com"
-        contact_url = base + contact_link
-        try:
-            contact_html = fetch_url(contact_url)
-            csoup = BeautifulSoup(contact_html, 'html.parser')
-            data['contact_info'] = extract_contact_info(csoup)
-        except requests.exceptions.RequestException:
-            pass
-
     return data
+
+def scrape_linkedin_profiles(batch_size=300):
+    """
+    Scrapea y enriquece perfiles marcados como pendientes en la base de datos.
+    """
+    pending_profiles = Person.objects.filter(metadata__linkedin_pending=True)[:batch_size]
+    for person in pending_profiles:
+        try:
+            linkedin_url = person.metadata.get("linkedin_url")
+            if not linkedin_url:
+                logger.warning(f"No LinkedIn URL for {person.nombre}")
+                continue
+
+            # Scraping y actualización
+            scraped_data = scrape_linkedin_profile(linkedin_url)
+            if scraped_data:
+                update_person_from_scrape(person, scraped_data)
+            else:
+                logger.warning(f"No se pudo extraer datos para {person.nombre}")
+        except Exception as e:
+            logger.error(f"Error scraping profile {person.nombre}: {e}")
+
+def extract_skills(text: str) -> List[str]:
+    """
+    Extrae habilidades del texto utilizando SkillNer.
+    """
+    skills = sn.extract_skills(text)
+    return [skill['skill'] for skill in skills]
+
+def associate_divisions(skills: List[str]) -> List[str]:
+    """
+    Asocia divisiones basadas en las habilidades extraídas.
+    """
+    associated_divisions = set()
+    for skill in skills:
+        for division, division_skills in DIVISION_SKILLS.items():
+            if skill in division_skills:
+                associated_divisions.add(division)
+    return list(associated_divisions)
+

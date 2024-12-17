@@ -1,13 +1,17 @@
 # Ubicación del archivo: /home/amigro/app/models.py
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
+from django.db.models import JSONField
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
-from encrypted_fields import EncryptedCharField
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
 import requests
 import logging
 import re
+import uuid
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -102,6 +106,21 @@ class DominioScraping(models.Model):
     ultima_verificacion = models.DateTimeField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+    # Nuevos campos para scraping flexible
+    selector_titulo = models.CharField(max_length=200, null=True, blank=True)
+    selector_descripcion = models.CharField(max_length=200, null=True, blank=True)
+    selector_ubicacion = models.CharField(max_length=200, null=True, blank=True)
+    selector_salario = models.CharField(max_length=200, null=True, blank=True)
+    
+    # Tipo de selector (CSS, XPath)
+    tipo_selector = models.CharField(
+        max_length=20, 
+        choices=[('css', 'CSS'), ('xpath', 'XPath')],
+        default='css'
+    )
+    
+    # Configuración JSON para mapeos más complejos
+    mapeo_configuracion = models.JSONField(null=True, blank=True)
 
     def generar_correo_asignado(self):
         from app.models import ConfiguracionBU
@@ -157,6 +176,14 @@ class DominioScraping(models.Model):
             self.full_clean()
         super().save(*args, **kwargs)
 
+
+class ConfiguracionScraping(models.Model):
+    dominio = models.ForeignKey(DominioScraping, on_delete=models.CASCADE)
+    campo = models.CharField(max_length=50)
+    selector = models.CharField(max_length=200)
+    tipo_selector = models.CharField(max_length=20, choices=[('css', 'CSS'), ('xpath', 'XPath')])
+    transformacion = models.CharField(max_length=100, null=True, blank=True)
+
 class BusinessUnit(models.Model):
     name = models.CharField(max_length=50, choices=BUSINESS_UNIT_CHOICES, unique=True)
     description = models.TextField(blank=True)
@@ -206,7 +233,7 @@ class ConfiguracionBU(models.Model):
     smtp_host = models.CharField(max_length=255, blank=True, null=True)
     smtp_port = models.IntegerField(blank=True, null=True, default=587)
     smtp_username = models.CharField(max_length=255, blank=True, null=True)
-    smtp_password = EncryptedCharField(max_length=255, blank=True, null=True)
+    smtp_password = models.CharField(max_length=255, blank=True, null=True)
     smtp_use_tls = models.BooleanField(default=True)
     smtp_use_ssl = models.BooleanField(default=False)
 
@@ -271,6 +298,18 @@ class WeightingModel:
             return {**self.weights, "ubicacion": 15, "hard_skills": 50, "soft_skills": 25, "personalidad": 10}
         return self.weights
 
+class WorkflowStage(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='workflow_stages')
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.name} ({self.business_unit.name})"
+
 class RegistroScraping(models.Model):
     dominio = models.ForeignKey(DominioScraping, on_delete=models.CASCADE)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
@@ -306,6 +345,11 @@ class Vacante(models.Model):
     fecha_publicacion = models.DateTimeField(null=True, blank=True)
     fecha_scraping = models.DateTimeField(auto_now_add=True)
     activa = models.BooleanField(default=True)
+    business_unit = models.ForeignKey(
+        BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True
+    )  # Relación con BusinessUnit
+    current_stage = models.ForeignKey(
+        WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
 
     class Meta:
         unique_together = ['titulo', 'empresa', 'url_original']
@@ -313,6 +357,28 @@ class Vacante(models.Model):
 
     def __str__(self):
         return f"{self.titulo} - {self.empresa}"
+
+class JobTracker(models.Model):
+    OPERATION_STATUS_CHOICES = [
+        ('not_started', 'No Iniciado'),
+        ('in_progress', 'En Progreso'),
+        ('completed', 'Completado'),
+        ('on_hold', 'En Espera'),
+    ]
+
+    opportunity = models.OneToOneField(Vacante, on_delete=models.CASCADE, related_name='job_tracker')
+    status = models.CharField(max_length=20, choices=OPERATION_STATUS_CHOICES, default='not_started')
+    start_date = models.DateField(auto_now_add=True)
+    end_date = models.DateField(null=True, blank=True)  # Fecha límite para completar el proceso
+
+    def __str__(self):
+        return f"Job Tracker para {self.opportunity.title}"
+    
+    @receiver(post_save, sender=JobTracker)
+    def handle_job_tracker_status_change(sender, instance, **kwargs):
+        if instance.status == 'completed':
+            # Enviar notificación o actualizar otra tabla
+            print(f"El JobTracker para {instance.opportunity} ha sido completado.")
 
 class ApiConfig(models.Model):
     business_unit = models.ForeignKey(
@@ -402,6 +468,8 @@ class Person(models.Model):
     hire_date = models.DateField(null=True, blank=True)  # Nuevo campo
     points = models.IntegerField(default=0)
     badges = models.ManyToManyField('Badge', blank=True)
+    current_stage = models.ForeignKey(
+        WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, related_name='candidatos')
 
     def __str__(self):
         nombre_completo = f"{self.nombre} {self.apellido_paterno or ''} {self.apellido_materno or ''}".strip()
@@ -421,6 +489,19 @@ class Person(models.Model):
         missing_fields = [field for field in required_fields if not getattr(self, field, None)]
         return not missing_fields
 
+class Division(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    skills = models.ManyToManyField('Skill', blank=True)
+
+    def __str__(self):
+        return self.name
+
+class Skill(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+    
 class Badge(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
@@ -608,7 +689,7 @@ class SmtpConfig(models.Model):
     host = models.CharField(max_length=255)
     port = models.IntegerField()
     username = models.CharField(max_length=255)
-    password = EncryptedCharField(max_length=255)
+    password = models.CharField(max_length=255, blank=True, null=True)
     use_tls = models.BooleanField(default=True)
     use_ssl = models.BooleanField(default=False)
 
@@ -651,7 +732,7 @@ class UserInteractionLog(models.Model):
 
     # Configuraciones de Mega.nz
 #    mega_email = models.EmailField()  # milkyleak@gmail.com
-#    mega_password = EncryptedCharField(max_length=255)  # PLLH_huntred2009!
+#    mega_password = models.CharField(max_length=255, blank=True, null=True)  # PLLH_huntred2009!
 
     # Configuraciones adicionales
 #    folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")

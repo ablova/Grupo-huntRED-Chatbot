@@ -65,22 +65,35 @@ class GPTHandler:
             except Exception as e:
                 logger.error(f"No se pudo enviar el correo de notificación de cuota excedida a {email}: {e}")
 
-def gpt_message(api_token: str, text: str, model: str = "gpt-4.0-mini"):
-    openai.api_key = api_token
-    try:
-        response = openai.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": text}],
+    def gpt_message(api_token: str, text: str, model: str = "gpt-4.0-mini"):
+        openai.api_key = api_token
+        try:
+            response = openai.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": text}],
+                max_tokens=150,
+                temperature=0.7
+            )
+            return response.choices[0].message.content.strip()
+    #    except RateLimitError:
+    #        logger.error("Excediste tu cuota actual de OpenAI en gpt_message.")
+    #        return {"error": "Excediste tu cuota actual de OpenAI."}
+    #    except OpenAIError as oe:
+    #        logger.error(f"Error de OpenAI en gpt_message: {oe}", exc_info=True)
+    #        return {"error": "No se pudo procesar tu solicitud a OpenAI."}
+        except Exception as e:
+            logger.error(f"Error generando respuesta con GPT en gpt_message: {e}", exc_info=True)
+            return {"error": "Error inesperado."}
+    
+    @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
+    def generate_response_with_retries(self, prompt: str, context: Optional[Dict] = None) -> str:
+        """
+        Genera una respuesta con reintentos en caso de errores.
+        """
+        response = openai.ChatCompletion.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
             max_tokens=150,
             temperature=0.7
         )
         return response.choices[0].message.content.strip()
-#    except RateLimitError:
-#        logger.error("Excediste tu cuota actual de OpenAI en gpt_message.")
-#        return {"error": "Excediste tu cuota actual de OpenAI."}
-#    except OpenAIError as oe:
-#        logger.error(f"Error de OpenAI en gpt_message: {oe}", exc_info=True)
-#        return {"error": "No se pudo procesar tu solicitud a OpenAI."}
-    except Exception as e:
-        logger.error(f"Error generando respuesta con GPT en gpt_message: {e}", exc_info=True)
-        return {"error": "Error inesperado."}

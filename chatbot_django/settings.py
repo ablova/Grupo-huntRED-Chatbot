@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/amigro/chatbot_django/settings/base.py
+# Ubicación del archivo: /home/amigro/chatbot_django/settings.py
 # Archivo Base de Configuración de Django
 
 
@@ -7,9 +7,9 @@ from pathlib import Path
 # Configuration for dynamic email settings per Business Unit (BU)
 
 # Import the required libraries
-from django.core.mail import get_connection
+from django.core.mail import get_connection, send_mail
 from django.conf import settings
-from .models import EmailConfig  # Assuming we have a model defined for email configurations
+#from app.models import ConfiguracionBU  # Assuming we have a model defined for email configurations
 
 
 # Paths
@@ -33,15 +33,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_celery_beat',
     # Apps internas
-    'chatbot',
-    'app'
+    'app',
     # Librerías externas
     'rest_framework',
     'django_filters',
     'corsheaders',
     'drf_yasg',
-    'encrypted_fields',
 ]
 
 # Middleware
@@ -72,10 +71,6 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
-            'loaders': [
-                'django.template.loaders.filesystem.Loader',
-                'django.template.loaders.app_directories.Loader',
-            ],
         },
     },
 ]
@@ -86,12 +81,12 @@ WSGI_APPLICATION = 'chatbot_django.wsgi.application'
 # Base de Datos
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',  # Motor para PostgreSQL
-        'NAME': os.getenv('DB_NAME', 'chatbot_db'),  # Nombre de la base de datos
-        'USER': os.getenv('DB_USER', 'amigro_user'),  # Usuario de la base de datos
-        'PASSWORD': os.getenv('DB_PASSWORD', 'Natalia&Patricio1113!'),  # Contraseña
-        'HOST': os.getenv('DB_HOST', 'localhost'),  # Dirección del servidor de base de datos
-        'PORT': os.getenv('DB_PORT', '5432'),  # Puerto de PostgreSQL
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'chatbot_db',
+        'USER': 'amigro_user',
+        'PASSWORD': 'Natalia&Patricio1113!',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -125,7 +120,12 @@ REST_FRAMEWORK = {
 }
 
 # CORS Configuración
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '*').split(',')
+cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', '*')
+
+if cors_origins == '*':
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = cors_origins.split(',')
 
 # Logging
 LOGGING = {
@@ -166,7 +166,7 @@ def get_email_backend(business_unit):
     :return: dict - Email backend configuration.
     """
     try:
-        config = EmailConfig.objects.get(business_unit=business_unit)
+        config = BusinessUnit.objects.get(business_unit=business_unit)
         return {
             'EMAIL_HOST': config.email_host,
             'EMAIL_PORT': config.email_port,
@@ -181,33 +181,46 @@ def get_email_backend(business_unit):
 
 # Function to dynamically set email backend
 class DynamicEmailBackend:
+    """
+    Clase para enviar correos utilizando configuraciones SMTP dinámicas
+    obtenidas del modelo ConfiguracionBU.
+    """
     def __init__(self, business_unit):
-        self.business_unit = business_unit
-        self.email_settings = get_email_backend(business_unit)
+        """
+        Inicializa el backend de correo para una unidad de negocio específica.
+
+        :param business_unit: Instancia de BusinessUnit asociada a ConfiguracionBU.
+        """
+        try:
+            self.config = ConfiguracionBU.objects.get(business_unit=business_unit)
+        except ConfiguracionBU.DoesNotExist:
+            raise ValueError(f"No se encontró configuración para la unidad de negocio: {business_unit}")
 
     def send_email(self, subject, message, recipient_list, from_email=None):
         """
-        Send an email using the dynamic settings for the specified business unit.
+        Envía un correo utilizando las configuraciones dinámicas de ConfiguracionBU.
 
-        :param subject: str - Subject of the email.
-        :param message: str - Body of the email.
-        :param recipient_list: list - List of recipients.
-        :param from_email: str - Custom from email (optional).
+        :param subject: str - Asunto del correo.
+        :param message: str - Cuerpo del correo.
+        :param recipient_list: list - Lista de destinatarios.
+        :param from_email: str - Dirección de correo del remitente (opcional).
         """
+        smtp_config = self.config.get_smtp_config()
+
         email_backend = get_connection(
             backend='django.core.mail.backends.smtp.EmailBackend',
-            host=self.email_settings['EMAIL_HOST'],
-            port=self.email_settings['EMAIL_PORT'],
-            username=self.email_settings['EMAIL_HOST_USER'],
-            password=self.email_settings['EMAIL_HOST_PASSWORD'],
-            use_tls=self.email_settings['EMAIL_USE_TLS'],
-            use_ssl=self.email_settings['EMAIL_USE_SSL'],
+            host=smtp_config['host'],
+            port=smtp_config['port'],
+            username=smtp_config['username'],
+            password=smtp_config['password'],
+            use_tls=smtp_config['use_tls'],
+            use_ssl=smtp_config['use_ssl'],
         )
 
         send_mail(
             subject=subject,
             message=message,
-            from_email=from_email or self.email_settings['DEFAULT_FROM_EMAIL'],
+            from_email=from_email or self.config.correo_bu,
             recipient_list=recipient_list,
             connection=email_backend,
         )

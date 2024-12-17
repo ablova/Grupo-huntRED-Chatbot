@@ -24,8 +24,7 @@ from app.models import (
     Interview,
     Person,
     BusinessUnit,
-#    MilkyLeak,
-    Application,  # Añade esta línea
+    Application,
 )
 from app.linkedin import (
     process_api_data,
@@ -38,6 +37,7 @@ from app.scraping import validar_url, extraer_detalles_sublink, run_scraper
 from app.utils import haversine_distance, sanitize_business_unit_name
 from app.ml_model import GrupohuntREDMLPipeline
 from celery.exceptions import MaxRetriesExceededError
+from app.catalogs import DIVISIONES
 
 logger = logging.getLogger('celery_tasks')
 
@@ -77,6 +77,10 @@ app.conf.beat_schedule.update({
     'verify_scraping_domains_daily': {
         'task': 'app.tasks.verificar_dominios_scraping',
         'schedule': crontab(hour=2, minute=0),
+    },
+    'train_ml_models_daily': {
+        'task': 'app.tasks.train_ml_task',
+        'schedule': crontab(hour=3, minute=0),  # Entrenar modelos diariamente a las 3 AM
     },
 })
 
@@ -146,6 +150,48 @@ def send_messenger_message_task(self, recipient_id, message):
 # =========================================================
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
+def train_ml_task(self, business_unit_id=None):
+    """
+    Tarea para entrenar el modelo de ML para una Business Unit específica o todas.
+    """
+    logger.info("🧠 Iniciando tarea de entrenamiento de Machine Learning.")
+    try:
+        # Si se proporciona una unidad de negocio específica
+        if business_unit_id:
+            business_units = BusinessUnit.objects.filter(id=business_unit_id)
+        else:
+            # Si no, entrenar para todas las unidades
+            business_units = BusinessUnit.objects.all()
+
+        for bu in business_units:
+            logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
+            pipeline = GrupohuntREDMLPipeline(business_unit=bu.name)
+
+            try:
+                # Cargar datos
+                data = pipeline.load_data('/home/amigro/app/model/training_data.csv')
+                
+                # Preprocesar datos
+                X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
+                
+                # Construir y entrenar modelo
+                pipeline.build_model()
+                pipeline.train(X_train, y_train, X_test, y_test)
+                
+                # Guardar el modelo
+                pipeline.save_model()
+                logger.info(f"✅ Modelo entrenado y guardado para {bu.name}")
+            except Exception as e:
+                logger.error(f"❌ Error entrenando modelo para BU {bu.name}: {e}")
+                continue
+
+        logger.info("🚀 Tarea de entrenamiento completada para todas las Business Units.")
+
+    except Exception as e:
+        logger.error(f"❌ Error en la tarea de entrenamiento de ML: {e}")
+        self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def ejecutar_ml(self):
     """
     Tarea para entrenar y evaluar el modelo de Machine Learning para cada Business Unit.
@@ -158,11 +204,9 @@ def ejecutar_ml(self):
             pipeline = GrupohuntREDMLPipeline(bu.name)
             data = pipeline.load_data('/home/amigro/app/model/training_data.csv')
             X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
-            
             pipeline.build_model()
             pipeline.train(X_train, y_train, X_test, y_test)
             pipeline.save_model()
-            
             logger.info(f"✅ Modelo ML entrenado para {bu.name}")
     except Exception as e:
         logger.error(f"❌ Error en tarea ML: {e}")
@@ -211,20 +255,22 @@ def ejecutar_scraping(self):
                             empresa=vac_data.get("company", "Empresa desconocida"),
                             defaults={
                                 'salario': vac_data.get("salary"),
-                                'tipo': vac_data.get("job_type", "No especificado"),
+                                'modalidad': vac_data.get("modalidad", "No especificado"),
                                 'ubicacion': vac_data.get("location", "No especificado"),
-                                'descripcion': vac_data["details"].get("description"),
-                                'requisitos': vac_data["details"].get("requirements"),
-                                'beneficios': vac_data["details"].get("benefits"),
+                                'descripcion': vac_data.get("descripcion"),
+                                'requisitos': vac_data.get("requisitos"),
+                                'beneficios': vac_data.get("beneficios"),
                                 'fecha_scraping': timezone.now(),
+                                'skills_required': vac_data.get("skills", []),
+                                'divisions': vac_data.get("divisions", [])
                             }
                         )
                         msg = "creada" if created else "actualizada"
                         logger.info(f"🔄 Vacante {msg}: {vacante.titulo}")
 
                         # Procesar sublinks asíncronamente
-                        if "link" in vac_data and vac_data["link"]:
-                            task = procesar_sublinks_task.delay(vacante.id, vac_data["link"])
+                        if "url" in vac_data and vac_data["url"]:
+                            task = procesar_sublinks_task.delay(vacante.id, vac_data["url"])
                             tasks.append(task)
 
                     if tasks:
@@ -245,7 +291,7 @@ def ejecutar_scraping(self):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def procesar_sublinks_task(self, vacante_id, sublink):
     """
-    Procesa sublinks de una vacante.
+    Procesa sublinks de una vacante específica.
     """
     logger.info(f"🔍 Procesando sublink {sublink} para vacante {vacante_id}")
     async def run():
@@ -293,7 +339,7 @@ def execute_ml_and_scraping(self):
 @shared_task
 def process_linkedin_api_data_task(member_ids: list):
     """
-    Tarea para procesar datos desde la API oficial de LinkedIn (cuando esté disponible).
+    Procesa datos desde la API oficial de LinkedIn.
     """
     bu = BusinessUnit.objects.filter(name='huntRED').first()
     if not bu:
@@ -330,7 +376,7 @@ def slow_scrape_profiles_task(csv_path: str):
     if not bu:
         logger.error("No se encontró BU huntRED.")
         return
-    
+
     logger.info(f"Iniciando scraping lento {csv_path}")
     slow_scrape_from_csv(csv_path, bu)
     logger.info("Scraping lento completado.")
@@ -338,7 +384,7 @@ def slow_scrape_profiles_task(csv_path: str):
 @shared_task
 def scrape_single_profile_task(profile_url: str):
     """
-    Tarea que toma una URL de perfil LinkedIn y obtiene datos.
+    Tarea que scrapea un perfil de LinkedIn.
     """
     logger.info(f"Scrapeando perfil: {profile_url}")
     data = scrape_linkedin_profile(profile_url)
@@ -349,103 +395,71 @@ def scrape_single_profile_task(profile_url: str):
 # Tareas para reportes, limpieza y otros
 # =========================================================
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
-def enviar_reporte_diario(self):
+@shared_task
+def send_final_candidate_report(business_unit_id, candidates_ids, recipient_email):
     """
-    Envía un reporte diario del scraping.
+    Genera y envía el reporte final de candidatos con análisis.
+    
+    :param business_unit_id: ID de la unidad de negocio.
+    :param candidates_ids: Lista de IDs de candidatos a incluir en el reporte.
+    :param recipient_email: Correo electrónico del destinatario.
     """
-    logger.info("📊 Generando reporte diario scraping.")
     try:
-        schedules = DominioScraping.objects.filter(verificado=True)
-        mensaje = "<h2>📅 Reporte diario:</h2><ul>"
-        from app.models import RegistroScraping  # Import local
-
-        for sch in schedules:
-            vacantes_creadas = Vacante.objects.filter(
-                fecha_scraping__date=timezone.now().date(),
-                empresa=sch.empresa
-            ).count()
-
-            registros = RegistroScraping.objects.filter(
-                dominio=sch,
-                fecha_inicio__date=timezone.now().date()
-            )
-            exitosos = registros.filter(estado="exitoso").count()
-            fallidos = registros.filter(estado="fallido").count()
-            total = exitosos + fallidos
-            tasa_exito = (exitosos / total * 100) if total > 0 else 0
-            mensaje += (
-                f"<li><strong>{sch.empresa}</strong> ({sch.dominio}): "
-                f"{vacantes_creadas} vacantes. Éxito: {tasa_exito:.2f}%. Errores: {fallidos}</li>"
-            )
-        mensaje += "</ul>"
-
-        configuracion = Configuracion.objects.first()
-        if configuracion and configuracion.test_email:
-            asyncio.run(send_email(
-                business_unit_name="Grupo huntRED®",
-                subject="📈 Reporte Diario Scraping",
-                destinatario=configuracion.test_email,
-                body=mensaje,
-                html=True
-            ))
-            logger.info("✅ Reporte diario enviado por correo.")
-        else:
-            logger.warning("⚠️ Sin configuracion de correo para reporte diario.")
-    except Exception as e:
-        logger.error(f"❌ Error reporte diario: {e}")
-        self.retry(exc=e)
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='scraping')
-def limpieza_vacantes(self):
-    """
-    Limpieza periódica de vacantes antiguas.
-    """
-    logger.info("🧹 Limpieza semestral vacantes.")
-    from django.db import models
-    try:
-        hace_seis_meses = timezone.now() - timedelta(days=180)
-        vacantes_a_eliminar = Vacante.objects.filter(fecha_scraping__lt=hace_seis_meses)
-        vacantes_por_empresa = vacantes_a_eliminar.values('empresa').annotate(total=models.Count('id'))
-
-        count_eliminadas = vacantes_a_eliminar.count()
-        vacantes_a_eliminar.delete()
-        detalles = "\n".join([f"{v['empresa']}: {v['total']} eliminadas." for v in vacantes_por_empresa])
-        logger.info(f"✅ Limpieza completada: {count_eliminadas} vacantes.")
+        # Obtener la unidad de negocio
+        business_unit = BusinessUnit.objects.get(id=business_unit_id)
         
-        with open(f"limpieza_vacantes_{timezone.now().date()}.log", "w") as log_file:
-            log_file.write(f"Limpieza {timezone.now().date()}:\n{detalles}\n")
+        # Ruta al logo de la división
+        division_logo_path = os.path.join(settings.MEDIA_ROOT, business_unit.logo_path)
+        
+        # Obtener los candidatos
+        candidates = Person.objects.filter(id__in=candidates_ids)
+        
+        # Generar el reporte principal (asumiendo que ya tienes una función para esto)
+        main_report_path = os.path.join(settings.MEDIA_ROOT, f"report_{business_unit.name}.pdf")
+        generate_main_candidate_report(candidates, main_report_path)  # Implementa esta función según tu lógica
+    
+        # Preparar los datos de análisis
+        analysis_data = {
+            "Análisis de Personalidad": "Alta capacidad de liderazgo, orientado a resultados.",
+            "Análisis de Skills": ", ".join(sn.extract_skills(" ".join([p.metadata.get('skills', []) for p in candidates]).replace(',', ' '))),
+            "Análisis Salarial": "Rango salarial estimado entre $50,000 - $70,000 USD.",
+            # Añade más secciones según necesidad
+        }
+        
+        # Generar la página de análisis
+        analysis_pdf_path = os.path.join(settings.MEDIA_ROOT, f"analysis_{business_unit.name}.pdf")
+        generate_analysis_page(division_logo_path, analysis_data, analysis_pdf_path)
+        
+        # Fusionar los PDFs
+        final_report_path = os.path.join(settings.MEDIA_ROOT, f"final_report_{business_unit.name}.pdf")
+        merge_pdfs(main_report_path, analysis_pdf_path, final_report_path)
+        
+        # Enviar el correo electrónico con el reporte adjunto
+        email = EmailMessage(
+            subject=f"Reporte Final de Candidatos - {business_unit.name}",
+            body="Adjunto encontrarás el reporte final de candidatos con análisis.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient_email],
+        )
+        email.attach_file(final_report_path)
+        email.send()
+        
+        logger.info(f"Reporte final enviado a {recipient_email}")
+        
+        # Opcional: Eliminar los archivos temporales
+        os.remove(main_report_path)
+        os.remove(analysis_pdf_path)
+        os.remove(final_report_path)
+        
     except Exception as e:
-        logger.error(f"❌ Error limpieza vacantes: {e}")
-        self.retry(exc=e)
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def verificar_dominios_scraping(self):
-    """
-    Verifica dominios de scraping.
-    """
-    logger.info("🔄 Verificación dominios scraping.")
-    dominios = DominioScraping.objects.all()
-    for d in dominios:
-        try:
-            is_valid = asyncio.run(validar_url(d.dominio))
-            d.verificado = is_valid
-            d.mensaje_error = "" if is_valid else "Dominio no responde."
-            d.save()
-            if is_valid:
-                logger.info(f"✅ Dominio ok: {d.dominio}")
-            else:
-                logger.warning(f"⚠️ Dominio no válido: {d.dominio}")
-        except Exception as e:
-            logger.error(f"❌ Error verificación dominio {d.dominio}: {e}")
-            self.retry(exc=e)
+        logger.error(f"Error al enviar el reporte final: {e}")
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
 def generate_and_send_reports(self):
     """
-    Generar y enviar reportes consolidados (ejemplo).
+    Genera y envía reportes consolidados.
     """
-    logger.info("📊 Reportes consolidados.")
+    logger.info("📊 Generando reportes consolidados.")
     today = timezone.now().date()
 
     try:
@@ -519,13 +533,130 @@ def generate_and_send_reports(self):
         self.retry(exc=e)
 
 def generate_scraping_report(nuevas_posiciones):
+    """
+    Genera un reporte de nuevas vacantes.
+    """
     report = f"Reporte Nuevas Posiciones - {timezone.now().date()}\n\n"
     for v in nuevas_posiciones:
         report += f"{v.titulo} - {v.descripcion[:50]}...\n"
     return report
 
 def generate_birthday_report(birthday_persons):
+    """
+    Genera un reporte de cumpleaños.
+    """
     report = f"Reporte Cumpleaños - {timezone.now().date()}\n\n"
     for p in birthday_persons:
         report += f"{p.nombre} {p.apellido_paterno}, Tel: {p.phone}\n"
     return report
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='scraping')
+def limpieza_vacantes(self):
+    """
+    Limpieza periódica de vacantes antiguas.
+    """
+    logger.info("🧹 Limpieza semestral vacantes.")
+    from django.db import models
+    try:
+        hace_seis_meses = timezone.now() - timedelta(days=180)
+        vacantes_a_eliminar = Vacante.objects.filter(fecha_scraping__lt=hace_seis_meses)
+        vacantes_por_empresa = vacantes_a_eliminar.values('empresa').annotate(total=models.Count('id'))
+
+        count_eliminadas = vacantes_a_eliminar.count()
+        vacantes_a_eliminar.delete()
+        detalles = "\n".join([f"{v['empresa']}: {v['total']} eliminadas." for v in vacantes_por_empresa])
+        logger.info(f"✅ Limpieza completada: {count_eliminadas} vacantes.")
+
+        with open(f"limpieza_vacantes_{timezone.now().date()}.log", "w") as log_file:
+            log_file.write(f"Limpieza {timezone.now().date()}:\n{detalles}\n")
+    except Exception as e:
+        logger.error(f"❌ Error limpieza vacantes: {e}")
+        self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def verificar_dominios_scraping(self):
+    """
+    Verifica dominios de scraping.
+    """
+    logger.info("🔄 Verificación dominios scraping.")
+    dominios = DominioScraping.objects.all()
+    for d in dominios:
+        try:
+            is_valid = asyncio.run(validar_url(d.dominio))
+            d.verificado = is_valid
+            d.mensaje_error = "" if is_valid else "Dominio no responde."
+            d.save()
+            if is_valid:
+                logger.info(f"✅ Dominio ok: {d.dominio}")
+            else:
+                logger.warning(f"⚠️ Dominio no válido: {d.dominio}")
+        except Exception as e:
+            logger.error(f"❌ Error verificación dominio {d.dominio}: {e}")
+            self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
+def enviar_reporte_diario(self):
+    """
+    Envía un reporte diario del scraping.
+    """
+    logger.info("📊 Generando reporte diario scraping.")
+    try:
+        schedules = DominioScraping.objects.filter(verificado=True)
+        mensaje = "<h2>📅 Reporte diario:</h2><ul>"
+        from app.models import RegistroScraping  # Import local
+
+        for sch in schedules:
+            vacantes_creadas = Vacante.objects.filter(
+                fecha_scraping__date=timezone.now().date(),
+                empresa=sch.empresa
+            ).count()
+
+            registros = RegistroScraping.objects.filter(
+                dominio=sch,
+                fecha_inicio__date=timezone.now().date()
+            )
+            exitosos = registros.filter(estado="exitoso").count()
+            fallidos = registros.filter(estado="fallido").count()
+            total = exitosos + fallidos
+            tasa_exito = (exitosos / total * 100) if total > 0 else 0
+            mensaje += (
+                f"<li><strong>{sch.empresa}</strong> ({sch.dominio}): "
+                f"{vacantes_creadas} vacantes. Éxito: {tasa_exito:.2f}%. Errores: {fallidos}</li>"
+            )
+        mensaje += "</ul>"
+
+        configuracion = Configuracion.objects.first()
+        if configuracion and configuracion.test_email:
+            asyncio.run(send_email(
+                business_unit_name="Grupo huntRED®",
+                subject="📈 Reporte Diario Scraping",
+                destinatario=configuracion.test_email,
+                body=mensaje,
+                html=True
+            ))
+            logger.info("✅ Reporte diario enviado por correo.")
+        else:
+            logger.warning("⚠️ Sin configuracion de correo para reporte diario.")
+    except Exception as e:
+        logger.error(f"❌ Error reporte diario: {e}")
+        self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def scrape_single_profile_task(self, profile_url: str):
+    """
+    Tarea que toma una URL de perfil LinkedIn y obtiene datos.
+    """
+    logger.info(f"Scrapeando perfil: {profile_url}")
+    data = scrape_linkedin_profile(profile_url)
+    logger.info(f"Datos obtenidos: {data}")
+    return data
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def scrape_single_profile_task(self, profile_url: str):
+    """
+    Tarea que toma una URL de perfil LinkedIn y obtiene datos.
+    """
+    logger.info(f"Scrapeando perfil: {profile_url}")
+    data = scrape_linkedin_profile(profile_url)
+    logger.info(f"Datos obtenidos: {data}")
+    return data

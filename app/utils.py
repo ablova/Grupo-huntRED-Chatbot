@@ -2,9 +2,11 @@
 
 import math
 import re
+import os
 import logging
 from datetime import datetime
 from app.nlp import NLPProcessor
+from django.core.exceptions import ValidationError
 from itsdangerous import URLSafeTimedSerializer
 from django.conf import settings
 
@@ -12,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Inicializar el NLPProcessor una sola vez
 nlp_processor = NLPProcessor()
+
+
 
 def clean_text(text: str) -> str:
     """
@@ -91,3 +95,29 @@ def confirm_verification_token(token, expiration=3600):
     except Exception:
         return False
     return key
+
+def analyze_name_gender(name: str) -> str:
+    """
+    Analiza el género basado en el nombre usando NLPProcessor.
+    """
+    return nlp_processor.infer_gender(name)
+
+def parse_cv_file(filepath: str) -> dict:
+    """
+    Parsear el contenido de un archivo de CV.
+    """
+    try:
+        with open(filepath, "r", encoding="utf-8") as file:
+            content = file.read()
+        return {"content": content}  # Analizar con NLP u otra herramienta
+    except Exception as e:
+        logger.error(f"Error al leer CV: {filepath}, {e}")
+        return {}
+    
+def validate_request_data(data, required_fields):
+    """
+    Valida que los datos enviados cumplan con los campos requeridos.
+    """
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        raise ValidationError(f"Faltan los campos requeridos: {', '.join(missing_fields)}")

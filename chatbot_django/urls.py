@@ -20,6 +20,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
 def health_check(request):
     return HttpResponse("OK")
@@ -32,9 +33,9 @@ urlpatterns = [
     path('grappelli/', include('grappelli.urls')),
 
     # APIs principales
-    path('api/chatbot/', include('chatbot.urls')),  # API del chatbot
-    path('api/users/', include('users.urls')),      # API de usuarios
-    path('api/tasks/', include('tasks.urls')),      # API de tareas
+    #path('api/chatbot/', include('chatbot.urls')),  # API del chatbot
+    #path('api/users/', include('users.urls')),      # API de usuarios
+    #path('api/tasks/', include('tasks.urls')),      # API de tareas
 
     # Health Check
     path('health/', health_check, name='health_check'),

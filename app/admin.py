@@ -12,8 +12,8 @@ from django import forms
 
 from app.models import (
     BusinessUnit, ApiConfig, MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
-    Person, Worker, GptApi,
-    SmtpConfig, Chat, Configuracion, ConfiguracionBU, DominioScraping, Vacante, RegistroScraping,
+    Person, Worker, GptApi, Skill, Division,
+    SmtpConfig, Chat, Configuracion, ConfiguracionBU, DominioScraping, Vacante, RegistroScraping, ReporteScraping,
     Template, ChatState, Application, Invitacion, Interview, UserInteractionLog,
     ModelTrainingLog, QuarterlyInsight, MigrantSupportPlatform, EnhancedNetworkGamificationProfile, EnhancedMLProfile
 )
@@ -180,6 +180,17 @@ class PersonForm(forms.ModelForm):
             raise forms.ValidationError("Ingresa un email válido.")
         return email
 
+@admin.register(Division)
+class DivisionAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+    filter_horizontal = ('skills',)
+
+@admin.register(Skill)
+class SkillAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
     form = PersonForm
@@ -301,11 +312,6 @@ class SmtpConfigAdmin(admin.ModelAdmin):
     list_display = ('host', 'port', 'use_tls', 'use_ssl')
     search_fields = ('host',)
 
-@admin.register(Chat)
-class ChatAdmin(admin.ModelAdmin):
-    list_display = ('From', 'To', 'ProfileName', 'created_at')
-    search_fields = ('From', 'To')
-
 @admin.register(Template)
 class TemplateAdmin(admin.ModelAdmin):
     list_display = ('name', 'template_type', 'language_code', 'whatsapp_api')
@@ -345,7 +351,7 @@ class BusinessUnitAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'description', 'dominio_bu')
+            'fields': ('name', 'description')
         }),
         ('Canales Habilitados', {
             'fields': ('whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled'),
@@ -358,12 +364,6 @@ class BusinessUnitAdmin(admin.ModelAdmin):
         }),
     )
     inlines = [WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline]  # Agregar inlines para APIs
-
-@admin.register(UserInteractionLog)
-class UserInteractionLogAdmin(admin.ModelAdmin):
-    list_display = ('user_id', 'platform', 'business_unit', 'timestamp', 'message_direction')
-    list_filter = ('platform', 'business_unit', 'message_direction')
-    search_fields = ('user_id',)
 
 @admin.register(QuarterlyInsight)
 class QuarterlyInsightAdmin(admin.ModelAdmin):

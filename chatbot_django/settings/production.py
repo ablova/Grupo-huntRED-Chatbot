@@ -1,5 +1,5 @@
 # /home/amigro/chatbot_django/settings/production.py
-from .base import *
+from ..settings import *
 
 DEBUG = False
 ALLOWED_HOSTS = ['chatbot.amigro.org']

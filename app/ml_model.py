@@ -1,4 +1,4 @@
-# ml_model.py
+# /home/amigro/app/ml_model.py
 
 import os
 import logging
@@ -13,15 +13,17 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, f1_score
 
 from joblib import dump, load
 
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import shap
 
-from app.models import Person, Application  # Asegúrate de que Application está correctamente definido en models.py
+from app.models import Person, Application, WeightingModel   # Asegúrate de que Application está correctamente definido en models.py
+from app.ml_utils import calculate_match_percentage, calculate_alignment_percentage
 
 # Configuración de logging
 logger = logging.getLogger(__name__)
@@ -46,6 +48,26 @@ class MatchmakingLearningSystem:
             f"matchmaking_model_{business_unit or 'global'}.pkl"
         )
 
+    def _select_model_pipeline(self):
+        """
+        Selecciona el pipeline según la unidad de negocio.
+        """
+        if self.business_unit == "huntRED®":
+            model = RandomForestClassifier(n_estimators=100, random_state=42)
+            scaler = StandardScaler()
+        elif self.business_unit == "Amigro":
+            model = tf.keras.Sequential([
+                tf.keras.layers.Dense(64, activation="relu"),
+                tf.keras.layers.Dense(32, activation="relu"),
+                tf.keras.layers.Dense(1, activation="sigmoid")
+            ])
+            scaler = None  # Redes neuronales no necesitan escalado en todos los casos
+        else:
+            model = RandomForestClassifier(n_estimators=50, random_state=42)
+            scaler = StandardScaler()
+        
+        return model, scaler
+    
     def _create_pipeline(self):
         """
         Crea un pipeline de preprocesamiento y modelo.
@@ -96,7 +118,7 @@ class MatchmakingLearningSystem:
 
     def train_model(self):
         """
-        Entrena el modelo de Machine Learning con datos preparados.
+        Entrena el modelo y registra métricas detalladas.
         """
         df = self.prepare_training_data()
         if df.empty:
@@ -106,15 +128,24 @@ class MatchmakingLearningSystem:
         X = df.drop('is_successful', axis=1)
         y = df['is_successful']
 
-        X_scaled = self.scaler.fit_transform(X)
+        X_scaled = self.scaler.fit_transform(X) if self.scaler else X
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled, y, test_size=0.2, random_state=42
         )
 
         self.model.fit(X_train, y_train)
+        y_pred = self.model.predict(X_test)
+        
+        # Calcular métricas
         accuracy = self.model.score(X_test, y_test)
-        dump(self.pipeline, self.model_file)
+        precision = precision_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        
         logger.info(f"Modelo entrenado con precisión: {accuracy:.2f}")
+        logger.info(f"Métricas: Precisión={precision:.2f}, Recall={recall:.2f}, F1={f1:.2f}")
+        
+        dump(self.pipeline, self.model_file)
         return accuracy
 
     def predict_candidate_success(self, person, vacante):
@@ -127,19 +158,12 @@ class MatchmakingLearningSystem:
 
         self.pipeline = load(self.model_file)
 
-        # Crear un objeto simulado de Application para reutilizar los métodos de cálculo
-        class MockApplication:
-            def __init__(self, person, vacante):
-                self.person = person
-                self.vacante = vacante
-
-        mock_app = MockApplication(person, vacante)
-
+        # Crear características
         features = {
             'experience_years': person.experience_years or 0,
-            'hard_skills_match': self._calculate_hard_skills_match(mock_app),
-            'soft_skills_match': self._calculate_soft_skills_match(mock_app),
-            'salary_alignment': self._calculate_salary_alignment(mock_app),
+            'hard_skills_match': self._calculate_hard_skills_match(MockApplication(person, vacante)),
+            'soft_skills_match': self._calculate_soft_skills_match(MockApplication(person, vacante)),
+            'salary_alignment': self._calculate_salary_alignment(MockApplication(person, vacante)),
             'age': self._calculate_age(person)
         }
 
@@ -147,6 +171,30 @@ class MatchmakingLearningSystem:
         prediction_proba = self.pipeline.predict_proba(feature_array)[0][1]
         logger.info(f"Predicción de éxito para {person}: {prediction_proba:.2f}")
         return prediction_proba
+
+    def predict_all_active_matches(person):
+        """
+        Genera predicciones para todas las vacantes activas, adaptadas por unidad de negocio.
+        """
+        if not person.current_stage or not person.current_stage.business_unit:
+            return []
+
+        # Cargar pesos según la unidad de negocio
+        business_unit = person.current_stage.business_unit
+        weights_model = WeightingModel(business_unit)
+        weights = weights_model.get_weights(position_level="gerencia_media")  # Ajustar el nivel según contexto
+
+        active_vacancies = Vacante.objects.filter(activa=True, business_unit=business_unit)
+        matches = []
+        
+        for vacante in active_vacancies:
+            score = calculate_match_score(person, vacante, weights)
+            if score > 70:
+                matches.append({"vacante": vacante.titulo, "empresa": vacante.empresa, "score": score})
+        
+        # Ordenar por puntaje
+        matches = sorted(matches, key=lambda x: x["score"], reverse=True)
+        return matches
 
     def recommend_skill_improvements(self, person):
         """
@@ -181,12 +229,9 @@ class MatchmakingLearningSystem:
         """
         Calcula el porcentaje de coincidencia de habilidades técnicas.
         """
-        person_skills = set([skill.strip().lower() for skill in application.person.skills.split(',')]) if application.person.skills else set()
-        job_skills = set([skill.strip().lower() for skill in application.vacante.skills_required]) if application.vacante.skills_required else set()
-        if not job_skills:
-            logger.warning(f"Vacante sin habilidades requeridas: {application.vacante}")
-            return 0.0
-        match_percentage = len(person_skills.intersection(job_skills)) / len(job_skills) * 100
+        person_skills = application.person.skills.split(',') if application.person.skills else []
+        job_skills = application.vacante.skills_required if application.vacante.skills_required else []
+        match_percentage = calculate_match_percentage(person_skills, job_skills)
         logger.debug(f"Habilidades técnicas coincididas: {match_percentage:.2f}%")
         return match_percentage
 
@@ -208,12 +253,8 @@ class MatchmakingLearningSystem:
         Calcula la alineación salarial.
         """
         current_salary = application.person.salary_data.get('current_salary', 0)
-        offered_salary = application.vacante.salario
-        if not offered_salary:
-            logger.warning(f"Vacante sin salario ofrecido: {application.vacante}")
-            return 0.0
-        alignment = 100 - abs(current_salary - offered_salary) / offered_salary * 100
-        alignment = max(alignment, 0)  # Asegura que no sea negativo
+        offered_salary = application.vacante.salario or 0
+        alignment = calculate_alignment_percentage(current_salary, offered_salary)
         logger.debug(f"Alineación salarial: {alignment:.2f}%")
         return alignment
 
@@ -285,7 +326,6 @@ class MatchmakingLearningSystem:
         Analiza la correlación entre expectativas salariales y éxito laboral.
         """
         successful_apps = Application.objects.filter(status='contratado')
-
         salary_differences = []
         for app in successful_apps:
             expected_salary = app.person.salary_data.get('expected_salary', 0)
@@ -309,6 +349,65 @@ class MatchmakingLearningSystem:
 
     # Skill and Adaptation Metrics
     skill_adaptability_index = models.FloatField(default=0.5)
+
+    def calculate_match_score(person, vacante, weights):
+        score = 0
+
+        # Hard Skills
+        person_skills = person.skills.split(",") if person.skills else []
+        job_skills = vacante.skills_required or []
+        skill_match = calculate_match_percentage(person_skills, job_skills)
+        score += skill_match * weights["hard_skills"]
+
+        # Soft Skills
+        soft_skills = person.metadata.get("soft_skills", [])
+        job_soft_skills = vacante.metadata.get("soft_skills", [])
+        if soft_skills and job_soft_skills:
+            match_soft_skills = calculate_match_percentage(soft_skills, job_soft_skills)
+            score += match_soft_skills * weights["soft_skills"]
+
+        # Ubicación
+        if person.metadata.get("desired_locations") and vacante.ubicacion in person.metadata["desired_locations"]:
+            score += weights["ubicacion"]
+
+        # Salario
+        current_salary = person.salary_data.get("current_salary", 0)
+        offered_salary = vacante.salario or 0
+        salary_match = calculate_alignment_percentage(current_salary, offered_salary)
+        score += salary_match * weights["salario"]
+
+        return round(score, 2)
+    
+    def explain_prediction(self, person, vacante):
+        """
+        Genera explicaciones para la predicción de un candidato.
+        """
+        if not Path(self.model_file).exists():
+            logger.error(f"Modelo no encontrado: {self.model_file}")
+            raise FileNotFoundError("Modelo no entrenado. Entrena el modelo antes de predecir.")
+
+        self.pipeline = load(self.model_file)
+        explainer = shap.TreeExplainer(self.model)
+        
+        # Crear características
+        features = self._prepare_features(person, vacante)
+        shap_values = explainer.shap_values([features])
+        
+        # Log de interpretabilidad
+        logger.info(f"SHAP Values: {shap_values}")
+        return shap_values
+    
+    def check_gpu_availability():
+        """
+        Verifica y registra si hay GPUs disponibles.
+        """
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            logger.info(f"GPUs disponibles: {[gpu.name for gpu in gpus]}")
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        else:
+            logger.warning("No se encontraron GPUs. Usando CPU.")
 
 class GrupohuntREDMLPipeline:
     def __init__(self, business_unit='huntRED®', log_dir='./ml_logs'):

@@ -228,6 +228,14 @@ class ChatBotHandler:
                 await send_message(platform, user_id, response, business_unit)
                 await self.store_bot_message(event, response)
                 return True
+            elif intent == "notificaciones":
+                response = (
+                    "Puedo enviarte notificaciones automáticas sobre cambios en tus procesos. "
+                    "¿Quieres activarlas? Responde 'sí' para confirmar."
+                )
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(event, response)
+                return True
 
         return False
 
@@ -330,6 +338,28 @@ class ChatBotHandler:
             msg = "Ese no parece un correo válido. Intenta nuevamente."
             await send_message(platform, user_id, msg, business_unit)
             await self.store_bot_message(event, msg)
+
+    async def update_candidate_status_from_tracker(self, updates: List[Dict[str, Any]]):
+        """
+        Actualiza el estatus de los candidatos basado en actualizaciones externas (JobTracker).
+        """
+        for update in updates:
+            try:
+                # Asumimos que las actualizaciones incluyen `user_id` y `new_status`
+                user = await sync_to_async(Person.objects.get)(phone=update['user_id'])
+                application = await sync_to_async(Application.objects.get)(
+                    user=user,
+                    vacancy_id=update['vacancy_id']
+                )
+                application.status = update['new_status']
+                await sync_to_async(application.save)()
+
+                # Notificar al candidato
+                business_unit = application.vacancy.business_unit
+                message = f"Tu estatus para la vacante '{application.vacancy.titulo}' ha cambiado a: {update['new_status']}."
+                await send_message('whatsapp', user.phone, message, business_unit)
+            except Exception as e:
+                logger.error(f"Error actualizando estatus de candidato: {e}")
 
     async def handle_group_invitation_input(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
         parts = text.split()

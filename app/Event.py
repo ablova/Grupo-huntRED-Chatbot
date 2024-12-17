@@ -96,4 +96,11 @@ class PersonData:
         """
         Verifica si todos los datos del usuario están completos.
         """
-        return all(value["response"] for key, value in data.items() if key != "end")
+        return all(value.get("response") for key, value in data.items() if key != "end")
+    
+    @classmethod
+    def handle_file_error(cls, file_path: str, operation: str):
+        """
+        Manejo centralizado de errores de archivo.
+        """
+        logger.error(f"Error durante {operation} en {file_path}. Verifica permisos o formato.")

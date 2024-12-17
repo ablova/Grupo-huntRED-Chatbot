@@ -5,8 +5,18 @@ import spacy
 from spacy.matcher import Matcher
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
+import skillner
+from app.catalogs import DIVISION_SKILLS
 
 logger = logging.getLogger(__name__)
+
+# Inicializar SkillNer con el modelo base de spaCy
+sn = skillner.SkillNER(model="es_core_news_sm")  # Asegúrate de tener el modelo de spaCy en español
+
+# Añadir habilidades personalizadas
+for division, skills in DIVISION_SKILLS.items():
+    for skill in skills:
+        sn.add_skill(skill, division=division)
 
 class NLPProcessor:
     def __init__(self):
@@ -142,3 +152,13 @@ class NLPProcessor:
             "entities": entities,
             "sentiment": sentiment
         }
+    
+    def infer_gender(self, name: str) -> str:
+        """
+        Infiera el género basado en el nombre.
+        """
+        GENDER_DICT = {"jose": "M", "maria": "F", "andrea": "O"}  # Ejemplo
+        gender_count = {"M": 0, "F": 0}
+        for part in name.lower().split():
+            gender_count[GENDER_DICT.get(part, "O")] += 1
+        return "M" if gender_count["M"] > gender_count["F"] else "F" if gender_count["F"] > gender_count["M"] else "O"

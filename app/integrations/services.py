@@ -204,7 +204,9 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, phone_id):
     except httpx.HTTPStatusError as e:
         logger.error(f"Error enviando botones a WhatsApp: {e.response.text}")
     except Exception as e:
-        logger.error(f"Error enviando botones a WhatsApp: {e}", exc_info=True)async def reset_chat_state(user_id: Optional[str] = None):
+        logger.error(f"Error enviando botones a WhatsApp: {e}", exc_info=True)
+        
+async def reset_chat_state(user_id: Optional[str] = None):
     """
     Resetea el estado del chatbot para un usuario específico o para todos los usuarios.
     """

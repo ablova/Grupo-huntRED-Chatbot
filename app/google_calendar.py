@@ -87,3 +87,13 @@ def create_calendar_event(slot, user, job):
     
     event = service.events().insert(calendarId='primary', body=event).execute()
     return event.get('htmlLink')
+
+def get_google_credentials():
+    """
+    Carga las credenciales de Google desde variables de entorno o archivo.
+    """
+    creds = Credentials.from_authorized_user_file(
+        os.getenv('GOOGLE_CREDENTIALS_PATH', 'path/to/credentials.json'),
+        ['https://www.googleapis.com/auth/calendar']
+    )
+    return creds
