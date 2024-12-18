@@ -1,5 +1,4 @@
-# Documentación del Sistema de Chatbot de Amigro.org
-
+# Documentación del Sistema de Chatbot, Machine Learning, Scraping & Parser de Grupo huntRED
 ## Índice
 
 1. [Introducción](#introducción)
