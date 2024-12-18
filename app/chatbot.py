@@ -242,7 +242,7 @@ class ChatBotHandler:
 
     async def handle_tyc_acceptance(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit) -> bool:
         configuracion_bu = await sync_to_async(ConfiguracionBU.objects.filter(business_unit=business_unit).first)()
-        email = configuracion_bu.correo_bu if configuracion_bu else "hola@amigro.org"
+        email = configuracion_bu.correo_bu if configuracion_bu else "hola@huntred.com"
 
         if text.lower() in ['sí', 'si', 'aceptar_tyc']:
             response = (
@@ -270,8 +270,8 @@ class ChatBotHandler:
 
     async def handle_greeting(self, platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit, user: Person) -> bool:
         configuracion_bu = await sync_to_async(ConfiguracionBU.objects.filter(business_unit=business_unit).first)()
-        tos_link = f"{configuracion_bu.dominio_bu}/tos" if configuracion_bu and configuracion_bu.dominio_bu else "https://amigro.org/tos"
-        logo_url = configuracion_bu.logo_url if configuracion_bu and configuracion_bu.logo_url else "https://amigro.org/logo.png"
+        tos_link = f"{configuracion_bu.dominio_bu}/tos" if configuracion_bu and configuracion_bu.dominio_bu else "https://huntred.com/tos"
+        logo_url = configuracion_bu.logo_url if configuracion_bu and configuracion_bu.logo_url else "https://huntred.com/logo.png"
 
         # Primer mensaje: Saludo
         response = (

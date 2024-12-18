@@ -5,7 +5,7 @@ import asyncio
 import random
 from celery import shared_task, chain, group
 from celery.schedules import crontab
-from chatbot_django.celery import app
+from ai_huntred.celery import app
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone

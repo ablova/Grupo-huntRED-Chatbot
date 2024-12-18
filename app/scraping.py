@@ -57,7 +57,7 @@ def get_session():
     """
     headers = {'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N)'}
     try:
-        response = s.get("https://amigro.org/my-profile/", headers=headers)
+        response = s.get("https://huntred.com/my-profile/", headers=headers)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         data = soup.find("input", {"id": "login_security"}).get("value")
@@ -151,7 +151,7 @@ def register(username, email, password, name, lastname):
     if not data_session:
         return "Error obteniendo la sesión para registro."
 
-    url = "https://amigro.org/wp-admin/admin-ajax.php"
+    url = "https://huntred.com/wp-admin/admin-ajax.php"
     payload = (
         f'action=workscoutajaxregister&role=candidate&username={username}&email={email}'
         f'&password={password}&first-name={name}&last-name={lastname}&privacy_policy=on'
@@ -174,7 +174,7 @@ def login(username, password):
     if not data_session:
         return "Error obteniendo la sesión para login."
 
-    url = "https://amigro.org/wp-login.php"
+    url = "https://huntred.com/wp-login.php"
     payload = f'_wp_http_referer=%2Fmy-profile%2F&log={username}&pwd={password}&login_security={data_session}'
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'user-agent': 'Mozilla/5.0'}
     try:
@@ -206,7 +206,7 @@ def login_to_wordpress(username, password):
     """
     Realiza el login en WordPress para la administración de vacantes.
     """
-    url = "https://amigro.org/wp-login.php"
+    url = "https://huntred.com/wp-login.php"
     payload = {
         'log': username,
         'pwd': password,

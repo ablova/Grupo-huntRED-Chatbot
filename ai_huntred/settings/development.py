@@ -1,4 +1,4 @@
-# /home/pablollh/chatbot_django/settings/development.py
+# /home/pablollh/ai_huntred/settings/development.py
 from ..settings import *
 
 DEBUG = True

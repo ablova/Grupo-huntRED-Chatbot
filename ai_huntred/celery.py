@@ -1,14 +1,14 @@
-# Ubicación del archivo: /home/pablollh/chatbot_django/celery.py
-# Configuración de Celery para chatbot_django.
+# Ubicación del archivo: /home/pablollh/ai_huntred/celery.py
+# Configuración de Celery para ai_huntred.
 
 from __future__ import absolute_import, unicode_literals
 import os
 from celery import Celery
 
 # Establece el entorno predeterminado para Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chatbot_django.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 
-app = Celery('chatbot_django')
+app = Celery('ai_huntred')
 
 # Cargar configuraciones desde settings.py usando el prefijo "CELERY_"
 app.config_from_object('django.conf:settings', namespace='CELERY')

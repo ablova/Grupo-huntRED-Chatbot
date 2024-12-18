@@ -1,5 +1,5 @@
-# Ubicación del archivo: /home/pablollh/chatbot_django/urls.py
-"""chatbot_django URL Configuration
+# Ubicación del archivo: /home/pablollh/ai_huntred/urls.py
+"""ai_huntred URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/3.2/topics/http/urls/

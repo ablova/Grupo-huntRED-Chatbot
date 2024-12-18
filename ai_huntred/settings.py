@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/pablollh/chatbot_django/settings.py
+# Ubicación del archivo: /home/pablollh/ai_huntred/settings.py
 # Archivo Base de Configuración de Django
 
 
@@ -56,7 +56,7 @@ MIDDLEWARE = [
 ]
 
 # URL Configuration
-ROOT_URLCONF = 'chatbot_django.urls'
+ROOT_URLCONF = 'ai_huntred.urls'
 
 # Templates
 TEMPLATES = [
@@ -76,14 +76,14 @@ TEMPLATES = [
 ]
 
 # WSGI Application
-WSGI_APPLICATION = 'chatbot_django.wsgi.application'
+WSGI_APPLICATION = 'ai_huntred.wsgi.application'
 
 # Base de Datos
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'chatbot_db',
-        'USER': 'amigro_user',
+        'NAME': 'grupo_huntred_ai_db',
+        'USER': 'grupo_huntred_user',
         'PASSWORD': 'Natalia&Patricio1113!',
         'HOST': 'localhost',
         'PORT': '5432',

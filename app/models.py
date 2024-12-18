@@ -123,7 +123,7 @@ class DominioScraping(models.Model):
     def generar_correo_asignado(self):
         from app.models import ConfiguracionBU
         configuracion = ConfiguracionBU.objects.filter(scraping_domains__dominio=self.dominio).first()
-        dominio_bu = configuracion.dominio_bu if configuracion else "amigro.org"
+        dominio_bu = configuracion.dominio_bu if configuracion else "huntred.com"
         return f"{self.empresa.lower()}@{dominio_bu}" if self.empresa else None
 
     def __str__(self):
@@ -209,16 +209,16 @@ class BusinessUnit(models.Model):
     def admin_email(self):
         """
         Genera automáticamente el correo electrónico del administrador basado en el dominio.
-        Por ejemplo, 'amigro.org' -> 'hola@amigro.org'
+        Por ejemplo, 'huntred.com' -> 'hola@huntred.com'
         """
         return f'hola@{self.dominio_bu}'
 
 class ConfiguracionBU(models.Model):
     business_unit = models.OneToOneField(BusinessUnit, on_delete=models.CASCADE)
-    logo_url = models.URLField(default="https://amigro.org/logo.png")
+    logo_url = models.URLField(default="https://huntred.com/logo.png")
     direccion_bu = models.CharField(max_length=255, default="Av. Santa Fe #428, Torre 3, Piso 15, CDMX")
     telefono_bu = models.CharField(max_length=20, default="+5255 59140089")
-    correo_bu = models.CharField(max_length=20, default="hola@amigro.org")
+    correo_bu = models.CharField(max_length=20, default="hola@huntred.com")
     jwt_token = models.CharField(max_length=255, blank=True, null=True, default="...")
     dominio_bu = models.URLField(max_length=255, blank=True, null=True)
     dominio_rest_api = models.URLField(max_length=255, blank=True, null=True)

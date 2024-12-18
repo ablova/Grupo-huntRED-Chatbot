@@ -259,7 +259,7 @@ class VacanteManager:
                         f"<h1>Vacante Creada Exitosamente</h1>"
                         f"<p>Hola {self.job_data.get('job_employee')},</p>"
                         f"<p>Tu vacante '<strong>{self.job_data['job_title']}</strong>' para la empresa '<strong>{self.job_data['company_name']}</strong>' "
-                        f"ha sido creada exitosamente en el sistema de Amigro.org.</p>"
+                        f"ha sido creada exitosamente en el sistema de huntred.com.</p>"
                         f"<ul>"
                         f"<li><strong>Salario Estimado:</strong> ${salario_min} - ${salario_max} MXN</li>"
                         f"<li><strong>Tipo de Trabajo:</strong> {self.job_data.get('job_listing_type')}</li>"

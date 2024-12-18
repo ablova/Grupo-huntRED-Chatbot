@@ -2,141 +2,110 @@
 
 set -e  # Termina el script si ocurre un error
 
-# Variables globales
+# -------------------- VARIABLES --------------------
+PROJECT_ID="amigro"
+ZONE="us-central1-a"
+INSTANCE_NAME="amigro"
+MACHINE_TYPE="e2-medium"
+DISK_SIZE="15GB"
+IMAGE_FAMILY="ubuntu-2204-lts"
+IMAGE_PROJECT="ubuntu-os-cloud"
 EXTERNAL_IP="35.209.109.141"
 PROJECT_DIR="/home/pablollh"
 VENV_DIR="$PROJECT_DIR/venv"
-GITHUB_REPO="https://ablova:${GITHUB_PAT}@github.com/ablova/Grupo-huntRED-Chatbot.git"
-DB_NAME="chatbot_db"
-DB_USER="amigro_user"
+GITHUB_REPO="https://${GITHUB_PAT}@github.com/ablova/Grupo-huntRED-Chatbot.git"
+DB_NAME="grupo_huntred_ai_db"
+DB_USER="grupo_huntred_user"
 DB_PASSWORD="Natalia&Patricio1113!"
-ALLOWED_HOSTS="chatbot.amigro.org,localhost,$EXTERNAL_IP"
-APP_NAME="chatbot_django"
-DOMAIN="chatbot.amigro.org"
+ALLOWED_HOSTS="ai.huntred.com,localhost,$EXTERNAL_IP"
+APP_NAME="ai_huntred"
+DOMAIN="ai.huntred.com"
 EMAIL="hola@huntred.com"
-GITHUB_PAT="github_pat_.......hi84"
-SWAP_SIZE="4G"  # Tamaño del SWAP
+GITHUB_PAT="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"
+SWAP_SIZE="4G"
 LOG_DIR="/var/log/$APP_NAME"
 
-# -------------------- INICIO --------------------
+# -------------------- CREAR INSTANCIA --------------------
+echo "=== Creando la instancia en Google Cloud ==="
+gcloud compute instances create $INSTANCE_NAME \
+    --project=$PROJECT_ID \
+    --zone=$ZONE \
+    --machine-type=$MACHINE_TYPE \
+    --boot-disk-size=$DISK_SIZE \
+    --image-family=$IMAGE_FAMILY \
+    --image-project=$IMAGE_PROJECT \
+    --tags=http-server,https-server \
+    --quiet
 
-echo "=== Actualizando el sistema ==="
-sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y
+echo "=== Esperando a que la instancia esté activa... ==="
+sleep 60
 
-echo "=== Configurando Firewall ==="
-#sudo ufw allow OpenSSH
-#sudo ufw allow 'Nginx Full'
-#sudo ufw enable
+# -------------------- CONFIGURACIÓN REMOTA --------------------
+echo "=== Conectando y configurando la instancia ==="
+gcloud compute ssh $INSTANCE_NAME --project=$PROJECT_ID --zone=$ZONE --command "
+    set -e  # Termina el script si ocurre un error
 
-echo "=== Instalando dependencias necesarias ==="
-sudo apt-get install -y python3 python3-pip python3-venv python3-dev build-essential \
-    libpq-dev nginx certbot python3-certbot-nginx postgresql postgresql-contrib git curl \
-    htop ncdu fail2ban logrotate
+    echo '=== Actualizando el sistema ==='
+    sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y
 
-# ----------------- CONFIGURACIÓN DE SWAP -----------------
-echo "=== Configurando SWAP ($SWAP_SIZE) ==="
-sudo fallocate -l $SWAP_SIZE /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    echo '=== Instalando dependencias necesarias ==='
+    sudo apt-get install -y python3 python3-pip python3-venv python3-dev build-essential \
+        libpq-dev nginx certbot python3-certbot-nginx postgresql postgresql-contrib git curl \
+        htop ncdu fail2ban logrotate
 
-# ---------------- CONFIGURACIÓN DE GITHUB ----------------
-echo "=== Configurando GitHub PAT ==="
-if [ ! -f "$HOME/.github_pat" ]; then
-    echo "$GITHUB_PAT" > "$HOME/.github_pat"
-    chmod 600 "$HOME/.github_pat"
-fi
+    echo '=== Configurando SWAP ($SWAP_SIZE) ==='
+    if [ ! -f /swapfile ]; then
+        sudo fallocate -l $SWAP_SIZE /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    fi
 
-echo "=== Clonando el repositorio desde GitHub ==="
-if [ ! -d "$PROJECT_DIR" ]; then
-    sudo mkdir -p "$PROJECT_DIR"
-    sudo chown -R $USER:$USER "$PROJECT_DIR"
-    git clone "$GITHUB_REPO" "$PROJECT_DIR"
-else
-    echo "El directorio del proyecto ya existe. Actualizando..."
-    cd "$PROJECT_DIR"
-    git pull origin main
-fi
+    echo '=== Configurando PostgreSQL ==='
+    sudo -u postgres psql -tc \"SELECT 1 FROM pg_database WHERE datname = '$DB_NAME';\" | grep -q 1 || \
+        sudo -u postgres psql -c \"CREATE DATABASE $DB_NAME;\"
+    sudo -u postgres psql -tc \"SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER';\" | grep -q 1 || \
+        sudo -u postgres psql -c \"CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';\"
+    sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;\"
 
-# ---------------- CONFIGURACIÓN DE POSTGRESQL ----------------
-echo "=== Configurando PostgreSQL ==="
-sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;" || echo "Base de datos ya creada."
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" || echo "Usuario ya creado."
-sudo -u postgres psql -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
-sudo -u postgres psql -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
-sudo -u postgres psql -c "ALTER ROLE $DB_USER SET timezone TO 'UTC';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    echo '=== Configurando clonación de GitHub ==='
+    if [ ! -d \"$PROJECT_DIR\" ]; then
+        sudo mkdir -p \"$PROJECT_DIR\"
+        sudo chown \$USER:www-data \"$PROJECT_DIR\"
+    fi
+    cd \"$PROJECT_DIR\"
+    git clone \"$GITHUB_REPO\" . || (echo 'Repositorio ya clonado. Haciendo pull...' && git reset --hard && git pull)
 
-# ---------------- CREACIÓN DE ENTORNO VIRTUAL ----------------
-echo "=== Creando entorno virtual ==="
-if [ ! -d "$VENV_DIR" ]; then
-    python3 -m venv "$VENV_DIR"
-fi
-source "$VENV_DIR/bin/activate"
+    echo '=== Creando entorno virtual ==='
+    if [ ! -d \"$VENV_DIR\" ]; then
+        python3 -m venv \"$VENV_DIR\"
+    fi
+    source \"$VENV_DIR/bin/activate\"
 
-echo "=== Instalando dependencias del proyecto ==="
-pip install --upgrade pip
-pip install -r "$PROJECT_DIR/requirements.txt"
+    echo '=== Instalando dependencias del proyecto ==='
+    pip install --upgrade pip
+    pip install -r \"$PROJECT_DIR/requirements.txt\"
 
-# ---------------- CONFIGURACIÓN DE GUNICORN ----------------
-echo "=== Configurando Gunicorn ==="
-cat <<EOF | sudo tee /etc/systemd/system/gunicorn.service
+    echo '=== Configurando Gunicorn ==='
+    cat <<EOF | sudo tee /etc/systemd/system/gunicorn.service
 [Unit]
 Description=gunicorn daemon for $APP_NAME
 After=network.target
 
 [Service]
-User=$USER
+User=\$USER
 Group=www-data
 WorkingDirectory=$PROJECT_DIR
 ExecStart=$VENV_DIR/bin/gunicorn --workers 4 --threads 2 --bind unix:$PROJECT_DIR/gunicorn.sock $APP_NAME.wsgi:application
-LimitNOFILE=4096
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# ---------------- CONFIGURACIÓN DE CELERY ----------------
-echo "=== Configurando Celery ==="
-cat <<EOF | sudo tee /etc/systemd/system/celery.service
-[Unit]
-Description=Celery Service
-After=network.target
-
-[Service]
-User=$USER
-Group=www-data
-WorkingDirectory=$PROJECT_DIR
-ExecStart=$VENV_DIR/bin/celery -A $APP_NAME worker --loglevel=info
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# ---------------- CONFIGURACIÓN DE CELERYBEAT ----------------
-echo "=== Configurando Celerybeat ==="
-cat <<EOF | sudo tee /etc/systemd/system/celerybeat.service
-[Unit]
-Description=Celery Beat Service
-After=network.target
-
-[Service]
-User=$USER
-Group=www-data
-WorkingDirectory=$PROJECT_DIR
-ExecStart=$VENV_DIR/bin/celery -A $APP_NAME beat --loglevel=info --pidfile=/tmp/celerybeat.pid
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# ---------------- CONFIGURACIÓN DE NGINX ----------------
-echo "=== Configurando Nginx (HTTP) ==="
-cat <<EOF | sudo tee /etc/nginx/sites-available/$APP_NAME
+    echo '=== Configurando Nginx ==='
+    cat <<EOF | sudo tee /etc/nginx/sites-available/$APP_NAME
 server {
     listen 80;
     server_name $DOMAIN;
@@ -154,48 +123,22 @@ server {
     client_max_body_size 10M;
 }
 EOF
+    sudo ln -sf /etc/nginx/sites-available/$APP_NAME /etc/nginx/sites-enabled/
+    sudo nginx -t
+    sudo systemctl restart nginx
 
-sudo ln -s /etc/nginx/sites-available/$APP_NAME /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+    echo '=== Generando certificado SSL con Certbot ==='
+    sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL || echo 'Certbot falló. Revisa las configuraciones DNS.'
 
-echo "=== Generando certificado SSL con Certbot ==="
-sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL
+    echo '=== Aplicando migraciones de Django ==='
+    python \"$PROJECT_DIR/manage.py\" makemigrations
+    python \"$PROJECT_DIR/manage.py\" migrate
+    python \"$PROJECT_DIR/manage.py\" collectstatic --noinput
 
-echo "=== Configurando rotación de logs ==="
-sudo mkdir -p $LOG_DIR
-cat <<EOF | sudo tee /etc/logrotate.d/$APP_NAME
-$LOG_DIR/*.log {
-    daily
-    missingok
-    rotate 14
-    compress
-    delaycompress
-    notifempty
-    create 0640 $USER www-data
-    sharedscripts
-    postrotate
-        systemctl reload $APP_NAME > /dev/null 2>/dev/null || true
-    endscript
-}
-EOF
+    echo '=== Habilitando servicios ==='
+    sudo systemctl daemon-reload
+    sudo systemctl enable gunicorn
+    sudo systemctl start gunicorn
 
-# ---------------- MIGRACIONES Y ESTÁTICOS ----------------
-echo "=== Aplicando migraciones de Django ==="
-python "$PROJECT_DIR/manage.py" makemigrations
-python "$PROJECT_DIR/manage.py" migrate
-python "$PROJECT_DIR/manage.py" collectstatic --noinput
-
-
-# ---------------- HABILITANDO SERVICIOS ----------------
-echo "=== Habilitando servicios Gunicorn, Celery y Celerybeat ==="
-sudo systemctl daemon-reload
-sudo systemctl enable gunicorn celery celerybeat
-sudo systemctl start gunicorn celery celerybeat
-
-echo "=== Verificando servicios ==="
-sudo systemctl status gunicorn celery celerybeat
-sudo systemctl status nginx
-
-python "$PROJECT_DIR/manage.py" migrate django_celery_beat
-echo "=== Configuración completada con éxito ==="
+    echo '=== Configuración completada ==='
+"
