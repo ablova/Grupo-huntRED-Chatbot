@@ -1398,25 +1398,36 @@ class FlexibleScraper(BaseScraper):
         self.configuracion = dominio_scraping
 
     async def scrape(self):
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(cookies=self.configuracion.cookies or {}) as session:
             response = await self.fetch(session, self.configuracion.dominio)
             soup = BeautifulSoup(response, 'html.parser')
-            
+
             vacantes = []
-            job_cards = soup.select(self.configuracion.selector_job_cards)
-            
+            job_cards = self.get_elements(soup, self.configuracion.selector_job_cards)
+
             for card in job_cards:
                 vacante = {
                     'titulo': self.extract_dato(card, self.configuracion.selector_titulo),
                     'descripcion': self.extract_dato(card, self.configuracion.selector_descripcion),
                     'ubicacion': self.extract_dato(card, self.configuracion.selector_ubicacion),
-                    'salario': self.extract_dato(card, self.configuracion.selector_salario)
+                    'salario': self.extract_dato(card, self.configuracion.selector_salario),
                 }
                 vacantes.append(vacante)
-            
+
             return vacantes
 
+    def get_elements(self, soup, selector):
+        """Obtiene los elementos con el selector configurado."""
+        if not selector:
+            return []
+        try:
+            return soup.select(selector)
+        except Exception as e:
+            logger.warning(f"Error al obtener elementos con selector {selector}: {e}")
+            return []
+
     def extract_dato(self, elemento, selector):
+        """Extrae datos usando el selector configurado."""
         if not selector:
             return None
         try:
