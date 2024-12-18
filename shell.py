@@ -1756,3 +1756,381 @@ for empresa in empresas:
         print(f"Empresa '{empresa['nombre']}' añadida exitosamente.")
     else:
         print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
+
+
+cd /home/amigro && source venv/bin/activate
+
+from app.linkedin import slow_scrape_from_csv
+from app.models import BusinessUnit
+
+# Encuentra la Business Unit asociada
+business_unit = BusinessUnit.objects.filter(name="huntRED").first()
+if business_unit:
+    slow_scrape_from_csv('/home/amigro/connections.csv', business_unit)
+else:
+    print("No se encontró la Business Unit con el nombre 'huntRED'.")
+
+
+
+
+def revert_scraped_flag():
+    persons = Person.objects.filter(metadata__has_key='scraped')
+    for person in persons:
+        person.metadata.pop('scraped', None)
+        person.save()
+    logger.info(f"Revertido el estado 'scraped' en {persons.count()} perfiles.")
+
+cat /home/amigro/logs/debug.log | grep --color=auto -E "Perfil enriquecido"
+
+from app.tasks import slow_scrape_from_csv
+from app.models import BusinessUnit, revert_scraped_flag
+
+# Asume que tienes una Business Unit creada
+bu = BusinessUnit.objects.first()
+
+# Ejecutar scraping
+slow_scrape_from_csv('/home/amigro/connections.csv', bu)
+
+# Revertir estado si es necesario
+revert_scraped_flag()
+
+INFO 2024-12-13 16:46:07,616 linkedin Perfil enriquecido: 🌍 Enrique Nogales
+INFO 2024-12-13 16:46:22,438 linkedin Perfil enriquecido: Jorge Arreola
+
+
+import os
+import django
+import requests
+from app.models import DominioScraping
+
+# Función para validar la URL
+def validar_url(url):
+    try:
+        response = requests.head(url, timeout=5, allow_redirects=True)
+        return response.status_code in [200, 301, 302]
+    except requests.RequestException:
+        return False
+
+# Empresas y dominios
+empresas = [
+    {"nombre": "AbbVie", "dominio": "https://careers.abbvie.com/en/jobs?q=Mexico&options=&page=1&la=0&lo=0&lr=100"},
+    {"nombre": "Abbott", "dominio": "https://abbott.wd5.myworkdayjobs.com/abbottcareers?locations=3a9b3d42f0d30158bd74b154c47684e5"},
+    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd5.myworkdayjobs.com/BofA_Careers"},
+    {"nombre": "Citi", "dominio": "https://citi.wd5.myworkdayjobs.com/es/2?State_or_Province=1a3f3bf072024650a133222225fe65a9&State_or_Province=bd4da31ba1294e35a7c00c8d273c6dad&State_or_Province=2a9b3694d7b94021b65f6b6a4ec8c4dc&State_or_Province=03b158c518bf4ee4a346bf02784f3cbd&State_or_Province=92bdecb0bceb492d99b98a9bf4b79cae&State_or_Province=811e38f5c4d549e494e9b27bd00cf8a3&State_or_Province=39f4b697029248f28f15b04c0bb4564d&State_or_Province=1169a156f7374f5db661032d0772132d&State_or_Province=d22bee76e28110000edbaff29a73005a&State_or_Province=aa61022afa734cc484addf9c844464d0&State_or_Province=6878a9f5d78f47d4b60b0589c744f506&State_or_Province=b81b49dd746c4c7584e194c20f0addb5&State_or_Province=17dc9ef2582e48dab331a667ffb01637&State_or_Province=ab09b90fe08d42968d2e7b6ac3b43379&State_or_Province=ab032aee6d0f4780bfc6b6988e9c1692&State_or_Province=85d60fd3574542f8be5c31f6fb5ae313&State_or_Province=dc448b82dcaf493c80715385cebf2e6e&State_or_Province=3fd33c9f213646438363b317bbc70b1e&State_or_Province=34e05bc8deff49e2ba1f7365c5a59b8b&State_or_Province=e24ca71036f84293989b87e79a5ab4a2&State_or_Province=94732184ab0c413c9c7ab98e55ad7f30"},
+]
+
+for empresa in empresas:
+    try:
+        # Comprobar si la empresa ya existe
+        if not DominioScraping.objects.filter(empresa=empresa["nombre"]).exists():
+            # Validar la URL
+            es_valida = validar_url(empresa["dominio"])
+
+            # Crear el objeto en la base de datos
+            DominioScraping.objects.create(
+                empresa=empresa["nombre"],
+                dominio=empresa["dominio"],
+                activo=True,
+                plataforma=empresa.get("plataforma", ""),  # Plataforma, si está disponible
+                verificado=es_valida,  # Marcar como verificado solo si pasa la validación
+                estado="definido" if es_valida else "libre",  # Estado según la validación
+            )
+
+            # Feedback del resultado
+            if es_valida:
+                print(f"✅ Empresa '{empresa['nombre']}' añadida exitosamente con URL válida.")
+            else:
+                print(f"⚠️ Empresa '{empresa['nombre']}' añadida pero la URL no es válida o no responde.")
+        else:
+            print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
+    except Exception as e:
+        # Manejo de errores específicos
+        print(f"❌ Error al añadir la empresa '{empresa['nombre']}': {e}")
+
+
+PhenomePeople   Roche              https://careers.roche.com/global/en/mexico-jobs/   
+PhenomePeople   ABB                https://careers.abb/global/es/search-results?=Mexico
+PhenomePeople   Netflix            https://explore.jobs.netflix.net/careers?location=Mexico%20D.F.%2C%20CDMX%2C%20Mexico&utm_source=Netflix+Careersite
+EightFold AI    BostonScientific   https://bostonscientific.eightfold.ai/careers?query=mexico&pid=563602796959329&domain=bostonscientific.com&sort_by=relevance&triggerGoButton=true 
+EightFold AI    MercadoLibre       https://mercadolibre.eightfold.ai/careers?location=Mexico&pid=26321883&domain=mercadolibre.com&sort_by=relevance&triggerGoButton=false&triggerGoButton=true
+                                    https://mercadolibre.eightfold.ai/careers
+No se por quien sean               https://jobs.thyssenkrupp.com/es?location=México&lat=23.6585116&lng=-102.0077097&placeId=512b57d3507e8059c05961095a3794a83740f00101f901febf010000000000c0020b&radius=0
+No se por quien sean gestionados   https://www.attjobs.com.mx/buscar-trabajo/México
+Radancy         Veolia             https://jobs.veolia.com/es/buscar-trabajo/Mexique/2702/2/3996063/23/-102/50/2
+Me imagino que propio   Apple      https://jobs.apple.com/es-mx/search?location=mexico-MEXC
+                Amazon             https://www.amazon.jobs/es/location/mexico-city-mexico
+Puma                               https://about.puma.com/en/careers/job-openings?area=all&location=98
+Bank of America                    https://careers.bankofamerica.com/en-us/job-search/mexico?ref=search&start=0&rows=10&search=getAllJobs
+Citi (referencia a TalentBrew)     https://jobs.citi.com/search-jobs/Mexico/287/2/3996063/23/-102/50/2
+Eightfold AI    MorganStanley      https://morganstanley.eightfold.ai/careers?location=Mexico&pid=549779378596&domain=morganstanley.com&sort_by=relevance&source=mscom
+https://www.morganstanley.com/careers/career-opportunities-search#
+
+
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+import json
+
+# Configuración del navegador (puedes usar Safari, Chrome o Firefox)
+options = Options()
+options.add_argument("--headless")  # Para que se ejecute sin abrir el navegador (opcional)
+options.add_argument("--disable-gpu")
+options.add_argument("--no-sandbox")
+options.add_argument("--start-maximized")
+
+# Inicializar el navegador
+driver = webdriver.Chrome(options=options)  # Usa 'webdriver.Safari()' si prefieres Safari
+
+# URLs para validar
+urls = [
+    "https://abbvie.wd5.myworkdayjobs.com/abbvie",
+    "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms",
+    "https://gsk.wd5.myworkdayjobs.com/careers",
+    "https://msd.wd5.myworkdayjobs.com/external",
+    "https://jobs.exxonmobil.com/",
+    "https://johnsoncontrols.wd5.myworkdayjobs.com/en-US/external",
+    "https://fujifilm.wd5.myworkdayjobs.com/americas",
+    "https://diageo.wd5.myworkdayjobs.com/global",
+    "https://thales.wd5.myworkdayjobs.com/careers",
+    # Agrega más URLs aquí...
+]
+
+# Lista para almacenar resultados
+resultados = []
+
+for url in urls:
+    resultado = {"url": url, "status": "No cargada", "cookies": None, "error": None}
+    try:
+        driver.get(url)
+        time.sleep(5)  # Espera para cargar la página
+        
+        # Comprobar si hay un banner de cookies
+        try:
+            cookies_button = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, '//button[contains(text(), "Aceptar")]'))
+            )
+            cookies_button.click()
+            resultado["status"] = "Cookies aceptadas"
+        except Exception:
+            resultado["status"] = "Sin cookies detectadas"
+
+        # Extraer cookies de la página
+        cookies = driver.get_cookies()
+        resultado["cookies"] = cookies
+
+    except Exception as e:
+        resultado["error"] = str(e)
+        print(f"Error en {url}: {e}")
+    
+    resultados.append(resultado)
+
+# Cerrar el navegador
+driver.quit()
+
+# Guardar resultados en un archivo JSON para análisis posterior
+with open("resultados_urls.json", "w") as f:
+    json.dump(resultados, f, indent=4)
+
+# Mostrar resultados en consola
+for res in resultados:
+    print(f"URL: {res['url']}, Estado: {res['status']}, Error: {res['error']}")
+    if res["cookies"]:
+        print(f"Cookies: {res['cookies']}")
+
+sudo apt update
+sudo apt install -y python3-pip chromium-browser chromedriver
+pip install selenium
+
+
+import os
+import django
+import requests
+from app.models import DominioScraping
+
+# Función para validar la URL
+def validar_url(url):
+    try:
+        response = requests.head(url, timeout=5, allow_redirects=True)
+        return response.status_code in [200, 301, 302]
+    except requests.RequestException:
+        return False
+
+# Empresas y dominios con sus plataformas
+empresas = [
+    {"nombre": "AbbVie", "dominio": "https://careers.abbvie.com/en/jobs?q=Mexico&options=&page=1&la=0&lo=0&lr=100", "plataforma": "workday"},
+    {"nombre": "Bristol Myers Squibb", "dominio": "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms", "plataforma": "workday"},
+    {"nombre": "GSK", "dominio": "https://gsk.wd5.myworkdayjobs.com/GSKCareers/2/refreshFacet/318c8bb6f553100021d223d9780d30be", "plataforma": "workday"},
+    {"nombre": "MSD", "dominio": "https://jobs.msd.com/gb/en/search-results?keywords=mexico", "plataforma": "workday"},
+    {"nombre": "Roche", "dominio": "https://careers.roche.com/global/en/mexico-jobs/", "plataforma": "phenom_people"},
+    {"nombre": "ABB", "dominio": "https://careers.abb/global/es/search-results?=Mexico", "plataforma": "phenom_people"},
+    {"nombre": "Netflix", "dominio": "https://explore.jobs.netflix.net/careers?location=Mexico%20D.F.%2C%20CDMX%2C%20Mexico&utm_source=Netflix+Careersite", "plataforma": "phenom_people"},
+    {"nombre": "BostonScientific", "dominio": "https://bostonscientific.eightfold.ai/careers?query=mexico&pid=563602796959329&domain=bostonscientific.com&sort_by=relevance&triggerGoButton=true", "plataforma": "eightfold_ai"},
+    {"nombre": "MercadoLibre", "dominio": "https://mercadolibre.eightfold.ai/careers?location=Mexico&pid=26321883&domain=mercadolibre.com", "plataforma": "eightfold_ai"},
+    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.eightfold.ai/careers?location=Mexico&pid=549779378596&domain=morganstanley.com", "plataforma": "eightfold_ai"},
+    {"nombre": "Amazon", "dominio": "https://www.amazon.jobs/es/location/mexico-city-mexico", "plataforma": ""},
+    {"nombre": "Apple", "dominio": "https://jobs.apple.com/es-mx/search?location=mexico-MEXC", "plataforma": ""},
+    {"nombre": "Puma", "dominio": "https://about.puma.com/en/careers/job-openings?area=all&location=98", "plataforma": ""},
+    {"nombre": "Bank of America", "dominio": "https://careers.bankofamerica.com/en-us/job-search/mexico", "plataforma": ""},
+    {"nombre": "Citi", "dominio": "https://jobs.citi.com/search-jobs/Mexico/287/2/3996063/23/-102/50/2", "plataforma": ""},
+    {"nombre": "Veolia", "dominio": "https://jobs.veolia.com/es/buscar-trabajo/Mexique/2702/2/3996063/23/-102/50/2", "plataforma": ""},
+]
+
+# Script para cargar configuraciones iniciales
+for empresa in empresas:
+    try:
+        if not DominioScraping.objects.filter(empresa=empresa["nombre"]).exists():
+            es_valida = validar_url(empresa["dominio"])  # Validación de la URL
+            DominioScraping.objects.create(
+                empresa=empresa["nombre"],
+                dominio=empresa["dominio"],
+                activo=True,
+                plataforma=empresa["plataforma"],
+                verificado=es_valida,  # Marca como verificado solo si pasa la validación
+                estado="definido" if es_valida else "libre",
+            )
+            if es_valida:
+                print(f"✅ Empresa '{empresa['nombre']}' añadida exitosamente con URL válida.")
+            else:
+                print(f"⚠️ Empresa '{empresa['nombre']}' añadida pero la URL no es válida o no responde.")
+        else:
+            print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
+    except Exception as e:
+        print(f"❌ Error al añadir la empresa '{empresa['nombre']}': {e}")
+
+
+import requests
+from app.models import DominioScraping
+
+
+# Función para validar la URL
+def validar_url(url):
+    try:
+        response = requests.head(url, timeout=5, allow_redirects=True)
+        return response.status_code in [200, 301, 302]
+    except requests.RequestException:
+        return False
+
+# Empresas y dominios con sus plataformas
+empresas = [
+    {"nombre": "BostonScientific", "dominio": "https://bostonscientific.eightfold.ai/careers?query=mexico&pid=563602796959329&domain=bostonscientific.com&sort_by=relevance&triggerGoButton=true", "plataforma": "eightfold_ai"},
+    {"nombre": "MercadoLibre", "dominio": "https://mercadolibre.eightfold.ai/careers?location=Mexico&pid=26321883&domain=mercadolibre.com", "plataforma": "eightfold_ai"},
+    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.eightfold.ai/careers?location=Mexico&pid=549779378596&domain=morganstanley.com", "plataforma": "eightfold_ai"},
+    {"nombre": "ThyssenKrupp", "dominio": "https://jobs.thyssenkrupp.com/es?location=México&lat=23.6585116&lng=-102.0077097&placeId=512b57d3507e8059c05961095a3794a83740f00101f901febf010000000000c0020b&radius=0", "plataforma": "default"},
+    {"nombre": "AT&T", "dominio": "https://www.attjobs.com.mx/buscar-trabajo/México", "plataforma": "default"},
+    {"nombre": "Veolia", "dominio": "https://jobs.veolia.com/es/buscar-trabajo/Mexique/2702/2/3996063/23/-102/50/2", "plataforma": "radancy"},
+    {"nombre": "Apple", "dominio": "https://jobs.apple.com/es-mx/search?location=mexico-MEXC", "plataforma": "default"},
+    {"nombre": "Amazon", "dominio": "https://www.amazon.jobs/es/location/mexico-city-mexico", "plataforma": "default"},
+    {"nombre": "Puma", "dominio": "https://about.puma.com/en/careers/job-openings?area=all&location=98", "plataforma": "default"},
+    {"nombre": "Bank of America", "dominio": "https://careers.bankofamerica.com/en-us/job-search/mexico?ref=search&start=0&rows=10&search=getAllJobs", "plataforma": "default"},
+    {"nombre": "Citi", "dominio": "https://jobs.citi.com/search-jobs/Mexico/287/2/3996063/23/-102/50/2", "plataforma": "talentbrew"},
+]
+
+# JSON de ejemplo para cookies
+cookie_template = {
+    "cookie_name": "example_cookie",
+    "value": "example_value",
+    "domain": ".example.com",
+    "path": "/",
+    "secure": True,
+    "httpOnly": True
+}
+
+# Script para cargar configuraciones iniciales
+for empresa in empresas:
+    try:
+        # Validar si la empresa ya existe
+        if not DominioScraping.objects.filter(empresa=empresa["nombre"]).exists():
+            # Validar URL
+            es_valida = validar_url(empresa["dominio"])
+
+            # Crear el registro
+            DominioScraping.objects.create(
+                empresa=empresa["nombre"],
+                dominio=empresa["dominio"],
+                activo=True,
+                plataforma=empresa["plataforma"],
+                verificado=es_valida,
+                estado="definido" if es_valida else "libre",
+                cookies=cookie_template if empresa["plataforma"] in ["default", "eightfold_ai"] else None,
+            )
+            # Feedback del resultado
+            if es_valida:
+                print(f"✅ Empresa '{empresa['nombre']}' añadida exitosamente con URL válida.")
+            else:
+                print(f"⚠️ Empresa '{empresa['nombre']}' añadida pero la URL no es válida o no responde.")
+        else:
+            print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
+    except Exception as e:
+        # Registrar errores
+        print(f"❌ Error al añadir la empresa '{empresa['nombre']}': {e}")
+
+
+import requests
+from app.models import DominioScraping
+
+# Función para validar la URL
+def validar_url(url):
+    try:
+        response = requests.head(url, timeout=5)
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
+
+# Empresas y dominios
+empresas = [
+    {"nombre": "AbbVie", "dominio": "https://abbvie.wd5.myworkdayjobs.com/abbvie"},
+    {"nombre": "Bristol Myers Squibb", "dominio": "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms"},
+    {"nombre": "GSK", "dominio": "https://gsk.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "MSD", "dominio": "https://msd.wd5.myworkdayjobs.com/external"},
+    {"nombre": "ExxonMobil", "dominio": "https://jobs.exxonmobil.com/"},
+    {"nombre": "Johnson Controls", "dominio": "https://johnsoncontrols.wd5.myworkdayjobs.com/en-US/external"},
+    {"nombre": "Fujifilm", "dominio": "https://fujifilm.wd5.myworkdayjobs.com/americas"},
+    {"nombre": "Diageo", "dominio": "https://diageo.wd5.myworkdayjobs.com/global"},
+    {"nombre": "Thales", "dominio": "https://thales.wd5.myworkdayjobs.com/careers"},
+    {"nombre": "Roche", "dominio": "https://roche.wd5.myworkdayjobs.com/global_external"},
+    {"nombre": "Toyota", "dominio": "https://toyota.wd5.myworkdayjobs.com/toyota"},
+    {"nombre": "AstraZeneca", "dominio": "https://astrazeneca.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Abbott", "dominio": "https://abbott.wd5.myworkdayjobs.com/abbott"},
+    {"nombre": "BD", "dominio": "https://bd.wd5.myworkdayjobs.com/en-US/External"},
+    {"nombre": "Sanofi", "dominio": "https://sanofi.wd5.myworkdayjobs.com/CAREERS"},
+    {"nombre": "Boston Scientific", "dominio": "https://bostonscientific.wd5.myworkdayjobs.com/bsc_jobs"},
+    {"nombre": "ThyssenKrupp", "dominio": "https://thyssenkrupp.wd5.myworkdayjobs.com/thyssenkrupp_careers"},
+    {"nombre": "AT&T", "dominio": "https://att.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Orange", "dominio": "https://orange.wd5.myworkdayjobs.com/orange"},
+    {"nombre": "Chevron", "dominio": "https://chevron.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Iberdrola", "dominio": "https://iberdrola.wd5.myworkdayjobs.com/iberdrola_external"},
+    {"nombre": "Veolia", "dominio": "https://veolia.wd5.myworkdayjobs.com/external"},
+    {"nombre": "ABB", "dominio": "https://abb.wd5.myworkdayjobs.com/External"},
+    {"nombre": "Hulu", "dominio": "https://hulu.wd5.myworkdayjobs.com/Hulu"},
+    {"nombre": "Warner Bros", "dominio": "https://warnerbros.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Goodwill", "dominio": "https://goodwill.wd5.myworkdayjobs.com/external"},
+    {"nombre": "Home Depot", "dominio": "https://homedepot.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Puma", "dominio": "https://puma.wd5.myworkdayjobs.com/puma_careers"},
+    {"nombre": "Target", "dominio": "https://target.wd5.myworkdayjobs.com/targetjobs"},
+    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd5.myworkdayjobs.com/BofA_Careers"},
+    {"nombre": "Citi", "dominio": "https://citi.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Bupa", "dominio": "https://bupa.wd5.myworkdayjobs.com/Careers"},
+    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.wd5.myworkdayjobs.com/MS"},
+    {"nombre": "Santander", "dominio": "https://santander.wd5.myworkdayjobs.com/External"},
+]
+
+for empresa in empresas:
+    if not DominioScraping.objects.filter(empresa=empresa["nombre"]).exists():
+        if validar_url(empresa["dominio"]):
+            DominioScraping.objects.create(
+                empresa=empresa["nombre"],
+                dominio=empresa["dominio"],
+                activo=True,
+                plataforma="workday",
+            )
+            print(f"Empresa '{empresa['nombre']}' añadida exitosamente.")
+        else:
+            print(f"⚠️ La URL de '{empresa['nombre']}' no es válida o no responde.")
+    else:
+        print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")

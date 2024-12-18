@@ -111,14 +111,12 @@ class DominioScraping(models.Model):
     selector_descripcion = models.CharField(max_length=200, null=True, blank=True)
     selector_ubicacion = models.CharField(max_length=200, null=True, blank=True)
     selector_salario = models.CharField(max_length=200, null=True, blank=True)
-    
     # Tipo de selector (CSS, XPath)
     tipo_selector = models.CharField(
         max_length=20, 
         choices=[('css', 'CSS'), ('xpath', 'XPath')],
         default='css'
     )
-    
     # Configuración JSON para mapeos más complejos
     mapeo_configuracion = models.JSONField(null=True, blank=True)
 

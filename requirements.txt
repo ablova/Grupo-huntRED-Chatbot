@@ -16,10 +16,13 @@ beautifulsoup4==4.12.3
 bidict==0.23.1
 billiard==4.2.1
 blis==1.0.2
+cairocffi==1.7.1
+CairoSVG==2.7.1
 catalogue==2.0.10
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
+chardet==5.2.0
 charset-normalizer==3.4.0
 chevron==0.14.0
 click==8.1.7
@@ -33,6 +36,7 @@ contourpy==1.3.1
 cron-descriptor==1.4.5
 cryptography==44.0.0
 cssselect==1.2.0
+cssselect2==0.7.0
 cycler==0.12.1
 cymem==2.0.10
 dataclasses-json==0.6.7
@@ -54,6 +58,7 @@ django-timezone-field==7.0
 djangorestframework==3.15.2
 djangorestframework-simplejwt==5.3.1
 drf-yasg==1.21.8
+es_core_news_md @ https://github.com/explosion/spacy-models/releases/download/es_core_news_md-3.8.0/es_core_news_md-3.8.0-py3-none-any.whl#sha256=478b8bb3f3e8eb149192f7d80e7cd64f990b7e9bccbc5329df41a57e86326be2
 es_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.8.0/es_core_news_sm-3.8.0-py3-none-any.whl#sha256=e451a83d6df79b87e9eed0cb553f03e99e36a3bab18a7b79f0dcfd1fdf875e12
 fastapi==0.115.6
 fastapi-socketio==0.0.10
@@ -82,6 +87,7 @@ inflection==0.5.1
 itemadapter==0.10.0
 itemloaders==1.3.2
 itsdangerous==2.2.0
+jellyfish==1.1.3
 Jinja2==3.1.4
 jiter==0.8.2
 jmespath==1.0.1
@@ -109,7 +115,7 @@ mypy-extensions==1.0.0
 namex==0.0.8
 nest-asyncio==1.6.0
 nltk==3.9.1
-numpy==2.2.0
+numpy==2.0.2
 oauthlib==3.2.2
 openai==1.57.2
 opentelemetry-api==1.28.2
@@ -148,6 +154,7 @@ Pygments==2.18.0
 PyJWT==2.10.1
 pyOpenSSL==24.3.0
 pyparsing==3.2.0
+pypdf==5.1.0
 PySocks==1.7.1
 python-crontab==3.2.0
 python-dateutil==2.9.0.post0
@@ -162,6 +169,7 @@ PyYAML==6.0.2
 queuelib==1.7.0
 redis==5.2.1
 regex==2024.11.6
+reportlab==4.2.5
 requests==2.32.3
 requests-file==2.1.0
 requests-oauthlib==1.3.1
@@ -176,6 +184,7 @@ setuptools==75.6.0
 shellingham==1.5.4
 simple-websocket==1.1.0
 six==1.17.0
+skillNer==1.0.3
 smart-open==7.0.5
 sniffio==1.3.1
 sortedcontainers==2.4.0
@@ -195,6 +204,7 @@ tensorflow==2.18.0
 termcolor==2.5.0
 thinc==8.3.2
 threadpoolctl==3.5.0
+tinycss2==1.4.0
 tldextract==5.1.3
 tomli==2.2.1
 tqdm==4.67.1
@@ -215,6 +225,7 @@ wasabi==1.1.3
 watchfiles==0.20.0
 wcwidth==0.2.13
 weasel==0.4.1
+webencodings==0.5.1
 websocket-client==1.8.0
 Werkzeug==3.1.3
 wheel==0.45.1
