@@ -1,4 +1,4 @@
-# /home/amigro/app/linkedin.py
+# /home/pablollh/app/linkedin.py
 
 import logging
 import os

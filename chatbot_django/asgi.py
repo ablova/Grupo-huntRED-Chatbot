@@ -1,4 +1,4 @@
-# /home/amigro/chatbot_django/asgi.py
+# /home/pablollh/chatbot_django/asgi.py
 """
 ASGI config for chatbot_django project.
 

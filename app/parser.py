@@ -1,11 +1,13 @@
-# Ubicación /home/amigro/app/parser.py
+# Ubicación /home/pablollh/app/parser.py
 
 import unicodedata
 import imaplib
 import email
+from functools import lru_cache
 from pathlib import Path
 import spacy
 from app.models import Person, ConfiguracionBU, Division, Skill
+from typing import List, Dict, Tuple, Optional
 from django.utils.timezone import now
 from datetime import datetime
 from app.nlp import sn  # SkillNer instance

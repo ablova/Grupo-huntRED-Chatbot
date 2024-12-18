@@ -1,4 +1,4 @@
-# /home/amigro/app/views/chatbot_views.py
+# /home/pablollh/app/views/chatbot_views.py
 
 from django.views import View
 from django.http import JsonResponse

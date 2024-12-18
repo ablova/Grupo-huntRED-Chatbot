@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/amigro/chatbot_django/celery.py
+# Ubicación del archivo: /home/pablollh/chatbot_django/celery.py
 # Configuración de Celery para chatbot_django.
 
 from __future__ import absolute_import, unicode_literals

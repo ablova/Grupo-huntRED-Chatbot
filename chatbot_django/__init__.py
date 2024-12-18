@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/amigro/chatbot_django/tasks/__init__.py
+# Ubicación del archivo: /home/pablollh/chatbot_django/tasks/__init__.py
 # Inicialización de tareas para la aplicación chatbot_django.
 
 from __future__ import absolute_import, unicode_literals

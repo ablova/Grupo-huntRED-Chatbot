@@ -1,9 +1,9 @@
 git status
 git add .
-ls /home/amigro
+ls /home/pablollh
 git push origin main
 
-cd /home/amigro
+cd /home/pablollh
 git pull origin main
 
 git remote add origin https://github.com/ablova/Grupo-huntRED-Chatbot.git
@@ -23,7 +23,7 @@ git push origin main
 
 #Ejecutar desde el SERVIDOR Donde se realizará el clonado
 # Truncar logs antes de iniciar el despliegue
-sudo truncate -s 0 /home/amigro/logs/*.log &&
+sudo truncate -s 0 /home/pablollh/logs/*.log &&
 sudo truncate -s 0 /var/log/nginx/access.log &&
 sudo truncate -s 0 /var/log/nginx/error.log &&
 sudo truncate -s 0 /var/log/syslog &&
@@ -36,16 +36,16 @@ sudo journalctl --vacuum-time=1s
 sudo journalctl --vacuum-size=50M
 
 
-cd /home/amigro && source venv/bin/activate &&
+cd /home/pablollh && source venv/bin/activate &&
 git fetch origin &&
 git reset --hard origin/main &&
 git clean -fd &&
 git status &&
 git log -1 &&
-mkdir -p /home/amigro/logs &&
-touch /home/amigro/logs/error.log && 
-chmod 664 /home/amigro/logs/error.log &&
-chown pablollh:pablollh /home/amigro/logs/error.log
+mkdir -p /home/pablollh/logs &&
+touch /home/pablollh/logs/error.log && 
+chmod 664 /home/pablollh/logs/error.log &&
+chown pablollh:pablollh /home/pablollh/logs/error.log
 
 
 python manage.py makemigrations &&
@@ -54,13 +54,13 @@ python manage.py collectstatic &&
 sudo systemctl restart gunicorn nginx celery &&
 sudo journalctl -u gunicorn &&
 sudo journalctl -u nginx
-cd /home/amigro/logs && cat error.log
+cd /home/pablollh/logs && cat error.log
 # Ver solo errores nuevos del sistema (e.g., gunicorn o nginx)
 sudo journalctl -u gunicorn -p err --since "10 minutes ago" -f
 sudo journalctl -u nginx -p err --since "10 minutes ago" -f
 
 # Filtrar errores recientes en logs específicos
-grep "ERROR" /home/amigro/logs/error.log
+grep "ERROR" /home/pablollh/logs/error.log
 grep "ERROR" /var/log/nginx/error.log
 
 
@@ -145,7 +145,7 @@ sudo snap list --all | awk '/disabled/{print $1, $3}' | while read snapname revi
 sudo find /var/log -type f -name "*.gz" -delete
 sudo find /var/log -type f -name "*.old" -delete
 sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y && sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt-get clean -y && sudo apt clean -y 
-cd /home/amigro && source venv/bin/activate
+cd /home/pablollh && source venv/bin/activate
 # Ver los archivos más grandes
 sudo find / -type f -size +100M -exec ls -lh {} \;
 # Ver el espacio usado por cada paquete instalado
@@ -302,7 +302,7 @@ async def handle_incoming_message(request):
         return JsonResponse({'error': f"Error inesperado: {e}"}, status=500)
 
 
-        sudo rm /home/amigro/app/chatbot.py && sudo nano /home/amigro/app/chatbot.py && sudo systemctl restart gunicorn nginx && sudo truncate -s 0 /home/amigro/logs/*.log
+        sudo rm /home/pablollh/app/chatbot.py && sudo nano /home/pablollh/app/chatbot.py && sudo systemctl restart gunicorn nginx && sudo truncate -s 0 /home/pablollh/logs/*.log
 
 
 POR SI NO JALA LA VERSION BRINDADA.

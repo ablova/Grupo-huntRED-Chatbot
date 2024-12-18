@@ -1,164 +1,139 @@
-# /home/amigro/app/nlp.py
+# /home/pablollh/app/nlp.py
 
 import logging
+import nltk
 import spacy
 from spacy.matcher import Matcher
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
-import skillner
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from skillNer.skill_extractor_class import SkillExtractor
 from app.catalogs import DIVISION_SKILLS
 
 logger = logging.getLogger(__name__)
 
-# Inicializar SkillNer con el modelo base de spaCy
-sn = skillner.SkillNER(model="es_core_news_sm")  # Asegúrate de tener el modelo de spaCy en español
+# Configuración básica de logging (si aún no está configurada en otro lugar)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
-# Añadir habilidades personalizadas
-for division, skills in DIVISION_SKILLS.items():
-    for skill in skills:
-        sn.add_skill(skill, division=division)
+# Descargar datos necesarios para NLTK
+nltk.download('vader_lexicon', quiet=True)
+
+# Cargar el modelo de spaCy una sola vez
+try:
+    nlp = spacy.load("es_core_news_md")
+    logger.info("Modelo de spaCy 'es_core_news_md' cargado correctamente.")
+except Exception as e:
+    logger.error(f"Error cargando modelo spaCy: {e}")
+    raise e
+
+# Ruta al archivo de base de datos de habilidades
+skills_db_path = "/home/pablollh/app/skill_db_relax_20.json"
+
+# Crear el objeto SkillExtractor
+try:
+    sn = SkillExtractor(
+        nlp=nlp,
+        skills_db=skills_db_path,
+    )
+    logger.info("SkillExtractor 'sn' inicializado correctamente.")
+except Exception as e:
+    logger.error(f"Error inicializando SkillExtractor: {e}")
+    sn = None
+
+# Variable para habilitar o deshabilitar SkillExtractor temporalmente
+USE_SKILL_EXTRACTOR = False  # Cambia a True si deseas habilitarlo
+
+if USE_SKILL_EXTRACTOR and sn:
+    try:
+        # Añadir habilidades personalizadas desde DIVISION_SKILLS
+        for division, skills in DIVISION_SKILLS.items():
+            for skill in skills:
+                try:
+                    sn.add_skill(skill, division=division)
+                    logger.debug(f"Habilidad '{skill}' añadida a la división '{division}'.")
+                except Exception as e:
+                    logger.warning(f"Error añadiendo habilidad '{skill}': {e}")
+    except Exception as e:
+        logger.error(f"Error al añadir habilidades personalizadas: {e}")
 
 class NLPProcessor:
     def __init__(self):
-        try:
-            # Carga el modelo de spaCy en español
-            self.nlp = spacy.load("es_core_news_sm")
-        except Exception as e:
-            logger.error(f"Error cargando modelo spaCy: {e}", exc_info=True)
-            raise e
-
-        # Inicializar Matcher
-        self.matcher = Matcher(self.nlp.vocab)
+        # Inicializar el Matcher de spaCy
+        self.matcher = Matcher(nlp.vocab)
         self.define_intent_patterns()
 
-        # Inicializar analizador de sentimiento
-        nltk.download('vader_lexicon', quiet=True)
-        self.sia = SentimentIntensityAnalyzer()
+        # Inicializar el analizador de sentimiento
+        try:
+            self.sia = SentimentIntensityAnalyzer()
+            logger.info("SentimentIntensityAnalyzer inicializado correctamente.")
+        except Exception as e:
+            logger.error(f"Error inicializando SentimentIntensityAnalyzer: {e}")
+            self.sia = None
 
     def define_intent_patterns(self):
         """
         Define patrones de intenciones usando el Matcher de spaCy.
-        Cada patrón es una lista de diccionarios con condiciones sobre los tokens.
         """
-
-        # Ejemplo de patrones por intención
-        # Nota: Usamos LOWER para detectar en minúsculas.
-        # Puedes agregar más palabras clave según necesites.
-
-        # Saludo
-        saludo_patterns = [[{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "buenas noches"]}}]]
+        saludo_patterns = [
+            [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "buenas noches"]}}]
+        ]
         self.matcher.add("saludo", saludo_patterns)
-
-        # Despedida
-        despedida_patterns = [[{"LOWER": {"IN": ["adiós", "hasta luego", "nos vemos", "chao", "ciao"]}}]]
-        self.matcher.add("despedida", despedida_patterns)
-
-        # Iniciar conversacion
-        iniciar_conversacion_patterns = [[{"LOWER": {"IN": ["reiniciar", "reset", "empezar", "empezar de nuevo"]}}]]
-        self.matcher.add("iniciar_conversacion", iniciar_conversacion_patterns)
-
-        # Menu
-        menu_patterns = [[{"LOWER": {"IN": ["menu", "menú", "main", "menú principal"]}}]]
-        self.matcher.add("menu", menu_patterns)
-
-        # Consultar estatus
-        # Podríamos buscar palabras clave como "estatus", "estado", "aplicación"
-        consultar_estatus_patterns = [
-            [{"LEMMA": "consultar"}, {"LOWER": {"IN": ["estatus", "estado"]}}, {"LOWER": {"IN": ["aplicación", "aplicacion"]}}]
-        ]
-        self.matcher.add("consultar_estatus", consultar_estatus_patterns)
-
-        # Solicitar ayuda postulación
-        # Buscar frases como "ayuda con la postulación", "asistencia para postular"
-        solicitar_ayuda_postulacion_patterns = [
-            [{"LEMMA": {"IN": ["necesitar", "ayuda", "asistencia"]}}, {"LOWER": {"IN": ["postular", "postulación", "aplicar"]}}]
-        ]
-        self.matcher.add("solicitar_ayuda_postulacion", solicitar_ayuda_postulacion_patterns)
-
-        # Travel in group (amigro)
-        travel_in_group_patterns = [
-            [{"LOWER": {"IN": ["viajando", "caravana", "grupo", "familia"]}}, {"LOWER": {"IN": ["grupo", "familia", "migrantes"]}}]
-        ]
-        self.matcher.add("travel_in_group", travel_in_group_patterns)
-
-        # Ver vacantes
-        ver_vacantes_patterns = [
-            [{"LOWER": {"IN": ["ver", "mostrar", "necesito"]}}, {"LOWER": {"IN": ["vacantes", "empleos", "oportunidades"]}}]
-        ]
-        self.matcher.add("ver_vacantes", ver_vacantes_patterns)
-
-        # Negacion (ej para el caso de invitaciones)
-        negacion_patterns = [[{"LOWER": {"IN": ["no", "no gracias"]}}]]
-        self.matcher.add("negacion", negacion_patterns)
-
-        # Agradecimiento
-        agradecimiento_patterns = [[{"LOWER": {"IN": ["gracias", "te agradezco", "muy amable"]}}]]
-        self.matcher.add("agradecimiento", agradecimiento_patterns)
-
-        # Impacto social (huntU)
-        impacto_social_patterns = [
-            [{"LOWER": {"IN": ["impacto", "social", "propósito", "proposito"]}}, {"LOWER": {"IN": ["trabajo", "empleo"]}}]
-        ]
-        self.matcher.add("busqueda_impacto", impacto_social_patterns)
-
-        # Solicitar información de la empresa
-        solicitar_informacion_empresa_patterns = [
-            [{"LOWER": "información"}, {"LOWER": "empresa"}],
-            [{"LOWER": "háblame"}, {"LOWER": "empresa"}]
-        ]
-        self.matcher.add("solicitar_informacion_empresa", solicitar_informacion_empresa_patterns)
-
-        # Solicitar tips entrevista
-        tips_entrevista_patterns = [
-            [{"LOWER": {"IN": ["consejos", "tips"]}}, {"LOWER": {"IN": ["entrevista", "entrevistas"]}}]
-        ]
-        self.matcher.add("solicitar_tips_entrevista", tips_entrevista_patterns)
-        
-        # Consultar sueldo de mercado
-        consultar_sueldo_patterns = [
-            [{"LOWER": {"IN": ["rango", "salario", "promedio"]}}, {"LOWER": {"IN": ["mercado", "mercado laboral"]}}]
-        ]
-        self.matcher.add("consultar_sueldo_mercado", consultar_sueldo_patterns)
-
-        # Actualizar perfil
-        actualizar_perfil_patterns = [
-            [{"LOWER": {"IN": ["actualizar", "cambiar"]}}, {"LOWER": {"IN": ["perfil", "datos"]}}]
-        ]
-        self.matcher.add("actualizar_perfil", actualizar_perfil_patterns)
+        logger.debug("Patrones de intenciones definidos en NLPProcessor.")
 
     def analyze(self, text: str) -> dict:
         """
         Procesa el texto: detecta intenciones, entidades y sentimiento.
-        Retorna un dict con "intents", "entities", "sentiment".
         """
-        doc = self.nlp(text.lower())
-
-        # Detectar Intents con Matcher
-        matches = self.matcher(doc)
-        detected_intents = []
-        for match_id, start, end in matches:
-            intent = self.nlp.vocab.strings[match_id]
-            if intent not in detected_intents:
-                detected_intents.append(intent)
-
-        # Extraer entidades nombradas
+        doc = nlp(text.lower())
         entities = [(ent.text, ent.label_) for ent in doc.ents]
 
-        # Analizar sentimiento (con NLTK VADER)
-        sentiment = self.sia.polarity_scores(text)
+        # Detectar intenciones
+        matches = self.matcher(doc)
+        intents = [nlp.vocab.strings[match_id] for match_id, start, end in matches]
 
+        # Analizar sentimiento
+        sentiment = self.sia.polarity_scores(text) if self.sia else {}
+
+        logger.debug(f"Análisis completado para el texto: {text}")
         return {
-            "intents": detected_intents,
             "entities": entities,
+            "intents": intents,
             "sentiment": sentiment
         }
-    
+
+    def extract_skills(self, text: str) -> list:
+        """
+        Usa SkillExtractor para extraer habilidades del texto.
+        """
+        if USE_SKILL_EXTRACTOR and sn:
+            try:
+                skills = sn.annotate(text)
+                logger.debug(f"Habilidades extraídas: {skills.get('results', [])}")
+                return skills.get("results", [])
+            except Exception as e:
+                logger.error(f"Error extrayendo habilidades: {e}")
+                return []
+        else:
+            logger.warning("SkillExtractor está deshabilitado o no se ha inicializado.")
+            return []
+
     def infer_gender(self, name: str) -> str:
         """
         Infiera el género basado en el nombre.
         """
         GENDER_DICT = {"jose": "M", "maria": "F", "andrea": "O"}  # Ejemplo
-        gender_count = {"M": 0, "F": 0}
+        gender_count = {"M": 0, "F": 0, "O": 0}
         for part in name.lower().split():
-            gender_count[GENDER_DICT.get(part, "O")] += 1
-        return "M" if gender_count["M"] > gender_count["F"] else "F" if gender_count["F"] > gender_count["M"] else "O"
+            gender = GENDER_DICT.get(part, "O")
+            gender_count[gender] += 1
+        inferred_gender = "M" if gender_count["M"] > gender_count["F"] else \
+                          "F" if gender_count["F"] > gender_count["M"] else "O"
+        logger.debug(f"Género inferido para '{name}': {inferred_gender}")
+        return inferred_gender
+
+# Crear una instancia singleton de NLPProcessor para uso global
+nlp_processor = NLPProcessor()

@@ -1,7 +1,7 @@
-# /home/amigro/app/catalogs.py
+# /home/pablollh/app/catalogs.py
 
 BUSINESS_UNITS = {
-    "huntRED® Executive": [
+    "huntRED® Executive": {
         "Chief Executive Officer",
         "Chief Financial Officer",
         "Chief Revenue Officer",
@@ -11,8 +11,8 @@ BUSINESS_UNITS = {
         "CCO - Director Comercial / Director de Ventas / Director de Desarrollo Comercial",
         "CDO - Director Digital / Director de Transformación / Chief Digital Officer",
         "Miembros de Consejo"
-    ],
-    "huntRED®":[
+    },
+    "huntRED®":{
         "Servicios Financieros": {
             "Banca y Entidades Financieras": [
                 "Director Comercial (Posicion Analizada)",
@@ -449,7 +449,8 @@ BUSINESS_UNITS = {
                 "Analista de Reportes de Impacto",
                 "Director de Comunicación y Reportes de Sostenibilidad"
             ]
-        },],
+        },
+    },
     "huntU®": {  # Unidad de Negocio para Estudiantes y Recientes Egresados
         "Servicios Financieros": [
             "Analista Financiero Junior",
@@ -627,7 +628,7 @@ DIVISIONES = [
     "Responsabilidad Social y Sustentabilidad"
 ]
 
-# /home/amigro/app/catalogs.py
+# /home/pablollh/app/catalogs.py
 
 DIVISION_SKILLS = {
     "huntRED® Executive": {

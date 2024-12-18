@@ -1,4 +1,4 @@
-# /home/amigro/app/integrations/services.py
+# /home/pablollh/app/integrations/services.py
 
 import logging
 import smtplib

@@ -1,4 +1,4 @@
-# Ubicación: /home/amigro/app/tests.py
+# Ubicación: /home/pablollh/app/tests.py
 
 from django.test import TestCase, Client
 from unittest.mock import patch

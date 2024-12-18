@@ -1,4 +1,4 @@
-# Ubicación: /home/amigro/app/vacantes.py
+# Ubicación: /home/pablollh/app/vacantes.py
 
 import requests
 import logging

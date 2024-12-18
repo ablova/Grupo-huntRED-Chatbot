@@ -1,11 +1,11 @@
-# /home/amigro/app/milkyleak.py
+# /home/pablollh/app/milkyleak.py
 import random
 import logging
 import time
 import os
 from io import BytesIO
 from django.shortcuts import render, get_object_or_404
-from .models import MilkyLeak
+from app.models import MilkyLeak
 from ..chatbot_django import post_image_task  # Importar de Celery para manejar tareas asincrónicas
 #from mega import Mega
 import dropbox  # Añadido para manejar la API de Dropbox
@@ -50,7 +50,6 @@ PHRASES = [
     "This one’s for all the dreamers.", 
     "Hope this inspires you!",
 ]
-
 # Lista de hashtags populares
 HASHTAGS = [
     "#MilkyLeak", "#ArtErotico", "#FotografiaErotica", "#SensualArt", "#NSFW", 
