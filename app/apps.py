@@ -1,4 +1,4 @@
-# /home/amigro/app/apps.py
+# /home/pablollh/app/apps.py
 import logging
 from django.apps import AppConfig
 from django.conf import settings

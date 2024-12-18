@@ -3,13 +3,13 @@ cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
 git add .
 git commit -m "Actualización repositorio Git (date)"
 git remote remove production
-git remote add production git@chatbot.amigro.org:/home/amigro/git/chatbot.git
+git remote add production git@chatbot.amigro.org:/home/pablollh/git/chatbot.git
 git push production main
 
 #git remote -v
 sudo journalctl -u gunicorn -f
 sudo journalctl -u celery -f
-cat /home/amigro/logs/error.log
+cat /home/pablollh/logs/error.log
 
 gcloud compute ssh pablollh@amigro --zone=us-central1-a --project=amigro 
 
@@ -1431,7 +1431,7 @@ sudo crontab -l
 
 cat /etc/crontab
 ls /etc/cron.*
-cat /home/amigro/logs/*.log | grep "03:0"
+cat /home/pablollh/logs/*.log | grep "03:0"
 celery -A chatbot_django inspect active
 
 
@@ -1758,7 +1758,7 @@ for empresa in empresas:
         print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
 
 
-cd /home/amigro && source venv/bin/activate
+cd /home/pablollh && source venv/bin/activate
 
 from app.linkedin import slow_scrape_from_csv
 from app.models import BusinessUnit
@@ -1766,7 +1766,7 @@ from app.models import BusinessUnit
 # Encuentra la Business Unit asociada
 business_unit = BusinessUnit.objects.filter(name="huntRED").first()
 if business_unit:
-    slow_scrape_from_csv('/home/amigro/connections.csv', business_unit)
+    slow_scrape_from_csv('/home/pablollh/connections.csv', business_unit)
 else:
     print("No se encontró la Business Unit con el nombre 'huntRED'.")
 
@@ -1780,7 +1780,7 @@ def revert_scraped_flag():
         person.save()
     logger.info(f"Revertido el estado 'scraped' en {persons.count()} perfiles.")
 
-cat /home/amigro/logs/debug.log | grep --color=auto -E "Perfil enriquecido"
+cat /home/pablollh/logs/debug.log | grep --color=auto -E "Perfil enriquecido"
 
 from app.tasks import slow_scrape_from_csv
 from app.models import BusinessUnit, revert_scraped_flag
@@ -1789,7 +1789,7 @@ from app.models import BusinessUnit, revert_scraped_flag
 bu = BusinessUnit.objects.first()
 
 # Ejecutar scraping
-slow_scrape_from_csv('/home/amigro/connections.csv', bu)
+slow_scrape_from_csv('/home/pablollh/connections.csv', bu)
 
 # Revertir estado si es necesario
 revert_scraped_flag()

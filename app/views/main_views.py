@@ -1,4 +1,4 @@
-# /home/amigro/app/views/main_views.py
+# /home/pablollh/app/views/main_views.py
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View

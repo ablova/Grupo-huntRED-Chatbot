@@ -1,4 +1,4 @@
-# /home/amigro/app/views/ml_views.py
+# /home/pablollh/app/views/ml_views.py
 from app.tasks import train_ml_task
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt

@@ -1,4 +1,4 @@
-# /home/amigro/app/integrations/telegram.py
+# /home/pablollh/app/integrations/telegram.py
 
 import logging
 import json

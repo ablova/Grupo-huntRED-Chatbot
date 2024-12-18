@@ -1,4 +1,4 @@
-# Ubicación /home/amigro/app/integrations/whatsapp.py
+# Ubicación /home/pablollh/app/integrations/whatsapp.py
 
 import json
 import httpx
@@ -319,7 +319,7 @@ async def handle_image_message(platform, sender_id, image_data, business_unit):
     logger.info(f"Imagen recibida de {sender_id}. Procesando imagen...")
 
     # Guardar la imagen en el sistema de archivos
-    image_path = f"/home/amigro/app/static/images/{sender_id}_{int(time.time())}.jpg"
+    image_path = f"/home/pablollh/app/static/images/{sender_id}_{int(time.time())}.jpg"
     try:
         with open(image_path, 'wb') as f:
             f.write(image_data)

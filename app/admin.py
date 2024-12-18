@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/amigro/app/admin.py
+# Ubicación del archivo: /home/pablollh/app/admin.py
 from django.contrib import admin, messages
 from django.urls import reverse, path
 from django.template.response import TemplateResponse

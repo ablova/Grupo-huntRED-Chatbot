@@ -1,4 +1,4 @@
-# /home/amigro/app/templatetags/custom_tags.py
+# /home/pablollh/app/templatetags/custom_tags.py
 
 from django import template
 

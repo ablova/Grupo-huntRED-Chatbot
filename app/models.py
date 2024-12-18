@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/amigro/app/models.py
+# Ubicación del archivo: /home/pablollh/app/models.py
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
@@ -372,7 +372,7 @@ class JobTracker(models.Model):
     def __str__(self):
         return f"Job Tracker para {self.opportunity.title}"
     
-    @receiver(post_save, sender=JobTracker)
+#    @receiver(post_save, sender=JobTracker)
     def handle_job_tracker_status_change(sender, instance, **kwargs):
         if instance.status == 'completed':
             # Enviar notificación o actualizar otra tabla
@@ -735,7 +735,7 @@ class UserInteractionLog(models.Model):
     # Configuraciones adicionales
 #    folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")
 #    image_prefix = models.CharField(max_length=50, help_text='ML_')
-#    local_directory = models.CharField(max_length=255, default='/home/amigro/media', help_text="Directorio local temporal para imágenes")
+#    local_directory = models.CharField(max_length=255, default='/home/pablollh/media', help_text="Directorio local temporal para imágenes")
 
     # Contador de imágenes
 #    image_counter = models.PositiveIntegerField(default=1)

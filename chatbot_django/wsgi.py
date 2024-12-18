@@ -1,4 +1,4 @@
-# /home/amigro/chatbot_django/wsgi.py
+# /home/pablollh/chatbot_django/wsgi.py
 """
 WSGI config for chatbot_django project.
 

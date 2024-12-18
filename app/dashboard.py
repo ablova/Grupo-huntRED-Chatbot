@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/amigro/app/dashboard.py
+# Ubicación del archivo: /home/pablollh/app/dashboard.py
 from admin_tools.dashboard import modules, Dashboard
 from django.utils.timezone import now
 from app.models import Application, Vacante

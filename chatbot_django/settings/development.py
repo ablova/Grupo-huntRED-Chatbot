@@ -1,4 +1,4 @@
-# /home/amigro/chatbot_django/settings/development.py
+# /home/pablollh/chatbot_django/settings/development.py
 from ..settings import *
 
 DEBUG = True

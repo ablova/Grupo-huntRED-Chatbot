@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/amigro/chatbot_django/settings.py
+# Ubicación del archivo: /home/pablollh/chatbot_django/settings.py
 # Archivo Base de Configuración de Django
 
 

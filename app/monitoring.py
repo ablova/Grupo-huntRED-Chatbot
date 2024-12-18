@@ -1,4 +1,4 @@
-#Archivo: /home/amigro/app/monitoring.py
+#Archivo: /home/pablollh/app/monitoring.py
 
 from django.db.models import Count
 from app.models import ChatState, Vacante

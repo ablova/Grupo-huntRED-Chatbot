@@ -1,4 +1,4 @@
-# Ubicación: /home/amigro/app/chatbot.py
+# Ubicación: /home/pablollh/app/chatbot.py
 import logging
 import asyncio
 import re

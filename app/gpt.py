@@ -1,4 +1,4 @@
-# /home/amigro/app/gpt.py
+# /home/pablollh/app/gpt.py
 import logging
 import openai
 from typing import Dict, Optional
