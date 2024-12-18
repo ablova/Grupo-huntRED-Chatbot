@@ -3,7 +3,7 @@ cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
 git add .
 git commit -m "Actualización repositorio Git (date)"
 git remote remove production
-git remote add production git@chatbot.amigro.org:/home/pablollh/git/chatbot.git
+git remote add production git@ai.huntred.com:/home/pablollh/git/chatbot.git
 git push production main
 
 #git remote -v
@@ -14,7 +14,7 @@ cat /home/pablollh/logs/error.log
 gcloud compute ssh pablollh@amigro --zone=us-central1-a --project=amigro 
 
 ssh -i ~/.ssh/id_rsa_chatbot git@35.209.109.141
-ssh chatbot.amigro.org
+ssh ai.huntred.com
 
 sudo journalctl --vacuum-time=2minutes
 sudo journalctl --rotate
@@ -30,8 +30,8 @@ ps aux --sort=-%mem | head -n 15
 ps aux | grep -E "python|celery"
 
 # Check Celery worker processes
-celery -A chatbot_django inspect stats
-celery -A chatbot_django inspect registered
+celery -A ai_huntred inspect stats
+celery -A ai_huntred inspect registered
 
 # List active Celery workers
 ps aux | grep celery-worker
@@ -50,7 +50,7 @@ python manage.py shell
 
 # Then in the Python shell, you can import and profile specific tasks
 from memory_profiler import profile
-from chatbot_django import your_specific_task
+from ai_huntred import your_specific_task
 
 # Example of profiling a specific task
 @profile
@@ -61,7 +61,7 @@ profile_task()
 
 # Then in the Python shell, you can import and profile specific tasks
 from memory_profiler import profile
-from chatbot_django import your_specific_task
+from ai_huntred import your_specific_task
 
 # Example of profiling a specific task
 @profile
@@ -75,7 +75,7 @@ pip install supervisor
 
 # Sample supervisord configuration
 [program:celery-worker]
-command=/path/to/venv/bin/celery -A chatbot_django worker
+command=/path/to/venv/bin/celery -A ai_huntred worker
 autostart=true
 autorestart=true
 stderr_logfile=/var/log/celery/worker.err.log
@@ -120,21 +120,21 @@ else:
 send_message('whatsapp', 525518490291, f"Respuesta: Prueba desde shell de webhook")
 
 
-from chatbot_django import send_whatsapp_message
+from ai_huntred import send_whatsapp_message
 
 # Ejecuta la tarea en segundo plano
 send_whatsapp_message.delay('525518490291', 'Hola desde el chatbot de Amigro, desde shell!')
 
 
-celery -A chatbot_django worker --loglevel=info
+celery -A ai_huntred worker --loglevel=info
 
-from chatbot_django.celery import debug_task
+from ai_huntred.celery import debug_task
 debug_task.delay()
 
-celery -A chatbot_django worker --loglevel=info
-celery -A chatbot_django beat --loglevel=info
+celery -A ai_huntred worker --loglevel=info
+celery -A ai_huntred beat --loglevel=info
 
-from chatbot_django import check_and_update_whatsapp_token
+from ai_huntred import check_and_update_whatsapp_token
 check_and_update_whatsapp_token.delay()
 
 from app.models import WhatsAppAPI
@@ -257,7 +257,7 @@ telegram_api = TelegramAPI.objects.first()
 bot_token = telegram_api.api_key
 
 # Consulta las vacantes
-vacantes = consult(1, "https://amigro.org/jm-ajax/get_listings/")
+vacantes = consult(1, "https://huntred.com/jm-ajax/get_listings/")
 
 # Formatea el mensaje con la información de vacantes
 mensaje_vacantes = "Vacantes disponibles para ti:\n"
@@ -762,7 +762,7 @@ def send_whatsapp_template(phone_number, token, image_url):
                     "parameters": [
                         {
                             "type": "text",
-                            "text": "https://amigro.org"  # Enlace que será abierto al pulsar el botón
+                            "text": "https://huntred.com"  # Enlace que será abierto al pulsar el botón
                         }
                     ]
                 }
@@ -822,7 +822,7 @@ def send_whatsapp_template(phone_number, token, image_url):
         return None
 
 # Ejemplo de uso con una URL de imagen de ejemplo
-image_url = "https://amigro.org/registro.png"  # Reemplaza con tu URL de imagen
+image_url = "https://huntred.com/registro.png"  # Reemplaza con tu URL de imagen
 token = "EAAJaOsnq2vgBOxatkizgaMhE6dk4jEtbWchTiuHK7XXDbsZAlekvZCldWTajCXABVAGQW9XUbZAdy6IZBoUqZBctEHm6H5mSfP9nAbQ5dZAPbf9P1WkHh4keLT400yhvvbZAEq34e9dlkIp2RwsPqK9ghG6H244SZAFK4V5Oo7FiDl9DdM5j5EhXCY5biTrn7cmzYwZDZD"  # Reemplaza con tu token real
 
 # Prueba de la función
@@ -1390,7 +1390,7 @@ print(vacantes)
 
 response_registro = register(
     username="usuario_prueba",
-    email="usuario_prueba@amigro.org",
+    email="usuario_prueba@huntred.com",
     password="password123",
     name="Nombre",
     lastname="Apellido"
@@ -1432,7 +1432,7 @@ sudo crontab -l
 cat /etc/crontab
 ls /etc/cron.*
 cat /home/pablollh/logs/*.log | grep "03:0"
-celery -A chatbot_django inspect active
+celery -A ai_huntred inspect active
 
 
 import asyncio
@@ -1563,7 +1563,7 @@ if not created:
 
 from app.gpt import GPTHandler
 gpt_handler = GPTHandler()
-response = gpt_handler.generate_response("Hola, ¿puedes presentarte, y ayudarme en crear el perfil de usuarios de amigro.org?")
+response = gpt_handler.generate_response("Hola, ¿puedes presentarte, y ayudarme en crear el perfil de usuarios de huntred.com?")
 print(response)
 
 

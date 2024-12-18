@@ -1,6 +1,6 @@
-# /home/pablollh/chatbot_django/wsgi.py
+# /home/pablollh/ai_huntred/wsgi.py
 """
-WSGI config for chatbot_django project.
+WSGI config for ai_huntred project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -10,6 +10,6 @@ https://docs.djangoproject.com/en/3.2/howto/deployment/wsgi/
 import os
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chatbot_django.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 
 application = get_wsgi_application()

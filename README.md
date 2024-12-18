@@ -20,11 +20,11 @@
 
 ## Introducción
 
-Este documento describe la arquitectura, las funcionalidades y las integraciones del sistema de chatbot de Amigro.org. El chatbot está diseñado para interactuar con los usuarios a través de múltiples plataformas de mensajería, proporcionando asistencia en tiempo real, gestión de perfiles, búsqueda de vacantes laborales y más.
+Este documento describe la arquitectura, las funcionalidades y las integraciones del sistema de chatbot de huntred.com. El chatbot está diseñado para interactuar con los usuarios a través de múltiples plataformas de mensajería, proporcionando asistencia en tiempo real, gestión de perfiles, búsqueda de vacantes laborales y más.
 
 ## Arquitectura del Sistema
 
-El sistema de chatbot de Amigro.org está construido utilizando Django como framework principal, aprovechando la capacidad asíncrona de Python para manejar múltiples solicitudes simultáneamente. Las principales componentes incluyen:
+El sistema de chatbot de huntred.com está construido utilizando Django como framework principal, aprovechando la capacidad asíncrona de Python para manejar múltiples solicitudes simultáneamente. Las principales componentes incluyen:
 
 - **Django Models:** Definen las estructuras de datos para usuarios, estados de chat, configuraciones de API, y flujos de conversación.
 - **Integraciones de Plataformas:** Módulos dedicados para manejar la comunicación con diferentes plataformas de mensajería (WhatsApp, Messenger, Telegram, Instagram).
@@ -815,8 +815,8 @@ class ChatBotHandler:
             user = await sync_to_async(Person.objects.get)(phone=user_id)
             email = user.email
             if email:
-                subject = "Completa tu perfil en Amigro.org"
-                body = f"Hola {user.name},\n\nPor favor completa tu perfil en Amigro.org para continuar."
+                subject = "Completa tu perfil en huntred.com"
+                body = f"Hola {user.name},\n\nPor favor completa tu perfil en huntred.com para continuar."
                 await send_email(
                     business_unit_name=user.business_unit.name,
                     subject=subject,
@@ -1104,7 +1104,7 @@ class ChatBotHandler:
 
         if created:
             mensaje = (
-                f"Hola {name}, has sido invitado por {referrer.name} a unirte a Amigro.org. "
+                f"Hola {name}, has sido invitado por {referrer.name} a unirte a huntred.com. "
                 "¡Encuentra empleo en México de manera segura, gratuita e incluso podemos asesorarte en temas migrantes!"
             )
             await send_message("whatsapp", phone_number, mensaje)
@@ -1473,7 +1473,7 @@ async def get_api_instance(platform: str, business_unit):
 async def send_logo(platform, user_id, business_unit):
     try:
         configuracion = await ConfiguracionBU.objects.filter(business_unit=business_unit).afirst()
-        image_url = configuracion.logo_url if configuracion else "https://amigro.org/logo.png"
+        image_url = configuracion.logo_url if configuracion else "https://huntred.com/logo.png"
 
         if platform == 'whatsapp':
             await send_message_with_image(platform, user_id, '', image_url, business_unit)
@@ -1516,7 +1516,7 @@ async def send_image(platform, user_id, message, image_url, business_unit):
 
 async def send_menu(platform, user_id, business_unit):
     menu_message = """
-El Menú Principal de Amigro.org
+El Menú Principal de huntred.com
 1 - Bienvenida
 2 - Registro
 3 - Ver Oportunidades
@@ -2365,7 +2365,7 @@ async def invite_known_person(referrer, name, apellido, phone_number):
         await sync_to_async(Invitacion.objects.create)(referrer=referrer, invitado=invitado)
 
         if created:
-            mensaje = f"Hola {name}, has sido invitado por {referrer.nombre} a unirte a Amigro.org. ¡Únete a nuestra comunidad!"
+            mensaje = f"Hola {name}, has sido invitado por {referrer.nombre} a unirte a huntred.com. ¡Únete a nuestra comunidad!"
             await send_whatsapp_message(phone_number, mensaje, referrer.api_token, referrer.phoneID, referrer.v_api)
 
         return invitado
@@ -2401,14 +2401,14 @@ async def registro_amigro(recipient, access_token, phone_id, version_api, form_d
                 "components": [
                     {
                         "type": "header",
-                        "parameters": [{"type": "image", "image": {"link": "https://amigro.org/registro2.png"}}]
+                        "parameters": [{"type": "image", "image": {"link": "https://huntred.com/registro2.png"}}]
                     },
                     {"type": "body", "parameters": []},
                     {
                         "type": "button",
                         "sub_type": "FLOW",
                         "index": "0",
-                        "parameters": [{"type": "text", "text": "https://amigro.org"}]
+                        "parameters": [{"type": "text", "text": "https://huntred.com"}]
                     }
                 ]
             }
@@ -2451,14 +2451,14 @@ async def nueva_posicion_amigro(recipient, access_token, phone_id, version_api, 
                 "components": [
                     {
                         "type": "header",
-                        "parameters": [{"type": "image", "image": {"link": "https://amigro.org/registro.png"}}]
+                        "parameters": [{"type": "image", "image": {"link": "https://huntred.com/registro.png"}}]
                     },
                     {"type": "body", "parameters": [{"type": "text", "text": "Hola, bienvenido a Amigro!"}]},
                     {
                         "type": "button",
                         "sub_type": "FLOW",
                         "index": "0",
-                        "parameters": [{"type": "text", "text": "https://amigro.org"}]
+                        "parameters": [{"type": "text", "text": "https://huntred.com"}]
                     }
                 ]
             }

@@ -229,7 +229,7 @@ async def send_logo(platform, user_id, business_unit):
     """
     try:
         configuracion = await sync_to_async(ConfiguracionBU.objects.filter(business_unit=business_unit).first)()
-        image_url = configuracion.logo_url if configuracion else "https://amigro.org/logo.png"
+        image_url = configuracion.logo_url if configuracion else "https://huntred.com/logo.png"
 
         if platform == 'whatsapp':
             await send_message(platform, user_id, 'Aquí tienes nuestro logo:', business_unit, options=[{'type': 'image', 'url': image_url}])
@@ -256,7 +256,7 @@ async def send_menu(platform, user_id, business_unit):
     Envía el menú principal al usuario.
     """
     menu_message = """
-El Menú Principal de Amigro.org
+El Menú Principal de huntred.com
 1 - Bienvenida
 2 - Registro
 3 - Ver Oportunidades

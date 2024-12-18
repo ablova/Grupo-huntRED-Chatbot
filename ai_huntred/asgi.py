@@ -1,6 +1,6 @@
-# /home/pablollh/chatbot_django/asgi.py
+# /home/pablollh/ai_huntred/asgi.py
 """
-ASGI config for chatbot_django project.
+ASGI config for ai_huntred project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -12,6 +12,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chatbot_django.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 
 application = get_asgi_application()

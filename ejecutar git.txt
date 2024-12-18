@@ -17,7 +17,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git .
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Mejora a Parser, linkedin y scraping, con ajustes en ML y tasks..." &&
+git commit -m "Ajustado a /home/pablollh. Mejora a Parser, linkedin y scraping, con ajustes en ML y tasks..." &&
 git push origin main
 
 
@@ -82,16 +82,16 @@ python manage.py makemigrations
 python manage.py migrate
 python manage.py migrate django_celery_beat
 
-celery -A chatbot_django beat -l info
-celery -A chatbot_django worker -l info
+celery -A ai_huntred beat -l info
+celery -A ai_huntred worker -l info
 
 python manage.py shell
 >>> from django_celery_beat.models import PeriodicTask
 >>> PeriodicTask.objects.filter(enabled=True)
 
 
-celery -A chatbot_django inspect scheduled
-celery -A chatbot_django inspect active
+celery -A ai_huntred inspect scheduled
+celery -A ai_huntred inspect active
 tail -f /var/log/syslog
 tail -f /var/log/celery/worker.log
 tail -f /var/log/celery/beat.log
@@ -104,7 +104,7 @@ config = Configuracion.objects.first()
 send_whatsapp_msg(config.test_phone_number, "¡Hola! Esta es una prueba de notificación desde el chatbot Amigro.", '114521714899382')
 
 
-curl -v "https://chatbot.amigro.org/webhook/whatsapp/048bd814-7716-4073-8acf-d491db68e9a1/"
+curl -v "https://ai.huntred.com/webhook/whatsapp/048bd814-7716-4073-8acf-d491db68e9a1/"
 
 
 
