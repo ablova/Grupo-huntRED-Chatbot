@@ -28,9 +28,9 @@ def interacciones_por_unidad(request):
     Vista para mostrar estadísticas de interacciones por unidad de negocio.
     """
     data = []
-    units = BusinessUnit.objects.all()
+    units = BusinessUnit.objects.prefetch_related('chatstate_set').all()
     for unit in units:
-        count = ChatState.objects.filter(platform__icontains=unit.name.lower()).count()
+        count = unit.chatstate_set.filter(platform__icontains=unit.name.lower()).count()
         data.append({'unidad': unit.name, 'interacciones': count})
     return render(request, 'admin/estadisticas/interacciones.html', {'data': data})
 

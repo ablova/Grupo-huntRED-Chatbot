@@ -5,6 +5,7 @@ import asyncio
 import random
 from celery import shared_task, chain, group
 from celery.schedules import crontab
+from django_celery_beat.models import PeriodicTask, CrontabSchedule, IntervalSchedule
 from ai_huntred.celery import app
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -33,11 +34,13 @@ from app.linkedin import (
     slow_scrape_from_csv,
     scrape_linkedin_profile
 )
-from app.scraping import validar_url, extraer_detalles_sublink, run_scraper
+from app.scraping import validar_url, extraer_detalles_sublink, run_scraper, ScrapingCoordinator
 from app.utils import haversine_distance, sanitize_business_unit_name
 from app.ml_model import GrupohuntREDMLPipeline
 from celery.exceptions import MaxRetriesExceededError
 from app.catalogs import DIVISIONES
+import json
+import os
 
 logger = logging.getLogger('celery_tasks')
 
@@ -48,7 +51,7 @@ logger = logging.getLogger('celery_tasks')
 app.conf.beat_schedule.update({
     'execute_ml_and_scraping_daily': {
         'task': 'app.tasks.execute_ml_and_scraping',
-        'schedule': crontab(hour=11, minute=30),  # Primera ejecución a las 11:30 AM
+        'schedule': crontab(hour=7, minute=30),  # Primera ejecución a las 7:30 AM
     },
     'execute_ml_and_scraping_daily_late': {
         'task': 'app.tasks.execute_ml_and_scraping',
@@ -60,7 +63,7 @@ app.conf.beat_schedule.update({
     },
     'send_consolidated_reports': {
         'task': 'app.tasks.generate_and_send_reports',
-        'schedule': crontab(hour=8, minute=0),  # Ejecuta a las 8:00 AM diariamente
+        'schedule': crontab(hour=8, minute=40),  # Ejecuta a las 8:40 AM diariamente
     },
     'send_anniversary_reports': {
         'task': 'app.tasks.generate_and_send_anniversary_reports',
@@ -74,6 +77,10 @@ app.conf.beat_schedule.update({
         'task': 'app.tasks.limpieza_vacantes',
         'schedule': crontab(day_of_month='1', month_of_year='1,4,7,11', hour=0, minute=0),
     },
+    'execute_scraping_daily': {
+        'task': 'app.tasks.ejecutar_scraping',
+        'schedule': crontab(hour=2, minute=0),
+    },
     'verify_scraping_domains_daily': {
         'task': 'app.tasks.verificar_dominios_scraping',
         'schedule': crontab(hour=2, minute=0),
@@ -81,6 +88,10 @@ app.conf.beat_schedule.update({
     'train_ml_models_daily': {
         'task': 'app.tasks.train_ml_task',
         'schedule': crontab(hour=3, minute=0),  # Entrenar modelos diariamente a las 3 AM
+    },
+    'check-emails-every-hour': {
+        'task': 'app.tasks.check_emails_and_parse_cvs',
+        'schedule': crontab(minute=0, hour='*'),  # Cada hora
     },
 })
 
@@ -113,7 +124,61 @@ app.conf.task_routes = {
     'app.tasks.send_messenger_message': {'queue': 'notifications'},
     # Añade otras tareas según sea necesario
 }
+def register_periodic_tasks():
+    """
+    Registra tareas periódicas en Celery Beat si no están configuradas.
+    """
+    # Lista de tareas y sus configuraciones
+    tasks = [
+        {
+            "name": "Execute ML and Scraping Daily",
+            "task": "app.tasks.execute_ml_and_scraping",
+            "crontab": {"hour": 7, "minute": 30},
+        },
+        {
+            "name": "Send Daily Notifications",
+            "task": "app.tasks.send_daily_notification",
+            "crontab": {"hour": "*", "minute": 0},
+        },
+        {
+            "name": "Train ML Models Daily",
+            "task": "app.tasks.train_ml_task",
+            "crontab": {"hour": 3, "minute": 0},
+        },
+        {
+            "name": "Ejecutar Scraping Diario",
+            "task": "app.tasks.ejecutar_scraping",
+            "crontab": {"hour": 2, "minute": 0},
+        },
+        {
+            "name": "Verify Scraping Domains Daily",
+            "task": "app.tasks.verificar_dominios_scraping",
+            "crontab": {"hour": 2, "minute": 30},
+        },
+        {
+            "name": "Clean Vacantes Database",
+            "task": "app.tasks.limpieza_vacantes",
+            "crontab": {"day_of_month": "1", "month_of_year": "1,4,7,11", "hour": 0, "minute": 0},
+        },
+    ]
 
+    for task_info in tasks:
+        crontab_schedule, _ = CrontabSchedule.objects.get_or_create(**task_info["crontab"])
+        PeriodicTask.objects.get_or_create(
+            crontab=crontab_schedule,
+            name=task_info["name"],
+            task=task_info["task"],
+        )
+        logger.info(f"📌 Tarea registrada: {task_info['name']}")
+
+
+# Llama a la función en el inicio del archivo o donde sea necesario
+register_periodic_tasks()
+
+
+@shared_task
+def add(x, y):
+    return x + y
 # =========================================================
 # Tareas relacionadas con notificaciones
 # =========================================================
@@ -235,59 +300,51 @@ def train_matchmaking_model_task(self, business_unit_id):
 # =========================================================
 # Tareas relacionadas con el scraping programado
 # =========================================================
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def ejecutar_scraping(self, dominio_id=None):
+    """
+    Ejecuta el scraping para un dominio específico.
+
+    Args:
+        dominio_id (int): ID del dominio a scrapear.
+    """
+    try:
+        dominio = DominioScraping.objects.get(id=dominio_id)
+        logger.info(f"🚀 Iniciando scraping para {dominio.empresa} ({dominio.dominio})...")
+        
+        # Ejecutar la función de scraping asíncrona
+        vacantes = asyncio.run(run_scraper(dominio))
+        
+        logger.info(f"✅ Vacantes extraídas para {dominio.empresa}: {len(vacantes)}")
+        
+        # Mostrar las primeras 10 vacantes extraídas
+        for vacante in vacantes[:10]:
+            logger.info(f"   - Título: {vacante.get('title', 'Sin título')}")
+            logger.info(f"     Ubicación: {vacante.get('location', 'Sin ubicación')}")
+            logger.info(f"     Salario: {vacante.get('salary', 'No especificado')}")
+            logger.info(f"     Publicado en: {vacante.get('posted_date', 'No especificado')}")
+            logger.info(f"     URL: {vacante.get('url', 'No disponible')}")
+            logger.info("")
+    
+    except DominioScraping.DoesNotExist:
+        logger.error(f"❌ DominioScraping con ID {dominio_id} no existe.")
+    except Exception as e:
+        logger.error(f"❌ Error al realizar scraping para el dominio ID {dominio_id}: {e}", exc_info=True)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def ejecutar_scraping(self):
-    """
-    Ejecuta scraping programado (ej. diario).
-    """
-    logger.info("🚀 Iniciando tarea scraping programado.")
-    async def run():
-        schedules = await sync_to_async(list)(DominioScraping.objects.filter(verificado=True))
-        for dominio in schedules:
-            try:
-                vacantes = await run_scraper(dominio)
-                if vacantes:
-                    tasks = []
-                    for vac_data in vacantes:
-                        vacante, created = await sync_to_async(Vacante.objects.update_or_create)(
-                            titulo=vac_data["title"],
-                            empresa=vac_data.get("company", "Empresa desconocida"),
-                            defaults={
-                                'salario': vac_data.get("salary"),
-                                'modalidad': vac_data.get("modalidad", "No especificado"),
-                                'ubicacion': vac_data.get("location", "No especificado"),
-                                'descripcion': vac_data.get("descripcion"),
-                                'requisitos': vac_data.get("requisitos"),
-                                'beneficios': vac_data.get("beneficios"),
-                                'fecha_scraping': timezone.now(),
-                                'skills_required': vac_data.get("skills", []),
-                                'divisions': vac_data.get("divisions", [])
-                            }
-                        )
-                        msg = "creada" if created else "actualizada"
-                        logger.info(f"🔄 Vacante {msg}: {vacante.titulo}")
-
-                        # Procesar sublinks asíncronamente
-                        if "url" in vac_data and vac_data["url"]:
-                            task = procesar_sublinks_task.delay(vacante.id, vac_data["url"])
-                            tasks.append(task)
-
-                    if tasks:
-                        await asyncio.gather(*[asyncio.to_thread(t.get) for t in tasks])
-                    logger.info(f"✅ {len(vacantes)} vacantes procesadas para {dominio.dominio}")
-                else:
-                    logger.warning(f"⚠️ No vacantes para {dominio.dominio}")
-            except Exception as e:
-                logger.error(f"❌ Error en scraping de {dominio.dominio}: {e}")
-                self.retry(exc=e)
-
+def verificar_dominios_scraping(self):
+    logger.info("🔄 Verificación de dominios para scraping.")
     try:
-        asyncio.run(run())
+        dominios = DominioScraping.objects.all()
+        for dominio in dominios:
+            is_valid = asyncio.run(validar_url(dominio.dominio))
+            dominio.verificado = is_valid
+            dominio.save()
+            logger.info(f"✅ Dominio {dominio.dominio} {'válido' if is_valid else 'inválido'}.")
     except Exception as e:
-        logger.error(f"❌ Error ejecutando tarea scraping: {e}")
+        logger.error(f"❌ Error verificando dominios: {e}")
         self.retry(exc=e)
-
+        
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def procesar_sublinks_task(self, vacante_id, sublink):
     """
@@ -297,7 +354,7 @@ def procesar_sublinks_task(self, vacante_id, sublink):
     async def run():
         try:
             if not await validar_url(sublink):
-                logger.warning(f"⚠️ URL inválida {sublink}")
+                logger.warning(f"⚠️ URL inv��lida {sublink}")
                 return
             detalles = await extraer_detalles_sublink(sublink)
             vacante = await sync_to_async(Vacante.objects.get)(pk=vacante_id)
@@ -322,16 +379,27 @@ def procesar_sublinks_task(self, vacante_id, sublink):
 def execute_ml_and_scraping(self):
     try:
         workflow = chain(
-            ejecutar_ml.s(),
-            ejecutar_scraping.s(),
-            ejecutar_ml.s()
+            ejecutar_ml.si(),
+            ejecutar_scraping.si(),
+            ejecutar_ml.si()
         )
         workflow.apply_async()
         logger.info("🚀 Workflow ML+Scraping iniciado.")
     except Exception as e:
-        logger.error(f"❌ Error en workflow ML+Scraping: {e}")
+        logger.error(f"❌ Error en execute_ml_and_scraping: {e}")
         self.retry(exc=e)
+# =========================================================
+# Tareas de Notificaciones
+# =========================================================
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
+def send_notification_task(self, platform, recipient, message):
+    try:
+        asyncio.run(send_message(platform, recipient, message))
+        logger.info(f"✅ Notificación enviada a {recipient} en {platform}.")
+    except Exception as e:
+        logger.error(f"❌ Error enviando notificación: {e}")
+        self.retry(exc=e)
 # =========================================================
 # Tareas para manejo de datos LinkedIn (API/Csv/Scraping)
 # =========================================================
@@ -660,3 +728,67 @@ def scrape_single_profile_task(self, profile_url: str):
     data = scrape_linkedin_profile(profile_url)
     logger.info(f"Datos obtenidos: {data}")
     return data
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def check_emails_and_parse_cvs(self):
+    """
+    Revisa los correos y procesa los CVs adjuntos.
+    """
+    try:
+        # Aquí iría la lógica para conectarse a la bandeja de entrada y revisar los correos
+        # Por ejemplo, usando IMAP para obtener los correos
+        # ...
+
+        # Supongamos que tienes una lista de archivos de CVs adjuntos
+        cv_files = []  # Aquí deberías obtener los archivos de CVs de los correos
+
+        for cv_file in cv_files:
+            # Procesar cada CV
+            parser = CVParser(business_unit)  # Asegúrate de pasar la unidad de negocio correcta
+            analysis_result = parser.parse_cv(cv_file)
+            if analysis_result:  # Validar que el resultado no esté vacío
+                person = Person.objects.create(**analysis_result)
+                logger.info(f"CV procesado y candidato añadido: {person.name}")
+            else:
+                logger.warning(f"No se pudo procesar el CV: {cv_file}")
+
+    except Exception as e:
+        logger.error(f"Error al procesar correos y CVs: {e}")
+        self.retry(exc=e)
+
+# Crear un cronograma para la tarea
+schedule_1am, created = CrontabSchedule.objects.get_or_create(
+    minute='0',
+    hour='1',
+    day_of_week='*',
+    day_of_month='*',
+    month_of_year='*',
+)
+
+schedule_2pm, created = CrontabSchedule.objects.get_or_create(
+    minute='0',
+    hour='14',
+    day_of_week='*',
+    day_of_month='*',
+    month_of_year='*',
+)
+
+# Crear la tarea periódica para 1 AM
+PeriodicTask.objects.create(
+    crontab=schedule_1am,
+    name='Revisar correos y procesar CVs a la 1 AM',
+    task='app.tasks.check_emails_and_parse_cvs',
+    args=json.dumps([]),  # Si necesitas pasar argumentos, agrégalo aquí
+    kwargs=json.dumps({}),  # Si necesitas pasar kwargs, agrégalo aquí
+    expires=timezone.now() + timezone.timedelta(days=1),  # Opcional
+)
+
+# Crear la tarea periódica para 2 PM
+PeriodicTask.objects.create(
+    crontab=schedule_2pm,
+    name='Revisar correos y procesar CVs a las 2 PM',
+    task='app.tasks.check_emails_and_parse_cvs',
+    args=json.dumps([]),  # Si necesitas pasar argumentos, agrégalo aquí
+    kwargs=json.dumps({}),  # Si necesitas pasar kwargs, agrégalo aquí
+    expires=timezone.now() + timezone.timedelta(days=1),  # Opcional
+)

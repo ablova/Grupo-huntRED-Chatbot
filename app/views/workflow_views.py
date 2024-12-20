@@ -41,6 +41,8 @@ class WorkflowStageCreateView(LoginRequiredMixin, UserPassesTestMixin, View):
             stage.save()
             logger.info(f"Creada nueva etapa: {stage.name} para unidad de negocio: {business_unit.name}")
             return redirect('workflow_stage_list', business_unit_id=business_unit.id)
+        else:
+            logger.warning(f"Error al crear etapa: {form.errors}")
         return render(request, 'workflow/create_stage.html', {'form': form})
 
 class WorkflowStageUpdateView(LoginRequiredMixin, UserPassesTestMixin, View):

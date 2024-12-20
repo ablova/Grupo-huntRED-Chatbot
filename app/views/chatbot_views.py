@@ -54,20 +54,20 @@ class ProcessMessageView(View):
             platform = data.get('platform')
             sender_id = data.get('sender_id')
             message = data.get('message')
-            use_gpt = data.get('use_gpt', 'no')
 
-            if not platform or not sender_id or not message:
-                return JsonResponse({'error': 'Missing required fields.'}, status=400)
+            # Validar campos requeridos
+            if not all([platform, sender_id, message]):
+                return JsonResponse({'error': 'Faltan campos requeridos.'}, status=400)
 
-            response = await process_message(platform, sender_id, message, use_gpt)
+            response = await process_message(platform, sender_id, message)
             return response
 
         except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}", exc_info=True)
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            logger.error(f"Error de decodificación JSON: {e}", exc_info=True)
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
         except Exception as e:
-            logger.error(f"Error processing message: {e}", exc_info=True)
-            return JsonResponse({'error': 'Internal Server Error'}, status=500)
+            logger.error(f"Error procesando mensaje: {e}", exc_info=True)
+            return JsonResponse({'error': 'Error interno del servidor'}, status=500)
 
 @csrf_exempt
 async def send_test_message(request):
