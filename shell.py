@@ -13,7 +13,7 @@ cat /home/pablollh/logs/error.log
 
 gcloud compute ssh pablollh@amigro --zone=us-central1-a --project=amigro 
 
-ssh -i ~/.ssh/id_rsa_chatbot git@35.209.109.141
+ssh -i ~/.ssh/id_rsa_chatbot git@34.57.227.244
 ssh ai.huntred.com
 
 sudo journalctl --vacuum-time=2minutes
@@ -23,7 +23,16 @@ sudo journalctl --rotate
 #______________
 # Manejo y mejora de memoria
 # Check detailed memory usage
-free -h
+df -h &&
+free -h &&
+sudo du -h / | sort -h | tail -n 20 &&
+sudo du -sh /home/pablollh/* &&
+swapon --show &&
+iotop &&
+sudo find /var/log -type f -size +10M &&
+sudo sysctl vm.drop_caches=3 &&
+sudo rm -rf /tmp/* &&
+sudo journalctl --vacuum-time=1h
 # List top memory-consuming processes
 ps aux --sort=-%mem | head -n 15
 # Check specifically for Python and Celery processes
@@ -1644,104 +1653,104 @@ from app.models import DominioScraping
 
 # Empresas y dominios
 empresas = [
-    {"nombre": "AbbVie", "dominio": "https://abbvie.wd5.myworkdayjobs.com/abbvie"},
-    {"nombre": "Bristol Myers Squibb", "dominio": "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms"},
-    {"nombre": "GSK", "dominio": "https://gsk.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "MSD", "dominio": "https://msd.wd5.myworkdayjobs.com/external"},
+    {"nombre": "AbbVie", "dominio": "https://abbvie.wd3.myworkdayjobs.com/abbvie"},
+    {"nombre": "Bristol Myers Squibb", "dominio": "https://bristolmyerssquibb.wd3.myworkdayjobs.com/bms"},
+    {"nombre": "GSK", "dominio": "https://gsk.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "MSD", "dominio": "https://msd.wd3.myworkdayjobs.com/external"},
     {"nombre": "ExxonMobil", "dominio": "https://jobs.exxonmobil.com/"},
-    {"nombre": "Johnson Controls", "dominio": "https://johnsoncontrols.wd5.myworkdayjobs.com/en-US/external"},
-    {"nombre": "Fujifilm", "dominio": "https://fujifilm.wd5.myworkdayjobs.com/americas"},
-    {"nombre": "Diageo", "dominio": "https://diageo.wd5.myworkdayjobs.com/global"},
-    {"nombre": "Thales", "dominio": "https://thales.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Roche", "dominio": "https://roche.wd5.myworkdayjobs.com/global_external"},
-    {"nombre": "Toyota", "dominio": "https://toyota.wd5.myworkdayjobs.com/toyota"},
-    {"nombre": "AstraZeneca", "dominio": "https://astrazeneca.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Abbott", "dominio": "https://abbott.wd5.myworkdayjobs.com/abbott"},
-    {"nombre": "BD", "dominio": "https://bd.wd5.myworkdayjobs.com/en-US/External"},
-    {"nombre": "Sanofi", "dominio": "https://sanofi.wd5.myworkdayjobs.com/CAREERS"},
-    {"nombre": "Boston Scientific", "dominio": "https://bostonscientific.wd5.myworkdayjobs.com/bsc_jobs"},
-    {"nombre": "ThyssenKrupp", "dominio": "https://thyssenkrupp.wd5.myworkdayjobs.com/thyssenkrupp_careers"},
-    {"nombre": "AT&T", "dominio": "https://att.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Orange", "dominio": "https://orange.wd5.myworkdayjobs.com/orange"},
-    {"nombre": "Chevron", "dominio": "https://chevron.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Iberdrola", "dominio": "https://iberdrola.wd5.myworkdayjobs.com/iberdrola_external"},
-    {"nombre": "Veolia", "dominio": "https://veolia.wd5.myworkdayjobs.com/external"},
-    {"nombre": "ABB", "dominio": "https://abb.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Hulu", "dominio": "https://hulu.wd5.myworkdayjobs.com/Hulu"},
-    {"nombre": "Warner Bros", "dominio": "https://warnerbros.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Goodwill", "dominio": "https://goodwill.wd5.myworkdayjobs.com/external"},
-    {"nombre": "Home Depot", "dominio": "https://homedepot.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Puma", "dominio": "https://puma.wd5.myworkdayjobs.com/puma_careers"},
-    {"nombre": "Target", "dominio": "https://target.wd5.myworkdayjobs.com/targetjobs"},
-    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd5.myworkdayjobs.com/BofA_Careers"},
-    {"nombre": "Citi", "dominio": "https://citi.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Bupa", "dominio": "https://bupa.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.wd5.myworkdayjobs.com/MS"},
-    {"nombre": "Santander", "dominio": "https://santander.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Accenture", "dominio": "https://accenture.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Alight", "dominio": "https://alight.wd5.myworkdayjobs.com/alight"},
-    {"nombre": "PwC", "dominio": "https://pwc.wd5.myworkdayjobs.com/PwC"},
-    {"nombre": "Deloitte", "dominio": "https://deloitte.wd5.myworkdayjobs.com/deloitte"},
-    {"nombre": "Chubb", "dominio": "https://chubb.wd5.myworkdayjobs.com/chubb_external"},
-    {"nombre": "Argon", "dominio": "https://argon.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Aon", "dominio": "https://aon.wd5.myworkdayjobs.com/Aon"},
-    {"nombre": "BBVA", "dominio": "https://bbva.wd5.myworkdayjobs.com/BBVA"},
-    {"nombre": "Evercore", "dominio": "https://evercore.wd5.myworkdayjobs.com/External"},
-    {"nombre": "ING", "dominio": "https://ing.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Skandia", "dominio": "https://skandia.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Mastercard", "dominio": "https://mastercard.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Carlyle Group", "dominio": "https://carlyle.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Prudential", "dominio": "https://prudential.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Vector", "dominio": "https://vector.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Visa", "dominio": "https://visa.wd5.myworkdayjobs.com/Jobs"},
-    {"nombre": "BDO", "dominio": "https://bdo.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Teleperformance", "dominio": "https://teleperformance.wd5.myworkdayjobs.com/external"},
-    {"nombre": "Adobe", "dominio": "https://adobe.wd5.myworkdayjobs.com/en-US/external_experience"},
-    {"nombre": "HP", "dominio": "https://hp.wd5.myworkdayjobs.com/External"},
-    {"nombre": "LinkedIn", "dominio": "https://linkedin.wd5.myworkdayjobs.com/LinkedIn"},
-    {"nombre": "Salesforce", "dominio": "https://salesforce.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Okta", "dominio": "https://okta.wd5.myworkdayjobs.com/Okta_Careers"},
-    {"nombre": "Dell", "dominio": "https://dell.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Siemens", "dominio": "https://siemens.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Spotify", "dominio": "https://spotify.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Yahoo", "dominio": "https://yahoo.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "PepsiCo", "dominio": "https://pepsico.wd5.myworkdayjobs.com/PepsiCoCareers"},
-    {"nombre": "Unilever", "dominio": "https://unilever.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Nestlé", "dominio": "https://nestle.wd5.myworkdayjobs.com/Nestle"},
-    {"nombre": "Coca-Cola", "dominio": "https://coca-cola.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Procter & Gamble", "dominio": "https://pg.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Danone", "dominio": "https://danone.wd5.myworkdayjobs.com/DanoneCareers"},
-    {"nombre": "Mondelez", "dominio": "https://mondelez.wd5.myworkdayjobs.com/MDLZ"},
-    {"nombre": "Grupo Bimbo", "dominio": "https://grupobimbo.wd5.myworkdayjobs.com/GBIMBO"},
-    {"nombre": "General Electric", "dominio": "https://ge.wd5.myworkdayjobs.com/GE_Careers"},
-    {"nombre": "Kimberly-Clark", "dominio": "https://kimberlyclark.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Heineken", "dominio": "https://heineken.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Grupo Modelo (AB InBev)", "dominio": "https://abinbev.wd5.myworkdayjobs.com/abinbev"},
-    {"nombre": "Colgate-Palmolive", "dominio": "https://colgate.wd5.myworkdayjobs.com/ColgateCareers"},
-    {"nombre": "Johnson & Johnson", "dominio": "https://jnj.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Intel", "dominio": "https://intel.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Volkswagen", "dominio": "https://volkswagen.wd5.myworkdayjobs.com/Volkswagen_Careers"},
-    {"nombre": "BMW", "dominio": "https://bmw.wd5.myworkdayjobs.com/BMW_Group_Careers"},
-    {"nombre": "Mercedes-Benz", "dominio": "https://mercedesbenz.wd5.myworkdayjobs.com/MB_Careers"},
-    {"nombre": "Continental", "dominio": "https://continental.wd5.myworkdayjobs.com/continental_careers"},
-    {"nombre": "Samsung", "dominio": "https://samsung.wd5.myworkdayjobs.com/SamsungCareers"},
-    {"nombre": "LG Electronics", "dominio": "https://lg.wd5.myworkdayjobs.com/LG_Careers"},
-    {"nombre": "Nike", "dominio": "https://nike.wd5.myworkdayjobs.com/nike"},
-    {"nombre": "Adidas", "dominio": "https://adidas.wd5.myworkdayjobs.com/adidas"},
-    {"nombre": "Grupo Carso", "dominio": "https://carso.wd5.myworkdayjobs.com/CarsoCareers"},
-    {"nombre": "Kraft Heinz", "dominio": "https://kraftheinz.wd5.myworkdayjobs.com/KraftHeinzCareers"},
-    {"nombre": "Mars", "dominio": "https://mars.wd5.myworkdayjobs.com/Mars_Careers"},
-    {"nombre": "3M", "dominio": "https://3m.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Cisco", "dominio": "https://cisco.wd5.myworkdayjobs.com/Cisco_Careers"},
-    {"nombre": "Oracle", "dominio": "https://oracle.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "SAP", "dominio": "https://sap.wd5.myworkdayjobs.com/SAPCareers"},
-    {"nombre": "American Express", "dominio": "https://americanexpress.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Delta Airlines", "dominio": "https://delta.wd5.myworkdayjobs.com/Delta_Careers"},
-    {"nombre": "Aeroméxico", "dominio": "https://aeromexico.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Grupo Aeroportuario del Pacífico", "dominio": "https://gap.wd5.myworkdayjobs.com/GAP_Careers"},
-    {"nombre": "IKEA", "dominio": "https://ikea.wd5.myworkdayjobs.com/ikea_careers"},
-    {"nombre": "Walmart", "dominio": "https://walmart.wd5.myworkdayjobs.com/WalmartCareers"},
-    {"nombre": "Starbucks", "dominio": "https://starbucks.wd5.myworkdayjobs.com/StarbucksCareers"},
+    {"nombre": "Johnson Controls", "dominio": "https://johnsoncontrols.wd3.myworkdayjobs.com/en-US/external"},
+    {"nombre": "Fujifilm", "dominio": "https://fujifilm.wd3.myworkdayjobs.com/americas"},
+    {"nombre": "Diageo", "dominio": "https://diageo.wd3.myworkdayjobs.com/global"},
+    {"nombre": "Thales", "dominio": "https://thales.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Roche", "dominio": "https://roche.wd3.myworkdayjobs.com/global_external"},
+    {"nombre": "Toyota", "dominio": "https://toyota.wd3.myworkdayjobs.com/toyota"},
+    {"nombre": "AstraZeneca", "dominio": "https://astrazeneca.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Abbott", "dominio": "https://abbott.wd3.myworkdayjobs.com/abbott"},
+    {"nombre": "BD", "dominio": "https://bd.wd3.myworkdayjobs.com/en-US/External"},
+    {"nombre": "Sanofi", "dominio": "https://sanofi.wd3.myworkdayjobs.com/CAREERS"},
+    {"nombre": "Boston Scientific", "dominio": "https://bostonscientific.wd3.myworkdayjobs.com/bsc_jobs"},
+    {"nombre": "ThyssenKrupp", "dominio": "https://thyssenkrupp.wd3.myworkdayjobs.com/thyssenkrupp_careers"},
+    {"nombre": "AT&T", "dominio": "https://att.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Orange", "dominio": "https://orange.wd3.myworkdayjobs.com/orange"},
+    {"nombre": "Chevron", "dominio": "https://chevron.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Iberdrola", "dominio": "https://iberdrola.wd3.myworkdayjobs.com/iberdrola_external"},
+    {"nombre": "Veolia", "dominio": "https://veolia.wd3.myworkdayjobs.com/external"},
+    {"nombre": "ABB", "dominio": "https://abb.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Hulu", "dominio": "https://hulu.wd3.myworkdayjobs.com/Hulu"},
+    {"nombre": "Warner Bros", "dominio": "https://warnerbros.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Goodwill", "dominio": "https://goodwill.wd3.myworkdayjobs.com/external"},
+    {"nombre": "Home Depot", "dominio": "https://homedepot.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Puma", "dominio": "https://puma.wd3.myworkdayjobs.com/puma_careers"},
+    {"nombre": "Target", "dominio": "https://target.wd3.myworkdayjobs.com/targetjobs"},
+    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd3.myworkdayjobs.com/BofA_Careers"},
+    {"nombre": "Citi", "dominio": "https://citi.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Bupa", "dominio": "https://bupa.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.wd3.myworkdayjobs.com/MS"},
+    {"nombre": "Santander", "dominio": "https://santander.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Accenture", "dominio": "https://accenture.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Alight", "dominio": "https://alight.wd3.myworkdayjobs.com/alight"},
+    {"nombre": "PwC", "dominio": "https://pwc.wd3.myworkdayjobs.com/PwC"},
+    {"nombre": "Deloitte", "dominio": "https://deloitte.wd3.myworkdayjobs.com/deloitte"},
+    {"nombre": "Chubb", "dominio": "https://chubb.wd3.myworkdayjobs.com/chubb_external"},
+    {"nombre": "Argon", "dominio": "https://argon.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Aon", "dominio": "https://aon.wd3.myworkdayjobs.com/Aon"},
+    {"nombre": "BBVA", "dominio": "https://bbva.wd3.myworkdayjobs.com/BBVA"},
+    {"nombre": "Evercore", "dominio": "https://evercore.wd3.myworkdayjobs.com/External"},
+    {"nombre": "ING", "dominio": "https://ing.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Skandia", "dominio": "https://skandia.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Mastercard", "dominio": "https://mastercard.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Carlyle Group", "dominio": "https://carlyle.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Prudential", "dominio": "https://prudential.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Vector", "dominio": "https://vector.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Visa", "dominio": "https://visa.wd3.myworkdayjobs.com/Jobs"},
+    {"nombre": "BDO", "dominio": "https://bdo.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Teleperformance", "dominio": "https://teleperformance.wd3.myworkdayjobs.com/external"},
+    {"nombre": "Adobe", "dominio": "https://adobe.wd3.myworkdayjobs.com/en-US/external_experience"},
+    {"nombre": "HP", "dominio": "https://hp.wd3.myworkdayjobs.com/External"},
+    {"nombre": "LinkedIn", "dominio": "https://linkedin.wd3.myworkdayjobs.com/LinkedIn"},
+    {"nombre": "Salesforce", "dominio": "https://salesforce.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Okta", "dominio": "https://okta.wd3.myworkdayjobs.com/Okta_Careers"},
+    {"nombre": "Dell", "dominio": "https://dell.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Siemens", "dominio": "https://siemens.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Spotify", "dominio": "https://spotify.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Yahoo", "dominio": "https://yahoo.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "PepsiCo", "dominio": "https://pepsico.wd3.myworkdayjobs.com/PepsiCoCareers"},
+    {"nombre": "Unilever", "dominio": "https://unilever.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Nestlé", "dominio": "https://nestle.wd3.myworkdayjobs.com/Nestle"},
+    {"nombre": "Coca-Cola", "dominio": "https://coca-cola.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Procter & Gamble", "dominio": "https://pg.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Danone", "dominio": "https://danone.wd3.myworkdayjobs.com/DanoneCareers"},
+    {"nombre": "Mondelez", "dominio": "https://mondelez.wd3.myworkdayjobs.com/MDLZ"},
+    {"nombre": "Grupo Bimbo", "dominio": "https://grupobimbo.wd3.myworkdayjobs.com/GBIMBO"},
+    {"nombre": "General Electric", "dominio": "https://ge.wd3.myworkdayjobs.com/GE_Careers"},
+    {"nombre": "Kimberly-Clark", "dominio": "https://kimberlyclark.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Heineken", "dominio": "https://heineken.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "Grupo Modelo (AB InBev)", "dominio": "https://abinbev.wd3.myworkdayjobs.com/abinbev"},
+    {"nombre": "Colgate-Palmolive", "dominio": "https://colgate.wd3.myworkdayjobs.com/ColgateCareers"},
+    {"nombre": "Johnson & Johnson", "dominio": "https://jnj.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Intel", "dominio": "https://intel.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Volkswagen", "dominio": "https://volkswagen.wd3.myworkdayjobs.com/Volkswagen_Careers"},
+    {"nombre": "BMW", "dominio": "https://bmw.wd3.myworkdayjobs.com/BMW_Group_Careers"},
+    {"nombre": "Mercedes-Benz", "dominio": "https://mercedesbenz.wd3.myworkdayjobs.com/MB_Careers"},
+    {"nombre": "Continental", "dominio": "https://continental.wd3.myworkdayjobs.com/continental_careers"},
+    {"nombre": "Samsung", "dominio": "https://samsung.wd3.myworkdayjobs.com/SamsungCareers"},
+    {"nombre": "LG Electronics", "dominio": "https://lg.wd3.myworkdayjobs.com/LG_Careers"},
+    {"nombre": "Nike", "dominio": "https://nike.wd3.myworkdayjobs.com/nike"},
+    {"nombre": "Adidas", "dominio": "https://adidas.wd3.myworkdayjobs.com/adidas"},
+    {"nombre": "Grupo Carso", "dominio": "https://carso.wd3.myworkdayjobs.com/CarsoCareers"},
+    {"nombre": "Kraft Heinz", "dominio": "https://kraftheinz.wd3.myworkdayjobs.com/KraftHeinzCareers"},
+    {"nombre": "Mars", "dominio": "https://mars.wd3.myworkdayjobs.com/Mars_Careers"},
+    {"nombre": "3M", "dominio": "https://3m.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Cisco", "dominio": "https://cisco.wd3.myworkdayjobs.com/Cisco_Careers"},
+    {"nombre": "Oracle", "dominio": "https://oracle.wd3.myworkdayjobs.com/careers"},
+    {"nombre": "SAP", "dominio": "https://sap.wd3.myworkdayjobs.com/SAPCareers"},
+    {"nombre": "American Express", "dominio": "https://americanexpress.wd3.myworkdayjobs.com/Careers"},
+    {"nombre": "Delta Airlines", "dominio": "https://delta.wd3.myworkdayjobs.com/Delta_Careers"},
+    {"nombre": "Aeroméxico", "dominio": "https://aeromexico.wd3.myworkdayjobs.com/External"},
+    {"nombre": "Grupo Aeroportuario del Pacífico", "dominio": "https://gap.wd3.myworkdayjobs.com/GAP_Careers"},
+    {"nombre": "IKEA", "dominio": "https://ikea.wd3.myworkdayjobs.com/ikea_careers"},
+    {"nombre": "Walmart", "dominio": "https://walmart.wd3.myworkdayjobs.com/WalmartCareers"},
+    {"nombre": "Starbucks", "dominio": "https://starbucks.wd3.myworkdayjobs.com/StarbucksCareers"},
 ]
 
 # Iterar sobre empresas para validar y agregar
@@ -1814,9 +1823,9 @@ def validar_url(url):
 # Empresas y dominios
 empresas = [
     {"nombre": "AbbVie", "dominio": "https://careers.abbvie.com/en/jobs?q=Mexico&options=&page=1&la=0&lo=0&lr=100"},
-    {"nombre": "Abbott", "dominio": "https://abbott.wd5.myworkdayjobs.com/abbottcareers?locations=3a9b3d42f0d30158bd74b154c47684e5"},
-    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd5.myworkdayjobs.com/BofA_Careers"},
-    {"nombre": "Citi", "dominio": "https://citi.wd5.myworkdayjobs.com/es/2?State_or_Province=1a3f3bf072024650a133222225fe65a9&State_or_Province=bd4da31ba1294e35a7c00c8d273c6dad&State_or_Province=2a9b3694d7b94021b65f6b6a4ec8c4dc&State_or_Province=03b158c518bf4ee4a346bf02784f3cbd&State_or_Province=92bdecb0bceb492d99b98a9bf4b79cae&State_or_Province=811e38f5c4d549e494e9b27bd00cf8a3&State_or_Province=39f4b697029248f28f15b04c0bb4564d&State_or_Province=1169a156f7374f5db661032d0772132d&State_or_Province=d22bee76e28110000edbaff29a73005a&State_or_Province=aa61022afa734cc484addf9c844464d0&State_or_Province=6878a9f5d78f47d4b60b0589c744f506&State_or_Province=b81b49dd746c4c7584e194c20f0addb5&State_or_Province=17dc9ef2582e48dab331a667ffb01637&State_or_Province=ab09b90fe08d42968d2e7b6ac3b43379&State_or_Province=ab032aee6d0f4780bfc6b6988e9c1692&State_or_Province=85d60fd3574542f8be5c31f6fb5ae313&State_or_Province=dc448b82dcaf493c80715385cebf2e6e&State_or_Province=3fd33c9f213646438363b317bbc70b1e&State_or_Province=34e05bc8deff49e2ba1f7365c5a59b8b&State_or_Province=e24ca71036f84293989b87e79a5ab4a2&State_or_Province=94732184ab0c413c9c7ab98e55ad7f30"},
+    {"nombre": "Abbott", "dominio": "https://abbott.wd3.myworkdayjobs.com/abbottcareers?locations=3a9b3d42f0d30158bd74b154c47684e5"},
+    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd3.myworkdayjobs.com/BofA_Careers"},
+    {"nombre": "Citi", "dominio": "https://citi.wd3.myworkdayjobs.com/es/2?State_or_Province=1a3f3bf072024650a133222225fe65a9&State_or_Province=bd4da31ba1294e35a7c00c8d273c6dad&State_or_Province=2a9b3694d7b94021b65f6b6a4ec8c4dc&State_or_Province=03b158c518bf4ee4a346bf02784f3cbd&State_or_Province=92bdecb0bceb492d99b98a9bf4b79cae&State_or_Province=811e38f5c4d549e494e9b27bd00cf8a3&State_or_Province=39f4b697029248f28f15b04c0bb4564d&State_or_Province=1169a156f7374f5db661032d0772132d&State_or_Province=d22bee76e28110000edbaff29a73005a&State_or_Province=aa61022afa734cc484addf9c844464d0&State_or_Province=6878a9f5d78f47d4b60b0589c744f506&State_or_Province=b81b49dd746c4c7584e194c20f0addb5&State_or_Province=17dc9ef2582e48dab331a667ffb01637&State_or_Province=ab09b90fe08d42968d2e7b6ac3b43379&State_or_Province=ab032aee6d0f4780bfc6b6988e9c1692&State_or_Province=85d60fd3574542f8be5c31f6fb5ae313&State_or_Province=dc448b82dcaf493c80715385cebf2e6e&State_or_Province=3fd33c9f213646438363b317bbc70b1e&State_or_Province=34e05bc8deff49e2ba1f7365c5a59b8b&State_or_Province=e24ca71036f84293989b87e79a5ab4a2&State_or_Province=94732184ab0c413c9c7ab98e55ad7f30"},
 ]
 
 for empresa in empresas:
@@ -1889,15 +1898,15 @@ driver = webdriver.Chrome(options=options)  # Usa 'webdriver.Safari()' si prefie
 
 # URLs para validar
 urls = [
-    "https://abbvie.wd5.myworkdayjobs.com/abbvie",
-    "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms",
-    "https://gsk.wd5.myworkdayjobs.com/careers",
-    "https://msd.wd5.myworkdayjobs.com/external",
+    "https://abbvie.wd3.myworkdayjobs.com/abbvie",
+    "https://bristolmyerssquibb.wd3.myworkdayjobs.com/bms",
+    "https://gsk.wd3.myworkdayjobs.com/careers",
+    "https://msd.wd3.myworkdayjobs.com/external",
     "https://jobs.exxonmobil.com/",
-    "https://johnsoncontrols.wd5.myworkdayjobs.com/en-US/external",
-    "https://fujifilm.wd5.myworkdayjobs.com/americas",
-    "https://diageo.wd5.myworkdayjobs.com/global",
-    "https://thales.wd5.myworkdayjobs.com/careers",
+    "https://johnsoncontrols.wd3.myworkdayjobs.com/en-US/external",
+    "https://fujifilm.wd3.myworkdayjobs.com/americas",
+    "https://diageo.wd3.myworkdayjobs.com/global",
+    "https://thales.wd3.myworkdayjobs.com/careers",
     # Agrega más URLs aquí...
 ]
 
@@ -1948,189 +1957,126 @@ sudo apt install -y python3-pip chromium-browser chromedriver
 pip install selenium
 
 
-import os
-import django
-import requests
 from app.models import DominioScraping
+from app.tasks import ejecutar_scraping
 
-# Función para validar la URL
-def validar_url(url):
+# Obtener los dominios activos y definidos
+dominios = DominioScraping.objects.filter(activo=True, estado="definido")
+
+# Ejecutar scraping para cada dominio
+for dominio in dominios:
     try:
-        response = requests.head(url, timeout=5, allow_redirects=True)
-        return response.status_code in [200, 301, 302]
-    except requests.RequestException:
-        return False
-
-# Empresas y dominios con sus plataformas
-empresas = [
-    {"nombre": "AbbVie", "dominio": "https://careers.abbvie.com/en/jobs?q=Mexico&options=&page=1&la=0&lo=0&lr=100", "plataforma": "workday"},
-    {"nombre": "Bristol Myers Squibb", "dominio": "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms", "plataforma": "workday"},
-    {"nombre": "GSK", "dominio": "https://gsk.wd5.myworkdayjobs.com/GSKCareers/2/refreshFacet/318c8bb6f553100021d223d9780d30be", "plataforma": "workday"},
-    {"nombre": "MSD", "dominio": "https://jobs.msd.com/gb/en/search-results?keywords=mexico", "plataforma": "workday"},
-    {"nombre": "Roche", "dominio": "https://careers.roche.com/global/en/mexico-jobs/", "plataforma": "phenom_people"},
-    {"nombre": "ABB", "dominio": "https://careers.abb/global/es/search-results?=Mexico", "plataforma": "phenom_people"},
-    {"nombre": "Netflix", "dominio": "https://explore.jobs.netflix.net/careers?location=Mexico%20D.F.%2C%20CDMX%2C%20Mexico&utm_source=Netflix+Careersite", "plataforma": "phenom_people"},
-    {"nombre": "BostonScientific", "dominio": "https://bostonscientific.eightfold.ai/careers?query=mexico&pid=563602796959329&domain=bostonscientific.com&sort_by=relevance&triggerGoButton=true", "plataforma": "eightfold_ai"},
-    {"nombre": "MercadoLibre", "dominio": "https://mercadolibre.eightfold.ai/careers?location=Mexico&pid=26321883&domain=mercadolibre.com", "plataforma": "eightfold_ai"},
-    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.eightfold.ai/careers?location=Mexico&pid=549779378596&domain=morganstanley.com", "plataforma": "eightfold_ai"},
-    {"nombre": "Amazon", "dominio": "https://www.amazon.jobs/es/location/mexico-city-mexico", "plataforma": ""},
-    {"nombre": "Apple", "dominio": "https://jobs.apple.com/es-mx/search?location=mexico-MEXC", "plataforma": ""},
-    {"nombre": "Puma", "dominio": "https://about.puma.com/en/careers/job-openings?area=all&location=98", "plataforma": ""},
-    {"nombre": "Bank of America", "dominio": "https://careers.bankofamerica.com/en-us/job-search/mexico", "plataforma": ""},
-    {"nombre": "Citi", "dominio": "https://jobs.citi.com/search-jobs/Mexico/287/2/3996063/23/-102/50/2", "plataforma": ""},
-    {"nombre": "Veolia", "dominio": "https://jobs.veolia.com/es/buscar-trabajo/Mexique/2702/2/3996063/23/-102/50/2", "plataforma": ""},
-]
-
-# Script para cargar configuraciones iniciales
-for empresa in empresas:
-    try:
-        if not DominioScraping.objects.filter(empresa=empresa["nombre"]).exists():
-            es_valida = validar_url(empresa["dominio"])  # Validación de la URL
-            DominioScraping.objects.create(
-                empresa=empresa["nombre"],
-                dominio=empresa["dominio"],
-                activo=True,
-                plataforma=empresa["plataforma"],
-                verificado=es_valida,  # Marca como verificado solo si pasa la validación
-                estado="definido" if es_valida else "libre",
-            )
-            if es_valida:
-                print(f"✅ Empresa '{empresa['nombre']}' añadida exitosamente con URL válida.")
-            else:
-                print(f"⚠️ Empresa '{empresa['nombre']}' añadida pero la URL no es válida o no responde.")
-        else:
-            print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
+        print(f"🚀 Iniciando scraping para {dominio.empresa} ({dominio.dominio})...")
+        ejecutar_scraping.delay(dominio.id)  # Llama a la tarea de Celery
     except Exception as e:
-        print(f"❌ Error al añadir la empresa '{empresa['nombre']}': {e}")
+        print(f"❌ Error al iniciar scraping para {dominio.empresa}: {e}")
 
 
-import requests
-from app.models import DominioScraping
+from app.models import Vacante
+
+# Verificar las vacantes extraídas
+vacantes = Vacante.objects.all()
+
+print(f"Total de vacantes extraídas: {vacantes.count()}")
+
+for vacante in vacantes[:10]:  # Mostrar las primeras 10
+    print(f"- {vacante.titulo} ({vacante.empresa})")
 
 
-# Función para validar la URL
-def validar_url(url):
+from app.models import DominioScraping, Vacante
+from app.tasks import ejecutar_scraping
+import time
+
+# Obtener los dominios activos y definidos
+dominios = DominioScraping.objects.filter(activo=True, estado="definido")
+
+# Ejecutar scraping para cada dominio y mostrar resultados
+for dominio in dominios:
     try:
-        response = requests.head(url, timeout=5, allow_redirects=True)
-        return response.status_code in [200, 301, 302]
-    except requests.RequestException:
-        return False
+        print(f"🚀 Iniciando scraping para {dominio.empresa} ({dominio.dominio})...")
+        # Ejecutar la tarea de scraping
+        ejecutar_scraping.delay(dominio.id)
+        
+        # Simular espera para permitir procesamiento (puedes ajustar el tiempo)
+        time.sleep(5)
 
-# Empresas y dominios con sus plataformas
-empresas = [
-    {"nombre": "BostonScientific", "dominio": "https://bostonscientific.eightfold.ai/careers?query=mexico&pid=563602796959329&domain=bostonscientific.com&sort_by=relevance&triggerGoButton=true", "plataforma": "eightfold_ai"},
-    {"nombre": "MercadoLibre", "dominio": "https://mercadolibre.eightfold.ai/careers?location=Mexico&pid=26321883&domain=mercadolibre.com", "plataforma": "eightfold_ai"},
-    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.eightfold.ai/careers?location=Mexico&pid=549779378596&domain=morganstanley.com", "plataforma": "eightfold_ai"},
-    {"nombre": "ThyssenKrupp", "dominio": "https://jobs.thyssenkrupp.com/es?location=México&lat=23.6585116&lng=-102.0077097&placeId=512b57d3507e8059c05961095a3794a83740f00101f901febf010000000000c0020b&radius=0", "plataforma": "default"},
-    {"nombre": "AT&T", "dominio": "https://www.attjobs.com.mx/buscar-trabajo/México", "plataforma": "default"},
-    {"nombre": "Veolia", "dominio": "https://jobs.veolia.com/es/buscar-trabajo/Mexique/2702/2/3996063/23/-102/50/2", "plataforma": "radancy"},
-    {"nombre": "Apple", "dominio": "https://jobs.apple.com/es-mx/search?location=mexico-MEXC", "plataforma": "default"},
-    {"nombre": "Amazon", "dominio": "https://www.amazon.jobs/es/location/mexico-city-mexico", "plataforma": "default"},
-    {"nombre": "Puma", "dominio": "https://about.puma.com/en/careers/job-openings?area=all&location=98", "plataforma": "default"},
-    {"nombre": "Bank of America", "dominio": "https://careers.bankofamerica.com/en-us/job-search/mexico?ref=search&start=0&rows=10&search=getAllJobs", "plataforma": "default"},
-    {"nombre": "Citi", "dominio": "https://jobs.citi.com/search-jobs/Mexico/287/2/3996063/23/-102/50/2", "plataforma": "talentbrew"},
-]
+        # Consultar las vacantes asociadas a este dominio
+        vacantes = Vacante.objects.filter(empresa=dominio.empresa)
 
-# JSON de ejemplo para cookies
-cookie_template = {
-    "cookie_name": "example_cookie",
-    "value": "example_value",
-    "domain": ".example.com",
-    "path": "/",
-    "secure": True,
-    "httpOnly": True
-}
+        print(f"✅ Vacantes extraídas para {dominio.empresa}: {vacantes.count()}")
 
-# Script para cargar configuraciones iniciales
-for empresa in empresas:
-    try:
-        # Validar si la empresa ya existe
-        if not DominioScraping.objects.filter(empresa=empresa["nombre"]).exists():
-            # Validar URL
-            es_valida = validar_url(empresa["dominio"])
+        # Mostrar las primeras 10 vacantes extraídas
+        for vacante in vacantes[:10]:
+            print(f"   - Título: {vacante.titulo}")
+            print(f"     Ubicación: {vacante.ubicacion}")
+            print(f"     Salario: {vacante.salario}")
+            print(f"     Publicado en: {vacante.fecha_publicacion}")
+            print(f"     URL: {vacante.url}")
+            print("")
 
-            # Crear el registro
-            DominioScraping.objects.create(
-                empresa=empresa["nombre"],
-                dominio=empresa["dominio"],
-                activo=True,
-                plataforma=empresa["plataforma"],
-                verificado=es_valida,
-                estado="definido" if es_valida else "libre",
-                cookies=cookie_template if empresa["plataforma"] in ["default", "eightfold_ai"] else None,
-            )
-            # Feedback del resultado
-            if es_valida:
-                print(f"✅ Empresa '{empresa['nombre']}' añadida exitosamente con URL válida.")
-            else:
-                print(f"⚠️ Empresa '{empresa['nombre']}' añadida pero la URL no es válida o no responde.")
-        else:
-            print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
     except Exception as e:
-        # Registrar errores
-        print(f"❌ Error al añadir la empresa '{empresa['nombre']}': {e}")
+        print(f"❌ Error al realizar scraping para {dominio.empresa}: {e}")
 
 
-import requests
-from app.models import DominioScraping
+    # script_ejecutar_scrapers.py
 
-# Función para validar la URL
-def validar_url(url):
-    try:
-        response = requests.head(url, timeout=5)
-        return response.status_code == 200
-    except requests.RequestException:
-        return False
+import logging
+from app.models import DominioScraping, Vacante
+from app.tasks import ejecutar_scraping
 
-# Empresas y dominios
-empresas = [
-    {"nombre": "AbbVie", "dominio": "https://abbvie.wd5.myworkdayjobs.com/abbvie"},
-    {"nombre": "Bristol Myers Squibb", "dominio": "https://bristolmyerssquibb.wd5.myworkdayjobs.com/bms"},
-    {"nombre": "GSK", "dominio": "https://gsk.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "MSD", "dominio": "https://msd.wd5.myworkdayjobs.com/external"},
-    {"nombre": "ExxonMobil", "dominio": "https://jobs.exxonmobil.com/"},
-    {"nombre": "Johnson Controls", "dominio": "https://johnsoncontrols.wd5.myworkdayjobs.com/en-US/external"},
-    {"nombre": "Fujifilm", "dominio": "https://fujifilm.wd5.myworkdayjobs.com/americas"},
-    {"nombre": "Diageo", "dominio": "https://diageo.wd5.myworkdayjobs.com/global"},
-    {"nombre": "Thales", "dominio": "https://thales.wd5.myworkdayjobs.com/careers"},
-    {"nombre": "Roche", "dominio": "https://roche.wd5.myworkdayjobs.com/global_external"},
-    {"nombre": "Toyota", "dominio": "https://toyota.wd5.myworkdayjobs.com/toyota"},
-    {"nombre": "AstraZeneca", "dominio": "https://astrazeneca.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Abbott", "dominio": "https://abbott.wd5.myworkdayjobs.com/abbott"},
-    {"nombre": "BD", "dominio": "https://bd.wd5.myworkdayjobs.com/en-US/External"},
-    {"nombre": "Sanofi", "dominio": "https://sanofi.wd5.myworkdayjobs.com/CAREERS"},
-    {"nombre": "Boston Scientific", "dominio": "https://bostonscientific.wd5.myworkdayjobs.com/bsc_jobs"},
-    {"nombre": "ThyssenKrupp", "dominio": "https://thyssenkrupp.wd5.myworkdayjobs.com/thyssenkrupp_careers"},
-    {"nombre": "AT&T", "dominio": "https://att.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Orange", "dominio": "https://orange.wd5.myworkdayjobs.com/orange"},
-    {"nombre": "Chevron", "dominio": "https://chevron.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Iberdrola", "dominio": "https://iberdrola.wd5.myworkdayjobs.com/iberdrola_external"},
-    {"nombre": "Veolia", "dominio": "https://veolia.wd5.myworkdayjobs.com/external"},
-    {"nombre": "ABB", "dominio": "https://abb.wd5.myworkdayjobs.com/External"},
-    {"nombre": "Hulu", "dominio": "https://hulu.wd5.myworkdayjobs.com/Hulu"},
-    {"nombre": "Warner Bros", "dominio": "https://warnerbros.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Goodwill", "dominio": "https://goodwill.wd5.myworkdayjobs.com/external"},
-    {"nombre": "Home Depot", "dominio": "https://homedepot.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Puma", "dominio": "https://puma.wd5.myworkdayjobs.com/puma_careers"},
-    {"nombre": "Target", "dominio": "https://target.wd5.myworkdayjobs.com/targetjobs"},
-    {"nombre": "Bank of America", "dominio": "https://bankofamerica.wd5.myworkdayjobs.com/BofA_Careers"},
-    {"nombre": "Citi", "dominio": "https://citi.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Bupa", "dominio": "https://bupa.wd5.myworkdayjobs.com/Careers"},
-    {"nombre": "Morgan Stanley", "dominio": "https://morganstanley.wd5.myworkdayjobs.com/MS"},
-    {"nombre": "Santander", "dominio": "https://santander.wd5.myworkdayjobs.com/External"},
-]
+# Configuración de logging detallado
+def setup_logging():
+    logger = logging.getLogger('scraping')
+    logger.setLevel(logging.DEBUG)  # Nivel de detalle de logging
+    
+    # Formato detallado para los logs
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    # Handler para escribir logs en un archivo
+    file_handler = logging.FileHandler('scraping_detailed.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Handler para imprimir logs en la consola
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)  # Cambia a DEBUG para más detalles en consola
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    return logger
 
-for empresa in empresas:
-    if not DominioScraping.objects.filter(empresa=empresa["nombre"]).exists():
-        if validar_url(empresa["dominio"]):
-            DominioScraping.objects.create(
-                empresa=empresa["nombre"],
-                dominio=empresa["dominio"],
-                activo=True,
-                plataforma="workday",
-            )
-            print(f"Empresa '{empresa['nombre']}' añadida exitosamente.")
-        else:
-            print(f"⚠️ La URL de '{empresa['nombre']}' no es válida o no responde.")
-    else:
-        print(f"Empresa '{empresa['nombre']}' ya existe en la base de datos.")
+logger = setup_logging()
+
+def run_all_scrapers():
+    """
+    Ejecuta scrapers para todos los dominios activos y definidos.
+    """
+    # Obtener los dominios activos y definidos
+    dominios = DominioScraping.objects.filter(activo=True, estado="definido")
+    
+    if not dominios.exists():
+        logger.warning("No hay dominios activos y definidos para realizar scraping.")
+        return
+    
+    # Ejecutar scraping para cada dominio y mostrar resultados
+    for dominio in dominios:
+        try:
+            logger.info(f"🚀 Iniciando scraping para {dominio.empresa} ({dominio.dominio})...")
+            
+            # Ejecutar la tarea de scraping con Celery
+            ejecutar_scraping.delay(dominio.id)
+            
+            # Opcional: Simular espera para permitir procesamiento (No recomendado en producción)
+            # time.sleep(5)
+            
+        except Exception as e:
+            logger.error(f"❌ Error al realizar scraping para {dominio.empresa}: {e}")
+    
+    logger.info("📄 Todas las tareas de scraping han sido encoladas.")
+
+if __name__ == "__main__":
+    run_all_scrapers()
+        

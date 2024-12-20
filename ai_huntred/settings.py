@@ -19,7 +19,8 @@ ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
 # Seguridad
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'reemplazar_esta_clave')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
+#ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['ai.huntred.com', '34.57.227.244', 'localhost']
 
 #Entorno General
 # Administrador General (si aplica)
@@ -100,6 +101,7 @@ USE_TZ = True
 # Archivos Estáticos
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Media
 MEDIA_URL = '/media/'
@@ -118,6 +120,16 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
 }
+
+# Configuración de Celery
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Mexico_City'
+CELERY_ENABLE_UTC = True
+CELERY_WORKER_CONCURRENCY = 2  # Ajusta según tu CPU
 
 # CORS Configuración
 cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', '*')

@@ -1,5 +1,6 @@
 # Ubicación del archivo: /home/pablollh/app/admin.py
 from django.contrib import admin, messages
+from django.db import models  # Añadimos esta importación
 from django.urls import reverse, path
 from django.template.response import TemplateResponse
 from django.shortcuts import render, redirect
@@ -17,10 +18,17 @@ from app.models import (
     Template, ChatState, Application, Invitacion, Interview, UserInteractionLog,
     ModelTrainingLog, QuarterlyInsight, MigrantSupportPlatform, EnhancedNetworkGamificationProfile, EnhancedMLProfile
 )
-from app.tasks import ejecutar_scraping
+from app.tasks import (
+    execute_ml_and_scraping,
+    ejecutar_scraping,
+    verificar_dominios_scraping,
+    train_ml_task,
+    process_linkedin_csv_task
+)
 from app.integrations.services import send_message
 from app.vacantes import VacanteManager
 from asgiref.sync import async_to_sync
+from django.contrib.auth.decorators import user_passes_test
 
 admin.site.site_header = "Administración de Grupo huntRED®"
 admin.site.site_title = "Portal Administrativo"
@@ -95,7 +103,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
     @admin.action(description="Ejecutar scraping para dominios seleccionados")
     def ejecutar_scraping_action(self, request, queryset):
         for dominio in queryset:
-            ejecutar_scraping.delay()
+            ejecutar_scraping.delay(dominio.id)  # Pasa el dominio_id como argumento
         self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
     
     @admin.action(description="Marcar seleccionados como 'definidos'")
@@ -121,16 +129,20 @@ class VacanteAdmin(admin.ModelAdmin):
     list_filter = ('activa', 'modalidad', 'dominio_origen')
     actions = ['toggle_activa_status']
 
-    @admin.action(description="Activar/Desactivar vacantes seleccionadas")
-    def toggle_activa_status(self, request, queryset):
-        updated = queryset.update(activa=~models.F('activa'))
-        self.message_user(request, f"Estado de 'activa' invertido para {updated} vacantes.", level=messages.INFO)
+    fieldsets = (
+        (None, {
+            'fields': ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion')
+        }),
+        ('Detalles Adicionales', {
+            'fields': ('descripcion', 'requisitos', 'salario')
+        }),
+    )
 
 @admin.register(RegistroScraping)
 class RegistroScrapingAdmin(admin.ModelAdmin):
     list_display = ('dominio', 'estado', 'fecha_inicio', 'fecha_fin', 'vacantes_encontradas')
-    search_fields = ('dominio__empresa',)
-    list_filter = ('estado', 'fecha_inicio')
+    search_fields = ('dominio__empresa', 'dominio__url')
+    list_filter = ('estado', 'fecha_inicio', 'vacantes_encontradas')
 
 @admin.register(ReporteScraping)
 class ReporteScrapingAdmin(admin.ModelAdmin):
@@ -197,7 +209,7 @@ class PersonAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'apellido_paterno', 'apellido_materno', 'phone', 'email', 'job_search_status')
     search_fields = ('nombre', 'apellido_paterno', 'phone', 'email')
     list_filter = ('job_search_status', 'preferred_language')
-    actions = ['export_as_csv']
+    actions = ['export_as_csv', 'send_email']
 
     def export_as_csv(self, request, queryset):
         """
@@ -221,6 +233,18 @@ class PersonAdmin(admin.ModelAdmin):
         return response
 
     export_as_csv.short_description = "Exportar seleccionados como CSV"
+
+    @admin.action(description="Enviar correo a los seleccionados")
+    def send_email(self, request, queryset):
+        for person in queryset:
+            # Lógica para enviar correo
+            send_mail(
+                'Asunto del Correo',
+                'Cuerpo del correo',
+                'from@example.com',
+                [person.email],
+            )
+        self.message_user(request, f"Correo enviado a {queryset.count()} personas.")
 
 @admin.register(Worker)
 class WorkerAdmin(admin.ModelAdmin):
@@ -374,36 +398,7 @@ class QuarterlyInsightAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         # Agregar gráficos o visualizaciones de insights
-        import matplotlib.pyplot as plt
-
-        extra_context = extra_context or {}
-        insights = QuarterlyInsight.objects.all()
-        
-        # Ejemplo: Gráfico de top_performing_skills
-        skills = {}
-        for insight in insights:
-            top_skills = insight.insights_data.get('top_performing_skills', [])
-            for skill, count in top_skills:
-                skills[skill] = skills.get(skill, 0) + count
-
-        sorted_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:10]
-        labels, values = zip(*sorted_skills)
-
-        plt.figure(figsize=(10, 6))
-        plt.bar(labels, values, color='skyblue')
-        plt.xlabel('Habilidades')
-        plt.ylabel('Cantidad')
-        plt.title('Top 10 Habilidades Más Frecuentes en Candidatos Contratados')
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
-        buffer = BytesIO()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
-        grafico_skills = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        buffer.close()
-
-        extra_context['grafico_skills'] = grafico_skills
-
+        # Lógica para generar gráficos
         return super().changelist_view(request, extra_context=extra_context)
 
 @admin.register(ModelTrainingLog)
@@ -458,3 +453,58 @@ class EnhancedMLProfileAdmin(admin.ModelAdmin):
     search_fields = ('user__nombre', 'user__apellido_paterno', 'user__email')
     list_filter = ('model_version',)
     readonly_fields = ('model_version', 'last_prediction_timestamp')
+
+class TaskExecution(models.Model):
+    class Meta:
+        verbose_name = "Ejecución Manual de Tareas"
+        verbose_name_plural = "Ejecuciones Manuales de Tareas"
+class TaskExecutionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'get_action_buttons']
+
+    def get_action_buttons(self, obj):
+        return format_html(
+            '<a class="button" href="{}">Ejecutar ML y Scraping</a> '
+            '<a class="button" href="{}">Ejecutar solo Scraping</a> '
+            '<a class="button" href="{}">Verificar Dominios</a> '
+            '<a class="button" href="{}">Entrenar ML</a> '
+            '<a class="button" href="{}">Procesar CSV LinkedIn</a>',
+            reverse('admin:execute-task', args=['ml_scraping']),
+            reverse('admin:execute-task', args=['scraping']),
+            reverse('admin:execute-task', args=['verify_domains']),
+            reverse('admin:execute-task', args=['train_ml']),
+            reverse('admin:execute-task', args=['process_csv'])
+        )
+    get_action_buttons.short_description = 'Acciones'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('execute-task/<str:task_name>/',
+                 self.admin_site.admin_view(self.execute_task),
+                 name='execute-task'),
+        ]
+        return custom_urls + urls
+
+    @user_passes_test(lambda u: u.is_superuser)
+    def execute_task(self, request, task_name):
+        try:
+            if task_name == 'ml_scraping':
+                execute_ml_and_scraping.delay()
+                messages.success(request, "Tarea ML y Scraping iniciada")
+            elif task_name == 'scraping':
+                ejecutar_scraping.delay()
+                messages.success(request, "Tarea de Scraping iniciada")
+            elif task_name == 'verify_domains':
+                verificar_dominios_scraping.delay()
+                messages.success(request, "Verificación de dominios iniciada")
+            elif task_name == 'train_ml':
+                train_ml_task.delay()
+                messages.success(request, "Entrenamiento de ML iniciado")
+            elif task_name == 'process_csv':
+                csv_path = "/home/pablollh/connections.csv"  # Ajusta esta ruta
+                process_linkedin_csv_task.delay(csv_path)
+                messages.success(request, "Procesamiento de CSV LinkedIn iniciado")
+        except Exception as e:
+            messages.error(request, f"Error ejecutando tarea: {str(e)}")
+
+        return redirect('admin:django_celery_beat_periodictask_changelist')

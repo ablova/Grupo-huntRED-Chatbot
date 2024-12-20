@@ -17,7 +17,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git .
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Ajustado a /home/pablollh. Mejora a Parser, linkedin y scraping, con ajustes en ML y tasks..." &&
+git commit -m "Ajustado a /home/pablollh & ai.huntred / ai_huntred. Mejora a Parser, linkedin y scraping, con ajustes en ML y tasks..." &&
 git push origin main
 
 
@@ -38,7 +38,7 @@ sudo journalctl --vacuum-size=50M
 
 cd /home/pablollh && source venv/bin/activate &&
 git fetch origin &&
-git reset --hard origin/main &&
+git reset --hard origin main &&
 git clean -fd &&
 git status &&
 git log -1 &&
@@ -76,7 +76,7 @@ gcloud compute instances create amigro \
     --boot-disk-type=pd-standard \
     --scopes=cloud-platform \
     --network default \
-    --address=35.209.109.141
+    --address=34.57.227.244
 
 python manage.py makemigrations
 python manage.py migrate

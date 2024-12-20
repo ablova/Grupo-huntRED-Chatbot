@@ -1,78 +1,87 @@
 # /home/pablollh/app/scraping.py
 
+# Módulos estándar de Python
+import json
 import asyncio
-import aiohttp
 import logging
 import random
-import json
 import requests
-import backoff
-from bs4 import BeautifulSoup
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from requests import Session, RequestException
-from asgiref.sync import sync_to_async
-from tenacity import retry, stop_after_attempt, wait_exponential
-from django.utils.timezone import now
-from django.db import transaction
-from app.models import DominioScraping, Vacante, RegistroScraping, ConfiguracionBU, PLATFORM_CHOICES, USER_AGENTS
-from app.catalogs import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
-from app.utils import clean_text
+from datetime import datetime
+
+# Librerías de terceros
+import aiohttp
+from abc import ABC, abstractmethod
+from aiohttp import ClientTimeout
+from bs4 import BeautifulSoup
+from prometheus_client import Counter, Histogram, start_http_server
+from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 
-# Configurar logging
+# Funcionalidad de Django
+from asgiref.sync import sync_to_async
+from django.db import transaction
+from django.utils.timezone import now
+
+# Modelos y componentes de la aplicación
+from app.models import (
+    DominioScraping, Vacante, RegistroScraping, ConfiguracionBU,
+    BusinessUnit, PLATFORM_CHOICES
+)
+from app.catalogs import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
+from app.utils import clean_text
+#from app.chatbot import ChatBotHandler  # Solo si se usa en scraping
+
+logging.basicConfig(
+    level=logging.INFO,  # Cambia a DEBUG para más detalles
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("scraping.log"),
+        logging.StreamHandler()
+    ]
+)
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
-# Crear sesión reutilizable
-s = requests.Session()
-
-@dataclass
-class JobListing:
-    title: str
-    location: str
-    company: Optional[str] = None
-    description: Optional[str] = None
-    skills: Optional[List[str]] = None
-    posted_date: Optional[str] = None
-    url: Optional[str] = None
-
-class ScraperConfig:
-    def __init__(self, delay_min=1, delay_max=5, timeout=10, proxy=None):
-        self.delay_min = delay_min
-        self.delay_max = delay_max
-        self.timeout = timeout
-        self.proxy = proxy
-
-def get_session():
+# =============================================
+# Manejo de Sessiones y Condicionales Generales
+# =============================================
+async def get_session():
     """
-    Obtiene un token de sesión desde el perfil de usuario en Amigro.
+    Obtiene un token de sesión desde el perfil de usuario en Amigro de manera asíncrona.
     """
-    headers = {'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N)'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N)'}
+    url = "https://huntred.com/my-profile/"
+    
     try:
-        response = s.get("https://huntred.com/my-profile/", headers=headers)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        data = soup.find("input", {"id": "login_security"}).get("value")
-        return data
-    except requests.RequestException as e:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=10) as response:
+                response.raise_for_status()
+                text = await response.text()
+                soup = BeautifulSoup(text, "html.parser")
+                input_tag = soup.find("input", {"id": "login_security"})
+                if input_tag and input_tag.get("value"):
+                    return input_tag.get("value")
+                else:
+                    logger.error("No se encontró el input 'login_security' en la respuesta.")
+                    return None
+    except aiohttp.ClientError as e:
         logger.error(f"Error obteniendo sesión: {e}")
         return None
+    except Exception as e:
+        logger.error(f"Error procesando sesión: {e}")
+        return None
 
-def consult(page, url, business_unit=None):
+async def consult(page, url, business_unit=None):
     from app.models import ConfiguracionBU
     import urllib.parse
 
     try:
         configuracion = (
-            business_unit if business_unit else ConfiguracionBU.objects.get(id=4)
+            business_unit if business_unit else await sync_to_async(ConfiguracionBU.objects.get)(id=4)
         )
         jwt_token = configuracion.jwt_token
         headers = {
@@ -93,55 +102,51 @@ def consult(page, url, business_unit=None):
         }
         
         logger.info(f"Enviando solicitud a {url} con payload: {payload}")
-        response = s.get(url, headers=headers, params=payload)
-        response.raise_for_status()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=payload) as response:
+                response.raise_for_status()
+                content_type = response.headers.get('Content-Type', '')
+                if content_type.startswith('application/json'):
+                    vacantes_json = await response.json()
+                else:
+                    logger.error(f"Respuesta no válida (Content-Type: {content_type})")
+                    vacantes_json = []
 
-        logger.debug(f"Respuesta recibida: {response.status_code} {response.text[:500]}...")
-        if response.headers.get('Content-Type', '').startswith('application/json'):
-            return response.json()
-        else:
-            logger.error(f"Respuesta no válida (Content-Type: {response.headers.get('Content-Type', '')})")
-            return []
-
-    except Exception as e:
-        logger.error(f"Error en consulta API ({url}): {e}", exc_info=True)
-        return []
-        
-        vacantes = []
-        for vacante in vacantes_json:
-            try:
-                vacantes.append({
-                    "id": vacante.get("id", "ID no disponible"),
-                    "title": vacante.get("title", {}).get("rendered", "Título no disponible"),
-                    "salary": vacante.get("meta", {}).get("_salary_min", "No especificado"),
-                    "job_type": vacante.get("job-types", ["No especificado"]),
-                    "company": vacante.get("meta", {}).get("_company_name", "No especificado"),
-                    "whatsapp": vacante.get("meta", {}).get("_job_whatsapp", "No disponible"),
-                    "location": {
-                        "address": vacante.get("meta", {}).get("_job_address", "No especificado"),
-                        "longitude": vacante.get("meta", {}).get("_job_longitude", "No disponible"),
-                        "latitude": vacante.get("meta", {}).get("_job_latitude", "No disponible")
-                    },
-                    "agenda": {
-                        f"slot {i}": vacante.get("meta", {}).get(f"_job_booking_{i}", "No disponible") for i in range(1, 11)
-                    }
-                })
-            except Exception as e:
-                logger.warning(f"Error procesando vacante con ID {vacante.get('id')}: {e}")
-                continue
-        
-        logger.info(f"Vacantes procesadas: {len(vacantes)}")
-        return vacantes
-    
     except ConfiguracionBU.DoesNotExist:
         logger.error("No se encontró la configuración predeterminada para la BusinessUnit con id=4.")
         return []
-    except requests.RequestException as e:
+    except aiohttp.ClientError as e:
         logger.error(f"Error en la solicitud a la API de WordPress: {e}")
         return []
     except Exception as e:
         logger.error(f"Error inesperado: {e}")
         return []
+
+    vacantes = []
+    for vacante in vacantes_json:
+        try:
+            vacantes.append({
+                "id": vacante.get("id", "ID no disponible"),
+                "title": vacante.get("title", {}).get("rendered", "Título no disponible"),
+                "salary": vacante.get("meta", {}).get("_salary_min", "No especificado"),
+                "job_type": vacante.get("job-types", ["No especificado"]),
+                "company": vacante.get("meta", {}).get("_company_name", "No especificado"),
+                "whatsapp": vacante.get("meta", {}).get("_job_whatsapp", "No disponible"),
+                "location": {
+                    "address": vacante.get("meta", {}).get("_job_address", "No especificado"),
+                    "longitude": vacante.get("meta", {}).get("_job_longitude", "No disponible"),
+                    "latitude": vacante.get("meta", {}).get("_job_latitude", "No disponible")
+                },
+                "agenda": {
+                    f"slot {i}": vacante.get("meta", {}).get(f"_job_booking_{i}", "No disponible") for i in range(1, 11)
+                }
+            })
+        except Exception as e:
+            logger.warning(f"Error procesando vacante con ID {vacante.get('id')}: {e}")
+            continue
+    
+    logger.info(f"Vacantes procesadas: {len(vacantes)}")
+    return vacantes
 
 def register(username, email, password, name, lastname):
     """
@@ -258,24 +263,6 @@ async def validar_url(url, check_content=False):
         logger.error(f"Error al validar URL {url}: {e}")
         return False
 
-def validate_job_data(job_data):
-    schema = {
-        "title": str,
-        "location": str,
-        "company": str,
-        # Add more required fields
-    }
-    
-    validated_data = {}
-    for key, expected_type in schema.items():
-        value = job_data.get(key)
-        if not isinstance(value, expected_type):
-            logger.warning(f"Invalid {key}: {value}")
-            continue
-        validated_data[key] = clean_text(value)
-    
-    return validated_data if validated_data else None
-  
 def exportar_vacantes_a_wordpress(business_unit, vacantes):
     """
     Exporta vacantes a WordPress mediante el login del cliente.
@@ -308,12 +295,153 @@ def exportar_vacantes_a_wordpress(business_unit, vacantes):
 
     return True
 
+# ========================
+# Configuración General
+# ========================
+@dataclass
+class JobListing:
+    title: str
+    location: str
+    company: Optional[str] = None
+    description: Optional[str] = None
+    skills: Optional[List[str]] = None
+    posted_date: Optional[str] = None
+    url: Optional[str] = None
+    salary: Optional[Dict[str, str]] = None  # Ejemplo: {"min": "50000", "max": "70000", "currency": "MXN"}
+    responsible: Optional[str] = None  # Persona o equipo responsable de la vacante
+    contract_type: Optional[str] = None  # Tipo de contrato: permanente, temporal, freelance
+    experience_required: Optional[str] = None  # Años de experiencia requeridos
+    education_level: Optional[str] = None  # Nivel educativo: Licenciatura, Maestría, etc.
+    job_type: Optional[str] = None  # Presencial, remoto, híbrido
+    benefits: Optional[List[str]] = None  # Lista de beneficios
+    sectors: Optional[List[str]] = None  # Sectores o divisiones relacionadas (e.g., TI, Finanzas)
+    languages_required: Optional[List[str]] = None  # Idiomas requeridos para el puesto
+    application_deadline: Optional[str] = None  # Fecha límite de aplicación
+
+@transaction.atomic
+async def save_vacantes(jobs: List[JobListing], dominio: DominioScraping):
+    """
+    Guarda las vacantes extraídas en la base de datos.
+    """
+    for job in jobs:
+        try:
+            business_unit = assign_business_unit_to_vacante(job)
+            business_unit_obj = await sync_to_async(BusinessUnit.objects.get)(name=business_unit)
+
+            skills = extract_skills(job.description or "")
+            divisions = associate_divisions(skills)
+
+            vacante, created = await sync_to_async(Vacante.objects.update_or_create)(
+                titulo=job.title,
+                empresa=job.company,
+                defaults={
+                    "salario": job.salary.get('min', None) if job.salary else None,
+                    "ubicacion": job.location,
+                    "descripcion": job.description,
+                    "requisitos": job.requirements,
+                    "beneficios": ", ".join(job.benefits or []),
+                    "modalidad": job.job_type,
+                    "skills_required": skills,
+                    "divisiones": divisions,
+                    "dominio_origen": dominio,
+                    "business_unit": business_unit_obj,
+                    "fecha_publicacion": job.posted_date or now(),
+                    "remote_friendly": True if job.job_type and 'remote' in job.job_type.lower() else False,
+                    "business_unit": business_unit_obj,
+                }
+            )
+            msg = "creada" if created else "actualizada"
+            logger.info(f"🔄 Vacante {msg}: {vacante.titulo}")
+        except Exception as e:
+            logger.error(f"Error guardando vacante {job.title}: {e}")
+
+def validate_job_data(job_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Valida y limpia los datos de una vacante.
+
+    Args:
+        job_data (Dict[str, Any]): Datos de la vacante a validar.
+
+    Returns:
+        Optional[Dict[str, Any]]: Datos validados y limpiados o None si faltan campos requeridos.
+    """
+    schema = {
+        "title": str,
+        "location": str,
+        "company": str,
+        "description": str,
+        "url": str,
+        # Añade más campos requeridos según sea necesario
+    }
+    
+    validated_data = {}
+    for key, expected_type in schema.items():
+        value = job_data.get(key)
+        if not isinstance(value, expected_type):
+            logger.warning(f"Invalid {key}: {value} (Expected type: {expected_type.__name__})")
+            continue
+        validated_data[key] = clean_text(value)
+    
+    # Extracción y asociación de habilidades y divisiones
+    skills = extract_skills(validated_data.get("description", ""))
+    divisions = associate_divisions(skills)
+    validated_data["skills"] = skills
+    validated_data["divisions"] = divisions
+    
+    # Validar campos adicionales si es necesario
+    if not all(field in validated_data for field in ["title", "location", "company", "description", "url"]):
+        logger.warning(f"Missing required fields in job data: {job_data}")
+        return None
+    
+    return validated_data
+
+class ScrapingConfig:
+    def __init__(self):
+        self.RATE_LIMIT = 2  # requests por segundo
+        self.MAX_RETRIES = 3
+        self.TIMEOUT = 30
+        self.MAX_CONCURRENT_REQUESTS = 10
+        self.USER_AGENTS = USER_AGENTS
+
+# Asegúrate de que el puerto para Prometheus esté libre o cámbialo
+class ScrapingMetrics:
+    def __init__(self):
+        self.jobs_scraped = Counter('jobs_scraped_total', 'Total jobs scraped')
+        self.scraping_duration = Histogram('scraping_duration_seconds', 'Time spent scraping')
+        self.errors_total = Counter('scraping_errors_total', 'Total scraping errors')
+        
+        # Intenta iniciar el servidor de Prometheus en el puerto 8001 para evitar conflictos
+        try:
+            start_http_server(8001)
+            logger.info("Servidor de métricas Prometheus iniciado en el puerto 8001")
+        except OSError as e:
+            if e.errno == 98:
+                logger.warning("El puerto 8001 ya está en uso. No se pudo iniciar el servidor de métricas Prometheus.")
+            else:
+                logger.error(f"Error iniciando servidor de métricas Prometheus: {e}")
+
+class ScrapingCache:
+    def __init__(self):
+        self.cache = {}
+        self.TTL = 3600  # 1 hora
+
+    async def get(self, key: str) -> Optional[Dict]:
+        if key in self.cache:
+            data, timestamp = self.cache[key]
+            if (datetime.now() - timestamp).seconds < self.TTL:
+                return data
+            del self.cache[key]
+        return None
+
+    async def set(self, key: str, value: Dict):
+        self.cache[key] = (value, datetime.now())
+
 # Definición de scrapers y mapeo SCRAPER_MAP...
       
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=4, max=10),
-    retry_error_callback=lambda retry_state: None
+    before_sleep=before_sleep_log(logger, logging.WARNING)
 )
 async def run_scraper(dominio_scraping):
     """
@@ -350,7 +478,7 @@ def get_scraper_for_platform(plataforma, dominio_url, cookies=None):
     """
     Retorna la clase scraper correspondiente a la plataforma.
     """
-    scraper_class = SCRAPER_MAP.get(plataforma.lower(), EnhancedBaseScraper)
+    scraper_class = SCRAPER_MAP.get(plataforma.lower(), BaseScraper)
     return scraper_class(dominio_url, config=ScraperConfig(), cookies=cookies)
 
 async def scrape_workflow(domains):
@@ -362,7 +490,18 @@ async def scrape_workflow(domains):
     async def process_scraper(scraper):
         try:
             jobs = await scraper.scrape()
-            validated_jobs = [validate_job_data(job) for job in jobs]
+            validated_jobs = []
+            for index, job in enumerate(jobs):
+                validated_job, reason = validate_job_data(job)
+                if validated_job:
+                    validated_jobs.append(validated_job)
+                else:
+                    job_id = job.get("id", "Sin ID")
+                    job_title = job.get("title", "Sin título")
+                    logger.warning(
+                        f"Vacante eliminada en posición {index}: ID={job_id}, Título='{job_title}'. "
+                        f"Motivo: {reason}"
+                    )
             await save_vacantes(validated_jobs, scraper.domain)
         except Exception as e:
             logger.error(f"Scraping failed for {scraper.domain}: {e}")
@@ -384,35 +523,6 @@ def assign_business_unit_to_vacante(vacante):
             return bu
     
     return "amigro"  # Default
-
-@transaction.atomic
-async def save_vacantes(jobs: List[JobListing], dominio: DominioScraping):
-    """
-    Guarda las vacantes extraídas en la base de datos.
-    """
-    for job in jobs:
-        business_unit = assign_business_unit_to_vacante(job)
-        business_unit_obj = await sync_to_async(BusinessUnit.objects.get)(name=business_unit)
-
-        skills = extract_skills(job.description or "")
-        divisions = associate_divisions(skills)
-
-        vacante, created = await sync_to_async(Vacante.objects.update_or_create)(
-            titulo=job.title,
-            empresa=job.company,
-            defaults={
-                "salario": job.salary,
-                "ubicacion": job.location,
-                "url_original": job.url,
-                "descripcion": job.description,
-                "dominio_origen": dominio,
-                "business_unit": business_unit_obj,
-                "skills_required": skills,
-                "divisions": divisions
-            }
-        )
-        msg = "creada" if created else "actualizada"
-        logger.info(f"🔄 Vacante {msg}: {vacante.titulo}")
 
 async def fetch_with_requests(url):
     """
@@ -472,7 +582,11 @@ async def fetch_with_selenium(url):
         return None
 
 
-@backoff.on_exception(backoff.expo, (aiohttp.ClientError, asyncio.TimeoutError), max_tries=5)
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    before_sleep=before_sleep_log(logger, logging.WARNING)
+)
 async def fetch_with_retry(session, url):
     async with session.get(url) as response:
         response.raise_for_status()
@@ -540,50 +654,37 @@ async def scrape_domains(dominios):
         tasks.append(scrape_single_domain(dominio))
     await asyncio.gather(*tasks)
 
-async def run_scraper(dominio):
+async def run_scraper(dominio: DominioScraping) -> List[Dict[str, Any]]:
     """
-    Ejecuta el proceso de scraping para un dominio específico.
+    Ejecuta el scraping para un dominio específico.
+
+    Args:
+        dominio (DominioScraping): Objeto de dominio a scrapear.
+
+    Returns:
+        List[Dict[str, Any]]: Lista de vacantes extraídas.
     """
-    url = dominio.dominio
-    logger.info(f"Iniciando scraping para {dominio.empresa} ({url})")
+    logger.info(f"Iniciando scraping para dominio: {dominio.empresa} ({dominio.dominio})")
 
-    # Primer intento con requests
-    html_content = await fetch_with_requests(url)
+    try:
+        scraper = get_scraper_for_platform(
+            plataforma=dominio.plataforma,
+            dominio_url=dominio.dominio,
+            cookies=dominio.cookies
+        )
 
-    # Si requests falla, intentar con Selenium
-    if not html_content:
-        logger.info(f"Intentando con Selenium para {url}")
-        html_content = await fetch_with_selenium(url)
+        if not scraper:
+            logger.error(f"⚠️ Scraper no implementado para {dominio.plataforma}")
+            return []
 
-    if not html_content:
-        logger.error(f"No se pudo obtener el contenido de {url}")
+        vacantes = await scraper.scrape()
+        logger.info(f"✅ Total de vacantes extraídas: {len(vacantes)} para {dominio.dominio}")
+        return vacantes
+
+    except Exception as e:
+        logger.error(f"❌ Error ejecutando scraper para {dominio.dominio}: {e}")
         return []
-
-    # Intentar extraer datos con diferentes métodos
-    vacantes = []
-
-    # 1. Extracción de JSON-LD
-    json_ld_data = extract_json_ld(html_content, url)
-    if json_ld_data:
-        vacantes.extend(json_ld_data)
-        logger.info(f"Vacantes extraídas con JSON-LD para {dominio.empresa}")
-    else:
-        # 2. Extracción de datos en JavaScript
-        js_data = extract_js_data(html_content, "jobData")
-        if js_data:
-            vacantes.extend(js_data)
-            logger.info(f"Vacantes extraídas desde JavaScript para {dominio.empresa}")
-        else:
-            # 3. Extracción mediante parsing de HTML
-            job_data = extract_job_details(html_content)
-            if job_data:
-                vacantes.append(job_data)
-                logger.info(f"Vacantes extraídas mediante parsing de HTML para {dominio.empresa}")
-            else:
-                logger.warning(f"No se pudieron extraer vacantes para {dominio.empresa}")
-
-    return vacantes
-
+    
 async def scrape_domains_in_batches(dominios: List[DominioScraping], batch_size=5):
     for i in range(0, len(dominios), batch_size):
         batch = dominios[i:i + batch_size]
@@ -617,101 +718,116 @@ def associate_divisions(skills: List[str]) -> List[str]:
                 associated_divisions.add(division)
     return list(associated_divisions)
 
-def validate_job_data(job_data):
-    # Implementación existente
-    # Añadir extracción y asociación de habilidades y divisiones
-    validated_data = validate_json(job_data)
-    if validated_data:
-        skills = extract_skills(validated_data.get("description", ""))
-        divisions = associate_divisions(skills)
-        validated_data["skills"] = skills
-        validated_data["divisions"] = divisions
-    return validated_data
+# ========================
+# Pipeline de Procesamiento
+# ========================
+class ScrapingPipeline:
+    async def process(self, jobs: List[Dict]) -> List[Dict]:
+        jobs = await self.clean_data(jobs)
+        jobs = await self.enrich_data(jobs)
+        jobs = await self.validate_data(jobs)
+        return jobs
 
-# ____________________________________________________________________________________________________________________________________________________________________________________
-# Clases de Scrapers ordenados ____NO SE BRINDAN POR SER EXTREMADAMENTE LARGOS___________________________________________________________________________________________________________________________________________________
+    async def clean_data(self, jobs: List[Dict]) -> List[Dict]:
+        cleaned_jobs = []
+        for job in jobs:
+            job['title'] = job.get('title', '').strip()
+            job['description'] = job.get('description', '').strip()
+            if job['title'] and job['description']:
+                cleaned_jobs.append(job)
+        return cleaned_jobs
 
-class EthicalScraper:
-    def __init__(self, rate_limit=2):  # 2 requests/segundo
-        self.semaphore = asyncio.Semaphore(rate_limit)
+    async def enrich_data(self, jobs: List[Dict]) -> List[Dict]:
+        for job in jobs:
+            job['timestamp'] = datetime.now().isoformat()
+        return jobs
 
-    async def fetch_with_respect(self, session, url):
+    async def validate_data(self, jobs: List[Dict]) -> List[Dict]:
+        valid_jobs = []
+        for job in jobs:
+            if self.is_valid_job(job):
+                valid_jobs.append(job)
+        return valid_jobs
+
+    def is_valid_job(self, job: Dict) -> bool:
+        required_fields = ['title', 'description', 'url']
+        return all(field in job and job[field] for field in required_fields)
+
+# ========================
+# Clase Base Abstracta
+# ========================
+class BaseScraper(ABC):
+    def __init__(self, domain: str, config=None, metrics=None):
+        self.domain = domain
+        self.config = config or ScrapingConfig()
+        self.metrics = metrics or ScrapingMetrics()
+        self.semaphore = asyncio.Semaphore(self.config.MAX_CONCURRENT_REQUESTS)
+        self.session = None
+
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession(
+            timeout=ClientTimeout(total=self.config.TIMEOUT),
+            headers={'User-Agent': random.choice(self.config.USER_AGENTS)}
+        )
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    async def fetch(self, url: str) -> Optional[str]:
         async with self.semaphore:
             try:
-                async with session.get(url, timeout=10) as response:
+                async with self.session.get(url) as response:
                     response.raise_for_status()
                     return await response.text()
             except Exception as e:
-                logger.error(f"Error en fetch_with_respect: {e}")
+                self.metrics.errors_total.inc()
+                logger.error(f"Error al realizar fetch para {url}: {e}")
                 return None
 
-class BaseScraper(EthicalScraper):
-    """
-    Clase base para scrapers.
-    """
-    def __init__(self, domain, config=ScraperConfig(), logger=None, cookies=None):
-        self.domain = domain.rstrip('/')  # Asegurarse de que no haya '/' al final
-        self.config = config
-        self.logger = logger or logging.getLogger(self.__class__.__name__)
-        self.cookies = cookies or {}
-        self.user_agents = USER_AGENTS
+    @abstractmethod
+    async def scrape(self) -> List[Dict[str, Any]]:
+        pass
 
-    @backoff.on_exception(backoff.expo, (aiohttp.ClientError, asyncio.TimeoutError), max_tries=5)
-    async def fetch_with_retry(self, session, url):
-        """ Realiza la solicitud con reintentos y manejo de errores. """
-        headers = {
-            "User-Agent": random.choice(self.user_agents),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        }
-        self.logger.debug(f"Fetching URL: {url} with headers: {headers}")
-        
-        await asyncio.sleep(random.uniform(self.config.delay_min, self.config.delay_max))
-        async with session.get(
-            url,
-            headers=headers,
-            cookies=self.cookies,
-            timeout=aiohttp.ClientTimeout(total=self.config.timeout),
-            proxy=self.config.proxy
-        ) as response:
-            response.raise_for_status()
-            content_type = response.headers.get("Content-Type", "").lower()
-            if "application/json" in content_type:
-                return await response.json()
-            return await response.text()
+# ========================
+# Coordinador
+# ========================
+class ScrapingCoordinator:
+    def __init__(self):
+        self.config = ScrapingConfig()
+        self.metrics = ScrapingMetrics()
+        self.cache = ScrapingCache()
+        self.pipeline = ScrapingPipeline()
 
-    async def fetch(self, session, url):
-        """ Wrapper más simple para solicitudes sin backoff. """
-        try:
-            return await self.fetch_with_retry(session, url)
-        except Exception as e:
-            self.logger.error(f"Error fetching {url}: {e}")
-            raise
+    async def run_scrapers(self, scraper_configs: List[Dict]) -> Dict[str, List[Dict]]:
+        results = {}
+        tasks = []
+        for config in scraper_configs:
+            scraper_class = SCRAPER_MAP.get(config['type'])
+            if not scraper_class:
+                continue
+            scraper = scraper_class(self.config, self.metrics, self.cache)
+            tasks.append(self.run_single_scraper(scraper, config))
+        completed_tasks = await asyncio.gather(*tasks, return_exceptions=True)
+        for config, result in zip(scraper_configs, completed_tasks):
+            if isinstance(result, Exception):
+                logging.error(f"Error in scraper {config['type']}: {result}")
+                continue
+            results[config['type']] = result
+        return results
 
-    def validate_response(self, response, content_type="html"):
-        """ Valida el contenido de la respuesta. """
-        try:
-            if content_type == "json":
-                return json.loads(response)
-            elif content_type == "html":
-                return BeautifulSoup(response, "html.parser")
-        except Exception as e:
-            self.logger.error(f"Error validando contenido ({content_type}): {e}")
-            return None
+    async def run_single_scraper(self, scraper: BaseScraper, config: Dict) -> List[Dict]:
+        async with scraper:
+            raw_jobs = await scraper.scrape()
+            return await self.pipeline.process(raw_jobs)
 
-    def sync_fetch(self, url):
-        """ Método síncrono para obtener contenido (usando `requests`). """
-        try:
-            headers = {"User-Agent": random.choice(self.user_agents)}
-            response = requests.get(url, headers=headers, cookies=self.cookies, timeout=self.config.timeout)
-            response.raise_for_status()
-            return response.text
-        except RequestException as e:
-            self.logger.error(f"Error realizando solicitud síncrona a {url}: {e}")
-            return None
-
-    async def scrape(self):
-        """ Método abstracto que deben implementar las subclases. """
-        raise NotImplementedError("El método 'scrape' debe ser implementado por las subclases.")
+# ========================
+# Scrapers Específicos
+# ========================
+# Aquí incluyes clases como WorkdayScraper, OracleScraper, FlexibleScraper, etc.
+# Usa la estructura modular propuesta en tu código original.
 
 class FlexibleScraper(BaseScraper):
     def __init__(self, domain, config=None):
@@ -740,85 +856,69 @@ class FlexibleScraper(BaseScraper):
         return jobs
 # Implementaciones específicas de scrapers
 class WorkdayScraper(BaseScraper):
-    async def scrape(self) -> List[JobListing]:
-        """
-        Realiza el scraping del primer nivel de Workday.
-        """
+    async def scrape(self) -> List[Dict[str, Any]]:
         vacantes = []
         page = 1
         logger.info(f"Iniciando WorkdayScraper para dominio: {self.domain}")
 
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.domain}/job-search/api?index={(page - 1) * 10}&count=10"
-                logger.info(f"Procesando página: {page} - {url}")
-                
-                try:
-                    response = await self.fetch_with_retry(session, url)
-                    if not response or "items" not in response:
-                        logger.warning(f"No se encontraron más vacantes en la página {page}. Finalizando.")
-                        break
-                    
-                    # Procesar las vacantes del nivel 1
-                    parsed_jobs = self.parse_jobs(response["items"])
-                    if not parsed_jobs:
-                        break
+        while True:
+            url = f"{self.domain}/job-search/api?index={(page - 1) * 10}&count=10"
+            logger.info(f"Procesando página: {page} - {url}")
 
-                    job_details = await asyncio.gather(
-                        *[self.get_job_details(session, job["url"]) for job in parsed_jobs],
-                        return_exceptions=True
-                    )
-
-                    for job, details in zip(parsed_jobs, job_details):
-                        if isinstance(details, Exception):
-                            logger.error(f"Error fetching details for {job['url']}: {details}")
-                            details = {"description": "Details unavailable"}
-                        job.update(details)
-                        vacantes.append(job)
-
-                    logger.info(f"Página {page}: {len(parsed_jobs)} vacantes procesadas.")
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error procesando página {page}: {e}", exc_info=True)
+            try:
+                response = await self.fetch(url)
+                if not response:
+                    logger.warning(f"No se obtuvo respuesta en {url}. Finalizando scraping.")
                     break
+
+                data = json.loads(response)
+                items = data.get("items", [])
+                if not items:
+                    logger.info(f"No se encontraron más vacantes en la página {page}. Finalizando.")
+                    break
+
+                for job in items:
+                    try:
+                        vacante = {
+                            "title": job.get("title", "No title"),
+                            "location": job.get("locations", [{}])[0].get("displayName", "No location"),
+                            "company": job.get("clientName", "No company"),
+                            "url": f"{self.domain}{job.get('externalPath', '')}",
+                            "description": "Not fetched"  # Se actualizará posteriormente
+                        }
+                        details = await self.get_job_details(vacante["url"])
+                        vacante.update(details)
+                        vacantes.append(vacante)
+                    except Exception as e:
+                        logger.warning(f"Error procesando vacante: {e}")
+                        continue
+
+                logger.info(f"Página {page}: {len(items)} vacantes procesadas.")
+                page += 1
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Error decodificando JSON de {url}: {e}")
+                break
+            except Exception as e:
+                logger.error(f"Error en WorkdayScraper: {e}")
+                break
 
         logger.info(f"Finalizado WorkdayScraper. Total vacantes extraídas: {len(vacantes)}")
         return vacantes
 
-    def parse_jobs(self, items: List[Dict[str, Any]]) -> List[Dict[str, str]]:
-        """Parses job postings."""
-        jobs = []
-        for job in items:
-            try:
-                jobs.append({
-                    "title": job.get("title", "No title"),
-                    "location": job.get("locations", [{}])[0].get("displayName", "No location"),
-                    "company": job.get("clientName", "No company"),
-                    "url": f"{self.domain}{job.get('externalPath')}",
-                    "description": "Not fetched"
-                })
-            except Exception as e:
-                logger.warning(f"Error parsing job: {e}")
-        return jobs
-
-    async def get_job_details(self, session, url):
-        """
-        Obtiene detalles adicionales de una vacante específica de manera asíncrona.
-        Maneja URLs inválidas, extrae descripción y requisitos, con control de concurrencia."""
-        if not url or "No" in url:
-            return {"description": "Invalid URL"}
-        async with self.semaphore:
-            try:
-                logger.info(f"Fetching job details from {url}")
-                response = await self.fetch_with_retry(session, url)
-                soup = self.validate_response(response, content_type="html")
-                description = soup.find("div", class_="description").get_text(strip=True) if soup else "Not available"
-                requirements = soup.find("div", class_="requirements").get_text(strip=True) if soup else "Not available"
-                return {"description": description,
-                        "requirements": requirements}
-            except Exception as e:
-                logger.error(f"Error fetching details from {url}: {e}")
-                return {"description": "Error fetching details"}
+    async def get_job_details(self, url: str) -> Dict[str, str]:
+        """Obtiene detalles adicionales de una vacante específica."""
+        try:
+            response = await self.fetch(url)
+            if not response:
+                return {"description": "No disponible", "requirements": "No disponible"}
+            soup = BeautifulSoup(response, "html.parser")
+            description = soup.find("div", class_="description").get_text(strip=True) if soup.find("div", class_="description") else "No disponible"
+            requirements = soup.find("div", class_="requirements").get_text(strip=True) if soup.find("div", class_="requirements") else "No disponible"
+            return {"description": description, "requirements": requirements}
+        except Exception as e:
+            logger.error(f"Error obteniendo detalles del trabajo en {url}: {e}")
+            return {"description": "Error obteniendo detalles", "requirements": "Error obteniendo requisitos"}
 
 class PhenomPeopleScraper(BaseScraper):
     async def scrape(self):
@@ -1299,7 +1399,7 @@ class AccentureScraper(BaseScraper):
             logger.error(f"Error obteniendo detalles del trabajo en {url}: {e}")
             return {"description": "No disponible"}
 
-class EightFoldScraper:
+class EightFoldScraper(BaseScraper):
     def __init__(self, domain: str, location: str = "mexico"):
         self.domain = domain
         self.location = location
@@ -1436,6 +1536,10 @@ class FlexibleScraper(BaseScraper):
             logger.warning(f"No se pudo extraer dato con selector {selector}: {e}")
             return None
 
+# ========================
+# Mapeo de Scrapers
+# ========================
+
 SCRAPER_MAP = {
     "workday": WorkdayScraper,
     "phenom_people": PhenomPeopleScraper,
@@ -1452,7 +1556,7 @@ SCRAPER_MAP = {
     "glassdor": GlassdoorScraper,
     "computrabajo": ComputrabajoScraper,
     "accenture": AccentureScraper,
-    "eighfold_ai": EightFoldScraper,
+    "eightfold_ai": EightFoldScraper,
     "default": BaseScraper,  # Genérico por defecto
     "flexible": FlexibleScraper,
 }

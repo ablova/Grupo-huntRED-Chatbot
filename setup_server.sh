@@ -3,14 +3,14 @@
 set -e  # Termina el script si ocurre un error
 
 # -------------------- VARIABLES --------------------
-PROJECT_ID="amigro"
+PROJECT_ID="Grupo-huntRED"
 ZONE="us-central1-a"
-INSTANCE_NAME="amigro"
+INSTANCE_NAME="grupo-huntred"
 MACHINE_TYPE="e2-medium"
 DISK_SIZE="15GB"
 IMAGE_FAMILY="ubuntu-2204-lts"
 IMAGE_PROJECT="ubuntu-os-cloud"
-EXTERNAL_IP="35.209.109.141"
+EXTERNAL_IP="34.57.227.244"
 PROJECT_DIR="/home/pablollh"
 VENV_DIR="$PROJECT_DIR/venv"
 GITHUB_REPO="https://${GITHUB_PAT}@github.com/ablova/Grupo-huntRED-Chatbot.git"

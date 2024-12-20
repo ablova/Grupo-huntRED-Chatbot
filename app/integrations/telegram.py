@@ -25,6 +25,10 @@ async def telegram_webhook(request):
             payload = json.loads(body)
             logger.info(f"Payload recibido de Telegram: {json.dumps(payload, indent=4)}")
     
+            if 'message' not in payload:
+                logger.warning("Payload no contiene 'message'")
+                return JsonResponse({'status': 'no message'}, status=400)
+    
             message = payload.get('message', {})
             if not message:
                 logger.warning("No se encontró 'message' en el payload")

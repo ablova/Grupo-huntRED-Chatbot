@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @method_decorator(csrf_exempt, name='dispatch')
 class WhatsAppWebhookView(View):
     def post(self, request, *args, **kwargs):
+        # Verificar la firma o token de seguridad aquí
         return whatsapp_webhook(request)
 
 @method_decorator(csrf_exempt, name='dispatch')

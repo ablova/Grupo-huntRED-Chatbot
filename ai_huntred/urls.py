@@ -21,9 +21,32 @@ from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from app.views.dashboard_views import dashboard_view
+from app.views.candidate_views import candidate_dashboard
+from app.views.evaluation_views import evaluate_candidate
+from app.views.notification_views import send_notification
+from app.views.candidatos_views import (
+    list_candidatos,
+    candidate_dashboard,
+    evaluate_candidate,
+    send_notification,
+)
 
 def health_check(request):
     return HttpResponse("OK")
+
+class WorkflowStageListView(ListView):
+    pass
+
+class WorkflowStageCreateView(CreateView):
+    pass
+
+class WorkflowStageUpdateView(UpdateView):
+    pass
+
+class WorkflowStageDeleteView(DeleteView):
+    pass
 
 urlpatterns = [
     # Administración
@@ -39,5 +62,15 @@ urlpatterns = [
 
     # Health Check
     path('health/', health_check, name='health_check'),
+
+    # Rutas para el flujo de trabajo
+    path('business-unit/', include('app.urls.workflow_urls')),
+
+    # Nuevas rutas
+    path('dashboard/', dashboard_view, name='dashboard'),
+    path('candidates/', list_candidatos, name='list_candidatos'),
+    path('candidates/dashboard/', candidate_dashboard, name='candidate_dashboard'),
+    path('candidates/<int:candidate_id>/evaluate/', evaluate_candidate, name='evaluate_candidate'),
+    path('send-notification/', send_notification, name='send_notification'),
 ]
 urlpatterns += staticfiles_urlpatterns()

@@ -33,7 +33,9 @@ PLATFORM_CHOICES = [
     ("computrabajo", "Computrabajo"),
     ("accenture", "Accenture"),
     ("santander", "Santander"),
-    ("otro", "Otro"),
+    ("eightfold_ai", "EightFold AI"),
+    ("default", "Default"),
+    ("flexible", "Flexible"),
 ]
 
 BUSINESS_UNIT_CHOICES = [

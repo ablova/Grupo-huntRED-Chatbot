@@ -1,5 +1,6 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
+from django.core.mail import send_mail
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from app.models import Person, Application, Vacante, EnhancedNetworkGamificationProfile
@@ -88,3 +89,41 @@ def generate_challenges(request, user_id):
     profile = EnhancedNetworkGamificationProfile.objects.get(user_id=user_id)
     challenges = profile.generate_networking_challenges()
     return JsonResponse(challenges, safe=False)
+
+def candidate_dashboard(request):
+    """
+    Vista para el dashboard de candidatos.
+    """
+    candidates = Person.objects.all()  # Puedes agregar filtros aquí
+    return render(request, 'candidate_dashboard.html', {'candidates': candidates})
+
+def evaluate_candidate(request, candidate_id):
+    """
+    Vista para evaluar a un candidato.
+    """
+    candidate = get_object_or_404(Person, id=candidate_id)
+
+    if request.method == 'POST':
+        form = EvaluationForm(request.POST)
+        if form.is_valid():
+            evaluation = form.save(commit=False)
+            evaluation.candidate = candidate
+            evaluation.save()
+            return redirect('candidate_dashboard')  # Redirigir a la lista de candidatos
+    else:
+        form = EvaluationForm()
+
+    return render(request, 'evaluate_candidate.html', {'form': form, 'candidate': candidate})
+
+def send_notification(request):
+    """
+    Vista para enviar notificaciones por correo electrónico.
+    """
+    if request.method == 'POST':
+        subject = request.POST.get('subject')
+        message = request.POST.get('message')
+        recipient_list = request.POST.getlist('recipients')
+
+        send_mail(subject, message, 'from@example.com', recipient_list)
+        return JsonResponse({'status': 'success', 'message': 'Notificación enviada.'})
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
