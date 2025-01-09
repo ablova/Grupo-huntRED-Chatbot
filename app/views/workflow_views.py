@@ -1,4 +1,4 @@
-# app/views/workflow_views.py
+# /home/pablollh/app/views/workflow_views.py
 
 from django.views import View
 from django.shortcuts import render, redirect, get_object_or_404
@@ -8,6 +8,8 @@ from django.http import JsonResponse
 from app.models import WorkflowStage, BusinessUnit
 from app.forms import WorkflowStageForm
 import logging
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 
 logger = logging.getLogger(__name__)
 

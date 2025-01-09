@@ -1,6 +1,7 @@
 # /home/pablollh/app/gpt.py
 import logging
 import openai
+import backoff
 from typing import Dict, Optional
 from app.models import GptApi
 from app.integrations.services import send_email

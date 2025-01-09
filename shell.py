@@ -84,7 +84,7 @@ pip install supervisor
 
 # Sample supervisord configuration
 [program:celery-worker]
-command=/path/to/venv/bin/celery -A ai_huntred worker
+command=/home/pablollh/venv/bin/celery -A ai_huntred worker
 autostart=true
 autorestart=true
 stderr_logfile=/var/log/celery/worker.err.log
@@ -129,7 +129,7 @@ else:
 send_message('whatsapp', 525518490291, f"Respuesta: Prueba desde shell de webhook")
 
 
-from ai_huntred import send_whatsapp_message
+from app.integrations.whatsapp import send_whatsapp_message
 
 # Ejecuta la tarea en segundo plano
 send_whatsapp_message.delay('525518490291', 'Hola desde el chatbot de Amigro, desde shell!')
@@ -172,13 +172,14 @@ api_token = api_data.api_token
 user_id = 871198362  # PLLH Telegram
 phone_number = '525518490291'  #PLLH WA
 PSID = '25166616082937314' # huntRED Messenger
+business_unit = 'amigro'
 
 print(f"BOT Token: {bot_token}")
 print(f"Telegram API: {telegram_api}")
 
 
-send_logo('whatsapp', phone_number)
-send_logo('telegram', user_id)
+send_logo('whatsapp', phone_number, business_unit)
+send_logo('telegram', user_id, business_unit)
 send_logo('messenger', sender_id)
 # Inicia el shell de Django
 python manage.py shell
@@ -199,13 +200,14 @@ messenger_api = MessengerAPI.objects.first()
 phone_number = '525518490291'
 user_id = 871198362
 PSID = '25166616082937314' # huntRED 
+business_unit = 'amigro'
 
 # Envía el logo por WhatsApp
-send_menu('whatsapp', phone_number)  # Reemplaza con tu número
+send_menu('whatsapp', phone_number, business_unit)  # Reemplaza con tu número
 # Envía el logo por Telegram
-send_menu('telegram', user_id)  # Reemplaza con tu chat ID
+send_menu('telegram', user_id, business_unit)  # Reemplaza con tu chat ID
 # Envía el logo por Messenger
-send_menu('messenger', PSID)  # Reemplaza con tu PSID
+send_menu('messenger', PSID, business_unit)  # Reemplaza con tu PSID
 
 url = f"https://graph.facebook.com/{v_api}/{phone_id}/messages"
 headers = {

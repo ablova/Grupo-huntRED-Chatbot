@@ -4,6 +4,7 @@ from django.core.mail import send_mail
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from app.models import Person, Application, Vacante, EnhancedNetworkGamificationProfile
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -90,12 +91,12 @@ def generate_challenges(request, user_id):
     challenges = profile.generate_networking_challenges()
     return JsonResponse(challenges, safe=False)
 
-def candidate_dashboard(request):
+def candidato_dashboard(request):
     """
     Vista para el dashboard de candidatos.
     """
     candidates = Person.objects.all()  # Puedes agregar filtros aquí
-    return render(request, 'candidate_dashboard.html', {'candidates': candidates})
+    return render(request, 'candidatos/dashboard.html', {'candidates': candidates})
 
 def evaluate_candidate(request, candidate_id):
     """
@@ -109,7 +110,7 @@ def evaluate_candidate(request, candidate_id):
             evaluation = form.save(commit=False)
             evaluation.candidate = candidate
             evaluation.save()
-            return redirect('candidate_dashboard')  # Redirigir a la lista de candidatos
+            return redirect('candidato_dashboard')  # Redirigir a la lista de candidatos
     else:
         form = EvaluationForm()
 

@@ -16,8 +16,17 @@ from bs4 import BeautifulSoup
 from app.models import Person, BusinessUnit, USER_AGENTS
 from app.catalogs import DIVISION_SKILLS
 from app.nlp import sn  # SkillNer instance
+from spacy.matcher import PhraseMatcher
+from spacy.lang.es import Spanish
 
 logger = logging.getLogger(__name__)
+
+# Inicializar spaCy y PhraseMatcher
+nlp = Spanish()
+phrase_matcher = PhraseMatcher(nlp.vocab)
+
+# Inicializar SkillExtractor correctamente
+skill_extractor = SkillExtractor(phraseMatcher=phrase_matcher)
 
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "781zbztzovea6a")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "WPL_AP1.MKozNnsrqofMSjN4.ua0UOQ==")
@@ -240,12 +249,12 @@ def process_api_data(business_unit: BusinessUnit, member_ids: List[str]):
 # Scraping Manual (Sin API)
 # =========================================================
 
-@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=5)
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, base=30)
 def fetch_url(url):
     headers = {'User-Agent': random.choice(USER_AGENTS)}
     r = requests.get(url, headers=headers, timeout=10)
     r.raise_for_status()
-    time.sleep(random.uniform(5, 15))  # Pausa entre requests
+    time.sleep(random.uniform(15, 30))  # Pausa entre requests
     return r.text
 
 def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
@@ -318,6 +327,7 @@ def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
                     fn, ln, None, email, birthday, company, position, business_unit
                 )
                 logger.info(f"✅ Perfil básico guardado: {fn} {ln} ({email})")
+
 
 def extract_contact_link(soup):
     link = soup.find('a', id='top-card-text-details-contact-info')
@@ -484,26 +494,46 @@ def scrape_linkedin_profile(link_url: str) -> dict:
     }
     return data
 
-def scrape_linkedin_profiles(batch_size=300):
+def scrape_linkedin_profile(link_url: str) -> dict:
     """
-    Scrapea y enriquece perfiles marcados como pendientes en la base de datos.
+    Realiza scraping en LinkedIn para un perfil individual usando su URL.    
     """
-    pending_profiles = Person.objects.filter(metadata__linkedin_pending=True)[:batch_size]
-    for person in pending_profiles:
-        try:
-            linkedin_url = person.metadata.get("linkedin_url")
-            if not linkedin_url:
-                logger.warning(f"No LinkedIn URL for {person.nombre}")
-                continue
+    try:
+        html = fetch_url(link_url)   # Asumes que fetch_url() obtiene la página con backoff
+        if not html:
+            logger.warning(f"No se pudo obtener HTML para {link_url}")
+            return {}
 
-            # Scraping y actualización
-            scraped_data = scrape_linkedin_profile(linkedin_url)
-            if scraped_data:
-                update_person_from_scrape(person, scraped_data)
-            else:
-                logger.warning(f"No se pudo extraer datos para {person.nombre}")
-        except Exception as e:
-            logger.error(f"Error scraping profile {person.nombre}: {e}")
+        soup = BeautifulSoup(html, 'html.parser')
+
+        # ... aquí extraes name, headline, location, experience, etc. ...
+        # Pongamos un ejemplo para 'skills':
+
+        # Supongamos que no hay un <section id="skills"> en LinkedIn normal
+        # Sino que tu scraping obtiene un 'about_text' y luego usas nlp_processor.extract_skills:
+
+        about_text = soup.find("div", class_="pv-about-section")
+        if about_text:
+            about_str = about_text.get_text(strip=True)
+        else:
+            about_str = ""
+
+        # extraer skills:
+        extracted_skills = nlp_processor.extract_skills(about_str)
+
+        data = {
+            'name': ...,
+            'headline': ...,
+            'location': ...,
+            'experience': ...,
+            'education': ...,
+            'skills': extracted_skills,  # <--- lo que te interese
+        }
+        return data
+
+    except Exception as e:
+        logger.error(f"❌ Error scrapeando {link_url}: {e}", exc_info=True)
+        return {}
 
 def extract_skills(text: str) -> List[str]:
     """

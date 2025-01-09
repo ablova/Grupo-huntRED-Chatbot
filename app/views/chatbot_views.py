@@ -4,12 +4,13 @@ from django.views import View
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
 import json
 import logging
 
 from app.chatbot import ChatBotHandler
-from app.models import GptApi, Pregunta
-from app.gpt import gpt_message
+from app.models import GptApi
+from app.gpt import GPTHandler
 from app.integrations.services import send_message, send_image, send_menu, send_logo
 from asgiref.sync import sync_to_async
 from app.ml_model import MatchmakingLearningSystem
@@ -127,14 +128,14 @@ async def send_test_message(request):
                     whatsapp_api = await sync_to_async(WhatsAppAPI.objects.first)()
                     response = await registro_amigro(recipient, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api, {})
                     responses.append({'function': func, 'response': response})
-                elif func == 'send_question':
-                    if question_id:
-                        question = await sync_to_async(Pregunta.objects.get)(id=question_id)
-                        response_text = question.content
-                        response = await send_message(platform, recipient, response_text)
-                        responses.append({'function': func, 'response': response})
-                    else:
-                        return JsonResponse({"error": "Se requiere el ID de la pregunta para 'Enviar Pregunta'."}, status=400)
+                #elif func == 'send_question':
+                #    if question_id:
+                #        question = await sync_to_async(Pregunta.objects.get)(id=question_id)
+                #        response_text = question.content
+                #        response = await send_message(platform, recipient, response_text)
+                #        responses.append({'function': func, 'response': response})
+                #    else:
+                #        return JsonResponse({"error": "Se requiere el ID de la pregunta para 'Enviar Pregunta'."}, status=400)
                 elif func == 'send_buttons':
                     # Implementar lógica para enviar botones
                     botones = [{'title': 'Opción 1'}, {'title': 'Opción 2'}]

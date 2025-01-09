@@ -26,6 +26,7 @@ from app.models import (
     Person,
     BusinessUnit,
     Application,
+    RegistroScraping
 )
 from app.linkedin import (
     process_api_data,
@@ -124,10 +125,13 @@ app.conf.task_routes = {
     'app.tasks.send_messenger_message': {'queue': 'notifications'},
     # Añade otras tareas según sea necesario
 }
+
 def register_periodic_tasks():
     """
     Registra tareas periódicas en Celery Beat si no están configuradas.
     """
+    logger.info("🔄 Registrando tareas periódicas...")
+    
     # Lista de tareas y sus configuraciones
     tasks = [
         {
@@ -160,21 +164,38 @@ def register_periodic_tasks():
             "task": "app.tasks.limpieza_vacantes",
             "crontab": {"day_of_month": "1", "month_of_year": "1,4,7,11", "hour": 0, "minute": 0},
         },
+        {
+            "name": "Send Consolidated Reports",
+            "task": "app.tasks.generate_and_send_reports",
+            "crontab": {"hour": 8, "minute": 40},
+        },
+        {
+            "name": "Check Emails and Parse CVs Morning",
+            "task": "app.tasks.check_emails_and_parse_cvs",
+            "crontab": {"hour": 9, "minute": 0},
+        },
+        {
+            "name": "Check Emails and Parse CVs Afternoon",
+            "task": "app.tasks.check_emails_and_parse_cvs",
+            "crontab": {"hour": 14, "minute": 0},
+        }
     ]
 
     for task_info in tasks:
-        crontab_schedule, _ = CrontabSchedule.objects.get_or_create(**task_info["crontab"])
-        PeriodicTask.objects.get_or_create(
-            crontab=crontab_schedule,
-            name=task_info["name"],
-            task=task_info["task"],
-        )
-        logger.info(f"📌 Tarea registrada: {task_info['name']}")
+        try:
+            crontab_schedule, _ = CrontabSchedule.objects.get_or_create(**task_info["crontab"])
+            PeriodicTask.objects.get_or_create(
+                crontab=crontab_schedule,
+                name=task_info["name"],
+                task=task_info["task"],
+                defaults={'enabled': True}
+            )
+            logger.info(f"✅ Tarea registrada: {task_info['name']}")
+        except Exception as e:
+            logger.error(f"❌ Error registrando tarea {task_info['name']}: {e}")
 
-
-# Llama a la función en el inicio del archivo o donde sea necesario
+# Registrar las tareas periódicas al iniciar
 register_periodic_tasks()
-
 
 @shared_task
 def add(x, y):
@@ -184,9 +205,15 @@ def add(x, y):
 # =========================================================
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
-def send_whatsapp_message_task(self, recipient, message):
+def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
     try:
-        asyncio.run(send_message('whatsapp', recipient, message))
+        if not business_unit_id:
+            # Asignar BU por defecto o hacer un fallback
+            bu = BusinessUnit.objects.filter(name='amigro').first()  # ejemplo
+        else:
+            bu = BusinessUnit.objects.get(id=business_unit_id)
+
+        asyncio.run(send_message('whatsapp', recipient, message, bu))
         logger.info(f"✅ Mensaje de WhatsApp enviado a {recipient}")
     except Exception as e:
         logger.error(f"❌ Error enviando mensaje a WhatsApp: {e}")
@@ -278,12 +305,21 @@ def ejecutar_ml(self):
         self.retry(exc=e)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300, queue='ml')
-def train_matchmaking_model_task(self, business_unit_id):
+def train_matchmaking_model_task(self, business_unit_id=None):
     """
     Entrena el modelo de matchmaking para una Business Unit específica.
     """
     try:
-        bu = BusinessUnit.objects.get(id=business_unit_id)
+        if business_unit_id:
+            bu = BusinessUnit.objects.get(id=business_unit_id)
+        else:
+            logger.info("No se proporcionó una Business Unit específica, seleccionando la primera.")
+            bu = BusinessUnit.objects.first()  # Seleccionar la primera como predeterminada
+
+        if not bu:
+            logger.error("No se encontró una Business Unit para entrenar el modelo.")
+            return
+
         pipeline = GrupohuntREDMLPipeline(bu.name)
         data = pipeline.load_data('/home/pablollh/app/model/training_data.csv')
         X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
@@ -303,48 +339,97 @@ def train_matchmaking_model_task(self, business_unit_id):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def ejecutar_scraping(self, dominio_id=None):
     """
-    Ejecuta el scraping para un dominio específico.
-
+    Ejecuta el scraping para un dominio específico o todos los dominios verificados.
+    
     Args:
-        dominio_id (int): ID del dominio a scrapear.
+        dominio_id (int, optional): ID del dominio a scrapear. Si no se proporciona, 
+                                  se ejecutará para todos los dominios verificados.
     """
     try:
-        dominio = DominioScraping.objects.get(id=dominio_id)
-        logger.info(f"🚀 Iniciando scraping para {dominio.empresa} ({dominio.dominio})...")
-        
-        # Ejecutar la función de scraping asíncrona
-        vacantes = asyncio.run(run_scraper(dominio))
-        
-        logger.info(f"✅ Vacantes extraídas para {dominio.empresa}: {len(vacantes)}")
-        
-        # Mostrar las primeras 10 vacantes extraídas
-        for vacante in vacantes[:10]:
-            logger.info(f"   - Título: {vacante.get('title', 'Sin título')}")
-            logger.info(f"     Ubicación: {vacante.get('location', 'Sin ubicación')}")
-            logger.info(f"     Salario: {vacante.get('salary', 'No especificado')}")
-            logger.info(f"     Publicado en: {vacante.get('posted_date', 'No especificado')}")
-            logger.info(f"     URL: {vacante.get('url', 'No disponible')}")
-            logger.info("")
-    
+        if dominio_id:
+            # Ejecutar para un dominio específico
+            dominio = DominioScraping.objects.get(pk=dominio_id)
+            dominios = [dominio]
+        else:
+            # Ejecutar para todos los dominios verificados
+            dominios = DominioScraping.objects.filter(verificado=True)
+
+        for dominio in dominios:
+            logger.info(f"🚀 Iniciando scraping para {dominio.empresa} ({dominio.dominio})")
+            
+            try:
+                # Ejecutar el scraping y obtener las vacantes
+                vacantes = asyncio.run(run_scraper(dominio))
+                
+                # Registrar el resultado del scraping
+                RegistroScraping.objects.create(
+                    dominio=dominio,
+                    estado="exitoso",
+                    fecha_inicio=timezone.now(),
+                    fecha_fin=timezone.now(),
+                    mensaje=f"Scraping completado. Vacantes encontradas: {len(vacantes)}"
+                )
+                
+                logger.info(f"✅ Scraping completado para {dominio.empresa}: {len(vacantes)} vacantes")
+                
+                # Mostrar las primeras 5 vacantes extraídas (para debugging)
+                for vacante in vacantes[:5]:
+                    logger.info(f"   - {vacante.get('title', 'Sin título')}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error en scraping para {dominio.empresa}: {str(e)}")
+                RegistroScraping.objects.create(
+                    dominio=dominio,
+                    estado="fallido",
+                    fecha_inicio=timezone.now(),
+                    fecha_fin=timezone.now(),
+                    mensaje=f"Error: {str(e)}"
+                )
+                continue
+
     except DominioScraping.DoesNotExist:
-        logger.error(f"❌ DominioScraping con ID {dominio_id} no existe.")
+        logger.error(f"Dominio con ID {dominio_id} no encontrado.")
+        self.retry(exc=Exception("Dominio no encontrado."))
     except Exception as e:
-        logger.error(f"❌ Error al realizar scraping para el dominio ID {dominio_id}: {e}", exc_info=True)
+        logger.error(f"Error al ejecutar scraping: {str(e)}")
+        self.retry(exc=e)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def verificar_dominios_scraping(self):
-    logger.info("🔄 Verificación de dominios para scraping.")
-    try:
-        dominios = DominioScraping.objects.all()
-        for dominio in dominios:
+    """
+    Verifica los dominios de scraping.
+    """
+    logger.info("🔄 Verificando dominios de scraping.")
+    dominios = DominioScraping.objects.all()
+    for dominio in dominios:
+        try:
+            # Verificar si el dominio responde
             is_valid = asyncio.run(validar_url(dominio.dominio))
+            
+            # Actualizar estado del dominio
             dominio.verificado = is_valid
+            dominio.ultimo_chequeo = timezone.now()
+            dominio.mensaje_error = "" if is_valid else "El dominio no responde correctamente"
             dominio.save()
-            logger.info(f"✅ Dominio {dominio.dominio} {'válido' if is_valid else 'inválido'}.")
-    except Exception as e:
-        logger.error(f"❌ Error verificando dominios: {e}")
-        self.retry(exc=e)
-        
+
+            # Registrar resultado
+            RegistroScraping.objects.create(
+                dominio=dominio,
+                estado="exitoso" if is_valid else "fallido",
+                fecha_inicio=timezone.now(),
+                fecha_fin=timezone.now(),
+                mensaje=f"Verificación {'exitosa' if is_valid else 'fallida'}"
+            )
+
+            if is_valid:
+                logger.info(f"✅ Dominio verificado correctamente: {dominio.dominio}")
+            else:
+                logger.warning(f"⚠️ Dominio no responde: {dominio.dominio}")
+
+        except Exception as e:
+            logger.error(f"❌ Error al verificar dominio {dominio.dominio}: {str(e)}")
+            self.retry(exc=e)
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def procesar_sublinks_task(self, vacante_id, sublink):
     """
@@ -354,7 +439,7 @@ def procesar_sublinks_task(self, vacante_id, sublink):
     async def run():
         try:
             if not await validar_url(sublink):
-                logger.warning(f"⚠️ URL inv��lida {sublink}")
+                logger.warning(f"⚠️ URL inválida {sublink}")
                 return
             detalles = await extraer_detalles_sublink(sublink)
             vacante = await sync_to_async(Vacante.objects.get)(pk=vacante_id)
@@ -377,16 +462,54 @@ def procesar_sublinks_task(self, vacante_id, sublink):
 # Cadena ML -> Scraping -> ML
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='ml')
 def execute_ml_and_scraping(self):
+    """
+    Ejecuta el proceso completo de ML y scraping.
+    """
+    logger.info("🚀 Iniciando proceso de ML y scraping")
     try:
-        workflow = chain(
-            ejecutar_ml.si(),
-            ejecutar_scraping.si(),
-            ejecutar_ml.si()
-        )
-        workflow.apply_async()
-        logger.info("🚀 Workflow ML+Scraping iniciado.")
+        # 1. Ejecutar ML inicial
+        logger.info("🧠 Iniciando proceso ML inicial")
+        business_units = BusinessUnit.objects.all()
+        for bu in business_units:
+            pipeline = GrupohuntREDMLPipeline(bu.name)
+            pipeline.load_model()
+            pipeline.predict_pending()
+            logger.info(f"✅ ML inicial completado para {bu.name}")
+
+        # 2. Ejecutar scraping para cada dominio verificado
+        logger.info("🔍 Iniciando proceso de scraping")
+        dominios = DominioScraping.objects.filter(verificado=True)
+        for dominio in dominios:
+            try:
+                # Ejecutar scraping
+                vacantes = asyncio.run(run_scraper(dominio))
+                
+                # Registrar resultados
+                RegistroScraping.objects.create(
+                    dominio=dominio,
+                    estado="exitoso",
+                    fecha_inicio=timezone.now(),
+                    fecha_fin=timezone.now(),
+                    mensaje=f"Scraping completado. Vacantes encontradas: {len(vacantes)}"
+                )
+                
+                logger.info(f"✅ Scraping completado para {dominio.empresa}: {len(vacantes)} vacantes")
+            except Exception as e:
+                logger.error(f"❌ Error en scraping para {dominio.empresa}: {str(e)}")
+                continue
+
+        # 3. Ejecutar ML final
+        logger.info("🧠 Iniciando proceso ML final")
+        for bu in business_units:
+            pipeline = GrupohuntREDMLPipeline(bu.name)
+            pipeline.load_model()
+            pipeline.predict_pending()
+            logger.info(f"✅ ML final completado para {bu.name}")
+
+        logger.info("✨ Proceso completo de ML y scraping finalizado exitosamente")
+
     except Exception as e:
-        logger.error(f"❌ Error en execute_ml_and_scraping: {e}")
+        logger.error(f"❌ Error en el proceso de ML y scraping: {str(e)}")
         self.retry(exc=e)
 # =========================================================
 # Tareas de Notificaciones
@@ -458,6 +581,30 @@ def scrape_single_profile_task(profile_url: str):
     data = scrape_linkedin_profile(profile_url)
     logger.info(f"Datos obtenidos: {data}")
     return data
+
+@shared_task(bind=True, queue='scraping')
+def process_csv_and_scrape_task(self, csv_path: str = "/home/pablollh/connections.csv"):
+    """
+    Procesa el archivo CSV y ejecuta scraping de los perfiles.
+    """
+    try:
+        # Identifica la unidad de negocio
+        bu = BusinessUnit.objects.filter(name='huntRED').first()
+        if not bu:
+            raise Exception("No se encontró la BU huntRED.")
+
+        logger.info("🚀 Iniciando procesamiento del CSV.")
+        # Procesar el CSV
+        process_csv(csv_path, bu)  # Reutilizando `process_csv` de `linkedin.py`
+
+        logger.info("🔍 Iniciando scraping de perfiles.")
+        # Scraping de perfiles pendientes
+        scrape_linkedin_profiles()  # Reutilizando `scrape_linkedin_profiles` de `linkedin.py`
+
+        logger.info("✅ Proceso completo de CSV y scraping finalizado.")
+    except Exception as e:
+        logger.error(f"❌ Error en el flujo combinado: {e}")
+        self.retry(exc=e)
 
 # =========================================================
 # Tareas para reportes, limpieza y otros
@@ -539,7 +686,7 @@ def generate_and_send_reports(self):
         business_units = BusinessUnit.objects.all()
         for bu in business_units:
             try:
-                nuevas_posiciones = bu.vacantes.filter(created_at__date=today)
+                nuevas_posiciones = bu.vacantes.filter(fecha_publicacion__date=today)
                 birthday_persons = Person.objects.filter(
                     fecha_nacimiento__month=today.month,
                     fecha_nacimiento__day=today.day,
@@ -597,7 +744,7 @@ def generate_and_send_reports(self):
                 logger.error(f"❌ Error procesando BU {bu.name}: {bu_error}")
                 self.retry(exc=bu_error, countdown=60)
     except Exception as e:
-        logger.error(f"❌ Error reportes consolidados: {e}")
+        logger.error(f"Error reportes consolidados: {e}")
         self.retry(exc=e)
 
 def generate_scraping_report(nuevas_posiciones):
@@ -755,40 +902,3 @@ def check_emails_and_parse_cvs(self):
     except Exception as e:
         logger.error(f"Error al procesar correos y CVs: {e}")
         self.retry(exc=e)
-
-# Crear un cronograma para la tarea
-schedule_1am, created = CrontabSchedule.objects.get_or_create(
-    minute='0',
-    hour='1',
-    day_of_week='*',
-    day_of_month='*',
-    month_of_year='*',
-)
-
-schedule_2pm, created = CrontabSchedule.objects.get_or_create(
-    minute='0',
-    hour='14',
-    day_of_week='*',
-    day_of_month='*',
-    month_of_year='*',
-)
-
-# Crear la tarea periódica para 1 AM
-PeriodicTask.objects.create(
-    crontab=schedule_1am,
-    name='Revisar correos y procesar CVs a la 1 AM',
-    task='app.tasks.check_emails_and_parse_cvs',
-    args=json.dumps([]),  # Si necesitas pasar argumentos, agrégalo aquí
-    kwargs=json.dumps({}),  # Si necesitas pasar kwargs, agrégalo aquí
-    expires=timezone.now() + timezone.timedelta(days=1),  # Opcional
-)
-
-# Crear la tarea periódica para 2 PM
-PeriodicTask.objects.create(
-    crontab=schedule_2pm,
-    name='Revisar correos y procesar CVs a las 2 PM',
-    task='app.tasks.check_emails_and_parse_cvs',
-    args=json.dumps([]),  # Si necesitas pasar argumentos, agrégalo aquí
-    kwargs=json.dumps({}),  # Si necesitas pasar kwargs, agrégalo aquí
-    expires=timezone.now() + timezone.timedelta(days=1),  # Opcional
-)

@@ -23,12 +23,9 @@ from django.http import HttpResponse
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from app.views.dashboard_views import dashboard_view
-from app.views.candidate_views import candidate_dashboard
-from app.views.evaluation_views import evaluate_candidate
-from app.views.notification_views import send_notification
 from app.views.candidatos_views import (
     list_candidatos,
-    candidate_dashboard,
+    candidato_dashboard,
     evaluate_candidate,
     send_notification,
 )
@@ -68,9 +65,13 @@ urlpatterns = [
 
     # Nuevas rutas
     path('dashboard/', dashboard_view, name='dashboard'),
-    path('candidates/', list_candidatos, name='list_candidatos'),
-    path('candidates/dashboard/', candidate_dashboard, name='candidate_dashboard'),
-    path('candidates/<int:candidate_id>/evaluate/', evaluate_candidate, name='evaluate_candidate'),
+    path('candidatos/', list_candidatos, name='list_candidatos'),
+    path('candidatos/dashboard/', candidato_dashboard, name='candidate_dashboard'),
+    path('candidatos/<int:candidate_id>/evaluate/', evaluate_candidate, name='evaluate_candidate'),
     path('send-notification/', send_notification, name='send_notification'),
+
+    # Incluir las rutas de 'app.urls.py' bajo el prefijo 'webhook/'
+    path('webhook/', include('app.urls.webhook_urls')),  # Incluye solo las rutas de 'webhook_urls.py'
 ]
+
 urlpatterns += staticfiles_urlpatterns()

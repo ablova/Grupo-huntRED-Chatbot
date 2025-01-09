@@ -11,10 +11,10 @@ from django.template.response import TemplateResponse
 from django.middleware.csrf import get_token
 
 from app.models import (
-    FlowModel, Pregunta, Etapa, BusinessUnit, ChatState, Configuracion
+    BusinessUnit, ChatState, Configuracion, Application, Vacante, Person
 )
 from app.utils import analyze_text
-from app.gpt import gpt_message
+from app.gpt import GPTHandler
 from app.chatbot import ChatBotHandler
 
 import json
@@ -72,3 +72,22 @@ def login_view(request):
             return JsonResponse({"status": "success"})
         else:
             return JsonResponse({"status": "error", "message": "Login failed."})
+
+def submit_application(request, job_id):
+    """
+    Vista para manejar la aplicación de un candidato a un trabajo específico.
+    """
+    if request.method == 'POST':
+        # Lógica para procesar la aplicación
+        data = request.POST
+        person_id = data.get('person_id')
+        vacancy = get_object_or_404(Vacante, id=job_id)
+        person = get_object_or_404(Person, id=person_id)
+
+        application = Application.objects.create(user=person, vacancy=vacancy)
+        return JsonResponse({"status": "success", "application_id": application.id})
+
+    return render(request, 'apply.html', {'job_id': job_id})
+
+def home(request):
+    return render(request, 'home.html')  # Asegúrate de que la plantilla exista
