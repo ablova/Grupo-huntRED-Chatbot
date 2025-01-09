@@ -3,6 +3,12 @@ from app.tasks import train_ml_task
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
+from django.http import JsonResponse
+from app.ml_model import MatchmakingLearningSystem
+from app.models import Person, BusinessUnit
+from django.shortcuts import get_object_or_404
 
 @csrf_exempt
 def train_ml_api(request):
@@ -22,3 +28,27 @@ def train_ml_api(request):
     else:
         train_ml_task.delay()
         return JsonResponse({"status": "success", "message": "Tarea de entrenamiento enviada para todas las BUs."})
+
+async def predict_matches(request, user_id):
+    """
+    Predice matches para un usuario específico usando el sistema ML.
+    """
+    try:
+        person = await sync_to_async(get_object_or_404)(Person, id=user_id)
+        
+        if not person.current_stage or not person.current_stage.business_unit:
+            return JsonResponse({
+                "error": "Usuario sin unidad de negocio asignada"
+            }, status=400)
+            
+        matches = MatchmakingLearningSystem.predict_all_active_matches(person)
+        
+        return JsonResponse({
+            "matches": matches,
+            "user_id": user_id
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            "error": str(e)
+        }, status=500)

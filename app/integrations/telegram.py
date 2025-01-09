@@ -42,15 +42,19 @@ async def telegram_webhook(request):
     
             logger.info(f"Mensaje recibido de {chat_id}: {message_text}")
     
-            # Obtener o crear el ChatState
-            chat_state = await get_or_create_chat_state(chat_id, 'telegram')
+            # Manejar comandos especiales
+            if message_text.startswith('/'):
+                await handle_special_command(chat_id, message_text)
+            else:
+                # Obtener o crear el ChatState
+                chat_state = await get_or_create_chat_state(chat_id, 'telegram')
     
-            # Proceso el mensaje con el ChatBotHandler
-            chatbot_handler = ChatBotHandler()
-            response_text, options = await chatbot_handler.process_message('telegram', chat_id, message_text, chat_state.business_unit)
+                # Proceso el mensaje con el ChatBotHandler
+                chatbot_handler = ChatBotHandler()
+                response_text, options = await chatbot_handler.process_message('telegram', chat_id, message_text, chat_state.business_unit)
     
-            # Enviar la respuesta a Telegram
-            await send_telegram_response(chat_id, response_text, options, chat_state.business_unit)
+                # Enviar la respuesta a Telegram
+                await send_telegram_response(chat_id, response_text, options, chat_state.business_unit)
     
             return JsonResponse({"status": "ok"}, status=200)
     
@@ -127,3 +131,16 @@ async def send_telegram_buttons(user_id, message, buttons, api_token):
         logger.error(f"Error enviando botones a Telegram: {e.response.text}")
     except Exception as e:
         logger.error(f"Error enviando botones a Telegram: {e}", exc_info=True)
+
+async def handle_special_command(chat_id: str, command: str):
+    """
+    Maneja comandos especiales recibidos de Telegram.
+    """
+    if command == '/start':
+        response_text = "¡Bienvenido! ¿Cómo puedo ayudarte hoy?"
+        await send_message('telegram', chat_id, response_text)
+    elif command == '/help':
+        response_text = "Aquí tienes una lista de comandos disponibles..."
+        await send_message('telegram', chat_id, response_text)
+    else:
+        logger.warning(f"Comando no reconocido: {command}")

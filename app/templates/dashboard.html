@@ -1,6 +1,12 @@
+<!-- /home/pablollh/app/templates/dashboard.html -->
+{% extends 'admin/base_site.html' %}
+{% block content %}
+
 <h1>Dashboard de Monitoreo</h1>
 <ul>
   <li>Chats Activos: {{ data.active_chats }}</li>
   <li>Vacantes Activas: {{ data.vacancies_active }}</li>
   <li>Total Aplicaciones: {{ data.applications_total }}</li>
 </ul>
+
+{% endblock}

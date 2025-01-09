@@ -31,11 +31,10 @@ def trigger_model_retraining(sender, instance, created, **kwargs):
     Retraina el modelo de matchmaking cada 100 nuevas aplicaciones.
     """
     if created:
-        total_applications = Application.objects.filter(
-            business_unit=instance.business_unit
-        ).count()
+        bu = instance.vacancy.business_unit
+        total_applications = Application.objects.filter(vacancy__business_unit=bu).count()
         if total_applications % 100 == 0:
-            train_matchmaking_model_task.delay(instance.business_unit.id)
+            train_matchmaking_model_task.delay(bu.id)
 
 @receiver(post_save, sender=Person)
 def create_gamification_profile(sender, instance, created, **kwargs):

@@ -365,6 +365,22 @@ class DominioScrapingInline(admin.TabularInline):
     verbose_name = "Dominio de Scraping"
     verbose_name_plural = "Dominios de Scraping"
 
+class ConfiguracionBUInline(admin.StackedInline):  # O admin.TabularInline
+    model = ConfiguracionBU
+    extra = 1  # Número de formularios vacíos que se mostrarán
+
+    # Campos para la configuración general
+    fields = ('direccion_bu', 'telefono_bu', 'correo_bu', 'logo_url', 'jwt_token', 'dominio_bu', 'dominio_rest_api')  # Campos generales
+
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj) or ()
+        additional_fields = (
+            'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 
+            'smtp_use_tls', 'smtp_use_ssl', 'weight_location', 
+            'weight_hard_skills', 'weight_soft_skills', 'weight_contract'
+        )
+        return fields + additional_fields
+
 @admin.register(BusinessUnit)
 class BusinessUnitAdmin(admin.ModelAdmin):
     list_display = ('name', 'description', 'whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
@@ -387,7 +403,7 @@ class BusinessUnitAdmin(admin.ModelAdmin):
             'fields': ('admin_email',),
         }),
     )
-    inlines = [WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline]  # Agregar inlines para APIs
+    inlines = [ConfiguracionBUInline, WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline]  # Agregar inlines para APIs
 
 @admin.register(QuarterlyInsight)
 class QuarterlyInsightAdmin(admin.ModelAdmin):
