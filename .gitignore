@@ -1,3 +1,4 @@
+.env
 # Ignorar el entorno virtual
 venv/
 *.pyc

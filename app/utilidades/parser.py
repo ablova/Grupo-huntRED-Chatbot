@@ -1,4 +1,4 @@
-# Ubicación /home/pablollh/app/parser.py
+# Ubicación /home/pablollh/app/utilidades/parser.py
 
 import unicodedata
 import imaplib

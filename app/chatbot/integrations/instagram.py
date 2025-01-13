@@ -1,4 +1,4 @@
-# /home/pablollh/app/integrations/instagram.py
+# /home/pablollh/app/chatbot/integrations/instagram.py
 import logging
 import json
 import httpx

@@ -1,5 +1,4 @@
-# Ubicación /home/pablollh/app/integrations/whatsapp.py
-# /home/pablollh/app/integrations/whatsapp.py
+# Ubicación /home/pablollh/app/chatbot/integrations/whatsapp.py
 
 import json
 import httpx
@@ -12,7 +11,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from app.models import WhatsAppAPI, MetaAPI, BusinessUnit, Person, ChatState
 from app.integrations.services import send_message
-from typing import List
 
 logger = logging.getLogger('whatsapp')
 CACHE_TIMEOUT = 600  # 10 minutos
@@ -76,9 +74,6 @@ async def verify_whatsapp_token(request):
                 return HttpResponse('Configuración no encontrada', status=404)
             cache.set(cache_key_meta, meta_api, timeout=CACHE_TIMEOUT)
 
-        # No es necesario verificar webhook_id ya que usamos una URL única
-
-        # Verificar el token
         logger.info(f"Token de verificación correcto para webhook")
         return HttpResponse(challenge)
 
@@ -105,6 +100,7 @@ async def handle_incoming_message(payload):
                 if not messages:
                     logger.info("No se encontraron mensajes en el cambio")
                     continue
+
                 for message in messages:
                     sender_id = message.get('from')
                     phone_number_id = value.get('metadata', {}).get('phone_number_id')
@@ -131,6 +127,9 @@ async def handle_incoming_message(payload):
                         # Cachear la lista de APIs
                         cache.set(cache_key_whatsapp, whatsapp_apis, timeout=CACHE_TIMEOUT)
 
+                    if not isinstance(whatsapp_apis, list):
+                        whatsapp_apis = await sync_to_async(list)(whatsapp_apis)
+
                     for whatsapp_api in whatsapp_apis:
                         business_unit = whatsapp_api.business_unit
 
@@ -141,9 +140,10 @@ async def handle_incoming_message(payload):
                             name = contact.get('profile', {}).get('name', 'Usuario')
                         else:
                             name = 'Usuario'
+
                         raw_text = message.get('text', {}).get('body', '') if message.get('type') == 'text' else ''
 
-                        # Obtener o crear el usuario
+                        # Obtener o crear el usuario Person
                         person, created = await sync_to_async(Person.objects.get_or_create)(
                             phone=sender_id,
                             defaults={
@@ -152,7 +152,7 @@ async def handle_incoming_message(payload):
                             }
                         )
 
-                        # Obtener o crear el estado de chat
+                        # Obtener o crear el ChatState
                         chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
                             user_id=sender_id,
                             defaults={'platform': 'whatsapp', 'business_unit': business_unit}
@@ -163,7 +163,7 @@ async def handle_incoming_message(payload):
                             person.chat_state = chat_state
                             await sync_to_async(person.save)()
 
-                        # Determinar el tipo de mensaje y manejarlo adecuadamente
+                        # Determinar tipo de mensaje
                         message_type = message.get('type', 'unknown')
                         message_handlers = {
                             'text': handle_text_message,
@@ -171,7 +171,7 @@ async def handle_incoming_message(payload):
                             'audio': handle_media_message,
                             'location': handle_location_message,
                             'interactive': handle_interactive_message,
-                            # Agrega más tipos de mensajes si es necesario
+                            # Agrega más tipos si es necesario
                         }
 
                         handler = message_handlers.get(message_type, handle_unknown_message)
@@ -183,12 +183,21 @@ async def handle_incoming_message(payload):
         logger.error(f"Error procesando el mensaje: {e}", exc_info=True)
         return JsonResponse({'error': f"Error procesando el mensaje: {e}"}, status=500)
 
-# Funciones de manejo de tipos de mensajes
+# ------------------------------------------------------------------------------
+# Funciones auxiliares y de construcción de URL
+# ------------------------------------------------------------------------------
+def build_whatsapp_url(whatsapp_api: WhatsAppAPI, endpoint: str = "messages") -> str:
+    """
+    Construye la URL base para la API de WhatsApp con la versión configurada.
+    """
+    api_version = whatsapp_api.v_api or "v21.0"
+    return f"https://graph.facebook.com/{api_version}/{whatsapp_api.phoneID}/{endpoint}"
 
+# ------------------------------------------------------------------------------
+# Handlers de mensajes
+# ------------------------------------------------------------------------------
 async def handle_text_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja mensajes de texto.
-    """
+    """Maneja mensajes de texto."""
     text = message['text']['body']
     await chatbot_handler.process_message(
         platform='whatsapp',
@@ -198,16 +207,13 @@ async def handle_text_message(message, sender_id, chatbot_handler, business_unit
     )
 
 async def handle_media_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja mensajes de medios (imágenes, audio, etc.).
-    """
+    """Maneja mensajes de medios (imágenes, audio, etc.)."""
     media_id = None
     media_type = message['type']
     if media_type == 'image':
         media_id = message.get('image', {}).get('id')
     elif media_type == 'audio':
         media_id = message.get('audio', {}).get('id')
-    # Agrega más tipos de medios si es necesario
 
     if media_id:
         await process_media_message('whatsapp', sender_id, media_id, media_type, business_unit)
@@ -216,15 +222,13 @@ async def handle_media_message(message, sender_id, chatbot_handler, business_uni
         await send_message('whatsapp', sender_id, "No pude procesar el medio enviado.", business_unit)
 
 async def handle_location_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja mensajes de ubicación.
-    """
+    """Maneja mensajes de ubicación."""
     location = message.get('location')
     if location:
         latitude = location.get('latitude')
         longitude = location.get('longitude')
         if latitude and longitude:
-            # Aquí puedes procesar la ubicación según tus necesidades
+            # Se procesa la ubicación
             await send_message('whatsapp', sender_id, f"Recibí tu ubicación: Latitud {latitude}, Longitud {longitude}", business_unit)
         else:
             logger.warning("Mensaje de ubicación recibido sin datos completos.")
@@ -234,9 +238,7 @@ async def handle_location_message(message, sender_id, chatbot_handler, business_
         await send_message('whatsapp', sender_id, "No pude encontrar la información de tu ubicación.", business_unit)
 
 async def handle_interactive_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja mensajes interactivos como botones y listas.
-    """
+    """Maneja mensajes interactivos como botones y listas."""
     interactive = message.get('interactive', {})
     interactive_type = interactive.get('type')
     interactive_handlers = {
@@ -248,17 +250,15 @@ async def handle_interactive_message(message, sender_id, chatbot_handler, busine
     await handler(message, sender_id, chatbot_handler, business_unit, person, chat_state)
 
 async def handle_button_reply(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja respuestas de botones.
-    """
+    """Maneja respuestas de botones."""
     button_reply = message['interactive'].get('button_reply', {})
-    payload = button_reply.get('payload') or button_reply.get('id')  # Ajusta según tu estructura de payload
+    payload = button_reply.get('payload') or button_reply.get('id')
     if payload:
         logger.info(f"Respuesta de botón recibida: {payload}")
         await chatbot_handler.process_message(
             platform='whatsapp',
             user_id=sender_id,
-            text=payload,  # Asumiendo que el payload corresponde a la respuesta del usuario
+            text=payload,
             business_unit=business_unit
         )
     else:
@@ -266,17 +266,15 @@ async def handle_button_reply(message, sender_id, chatbot_handler, business_unit
         await send_message('whatsapp', sender_id, "No pude entender tu selección. Por favor, intenta nuevamente.", business_unit)
 
 async def handle_list_reply(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja respuestas de listas.
-    """
+    """Maneja respuestas de listas."""
     list_reply = message['interactive'].get('list_reply', {})
-    payload = list_reply.get('payload') or list_reply.get('id')  # Ajusta según tu estructura de payload
+    payload = list_reply.get('payload') or list_reply.get('id')
     if payload:
         logger.info(f"Respuesta de lista recibida: {payload}")
         await chatbot_handler.process_message(
             platform='whatsapp',
             user_id=sender_id,
-            text=payload,  # Asumiendo que el payload corresponde a la respuesta del usuario
+            text=payload,
             business_unit=business_unit
         )
     else:
@@ -284,35 +282,36 @@ async def handle_list_reply(message, sender_id, chatbot_handler, business_unit, 
         await send_message('whatsapp', sender_id, "No pude entender tu selección. Por favor, intenta nuevamente.", business_unit)
 
 async def handle_unknown_interactive(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja tipos de mensajes interactivos no soportados.
-    """
+    """Maneja tipos de mensajes interactivos no soportados."""
     interactive_type = message.get('interactive', {}).get('type')
     logger.warning(f"Tipo interactivo no soportado: {interactive_type}")
     await send_message('whatsapp', sender_id, "No entendí tu selección. Por favor, intenta nuevamente.", business_unit)
 
 async def handle_unknown_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
-    """
-    Maneja tipos de mensajes desconocidos.
-    """
+    """Maneja tipos de mensajes desconocidos."""
     message_type = message.get('type', 'unknown')
     logger.warning(f"Tipo de mensaje no soportado: {message_type}")
     await send_message('whatsapp', sender_id, "Tipo de mensaje no soportado.", business_unit)
-# Define handler functions for each message type
 
-
+# ------------------------------------------------------------------------------
+# Procesamiento de media
+# ------------------------------------------------------------------------------
 async def process_media_message(platform, sender_id, media_id, media_type, business_unit):
     """
-    Procesa mensajes de medios (imágenes, audio, etc.) entrantes.
+    Procesa mensajes de medios (imágenes, audio, etc.) entrantes: 
+    obtiene la URL, descarga el contenido y lo maneja según sea imagen o audio.
     """
     try:
-        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(business_unit=business_unit).first)()
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(
+            business_unit=business_unit,
+            is_active=True
+        ).first)()
         if not whatsapp_api:
             logger.error("No se encontró configuración de WhatsAppAPI.")
             return
 
         # Obtener la URL de descarga del medio
-        media_url = await get_media_url(media_id, whatsapp_api.api_token)
+        media_url = await get_media_url(whatsapp_api, media_id)
         if not media_url:
             logger.error(f"No se pudo obtener la URL del medio {media_id}")
             return
@@ -334,13 +333,15 @@ async def process_media_message(platform, sender_id, media_id, media_type, busin
     except Exception as e:
         logger.error(f"Error procesando mensaje de medios: {e}", exc_info=True)
 
-async def get_media_url(media_id, api_token):
+async def get_media_url(whatsapp_api: WhatsAppAPI, media_id: str) -> Optional[str]:
     """
-    Obtiene la URL de descarga para un medio específico.
+    Obtiene la URL de descarga para un medio específico (imagen/audio/etc.),
+    usando la versión de API definida en whatsapp_api.
     """
+    api_version = whatsapp_api.v_api or "v21.0"
     url = f"https://graph.facebook.com/{api_version}/{media_id}"
     headers = {
-        "Authorization": f"Bearer {api_token}"
+        "Authorization": f"Bearer {whatsapp_api.api_token}"
     }
 
     try:
@@ -356,7 +357,7 @@ async def get_media_url(media_id, api_token):
 
     return None
 
-async def download_media(media_url, api_token):
+async def download_media(media_url: str, api_token: str) -> Optional[bytes]:
     """
     Descarga el contenido de un medio desde la URL proporcionada.
     """
@@ -376,61 +377,58 @@ async def download_media(media_url, api_token):
 
     return None
 
-async def handle_image_message(platform, sender_id, image_data, business_unit):
+async def handle_image_message(platform, sender_id, image_data: bytes, business_unit):
     """
-    Procesa una imagen recibida.
+    Procesa una imagen recibida: se guarda en el sistema de archivos y se envía confirmación al usuario.
     """
     logger.info(f"Imagen recibida de {sender_id}. Procesando imagen...")
 
-    # Guardar la imagen en el sistema de archivos
-    image_path = f"/home/pablollh/app/static/images/{sender_id}_{int(time.time())}.jpg"
+    image_path = f"/home/pablollh/app/static/images/{sender_id}_{int(timezone.now().timestamp())}.jpg"
     try:
-        with open(image_path, 'wb') as f:
-            f.write(image_data)
+        async with await sync_to_async(open)(image_path, 'wb') as f:
+            await sync_to_async(f.write)(image_data)
         logger.info(f"Imagen guardada en {image_path}")
+
         await send_message(platform, sender_id, "Gracias por enviar la imagen. La hemos recibido correctamente.", business_unit)
     except Exception as e:
         logger.error(f"Error guardando la imagen: {e}", exc_info=True)
         await send_message(platform, sender_id, "Hubo un problema al procesar la imagen. Por favor, intenta nuevamente.", business_unit)
 
-async def handle_audio_message(platform, sender_id, audio_data, business_unit):
+async def handle_audio_message(platform, sender_id, audio_data: bytes, business_unit):
     """
-    Procesa un archivo de audio recibido.
+    Procesa un archivo de audio recibido: se guarda y se notifica confirmación al usuario.
     """
     logger.info(f"Audio recibido de {sender_id}. Procesando audio...")
 
-    # Guardar el audio en el sistema de archivos
-    audio_path = f"/path/to/save/audio/{sender_id}_{int(time.time())}.ogg"
+    audio_path = f"/home/pablollh/app/static/audio/{sender_id}_{int(timezone.now().timestamp())}.ogg"
     try:
-        with open(audio_path, 'wb') as f:
-            f.write(audio_data)
+        async with await sync_to_async(open)(audio_path, 'wb') as f:
+            await sync_to_async(f.write)(audio_data)
         logger.info(f"Audio guardado en {audio_path}")
+
         await send_message(platform, sender_id, "Gracias por enviar el audio. Lo hemos recibido correctamente.", business_unit)
     except Exception as e:
         logger.error(f"Error guardando el audio: {e}", exc_info=True)
         await send_message(platform, sender_id, "Hubo un problema al procesar el audio. Por favor, intenta nuevamente.", business_unit)
 
+# ------------------------------------------------------------------------------
+# Ejemplo de función para enviar mensajes (similar a la de services.py)
+# ------------------------------------------------------------------------------
 async def send_whatsapp_message(
-    user_id: str, 
-    message: str, 
-    buttons: Optional[List[dict]] = None, 
-    phone_id: Optional[str] = None, 
+    user_id: str,
+    message: str,
+    buttons: Optional[List[dict]] = None,
+    phone_id: Optional[str] = None,
     business_unit=None
 ):
     """
     Envía un mensaje directo a un usuario de WhatsApp, permitiendo botones y phone_id si se requiere.
-    :param user_id: ID (tel) del usuario de WhatsApp (e.g., '5215555555555').
-    :param message: Texto a enviar.
-    :param buttons: Lista opcional de dict con 'type', 'title', 'payload' (según tu lógica).
-    :param phone_id: phoneID de WhatsApp (v_api).
-    :param business_unit: Instancia de BusinessUnit asociada, si se necesita.
     """
     try:
         if not phone_id and business_unit:
-            # Si no se pasa phone_id y hay business_unit, busca la config
             from app.models import WhatsAppAPI
             whatsapp_api = await sync_to_async(
-                WhatsAppAPI.objects.filter(business_unit=business_unit, is_active=True).first
+                WhatsAppAPI.objects.filter(phoneID=phone_id, is_active=True).select_related('business_unit').first()
             )()
             if not whatsapp_api:
                 logger.error(f"[send_whatsapp_message] No se encontró WhatsAppAPI activo para {business_unit.name}")
@@ -438,32 +436,31 @@ async def send_whatsapp_message(
             phone_id = whatsapp_api.phoneID
             api_token = whatsapp_api.api_token
         else:
-            # phone_id se pasa manual; o error si no lo hay
             from app.models import WhatsAppAPI
-            # Para simplificar, asume que ya viene phone_id y token en business_unit o algún lado
-            # Ajusta a tu lógica. Ejemplo:
             if business_unit:
                 whatsapp_api = await sync_to_async(
-                    WhatsAppAPI.objects.filter(business_unit=business_unit, is_active=True).first
+                    WhatsAppAPI.objects.filter(phoneID=phone_id, is_active=True).select_related('business_unit').first()
                 )()
                 api_token = whatsapp_api.api_token if whatsapp_api else None
             else:
-                # Manejo minimal: phone_id y token están "hardcoded" o algo
                 logger.warning("[send_whatsapp_message] No se pasó business_unit, asumiendo phone_id y token predefinidos.")
-                api_token = phone_id  # <--- a veces tu usabas phone_id como token, ajusta tu caso real
+                api_token = phone_id
+
         if not phone_id or not api_token:
             logger.error("[send_whatsapp_message] No se cuenta con phone_id o api_token válido.")
             return
 
         logger.debug(f"[send_whatsapp_message] user_id={user_id}, phone_id={phone_id}, tiene botones={bool(buttons)}")
 
-        url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
+        # Construcción de la URL con la función unificada:
+        url = build_whatsapp_url(whatsapp_api, "messages")
+
         headers = {
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json"
         }
 
-        # Construir payload base
+        # Payload base
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -474,18 +471,16 @@ async def send_whatsapp_message(
             }
         }
 
-        # Si se proveen buttons, se cambia el 'type' a 'interactive'
+        # Si se proveen buttons, se convierte a interactivo
         if buttons:
-            # Asume tu lógica de "button" vs "interactive"
             logger.debug(f"[send_whatsapp_message] Convirtiendo a mensaje interactivo con {len(buttons)} botón(es).")
             formatted_buttons = []
-            # Asumiendo que cada dict en 'buttons' es como {'title': '...', 'payload': '...'}
             for btn in buttons:
                 formatted_buttons.append({
                     "type": "reply",
                     "reply": {
                         "id": btn.get('payload', 'btn_id'),
-                        "title": btn.get('title', '')[:20]  # WhatsApp limita 20 chars
+                        "title": btn.get('title', '')[:20]
                     }
                 })
 
@@ -516,18 +511,11 @@ async def send_whatsapp_message(
         logger.error(f"[send_whatsapp_message] Error general al enviar mensaje a {user_id}: {e}", exc_info=True)
 
 async def send_whatsapp_buttons(user_id, message, buttons, phone_id):
-    """
-    Envía botones interactivos a través de WhatsApp.
-    """
+    """Envía botones interactivos a través de WhatsApp."""
     from app.integrations.whatsapp import send_whatsapp_decision_buttons
 
     try:
-        await send_whatsapp_decision_buttons(
-            user_id=user_id,
-            message=message,
-            buttons=buttons,
-            phone_id=phone_id
-        )
+        await send_whatsapp_decision_buttons(user_id=user_id, message=message, buttons=buttons, phone_id=phone_id)
     except Exception as e:
         logger.error(f"Error enviando botones de WhatsApp: {e}", exc_info=True)
 
@@ -538,34 +526,30 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
     from app.models import WhatsAppAPI
 
     try:
-        # Obtener la configuración de WhatsAppAPI vinculada a la unidad de negocio
         whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(
             business_unit=business_unit,
             is_active=True
         ).first)()
-
         if not whatsapp_api:
             raise ValueError(f"No se encontró configuración activa de WhatsAppAPI para la unidad de negocio: {business_unit.name}")
 
-        url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+        url = build_whatsapp_url(whatsapp_api, "messages")
         headers = {
             "Authorization": f"Bearer {whatsapp_api.api_token}",
             "Content-Type": "application/json"
         }
 
-        # Formatear botones para WhatsApp
         formatted_buttons = [
             {
                 "type": "reply",
                 "reply": {
                     "id": button['payload'],
-                    "title": button['title'][:20]  # WhatsApp limita a 20 caracteres
+                    "title": button['title'][:20]
                 }
             }
             for button in buttons
         ]
 
-        # Construir el payload de la solicitud
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -582,7 +566,6 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             }
         }
 
-        # Enviar la solicitud
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()

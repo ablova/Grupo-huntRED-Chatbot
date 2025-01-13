@@ -3,7 +3,7 @@
 from django.test import TestCase, Client
 from unittest.mock import patch
 from app.models import BusinessUnit
-from app.chatbot import ChatBotHandler
+from app.chatbot.chatbot import ChatBotHandler
 
 class ChatbotTestCase(TestCase):
     def setUp(self):

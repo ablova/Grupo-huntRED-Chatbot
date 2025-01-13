@@ -1,4 +1,4 @@
-# /home/pablollh/app/integrations/telegram.py
+# /home/pablollh/app/chatbot/integrations/telegram.py
 
 import logging
 import json

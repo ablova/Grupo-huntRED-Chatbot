@@ -1,4 +1,4 @@
-# /home/pablollh/app/nlp.py
+# /home/pablollh/app/chatbot/nlp.py
 
 import logging
 import nltk
@@ -7,7 +7,7 @@ from spacy.matcher import Matcher, PhraseMatcher
 from spacy.lang.es import Spanish
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from skillNer.skill_extractor_class import SkillExtractor
-from app.catalogs import DIVISION_SKILLS
+from app.utilidades.catalogs import DIVISION_SKILLS
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

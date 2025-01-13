@@ -14,9 +14,9 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from asgiref.sync import sync_to_async
-from app.integrations.services import send_message, send_email
-from app.chatbot import ChatBotHandler
-from app.parser import CVParser, IMAPCVProcessor
+from app.chatbot.integrations.services import send_message, send_email
+from app.chatbot.chatbot import ChatBotHandler
+from app.utilidades.parser import CVParser, IMAPCVProcessor
 from app.models import (
     Configuracion,
     ConfiguracionBU,
@@ -28,18 +28,18 @@ from app.models import (
     Application,
     RegistroScraping
 )
-from app.linkedin import (
+from app.utilidades.linkedin import (
     process_api_data,
     fetch_member_profile,
     process_csv,
     slow_scrape_from_csv,
     scrape_linkedin_profile
 )
-from app.scraping import validar_url, extraer_detalles_sublink, run_scraper, ScrapingCoordinator
-from app.utils import haversine_distance, sanitize_business_unit_name
-from app.ml_model import GrupohuntREDMLPipeline
+from app.utilidades.scraping import validar_url, extraer_detalles_sublink, run_scraper, ScrapingCoordinator
+from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
+from app.ml.ml_model import GrupohuntREDMLPipeline
 from celery.exceptions import MaxRetriesExceededError
-from app.catalogs import DIVISIONES
+from app.utilidades.catalogs import DIVISIONES
 import json
 import os
 

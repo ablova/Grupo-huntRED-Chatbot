@@ -4,11 +4,12 @@ from django.views import View
 from django.http import JsonResponse, HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from app.chatbot import ChatBotHandler
-from app.integrations.instagram import instagram_webhook
-from app.integrations.telegram import telegram_webhook
-from app.integrations.messenger import messenger_webhook
-from app.integrations.whatsapp import whatsapp_webhook
+from ratelimit.decorators import ratelimit
+from app.chatbot.chatbot import ChatBotHandler
+from app.chatbot.integrations.instagram import instagram_webhook
+from app.chatbot.integrations.telegram import telegram_webhook
+from app.chatbot.integrations.messenger import messenger_webhook
+from app.chatbot.integrations.whatsapp import whatsapp_webhook
 import logging
 import json
 

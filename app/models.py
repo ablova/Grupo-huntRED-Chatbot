@@ -567,7 +567,7 @@ class WhatsAppAPI(models.Model):
     phoneID = models.CharField(max_length=20, default='114521714899382')
     api_token = models.CharField(max_length=500, default='...')
     WABID = models.CharField(max_length=20, default='104851739211207')
-    v_api = models.CharField(max_length=10)
+    v_api = models.CharField(max_length=10, default='v21.0')
     meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
 

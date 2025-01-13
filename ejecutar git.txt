@@ -17,7 +17,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git .
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Ajustado admin, views, parser, tasks y más..." &&
+git commit -m "Ajustado admin, urls/webhooks, views, parser, tasks y más..." &&
 git push origin main
 
 

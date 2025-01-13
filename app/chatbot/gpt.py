@@ -1,4 +1,4 @@
-# /home/pablollh/app/gpt.py
+# /home/pablollh/app/chatbot/gpt.py
 import logging
 import openai
 import backoff
@@ -24,20 +24,23 @@ class GPTHandler:
         
     def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
         try:
-            response = openai.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=150,
                 temperature=0.7
             )
             return response.choices[0].message.content.strip()
-#        except RateLimitError:
-#            logger.error("Excediste tu cuota actual de OpenAI.")
-#            self._notify_quota_exceeded()
-#            return "Lo siento, se ha excedido la cuota actual de la API de OpenAI."
-#        except OpenAIError as oe:
-#            logger.error(f"Error de OpenAI: {oe}", exc_info=True)
-#            return "Lo siento, hubo un problema al procesar tu solicitud."
+
+        except RateLimitError:
+            logger.error("Excediste tu cuota de OpenAI.")
+            self._notify_quota_exceeded()
+            return "Lo siento, se ha excedido la cuota actual de la API de OpenAI."
+
+        except OpenAIError as oe:
+            logger.error(f"Error de OpenAI: {oe}", exc_info=True)
+            return "Lo siento, hubo un problema al procesar tu solicitud con GPT."
+
         except Exception as e:
             logger.error(f"Error generando respuesta con GPT: {e}", exc_info=True)
             return "Lo siento, ocurrió un error inesperado."
