@@ -40,14 +40,14 @@ sudo journalctl --vacuum-size=50M
 
 cd /home/pablollh && source venv/bin/activate &&
 git fetch origin &&
-git reset --hard origin main &&
+git reset --hard origin/main &&
 git clean -fd &&
 git status &&
 git log -1 &&
 mkdir -p /home/pablollh/logs &&
 touch /home/pablollh/logs/debug.log && 
 chmod 664 /home/pablollh/logs/debug.log &&
-chown pablollh:pablollh /home/pablollh/logs/debug.log
+chown pablo:pablo /home/pablollh/logs/debug.log
 
 
 python manage.py makemigrations &&
