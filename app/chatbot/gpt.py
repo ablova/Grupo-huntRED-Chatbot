@@ -4,7 +4,7 @@ import openai
 import backoff
 from typing import Dict, Optional
 from app.models import GptApi
-from app.integrations.services import send_email
+from app.chatbot.integrations.services import send_email
 from django.conf import settings
 from openai import OpenAIError, RateLimitError  # Importar excepciones desde openai
 

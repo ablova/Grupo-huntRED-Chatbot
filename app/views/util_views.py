@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from app.tasks import send_message, send_notification_task
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from ratelimit.decorators import ratelimit
+#from ratelimit.decorators import ratelimit
 import json
 import httpx
 import logging

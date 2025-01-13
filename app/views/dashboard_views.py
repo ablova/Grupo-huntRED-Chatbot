@@ -1,7 +1,7 @@
 # /home/pablollh/app/views/dashboard_views.py
 
 from django.shortcuts import render
-from ratelimit.decorators import ratelimit
+#from ratelimit.decorators import ratelimit
 from app.models import Person, ChatState, WorkflowStage
 
 def dashboard_view(request):

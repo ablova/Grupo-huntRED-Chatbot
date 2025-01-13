@@ -5,7 +5,7 @@ import re
 import os
 import logging
 from datetime import datetime
-from app.nlp import NLPProcessor
+from app.chatbot.nlp import NLPProcessor
 from django.core.exceptions import ValidationError
 from itsdangerous import URLSafeTimedSerializer
 from django.conf import settings

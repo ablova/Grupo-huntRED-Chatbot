@@ -1,4 +1,4 @@
-# /home/pablollh/app/ml_model.py
+# /home/pablollh/app/ml/ml_model.py
 
 import os
 import logging
@@ -23,7 +23,7 @@ import tensorflow as tf
 import shap
 
 from app.models import Person, Application, WeightingModel   # Asegúrate de que Application está correctamente definido en models.py
-from app.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
 
 # Configuración de logging
 logger = logging.getLogger(__name__)

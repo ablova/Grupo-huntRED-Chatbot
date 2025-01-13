@@ -10,7 +10,7 @@ from app.models import Person, ConfiguracionBU, Division, Skill
 from typing import List, Dict, Tuple, Optional
 from django.utils.timezone import now
 from datetime import datetime
-from app.nlp import sn  # SkillNer instance
+from app.chatbot.nlp import sn  # SkillNer instance
 import logging
 
 logger = logging.getLogger(__name__)

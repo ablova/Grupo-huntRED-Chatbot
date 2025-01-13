@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
-from ratelimit.decorators import ratelimit
+#from ratelimit.decorators import ratelimit
 import json
 import logging
 

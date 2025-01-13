@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.http import JsonResponse
-from ratelimit.decorators import ratelimit
+#from ratelimit.decorators import ratelimit
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.models import Person, BusinessUnit
 from django.shortcuts import get_object_or_404

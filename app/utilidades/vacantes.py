@@ -1,4 +1,4 @@
-# Ubicación: /home/pablollh/app/vacantes.py
+# Ubicación: /home/pablollh/app/utilidades/vacantes.py
 
 import requests
 import logging
@@ -12,8 +12,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
 from app.models import Worker, Person, GptApi, ConfiguracionBU
 # from app.integrations.whatsapp import registro_amigro, nueva_posicion_amigro Importaciones locales
-from app.ml_model import MatchmakingLearningSystem
-from app.scraping import (
+from app.ml.ml_model import MatchmakingLearningSystem
+from app.utilidades.scraping import (
     get_session,
     consult,
     register,

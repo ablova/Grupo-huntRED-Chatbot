@@ -27,12 +27,12 @@ from django.db import transaction
 from django.utils.timezone import now
 
 # Modelos y componentes de la aplicación
-from .models import (
+from app.models import (
     DominioScraping, Vacante, RegistroScraping, ConfiguracionBU,
     BusinessUnit, PLATFORM_CHOICES
 )
-from .catalogs import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
-from .utils import clean_text
+from app.utilidades.catalogs import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
+from app.chatbot.utils import clean_text
 #from app.chatbot import ChatBotHandler  # Solo si se usa en scraping
 
 logging.basicConfig(
