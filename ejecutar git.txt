@@ -14,10 +14,12 @@ git push -u origin main
 git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git .
 
 
+git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git /home/pablollh
+
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Ajustado admin, urls/webhooks, views, parser, tasks y más..." &&
+git commit -m "Ajustado de chatbot, ml, utilidades, ..." &&
 git push origin main
 
 
@@ -43,9 +45,9 @@ git clean -fd &&
 git status &&
 git log -1 &&
 mkdir -p /home/pablollh/logs &&
-touch /home/pablollh/logs/error.log && 
-chmod 664 /home/pablollh/logs/error.log &&
-chown pablollh:pablollh /home/pablollh/logs/error.log
+touch /home/pablollh/logs/debug.log && 
+chmod 664 /home/pablollh/logs/debug.log &&
+chown pablollh:pablollh /home/pablollh/logs/debug.log
 
 
 python manage.py makemigrations &&

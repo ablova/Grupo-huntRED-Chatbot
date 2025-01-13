@@ -4,7 +4,7 @@ from django.views import View
 from django.http import JsonResponse, HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from ratelimit.decorators import ratelimit
+#from ratelimit.decorators import ratelimit
 from app.chatbot.chatbot import ChatBotHandler
 from app.chatbot.integrations.instagram import instagram_webhook
 from app.chatbot.integrations.telegram import telegram_webhook

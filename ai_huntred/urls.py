@@ -33,6 +33,9 @@ from app.views.candidatos_views import (
 def health_check(request):
     return HttpResponse("OK")
 
+def trigger_error(request):
+    division_by_zero = 1 / 0
+
 class WorkflowStageListView(ListView):
     pass
 
@@ -59,6 +62,7 @@ urlpatterns = [
 
     # Health Check
     path('health/', health_check, name='health_check'),
+    path('sentry-debug/', trigger_error),
 
     # Rutas para el flujo de trabajo
     path('business-unit/', include('app.urls.workflow_urls')),
