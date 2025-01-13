@@ -10,7 +10,7 @@ from asgiref.sync import sync_to_async
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from app.models import WhatsAppAPI, MetaAPI, BusinessUnit, Person, ChatState
-from app.integrations.services import send_message
+from app.chatbot.integrations.services import send_message
 
 logger = logging.getLogger('whatsapp')
 CACHE_TIMEOUT = 600  # 10 minutos

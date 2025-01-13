@@ -7,8 +7,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from asgiref.sync import sync_to_async
 from app.models import TelegramAPI, ChatState, Person, BusinessUnit
-from app.integrations.services import send_message, get_api_instance
-from app.chatbot import ChatBotHandler
+from app.chatbot.integrations.services import send_message, get_api_instance
+from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 
 logger = logging.getLogger('telegram')
