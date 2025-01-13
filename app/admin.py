@@ -25,8 +25,8 @@ from app.tasks import (
     train_ml_task,
     process_linkedin_csv_task
 )
-from app.integrations.services import send_message
-from app.vacantes import VacanteManager
+from app.chatbot.integrations.services import send_message
+from app.utilidades.vacantes import VacanteManager
 from asgiref.sync import async_to_sync
 from django.contrib.auth.decorators import user_passes_test
 

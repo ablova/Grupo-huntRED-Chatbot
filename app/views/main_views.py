@@ -9,13 +9,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
 from django.template.response import TemplateResponse
 from django.middleware.csrf import get_token
+from ratelimit.decorators import ratelimit
 
 from app.models import (
     BusinessUnit, ChatState, Configuracion, Application, Vacante, Person
 )
-from app.utils import analyze_text
-from app.gpt import GPTHandler
-from app.chatbot import ChatBotHandler
+from app.chatbot.utils import analyze_text
+from app.chatbot.gpt import GPTHandler
+from app.chatbot.chatbot import ChatBotHandler
 
 import json
 import logging

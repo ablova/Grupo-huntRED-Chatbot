@@ -3,10 +3,10 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from app.models import Person, Application, EnhancedNetworkGamificationProfile
-from app.parser import CVParser
+from app.utilidades.parser import CVParser
 from app.tasks import train_matchmaking_model_task
 import logging
-from app.integrations.services import send_message
+from app.chatbot.integrations.services import send_message
 
 logger = logging.getLogger(__name__)
 

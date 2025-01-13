@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.core.mail import send_mail
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from ratelimit.decorators import ratelimit
 from app.models import Person, Application, Vacante, EnhancedNetworkGamificationProfile
 import json
 import logging

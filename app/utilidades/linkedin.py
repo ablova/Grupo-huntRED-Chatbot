@@ -1,4 +1,4 @@
-# /home/pablollh/app/linkedin.py
+# /home/pablollh/app/utilidades/linkedin.py
 
 import logging
 import os
@@ -14,8 +14,8 @@ from django.db import transaction
 from django.utils import timezone
 from bs4 import BeautifulSoup
 from app.models import Person, BusinessUnit, USER_AGENTS
-from app.catalogs import DIVISION_SKILLS
-from app.nlp import sn  # SkillNer instance
+from app.utilidades.catalogs import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
+from app.chatbot.nlp import sn  # SkillNer instance
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
 

@@ -5,15 +5,16 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
+from ratelimit.decorators import ratelimit
 import json
 import logging
 
-from app.chatbot import ChatBotHandler
+from app.chatbot.chatbot import ChatBotHandler
 from app.models import GptApi
-from app.gpt import GPTHandler
-from app.integrations.services import send_message, send_image, send_menu, send_logo
+from app.chatbot.gpt import GPTHandler
+from app.chatbot.integrations.services import send_message, send_image, send_menu, send_logo
 from asgiref.sync import sync_to_async
-from app.ml_model import MatchmakingLearningSystem
+from app.ml.ml_model import MatchmakingLearningSystem
 
 @login_required
 def candidato_predictions(request, candidato_id):

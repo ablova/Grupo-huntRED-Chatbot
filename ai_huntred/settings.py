@@ -1,31 +1,73 @@
 # Ubicación del archivo: /home/pablollh/ai_huntred/settings.py
 # Archivo Base de Configuración de Django
 
-
 import os
 from pathlib import Path
-# Configuration for dynamic email settings per Business Unit (BU)
-
-# Import the required libraries
 from django.core.mail import get_connection, send_mail
 from django.conf import settings
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+import environ
 #from app.models import ConfiguracionBU  # Assuming we have a model defined for email configurations
 
+# Inicializar environ
+env = environ.Env()
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Lee el archivo .env
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+# Sentry configuration
+sentry_sdk.init(
+    dsn=env('SENTRY_DSN', default=''),
+    integrations=[DjangoIntegration()],
+    traces_sample_rate=1.0,
+    send_default_pii=True
+)
 
 # Paths
-BASE_DIR = Path(__file__).resolve().parent.parent
 ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
 
-# Seguridad
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'reemplazar_esta_clave')
-DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
-#ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
-ALLOWED_HOSTS = ['ai.huntred.com', '34.57.227.244', 'localhost']
+# Security Settings
+SECRET_KEY = env('DJANGO_SECRET_KEY')
+DEBUG = env.bool('DJANGO_DEBUG', default=False)
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost'])
 
-#Entorno General
-# Administrador General (si aplica)
+# General Environment
 GENERAL_ADMIN_EMAIL = 'pablo@huntred.com'
-GENERAL_ADMIN_PHONE = '+525518490291'  # Número de WhatsApp del administrador general
+GENERAL_ADMIN_PHONE = '+525518490291'
+
+# Database
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
+        'PORT': env('DB_PORT'),
+    }
+}
+
+# Celery Configuration
+CELERY_BROKER_URL = env('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Mexico_City'
+CELERY_ENABLE_UTC = True
+CELERY_WORKER_CONCURRENCY = 2  # Ajusta según tu CPU
+
+# CORS Configuration
+cors_origins = env('CORS_ALLOWED_ORIGINS', default='*')
+if cors_origins == '*':
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = cors_origins.split(',')
+
 # Aplicaciones Instaladas
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,6 +79,10 @@ INSTALLED_APPS = [
     'django_celery_beat',
     # Apps internas
     'app',
+    'ratelimit',
+    'chatbot',
+    'ml',
+    'utilidades',
     # Librerías externas
     'rest_framework',
     'django_filters',
@@ -79,18 +125,6 @@ TEMPLATES = [
 # WSGI Application
 WSGI_APPLICATION = 'ai_huntred.wsgi.application'
 
-# Base de Datos
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'grupo_huntred_ai_db',
-        'USER': 'grupo_huntred_user',
-        'PASSWORD': 'Natalia&Patricio1113!',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-
 # Configuración de Idioma
 LANGUAGE_CODE = 'es-mx'
 TIME_ZONE = 'America/Mexico_City'
@@ -120,24 +154,6 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
 }
-
-# Configuración de Celery
-CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'America/Mexico_City'
-CELERY_ENABLE_UTC = True
-CELERY_WORKER_CONCURRENCY = 2  # Ajusta según tu CPU
-
-# CORS Configuración
-cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', '*')
-
-if cors_origins == '*':
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOWED_ORIGINS = cors_origins.split(',')
 
 # Logging
 LOGGING = {
@@ -214,7 +230,6 @@ LOGGING = {
 }
 
 # Para tener las configuraciones basadas en la unidad de negocio.
-
 def get_email_backend(business_unit):
     """
     Fetch email settings dynamically based on the business unit and return
@@ -244,25 +259,12 @@ class DynamicEmailBackend:
     obtenidas del modelo ConfiguracionBU.
     """
     def __init__(self, business_unit):
-        """
-        Inicializa el backend de correo para una unidad de negocio específica.
-
-        :param business_unit: Instancia de BusinessUnit asociada a ConfiguracionBU.
-        """
         try:
             self.config = ConfiguracionBU.objects.get(business_unit=business_unit)
         except ConfiguracionBU.DoesNotExist:
             raise ValueError(f"No se encontró configuración para la unidad de negocio: {business_unit}")
 
     def send_email(self, subject, message, recipient_list, from_email=None):
-        """
-        Envía un correo utilizando las configuraciones dinámicas de ConfiguracionBU.
-
-        :param subject: str - Asunto del correo.
-        :param message: str - Cuerpo del correo.
-        :param recipient_list: list - Lista de destinatarios.
-        :param from_email: str - Dirección de correo del remitente (opcional).
-        """
         smtp_config = self.config.get_smtp_config()
 
         email_backend = get_connection(
