@@ -11,12 +11,12 @@ from django.core.cache import cache
 from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, Vacante, WhatsAppAPI, EnhancedNetworkGamificationProfile
 )
-from app.integrations.services import (
+from app.chatbot.integrations.services import (
     send_message, send_email, reset_chat_state
 )
-from app.vacantes import VacanteManager
-from app.utils import analyze_text  # Encargado del NLP y patrones de intents
-from app.parser import CVParser
+from app.utilidades.vacantes import VacanteManager
+from app.chatbot.utils import analyze_text  # Encargado del NLP y patrones de intents
+from app.utilidades.parser import CVParser
 
 logger = logging.getLogger(__name__)
 CACHE_TIMEOUT = 600  # 10 minutes

@@ -21,9 +21,12 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Sentry configuration
 sentry_sdk.init(
-    dsn=env('SENTRY_DSN', default=''),
+    dsn=env('SENTRY_DSN', default='https://e9989a45cedbcefa64566dbcfb2ffd59@o4508638041145344.ingest.us.sentry.io/4508638043766784'),
     integrations=[DjangoIntegration()],
     traces_sample_rate=1.0,
+    _experiments={
+        "continuous_profiling_auto_start": True,
+    },
     send_default_pii=True
 )
 
@@ -79,10 +82,10 @@ INSTALLED_APPS = [
     'django_celery_beat',
     # Apps internas
     'app',
-    'ratelimit',
-    'chatbot',
-    'ml',
-    'utilidades',
+    #'ratelimit',
+    'app.chatbot',
+    'app.ml',
+    'app.utilidades',
     # Librerías externas
     'rest_framework',
     'django_filters',
