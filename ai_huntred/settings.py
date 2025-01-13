@@ -154,15 +154,61 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
+        'debug_file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/debug.log'),
             'formatter': 'verbose',
         },
+        'messenger_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/messenger.log'),
+            'formatter': 'verbose',
+        },
+        'whatsapp_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/whatsapp.log'),
+            'formatter': 'verbose',
+        },
+        'instagram_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/instagram.log'),
+            'formatter': 'verbose',
+        },
+        'telegram_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/telegram.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'messenger': {
+            'handlers': ['messenger_file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'whatsapp': {
+            'handlers': ['whatsapp_file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'instagram': {
+            'handlers': ['instagram_file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'telegram': {
+            'handlers': ['telegram_file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
     'root': {
-        'handlers': ['file'],
+        'handlers': ['debug_file'],
         'level': 'DEBUG',
     },
 }

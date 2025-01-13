@@ -12,8 +12,8 @@ from app.integrations.whatsapp import whatsapp_webhook
 import logging
 import json
 
-from app.nlp import SkillExtractor  # Asegúrate de que la importación es correcta
-from app.nlp import initialize_phrase_matcher  # Función para inicializar phraseMatcher
+#from app.nlp import SkillExtractor  # Asegúrate de que la importación es correcta
+#from app.nlp import initialize_phrase_matcher  # Función para inicializar phraseMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -52,15 +52,17 @@ class TelegramWebhookView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class MessengerWebhookView(View):
     async def get(self, request, *args, **kwargs):
+        page_id = kwargs.get('page_id')  # Extraer page_id de la URL
         try:
-            return await messenger_webhook(request)
+            return await messenger_webhook(request, page_id)
         except Exception as e:
             logger.error(f"Error en MessengerWebhook GET: {e}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     async def post(self, request, *args, **kwargs):
+        page_id = kwargs.get('page_id')  # Extraer page_id de la URL
         try:
-            return await messenger_webhook(request)
+            return await messenger_webhook(request, page_id)
         except Exception as e:
             logger.error(f"Error en MessengerWebhook POST: {e}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

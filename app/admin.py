@@ -34,11 +34,41 @@ admin.site.site_header = "Administración de Grupo huntRED®"
 admin.site.site_title = "Portal Administrativo"
 admin.site.index_title = "Bienvenido al Panel de Administración"
 
-@admin.register(Configuracion)
-class ConfiguracionAdmin(admin.ModelAdmin):
-    list_display = ('secret_key', 'debug_mode', 'sentry_dsn')
-    readonly_fields = ('secret_key', 'sentry_dsn') 
+# Token Masking Mixin
+class TokenMaskingMixin:
+    """Mixin para enmascarar campos sensibles en el admin"""
+    token_fields = []
+    visible_prefix_length = 6
+    visible_suffix_length = 4
 
+    def get_masked_value(self, value):
+        if not value:
+            return "-"
+        if len(value) <= (self.visible_prefix_length + self.visible_suffix_length):
+            return "..." + value[-self.visible_suffix_length:]
+        return f"{value[:self.visible_prefix_length]}...{value[-self.visible_suffix_length:]}"
+
+    def get_list_display(self, request):
+        list_display = super().get_list_display(request)
+        if isinstance(list_display, tuple):
+            list_display = list(list_display)
+            
+        for field in self.token_fields:
+            if field in list_display:
+                mask_method_name = f'get_masked_{field}'
+                if not hasattr(self, mask_method_name):
+                    setattr(self, mask_method_name, 
+                           lambda obj, field=field: self.get_masked_value(getattr(obj, field)))
+                    getattr(self, mask_method_name).short_description = field.replace('_', ' ').title()
+                list_display[list_display.index(field)] = mask_method_name
+                
+        return list_display
+
+@admin.register(Configuracion)
+class ConfiguracionAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['secret_key', 'sentry_dsn']
+    list_display = ('secret_key', 'debug_mode', 'sentry_dsn')
+    
 @admin.register(DominioScraping)
 class DominioScrapingAdmin(admin.ModelAdmin):
     list_display = ('id', 'empresa', 'plataforma', 'verificado', 'ultima_verificacion', 'estado')
@@ -287,53 +317,58 @@ class ApplicationAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} aplicaciones marcadas como 'Contratado'.")
 
 @admin.register(ApiConfig)
-class ApiConfigAdmin(admin.ModelAdmin):
+class ApiConfigAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['api_key', 'api_secret']
     list_display = ('business_unit', 'api_type', 'api_key')
     list_filter = ('business_unit', 'api_type')
-    readonly_fields = ('api_key', 'api_secret')  # Proteger campos sensibles
 
 @admin.register(MetaAPI)
-class MetaAPIAdmin(admin.ModelAdmin):
+class MetaAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['app_secret', 'verify_token']
     list_display = ('business_unit', 'app_id', 'app_secret', 'verify_token')
     search_fields = ('app_id', 'business_unit__name')
     list_filter = ('business_unit',)
-    readonly_fields = ('app_secret', 'verify_token')  # Proteger campos sensibles
 
 @admin.register(WhatsAppAPI)
-class WhatsAppAPIAdmin(admin.ModelAdmin):
-    list_display = ('name', 'business_unit', 'phoneID', 'is_active')
+class WhatsAppAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['api_token']
+    list_display = ('name', 'business_unit', 'phoneID', 'api_token', 'is_active')
     search_fields = ('name', 'phoneID')
     list_filter = ('business_unit', 'is_active')
 
     inlines = []  # TemplateInline si se desea
 
 @admin.register(MessengerAPI)
-class MessengerAPIAdmin(admin.ModelAdmin):
+class MessengerAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['page_access_token']
     list_display = ('business_unit', 'page_access_token', 'is_active')
     list_filter = ('business_unit', 'is_active')
     search_fields = ('page_access_token',)
 
 @admin.register(InstagramAPI)
-class InstagramAPIAdmin(admin.ModelAdmin):
-    list_display = ('business_unit', 'app_id', 'is_active')
+class InstagramAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['access_token']
+    list_display = ('business_unit', 'app_id', 'access_token', 'is_active')
     list_filter = ('business_unit', 'is_active')
     search_fields = ('app_id',)
 
 @admin.register(TelegramAPI)
-class TelegramAPIAdmin(admin.ModelAdmin):
+class TelegramAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['api_key']
     list_display = ('bot_name', 'business_unit', 'api_key', 'is_active')
     list_filter = ('business_unit', 'is_active')
     search_fields = ('bot_name', 'api_key')
 
 @admin.register(GptApi)
-class GptApiAdmin(admin.ModelAdmin):
+class GptApiAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['api_token']
     list_display = ('api_token', 'model', 'organization')
     search_fields = ('model', 'organization')
-    readonly_fields = ('api_token',)  # Proteger campo sensible
 
 @admin.register(SmtpConfig)
-class SmtpConfigAdmin(admin.ModelAdmin):
-    list_display = ('host', 'port', 'use_tls', 'use_ssl')
+class SmtpConfigAdmin(TokenMaskingMixin, admin.ModelAdmin):
+    token_fields = ['password']
+    list_display = ('host', 'port', 'username', 'password', 'use_tls', 'use_ssl')
     search_fields = ('host',)
 
 @admin.register(Template)
@@ -383,11 +418,14 @@ class ConfiguracionBUInline(admin.StackedInline):  # O admin.TabularInline
 
 @admin.register(BusinessUnit)
 class BusinessUnitAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
+    list_display = ('name', 'description', 'get_admin_email', 'whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
     list_editable = ('whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
     filter_horizontal = ('scraping_domains',)
     search_fields = ['name', 'description']
-    readonly_fields = ('admin_email',)  # Para evitar que se edite manualmente
+
+    def get_admin_email(self, obj):
+        return obj.admin_email
+    get_admin_email.short_description = 'Admin Email'
 
     fieldsets = (
         (None, {
@@ -399,11 +437,11 @@ class BusinessUnitAdmin(admin.ModelAdmin):
         ('Configuración de Scraping', {
             'fields': ('scrapping_enabled', 'scraping_domains'),
         }),
-        ('Información Administrativa', {
-            'fields': ('admin_email',),
+        ('Información de Contacto', {
+            'fields': ('admin_phone',),
         }),
     )
-    inlines = [ConfiguracionBUInline, WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline]  # Agregar inlines para APIs
+    inlines = [ConfiguracionBUInline, WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline]
 
 @admin.register(QuarterlyInsight)
 class QuarterlyInsightAdmin(admin.ModelAdmin):
