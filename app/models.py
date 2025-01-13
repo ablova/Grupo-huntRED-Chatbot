@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from urllib.parse import urlparse
 
 import requests
 import logging
@@ -187,7 +188,7 @@ class ConfiguracionScraping(models.Model):
 class BusinessUnit(models.Model):
     name = models.CharField(max_length=50, choices=BUSINESS_UNIT_CHOICES, unique=True)
     description = models.TextField(blank=True)
-    admin_email = models.EmailField(null=True, blank=True)
+    # admin_email = models.EmailField(null=True, blank=True) # Removemos el campo admin_email ya que lo tenemos como property
     admin_phone = models.CharField(max_length=20, null=True, blank=True)  # Número de WhatsApp del administrador
     whatsapp_enabled = models.BooleanField(default=True)
     telegram_enabled = models.BooleanField(default=True)
@@ -207,13 +208,25 @@ class BusinessUnit(models.Model):
         """
         sanitized_name = re.sub(r'\W+', '', self.name).lower()
         return f'emails/template_{sanitized_name}.html'
+
     @property
     def admin_email(self):
         """
         Genera automáticamente el correo electrónico del administrador basado en el dominio.
-        Por ejemplo, 'huntred.com' -> 'hola@huntred.com'
+        Extrae el dominio base de la URL completa.
         """
-        return f'hola@{self.dominio_bu}'
+        try:
+            config = self.configuracionbu
+            if config and config.dominio_bu:
+                # Parsear la URL y obtener solo el dominio
+                parsed_url = urlparse(config.dominio_bu)
+                # Obtener el dominio limpio (sin www. si existe)
+                domain = parsed_url.netloc or parsed_url.path
+                domain = domain.replace('www.', '')
+                return f'hola@{domain}'
+        except ConfiguracionBU.DoesNotExist:
+            pass
+        return None
 
 class ConfiguracionBU(models.Model):
     business_unit = models.OneToOneField(BusinessUnit, on_delete=models.CASCADE)
@@ -583,6 +596,7 @@ class Template(models.Model):
 
 class MessengerAPI(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='messenger_apis', null=True, blank=True)
+    page_id = models.CharField(max_length=255, unique=True)  # <--- Nuevo Campo
     page_access_token = models.CharField(max_length=255)
     meta_api = models.ForeignKey('MetaAPI', on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)

@@ -140,5 +140,6 @@ class NLPProcessor:
         else:
             return "O"
 
+
 # Instancia global
 nlp_processor = NLPProcessor()

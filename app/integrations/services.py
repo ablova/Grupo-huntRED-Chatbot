@@ -29,51 +29,68 @@ platform_send_functions = {
     'instagram': 'send_instagram_message',
 }
 
-async def send_message(platform: str, user_id: str, message: str, business_unit: BusinessUnit, options: Optional[List[Dict]] = None):
+async def send_message(
+    platform: str,
+    user_id: str,
+    message: str,
+    business_unit: BusinessUnit,
+    options: Optional[List[dict]] = None
+):
     """
     Envía un mensaje al usuario en la plataforma especificada, con opciones si las hay.
+    Ajustado para que 'whatsapp' reciba (user_id, message, phone_id, buttons, business_unit).
     """
+    from app.models import WhatsAppAPI  # Import puntual si lo requieres
+    
     try:
+        logger.info(f"[send_message] Plataform: {platform}, User: {user_id}, BU: {business_unit.name}, Msg: {message[:30]}...")
+
         send_function_name = platform_send_functions.get(platform)
         if not send_function_name:
-            logger.error(f"Plataforma desconocida: {platform}")
+            logger.error(f"[send_message] Plataforma desconocida: {platform}")
             return
 
-        # Obtener configuración de API por unidad de negocio
+        # Obtener instancia del API
         api_instance = await get_api_instance(platform, business_unit)
         if not api_instance:
-            logger.error(f"No API configuration found for platform {platform} and business unit {business_unit.name}.")
+            logger.error(f"[send_message] No API configuration for {platform} / BU {business_unit.name}. Abort.")
             return
 
-        # Importar dinámicamente la función de envío correspondiente
+        # Importar dinámicamente la función de envío
         send_module = __import__(f'app.integrations.{platform}', fromlist=[send_function_name])
-        send_function = getattr(send_module, send_function_name)
+        send_function = getattr(send_module, send_function_name, None)
 
-        # Enviar el mensaje utilizando la función específica de la plataforma
+        if not send_function:
+            logger.error(f"[send_message] No se encontró la función '{send_function_name}' en {platform}.py")
+            return
+
+        logger.debug(f"[send_message] Llamando a '{send_function_name}' con phone_id={getattr(api_instance, 'phoneID', None)}")
+
+        # Llamada unificada, incluidas 'buttons' y 'phone_id'
         if platform == 'whatsapp':
             await send_function(
                 user_id=user_id,
                 message=message,
-                buttons=options,
-                phone_id=api_instance.phoneID
+                phone_id=getattr(api_instance, 'phoneID', None), 
+                buttons=options,  
+                business_unit=business_unit
             )
         elif platform in ['telegram', 'messenger', 'instagram']:
+            # Ejemplo de Telegram, Messenger, etc.
             await send_function(
                 user_id=user_id,
                 message=message,
                 buttons=options,
-                access_token=api_instance.page_access_token if platform == 'messenger' else api_instance.api_key
+                access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
             )
         else:
-            logger.error(f"Unsupported platform: {platform}")
+            logger.error(f"[send_message] Plataforma no soportada: {platform}")
 
-        # Registrar el contenido del mensaje enviado
-        logger.info(f"Mensaje enviado a {user_id} en {platform}: {message}")
         if options:
-            logger.info(f"Opciones incluidas: {options}")
+            logger.debug(f"[send_message] Opciones incluidas: {options}")
 
     except Exception as e:
-        logger.error(f"Error sending message on {platform}: {e}", exc_info=True)
+        logger.error(f"[send_message] Error enviando mensaje en {platform}: {e}", exc_info=True)
 
 async def get_api_instance(platform: str, business_unit: BusinessUnit):
     """
@@ -157,54 +174,69 @@ async def send_email(business_unit_name: str, subject: str, to_email: str, body:
         logger.error(f"Error enviando correo electrónico: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
-async def send_whatsapp_decision_buttons(user_id, message, buttons, phone_id):
+async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
     """
-    Envía botones de decisión (Sí/No) a través de WhatsApp usando MetaAPI.
+    Envía botones interactivos a través de WhatsApp usando la configuración asociada a la unidad de negocio.
     """
-    url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
-    headers = {
-        "Authorization": f"Bearer {phone_id}",  # Asegúrate de que 'phone_id' contiene el token correcto
-        "Content-Type": "application/json"
-    }
-
-    # Formatear los botones para WhatsApp
-    formatted_buttons = []
-    for idx, button in enumerate(buttons):
-        formatted_button = {
-            "type": "reply",
-            "reply": {
-                "id": f"btn_{idx}",  # ID único para cada botón
-                "title": button['title'][:20]  # Límite de 20 caracteres
-            }
-        }
-        formatted_buttons.append(formatted_button)
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": user_id,
-        "type": "interactive",
-        "interactive": {
-            "type": "button",
-            "body": {
-                "text": message  # El mensaje que acompaña los botones
-            },
-            "action": {
-                "buttons": formatted_buttons
-            }
-        }
-    }
+    from app.models import WhatsAppAPI
 
     try:
+        # Obtener la configuración de WhatsAppAPI vinculada a la unidad de negocio
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(
+            business_unit=business_unit,
+            is_active=True
+        ).first)()
+
+        if not whatsapp_api:
+            raise ValueError(f"No se encontró configuración activa de WhatsAppAPI para la unidad de negocio: {business_unit.name}")
+
+        url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+        headers = {
+            "Authorization": f"Bearer {whatsapp_api.api_token}",  # Usar el token correcto
+            "Content-Type": "application/json"
+        }
+
+        # Formatear botones para WhatsApp
+        formatted_buttons = [
+            {
+                "type": "reply",
+                "reply": {
+                    "id": button['payload'],
+                    "title": button['title'][:20]  # WhatsApp limita a 20 caracteres
+                }
+            }
+            for button in buttons
+        ]
+
+        # Construir el payload de la solicitud
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": user_id,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {
+                    "text": message  # El mensaje que acompaña los botones
+                },
+                "action": {
+                    "buttons": formatted_buttons
+                }
+            }
+        }
+
+        # Enviar la solicitud
         async with httpx.AsyncClient() as client:
-            logger.debug(f"Enviando botones a WhatsApp para el usuario {user_id}")
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             logger.info(f"Botones enviados correctamente a WhatsApp. Respuesta: {response.text}")
+
+    except ValueError as e:
+        logger.error(f"Error en configuración: {e}")
     except httpx.HTTPStatusError as e:
-        logger.error(f"Error enviando botones a WhatsApp: {e.response.text}")
+        logger.error(f"Error al enviar botones a WhatsApp: {e.response.text}", exc_info=True)
     except Exception as e:
-        logger.error(f"Error enviando botones a WhatsApp: {e}", exc_info=True)
+        logger.error(f"Error general al enviar botones a WhatsApp: {e}", exc_info=True)
         
 async def reset_chat_state(user_id: Optional[str] = None):
     """

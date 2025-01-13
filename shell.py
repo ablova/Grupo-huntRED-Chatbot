@@ -1,7 +1,7 @@
 #SIncronizacion GIT
 cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
 git add .
-git commit -m "Actualización repositorio Git (date)"
+git commit -m "Mejoras en operacion y ejecucion repositorio Git (date)"
 git remote remove production
 git remote add production git@ai.huntred.com:/home/pablollh/git/chatbot.git
 git push production main
@@ -11,7 +11,7 @@ sudo journalctl -u gunicorn -f
 sudo journalctl -u celery -f
 cat /home/pablollh/logs/error.log
 
-gcloud compute ssh pablollh@amigro --zone=us-central1-a --project=amigro 
+gcloud compute ssh pablo@grupo-huntred --zone=us-central1-a --project=grupo-huntred 
 
 ssh -i ~/.ssh/id_rsa_chatbot git@34.57.227.244
 ssh ai.huntred.com
@@ -130,9 +130,9 @@ send_message('whatsapp', 525518490291, f"Respuesta: Prueba desde shell de webhoo
 
 
 from app.integrations.whatsapp import send_whatsapp_message
-
+import asyncio
 # Ejecuta la tarea en segundo plano
-send_whatsapp_message.delay('525518490291', 'Hola desde el chatbot de Amigro, desde shell!')
+asyncio(send_whatsapp_message('525518490291', 'Hola desde el chatbot de Amigro, desde shell!', 'amigro'))
 
 
 celery -A ai_huntred worker --loglevel=info
@@ -2082,3 +2082,326 @@ def run_all_scrapers():
 if __name__ == "__main__":
     run_all_scrapers()
         
+
+import json
+from app.models import (
+    BusinessUnit,
+    MetaAPI,
+    MessengerAPI,
+    InstagramAPI,
+    TelegramAPI,
+    WhatsAppAPI
+)
+import logging
+
+# Configurar el logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+def listar_apis_por_business_unit():
+    business_units = BusinessUnit.objects.all()
+    
+    for bu in business_units:
+        print(f"\n{'='*50}")
+        print(f"Unidad de Negocio: {bu.name}")
+        print(f"{'='*50}\n")
+        
+        # MetaAPI
+        try:
+            meta_api = bu.meta_api_config
+            print("MetaAPI:")
+            print(f"  App ID: {meta_api.app_id}")
+            print(f"  App Secret: {meta_api.app_secret}")
+            print(f"  Verify Token: {meta_api.verify_token}\n")
+        except MetaAPI.DoesNotExist:
+            print("MetaAPI: No configurada.\n")
+        
+        # MessengerAPI
+        messenger_apis = bu.messenger_apis.all()
+        if messenger_apis.exists():
+            print("MessengerAPI(s):")
+            for ma in messenger_apis:
+                print(f"  Page ID: {ma.page_id}")
+                print(f"  Page Access Token: {ma.page_access_token}")
+                print(f"  Is Active: {ma.is_active}")
+                print(f"  MetaAPI Verify Token: {ma.meta_api.verify_token}\n")
+        else:
+            print("MessengerAPI: No configurada.\n")
+        
+        # InstagramAPI
+        instagram_apis = bu.instagram_apis.all()
+        if instagram_apis.exists():
+            print("InstagramAPI(s):")
+            for ia in instagram_apis:
+                print(f"  App ID: {ia.app_id}")
+                print(f"  Access Token: {ia.access_token}")
+                print(f"  Instagram Account ID: {ia.instagram_account_id}")
+                print(f"  Is Active: {ia.is_active}\n")
+        else:
+            print("InstagramAPI: No configurada.\n")
+        
+        # TelegramAPI
+        telegram_apis = bu.telegram_apis.all()
+        if telegram_apis.exists():
+            print("TelegramAPI(s):")
+            for ta in telegram_apis:
+                print(f"  Bot Name: {ta.bot_name}")
+                print(f"  API Key: {ta.api_key}")
+                print(f"  Is Active: {ta.is_active}\n")
+        else:
+            print("TelegramAPI: No configurada.\n")
+        
+        # WhatsAppAPI
+        whatsapp_apis = bu.whatsapp_apis.all()
+        if whatsapp_apis.exists():
+            print("WhatsAppAPI(s):")
+            for wa in whatsapp_apis:
+                print(f"  Name: {wa.name}")
+                print(f"  Phone ID: {wa.phoneID}")
+                print(f"  API Token: {wa.api_token}")
+                print(f"  WABID: {wa.WABID}")
+                print(f"  V_API: {wa.v_api}")
+                print(f"  Is Active: {wa.is_active}\n")
+        else:
+            print("WhatsAppAPI: No configurada.\n")
+
+def generar_comandos_curl_para_apis():
+    """
+    Genera comandos curl para probar los webhooks de todas las APIs activas.
+    Además, crea los payloads correspondientes para cada tipo de API.
+    """
+    # MessengerAPI
+    messenger_apis = MessengerAPI.objects.filter(is_active=True)
+    print("\n**Comandos `curl` para probar Webhooks de Messenger:**\n")
+    for ma in messenger_apis:
+        verify_token = ma.meta_api.verify_token
+        page_id = ma.page_id
+        challenge = '123456'
+        print(f"# Verificación del webhook para Messenger Page ID: {page_id}")
+        print(f"curl -X GET \"https://ai.huntred.com/webhook/messenger/{page_id}/?hub.verify_token={verify_token}&hub.challenge={challenge}\"\n")
+        
+        print(f"# Enviar mensaje de prueba al webhook para Messenger Page ID: {page_id}")
+        print(f"curl -X POST \"https://ai.huntred.com/webhook/messenger/{page_id}/\" \\")
+        print("     -H \"Content-Type: application/json\" \\")
+        print(f"     -d @payload_messenger_{page_id}.json\n")
+        
+        # Crear el payload para este MessengerAPI
+        crear_payload_messenger_json(page_id)
+    
+    # WhatsAppAPI
+    whatsapp_apis = WhatsAppAPI.objects.filter(is_active=True)
+    print("\n**Comandos `curl` para probar Webhooks de WhatsApp:**\n")
+    for wa in whatsapp_apis:
+        verify_token = wa.meta_api.verify_token
+        phone_id = wa.phoneID
+        challenge = '123456'
+        print(f"# Verificación del webhook para WhatsApp Phone ID: {phone_id}")
+        print(f"curl -X GET \"https://ai.huntred.com/webhook/whatsapp/{phone_id}/?verify_token={verify_token}&challenge={challenge}\"\n")
+        
+        print(f"# Enviar mensaje de prueba al webhook para WhatsApp Phone ID: {phone_id}")
+        print(f"curl -X POST \"https://ai.huntred.com/webhook/whatsapp/{phone_id}/\" \\")
+        print("     -H \"Content-Type: application/json\" \\")
+        print(f"     -d @payload_whatsapp_{phone_id}.json\n")
+        
+        # Crear el payload para este WhatsAppAPI
+        crear_payload_whatsapp_json(phone_id)
+    
+    # InstagramAPI
+    instagram_apis = InstagramAPI.objects.filter(is_active=True)
+    print("\n**Comandos `curl` para probar Webhooks de Instagram:**\n")
+    for ia in instagram_apis:
+        meta_api = ia.meta_api
+        verify_token = meta_api.verify_token
+        instagram_account_id = ia.instagram_account_id
+        challenge = '123456'
+        print(f"# Verificación del webhook para Instagram Account ID: {instagram_account_id}")
+        print(f"curl -X GET \"https://ai.huntred.com/webhook/instagram/{instagram_account_id}/?hub.verify_token={verify_token}&hub.challenge={challenge}\"\n")
+        
+        print(f"# Enviar evento de prueba al webhook para Instagram Account ID: {instagram_account_id}")
+        print(f"curl -X POST \"https://ai.huntred.com/webhook/instagram/{instagram_account_id}/\" \\")
+        print("     -H \"Content-Type: application/json\" \\")
+        print(f"     -d @payload_instagram_{instagram_account_id}.json\n")
+        
+        # Crear el payload para este InstagramAPI
+        crear_payload_instagram_json(instagram_account_id)
+    
+    # TelegramAPI
+    telegram_apis = TelegramAPI.objects.filter(is_active=True)
+    print("\n**Comandos `curl` para probar Webhooks de Telegram:**\n")
+    for ta in telegram_apis:
+        bot_name = ta.bot_name
+        # Telegram no utiliza verify_token de MetaAPI
+        # En lugar de eso, los webhooks se configuran directamente con Telegram
+        # Aquí proporcionamos un comando POST para enviar una actualización simulada
+        print(f"# Enviar mensaje de prueba al webhook para Telegram Bot: {bot_name}")
+        print(f"curl -X POST \"https://ai.huntred.com/webhook/telegram/{bot_name}/\" \\")
+        print("     -H \"Content-Type: application/json\" \\")
+        print(f"     -d @payload_telegram_{bot_name}.json\n")
+        
+        # Crear el payload para este TelegramAPI
+        crear_payload_telegram_json(bot_name)
+
+def crear_payload_messenger_json(page_id):
+    """
+    Crea un archivo JSON para simular un mensaje de prueba en Messenger.
+    """
+    payload = {
+        "object": "page",
+        "entry": [
+            {
+                "id": page_id,  # Page ID
+                "time": 1458692752478,
+                "messaging": [
+                    {
+                        "sender": {
+                            "id": "9372528202791704"  # Reemplaza con un ID de usuario válido
+                        },
+                        "recipient": {
+                            "id": page_id  # Page ID
+                        },
+                        "timestamp": 1458692752478,
+                        "message": {
+                            "mid": "mid.1457764197618:41d102a3e1ae206a38",
+                            "text": "Hola, esto es una prueba!"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    
+    filename = f'payload_messenger_{page_id}.json'
+    with open(filename, 'w') as f:
+        json.dump(payload, f, indent=2)
+    print(f"Archivo '{filename}' creado con éxito.\n")
+    print(f"**Nota:** Reemplaza 'USER_ID_AQUI' con el valor correcto antes de usar el archivo '{filename}'.\n")
+
+def crear_payload_whatsapp_json(phone_id):
+    """
+    Crea un archivo JSON para simular un mensaje de prueba en WhatsApp.
+    """
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": phone_id,
+                "time": 1618325678,
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "YOUR_DISPLAY_PHONE_NUMBER",
+                                "phone_number_id": phone_id
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {
+                                        "name": "Pablo LLH"
+                                    },
+                                    "wa_id": "525518490291"
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "from": "525518490291",
+                                    "id": "wamid.HBgMNTExMjM0NTY3ODkwIhAJAAEGz9v9RQ11lEMADJwWFCQCQ",
+                                    "timestamp": "1618857052",
+                                    "text": {
+                                        "body": "Hola, esto es una prueba de WhatsApp!"
+                                    },
+                                    "type": "text"
+                                }
+                            ]
+                        },
+                        "field": "messages"
+                    }
+                ]
+            }
+        ]
+    }
+    
+    filename = f'payload_whatsapp_{phone_id}.json'
+    with open(filename, 'w') as f:
+        json.dump(payload, f, indent=2)
+    print(f"Archivo '{filename}' creado con éxito.\n")
+    print(f"**Nota:** Reemplaza 'YOUR_DISPLAY_PHONE_NUMBER' y 'USER_ID_AQUI' con los valores correctos antes de usar el archivo '{filename}'.\n")
+
+def crear_payload_instagram_json(instagram_account_id):
+    """
+    Crea un archivo JSON para simular un evento de prueba en Instagram.
+    """
+    payload = {
+        "object": "instagram",
+        "entry": [
+            {
+                "id": instagram_account_id,
+                "time": 1609459200,
+                "changes": [
+                    {
+                        "value": {
+                            "metadata": {
+                                "event_type": "comment",
+                                "event_id": "17896450804322384",
+                                "user_id": "9372528202791704"
+                            },
+                            "comment_id": "17896450804322384",
+                            "text": "Hola, esto es una prueba de Instagram!",
+                            "media_id": "17896450804322384",
+                            "comment_from": {
+                                "id": "9372528202791704",
+                                "username": "Pablollh"
+                            },
+                            "comment_text": "Hola, esto es una prueba de Instagram!"
+                        },
+                        "field": "comments"
+                    }
+                ]
+            }
+        ]
+    }
+    
+    filename = f'payload_instagram_{instagram_account_id}.json'
+    with open(filename, 'w') as f:
+        json.dump(payload, f, indent=2)
+    print(f"Archivo '{filename}' creado con éxito.\n")
+    print(f"**Nota:** Reemplaza 'USER_ID_AQUI' con el valor correcto antes de usar el archivo '{filename}'.\n")
+
+def crear_payload_telegram_json(bot_name):
+    """
+    Crea un archivo JSON para simular un mensaje de prueba en Telegram.
+    """
+    payload = {
+        "update_id": 100000000,
+        "message": {
+            "message_id": 1,
+            "from": {
+                "id": 871198362,
+                "is_bot": False,
+                "first_name": "Test",
+                "username": "Pablo LLH",
+                "language_code": "en"
+            },
+            "chat": {
+                "id": 1111111,
+                "first_name": "Test",
+                "username": "testuser",
+                "type": "private"
+            },
+            "date": 1609459200,
+            "text": "Hola, esto es una prueba!"
+        }
+    }
+    
+    filename = f'payload_telegram_{bot_name}.json'
+    with open(filename, 'w') as f:
+        json.dump(payload, f, indent=2)
+    print(f"Archivo '{filename}' creado con éxito.\n")
+    print(f"**Nota:** Reemplaza '1111111' y 'testuser' con los valores correctos antes de usar el archivo '{filename}'.\n")
+
+def ejecutar_verificaciones():
+    listar_apis_por_business_unit()
+    generar_comandos_curl_para_apis()
+
+# Ejecutar las funciones
+ejecutar_verificaciones()

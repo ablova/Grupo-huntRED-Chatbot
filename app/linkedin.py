@@ -21,12 +21,6 @@ from spacy.lang.es import Spanish
 
 logger = logging.getLogger(__name__)
 
-# Inicializar spaCy y PhraseMatcher
-nlp = Spanish()
-phrase_matcher = PhraseMatcher(nlp.vocab)
-
-# Inicializar SkillExtractor correctamente
-skill_extractor = SkillExtractor(phraseMatcher=phrase_matcher)
 
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "781zbztzovea6a")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "WPL_AP1.MKozNnsrqofMSjN4.ua0UOQ==")
@@ -407,19 +401,10 @@ def extract_education(soup):
         education_list.append({'school': school, 'degree': degree, 'dates': dates})
     return education_list
 
-def extract_skills(soup):
-    skills_section = soup.find('section', id='skills')
-    if not skills_section:
-        return []
-    skill_list = []
-    lis = skills_section.select('ul li.artdeco-list__item')
-    for li in lis:
-        skill_div = li.find('div', class_='t-bold')
-        if skill_div:
-            sname = skill_div.get_text(strip=True)
-            if sname and sname not in skill_list:
-                skill_list.append(sname)
-    return skill_list
+def extract_skills(text: str) -> List[str]:
+    results = skill_extractor.annotate(text)
+    raw_skills = results.get("results", [])
+    return [item['skill'] for item in raw_skills]
 
 def extract_languages(soup):
     lang_section = soup.find('section', id='languages')
@@ -479,25 +464,6 @@ def scrape_linkedin_profile(link_url: str) -> dict:
     """
     Realiza scraping en LinkedIn para un perfil individual usando su URL.    
     """
-    html = fetch_url(link_url)
-    soup = BeautifulSoup(html, 'html.parser')
-
-    data = {
-        'name': extract_name(soup),
-        'headline': extract_headline(soup),
-        'location': extract_location(soup),
-        'experience': extract_experience(soup),
-        'education': extract_education(soup),
-        'skills': extract_skills(soup),
-        'languages': extract_languages(soup),
-        'contact_info': extract_contact_info(soup)
-    }
-    return data
-
-def scrape_linkedin_profile(link_url: str) -> dict:
-    """
-    Realiza scraping en LinkedIn para un perfil individual usando su URL.    
-    """
     try:
         html = fetch_url(link_url)   # Asumes que fetch_url() obtiene la página con backoff
         if not html:
@@ -506,29 +472,24 @@ def scrape_linkedin_profile(link_url: str) -> dict:
 
         soup = BeautifulSoup(html, 'html.parser')
 
-        # ... aquí extraes name, headline, location, experience, etc. ...
-        # Pongamos un ejemplo para 'skills':
+        # Extraer datos
+        name = extract_name(soup)
+        if not name:
+            logger.warning(f"No se pudo extraer el nombre de {link_url}")
+            return {}
 
-        # Supongamos que no hay un <section id="skills"> en LinkedIn normal
-        # Sino que tu scraping obtiene un 'about_text' y luego usas nlp_processor.extract_skills:
-
-        about_text = soup.find("div", class_="pv-about-section")
-        if about_text:
-            about_str = about_text.get_text(strip=True)
-        else:
-            about_str = ""
-
-        # extraer skills:
-        extracted_skills = nlp_processor.extract_skills(about_str)
-
+        # Continúa con la extracción de otros datos...
         data = {
-            'name': ...,
-            'headline': ...,
-            'location': ...,
-            'experience': ...,
-            'education': ...,
-            'skills': extracted_skills,  # <--- lo que te interese
+            'name': name,
+            'headline': extract_headline(soup),
+            'location': extract_location(soup),
+            'experience': extract_experience(soup),
+            'education': extract_education(soup),
+            'skills': extract_skills(soup),
+            'languages': extract_languages(soup),
+            'contact_info': extract_contact_info(soup)
         }
+        logger.info(f"Datos extraídos para {link_url}: {data}")
         return data
 
     except Exception as e:
