@@ -1,36 +1,70 @@
 # /home/pablollh/app/chatbot/gpt.py
+
 import logging
-import openai
-import backoff
 from typing import Dict, Optional
+import backoff
+from openai import OpenAI, OpenAIError, RateLimitError
+from openai.types.chat import ChatCompletion
 from app.models import GptApi
 from app.chatbot.integrations.services import send_email
 from django.conf import settings
-from openai import OpenAIError, RateLimitError  # Importar excepciones desde openai
+from asgiref.sync import sync_to_async
 
+# Configuración del logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Establece el nivel de logging según sea necesario
+
+# Configuración del handler para consola
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)  # Ajusta el nivel según tus necesidades
+console_formatter = logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(message)s')
+console_handler.setFormatter(console_formatter)
+logger.addHandler(console_handler)
+
+# Opcional: Configuración de handler para archivo
+file_handler = logging.FileHandler('logs/gpt_handler.log')
+file_handler.setLevel(logging.DEBUG)
+file_formatter = logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
 
 class GPTHandler:
     def __init__(self):
-        gpt_api = GptApi.objects.first()
-        if gpt_api:
-            openai.api_key = gpt_api.api_token
-            if gpt_api.organization:
-                openai.organization = gpt_api.organization
-            # Ajusta el nombre del modelo a uno válido en tu cuenta
-            self.model = gpt_api.model or "gpt-4.0-mini"
-        else:
-            raise ValueError("No hay GPT API configurada en la base de datos.")
-        
-    def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
+        logger.debug("Inicializando GPTHandler...")
         try:
-            response = openai.ChatCompletion.create(
+            gpt_api = GptApi.objects.first()
+            if gpt_api:
+                logger.debug("Se encontró una instancia de GptApi en la base de datos.")
+                # Loguear detalles sin exponer api_token
+                logger.debug(f"Modelo: {gpt_api.model}, Organización: {gpt_api.organization}, Proyecto: {gpt_api.project}")
+                
+                # Instanciar el cliente de OpenAI con las credenciales desde la base de datos
+                self.client = OpenAI(
+                    api_key=gpt_api.api_token,  # Acceso correcto al campo
+                    organization=gpt_api.organization if gpt_api.organization else None
+                )
+                self.model = gpt_api.model or "gpt-4"
+                logger.debug(f"Cliente de OpenAI instanciado con el modelo: {self.model}")
+            else:
+                logger.error("No se encontró una instancia de GptApi en la base de datos.")
+                raise ValueError("No hay GPT API configurada en la base de datos.")
+        except Exception as e:
+            logger.exception("Error al inicializar GPTHandler: ", exc_info=True)
+            raise e
+
+    def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
+        logger.debug(f"Generando respuesta para el prompt: {prompt}")
+        try:
+            response: ChatCompletion = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=150,
                 temperature=0.7
             )
-            return response.choices[0].message.content.strip()
+            logger.debug("Respuesta recibida de OpenAI.")
+            respuesta_texto = response.choices[0].message.content.strip()
+            logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
+            return respuesta_texto
 
         except RateLimitError:
             logger.error("Excediste tu cuota de OpenAI.")
@@ -49,6 +83,7 @@ class GPTHandler:
         """
         Envía un correo notificando que se acabó la cuota de OpenAI.
         """
+        logger.debug("Enviando notificación de cuota excedida.")
         subject = "Se acabó la cuota de OpenAI"
         body = (
             "Hola,\n\n"
@@ -56,7 +91,6 @@ class GPTHandler:
             "Por favor, revisa el plan y detalles de facturación de OpenAI para continuar con el servicio.\n\n"
             "Saludos."
         )
-        # Lista de correos para notificar
         emails = ["pablo@huntred.com", "finanzas@huntred.com"]
         for email in emails:
             try:
@@ -66,38 +100,53 @@ class GPTHandler:
                     to_email=email, 
                     body=body
                 )
+                logger.debug(f"Correo de notificación enviado a {email}.")
             except Exception as e:
-                logger.error(f"No se pudo enviar el correo de notificación de cuota excedida a {email}: {e}")
+                logger.error(f"No se pudo enviar el correo de notificación de cuota excedida a {email}: {e}", exc_info=True)
 
-    def gpt_message(api_token: str, text: str, model: str = "gpt-4.0-mini"):
-        openai.api_key = api_token
+    @staticmethod
+    def gpt_message(api_token: str, text: str, model: str = "gpt-4") -> Optional[str]:
+        logger.debug(f"Generando respuesta con gpt_message para el texto: {text}")
         try:
-            response = openai.chat.completions.create(
+            client = OpenAI(api_key=api_token)
+            response = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": text}],
                 max_tokens=150,
                 temperature=0.7
             )
-            return response.choices[0].message.content.strip()
-    #    except RateLimitError:
-    #        logger.error("Excediste tu cuota actual de OpenAI en gpt_message.")
-    #        return {"error": "Excediste tu cuota actual de OpenAI."}
-    #    except OpenAIError as oe:
-    #        logger.error(f"Error de OpenAI en gpt_message: {oe}", exc_info=True)
-    #        return {"error": "No se pudo procesar tu solicitud a OpenAI."}
+            respuesta_texto = response.choices[0].message.content.strip()
+            logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
+            return respuesta_texto
+        except RateLimitError:
+            logger.error("Excediste tu cuota actual de OpenAI en gpt_message.")
+            return "Excediste tu cuota actual de OpenAI."
+        except OpenAIError as oe:
+            logger.error(f"Error de OpenAI en gpt_message: {oe}", exc_info=True)
+            return "No se pudo procesar tu solicitud a OpenAI."
         except Exception as e:
             logger.error(f"Error generando respuesta con GPT en gpt_message: {e}", exc_info=True)
-            return {"error": "Error inesperado."}
-    
+            return "Error inesperado."
+
     @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
     def generate_response_with_retries(self, prompt: str, context: Optional[Dict] = None) -> str:
         """
         Genera una respuesta con reintentos en caso de errores.
         """
-        response = openai.ChatCompletion.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=150,
-            temperature=0.7
-        )
-        return response.choices[0].message.content.strip()
+        logger.debug(f"Generando respuesta con reintentos para el prompt: {prompt}")
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=150,
+                temperature=0.7
+            )
+            respuesta_texto = response.choices[0].message.content.strip()
+            logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
+            return respuesta_texto
+        except OpenAIError as oe:
+            logger.error(f"Error de OpenAI durante reintentos: {oe}", exc_info=True)
+            raise oe  # Permite que backoff maneje el reintento
+        except Exception as e:
+            logger.error(f"Error generando respuesta con GPT en generate_response_with_retries: {e}", exc_info=True)
+            raise e

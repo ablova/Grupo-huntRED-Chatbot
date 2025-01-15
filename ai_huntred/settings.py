@@ -1,6 +1,4 @@
 # Ubicación del archivo: /home/pablollh/ai_huntred/settings.py
-# Archivo Base de Configuración de Django
-
 import os
 from pathlib import Path
 from django.core.mail import get_connection, send_mail
@@ -8,7 +6,7 @@ from django.conf import settings
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 import environ
-#from app.models import ConfiguracionBU  # Assuming we have a model defined for email configurations
+import logging
 
 # Inicializar environ
 env = environ.Env()
@@ -16,18 +14,22 @@ env = environ.Env()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Asegurar que existe el directorio de logs
+os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
+
 # Lee el archivo .env
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Sentry configuration
 sentry_sdk.init(
-    dsn=env('SENTRY_DSN', default='https://e9989a45cedbcefa64566dbcfb2ffd59@o4508638041145344.ingest.us.sentry.io/4508638043766784'),
+    dsn=env('SENTRY_DSN'),
     integrations=[DjangoIntegration()],
-    traces_sample_rate=1.0,
+    traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=1.0),
     _experiments={
         "continuous_profiling_auto_start": True,
     },
-    send_default_pii=True
+    send_default_pii=env.bool('SENTRY_SEND_PII', default=True),
+    debug=env.bool('SENTRY_DEBUG', default=False),
 )
 
 # Paths
@@ -36,11 +38,11 @@ ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
 # Security Settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 DEBUG = env.bool('DJANGO_DEBUG', default=False)
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost'])
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'ai.huntred.com'])
 
 # General Environment
-GENERAL_ADMIN_EMAIL = 'pablo@huntred.com'
-GENERAL_ADMIN_PHONE = '+525518490291'
+GENERAL_ADMIN_EMAIL = env('ADMIN_EMAIL')
+GENERAL_ADMIN_PHONE = env('ADMIN_PHONE')
 
 # Database
 DATABASES = {
@@ -51,6 +53,10 @@ DATABASES = {
         'PASSWORD': env('DB_PASSWORD'),
         'HOST': env('DB_HOST'),
         'PORT': env('DB_PORT'),
+        'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=60),
+        'OPTIONS': {
+            'connect_timeout': env.int('DB_CONNECT_TIMEOUT', default=10),
+        }
     }
 }
 
@@ -60,18 +66,15 @@ CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'America/Mexico_City'
+CELERY_TIMEZONE = env('TIMEZONE', default='America/Mexico_City')
 CELERY_ENABLE_UTC = True
-CELERY_WORKER_CONCURRENCY = 2  # Ajusta según tu CPU
+CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
 
 # CORS Configuration
-cors_origins = env('CORS_ALLOWED_ORIGINS', default='*')
-if cors_origins == '*':
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOWED_ORIGINS = cors_origins.split(',')
+CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
+CORS_ALLOW_CREDENTIALS = env.bool('CORS_ALLOW_CREDENTIALS', default=False)
 
-# Aplicaciones Instaladas
+# Las aplicaciones se mantienen igual...
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -82,7 +85,6 @@ INSTALLED_APPS = [
     'django_celery_beat',
     # Apps internas
     'app',
-    #'ratelimit',
     'app.chatbot',
     'app.ml',
     'app.utilidades',
@@ -93,7 +95,6 @@ INSTALLED_APPS = [
     'drf_yasg',
 ]
 
-# Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -105,10 +106,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# URL Configuration
 ROOT_URLCONF = 'ai_huntred.urls'
 
-# Templates
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -125,23 +124,22 @@ TEMPLATES = [
     },
 ]
 
-# WSGI Application
 WSGI_APPLICATION = 'ai_huntred.wsgi.application'
 
 # Configuración de Idioma
-LANGUAGE_CODE = 'es-mx'
-TIME_ZONE = 'America/Mexico_City'
+LANGUAGE_CODE = env('LANGUAGE_CODE', default='es-mx')
+TIME_ZONE = env('TIMEZONE', default='America/Mexico_City')
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
 # Archivos Estáticos
-STATIC_URL = '/static/'
+STATIC_URL = env('STATIC_URL', default='/static/')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Media
-MEDIA_URL = '/media/'
+MEDIA_URL = env('MEDIA_URL', default='/media/')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # REST Framework
@@ -156,15 +154,23 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': env('THROTTLE_ANON', default='100/day'),
+        'user': env('THROTTLE_USER', default='1000/day')
+    }
 }
 
-# Logging
+# Logging Configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
         'simple': {
@@ -173,62 +179,83 @@ LOGGING = {
         },
     },
     'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+            'level': env('CONSOLE_LOG_LEVEL', default='INFO'),
+        },
         'debug_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
+            'level': env('DEBUG_LOG_LEVEL', default='ERROR'),
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/debug.log'),
             'formatter': 'verbose',
+            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),  # 10 MB
+            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
         },
         'messenger_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
+            'level': env('MESSENGER_LOG_LEVEL', default='ERROR'),
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/messenger.log'),
             'formatter': 'verbose',
+            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
+            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
         },
         'whatsapp_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
+            'level': env('WHATSAPP_LOG_LEVEL', default='ERROR'),
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/whatsapp.log'),
             'formatter': 'verbose',
+            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
+            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
         },
         'instagram_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
+            'level': env('INSTAGRAM_LOG_LEVEL', default='ERROR'),
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/instagram.log'),
             'formatter': 'verbose',
+            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
+            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
         },
         'telegram_file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
+            'level': env('TELEGRAM_LOG_LEVEL', default='ERROR'),
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/telegram.log'),
             'formatter': 'verbose',
+            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
+            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
         },
     },
     'loggers': {
+        'django': {
+            'handlers': ['console', 'debug_file'],
+            'level': env('DJANGO_LOG_LEVEL', default='INFO'),
+            'propagate': True,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': env('DB_LOG_LEVEL', default='INFO'),
+            'propagate': False,
+        },
         'messenger': {
-            'handlers': ['messenger_file', 'debug_file'],
-            'level': 'DEBUG',
+            'handlers': ['messenger_file', 'console'],
+            'level': env('MESSENGER_LOG_LEVEL', default='ERROR'),
             'propagate': False,
         },
         'whatsapp': {
-            'handlers': ['whatsapp_file', 'debug_file'],
-            'level': 'DEBUG',
+            'handlers': ['whatsapp_file', 'console'],
+            'level': env('WHATSAPP_LOG_LEVEL', default='ERROR'),
             'propagate': False,
         },
         'instagram': {
-            'handlers': ['instagram_file', 'debug_file'],
-            'level': 'DEBUG',
+            'handlers': ['instagram_file', 'console'],
+            'level': env('INSTAGRAM_LOG_LEVEL', default='ERROR'),
             'propagate': False,
         },
         'telegram': {
-            'handlers': ['telegram_file', 'debug_file'],
-            'level': 'DEBUG',
+            'handlers': ['telegram_file', 'console'],
+            'level': env('TELEGRAM_LOG_LEVEL', default='ERROR'),
             'propagate': False,
         },
-    },
-    'root': {
-        'handlers': ['debug_file'],
-        'level': 'DEBUG',
     },
 }
 
