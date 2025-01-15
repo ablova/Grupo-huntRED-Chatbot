@@ -1,4 +1,5 @@
 .env
+/etc/
 # Ignorar el entorno virtual
 venv/
 *.pyc

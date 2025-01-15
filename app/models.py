@@ -385,7 +385,7 @@ class JobTracker(models.Model):
     end_date = models.DateField(null=True, blank=True)  # Fecha límite para completar el proceso
 
     def __str__(self):
-        return f"Job Tracker para {self.opportunity.title}"
+        return f"Job Tracker para {self.opportunity.titulo}"
     
 #    @receiver(post_save, sender=JobTracker)
     def handle_job_tracker_status_change(sender, instance, **kwargs):
@@ -411,7 +411,7 @@ class ApiConfig(models.Model):
         return f"{self.business_unit.name} - {self.api_type}"
 
 class Person(models.Model):
-    number_interaction = models.CharField(max_length=40, unique=True)
+    number_interaction = models.IntegerField(default=0)  # Changed from CharField to IntegerField #number_interaction = models.CharField(max_length=40, unique=True)
 
     # Datos personales básicos
     nombre = models.CharField(max_length=100)
@@ -592,7 +592,7 @@ class Template(models.Model):
     class Meta:
         unique_together = ('whatsapp_api', 'name', 'language_code')
     def __str__(self):
-        return f"{self.name} ({self.language_code}) - {self.whatsapp_api.business_unit.name}"
+        return f"{self.name} ({self.language_code}) - {self.whatsapp_api.business_unit.name if self.whatsapp_api.business_unit else 'Sin BU'}"
 
 class MessengerAPI(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='messenger_apis', null=True, blank=True)
@@ -718,8 +718,11 @@ class ChatState(models.Model):
     applied = models.BooleanField(default=False)
     interviewed = models.BooleanField(default=False)
     last_interaction_at = models.DateTimeField(auto_now=True)
-    person = models.OneToOneField(Person, on_delete=models.SET_NULL, null=True, blank=True,
-                                  help_text="Perfil del candidato asociado.")
+    person = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True,
+                               help_text="Perfil del candidato asociado.")  # Cambiado a ForeignKey
+    class Meta:
+        unique_together = ('user_id', 'business_unit')  # Permitir múltiples ChatState por persona y BU
+
 
     def __str__(self):
         return f"ChatState user={self.user_id} platform={self.platform}"

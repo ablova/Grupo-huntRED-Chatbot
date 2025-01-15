@@ -4,6 +4,7 @@ import math
 import re
 import os
 import logging
+import requests
 from datetime import datetime
 from app.chatbot.nlp import NLPProcessor
 from django.core.exceptions import ValidationError

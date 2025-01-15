@@ -5,16 +5,18 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404
 #from ratelimit.decorators import ratelimit
 import json
-import logging
-
+import logging 
 from app.chatbot.chatbot import ChatBotHandler
-from app.models import GptApi
+from app.models import GptApi, Person, BusinessUnit, ChatState
 from app.chatbot.gpt import GPTHandler
 from app.chatbot.integrations.services import send_message, send_image, send_menu, send_logo
 from asgiref.sync import sync_to_async
 from app.ml.ml_model import MatchmakingLearningSystem
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def candidato_predictions(request, candidato_id):
@@ -29,7 +31,7 @@ def candidato_predictions(request, candidato_id):
     except Exception as e:
         logger.error(f"Error obteniendo predicciones para el candidato {candidato_id}: {e}")
         return JsonResponse({'error': str(e)}, status=500)
-logger = logging.getLogger(__name__)
+
 
 @login_required
 def candidato_recommendations(request, candidato_id):
@@ -191,3 +193,24 @@ def obtener_destinatario(platform, variables):
     elif platform == 'instagram':
         return variables.get('instagram_id', '109623338672452')
     return None
+
+class ChatGPTView(View):
+    async def post(self, request, *args, **kwargs):
+        # Obtener el prompt desde la solicitud
+        prompt = request.POST.get('prompt', '')
+
+        if not prompt:
+            return JsonResponse({'error': 'No se proporcionó un prompt.'}, status=400)
+
+        try:
+            # Crear una instancia asíncrona de GPTHandler
+            gpt_handler = await GPTHandler.create()
+
+            # Generar la respuesta de GPT
+            response_text = await gpt_handler.generate_response(prompt)
+
+            return JsonResponse({'response': response_text})
+
+        except Exception as e:
+            # Manejar errores inesperados
+            return JsonResponse({'error': 'Ocurrió un error al procesar la solicitud.'}, status=500)

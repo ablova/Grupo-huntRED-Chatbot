@@ -1,4 +1,4 @@
-#SIncronizacion GIT
+# Sincronizacion GIT
 cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
 git add .
 git commit -m "Mejoras en operacion y ejecucion repositorio Git (date)"
@@ -11,13 +11,21 @@ sudo journalctl -u gunicorn -f
 sudo journalctl -u celery -f
 cat /home/pablollh/logs/error.log
 
+
+##  CONEXION A GCLOUD
 gcloud compute ssh pablo@grupo-huntred --zone=us-central1-a --project=grupo-huntred 
+sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y && sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt-get clean -y && sudo apt clean -y 
+sudo reboot
+
 
 ssh -i ~/.ssh/id_rsa_chatbot git@34.57.227.244
 ssh ai.huntred.com
 
 sudo journalctl --vacuum-time=2minutes
 sudo journalctl --rotate
+
+#Ingreso a base de datos
+psql -U grupo_huntred_ai_user -h localhost -d postgres
 
 
 #______________
@@ -33,6 +41,11 @@ sudo find /var/log -type f -size +10M &&
 sudo sysctl vm.drop_caches=3 &&
 sudo rm -rf /tmp/* &&
 sudo journalctl --vacuum-time=1h
+
+# Eliminar procesos Zombie
+sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | sort -u)
+
+
 # List top memory-consuming processes
 ps aux --sort=-%mem | head -n 15
 # Check specifically for Python and Celery processes
@@ -98,6 +111,7 @@ app.conf.update(
 )
 
 from app.models import WhatsAppAPI, MetaAPI, TelegramAPI, InstagramAPI, MessengerAPI
+from app.chatbot.integrations.whatsapp import send_message
 whatsapp_api = WhatsAppAPI.objects.first()
 print(whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api)
 
@@ -1572,7 +1586,7 @@ if not created:
 
 
 
-from app.gpt import GPTHandler
+from app.chatbot.gpt import GPTHandler
 gpt_handler = GPTHandler()
 response = gpt_handler.generate_response("Hola, ¿puedes presentarte, y ayudarme en crear el perfil de usuarios de huntred.com?")
 print(response)

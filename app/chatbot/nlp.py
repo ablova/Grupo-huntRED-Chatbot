@@ -3,6 +3,7 @@
 import logging
 import nltk
 import spacy
+import json
 from spacy.matcher import Matcher, PhraseMatcher
 from spacy.lang.es import Spanish
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
@@ -20,28 +21,30 @@ logging.basicConfig(
 nltk.download('vader_lexicon', quiet=True)
 
 try:
-    nlp = spacy.load("es_core_news_md")  # Ajusta el modelo de spaCy que uses
+    nlp = spacy.load("es_core_news_md")
     logger.info("Modelo de spaCy 'es_core_news_md' cargado correctamente.")
 except Exception as e:
     logger.error(f"Error cargando modelo spaCy: {e}", exc_info=True)
     nlp = None
 
-USE_SKILL_EXTRACTOR = True  # O False si deseas desactivarlo globalmente
-
-phrase_matcher = None
+USE_SKILL_EXTRACTOR = True
 sn = None
 
 try:
     if nlp is not None:
-        phrase_matcher = PhraseMatcher(nlp.vocab)
+        # Initialize PhraseMatcher con 'attr' establecido correctamente
+        phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
+        
         # Ajusta la ruta al JSON con la base de datos de skills
         skill_db_path = "/home/pablollh/app/skill_db_relax_20.json"
-        
+        # Cargar el archivo JSON
+        with open(skill_db_path, 'r', encoding='utf-8') as f:
+            skills_db = json.load(f)
+        # Initialize SkillExtractor pasando la instancia de PhraseMatcher
         sn = SkillExtractor(
             nlp=nlp,
-            skills_db=skill_db_path,
-            phrase_matcher=phrase_matcher,
-            keywords_collection=True,
+            skills_db=skills_db,
+            phraseMatcher=phrase_matcher
         )
         logger.info("SkillExtractor 'sn' inicializado correctamente.")
     else:
@@ -139,7 +142,6 @@ class NLPProcessor:
             return "F"
         else:
             return "O"
-
 
 # Instancia global
 nlp_processor = NLPProcessor()

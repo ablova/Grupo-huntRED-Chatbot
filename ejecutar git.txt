@@ -19,7 +19,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git /home/pablollh
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Ajustado de chatbot, ml, utilidades, ..." &&
+git commit -m "Ajustado de folders y partiendo app en ml, chatbot, utilidades, ..." &&
 git push origin main
 
 
@@ -56,7 +56,7 @@ python manage.py collectstatic &&
 sudo systemctl restart gunicorn nginx celery &&
 sudo journalctl -u gunicorn &&
 sudo journalctl -u nginx
-cd /home/pablollh/logs && cat error.log
+cd /home/pablollh/logs && cat debug.log
 # Ver solo errores nuevos del sistema (e.g., gunicorn o nginx)
 sudo journalctl -u gunicorn -p err --since "10 minutes ago" -f
 sudo journalctl -u nginx -p err --since "10 minutes ago" -f

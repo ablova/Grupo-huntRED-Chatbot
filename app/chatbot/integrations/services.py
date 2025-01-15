@@ -12,6 +12,7 @@ from app.models import (
     WhatsAppAPI, TelegramAPI, InstagramAPI, MessengerAPI, MetaAPI, BusinessUnit, ConfiguracionBU,
     ChatState, Person, Vacante, Application, EnhancedNetworkGamificationProfile
 )
+from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -40,8 +41,6 @@ async def send_message(
     Envía un mensaje al usuario en la plataforma especificada, con opciones si las hay.
     Ajustado para que 'whatsapp' reciba (user_id, message, phone_id, buttons, business_unit).
     """
-    from app.models import WhatsAppAPI  # Import puntual si lo requieres
-    
     try:
         logger.info(f"[send_message] Platform: {platform}, User: {user_id}, BU: {business_unit.name}, Msg: {message[:30]}...")
 
@@ -92,6 +91,12 @@ async def send_message(
     except Exception as e:
         logger.error(f"[send_message] Error enviando mensaje en {platform}: {e}", exc_info=True)
 
+def fetch_api_instance(model_class, business_unit):
+    return model_class.objects.filter(
+        business_unit=business_unit,
+        is_active=True
+    ).select_related('business_unit').first()
+
 async def get_api_instance(platform: str, business_unit: BusinessUnit):
     """
     Obtiene la instancia de configuración de la API según la plataforma y unidad de negocio.
@@ -112,14 +117,15 @@ async def get_api_instance(platform: str, business_unit: BusinessUnit):
             return None
 
         model_class = getattr(__import__('app.models', fromlist=[model_name]), model_name)
-        api_instance = await sync_to_async(model_class.objects.filter)(
-            business_unit=business_unit, is_active=True
-        ).select_related('business_unit').first()
+
+        # Ejecutar la consulta de manera asíncrona
+        api_instance = await sync_to_async(fetch_api_instance)(model_class, business_unit)
+
         if not api_instance:
-            logger.error(f"No API instance found for platform: {platform}, BU: {business_unit.name}")
+            logger.error(f"No API instance found for platform: {platform}, BU {business_unit.name}")
             return None
 
-        cache.set(cache_key, api_instance, CACHE_TIMEOUT)
+        cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
 
     return api_instance
 
@@ -188,7 +194,7 @@ async def send_whatsapp_message(
     """
     try:
         if not phone_id and business_unit:
-            # Si no se pasa phone_id y hay business_unit, busca la config
+            # Si no se pasa phone_id y hay business_unit, busca la configuración
             whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
                 business_unit=business_unit, is_active=True
             ).select_related('business_unit').first()
@@ -198,7 +204,7 @@ async def send_whatsapp_message(
             phone_id = whatsapp_api.phoneID
             api_token = whatsapp_api.api_token
         else:
-            # phone_id se pasa manual; obtener api_token
+            # phone_id se pasa manualmente; obtener api_token
             if business_unit:
                 whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
                     business_unit=business_unit, is_active=True
@@ -208,19 +214,19 @@ async def send_whatsapp_message(
                 # Manejo minimal: phone_id y token están "hardcoded" o algo
                 logger.warning("[send_whatsapp_message] No se pasó business_unit, asumiendo phone_id y token predefinidos.")
                 api_token = phone_id  # <--- Ajustar según lógica real
-
+    
         if not phone_id or not api_token:
             logger.error("[send_whatsapp_message] No se cuenta con phone_id o api_token válido.")
             return
-
+    
         logger.debug(f"[send_whatsapp_message] user_id={user_id}, phone_id={phone_id}, tiene botones={bool(buttons)}")
-
+    
         url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
         headers = {
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json"
         }
-
+    
         # Construir payload base
         payload = {
             "messaging_product": "whatsapp",
@@ -231,7 +237,7 @@ async def send_whatsapp_message(
                 "body": message
             }
         }
-
+    
         # Si se proveen buttons, se cambia el 'type' a 'interactive'
         if buttons:
             logger.debug(f"[send_whatsapp_message] Convirtiendo a mensaje interactivo con {len(buttons)} botón(es).")
@@ -242,10 +248,10 @@ async def send_whatsapp_message(
                     "type": "reply",
                     "reply": {
                         "id": btn.get('payload', 'btn_id'),
-                        "title": btn.get('title', '')[:20]  # WhatsApp limita 20 chars
+                        "title": btn.get('title', '')[:20]  # WhatsApp limita a 20 chars
                     }
                 })
-
+    
             payload = {
                 "messaging_product": "whatsapp",
                 "recipient_type": "individual",
@@ -261,12 +267,12 @@ async def send_whatsapp_message(
                     }
                 }
             }
-
+    
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             logger.info(f"[send_whatsapp_message] Mensaje enviado a {user_id}. Respuesta: {response.text[:200]}")
-
+    
     except httpx.HTTPStatusError as e:
         logger.error(f"[send_whatsapp_message] Error HTTP al enviar mensaje a {user_id}: {e.response.text}", exc_info=True)
     except Exception as e:
@@ -412,7 +418,6 @@ async def process_text_message(platform, sender_id, message_text, business_unit)
     """
     Procesa un mensaje de texto recibido.
     """
-    from app.chatbot import ChatBotHandler
     chatbot_handler = ChatBotHandler()
 
     try:

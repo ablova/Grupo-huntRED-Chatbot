@@ -118,7 +118,7 @@
         "model": "app.person",
         "pk": 1,
         "fields": {
-            "number_interaction": "5215518490291",
+            "number_interaction": "1",
             "nombre": "Pablo",
             "apellido_paterno": "Lelo de Larrea",
             "apellido_materno": "y de Haro",
@@ -135,7 +135,7 @@
         "model": "app.person",
         "pk": 2,
         "fields": {
-            "number_interaction": "5215554139047",
+            "number_interaction": "2",
             "nombre": "Eloina",
             "apellido_paterno": "de Haro",
             "apellido_materno": "Diaz",
