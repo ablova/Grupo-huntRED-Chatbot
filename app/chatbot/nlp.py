@@ -1,14 +1,14 @@
 # /home/pablollh/app/chatbot/nlp.py
+# /home/pablollh/app/chatbot/nlp.py
 
 import logging
 import nltk
 import spacy
 import json
 from spacy.matcher import Matcher, PhraseMatcher
-from spacy.lang.es import Spanish
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from skillNer.skill_extractor_class import SkillExtractor
-from app.utilidades.catalogs import DIVISION_SKILLS
+from app.chatbot.utils import validate_term_in_catalog, get_division_skills, clean_text
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -27,99 +27,91 @@ except Exception as e:
     logger.error(f"Error cargando modelo spaCy: {e}", exc_info=True)
     nlp = None
 
-USE_SKILL_EXTRACTOR = True
-sn = None
-
 try:
-    if nlp is not None:
-        # Initialize PhraseMatcher con 'attr' establecido correctamente
-        phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
-        
-        # Ajusta la ruta al JSON con la base de datos de skills
-        skill_db_path = "/home/pablollh/app/skill_db_relax_20.json"
-        # Cargar el archivo JSON
-        with open(skill_db_path, 'r', encoding='utf-8') as f:
-            skills_db = json.load(f)
-        # Initialize SkillExtractor pasando la instancia de PhraseMatcher
-        sn = SkillExtractor(
-            nlp=nlp,
-            skills_db=skills_db,
-            phraseMatcher=phrase_matcher
-        )
-        logger.info("SkillExtractor 'sn' inicializado correctamente.")
-    else:
-        logger.warning("No se pudo inicializar SkillExtractor porque nlp es None.")
+    # Inicializar PhraseMatcher y SkillExtractor
+    phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER") if nlp else None
 
+    # Ruta al JSON con la base de datos de skills
+    skill_db_path = "/home/pablollh/app/skill_db_relax_20.json"
+    with open(skill_db_path, 'r', encoding='utf-8') as f:
+        skills_db = json.load(f)
+
+    sn = SkillExtractor(
+        nlp=nlp,
+        skills_db=skills_db,
+        phraseMatcher=phrase_matcher
+    ) if nlp else None
+
+    logger.info("SkillExtractor inicializado correctamente con skill_db_path.")
 except Exception as e:
     logger.error(f"Error inicializando SkillExtractor: {e}", exc_info=True)
     sn = None
 
 class NLPProcessor:
     def __init__(self):
-        # Cargar el matcher de spaCy
-        if nlp is not None:
-            self.matcher = Matcher(nlp.vocab)
-        else:
-            self.matcher = None
+        self.matcher = Matcher(nlp.vocab) if nlp else None
         self.define_intent_patterns()
-
-        # Iniciar Sentiment Analyzer
-        try:
-            self.sia = SentimentIntensityAnalyzer()
-            logger.info("SentimentIntensityAnalyzer inicializado correctamente.")
-        except Exception as e:
-            logger.error(f"Error inicializando SentimentIntensityAnalyzer: {e}", exc_info=True)
-            self.sia = None
+        self.sia = SentimentIntensityAnalyzer() if nltk else None
 
     def define_intent_patterns(self):
         if not self.matcher:
             return
         saludo_patterns = [
-            [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "buenas noches"]}}],
+            [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes"]}}]
         ]
         self.matcher.add("saludo", saludo_patterns)
 
     def analyze(self, text: str) -> dict:
-        """
-        Procesa el texto: detecta intenciones, entidades y sentimiento.
-        """
         if not nlp:
             return {"intents": [], "entities": [], "sentiment": {}}
 
-        doc = nlp(text.lower())
+        cleaned_text = clean_text(text)
+        doc = nlp(cleaned_text)
         entities = [(ent.text, ent.label_) for ent in doc.ents]
 
         intents = []
         if self.matcher:
             matches = self.matcher(doc)
-            intents = [nlp.vocab.strings[match_id] for match_id, start, end in matches]
+            intents = [nlp.vocab.strings[match_id] for match_id, _, _ in matches]
 
-        sentiment = self.sia.polarity_scores(text) if self.sia else {}
+        sentiment = self.sia.polarity_scores(cleaned_text) if self.sia else {}
+
+        detected_divisions = [term for term in entities if validate_term_in_catalog(term[0], get_division_skills.keys())]
 
         return {
             "entities": entities,
             "intents": intents,
-            "sentiment": sentiment
+            "sentiment": sentiment,
+            "detected_divisions": detected_divisions
         }
 
     def extract_skills(self, text: str) -> list:
         """
-        Usa SkillExtractor para extraer habilidades del texto.
+        Extrae habilidades combinando DIVISION_SKILLS y skill_db_path.
         """
-        if not USE_SKILL_EXTRACTOR or sn is None:
-            logger.warning("SkillExtractor está deshabilitado o no se ha inicializado (sn=None).")
-            return []
-        try:
-            results = sn.annotate(text)
-            # `results.get("results", [])` según la estructura que retorne skillNer
-            raw_skills = results.get("results", [])
-            # Podrías mapear raw_skills a un simpler array de strings
-            extracted = [item['skill'] for item in raw_skills]
-            return extracted
-        except Exception as e:
-            logger.error(f"Error extrayendo habilidades con skillNer: {e}", exc_info=True)
-            return []
+        skills = []
+        detected_divisions = [division for division in get_division_skills.keys() if division.lower() in text.lower()]
 
+        # Agregar habilidades desde DIVISION_SKILLS
+        for division in detected_divisions:
+            division_skills = get_division_skills(division)
+            skills.extend(division_skills.get("Habilidades Técnicas", []))
+            skills.extend(division_skills.get("Habilidades Blandas", []))
+
+        # Agregar habilidades desde SkillExtractor
+        if sn:
+            try:
+                results = sn.annotate(text)
+                extracted_skills = [item['skill'] for item in results.get("results", [])]
+                skills.extend(extracted_skills)
+            except Exception as e:
+                logger.error(f"Error extrayendo habilidades con SkillExtractor: {e}", exc_info=True)
+
+        # Eliminar duplicados
+        skills = list(set(skills))
+
+        return skills
+    
     def infer_gender(self, name: str) -> str:
         """
         Infiera el género basado en el nombre (heurística de ejemplo).

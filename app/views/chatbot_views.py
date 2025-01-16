@@ -26,17 +26,8 @@ def candidato_predictions(request, candidato_id):
     """
     try:
         candidato = get_object_or_404(Person, id=candidato_id)
-        ml_system = MatchmakingLearningSystem()
-        predictions = ml_system.predict_all_active_processes(candidato)
-
-        # Formatear predicciones para enviar como respuesta del chatbot
-        response_text = format_template_response(
-            "Hola {nombre}, estas son tus predicciones de éxito: {predicciones}",
-            nombre=candidato.name,
-            predicciones=", ".join([f"{p['process']}: {p['score']}%" for p in predictions])
-        )
-
-        return JsonResponse({'predictions': predictions, 'response_text': response_text})
+        # Aquí puedes integrar tu sistema de predicción
+        return JsonResponse({'predictions': "Funcionalidad futura pendiente"})
     except Exception as e:
         logger.error(f"Error obteniendo predicciones para el candidato {candidato_id}: {e}")
         return JsonResponse({'error': str(e)}, status=500)
@@ -63,7 +54,7 @@ def candidato_recommendations(request, candidato_id):
         logger.error(f"Error obteniendo recomendaciones para el candidato {candidato_id}: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 
-@method_decorator(csrf_exempt, name='dispatch')
+@m@method_decorator(csrf_exempt, name='dispatch')
 class ProcessMessageView(View):
     """
     Vista para procesar mensajes del chatbot.
@@ -89,88 +80,20 @@ class ProcessMessageView(View):
             logger.error(f"Error procesando mensaje: {e}", exc_info=True)
             return JsonResponse({'error': 'Error interno del servidor'}, status=500)
 
-@csrf_exempt
-async def send_test_message(request):
+@login_required
+def send_test_message(request):
     """
-    Maneja las pruebas de acciones del chatbot enviadas desde el frontend.
+    Vista para enviar un mensaje de prueba desde la interfaz de administrador.
     """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            platform = data.get('platform')
-            action = data.get('action')
-            functions = data.get('functions', [])
-            phone_number = data.get('phone_number', '525518490291')
-            question_id = data.get('question_id')
+    user_id = request.GET.get('user_id')
+    message = request.GET.get('message', "Mensaje de prueba")
 
-            handler = ChatBotHandler()
-
-            # Validar plataforma
-            if not platform:
-                return JsonResponse({'error': 'Se requiere una plataforma.'}, status=400)
-
-            # Validar funciones
-            if not functions:
-                return JsonResponse({'error': 'Debe seleccionar al menos una función.'}, status=400)
-
-            # Obtener destinatario basado en la plataforma
-            recipient = obtener_destinatario(platform, {'whatsapp_number': phone_number})
-
-            responses = []  # Lista para almacenar las respuestas
-
-            # Procesar cada función seleccionada
-            for func in functions:
-                if func == 'send_message':
-                    response = await send_message(platform, recipient, action)
-                    responses.append({'function': func, 'response': response})
-                elif func == 'send_image':
-                    response = await send_image(platform, recipient, action)  # action contiene la URL de la imagen
-                    responses.append({'function': func, 'response': response})
-                elif func == 'send_menu':
-                    response = await send_menu(platform, recipient)
-                    responses.append({'function': func, 'response': response})
-                elif func == 'enviar_logo':
-                    response = await send_logo(platform, recipient)
-                    responses.append({'function': func, 'response': response})
-                elif func == 'mostrar_vacantes':
-                    # Obtener las vacantes almacenadas o disponibles
-                    vacantes = await obtener_vacantes_almacenadas()
-                    mensaje_vacantes = formatear_vacantes(vacantes)
-                    response = await send_message(platform, recipient, mensaje_vacantes)
-                    responses.append({'function': func, 'response': response})
-                elif func == 'execute_scraping':
-                    # Ejecutar el scraping y devolver los resultados
-                    business_unit_name = data.get('business_unit', 'amigro')
-                    vacantes = await ejecutar_scraping_amigro(business_unit_name)
-                    responses.append({'function': func, 'response': vacantes})
-                elif func == 'send_buttons':
-                    # Implementar lógica para enviar botones
-                    botones = [{'title': 'Opción 1'}, {'title': 'Opción 2'}]
-                    response = await send_buttons(platform, recipient, action, botones)
-                    responses.append({'function': func, 'response': response})
-                elif func == 'send_template_message':
-                    # Implementar lógica para enviar mensaje de plantilla
-                    response = await send_template_message(platform, recipient, template_name=action)
-                    responses.append({'function': func, 'response': response})
-                elif func == 'send_media_message':
-                    # Implementar lógica para enviar mensaje multimedia
-                    media_url = action  # URL del archivo multimedia
-                    response = await send_media_message(platform, recipient, media_url)
-                    responses.append({'function': func, 'response': response})
-                elif func == 'send_notification':
-                    # Enviar notificación
-                    message = action
-                    await send_notification_task(recipient, message)
-                    responses.append({'function': func, 'response': 'Notificación enviada'})
-                else:
-                    responses.append({"error": f"Función '{func}' no reconocida."})
-                    return JsonResponse({"error": f"Función '{func}' no reconocida."}, status=400)
-
-            return JsonResponse({'status': 'success', 'message': 'Prueba enviada exitosamente', 'responses': responses}, status=200)
-
-        except Exception as e:
-            logger.error(f"Error durante las pruebas: {e}", exc_info=True)
-            return JsonResponse({'error': str(e)}, status=500)
+    try:
+        response = sync_to_async(send_message)("whatsapp", user_id, message)
+        return JsonResponse({"status": "success", "response": response})
+    except Exception as e:
+        logger.error(f"Error enviando mensaje de prueba: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
 
 def obtener_destinatario(platform, variables):
     """
@@ -218,6 +141,7 @@ async def send_message_view(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
+@csrf_exempt
 async def generate_invitation_link_view(request):
     """
     Vista para generar un enlace de invitación de WhatsApp.
@@ -232,8 +156,9 @@ async def generate_invitation_link_view(request):
         whatsapp_link = generate_whatsapp_link(phone_number, custom_message)
         return JsonResponse({"whatsapp_link": whatsapp_link})
     except Exception as e:
+        logger.error(f"Error generando enlace de invitación: {e}")
         return JsonResponse({"error": str(e)}, status=500)
-
+    
 class ChatGPTView(View):
     async def post(self, request, *args, **kwargs):
         # Obtener el prompt desde la solicitud

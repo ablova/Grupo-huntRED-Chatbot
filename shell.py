@@ -7,13 +7,14 @@ git remote add production git@ai.huntred.com:/home/pablollh/git/chatbot.git
 git push production main
 
 #git remote -v
-sudo journalctl -u gunicorn -f
+clear && sudo journalctl -u gunicorn -f
 sudo journalctl -u celery -f
 cat /home/pablollh/logs/error.log
-
+sudo systemctl restart gunicorn && sudo journalctl --vacuum-time=2minutes && sudo truncate -s 0 /home/pablollh/logs/*.log
 
 ##  CONEXION A GCLOUD
 gcloud compute ssh pablo@grupo-huntred --zone=us-central1-a --project=grupo-huntred 
+cd /home/pablollh && source venv/bin/activate
 sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y && sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt-get clean -y && sudo apt clean -y 
 sudo reboot
 

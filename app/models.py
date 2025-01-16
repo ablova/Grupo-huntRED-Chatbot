@@ -631,7 +631,10 @@ class GptApi(models.Model):
     model = models.CharField(max_length=100)
     form_pregunta = models.CharField(max_length=500)
     work_pregunta = models.CharField(max_length=500)
-
+    max_tokens = models.IntegerField(default=150)  # Nuevo campo
+    temperature = models.FloatField(default=0.7)  # Nuevo campo
+    top_p = models.FloatField(default=1.0, blank=True, null=True)  # Otro parámetro común
+    
     def __str__(self):
         return f"Model: {self.model} | Org: {self.organization} | Project: {self.project}"
 
