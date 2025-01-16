@@ -10,6 +10,7 @@ from app.chatbot.nlp import NLPProcessor
 from django.core.exceptions import ValidationError
 from itsdangerous import URLSafeTimedSerializer
 from django.conf import settings
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -122,3 +123,60 @@ def validate_request_data(data, required_fields):
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         raise ValidationError(f"Faltan los campos requeridos: {', '.join(missing_fields)}")
+    
+def format_template_response(template: str, **kwargs) -> str:
+    """
+    Formatea una plantilla de texto con variables dinámicas.
+
+    Args:
+        template (str): La plantilla base con marcadores de posición.
+        **kwargs: Variables dinámicas para reemplazar en la plantilla.
+
+    Returns:
+        str: La plantilla formateada con los valores proporcionados.
+    """
+    try:
+        return template.format(**kwargs)
+    except KeyError as e:
+        logger.error(f"Error al formatear plantilla: Faltan claves {str(e)} en {template}")
+        return template
+
+# Ejemplo de uso:
+# response = format_template_response("Hola {nombre}, tienes {mensajes} nuevos mensajes.", nombre="Juan", mensajes=3)
+# print(response)  # Hola Juan, tienes 3 nuevos mensajes.
+
+def validate_request_fields(required_fields: list, data: Dict) -> bool:
+    """
+    Valida que todos los campos requeridos estén presentes en el payload.
+
+    Args:
+        required_fields (list): Lista de campos requeridos.
+        data (dict): Datos proporcionados en la solicitud.
+
+    Returns:
+        bool: True si todos los campos están presentes, False de lo contrario.
+    """
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        logger.warning(f"Faltan campos requeridos: {missing_fields}")
+        return False
+    return True
+
+def log_with_correlation_id(message: str, correlation_id: str, level: str = "info"):
+    """
+    Registra mensajes con un ID de correlación para rastrear flujos de forma única.
+
+    Args:
+        message (str): El mensaje a registrar.
+        correlation_id (str): El ID único de correlación.
+        level (str): Nivel del log (info, warning, error).
+    """
+    log_message = f"[CorrelationID: {correlation_id}] {message}"
+    if level == "info":
+        logger.info(log_message)
+    elif level == "warning":
+        logger.warning(log_message)
+    elif level == "error":
+        logger.error(log_message)
+    else:
+        logger.debug(log_message)

@@ -277,7 +277,7 @@ async def get_media_url(whatsapp_api: WhatsAppAPI, media_id: str) -> Optional[st
     usando la versión de API definida en whatsapp_api.
     """
     api_version = whatsapp_api.v_api or "v21.0"
-    url = f"https://graph.facebook.com/{api_version}/{media_id}"
+    url = f"https://graph.facebook.com/{api_version}/{whatsapp_api.phoneID}/{media_id}"
     headers = {
         "Authorization": f"Bearer {whatsapp_api.api_token}"
     }
