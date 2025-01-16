@@ -5,6 +5,8 @@ venv/
 *.pyc
 __pycache__/
 .DS_Store
+setup_server.sh
+shell.py
 
 # Archivos de respaldo
 *_old.py
