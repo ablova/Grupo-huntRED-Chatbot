@@ -6,18 +6,32 @@ import os
 import logging
 import requests
 from datetime import datetime
+from app.models import GptApi
 from app.chatbot.nlp import NLPProcessor
 from django.core.exceptions import ValidationError
 from itsdangerous import URLSafeTimedSerializer
 from django.conf import settings
-from typing import Dict
+from typing import Dict, List
+import json
 
 logger = logging.getLogger(__name__)
 
 # Inicializar el NLPProcessor una sola vez
 nlp_processor = NLPProcessor()
 
-
+# Cargar catálogo
+JSON_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs', 'catalogs.json')
+try:
+    with open(JSON_PATH, 'r', encoding='utf-8') as f:
+        catalog_data = json.load(f)
+        BUSINESS_UNITS = catalog_data.get("BUSINESS_UNITS", [])
+        DIVISIONES = catalog_data.get("DIVISIONES", [])
+        DIVISION_SKILLS = catalog_data.get("DIVISION_SKILLS", {})
+except Exception as e:
+    logger.error(f"Error al cargar el catálogo desde {JSON_PATH}: {e}")
+    BUSINESS_UNITS = []
+    DIVISIONES = []
+    DIVISION_SKILLS = {}
 
 def clean_text(text: str) -> str:
     """
@@ -26,8 +40,22 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
     text = re.sub(r'\s+', ' ', text)  # Reducir múltiples espacios
-    text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)  # Eliminar caracteres especiales exceptuando tildes
+    text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)  # Eliminar caracteres especiales
     return text.strip()
+
+def get_gpt_config() -> dict:
+    """
+    Obtiene la configuración para GPT desde la base de datos.
+    """
+    gpt_api = GptApi.objects.first()
+    if not gpt_api:
+        raise ValueError("No se encuentra configuración GPT en la base de datos.")
+    return {
+        "model": gpt_api.model,
+        "max_tokens": gpt_api.max_tokens or 150,
+        "temperature": gpt_api.temperature or 0.7,
+        "top_p": gpt_api.top_p or 1.0
+    }
 
 def analyze_text(text: str) -> dict:
     """
@@ -40,6 +68,39 @@ def analyze_text(text: str) -> dict:
     except Exception as e:
         logger.error(f"Error analizando texto: {e}", exc_info=True)
         return {"intents": [], "entities": [], "sentiment": {}}
+
+def validate_term_in_catalog(term: str, catalog: List[str]) -> bool:
+    """
+    Valida si un término existe en un catálogo especificado.
+
+    Args:
+        term (str): El término a buscar.
+        catalog (list): El catálogo donde buscar el término.
+
+    Returns:
+        bool: True si el término está en el catálogo, False de lo contrario.
+    """
+    return term.lower() in [item.lower() for item in catalog]
+
+def get_division_skills(division: str) -> dict:
+    """
+    Obtiene las habilidades técnicas y blandas de una división.
+
+    Args:
+        division (str): Nombre de la división.
+
+    Returns:
+        dict: Diccionario con habilidades técnicas y blandas, o vacío si no se encuentra.
+    """
+    return DIVISION_SKILLS.get(division, {})
+
+def handle_openai_error(error):
+    """
+    Maneja errores comunes de OpenAI y proporciona mensajes adecuados.
+    """
+    if isinstance(error, requests.exceptions.RequestException):
+        return "Error de red al comunicarse con OpenAI."
+    return "Hubo un problema al procesar tu solicitud con OpenAI."
 
 def validate_date(date_str: str) -> bool:
     """
@@ -123,22 +184,15 @@ def validate_request_data(data, required_fields):
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         raise ValidationError(f"Faltan los campos requeridos: {', '.join(missing_fields)}")
-    
+
 def format_template_response(template: str, **kwargs) -> str:
     """
     Formatea una plantilla de texto con variables dinámicas.
-
-    Args:
-        template (str): La plantilla base con marcadores de posición.
-        **kwargs: Variables dinámicas para reemplazar en la plantilla.
-
-    Returns:
-        str: La plantilla formateada con los valores proporcionados.
     """
     try:
         return template.format(**kwargs)
     except KeyError as e:
-        logger.error(f"Error al formatear plantilla: Faltan claves {str(e)} en {template}")
+        logger.error(f"Error al formatear plantilla: {str(e)}")
         return template
 
 # Ejemplo de uso:
