@@ -1,5 +1,3 @@
-Here is the translated document in English:
-
 Chatbot, Machine Learning, Scraping & Parser System Documentation for Grupo huntRED®
 
 Index
