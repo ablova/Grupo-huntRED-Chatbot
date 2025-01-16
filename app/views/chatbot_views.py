@@ -10,11 +10,12 @@ from django.shortcuts import get_object_or_404
 import json
 import logging 
 from app.chatbot.chatbot import ChatBotHandler
-from app.models import GptApi, Person, BusinessUnit, ChatState
+from app.models import GptApi, Person, BusinessUnit, ChatState, WhatsAppAPI, TelegramAPI, InstagramAPI, MessengerAPI
 from app.chatbot.gpt import GPTHandler
 from app.chatbot.integrations.services import send_message, send_image, send_menu, send_logo
 from asgiref.sync import sync_to_async
 from app.ml.ml_model import MatchmakingLearningSystem
+from app.chatbot.utils import format_template_response
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,18 @@ def candidato_predictions(request, candidato_id):
         candidato = get_object_or_404(Person, id=candidato_id)
         ml_system = MatchmakingLearningSystem()
         predictions = ml_system.predict_all_active_processes(candidato)
-        return JsonResponse({'predictions': predictions})
+
+        # Formatear predicciones para enviar como respuesta del chatbot
+        response_text = format_template_response(
+            "Hola {nombre}, estas son tus predicciones de éxito: {predicciones}",
+            nombre=candidato.name,
+            predicciones=", ".join([f"{p['process']}: {p['score']}%" for p in predictions])
+        )
+
+        return JsonResponse({'predictions': predictions, 'response_text': response_text})
     except Exception as e:
         logger.error(f"Error obteniendo predicciones para el candidato {candidato_id}: {e}")
         return JsonResponse({'error': str(e)}, status=500)
-
 
 @login_required
 def candidato_recommendations(request, candidato_id):
@@ -42,7 +50,15 @@ def candidato_recommendations(request, candidato_id):
         candidato = get_object_or_404(Person, id=candidato_id)
         ml_system = MatchmakingLearningSystem()
         recommendations = ml_system.recommend_skill_improvements(candidato)
-        return JsonResponse({'recommendations': recommendations})
+
+        # Formatear recomendaciones para enviar como respuesta del chatbot
+        response_text = format_template_response(
+            "Hola {nombre}, estas son tus recomendaciones: {recomendaciones}",
+            nombre=candidato.name,
+            recomendaciones=", ".join(recommendations)
+        )
+
+        return JsonResponse({'recommendations': recommendations, 'response_text': response_text})
     except Exception as e:
         logger.error(f"Error obteniendo recomendaciones para el candidato {candidato_id}: {e}")
         return JsonResponse({'error': str(e)}, status=500)
@@ -127,18 +143,6 @@ async def send_test_message(request):
                     business_unit_name = data.get('business_unit', 'amigro')
                     vacantes = await ejecutar_scraping_amigro(business_unit_name)
                     responses.append({'function': func, 'response': vacantes})
-                elif func == 'enviar_whatsapp_plantilla':
-                    whatsapp_api = await sync_to_async(WhatsAppAPI.objects.first)()
-                    response = await registro_amigro(recipient, whatsapp_api.api_token, whatsapp_api.phoneID, whatsapp_api.v_api, {})
-                    responses.append({'function': func, 'response': response})
-                #elif func == 'send_question':
-                #    if question_id:
-                #        question = await sync_to_async(Pregunta.objects.get)(id=question_id)
-                #        response_text = question.content
-                #        response = await send_message(platform, recipient, response_text)
-                #        responses.append({'function': func, 'response': response})
-                #    else:
-                #        return JsonResponse({"error": "Se requiere el ID de la pregunta para 'Enviar Pregunta'."}, status=400)
                 elif func == 'send_buttons':
                     # Implementar lógica para enviar botones
                     botones = [{'title': 'Opción 1'}, {'title': 'Opción 2'}]
@@ -153,23 +157,11 @@ async def send_test_message(request):
                     media_url = action  # URL del archivo multimedia
                     response = await send_media_message(platform, recipient, media_url)
                     responses.append({'function': func, 'response': response})
-                elif func == 'execute_scraping':
-                    # Ejecutar el scraping y devolver los resultados
-                    vacantes = await ejecutar_scraping_amigro()
-                    responses.append({'function': func, 'response': vacantes})
                 elif func == 'send_notification':
                     # Enviar notificación
                     message = action
                     await send_notification_task(recipient, message)
                     responses.append({'function': func, 'response': 'Notificación enviada'})
-                elif func == 'follow_up_interview':
-                    # Seguir con la entrevista
-                    await follow_up_notifications_task(recipient)
-                    responses.append({'function': func, 'response': 'Seguimiento de entrevista enviado'})
-                elif func == 'get_location':
-                    # Solicitar ubicación al usuario
-                    await request_location(platform, recipient)
-                    responses.append({'function': func, 'response': 'Solicitud de ubicación enviada'})
                 else:
                     responses.append({"error": f"Función '{func}' no reconocida."})
                     return JsonResponse({"error": f"Función '{func}' no reconocida."}, status=400)
@@ -193,6 +185,54 @@ def obtener_destinatario(platform, variables):
     elif platform == 'instagram':
         return variables.get('instagram_id', '109623338672452')
     return None
+
+async def send_message_view(request):
+    """
+    Vista para enviar un mensaje de WhatsApp desde un formulario o API.
+    """
+    user_id = request.POST.get('user_id')
+    message = request.POST.get('message', "Deja que te ayudemos a encontrar el trabajo de tus sueños")
+    phone_id = request.POST.get('phone_id')
+    business_unit_id = request.POST.get('business_unit', 4)  # Predeterminado: Amigro
+
+    try:
+        # Buscar configuración activa
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(
+            phoneID=phone_id,
+            business_unit_id=business_unit_id,
+            is_active=True
+        ).first)()
+
+        if not whatsapp_api:
+            return JsonResponse({"error": "No se encontró una configuración activa para este Business Unit."}, status=400)
+
+        # Enviar mensaje
+        response = await send_whatsapp_message(
+            user_id=user_id,
+            message=message,
+            phone_id=whatsapp_api.phoneID,
+            business_unit=whatsapp_api.business_unit
+        )
+        return JsonResponse(response)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+async def generate_invitation_link_view(request):
+    """
+    Vista para generar un enlace de invitación de WhatsApp.
+    """
+    phone_number = request.POST.get('phone_number')
+    custom_message = request.POST.get('message', "Deja que te ayudemos a encontrar el trabajo de tus sueños")
+
+    if not phone_number:
+        return JsonResponse({"error": "Se requiere un número de teléfono."}, status=400)
+
+    try:
+        whatsapp_link = generate_whatsapp_link(phone_number, custom_message)
+        return JsonResponse({"whatsapp_link": whatsapp_link})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 class ChatGPTView(View):
     async def post(self, request, *args, **kwargs):
