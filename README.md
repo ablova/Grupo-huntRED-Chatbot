@@ -1,4 +1,4 @@
-# Documentación del Sistema de Chatbot, Machine Learning, Scraping & Parser de Grupo huntRED
+# Documentación del Sistema de Chatbot, Machine Learning, Scraping & Parser de Grupo huntRED - Amigro.org
 ## Índice
 
 1. [Introducción](#introducción)
