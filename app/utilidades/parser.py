@@ -3,6 +3,8 @@
 import unicodedata
 import imaplib
 import email
+import asyncio
+from app.models import ConfiguracionBU, Person
 from functools import lru_cache
 from pathlib import Path
 import spacy
@@ -11,9 +13,17 @@ from typing import List, Dict, Tuple, Optional
 from django.utils.timezone import now
 from datetime import datetime
 from app.chatbot.nlp import sn  # SkillNer instance
+from app.chatbot.integrations.services import send_message, send_email
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Diccionario de folders por acción
+FOLDER_CONFIG = {
+    "cv_folder": "INBOX/CV",  # Reemplaza por la ruta correcta
+    "parsed_folder": "INBOX/Parsed",
+    "error_folder": "INBOX/Error",
+}
 
 @lru_cache(maxsize=1)
 def load_spacy_model():
@@ -329,7 +339,7 @@ class CVParser:
         skills = self.extract_skills(parsed_data.get("skills", ""))
         divisions = self.associate_divisions(skills)
 
-        Person.objects.create(
+        candidate = Person.objects.create(
             nombre=parsed_data.get("nombre"),
             apellido_paterno=parsed_data.get("apellido_paterno"),
             apellido_materno=parsed_data.get("apellido_materno"),
@@ -342,16 +352,25 @@ class CVParser:
             metadata={
                 "last_cv_update": now().isoformat(),
                 "skills": skills,
-                "divisions": divisions
+                "divisions": divisions,
+                "created_at": now().isoformat(),  # Se agrega fecha de creación en metadata
             }
         )
-        logger.info(f"Nuevo perfil creado: {parsed_data.get('nombre')} {parsed_data.get('apellido_paterno')}")
+        logger.info(f"Nuevo perfil creado: {candidate.nombre} {candidate.apellido_paterno}")
+
+# Diccionario de folders por acción
+FOLDER_CONFIG = {
+    "cv_folder": "CV",
+    "parsed_folder": "Parsed",
+    "error_folder": "Error",
+}
 
 class IMAPCVProcessor:
     def __init__(self, business_unit):
         """
         Inicializa el procesador con la configuración dinámica de la unidad de negocio.
         """
+        self.business_unit = business_unit
         self.config = self._load_config(business_unit)
         self.parser = CVParser(business_unit)
 
@@ -362,56 +381,134 @@ class IMAPCVProcessor:
         try:
             config = ConfiguracionBU.objects.get(business_unit=business_unit)
             return {
-                'server': config.imap_host,  # Asegúrate de que estos campos existan
-                'port': config.imap_port,
-                'username': config.imap_username,
-                'password': config.imap_password,
-                'use_tls': config.imap_use_tls,
-                'cv_folder': "CV",
-                'parsed_folder': "Parsed"
+                'server': config.smtp_host,
+                'port': config.smtp_port,
+                'username': config.smtp_username,
+                'password': config.smtp_password,
+                'use_tls': config.smtp_use_tls,
+                'folders': FOLDER_CONFIG
             }
         except ConfiguracionBU.DoesNotExist:
             raise ValueError(f"No configuration found for business unit: {business_unit}")
 
+    def _connect_imap(self):
+        """
+        Conecta al servidor IMAP usando la configuración proporcionada.
+        """
+        try:
+            mail = imaplib.IMAP4_SSL(self.config['server'])
+            mail.login(self.config['username'], self.config['password'])
+            status, data = mail.select(self.config['folders']['cv_folder'])
+            if status != "OK":
+                raise Exception(f"Error al seleccionar el buzón: {data}")
+            return mail
+        except Exception as e:
+            logger.error(f"Error conectando al servidor IMAP: {e}")
+            return None
+
+    def _move_email(self, mail, email_id, folder):
+        """
+        Mueve un correo a un folder específico.
+        """
+        try:
+            mail.store(email_id, "+FLAGS", "\\Deleted")
+            mail.copy(email_id, folder)
+            mail.expunge()
+            logger.info(f"Correo {email_id} movido a {folder}")
+        except Exception as e:
+            logger.error(f"Error moviendo correo {email_id} a {folder}: {e}")
+
+
+
+    def _generate_summary_and_send_report(self, candidates_processed, candidates_created, candidates_updated):
+        """
+        Genera y envía un resumen del procesamiento al administrador.
+        """
+        admin_email = self.business_unit.configuracionbu.correo_bu
+        if not admin_email:
+            logger.warning("Correo del administrador no configurado. Resumen no enviado.")
+            return
+
+        summary = f"""
+        <h2>Resumen del Procesamiento de CVs para {self.business_unit.name}:</h2>
+        <ul>
+            <li>Total de candidatos procesados: {candidates_processed}</li>
+            <li>Nuevos candidatos creados: {candidates_created}</li>
+            <li>Candidatos actualizados: {candidates_updated}</li>
+        </ul>
+        """
+
+        logger.info(f"Resumen generado:\n{summary}")
+
+        try:
+            # Ejecutar `send_email` usando asyncio.run
+            result = asyncio.run(send_email(
+                business_unit_name=self.business_unit.name,
+                subject=f"Resumen de Procesamiento de CVs - {self.business_unit.name}",
+                to_email=admin_email,
+                body=summary,
+                from_email="noreply@huntred.com",
+            ))
+
+            if result.get("status") == "success":
+                logger.info(f"Resumen enviado correctamente a {admin_email}.")
+            else:
+                logger.error(f"Error en el envío del correo: {result.get('message')}")
+
+        except Exception as e:
+            logger.error(f"Error enviando el resumen: {e}", exc_info=True)
+
+
     def process_emails(self):
         """
-        Procesa los emails utilizando los valores dinámicos.
+        Procesa los correos y genera un reporte al final.
         """
+        mail = self._connect_imap()
+        if not mail:
+            return
+
+        candidates_processed = 0
+        candidates_created = 0
+        candidates_updated = 0
+
         try:
-            with imaplib.IMAP4_SSL(self.config['server']) as mail:
-                mail.login(self.config['username'], self.config['password'])
-                mail.select(self.config['cv_folder'])
+            status, messages = mail.search(None, "ALL")
+            email_ids = messages[0].split()
 
-                status, messages = mail.search(None, 'ALL')
-                for num in messages[0].split():
-                    _, data = mail.fetch(num, '(RFC822)')
-                    msg = email.message_from_bytes(data[0][1])
-                    self._process_email(msg, mail, num)
+            for email_id in email_ids:
+                try:
+                    status, data = mail.fetch(email_id, "(RFC822)")
+                    message = email.message_from_bytes(data[0][1])
+
+                    attachments = self.parser.extract_attachments(message)
+                    if not attachments:
+                        logger.warning(f"Correo {email_id} sin adjuntos válidos. Moviendo a {FOLDER_CONFIG['error_folder']}.")
+                        self._move_email(mail, email_id, FOLDER_CONFIG['error_folder'])
+                        continue
+
+                    for attachment in attachments:
+                        result = self.parser.parse_and_match_candidate(attachment)
+                        if result.get("status") == "created":
+                            candidates_created += 1
+                        elif result.get("status") == "updated":
+                            candidates_updated += 1
+                        candidates_processed += 1
+
+                    self._move_email(mail, email_id, FOLDER_CONFIG['parsed_folder'])
+
+                except Exception as e:
+                    logger.error(f"Error procesando correo {email_id}: {e}")
+                    self._move_email(mail, email_id, FOLDER_CONFIG['error_folder'])
+
         except Exception as e:
-            logger.error(f"Error procesando emails: {e}")
+            logger.error(f"Error general procesando correos: {e}")
 
-    def _process_email(self, msg, mail, msg_id):
-        """
-        Procesa un email individual y extrae los CVs adjuntos.
-        """
-        for part in msg.walk():
-            if part.get_content_type() in ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
-                filename = part.get_filename()
-                if filename:
-                    file_path = Path(f"/tmp/{filename}")
-                    try:
-                        with open(file_path, 'wb') as f:
-                            f.write(part.get_payload(decode=True))
-                        self.parser.parse_and_match_candidate(file_path)
-                        logger.info(f"CV procesado y candidato actualizado/creado: {filename}")
-                    except Exception as e:
-                        logger.error(f"Error procesando archivo {filename}: {e}")
+        finally:
+            mail.logout()
 
-        # Mueve el correo a la carpeta Parsed
-        try:
-            mail.store(msg_id, '+FLAGS', '\\Deleted')
-            mail.copy(msg_id, self.config['parsed_folder'])
-            mail.expunge()
-            logger.info(f"Email movido a {self.config['parsed_folder']}")
-        except Exception as e:
-            logger.error(f"Error moviendo email {msg_id}: {e}")
+        # Generar y enviar el resumen
+        self._generate_summary_and_send_report(
+            candidates_processed,
+            candidates_created,
+            candidates_updated
+        )

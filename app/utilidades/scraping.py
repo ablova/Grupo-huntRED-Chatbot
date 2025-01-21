@@ -15,6 +15,7 @@ import aiohttp
 from abc import ABC, abstractmethod
 from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
+from django.core.management.base import BaseCommand
 from prometheus_client import Counter, Histogram, start_http_server
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from selenium import webdriver
@@ -31,7 +32,7 @@ from app.models import (
     DominioScraping, Vacante, RegistroScraping, ConfiguracionBU,
     BusinessUnit, PLATFORM_CHOICES
 )
-from app.utilidades.catalogs import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
+from app.utilidades.loader import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
 from app.chatbot.utils import clean_text
 #from app.chatbot import ChatBotHandler  # Solo si se usa en scraping
 
@@ -45,6 +46,43 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+import aiohttp
+
+class CookieManager:
+    def __init__(self, dominio, credentials):
+        self.login_url = dominio
+        self.credentials = credentials
+
+    async def get_new_cookies(dominio_url):
+        """
+        Obtiene nuevas cookies directamente desde el dominio especificado.
+        """
+        async with aiohttp.ClientSession() as session:
+            async with session.get(dominio_url) as response:
+                if response.status == 200:
+                    cookies = session.cookie_jar.filter_cookies(dominio_url)
+                    return {cookie.key: cookie.value for cookie in cookies.values()}
+                else:
+                    raise Exception(f"Error al obtener cookies para {dominio_url}: {response.status}")
+
+
+class Command(BaseCommand):
+    help = "Revalida las cookies para los dominios configurados"
+
+    def handle(self, *args, **kwargs):
+        dominios = DominioScraping.objects.filter(activo=True, login_url__isnull=False)
+        for dominio in dominios:
+            self.stdout.write(f"Revalidando cookies para {dominio.dominio}")
+            try:
+                manager = CookieManager(dominio.login_url, dominio.login_credentials)
+                new_cookies = asyncio.run(manager.get_new_cookies())
+                dominio.cookies = json.dumps(new_cookies)
+                dominio.save()
+                self.stdout.write(f"Cookies actualizadas para {dominio.dominio}")
+            except Exception as e:
+                self.stderr.write(f"Error revalidando cookies para {dominio.dominio}: {e}")
+
 
 # =============================================
 # Manejo de Sessiones y Condicionales Generales
@@ -445,41 +483,49 @@ class ScrapingCache:
 )
 async def run_scraper(dominio_scraping):
     """
-    Ejecuta el proceso de scraping para un dominio específico con manejo de errores y reintentos.
+    Ejecuta el proceso de scraping para un dominio específico, revalidando cookies si es necesario.
     """
     logger.info(f"Iniciando scraping para dominio: {dominio_scraping.dominio}")
-
     try:
         scraper = get_scraper_for_platform(
-            dominio_scraping.plataforma,
-            dominio_scraping.dominio,
-            dominio_scraping.cookies
+            plataforma=dominio_scraping.plataforma,
+            dominio_url=dominio_scraping.dominio,
+            cookies=dominio_scraping.cookies
         )
-
-        if isinstance(scraper, BaseScraper):
-            logger.error(f"El scraper para {dominio_scraping.dominio} no está implementado.")
+        if scraper is None:
+            logger.error(f"No se pudo inicializar el scraper para {dominio_scraping.dominio}.")
             return []
-
-        logger.debug(f"Scraper seleccionado: {scraper.__class__.__name__}")
 
         vacantes = await scraper.scrape()
         if vacantes:
             logger.info(f"Vacantes encontradas: {len(vacantes)}")
         else:
             logger.warning(f"No se encontraron vacantes para {dominio_scraping.dominio}.")
-
         return vacantes
 
     except Exception as e:
-        logger.error(f"Error ejecutando scraper en {dominio_scraping.dominio}: {e}", exc_info=True)
+        logger.error(f"Error ejecutando scraper para {dominio_scraping.dominio}: {e}", exc_info=True)
         return []
+
     
 def get_scraper_for_platform(plataforma, dominio_url, cookies=None):
     """
-    Retorna la clase scraper correspondiente a la plataforma.
+    Retorna una instancia del scraper correspondiente a la plataforma.
+    Si las cookies no están disponibles, se obtienen automáticamente desde el dominio.
     """
     scraper_class = SCRAPER_MAP.get(plataforma.lower(), BaseScraper)
-    return scraper_class(dominio_url, config=ScraperConfig(), cookies=cookies)
+    try:
+        if cookies:
+            return scraper_class(dominio_url, cookies=cookies)
+        else:
+            # Crear una instancia de CookieManager y obtener nuevas cookies
+            manager = CookieManager()
+            new_cookies = asyncio.run(manager.get_new_cookies(dominio_url))
+            return scraper_class(dominio_url, cookies=new_cookies)
+    except Exception as e:
+        logger.error(f"Error al inicializar scraper para {plataforma}: {e}")
+        return None
+
 
 async def scrape_workflow(domains):
     """
@@ -654,36 +700,33 @@ async def scrape_domains(dominios):
         tasks.append(scrape_single_domain(dominio))
     await asyncio.gather(*tasks)
 
-async def run_scraper(dominio: DominioScraping) -> List[Dict[str, Any]]:
+async def run_scraper(dominio_scraping):
     """
-    Ejecuta el scraping para un dominio específico.
-
-    Args:
-        dominio (DominioScraping): Objeto de dominio a scrapear.
-
-    Returns:
-        List[Dict[str, Any]]: Lista de vacantes extraídas.
+    Ejecuta el proceso de scraping para un dominio específico con manejo de revalidación de cookies.
     """
-    logger.info(f"Iniciando scraping para dominio: {dominio.empresa} ({dominio.dominio})")
-
+    logger.info(f"Iniciando scraping para dominio: {dominio_scraping.dominio}")
     try:
         scraper = get_scraper_for_platform(
-            plataforma=dominio.plataforma,
-            dominio_url=dominio.dominio,
-            cookies=dominio.cookies
+            dominio_scraping.plataforma,
+            dominio_scraping.dominio,
+            cookies=dominio_scraping.cookies,
+            credentials=dominio_scraping.login_credentials
         )
-
-        if not scraper:
-            logger.error(f"⚠️ Scraper no implementado para {dominio.plataforma}")
+        if scraper is None:
+            logger.error(f"Scraper no inicializado para {dominio_scraping.dominio}")
             return []
 
         vacantes = await scraper.scrape()
-        logger.info(f"✅ Total de vacantes extraídas: {len(vacantes)} para {dominio.dominio}")
+        if vacantes:
+            logger.info(f"Vacantes encontradas: {len(vacantes)}")
+        else:
+            logger.warning(f"No se encontraron vacantes para {dominio_scraping.dominio}.")
         return vacantes
 
     except Exception as e:
-        logger.error(f"❌ Error ejecutando scraper para {dominio.dominio}: {e}")
+        logger.error(f"Error ejecutando scraper para {dominio_scraping.dominio}: {e}", exc_info=True)
         return []
+
     
 async def scrape_domains_in_batches(dominios: List[DominioScraping], batch_size=5):
     for i in range(0, len(dominios), batch_size):
@@ -756,13 +799,12 @@ class ScrapingPipeline:
 # ========================
 # Clase Base Abstracta
 # ========================
-class BaseScraper(ABC):
-    def __init__(self, domain: str, config=None, metrics=None):
-        self.domain = domain
-        self.config = config or ScrapingConfig()
-        self.metrics = metrics or ScrapingMetrics()
-        self.semaphore = asyncio.Semaphore(self.config.MAX_CONCURRENT_REQUESTS)
-        self.session = None
+class BaseScraper:
+    def __init__(self, url, config=None, cookies=None):
+        self.url = url
+        self.domain = url  # Proveer un atributo común para todos los scrapers
+        self.config = config or ScraperConfig()
+        self.cookies = cookies
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
@@ -790,6 +832,13 @@ class BaseScraper(ABC):
     @abstractmethod
     async def scrape(self) -> List[Dict[str, Any]]:
         pass
+
+# Si no existe una definición, se puede crear una básica
+class ScraperConfig:
+    def __init__(self, **kwargs):
+        # Agregar aquí configuraciones necesarias, si las hay
+        self.headers = kwargs.get("headers", {})
+        self.timeout = kwargs.get("timeout", 30)
 
 # ========================
 # Coordinador
@@ -830,13 +879,10 @@ class ScrapingCoordinator:
 # Usa la estructura modular propuesta en tu código original.
 
 class FlexibleScraper(BaseScraper):
-    def __init__(self, domain, config=None):
-        super().__init__(domain)
-        self.config = config or {
-            "job_title": {"selector": "h3.job-title", "method": "text"},
-            "location": {"selector": "span.location", "method": "text"},
-            "description": {"selector": "div.job-description", "method": "html"}
-        }
+    def __init__(self, url, config=None, cookies=None):
+        self.url = url
+        self.config = config or ScraperConfig()
+        self.cookies = cookies
 
     async def parse_jobs(self, html_content):
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -856,6 +902,9 @@ class FlexibleScraper(BaseScraper):
         return jobs
 # Implementaciones específicas de scrapers
 class WorkdayScraper(BaseScraper):
+    def __init__(self, url, config=None, cookies=None):
+        super().__init__(url, config=config, cookies=cookies)
+        self.domain = url  # Inicializar el atributo 'domain'
     async def scrape(self) -> List[Dict[str, Any]]:
         vacantes = []
         page = 1
@@ -1400,11 +1449,9 @@ class AccentureScraper(BaseScraper):
             return {"description": "No disponible"}
 
 class EightFoldScraper(BaseScraper):
-    def __init__(self, domain: str, location: str = "mexico"):
-        self.domain = domain
-        self.location = location
-        self.base_url = f"{domain}/careers"
-        self.semaphore = asyncio.Semaphore(10)  # Control de concurrencia
+    def __init__(self, url, config=None, cookies=None):
+        super().__init__(url, config=config, cookies=cookies)
+        self.base_url = url  # Asegúrate de que este atributo esté inicializado
 
     async def fetch_with_retry(self, session, url, max_retries=3):
         """Realiza solicitudes con reintentos"""
@@ -1553,10 +1600,26 @@ SCRAPER_MAP = {
     "linkedin": LinkedInScraper,
     "indeed": IndeedScraper,
     "greenhouse": GreenhouseScraper,
-    "glassdor": GlassdoorScraper,
+    "glassdoor": GlassdoorScraper,
     "computrabajo": ComputrabajoScraper,
     "accenture": AccentureScraper,
     "eightfold_ai": EightFoldScraper,
     "default": BaseScraper,  # Genérico por defecto
     "flexible": FlexibleScraper,
 }
+##______
+if dominios.exists():
+    dominio = dominios.first()
+    print(f"Probando scraping para el dominio: {dominio.dominio}")
+    asyncio.run(run_scraper(dominio))
+
+# 3. Probar los scrapers de cada plataforma
+for dominio in dominios:
+    print(f"Probando scraper para la plataforma: {dominio.plataforma}")
+    scraper = get_scraper_for_platform(dominio.plataforma, dominio.dominio, dominio.cookies)
+    if scraper:
+        print(f"Scraper obtenido para {dominio.dominio}: {scraper}")
+        vacantes = asyncio.run(scraper.scrape())
+        print(f"Vacantes extraídas: {len(vacantes)}")
+    else:
+        print(f"No se pudo obtener scraper para {dominio.dominio}.")

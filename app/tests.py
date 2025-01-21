@@ -1,5 +1,7 @@
 # Ubicación: /home/pablollh/app/tests.py
 
+import pytest
+from datetime import datetime, timedelta
 from django.test import TestCase, Client, override_settings
 from unittest.mock import patch, MagicMock
 from app.models import BusinessUnit, Person, ChatState, GptApi
@@ -7,6 +9,7 @@ from app.chatbot.chatbot import ChatBotHandler
 from app.chatbot.gpt import GPTHandler
 from app.chatbot.nlp import NLPProcessor
 from app.chatbot.utils import fetch_data_from_url, validate_request_data
+from app.utilidades.vacantes import VacanteManager, procesar_vacante
 from django.db import connections
 
 
@@ -163,3 +166,27 @@ class ChatbotTests(TestCase):
         nlp_processor = NLPProcessor()
         gender = nlp_processor.infer_gender("Maria")
         self.assertEqual(gender, "F")
+
+@pytest.fixture
+def mock_job_data():
+    return {
+        "business_unit": "huntRED",
+        "job_title": "Desarrollador Backend",
+        "job_description": "Desarrollo en Python y ML.",
+        "company_name": "huntRED Technologies",
+        "celular_responsable": "525512345678",
+        "job_employee-email": "responsable@huntred.com"
+    }
+
+def test_generate_bookings():
+    start_date = datetime.now() + timedelta(days=15)
+    session_duration = 45
+    bookings = VacanteManager.generate_bookings(start_date, session_duration)
+    assert len(bookings) == 6  # Asegúrate de que se generen 6 horarios
+    assert bookings[0].endswith("09:00")  # Comienza a las 9:00
+    assert bookings[-1].endswith("14:00")  # Termina antes de las 14:00
+
+def test_create_job_listing(mock_job_data):
+    manager = VacanteManager(job_data=mock_job_data)
+    result = manager.create_job_listing()
+    assert result["status"] == "success"

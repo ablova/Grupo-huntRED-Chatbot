@@ -1,72 +1,48 @@
 # /home/pablollh/app/chatbot/integrations/telegram.py
 
 import logging
-import json
 import httpx
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from asgiref.sync import sync_to_async
-from app.models import TelegramAPI, ChatState, Person, BusinessUnit
-from app.chatbot.integrations.services import send_message, get_api_instance
-from app.chatbot.chatbot import ChatBotHandler
-from typing import Optional, List, Dict
 
-logger = logging.getLogger('telegram')
+from app.chatbot.chatbot import ChatBotHandler
+from app.models import TelegramAPI, ChatState, Person
+
+logger = logging.getLogger(__name__)
 CACHE_TIMEOUT = 600  # 10 minutos
 
 @csrf_exempt
 async def telegram_webhook(request):
-    """
-    Webhook de Telegram para manejar mensajes entrantes y configuraciones de webhook.
-    """
-    if request.method == 'POST':
-        try:
-            body = request.body.decode('utf-8')
-            payload = json.loads(body)
-            logger.info(f"Payload recibido de Telegram: {json.dumps(payload, indent=4)}")
-    
-            if 'message' not in payload:
-                logger.warning("Payload no contiene 'message'")
-                return JsonResponse({'status': 'no message'}, status=400)
-    
-            message = payload.get('message', {})
-            if not message:
-                logger.warning("No se encontró 'message' en el payload")
-                return JsonResponse({'status': 'no message'}, status=200)
-    
-            chat_id = message['chat']['id']
-            message_text = message.get('text', '').strip()
-            if not message_text:
-                logger.warning(f"Mensaje vacío recibido de {chat_id}")
-                return JsonResponse({'status': 'empty message'}, status=200)
-    
-            logger.info(f"Mensaje recibido de {chat_id}: {message_text}")
-    
-            # Manejar comandos especiales
-            if message_text.startswith('/'):
-                await handle_special_command(chat_id, message_text)
-            else:
-                # Obtener o crear el ChatState
-                chat_state = await get_or_create_chat_state(chat_id, 'telegram')
-    
-                # Proceso el mensaje con el ChatBotHandler
-                chatbot_handler = ChatBotHandler()
-                response_text, options = await chatbot_handler.process_message('telegram', chat_id, message_text, chat_state.business_unit)
-    
-                # Enviar la respuesta a Telegram
-                await send_telegram_response(chat_id, response_text, options, chat_state.business_unit)
-    
-            return JsonResponse({"status": "ok"}, status=200)
-    
-        except json.JSONDecodeError as e:
-            logger.error(f"Error al decodificar JSON: {e}", exc_info=True)
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-        except Exception as e:
-            logger.error(f"Error en telegram_webhook: {e}", exc_info=True)
-            return JsonResponse({"error": "Internal Server Error"}, status=500)
-    else:
-        logger.warning(f"Método no permitido: {request.method}")
-        return JsonResponse({"error": "Method Not Allowed"}, status=405)
+    try:
+        if request.method != "POST":
+            return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
+
+        payload = json.loads(request.body)
+        logger.info(f"Payload recibido de Telegram: {json.dumps(payload, indent=2)}")
+
+        # Procesar mensaje entrante
+        message = payload.get("message", {})
+        chat_id = message.get("chat", {}).get("id")
+        text = message.get("text", "").strip()
+
+        if not chat_id or not text:
+            return JsonResponse({"status": "error", "message": "Payload inválido"}, status=400)
+
+        logger.info(f"Mensaje recibido de {chat_id}: {text}")
+
+        # Procesar mensaje con ChatBotHandler
+        chatbot = ChatBotHandler()
+        response_text = await chatbot.process_message(platform="telegram", user_id=chat_id, text=text)
+
+        # Enviar respuesta
+        await send_telegram_message(chat_id, response_text)
+        return JsonResponse({"status": "success"}, status=200)
+
+    except Exception as e:
+        logger.error(f"Error en el webhook de Telegram: {e}", exc_info=True)
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
 
 async def get_or_create_chat_state(user_id: str, platform: str) -> ChatState:
     """
@@ -86,14 +62,27 @@ async def get_or_create_chat_state(user_id: str, platform: str) -> ChatState:
         logger.error(f"Error obteniendo o creando ChatState para {user_id}: {e}", exc_info=True)
         raise
 
-async def send_telegram_response(user_id: str, message: str, options: Optional[List[Dict]], business_unit: BusinessUnit):
-    """
-    Envía una respuesta a Telegram, incluyendo botones si están disponibles.
-    """
-    if options:
-        await send_telegram_buttons(user_id, message, options, business_unit.telegram_api.api_key)
-    else:
-        await send_message('telegram', user_id, message, business_unit)
+async def send_telegram_message(chat_id: int, message: str):
+    try:
+        telegram_api = await sync_to_async(TelegramAPI.objects.filter(is_active=True).first)()
+        if not telegram_api:
+            logger.error("Configuración de TelegramAPI no encontrada.")
+            return
+
+        url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": message
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            logger.info(f"Mensaje enviado a Telegram: {response.json()}")
+
+    except Exception as e:
+        logger.error(f"Error enviando mensaje a Telegram: {e}", exc_info=True)
+
 
 async def send_telegram_buttons(user_id, message, buttons, api_token):
     """
@@ -104,11 +93,8 @@ async def send_telegram_buttons(user_id, message, buttons, api_token):
     :param api_token: Token de acceso del bot de Telegram.
     """
     url = f"https://api.telegram.org/bot{api_token}/sendMessage"
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
     
-    # Construcción del teclado en línea
     inline_keyboard = [
         [{"text": button['title'], "callback_data": button['payload']} for button in buttons]
     ]
@@ -116,9 +102,7 @@ async def send_telegram_buttons(user_id, message, buttons, api_token):
     payload = {
         "chat_id": user_id,
         "text": message,
-        "reply_markup": {
-            "inline_keyboard": inline_keyboard
-        }
+        "reply_markup": {"inline_keyboard": inline_keyboard}
     }
     
     try:
@@ -131,6 +115,7 @@ async def send_telegram_buttons(user_id, message, buttons, api_token):
         logger.error(f"Error enviando botones a Telegram: {e.response.text}")
     except Exception as e:
         logger.error(f"Error enviando botones a Telegram: {e}", exc_info=True)
+
 
 async def handle_special_command(chat_id: str, command: str):
     """

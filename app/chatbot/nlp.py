@@ -1,5 +1,4 @@
 # /home/pablollh/app/chatbot/nlp.py
-# /home/pablollh/app/chatbot/nlp.py
 
 import logging
 import nltk
@@ -8,7 +7,7 @@ import json
 from spacy.matcher import Matcher, PhraseMatcher
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from skillNer.skill_extractor_class import SkillExtractor
-from app.chatbot.utils import validate_term_in_catalog, get_division_skills, clean_text
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -62,6 +61,7 @@ class NLPProcessor:
         self.matcher.add("saludo", saludo_patterns)
 
     def analyze(self, text: str) -> dict:
+        from app.chatbot.utils import clean_text, validate_term_in_catalog
         if not nlp:
             return {"intents": [], "entities": [], "sentiment": {}}
 
@@ -89,6 +89,7 @@ class NLPProcessor:
         """
         Extrae habilidades combinando DIVISION_SKILLS y skill_db_path.
         """
+        from app.chatbot.utils import get_division_skills
         skills = []
         detected_divisions = [division for division in get_division_skills.keys() if division.lower() in text.lower()]
 

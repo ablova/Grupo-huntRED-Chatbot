@@ -1,31 +1,42 @@
 # Ubicación del archivo: /home/pablollh/app/admin.py
+
+# Django Core Imports
 from django.contrib import admin, messages
-from django.db import models  # Añadimos esta importación
+from django.db import models
 from django.urls import reverse, path
-from django.template.response import TemplateResponse
 from django.shortcuts import render, redirect
+from django.template.loader import select_template
+from django.template.response import TemplateResponse
+from django import forms
+
+# Utility Imports
 from io import BytesIO
 import base64
 import matplotlib.pyplot as plt
 import json
+import re
 
-from django import forms
-
+# Model Imports
 from app.models import (
-    BusinessUnit, ApiConfig, MetaAPI, WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI,
-    Person, Worker, GptApi, Skill, Division,
-    SmtpConfig, Chat, Configuracion, ConfiguracionBU, DominioScraping, Vacante, RegistroScraping, ReporteScraping,
-    Template, ChatState, Application, Invitacion, Interview, UserInteractionLog,
-    ModelTrainingLog, QuarterlyInsight, MigrantSupportPlatform, EnhancedNetworkGamificationProfile, EnhancedMLProfile
+    ApiConfig, Application, BusinessUnit, Chat, ChatState, Configuracion,
+    ConfiguracionBU, Division, DominioScraping, EnhancedMLProfile,
+    EnhancedNetworkGamificationProfile, GptApi, InstagramAPI, Interview,
+    Invitacion, MetaAPI, MessengerAPI, MigrantSupportPlatform, ModelTrainingLog,
+    Person, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
+    SmtpConfig, TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
+    Worker
 )
+
+# Task Imports
 from app.tasks import (
-    execute_ml_and_scraping,
-    ejecutar_scraping,
-    verificar_dominios_scraping,
-    train_ml_task,
-    process_linkedin_csv_task
+    execute_ml_and_scraping, ejecutar_scraping, verificar_dominios_scraping,
+    train_ml_task, process_linkedin_csv_task
 )
-from app.chatbot.integrations.services import send_message
+
+# Service Imports
+from app.chatbot.integrations.services import send_message, send_email
+
+# Utility Imports for Specific Functionalities
 from app.utilidades.vacantes import VacanteManager
 from asgiref.sync import async_to_sync
 from django.contrib.auth.decorators import user_passes_test
@@ -236,10 +247,11 @@ class SkillAdmin(admin.ModelAdmin):
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
     form = PersonForm
-    list_display = ('nombre', 'apellido_paterno', 'apellido_materno', 'phone', 'email', 'job_search_status')
-    search_fields = ('nombre', 'apellido_paterno', 'phone', 'email')
-    list_filter = ('job_search_status', 'preferred_language')
-    actions = ['export_as_csv', 'send_email']
+    list_display = ('nombre', 'apellido_paterno', 'apellido_materno', 'phone', 'email', 'job_search_status', 'fecha_creacion')
+    search_fields = ('nombre', 'apellido_paterno', 'phone', 'email', 'fecha_creacion')
+    list_filter = ('job_search_status', 'preferred_language', 'fecha_creacion')
+    ordering = ['fecha_creacion', 'apellido_paterno']
+    actions = ['export_as_csv', 'send_email', 'prepare_email']
 
     def export_as_csv(self, request, queryset):
         """
@@ -271,10 +283,93 @@ class PersonAdmin(admin.ModelAdmin):
             send_mail(
                 'Asunto del Correo',
                 'Cuerpo del correo',
-                'from@example.com',
+                'hola@huntred.com',
                 [person.email],
             )
         self.message_user(request, f"Correo enviado a {queryset.count()} personas.")
+
+    # Acción personalizada para preparar el envío de correos
+    @admin.action(description="Preparar envío de correos")
+    def prepare_email(self, request, queryset):
+        if not queryset.exists():
+            self.message_user(request, "No hay candidatos seleccionados para enviar correos.", level=messages.WARNING)
+            return
+
+        # Guardar los IDs seleccionados en la sesión para procesarlos en la vista
+        request.session['selected_candidates'] = list(queryset.values_list('id', flat=True))
+        return redirect('admin:send_custom_email')
+
+    # URL personalizada para la vista intermedia
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'send-custom-email/',
+                self.admin_site.admin_view(self.send_custom_email),
+                name='send_custom_email',
+            ),
+        ]
+        return custom_urls + urls
+
+    # Vista para la página intermedia
+    def send_custom_email(self, request):
+        if request.method == 'POST':
+            # Procesar el formulario y enviar correos
+            subject = request.POST.get('subject')
+            message = request.POST.get('message')
+            business_unit_name = request.POST.get('business_unit', 'huntRED®')
+
+            # Obtener candidatos seleccionados
+            candidate_ids = request.session.get('selected_candidates', [])
+            candidates = self.model.objects.filter(id__in=candidate_ids)
+            errores = []
+            enviados = 0
+
+            # Enviar correos
+            for person in candidates:
+                if not person.email or '@' not in person.email:
+                    errores.append(f"{person.nombre} (Email no válido)")
+                    continue
+                
+                try:
+                    resultado = send_email(
+                        business_unit_name=business_unit_name,
+                        subject=subject,
+                        to_email=person.email,
+                        body=message,
+                    )
+                    if resultado["status"] == "success":
+                        enviados += 1
+                    else:
+                        errores.append(f"{person.nombre} ({resultado['message']})")
+                except Exception as e:
+                    errores.append(f"{person.nombre} ({str(e)})")
+
+            # Mensajes al usuario
+            self.message_user(request, f"Correo enviado a {enviados} personas.")
+            if errores:
+                self.message_user(request, f"Errores en {len(errores)} registros: {', '.join(errores)}", level=messages.WARNING)
+
+            # Limpiar la sesión
+            request.session.pop('selected_candidates', None)
+            return redirect('..')  # Redirigir a la lista de candidatos
+
+        # Obtener todas las unidades de negocio para el formulario
+        business_units = BusinessUnit.objects.all()
+        
+        # Seleccionar la plantilla según la unidad de negocio
+        selected_business_unit = request.GET.get('business_unit', 'huntRED®').lower()
+        template_name = f"email/template_{selected_business_unit}.html"
+
+        # Verificar si la plantilla existe; usar la predeterminada si no
+        try:
+            select_template([template_name])
+        except:
+            template_name = "admin/email/template_huntred.html"  # Default
+
+        return render(request, template_name, {
+            'business_units': business_units,
+        })
 
 @admin.register(Worker)
 class WorkerAdmin(admin.ModelAdmin):

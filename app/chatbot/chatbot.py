@@ -13,7 +13,6 @@ from app.models import (
 from app.chatbot.integrations.services import (
     send_message, send_email, reset_chat_state
 )
-from app.utilidades.vacantes import VacanteManager
 from app.chatbot.utils import analyze_text  # Encargado del NLP y patrones de intents
 from app.utilidades.parser import CVParser
 
@@ -169,6 +168,7 @@ class ChatBotHandler:
                 return True
 
             elif intent == "ver_vacantes":
+                from app.utilidades.vacantes import VacanteManager
                 recommended_jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
                 if recommended_jobs:
                     event.context['recommended_jobs'] = recommended_jobs

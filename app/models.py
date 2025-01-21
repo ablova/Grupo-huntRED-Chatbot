@@ -255,6 +255,7 @@ class ConfiguracionBU(models.Model):
     weight_soft_skills = models.IntegerField(default=35)
     weight_contract = models.IntegerField(default=10)
 
+    
     def __str__(self):
         return f"Configuración de {self.business_unit.name if self.business_unit else 'Unidad de Negocio'}"
     
@@ -412,6 +413,7 @@ class ApiConfig(models.Model):
 
 class Person(models.Model):
     number_interaction = models.IntegerField(default=0)  # Changed from CharField to IntegerField #number_interaction = models.CharField(max_length=40, unique=True)
+    ref_num = models.CharField(max_length=50, blank=True, null=True, help_text="Número de referencia para identificar origen del registro")
 
     # Datos personales básicos
     nombre = models.CharField(max_length=100)
@@ -427,7 +429,9 @@ class Person(models.Model):
     )
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=40, blank=True, null=True)
+    linkedin_url = models.URLField(max_length=200, blank=True, null=True, help_text="URL del perfil de LinkedIn")
     preferred_language = models.CharField(max_length=5, default='es_MX', help_text="Ej: es_MX, en_US")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)  # Fecha de creación automática
 
     # Estado de búsqueda de empleo (ejemplo de opciones: activa, pasiva, local, remota, etc.)
     JOB_SEARCH_STATUS_CHOICES = [
