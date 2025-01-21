@@ -1,9 +1,10 @@
 # /home/pablollh/app/chatbot/gpt.py
 
 import logging
+import backoff
 import openai
+from openai import OpenAIError, RateLimitError
 from typing import Dict, Optional
-from openai.error import OpenAIError, RateLimitError
 from app.models import GptApi
 from app.chatbot.integrations.services import send_email
 from django.conf import settings
@@ -54,7 +55,9 @@ class GPTHandler:
     async def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
         logger.debug(f"Generando respuesta para el prompt: {prompt}")
         try:
-            response = await asyncio.to_thread(
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
                 openai.ChatCompletion.create,
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],

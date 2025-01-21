@@ -3,6 +3,10 @@
 import logging
 import smtplib
 import httpx
+import asyncio
+import ssl
+
+from app.models import BusinessUnit, ConfiguracionBU
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from django.core.cache import cache
@@ -12,7 +16,6 @@ from app.models import (
     WhatsAppAPI, TelegramAPI, InstagramAPI, MessengerAPI, MetaAPI, BusinessUnit, ConfiguracionBU,
     ChatState, Person, Vacante, Application, EnhancedNetworkGamificationProfile
 )
-from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -129,57 +132,55 @@ async def get_api_instance(platform: str, business_unit: BusinessUnit):
 
     return api_instance
 
-async def send_email(business_unit_name: str, subject: str, to_email: str, body: str, from_email: Optional[str] = None, domain_bu: str = "tudominio.com"):
+
+
+async def send_email(business_unit_name: str, subject: str, to_email: str, body: str, from_email: Optional[str] = None, domain_bu: str = "huntred.com"):
     """
     Envía un correo electrónico utilizando la configuración SMTP de la unidad de negocio.
     """
+    server = None
     try:
-        # Obtener configuración SMTP desde la caché
-        cache_key = f"smtp_config:{business_unit_name}"
-        config_bu = cache.get(cache_key)
+        logger.info(f"Iniciando envío de correo para business_unit: {business_unit_name}")
+        
+        # Obtener configuración
+        config_bu = await sync_to_async(ConfiguracionBU.objects.select_related('business_unit').get)(
+            business_unit__name=business_unit_name
+        )
 
-        if not config_bu:
-            config_bu = await sync_to_async(ConfiguracionBU.objects.select_related('business_unit').get)(
-                business_unit__name=business_unit_name
-            )
-            cache.set(cache_key, config_bu, CACHE_TIMEOUT)
-
-        smtp_host = config_bu.smtp_host
-        smtp_port = config_bu.smtp_port
-        smtp_username = config_bu.smtp_username
+        smtp_host = config_bu.smtp_host or "mail.huntred.com"
+        smtp_port = config_bu.smtp_port or 465
+        smtp_username = config_bu.smtp_username or config_bu.correo_bu
         smtp_password = config_bu.smtp_password
-        use_tls = config_bu.smtp_use_tls
-        use_ssl = config_bu.smtp_use_ssl
+        use_ssl = True  # Forzamos SSL como predeterminado
+        from_email = from_email or smtp_username
 
-        # Crear el mensaje de correo
+        logger.info(f"Configuración SMTP: {smtp_host}:{smtp_port}, Usuario: {smtp_username}")
+
+        # Configuración del mensaje
         msg = MIMEMultipart()
-        msg['From'] = from_email or smtp_username
+        msg['From'] = from_email
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'html'))
 
-        # Conectar al servidor SMTP
+        # Conexión y envío
         if use_ssl:
             server = smtplib.SMTP_SSL(smtp_host, smtp_port)
         else:
             server = smtplib.SMTP(smtp_host, smtp_port)
-
-        if use_tls and not use_ssl:
             server.starttls()
-
-        # Autenticarse y enviar el correo
+        
         server.login(smtp_username, smtp_password)
         server.send_message(msg)
+        logger.info("Correo enviado exitosamente.")
         server.quit()
 
-        logger.info(f"Correo enviado a {to_email} desde {msg['From']}")
         return {"status": "success", "message": "Correo enviado correctamente."}
 
-    except ObjectDoesNotExist:
-        logger.error(f"Configuración SMTP no encontrada para la unidad de negocio: {business_unit_name}")
-        return {"status": "error", "message": "Configuración SMTP no encontrada para la Business Unit."}
     except Exception as e:
-        logger.error(f"Error enviando correo electrónico: {e}", exc_info=True)
+        logger.error(f"Error enviando correo: {e}", exc_info=True)
+        if server:
+            server.quit()
         return {"status": "error", "message": str(e)}
 
 async def send_whatsapp_message(
@@ -418,6 +419,7 @@ async def process_text_message(platform, sender_id, message_text, business_unit)
     """
     Procesa un mensaje de texto recibido.
     """
+    from app.chatbot.chatbot import ChatBotHandler
     chatbot_handler = ChatBotHandler()
 
     try:

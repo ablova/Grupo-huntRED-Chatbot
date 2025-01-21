@@ -1,9 +1,9 @@
 # /home/pablollh/app/utilidades/linkedin.py
-
 import logging
 import os
 import csv
 import time
+import json
 import random
 import backoff
 import requests
@@ -13,22 +13,92 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from bs4 import BeautifulSoup
-from app.models import Person, BusinessUnit, USER_AGENTS
-from app.utilidades.catalogs import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
+from collections import defaultdict  # <--- Importado correctamente
+from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
+from app.utilidades.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from app.chatbot.nlp import sn  # SkillNer instance
+
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
 
 logger = logging.getLogger(__name__)
 
-
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "781zbztzovea6a")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "WPL_AP1.MKozNnsrqofMSjN4.ua0UOQ==")
-ACCESS_TOKEN = os.getenv("LINKEDIN_ACCESS_TOKEN", None) 
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", None)
 LINKEDIN_API_BASE = "https://api.linkedin.com/v2"
 
 MIN_DELAY = 8
 MAX_DELAY = 18
+# Ruta base de los catálogos
+CATALOGS_BASE_PATH = "/home/pablollh/app/utilidades/catalogs"
+
+# =========================================================
+# Clase para manejar habilidades y divisiones
+# =========================================================
+
+class SkillsProcessor:
+    def __init__(self, unit_name: str):
+        self.unit_name = unit_name
+        self.skills_data = self._load_unit_skills()
+
+    def _load_unit_skills(self) -> Dict:
+        """
+        Carga el archivo skills.json para la unidad de negocio especificada.
+        """
+        skills_path = os.path.join(CATALOGS_BASE_PATH, self.unit_name, "skills.json")
+        try:
+            if os.path.exists(skills_path):
+                with open(skills_path, 'r', encoding='utf-8') as file:
+                    logger.info(f"Skills cargados para unidad: {self.unit_name}")
+                    return json.load(file)
+            else:
+                logger.warning(f"Archivo de habilidades no encontrado para: {self.unit_name}")
+                return {}
+        except Exception as e:
+            logger.error(f"Error cargando skills para {self.unit_name}: {e}")
+            return {}
+
+    def extract_skills(self, text: str) -> List[str]:
+        """
+        Extrae habilidades del texto utilizando el catálogo específico de la unidad.
+        """
+        try:
+            words = text.lower().split()
+            extracted_skills = set()
+
+            for division, roles in self.skills_data.items():
+                for role, attributes in roles.items():
+                    tech_skills = attributes.get("Habilidades Técnicas", [])
+                    soft_skills = attributes.get("Habilidades Blandas", [])
+                    all_skills = tech_skills + soft_skills
+                    for skill in all_skills:
+                        if all(word in words for word in skill.lower().split()):
+                            extracted_skills.add(skill)
+
+            return list(extracted_skills)
+        except Exception as e:
+            logger.error(f"Error extrayendo habilidades: {e}")
+            return []
+
+    def associate_divisions(self, skills: List[str]) -> List[Dict[str, str]]:
+        """
+        Asocia divisiones basadas en habilidades extraídas y el catálogo de la unidad.
+        """
+        associations = []
+        try:
+            for skill in skills:
+                for division, roles in self.skills_data.items():
+                    for role, attributes in roles.items():
+                        tech_skills = attributes.get("Habilidades Técnicas", [])
+                        soft_skills = attributes.get("Habilidades Blandas", [])
+                        all_skills = tech_skills + soft_skills
+                        if skill in all_skills:
+                            associations.append({"skill": skill, "division": division})
+        except Exception as e:
+            logger.error(f"Error asociando divisiones: {e}")
+        return associations
+
 
 # =========================================================
 # Funciones de utilidad
@@ -70,103 +140,77 @@ def normalize_and_save_person(first_name, last_name, email, linkedin_url, busine
 
     person = save_person_record(first_name, last_name, linkedin_url, email, None, None, None, business_unit)
     if person:
-        logger.info(f"Persona procesada: {person.nombre} {person.email}")
+        logger.info(f"Persona procesada: {person.nombre} ({person.email})")
     else:
         logger.warning(f"No se pudo procesar: {first_name} {last_name}")
 
 def save_person_record(
-    first_name: str,
-    last_name: str,
-    linkedin_url: Optional[str],
-    email: Optional[str],
-    birthday: Optional[str],
-    company: Optional[str],
-    position: Optional[str],
-    business_unit: BusinessUnit,
-    skills: Optional[List[str]] = None,
-    phone: Optional[str] = None
-) -> Person:
+    first_name, last_name, linkedin_url, email, birthday, company, position, business_unit, skills=None, phone=None
+):
     """
     Crea o actualiza un registro en la base de datos.
     """
     with transaction.atomic():
         existing = deduplicate_persons(first_name, last_name, email, company, position)
         if existing:
-            # Actualiza datos existentes
+            # Actualizar datos existentes
             updated = False
             if linkedin_url and 'linkedin_url' not in existing.metadata:
                 existing.metadata['linkedin_url'] = linkedin_url
                 updated = True
-            if company:
-                existing.metadata['last_company'] = company
-                updated = True
-            if position:
-                existing.metadata['last_position'] = position
-                updated = True
-            if email and not existing.email:
-                existing.email = email
-                updated = True
             if skills:
-                extracted_skills = extract_skills(", ".join(skills))
-                existing.metadata['skills'] = list(set(existing.metadata.get('skills', []) + extracted_skills))
-                divisions = associate_divisions(extracted_skills)
+                normalized_skills = normalize_skills(skills, business_unit, None, position)
+                existing.metadata['skills'] = list(set(existing.metadata.get('skills', []) + normalized_skills))
+                divisions = associate_divisions(normalized_skills)
                 existing.metadata['divisions'] = list(set(existing.metadata.get('divisions', []) + divisions))
                 updated = True
-            if phone and not existing.phone:
-                existing.phone = phone
-                updated = True
-            if birthday and not existing.fecha_nacimiento:
-                try:
-                    existing.fecha_nacimiento = datetime.strptime(birthday, "%d/%m/%Y").date()
-                    updated = True
-                except ValueError:
-                    pass
             if updated:
                 existing.save()
             return existing
         else:
             # Crear nuevo registro
             person = Person(
-                number_interaction=f"LI-{int(time.time())}-{random.randint(100,999)}",
+                ref_num=f"LI-{int(time.time())}-{random.randint(100, 999)}",
                 nombre=first_name,
                 apellido_paterno=last_name,
                 email=email,
                 phone=phone,
-                fecha_nacimiento=datetime.strptime(birthday, "%d/%m/%Y").date() if birthday else None,
                 metadata={
                     'linkedin_url': linkedin_url,
                     'last_company': company,
                     'last_position': position,
-                    'skills': extract_skills(", ".join(skills)) if skills else [],
-                    'divisions': associate_divisions(extract_skills(", ".join(skills))) if skills else []
+                    'skills': normalize_skills(skills, business_unit, None, position) if skills else [],
+                    'divisions': associate_divisions(normalize_skills(skills, business_unit, None, position)) if skills else []
                 }
             )
             person.save()
             return person
-
-def normalize_skills(raw_skills):
+     
+def normalize_skills(raw_skills, business_unit=None, division=None, position=None):
     """
-    Normaliza habilidades utilizando el catálogo de habilidades en `DIVISION_SKILLS`.
+    Normaliza habilidades utilizando el catálogo en skills.json.
     """
     normalized = []
     for skill in raw_skills:
-        # Buscar habilidades en el catálogo centralizado
-        normalized_skill = next((division_skill for division_skill in DIVISION_SKILLS if skill.lower() in division_skill.lower()), None)
-        if normalized_skill:
-            normalized.append(normalized_skill)
-        else:
-            normalized.append(skill)
-    return normalized
+        for unit, unit_data in DIVISION_SKILLS.items():
+            if business_unit and unit != business_unit:
+                continue
+            for div, div_data in unit_data.items():
+                if division and div != division:
+                    continue
+                for pos, pos_data in div_data.items():
+                    if position and pos != position:
+                        continue
+                    if skill.lower() in map(str.lower, pos_data.get("Habilidades Técnicas", [])):
+                        normalized.append(skill)
+    return list(set(normalized))
+
 
 # =========================================================
 # Manejo de CSV
 # =========================================================
 
 def process_csv(csv_path: str, business_unit: BusinessUnit):
-    """
-    Procesa un archivo CSV para crear o actualizar registros de personas.
-    Columnas esperadas: First Name, Last Name, URL, Email Address, Cumpleaños, Company, Position, Skills, Phone.
-    """
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -174,19 +218,55 @@ def process_csv(csv_path: str, business_unit: BusinessUnit):
             ln = normalize_name(row.get('Last Name', ''))
             linkedin_url = row.get('URL', '').strip() or None
             email = row.get('Email Address', '').strip() or None
-            birthday = row.get('Cumpleaños', '').strip() or None
-            company = row.get('Company', '').strip() or None
-            position = row.get('Position', '').strip() or None
-            skills = row.get('Skills', '').strip().split(',') if row.get('Skills') else []
-            phone = row.get('Phone', '').strip() or None
+            phone_number = row.get('Phone', '').strip() or None
 
-            # Guardar o actualizar registro
-            person = save_person_record(
-                fn, ln, linkedin_url, email, birthday, company, position, business_unit, skills, phone
-            )
-            logger.info(f"Persona procesada: {person.nombre} {person.apellido_paterno} - {person.email}")
-    logger.info("Procesamiento CSV completado.")
+            try:
+                # Crear o actualizar Person
+                person, created = Person.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        'nombre': fn,
+                        'apellido_paterno': ln,
+                        'linkedin_url': linkedin_url,
+                        'phone': phone_number,
+                    },
+                )
 
+                if created or not person.ref_num:
+                    # Asignar un número de referencia si no existe
+                    person.ref_num = f"LI-{int(time.time())}-{random.randint(100, 999)}"
+                    person.number_interaction = 1  # Reiniciar interacciones para nuevos registros
+                    person.save()
+                    logger.info(f"Referencia asignada a {person}: {person.ref_num}")
+
+                # Incrementar interacciones para registros existentes
+                else:
+                    person.number_interaction += 1
+                    person.save()
+
+                logger.info(f"Procesado: {person.nombre} ({person.email}) con interacciones: {person.number_interaction}")
+
+            except Exception as e:
+                logger.error(f"Error procesando registro: {fn} {ln} ({email}): {e}", exc_info=True)
+
+def update_phone_number(person: Person, new_phone: str):
+    """
+    Actualiza el número de celular para un candidato y su ChatState.
+    """
+    if new_phone and new_phone != person.chatstate_set.first().phone_number:
+        chat_state = person.chatstate_set.first()
+        if chat_state:
+            chat_state.phone_number = new_phone
+            chat_state.save()
+        logger.info(f"Celular actualizado para {person}: {new_phone}")
+    else:
+        logger.warning(f"No se encontró un número nuevo válido para {person}")
+
+def find_placeholders():
+    placeholders = ChatState.objects.filter(phone_number__startswith="placeholder-")
+    for chat_state in placeholders:
+        logger.info(f"Placeholder encontrado: {chat_state.phone_number} para {chat_state.person}")
+    return placeholders
 # =========================================================
 # Manejo API LinkedIn (Futuro)
 # =========================================================
@@ -270,7 +350,7 @@ def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
             existing_person = Person.objects.filter(
                 nombre__iexact=fn,
                 apellido_paterno__iexact=ln,
-                metadata__linkedin_url=linkedin_url
+                linkedin_url=linkedin_url
             ).first()
 
             if existing_person and existing_person.metadata.get('scraped', False):
@@ -323,12 +403,34 @@ def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
                 logger.info(f"✅ Perfil básico guardado: {fn} {ln} ({email})")
 
 
+def safe_extract(func):
+    """
+    Decorador para manejar excepciones en funciones de extracción.
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error en {func.__name__}: {e}", exc_info=True)
+            return None if 'return' not in kwargs else kwargs['return']
+    return wrapper
+
+def extract_profile_image(soup):
+    try:
+        image_tag = soup.find('img', class_='profile-background-image__image')
+        return image_tag['src'] if image_tag else None
+    except Exception as e:
+        logger.error(f"Error extrayendo imagen del perfil: {e}")
+        return None
+
+@safe_extract
 def extract_contact_link(soup):
     link = soup.find('a', id='top-card-text-details-contact-info')
     if link and link.get('href'):
         return link.get('href')
     return None
 
+@safe_extract
 def extract_contact_info(soup):
     contact_info = {}
     sections = soup.find_all('section', class_='pv-contact-info__contact-type')
@@ -344,7 +446,7 @@ def extract_contact_info(soup):
         if 'email' in title:
             mail_link = val_div.find('a', href=True)
             if mail_link and mail_link['href'].startswith('mailto:'):
-                value = mail_link['href'].replace('mailto:','')
+                value = mail_link['href'].replace('mailto:', '')
             contact_info['email'] = value
         elif 'teléfono' in title or 'phone' in title:
             contact_info['phone'] = value
@@ -356,18 +458,22 @@ def extract_contact_info(soup):
                 contact_info['profile_link'] = a_profile['href']
     return contact_info
 
+@safe_extract
 def extract_name(soup):
     h1 = soup.find('h1', class_='inline t-24 v-align-middle break-words')
     return h1.get_text(strip=True) if h1 else None
 
+@safe_extract
 def extract_headline(soup):
     hd = soup.find('div', class_='text-body-medium break-words')
     return hd.get_text(strip=True) if hd else None
 
+@safe_extract
 def extract_location(soup):
     loc = soup.find('span', class_='text-body-small inline t-black--light break-words')
     return loc.get_text(strip=True) if loc else None
 
+@safe_extract
 def extract_experience(soup):
     exp_section = soup.find('section', id='experience')
     if not exp_section:
@@ -385,6 +491,7 @@ def extract_experience(soup):
             experiences.append({'role': role, 'company': company, 'dates': dates})
     return experiences
 
+@safe_extract
 def extract_education(soup):
     edu_section = soup.find('section', id='education')
     if not edu_section:
@@ -401,11 +508,7 @@ def extract_education(soup):
         education_list.append({'school': school, 'degree': degree, 'dates': dates})
     return education_list
 
-def extract_skills(text: str) -> List[str]:
-    results = skill_extractor.annotate(text)
-    raw_skills = results.get("results", [])
-    return [item['skill'] for item in raw_skills]
-
+@safe_extract
 def extract_languages(soup):
     lang_section = soup.find('section', id='languages')
     if not lang_section:
@@ -421,6 +524,47 @@ def extract_languages(soup):
             language_list.append({'language': lname, 'level': level})
     return language_list
 
+def extract_skills(text: str, unit: str) -> List[str]:
+    processor = SkillsProcessor(unit)
+    return processor.extract_skills(text)
+
+def associate_divisions(skills: List[str], unit: str) -> List[Dict[str, str]]:
+    processor = SkillsProcessor(unit)
+    return processor.associate_divisions(skills)
+
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=5)
+def scrape_linkedin_profile(link_url, unit):
+    """
+    Realiza scraping de un perfil de LinkedIn usando cookies autenticadas.
+    """
+    try:
+        headers = {
+            'User-Agent': random.choice(USER_AGENTS),
+            'Cookie': 'li_at=AQEDAQDH8CoALanRAAABk5Qqjz0AAAGUhN3cHE0AK_F0uPYrUA2GDrHieAWSq7GFY-RkYmrHvy7t8bDuY1Z3OJ65OoVyDtvrL9R7P1tGu3yPjfBGaZ8ORBYGiILzxToPCMtp2AcJZfKOXRT8ME-qfnGT'
+        }
+        time.sleep(random.uniform(10, 20))  # Evitar bloqueos
+        response = requests.get(link_url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Extraer datos
+        data = {
+            'headline': extract_headline(soup),
+            'location': extract_location(soup),
+            'experience': extract_experience(soup),
+            'education': extract_education(soup),
+            'skills': extract_skills(soup.get_text(), unit),
+            'languages': extract_languages(soup),
+            'contact_info': extract_contact_info(soup)
+        }
+        data['skills'] = normalize_skills(data['skills'], unit)  # Normalizar habilidades
+        data['divisions'] = associate_divisions(data['skills'], unit)  # Asignar divisiones
+        return data
+    except Exception as e:
+        logger.error(f"Error scrapeando {link_url}: {e}")
+        return {}
+
 def update_person_from_scrape(person: Person, scraped_data: dict):
     """
     Actualiza los datos de un perfil con la información scrapeada.
@@ -430,7 +574,7 @@ def update_person_from_scrape(person: Person, scraped_data: dict):
         person.metadata["headline"] = scraped_data["headline"]
         updated = True
     if scraped_data.get("experience"):
-        person.experience_data = scraped_data["experience"]
+        person.metadata["experience"] = scraped_data["experience"]
         updated = True
     if scraped_data.get("education"):
         person.metadata["education"] = scraped_data["education"]
@@ -438,8 +582,6 @@ def update_person_from_scrape(person: Person, scraped_data: dict):
     if scraped_data.get("skills"):
         extracted_skills = extract_skills(" ".join(scraped_data["skills"]))
         person.metadata["skills"] = list(set(person.metadata.get("skills", []) + extracted_skills))
-        divisions = associate_divisions(extracted_skills)
-        person.metadata["divisions"] = list(set(person.metadata.get("divisions", []) + divisions))
         updated = True
     if scraped_data.get("languages"):
         person.metadata["languages"] = scraped_data["languages"]
@@ -454,63 +596,63 @@ def update_person_from_scrape(person: Person, scraped_data: dict):
             updated = True
 
     person.metadata["linkedin_last_updated"] = timezone.now().isoformat()
-    person.metadata.pop("linkedin_pending", None)  # Remove pending flag
     if updated:
         person.save()
         logger.info(f"Perfil actualizado: {person.nombre} {person.apellido_paterno}")
 
-@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=5)
-def scrape_linkedin_profile(link_url: str) -> dict:
+def construct_linkedin_url(first_name: str, last_name: str) -> str:
     """
-    Realiza scraping en LinkedIn para un perfil individual usando su URL.    
+    Construye una posible URL de LinkedIn a partir del nombre y apellido.
     """
-    try:
-        html = fetch_url(link_url)   # Asumes que fetch_url() obtiene la página con backoff
-        if not html:
-            logger.warning(f"No se pudo obtener HTML para {link_url}")
-            return {}
+    base_url = "https://www.linkedin.com/in/"
+    name_slug = f"{first_name.lower()}-{last_name.lower()}".replace(" ", "-")
+    return f"{base_url}{name_slug}"
 
-        soup = BeautifulSoup(html, 'html.parser')
-
-        # Extraer datos
-        name = extract_name(soup)
-        if not name:
-            logger.warning(f"No se pudo extraer el nombre de {link_url}")
-            return {}
-
-        # Continúa con la extracción de otros datos...
-        data = {
-            'name': name,
-            'headline': extract_headline(soup),
-            'location': extract_location(soup),
-            'experience': extract_experience(soup),
-            'education': extract_education(soup),
-            'skills': extract_skills(soup),
-            'languages': extract_languages(soup),
-            'contact_info': extract_contact_info(soup)
-        }
-        logger.info(f"Datos extraídos para {link_url}: {data}")
-        return data
-
-    except Exception as e:
-        logger.error(f"❌ Error scrapeando {link_url}: {e}", exc_info=True)
-        return {}
-
-def extract_skills(text: str) -> List[str]:
+def process_linkedin_updates():
     """
-    Extrae habilidades del texto utilizando SkillNer.
+    Revisa todos los perfiles de LinkedIn en la base de datos y los actualiza.
+    Muestra un resumen al finalizar.
     """
-    skills = sn.extract_skills(text)
-    return [skill['skill'] for skill in skills]
+    persons = Person.objects.all()
+    processed_count = 0
+    constructed_count = 0
+    errors_count = 0
 
-def associate_divisions(skills: List[str]) -> List[str]:
-    """
-    Asocia divisiones basadas en las habilidades extraídas.
-    """
-    associated_divisions = set()
-    for skill in skills:
-        for division, division_skills in DIVISION_SKILLS.items():
-            if skill in division_skills:
-                associated_divisions.add(division)
-    return list(associated_divisions)
+    for person in persons:
+        linkedin_url = person.linkedin_url
 
+        # Construir URL si falta
+        if not linkedin_url:
+            linkedin_url = construct_linkedin_url(person.nombre, person.apellido_paterno)
+            person.linkedin_url = linkedin_url  # Guardar en el campo del modelo
+            person.save()
+            constructed_count += 1
+            logger.info(f"🌐 URL construida para {person.nombre}: {linkedin_url}")
+
+        try:
+            logger.info(f"Procesando: {person.nombre} ({linkedin_url})")
+            scraped_data = scrape_linkedin_profile(linkedin_url)
+            update_person_from_scrape(person, scraped_data)
+            processed_count += 1
+            logger.info(f"✅ Actualizado: {person.nombre}")
+        except Exception as e:
+            logger.error(f"❌ Error procesando {person.nombre} ({linkedin_url}): {e}")
+            errors_count += 1
+
+    logger.info(f"Resumen: Procesados: {processed_count}, URLs construidas: {constructed_count}, Errores: {errors_count}")
+
+def main_test():
+    unit = "amigro"  # Cambiar según la unidad de negocio
+    test_text = "Técnica relevante 1, Técnica relevante 2, Blanda relevante 1"
+
+    # Extraer habilidades
+    skills = extract_skills(test_text, unit)
+    print(f"Habilidades extraídas para {unit}: {skills}")
+
+    # Asociar divisiones
+    associations = associate_divisions(skills, unit)
+    for assoc in associations:
+        print(f"Habilidad: {assoc['skill']} -> División: {assoc['division']}")
+
+if __name__ == "__main__":
+    main_test()
