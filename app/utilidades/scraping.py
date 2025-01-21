@@ -1607,19 +1607,3 @@ SCRAPER_MAP = {
     "default": BaseScraper,  # Genérico por defecto
     "flexible": FlexibleScraper,
 }
-##______
-if dominios.exists():
-    dominio = dominios.first()
-    print(f"Probando scraping para el dominio: {dominio.dominio}")
-    asyncio.run(run_scraper(dominio))
-
-# 3. Probar los scrapers de cada plataforma
-for dominio in dominios:
-    print(f"Probando scraper para la plataforma: {dominio.plataforma}")
-    scraper = get_scraper_for_platform(dominio.plataforma, dominio.dominio, dominio.cookies)
-    if scraper:
-        print(f"Scraper obtenido para {dominio.dominio}: {scraper}")
-        vacantes = asyncio.run(scraper.scrape())
-        print(f"Vacantes extraídas: {len(vacantes)}")
-    else:
-        print(f"No se pudo obtener scraper para {dominio.dominio}.")
