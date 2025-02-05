@@ -150,6 +150,8 @@ def validate_job_data(job_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "company": str,
         "description": str,
         "url": str,
+        "skills": list,  # Asegúrate de que 'skills' es una lista
+        "sectors": list  # Asegúrate de que 'sectors' es una lista
         # Añade más campos requeridos según sea necesario
     }
     
@@ -231,7 +233,6 @@ async def save_vacantes(jobs: List[JobListing], dominio: DominioScraping):
                     "business_unit": business_unit_obj,
                     "fecha_publicacion": job.posted_date or now(),
                     "remote_friendly": True if job.job_type and 'remote' in job.job_type.lower() else False,
-                    "business_unit": business_unit_obj,
                 }
             )
             msg = "creada" if created else "actualizada"
@@ -252,7 +253,7 @@ async def get_session():
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, timeout=10) as response:
-                response.raise_for_status()
+                response.raise_for_status()  # Esto verificará el estado HTTP y lanzará una excepción si no es 200
                 text = await response.text()
                 soup = BeautifulSoup(text, "html.parser")
                 input_tag = soup.find("input", {"id": "login_security"})
@@ -261,11 +262,14 @@ async def get_session():
                 else:
                     logger.error("No se encontró el input 'login_security' en la respuesta.")
                     return None
+    except aiohttp.ClientResponseError as e:
+        logger.error(f"Respuesta HTTP errónea: {e}")
+        return None
     except aiohttp.ClientError as e:
-        logger.error(f"Error obteniendo sesión: {e}")
+        logger.error(f"Error de red o al establecer una sesión de cliente: {e}")
         return None
     except Exception as e:
-        logger.error(f"Error procesando sesión: {e}")
+        logger.error(f"Error inesperado: {e}")
         return None
 
 async def consult(page, url, business_unit=None):
@@ -818,11 +822,8 @@ class BaseScraper:
         self.session = None  # Inicializar sesión como None
 
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession(
-            timeout=ClientTimeout(total=self.config.TIMEOUT),
-            cookies=self.cookies,
-            headers={'User-Agent': random.choice(self.config.USER_AGENTS)}
-        )
+        headers = {'User-Agent': random.choice(self.config.USER_AGENTS)}
+        self.session = aiohttp.ClientSession(headers=headers, cookies=self.cookies, timeout=ClientTimeout(total=self.config.TIMEOUT))
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -831,17 +832,23 @@ class BaseScraper:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def fetch(self, url: str) -> Optional[str]:
-        """
-        Realiza una solicitud GET al URL especificado usando la sesión activa.
-        """
-        try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                logger.info(f"Fetch exitoso para {url}")
-                return await response.text()
-        except Exception as e:
-            logger.error(f"Error al realizar fetch para {url}: {e}")
-            return None
+        attempt = 0
+        while attempt < self.retries:
+            try:
+                logger.info(f"Attempting fetch {attempt + 1} for {url}")
+                async with self.session.get(url) as response:
+                    response.raise_for_status()
+                    content = await response.text()
+                    logger.info(f"Successful fetch for {url}")
+                    return content
+            except HTTPException as e:
+                logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
+                attempt += 1
+            except Exception as e:
+                logger.error(f"Unexpected error during fetch for {url}: {e}", exc_info=True)
+                return None
+        logger.error(f"All fetch attempts failed for {url}")
+        return None
 
     async def paginate(self, base_url: str, endpoint: str, key: str, params: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """
@@ -894,13 +901,29 @@ class BaseScraper:
         Implementación principal del scraper, debe ser sobrescrito por clases hijas.
         """
         raise NotImplementedError("El método 'scrape' debe ser implementado por subclases.")
+    
 
     async def transform_data(self, data: List[Dict]) -> List[Dict]:
+        transformed_data = []
+        for item in data:
+            # Normalización de ejemplo
+            item['date'] = parse_date(item.get('date', ''))
+            item['title'] = item.get('title', '').strip().title()
+
+            # Enriquecimiento de ejemplo
+            item['scraped_at'] = datetime.now().isoformat()
+
+            # Filtrado de ejemplo
+            if 'relevant' in item:
+                transformed_data.append(item)
+        
+        return transformed_data
+
+    def parse_date(self, date_str: str) -> datetime:
         """
-        Método opcional para transformar datos antes de devolverlos.
-        Las subclases pueden sobrescribir este método.
+        Parsea fechas de formatos conocidos a datetime.
         """
-        return data
+        return datetime.strptime(date_str, '%Y-%m-%d')  # Ejemplo de formato
 
 
 # Si no existe una definición, se puede crear una básica
