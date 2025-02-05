@@ -59,7 +59,7 @@ async def send_message(
             return
 
         # Importar dinámicamente la función de envío
-        send_module = __import__(f'app.integrations.{platform}', fromlist=[send_function_name])
+        send_module = __import__(f'app.chatbot.integrations.{platform}', fromlist=[send_function_name])
         send_function = getattr(send_module, send_function_name, None)
 
         if not send_function:
@@ -446,7 +446,7 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
                 business_unit=business_unit
             )
         elif platform == 'telegram' and buttons:
-            from app.integrations.telegram import send_telegram_buttons
+            from app.chatbot.integrations.telegram import send_telegram_buttons
             telegram_buttons = [
                 [{"text": button['title'], "callback_data": button['payload']}]
                 for button in buttons
@@ -455,7 +455,7 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
                 user_id, message, telegram_buttons, business_unit.telegram_api.api_key
             )
         elif platform == 'messenger' and buttons and business_unit:
-            from app.integrations.messenger import send_messenger_buttons
+            from app.chatbot.integrations.messenger import send_messenger_buttons
             quick_reply_options = [
                 {'content_type': 'text', 'title': button['title'], 'payload': button['payload']}
                 for button in buttons
@@ -467,7 +467,7 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
                 business_unit.messenger_api.page_access_token,
             )
         elif platform == 'instagram' and buttons and business_unit:
-            from app.integrations.instagram import send_instagram_buttons
+            from app.chatbot.integrations.instagram import send_instagram_buttons
             await send_instagram_buttons(
                 user_id, message, buttons, business_unit.instagram_api.access_token
             )

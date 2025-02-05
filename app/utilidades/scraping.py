@@ -6,12 +6,13 @@ import asyncio
 import logging
 import random
 import requests
+import aiohttp
+from django.db import transaction
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
 
 # Librerías de terceros
-import aiohttp
 from abc import ABC, abstractmethod
 from aiohttp import ClientTimeout
 from bs4 import BeautifulSoup
@@ -24,7 +25,6 @@ from selenium.webdriver.chrome.options import Options
 
 # Funcionalidad de Django
 from asgiref.sync import sync_to_async
-from django.db import transaction
 from django.utils.timezone import now
 
 # Modelos y componentes de la aplicación
@@ -47,41 +47,70 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-import aiohttp
+def assign_business_unit_to_vacante(vacante):
+   business_rules = {
+       "huntRED": {
+           "subdirector", "director", "vp", "ceo", "presidente", 
+           "board", "consejero", "estratégico", "executive", 
+           "alta dirección", "gerente", "chief"
+       },
+       "huntu": {
+           "trainee", "junior", "recién egresado", "entry level", 
+           "practicante", "pasante", "becario", "líder", 
+           "coordinador", "analista", "senior", "lead"
+       },
+       "amigro": {
+           "migrante", "trabajador internacional",  
+           "operativo", "cajero", "auxiliar", "soporte", 
+           "campos agrícolas", "construcción", "servicio", 
+           "operador"
+       }
+   }
+   
+   title = vacante["title"].lower()
+   
+   for bu, keywords in business_rules.items():
+       if keywords.intersection(title.split()):
+           return bu
+   
+   return "amigro"  # Default
 
-class CookieManager:
-    def __init__(self, dominio, credentials):
-        self.login_url = dominio
-        self.credentials = credentials
+@transaction.atomic
+async def save_vacantes(jobs: List[JobListing], dominio: DominioScraping):
+    """
+    Guarda las vacantes extraídas en la base de datos.
+    """
+    for job in jobs:
+        try:
+            business_unit = assign_business_unit_to_vacante(job)
+            business_unit_obj = await sync_to_async(BusinessUnit.objects.get)(name=business_unit)
 
-    async def get_new_cookies(dominio_url):
-        """
-        Obtiene nuevas cookies directamente desde el dominio especificado.
-        """
-        async with aiohttp.ClientSession() as session:
-            async with session.get(dominio_url) as response:
-                if response.status == 200:
-                    cookies = session.cookie_jar.filter_cookies(dominio_url)
-                    return {cookie.key: cookie.value for cookie in cookies.values()}
-                else:
-                    raise Exception(f"Error al obtener cookies para {dominio_url}: {response.status}")
+            skills = extract_skills(job.description or "")
+            divisions = associate_divisions(skills)
 
-
-class Command(BaseCommand):
-    help = "Revalida las cookies para los dominios configurados"
-
-    def handle(self, *args, **kwargs):
-        dominios = DominioScraping.objects.filter(activo=True, login_url__isnull=False)
-        for dominio in dominios:
-            self.stdout.write(f"Revalidando cookies para {dominio.dominio}")
-            try:
-                manager = CookieManager(dominio.login_url, dominio.login_credentials)
-                new_cookies = asyncio.run(manager.get_new_cookies())
-                dominio.cookies = json.dumps(new_cookies)
-                dominio.save()
-                self.stdout.write(f"Cookies actualizadas para {dominio.dominio}")
-            except Exception as e:
-                self.stderr.write(f"Error revalidando cookies para {dominio.dominio}: {e}")
+            vacante, created = await sync_to_async(Vacante.objects.update_or_create)(
+                titulo=job.title,
+                empresa=job.company,
+                defaults={
+                    "salario": job.salary.get('min', None) if job.salary else None,
+                    "ubicacion": job.location,
+                    "descripcion": job.description,
+                    "requisitos": job.requirements,
+                    "beneficios": ", ".join(job.benefits or []),
+                    "modalidad": job.job_type,
+                    "skills_required": skills,
+                    "divisiones": divisions,
+                    "dominio_origen": dominio,
+                    "business_unit": business_unit_obj,
+                    "fecha_publicacion": job.posted_date or now(),
+                    "remote_friendly": True if job.job_type and 'remote' in job.job_type.lower() else False,
+                    "business_unit": business_unit_obj,
+                }
+            )
+            msg = "creada" if created else "actualizada"
+            logger.info(f"🔄 Vacante {msg}: {vacante.titulo}")
+        except Exception as e:
+            logger.error(f"Error guardando vacante {job.title}: {e}")
 
 
 # =============================================
@@ -333,6 +362,42 @@ def exportar_vacantes_a_wordpress(business_unit, vacantes):
 
     return True
 
+
+class CookieManager:
+    def __init__(self, dominio, credentials):
+        self.login_url = dominio
+        self.credentials = credentials
+
+    async def get_new_cookies(dominio_url):
+        """
+        Obtiene nuevas cookies directamente desde el dominio especificado.
+        """
+        async with aiohttp.ClientSession() as session:
+            async with session.get(dominio_url) as response:
+                if response.status == 200:
+                    cookies = session.cookie_jar.filter_cookies(dominio_url)
+                    return {cookie.key: cookie.value for cookie in cookies.values()}
+                else:
+                    raise Exception(f"Error al obtener cookies para {dominio_url}: {response.status}")
+
+
+class Command(BaseCommand):
+    help = "Revalida las cookies para los dominios configurados"
+
+    def handle(self, *args, **kwargs):
+        dominios = DominioScraping.objects.filter(activo=True, login_url__isnull=False)
+        for dominio in dominios:
+            self.stdout.write(f"Revalidando cookies para {dominio.dominio}")
+            try:
+                manager = CookieManager(dominio.login_url, dominio.login_credentials)
+                new_cookies = asyncio.run(manager.get_new_cookies())
+                dominio.cookies = json.dumps(new_cookies)
+                dominio.save()
+                self.stdout.write(f"Cookies actualizadas para {dominio.dominio}")
+            except Exception as e:
+                self.stderr.write(f"Error revalidando cookies para {dominio.dominio}: {e}")
+
+
 # ========================
 # Configuración General
 # ========================
@@ -355,43 +420,6 @@ class JobListing:
     sectors: Optional[List[str]] = None  # Sectores o divisiones relacionadas (e.g., TI, Finanzas)
     languages_required: Optional[List[str]] = None  # Idiomas requeridos para el puesto
     application_deadline: Optional[str] = None  # Fecha límite de aplicación
-
-@transaction.atomic
-async def save_vacantes(jobs: List[JobListing], dominio: DominioScraping):
-    """
-    Guarda las vacantes extraídas en la base de datos.
-    """
-    for job in jobs:
-        try:
-            business_unit = assign_business_unit_to_vacante(job)
-            business_unit_obj = await sync_to_async(BusinessUnit.objects.get)(name=business_unit)
-
-            skills = extract_skills(job.description or "")
-            divisions = associate_divisions(skills)
-
-            vacante, created = await sync_to_async(Vacante.objects.update_or_create)(
-                titulo=job.title,
-                empresa=job.company,
-                defaults={
-                    "salario": job.salary.get('min', None) if job.salary else None,
-                    "ubicacion": job.location,
-                    "descripcion": job.description,
-                    "requisitos": job.requirements,
-                    "beneficios": ", ".join(job.benefits or []),
-                    "modalidad": job.job_type,
-                    "skills_required": skills,
-                    "divisiones": divisions,
-                    "dominio_origen": dominio,
-                    "business_unit": business_unit_obj,
-                    "fecha_publicacion": job.posted_date or now(),
-                    "remote_friendly": True if job.job_type and 'remote' in job.job_type.lower() else False,
-                    "business_unit": business_unit_obj,
-                }
-            )
-            msg = "creada" if created else "actualizada"
-            logger.info(f"🔄 Vacante {msg}: {vacante.titulo}")
-        except Exception as e:
-            logger.error(f"Error guardando vacante {job.title}: {e}")
 
 def validate_job_data(job_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
@@ -483,48 +511,48 @@ class ScrapingCache:
 )
 async def run_scraper(dominio_scraping):
     """
-    Ejecuta el proceso de scraping para un dominio específico, revalidando cookies si es necesario.
+    Ejecuta el proceso de scraping para un dominio específico con manejo de cookies.
     """
     logger.info(f"Iniciando scraping para dominio: {dominio_scraping.dominio}")
     try:
+        # Obtener el scraper adecuado para la plataforma
         scraper = get_scraper_for_platform(
             plataforma=dominio_scraping.plataforma,
             dominio_url=dominio_scraping.dominio,
             cookies=dominio_scraping.cookies
         )
+        
         if scraper is None:
-            logger.error(f"No se pudo inicializar el scraper para {dominio_scraping.dominio}.")
+            logger.error(f"Scraper no inicializado para {dominio_scraping.dominio}")
             return []
 
-        vacantes = await scraper.scrape()
-        if vacantes:
-            logger.info(f"Vacantes encontradas: {len(vacantes)}")
-        else:
-            logger.warning(f"No se encontraron vacantes para {dominio_scraping.dominio}.")
-        return vacantes
+        # Usar el scraper dentro de un contexto asincrónico
+        async with scraper as scraper_instance:
+            response = await scraper_instance.fetch(scraper_instance.url)
+            # Procesar el contenido de la respuesta
+            logger.info(f"Contenido obtenido para {scraper_instance.url}: {response[:200]}")  # Muestra los primeros 200 caracteres
 
     except Exception as e:
         logger.error(f"Error ejecutando scraper para {dominio_scraping.dominio}: {e}", exc_info=True)
         return []
 
+
     
 def get_scraper_for_platform(plataforma, dominio_url, cookies=None):
     """
-    Retorna una instancia del scraper correspondiente a la plataforma.
-    Si las cookies no están disponibles, se obtienen automáticamente desde el dominio.
+    Devuelve la instancia del scraper adecuado según la plataforma.
     """
-    scraper_class = SCRAPER_MAP.get(plataforma.lower(), BaseScraper)
-    try:
-        if cookies:
-            return scraper_class(dominio_url, cookies=cookies)
-        else:
-            # Crear una instancia de CookieManager y obtener nuevas cookies
-            manager = CookieManager()
-            new_cookies = asyncio.run(manager.get_new_cookies(dominio_url))
-            return scraper_class(dominio_url, cookies=new_cookies)
-    except Exception as e:
-        logger.error(f"Error al inicializar scraper para {plataforma}: {e}")
+    if plataforma == "workday":
+        from app.utilidades.scraping import WorkdayScraper
+        return WorkdayScraper(url=dominio_url, cookies=cookies)
+    # Aquí puedes agregar más plataformas como "eightfold", "greenhouse", etc.
+    elif plataforma == "eightfold":
+        from app.utilidades.scraping import EightfoldScraper
+        return EightfoldScraper(url=dominio_url, cookies=cookies)
+    else:
+        logger.warning(f"Plataforma no soportada: {plataforma}")
         return None
+
 
 
 async def scrape_workflow(domains):
@@ -554,21 +582,7 @@ async def scrape_workflow(domains):
 
     await asyncio.gather(*(process_scraper(scraper) for scraper in scrapers))
 
-def assign_business_unit_to_vacante(vacante):
-    business_rules = {
-        "huntRED": ["director", "vp", "chief", "executive", "senior manager", "subdirector"],
-        "huntu": ["manager", "senior", "líder", "gerente", "coordinador", "lead"],
-        "amigro": ["junior", "trainee", "practicante"]
-    }
-    
-    title = vacante["title"].lower()
-    company = vacante.get("company", "").lower()
-    
-    for bu, keywords in business_rules.items():
-        if any(keyword in title for keyword in keywords):
-            return bu
-    
-    return "amigro"  # Default
+
 
 async def fetch_with_requests(url):
     """
@@ -700,32 +714,6 @@ async def scrape_domains(dominios):
         tasks.append(scrape_single_domain(dominio))
     await asyncio.gather(*tasks)
 
-async def run_scraper(dominio_scraping):
-    """
-    Ejecuta el proceso de scraping para un dominio específico con manejo de revalidación de cookies.
-    """
-    logger.info(f"Iniciando scraping para dominio: {dominio_scraping.dominio}")
-    try:
-        scraper = get_scraper_for_platform(
-            dominio_scraping.plataforma,
-            dominio_scraping.dominio,
-            cookies=dominio_scraping.cookies,
-            credentials=dominio_scraping.login_credentials
-        )
-        if scraper is None:
-            logger.error(f"Scraper no inicializado para {dominio_scraping.dominio}")
-            return []
-
-        vacantes = await scraper.scrape()
-        if vacantes:
-            logger.info(f"Vacantes encontradas: {len(vacantes)}")
-        else:
-            logger.warning(f"No se encontraron vacantes para {dominio_scraping.dominio}.")
-        return vacantes
-
-    except Exception as e:
-        logger.error(f"Error ejecutando scraper para {dominio_scraping.dominio}: {e}", exc_info=True)
-        return []
 
     
 async def scrape_domains_in_batches(dominios: List[DominioScraping], batch_size=5):
@@ -800,15 +788,17 @@ class ScrapingPipeline:
 # Clase Base Abstracta
 # ========================
 class BaseScraper:
-    def __init__(self, url, config=None, cookies=None):
+    def __init__(self, url: str, config: Optional[ScrapingConfig] = None, cookies: Optional[Dict[str, str]] = None):
         self.url = url
-        self.domain = url  # Proveer un atributo común para todos los scrapers
+        self.domain = url  # Atributo común para los scrapers
         self.config = config or ScraperConfig()
-        self.cookies = cookies
+        self.cookies = cookies or {}
+        self.session = None  # Inicializar sesión como None
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
             timeout=ClientTimeout(total=self.config.TIMEOUT),
+            cookies=self.cookies,
             headers={'User-Agent': random.choice(self.config.USER_AGENTS)}
         )
         return self
@@ -819,19 +809,77 @@ class BaseScraper:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def fetch(self, url: str) -> Optional[str]:
-        async with self.semaphore:
-            try:
-                async with self.session.get(url) as response:
-                    response.raise_for_status()
-                    return await response.text()
-            except Exception as e:
-                self.metrics.errors_total.inc()
-                logger.error(f"Error al realizar fetch para {url}: {e}")
-                return None
+        """
+        Realiza una solicitud GET al URL especificado usando la sesión activa.
+        """
+        try:
+            async with self.session.get(url) as response:
+                response.raise_for_status()
+                logger.info(f"Fetch exitoso para {url}")
+                return await response.text()
+        except Exception as e:
+            logger.error(f"Error al realizar fetch para {url}: {e}")
+            return None
 
-    @abstractmethod
-    async def scrape(self) -> List[Dict[str, Any]]:
-        pass
+    async def paginate(self, base_url: str, endpoint: str, key: str, params: Optional[Dict[str, Any]] = None) -> List[Dict]:
+        """
+        Realiza la paginación automática y retorna una lista de resultados.
+        """
+        results = []
+        page = 0
+
+        while True:
+            url = f"{base_url}{endpoint}?page={page}"
+            logger.info(f"Procesando página: {page} - {url}")
+            data = await self.fetch(url)
+
+            if not data:
+                logger.warning(f"No se encontraron más datos en {url}.")
+                break
+
+            items = extract_key(data, key)
+            if not items:
+                logger.warning(f"No se encontraron más elementos en {url}.")
+                break
+
+            results.extend(items)
+            page += 1
+
+        logger.info(f"Total de elementos paginados: {len(results)}")
+        return results
+
+    async def extract_details(self, job_url: str) -> Dict[str, Any]:
+        """
+        Extrae detalles específicos de una vacante desde su URL.
+        """
+        try:
+            data = await self.fetch(job_url)
+            if not data:
+                logger.error(f"No se pudo obtener contenido para {job_url}")
+                return {}
+
+            soup = BeautifulSoup(data, "html.parser")
+            description = soup.find("div", class_="job-description")
+            return {
+                "description": description.get_text(strip=True) if description else "No disponible"
+            }
+        except Exception as e:
+            logger.error(f"Error al extraer detalles del trabajo en {job_url}: {e}")
+            return {}
+
+    async def scrape(self) -> List[Dict]:
+        """
+        Implementación principal del scraper, debe ser sobrescrito por clases hijas.
+        """
+        raise NotImplementedError("El método 'scrape' debe ser implementado por subclases.")
+
+    async def transform_data(self, data: List[Dict]) -> List[Dict]:
+        """
+        Método opcional para transformar datos antes de devolverlos.
+        Las subclases pueden sobrescribir este método.
+        """
+        return data
+
 
 # Si no existe una definición, se puede crear una básica
 class ScraperConfig:
@@ -872,738 +920,3 @@ class ScrapingCoordinator:
             raw_jobs = await scraper.scrape()
             return await self.pipeline.process(raw_jobs)
 
-# ========================
-# Scrapers Específicos
-# ========================
-# Aquí incluyes clases como WorkdayScraper, OracleScraper, FlexibleScraper, etc.
-# Usa la estructura modular propuesta en tu código original.
-
-class FlexibleScraper(BaseScraper):
-    def __init__(self, url, config=None, cookies=None):
-        self.url = url
-        self.config = config or ScraperConfig()
-        self.cookies = cookies
-
-    async def parse_jobs(self, html_content):
-        soup = BeautifulSoup(html_content, 'html.parser')
-        jobs = []
-        
-        job_containers = soup.find_all("div", class_="job-card")
-        
-        for container in job_containers:
-            job = {}
-            for field, params in self.config.items():
-                element = container.select_one(params['selector'])
-                if element:
-                    job[field] = element.get_text(strip=True) if params['method'] == 'text' else element.decode_contents()
-            
-            jobs.append(job)
-        
-        return jobs
-# Implementaciones específicas de scrapers
-class WorkdayScraper(BaseScraper):
-    def __init__(self, url, config=None, cookies=None):
-        super().__init__(url, config=config, cookies=cookies)
-        self.domain = url  # Inicializar el atributo 'domain'
-    async def scrape(self) -> List[Dict[str, Any]]:
-        vacantes = []
-        page = 1
-        logger.info(f"Iniciando WorkdayScraper para dominio: {self.domain}")
-
-        while True:
-            url = f"{self.domain}/job-search/api?index={(page - 1) * 10}&count=10"
-            logger.info(f"Procesando página: {page} - {url}")
-
-            try:
-                response = await self.fetch(url)
-                if not response:
-                    logger.warning(f"No se obtuvo respuesta en {url}. Finalizando scraping.")
-                    break
-
-                data = json.loads(response)
-                items = data.get("items", [])
-                if not items:
-                    logger.info(f"No se encontraron más vacantes en la página {page}. Finalizando.")
-                    break
-
-                for job in items:
-                    try:
-                        vacante = {
-                            "title": job.get("title", "No title"),
-                            "location": job.get("locations", [{}])[0].get("displayName", "No location"),
-                            "company": job.get("clientName", "No company"),
-                            "url": f"{self.domain}{job.get('externalPath', '')}",
-                            "description": "Not fetched"  # Se actualizará posteriormente
-                        }
-                        details = await self.get_job_details(vacante["url"])
-                        vacante.update(details)
-                        vacantes.append(vacante)
-                    except Exception as e:
-                        logger.warning(f"Error procesando vacante: {e}")
-                        continue
-
-                logger.info(f"Página {page}: {len(items)} vacantes procesadas.")
-                page += 1
-
-            except json.JSONDecodeError as e:
-                logger.error(f"Error decodificando JSON de {url}: {e}")
-                break
-            except Exception as e:
-                logger.error(f"Error en WorkdayScraper: {e}")
-                break
-
-        logger.info(f"Finalizado WorkdayScraper. Total vacantes extraídas: {len(vacantes)}")
-        return vacantes
-
-    async def get_job_details(self, url: str) -> Dict[str, str]:
-        """Obtiene detalles adicionales de una vacante específica."""
-        try:
-            response = await self.fetch(url)
-            if not response:
-                return {"description": "No disponible", "requirements": "No disponible"}
-            soup = BeautifulSoup(response, "html.parser")
-            description = soup.find("div", class_="description").get_text(strip=True) if soup.find("div", class_="description") else "No disponible"
-            requirements = soup.find("div", class_="requirements").get_text(strip=True) if soup.find("div", class_="requirements") else "No disponible"
-            return {"description": description, "requirements": requirements}
-        except Exception as e:
-            logger.error(f"Error obteniendo detalles del trabajo en {url}: {e}")
-            return {"description": "Error obteniendo detalles", "requirements": "Error obteniendo requisitos"}
-
-class PhenomPeopleScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 1
-        logger.info(f"Iniciando PhenomPeopleScraper para dominio: {self.dominio}")
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}?page={page}"
-                try:
-                    response = await self.fetch(session, url)
-                    if not response:
-                        logger.warning(f"No se obtuvo respuesta en {url}. Finalizando scraping.")
-                        break
-                    soup = BeautifulSoup(response, "html.parser")
-                    jobs = await self.parse_jobs(soup)
-                    if not jobs:
-                        logger.info(f"No se encontraron más vacantes en {url}.")
-                        break
-                    vacantes.extend(jobs)
-                    logger.debug(f"Página {page}: {len(jobs)} vacantes extraídas.")
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en PhenomPeopleScraper (página {page}): {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, soup):
-        jobs = []
-        job_cards = soup.find_all("div", class_="job-card")  # Ajustar el selector
-        for card in job_cards:
-            try:
-                title = card.find("h3").get_text(strip=True)
-                location = card.find("span", class_="job-location").get_text(strip=True)
-                link = card.find("a", href=True)["href"]
-                jobs.append({"title": title, "location": location, "link": link})
-            except AttributeError as e:
-                logger.warning(f"Error procesando una tarjeta de trabajo: {e}")
-                continue
-        return jobs
-    
-class OracleScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 1
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}/jobs?page={page}"
-                try:
-                    response = await self.fetch(session, url)
-                    if not response:
-                        break
-
-                    # Verifica si la respuesta es un string o JSON
-                    if isinstance(response, str):
-                        logger.error(f"Respuesta inesperada: texto plano en lugar de JSON")
-                        break
-
-                    jobs = await self.parse_jobs(response)
-                    if not jobs:
-                        break
-                    vacantes.extend(jobs)
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en OracleScraper: {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, data):
-        vacantes = []
-        for job in data.get('jobList', []):
-            vacantes.append({
-                "title": job.get("title", "No especificado"),
-                "location": job.get("location", {}).get("city", "No especificado"),
-                "link": job.get("detailUrl"),
-                "details": await self.get_job_details(job.get("detailUrl"))
-            })
-        return vacantes
-
-    async def get_job_details(self, job_url):
-        async with aiohttp.ClientSession() as session:
-            try:
-                response = await self.fetch(session, f"{self.dominio}{job_url}")
-                soup = BeautifulSoup(response, "html.parser")
-
-                return {
-                    "description": soup.find("div", class_="job-description").get_text(strip=True) if soup.find("div", class_="job-description") else "No disponible",
-                    "requirements": soup.find("div", class_="job-requirements").get_text(strip=True) if soup.find("div", class_="job-requirements") else "No disponible",
-                    "benefits": soup.find("div", class_="job-benefits").get_text(strip=True) if soup.find("div", class_="job-benefits") else "No disponible",
-                }
-            except Exception as e:
-                logger.error(f"Error obteniendo detalles del trabajo: {e}")
-                return {}
-
-class SAPScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 1
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}/jobs?page={page}"
-                try:
-                    response = await self.fetch(session, url)
-                    jobs = await self.parse_jobs(response)
-                    if not jobs:
-                        break
-                    vacantes.extend(jobs)
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en SAPScraper: {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, data):
-        vacantes = []
-        for job in data.get('jobs', []):
-            vacantes.append({
-                "title": clean_text(job.get("title", "No especificado")),
-                "location": clean_text(job.get("location", {}).get("city", "No especificado")),
-                "link": job.get("detailUrl"),
-                "details": await self.get_job_details(job.get("detailUrl"))
-            })
-        return vacantes
-
-    async def get_job_details(self, url):
-        try:
-            async with aiohttp.ClientSession() as session:
-                response = await self.fetch(session, f"{self.dominio}{url}")
-                soup = BeautifulSoup(response, 'html.parser')
-                return {
-                    "description": soup.find("div", class_="job-description").get_text(strip=True) if soup.find("div", class_="job-description") else "No disponible",
-                    "requirements": soup.find("div", class_="job-requirements").get_text(strip=True) if soup.find("div", class_="job-requirements") else "No disponible",
-                    "benefits": soup.find("div", class_="job-benefits").get_text(strip=True) if soup.find("div", class_="job-benefits") else "No disponible"
-                }
-        except Exception as e:
-            logger.error(f"Error obteniendo detalles del trabajo en SAP: {e}")
-            return {}
-        
-class LinkedInScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 0
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}?start={page * 25}"
-                try:
-                    response = await self.fetch(session, url)
-                    soup = BeautifulSoup(response, 'html.parser')
-                    jobs = await self.parse_jobs(soup)
-                    if not jobs:
-                        break
-                    vacantes.extend(jobs)
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en LinkedInScraper: {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, soup):
-        jobs = []
-        job_cards = soup.find_all("div", class_="result-card__contents")
-        for card in job_cards:
-            title = card.find("h3", class_="result-card__title").get_text(strip=True)
-            company = card.find("h4", class_="result-card__subtitle").get_text(strip=True)
-            location = card.find("span", class_="job-result-card__location").get_text(strip=True)
-            link = card.find("a", class_="result-card__full-card-link")['href']
-            jobs.append({"title": title, "company": company, "location": location, "link": link})
-        return jobs
-    
-class IndeedScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 0
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}?start={page * 10}"
-                try:
-                    response = await self.fetch(session, url)
-                    soup = BeautifulSoup(response, 'html.parser')
-                    jobs = await self.parse_jobs(soup)
-                    if not jobs:
-                        break
-                    vacantes.extend(jobs)
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en IndeedScraper: {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, soup):
-        jobs = []
-        job_cards = soup.find_all("div", class_="job_seen_beacon")
-        for card in job_cards:
-            title = card.find("h2", class_="jobTitle").get_text(strip=True)
-            company = card.find("span", class_="companyName").get_text(strip=True)
-            location = card.find("div", class_="companyLocation").get_text(strip=True)
-            link = card.find("a", class_="jcs-JobTitle")['href']
-            jobs.append({"title": title, "company": company, "location": location, "link": link})
-        return jobs
-
-class ADPScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 1
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}/search?page={page}"
-                try:
-                    response = await self.fetch(session, url)
-                    data = json.loads(response)
-                    jobs = await self.parse_jobs(data)
-                    if not jobs:
-                        break
-                    vacantes.extend(jobs)
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en ADPScraper: {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, data):
-        return [
-            {
-                "title": job.get("jobTitle", "No especificado"),
-                "location": job.get("jobLocation", "No especificado"),
-                "link": job.get("jobUrl", "No disponible"),
-            }
-            for job in data.get("jobs", [])
-        ]
-
-class PeopleSoftScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        async with aiohttp.ClientSession() as session:
-            url = f"{self.dominio}/joblist"
-            try:
-                response = await self.fetch(session, url)
-                soup = BeautifulSoup(response, 'html.parser')
-                vacantes = await self.parse_jobs(soup)
-            except Exception as e:
-                logger.error(f"Error en PeopleSoftScraper: {e}")
-        return vacantes
-
-    async def parse_jobs(self, soup):
-        jobs = []
-        for job_card in soup.find_all("div", class_="job-card"):
-            title = job_card.find("h3").get_text(strip=True)
-            location = job_card.find("span", class_="location").get_text(strip=True)
-            link = job_card.find("a", href=True)["href"]
-            jobs.append({"title": title, "location": location, "link": link})
-        return jobs
-
-class Meta4Scraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        async with aiohttp.ClientSession() as session:
-            url = f"{self.dominio}/opportunities"
-            try:
-                response = await self.fetch(session, url)
-                soup = BeautifulSoup(response, 'html.parser')
-                vacantes = await self.parse_jobs(soup)
-            except Exception as e:
-                logger.error(f"Error en Meta4Scraper: {e}")
-        return vacantes
-
-    async def parse_jobs(self, soup):
-        return [
-            {
-                "title": job.find("h3").get_text(strip=True),
-                "location": job.find("span", class_="location").get_text(strip=True),
-                "link": job.find("a", href=True)["href"],
-            }
-            for job in soup.find_all("div", class_="job-item")
-        ]
-
-class CornerstoneScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 1
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}/joblist?page={page}"
-                try:
-                    response = await self.fetch(session, url)
-                    jobs = await self.parse_jobs(response)
-                    if not jobs:
-                        break
-                    vacantes.extend(jobs)
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en CornerstoneScraper: {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, data):
-        return [
-            {
-                "title": job.get("title", "No especificado"),
-                "location": job.get("location", "No especificado"),
-                "link": job.get("url", "No disponible"),
-            }
-            for job in data.get("jobs", [])
-        ]
-
-class UKGScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 1
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}/search?page={page}"
-                try:
-                    response = await self.fetch(session, url)
-                    data = json.loads(response)
-                    jobs = await self.parse_jobs(data)
-                    if not jobs:
-                        break
-                    vacantes.extend(jobs)
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en UKGScraper: {e}")
-                    break
-        return vacantes
-
-    async def parse_jobs(self, data):
-        return [
-            {
-                "title": job.get("title", "No especificado"),
-                "location": job.get("location", "No especificado"),
-                "link": job.get("url", "No disponible"),
-            }
-            for job in data.get("results", [])
-        ]
-
-class GreenhouseScraper(BaseScraper):
-    async def scrape(self):
-        vacantes = []
-        page = 1
-        logger.info(f"Iniciando Greenhouse para dominio: {self.dominio}")
-        
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.dominio}?page={page}"
-                try:
-                    response = await self.fetch(session, url)
-                    if not response:
-                        logger.warning(f"Sin respuesta en {url}. Finalizando scraping.")
-                        break
-
-                    jobs = await self.parse_jobs(response)
-                    if not jobs:
-                        logger.info(f"No se encontraron más vacantes en {url}.")
-                        break
-
-                    vacantes.extend(jobs)
-                    logger.debug(f"Página {page}: {len(jobs)} vacantes extraídas.")
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error en scraping Workday (página {page}): {e}", exc_info=True)
-                    break
-
-        logger.info(f"Greenhouse finalizado. Total de vacantes: {len(vacantes)}")
-        return vacantes
-
-    async def parse_jobs(self, response):
-        try:
-            soup = BeautifulSoup(response, "html.parser")
-            job_cards = soup.find_all("div", class_="opening")
-            return [
-                {
-                    "title": job.find("a").get_text(strip=True),
-                    "location": job.find("span", class_="location").get_text(strip=True),
-                    "link": job.find("a")["href"]
-                }
-                for job in job_cards
-            ]
-        except Exception as e:
-            logger.error(f"Error procesando trabajos: {e}")
-            return []
-    def get_job_details(self, link):
-        """
-        Obtiene detalles adicionales de una vacante desde su página específica.
-        """
-        try:
-            full_url = f"{self.dominio}{link}"
-            response = self.get(full_url)
-            if not response:
-                return {"description": "No disponible"}
-            soup = BeautifulSoup(response, "html.parser")
-            description = soup.find("div", class_="section-wrapper").get_text(strip=True)
-            return {"description": description}
-        except Exception as e:
-            logger.error(f"Error obteniendo detalles del trabajo: {e}")
-            return {"description": "Error al obtener detalles"}
-
-class GlassdoorScraper(BaseScraper):
-    async def extract_jobs(self, url):
-        # Implementar scraping específico de Glassdoor
-        return []
-
-class ComputrabajoScraper(BaseScraper):
-    async def extract_jobs(self, url):
-        # Implementar scraping específico de Computrabajo
-        return []
-# Implementación específica para Accenture
-class AccentureScraper(BaseScraper):
-    async def scrape(self) -> List[JobListing]:
-        vacantes = []
-        page = 1
-        logger.info(f"Iniciando AccentureScraper para dominio: {self.domain}")
-
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.domain}/mx-es/careers/jobsearch?pg={page}"
-                logger.info(f"Procesando página: {page}")
-
-                try:
-                    response = await self.fetch_with_retry(session, url)
-                    if not response:
-                        logger.warning(f"Sin respuesta en {url}. Finalizando scraping.")
-                        break
-
-                    jobs = self.parse_jobs(response)
-                    if not jobs:
-                        logger.info(f"No se encontraron más vacantes en {url}.")
-                        break
-
-                    vacantes.extend(jobs)
-                    logger.debug(f"Página {page}: {len(jobs)} vacantes extraídas.")
-                    page += 1
-                except Exception as e:
-                    logger.error(f"Error procesando página {page}: {e}", exc_info=True)
-                    break
-
-        logger.info(f"AccentureScraper finalizado. Total de vacantes: {len(vacantes)}")
-        return vacantes
-
-    async def parse_jobs(self, html_content):
-        soup = BeautifulSoup(html_content, 'html.parser')
-        job_cards = soup.find_all("div", class_="cmp-teaser card")
-        if not job_cards:
-            logger.warning("No se encontraron tarjetas de empleo en la página.")
-            return []
-
-        vacantes = []
-        for card in job_cards:
-            try:
-                title = card.find("h3", class_="cmp-teaser__title").get_text(strip=True) if card.find("h3", class_="cmp-teaser__title") else "No especificado"
-                detail_link = card.find("a", class_="cmp-teaser__title-link")
-                detail_url = f"https://www.accenture.com{detail_link['href']}" if detail_link and 'href' in detail_link.attrs else None
-                location = f"{card.find('div', class_='cmp-teaser-region').get_text(strip=True) if card.find('div', class_='cmp-teaser-region') else 'No especificado'}, {card.find('div', class_='cmp-teaser-city').get_text(strip=True) if card.find('div', class_='cmp-teaser-city') else 'No especificado'}"
-                skill = card.find("span", class_="cmp-teaser__job-listing-semibold skill").get_text(strip=True) if card.find("span", class_="cmp-teaser__job-listing-semibold skill") else "No especificado"
-                posted_date = card.find("p", class_="cmp-teaser__job-listing-posted-date").get_text(strip=True) if card.find("p", class_="cmp-teaser__job-listing-posted-date") else "No especificado"
-
-                details = await self.get_job_details(detail_url) if detail_url else {}
-                vacante = {
-                    "title": title,
-                    "location": location,
-                    "skill": skill,
-                    "posted_date": posted_date,
-                    "detail_url": detail_url,
-                    "description": details.get("description", "No disponible")
-                }
-                vacantes.append(vacante)
-            except Exception as e:
-                logger.error(f"Error al procesar tarjeta de empleo: {e}", exc_info=True)
-                continue
-        return vacantes
-
-    async def get_job_details(self, url):
-        try:
-            async with aiohttp.ClientSession() as session:
-                response = await self.fetch(session, url)
-                soup = BeautifulSoup(response, 'html.parser')
-                description = soup.find("div", class_="job-description").get_text(strip=True) if soup.find("div", class_="job-description") else "No disponible"
-                return {"description": description}
-        except Exception as e:
-            logger.error(f"Error obteniendo detalles del trabajo en {url}: {e}")
-            return {"description": "No disponible"}
-
-class EightFoldScraper(BaseScraper):
-    def __init__(self, url, config=None, cookies=None):
-        super().__init__(url, config=config, cookies=cookies)
-        self.base_url = url  # Asegúrate de que este atributo esté inicializado
-
-    async def fetch_with_retry(self, session, url, max_retries=3):
-        """Realiza solicitudes con reintentos"""
-        for attempt in range(max_retries):
-            try:
-                async with session.get(url, timeout=30) as response:
-                    response.raise_for_status()
-                    return await response.json()
-            except Exception as e:
-                logger.warning(f"Intento {attempt + 1} fallido: {e}")
-                if attempt == max_retries - 1:
-                    raise
-
-    async def scrape(self) -> List[JobListing]:
-        """Scraper principal para EightFold AI"""
-        vacantes = []
-        page = 1
-        
-        async with aiohttp.ClientSession() as session:
-            while True:
-                url = f"{self.base_url}?location={self.location}&page={page}&sort_by=relevance"
-                logger.info(f"Procesando página: {page} - {url}")
-
-                try:
-                    response = await self.fetch_with_retry(session, url)
-                    
-                    # Procesar JSON de trabajos
-                    jobs = response.get('jobs', [])
-                    if not jobs:
-                        break
-
-                    # Obtener detalles de cada trabajo
-                    job_details = await asyncio.gather(
-                        *[self.get_job_details(session, job) for job in jobs],
-                        return_exceptions=True
-                    )
-
-                    for job, details in zip(jobs, job_details):
-                        if isinstance(details, Exception):
-                            logger.error(f"Error procesando trabajo: {job.get('title', 'Sin título')}")
-                            continue
-
-                        vacante = JobListing(
-                            title=job.get('title', 'Sin título'),
-                            company=job.get('company_name', 'Sin empresa'),
-                            location=job.get('locations', [{}])[0].get('name', 'Sin ubicación'),
-                            url=job.get('url', ''),
-                            description=details.get('description', 'No description'),
-                            requirements=details.get('requirements', 'No requirements')
-                        )
-                        vacantes.append(vacante)
-
-                    logger.info(f"Página {page}: {len(jobs)} vacantes procesadas")
-                    page += 1
-
-                except Exception as e:
-                    logger.error(f"Error procesando página {page}: {e}", exc_info=True)
-                    break
-
-        logger.info(f"Finalizado EightFold AI Scraper. Total vacantes: {len(vacantes)}")
-        return vacantes
-
-    async def get_job_details(self, session, job):
-        """Obtiene detalles específicos de un trabajo"""
-        async with self.semaphore:
-            try:
-                job_url = job.get('url')
-                if not job_url:
-                    return {}
-
-                async with session.get(job_url) as response:
-                    response.raise_for_status()
-                    html = await response.text()
-                    soup = BeautifulSoup(html, 'html.parser')
-
-                    # Extracción de descripción y requisitos
-                    description_elem = soup.find('div', class_='job-description')
-                    requirements_elem = soup.find('div', class_='job-requirements')
-
-                    return {
-                        'description': description_elem.get_text(strip=True) if description_elem else 'No description',
-                        'requirements': requirements_elem.get_text(strip=True) if requirements_elem else 'No requirements'
-                    }
-            except Exception as e:
-                logger.error(f"Error obteniendo detalles del trabajo: {e}")
-                return {}
-
-class FlexibleScraper(BaseScraper):
-    def __init__(self, dominio_scraping):
-        super().__init__(dominio_scraping.dominio)
-        self.configuracion = dominio_scraping
-
-    async def scrape(self):
-        async with aiohttp.ClientSession(cookies=self.configuracion.cookies or {}) as session:
-            response = await self.fetch(session, self.configuracion.dominio)
-            soup = BeautifulSoup(response, 'html.parser')
-
-            vacantes = []
-            job_cards = self.get_elements(soup, self.configuracion.selector_job_cards)
-
-            for card in job_cards:
-                vacante = {
-                    'titulo': self.extract_dato(card, self.configuracion.selector_titulo),
-                    'descripcion': self.extract_dato(card, self.configuracion.selector_descripcion),
-                    'ubicacion': self.extract_dato(card, self.configuracion.selector_ubicacion),
-                    'salario': self.extract_dato(card, self.configuracion.selector_salario),
-                }
-                vacantes.append(vacante)
-
-            return vacantes
-
-    def get_elements(self, soup, selector):
-        """Obtiene los elementos con el selector configurado."""
-        if not selector:
-            return []
-        try:
-            return soup.select(selector)
-        except Exception as e:
-            logger.warning(f"Error al obtener elementos con selector {selector}: {e}")
-            return []
-
-    def extract_dato(self, elemento, selector):
-        """Extrae datos usando el selector configurado."""
-        if not selector:
-            return None
-        try:
-            return elemento.select_one(selector).get_text(strip=True)
-        except Exception as e:
-            logger.warning(f"No se pudo extraer dato con selector {selector}: {e}")
-            return None
-
-# ========================
-# Mapeo de Scrapers
-# ========================
-
-SCRAPER_MAP = {
-    "workday": WorkdayScraper,
-    "phenom_people": PhenomPeopleScraper,
-    "oracle_hcm": OracleScraper,
-    "sap_successfactors": SAPScraper,
-    "adp": ADPScraper,
-    "peoplesoft": PeopleSoftScraper,
-    "meta4": Meta4Scraper,
-    "cornerstone": CornerstoneScraper,
-    "ukg": UKGScraper,
-    "linkedin": LinkedInScraper,
-    "indeed": IndeedScraper,
-    "greenhouse": GreenhouseScraper,
-    "glassdoor": GlassdoorScraper,
-    "computrabajo": ComputrabajoScraper,
-    "accenture": AccentureScraper,
-    "eightfold_ai": EightFoldScraper,
-    "default": BaseScraper,  # Genérico por defecto
-    "flexible": FlexibleScraper,
-}
