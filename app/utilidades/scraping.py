@@ -35,7 +35,7 @@ from app.models import (
 )
 from app.utilidades.loader import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
 from app.chatbot.utils import clean_text
-from app.chatbot import ChatBotHandler  # Solo si se usa en scraping
+from app.chatbot.chatbot import ChatBotHandler  # Solo si se usa en scraping
 
 logging.basicConfig(
     level=logging.INFO,  # Cambia a DEBUG para más detalles
@@ -48,10 +48,72 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Definición básica de user agents para ScrapingConfig (si hace falta):
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
+    "Mozilla/5.0 (iPad; CPU OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
+    "Mozilla/5.0 (Android 10; Mobile; rv:88.0) Gecko/88.0 Firefox/88.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0",
+    "Mozilla/5.0 (Linux; Android 10; SM-A505FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.93 Mobile Safari/537.36",
+    "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko",
+    "Mozilla/5.0 (iPad; CPU OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Mobile Safari/537.36"
+]
 
 # ========================
 # Configuración General
 # ========================
+class ScrapingConfig:
+    def __init__(self):
+        self.RATE_LIMIT = 2  # requests por segundo
+        self.MAX_RETRIES = 3
+        self.TIMEOUT = 30
+        self.MAX_CONCURRENT_REQUESTS = 10
+        self.USER_AGENTS = USER_AGENTS
+
+# Asegúrate de que el puerto para Prometheus esté libre o cámbialo
+class ScrapingMetrics:
+    def __init__(self):
+        self.jobs_scraped = Counter('jobs_scraped_total', 'Total jobs scraped')
+        self.scraping_duration = Histogram('scraping_duration_seconds', 'Time spent scraping')
+        self.errors_total = Counter('scraping_errors_total', 'Total scraping errors')
+        
+        # Intenta iniciar el servidor de Prometheus en el puerto 8001 para evitar conflictos
+        try:
+            start_http_server(8001)
+            logger.info("Servidor de métricas Prometheus iniciado en el puerto 8001")
+        except OSError as e:
+            if e.errno == 98:
+                logger.warning("El puerto 8001 ya está en uso. No se pudo iniciar el servidor de métricas Prometheus.")
+            else:
+                logger.error(f"Error iniciando servidor de métricas Prometheus: {e}")
+
+class ScrapingCache:
+    def __init__(self):
+        self.cache = {}
+        self.TTL = 3600  # 1 hora
+
+    async def get(self, key: str) -> Optional[Dict]:
+        if key in self.cache:
+            data, timestamp = self.cache[key]
+            if (datetime.now() - timestamp).seconds < self.TTL:
+                return data
+            del self.cache[key]
+        return None
+
+    async def set(self, key: str, value: Dict):
+        self.cache[key] = (value, datetime.now())
+
 @dataclass
 class JobListing:
     title: str
@@ -111,48 +173,6 @@ def validate_job_data(job_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
     
     return validated_data
-
-class ScrapingConfig:
-    def __init__(self):
-        self.RATE_LIMIT = 2  # requests por segundo
-        self.MAX_RETRIES = 3
-        self.TIMEOUT = 30
-        self.MAX_CONCURRENT_REQUESTS = 10
-        self.USER_AGENTS = USER_AGENTS
-
-# Asegúrate de que el puerto para Prometheus esté libre o cámbialo
-class ScrapingMetrics:
-    def __init__(self):
-        self.jobs_scraped = Counter('jobs_scraped_total', 'Total jobs scraped')
-        self.scraping_duration = Histogram('scraping_duration_seconds', 'Time spent scraping')
-        self.errors_total = Counter('scraping_errors_total', 'Total scraping errors')
-        
-        # Intenta iniciar el servidor de Prometheus en el puerto 8001 para evitar conflictos
-        try:
-            start_http_server(8001)
-            logger.info("Servidor de métricas Prometheus iniciado en el puerto 8001")
-        except OSError as e:
-            if e.errno == 98:
-                logger.warning("El puerto 8001 ya está en uso. No se pudo iniciar el servidor de métricas Prometheus.")
-            else:
-                logger.error(f"Error iniciando servidor de métricas Prometheus: {e}")
-
-class ScrapingCache:
-    def __init__(self):
-        self.cache = {}
-        self.TTL = 3600  # 1 hora
-
-    async def get(self, key: str) -> Optional[Dict]:
-        if key in self.cache:
-            data, timestamp = self.cache[key]
-            if (datetime.now() - timestamp).seconds < self.TTL:
-                return data
-            del self.cache[key]
-        return None
-
-    async def set(self, key: str, value: Dict):
-        self.cache[key] = (value, datetime.now())
-
 
 def assign_business_unit_to_vacante(vacante):
    business_rules = {
@@ -218,7 +238,6 @@ async def save_vacantes(jobs: List[JobListing], dominio: DominioScraping):
             logger.info(f"🔄 Vacante {msg}: {vacante.titulo}")
         except Exception as e:
             logger.error(f"Error guardando vacante {job.title}: {e}")
-
 
 # =============================================
 # Manejo de Sessiones y Condicionales Generales
