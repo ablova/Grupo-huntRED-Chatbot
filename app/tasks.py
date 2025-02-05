@@ -203,39 +203,42 @@ def add(x, y):
 # =========================================================
 # Tareas relacionadas con notificaciones
 # =========================================================
+def get_business_unit(business_unit_id=None, default_name="amigro"):
+    if business_unit_id:
+        return BusinessUnit.objects.filter(id=business_unit_id).first()
+    return BusinessUnit.objects.filter(name=default_name).first()
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
 def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
     try:
-        if not business_unit_id:
-            # Asignar BU por defecto o hacer un fallback
-            bu = BusinessUnit.objects.filter(name='amigro').first()  # ejemplo
-        else:
-            bu = BusinessUnit.objects.get(id=business_unit_id)
-
+        bu = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('whatsapp', recipient, message, bu))
         logger.info(f"✅ Mensaje de WhatsApp enviado a {recipient}")
     except Exception as e:
         logger.error(f"❌ Error enviando mensaje a WhatsApp: {e}")
         self.retry(exc=e)
 
+
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
-def send_telegram_message_task(self, chat_id, message):
+def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
     try:
-        asyncio.run(send_message('telegram', chat_id, message))
+        business_unit = get_business_unit(business_unit_id)
+        asyncio.run(send_message('telegram', chat_id, message, business_unit))
         logger.info(f"✅ Mensaje de Telegram enviado a {chat_id}")
     except Exception as e:
         logger.error(f"❌ Error enviando mensaje a Telegram: {e}")
         self.retry(exc=e)
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
-def send_messenger_message_task(self, recipient_id, message):
+def send_messenger_message_task(self, recipient_id, message, business_unit_id=None):
     try:
-        asyncio.run(send_message('messenger', recipient_id, message))
+        business_unit = get_business_unit(business_unit_id)
+        asyncio.run(send_message('messenger', recipient_id, message, business_unit))
         logger.info(f"✅ Mensaje de Messenger enviado a {recipient_id}")
     except Exception as e:
         logger.error(f"❌ Error enviando mensaje a Messenger: {e}")
         self.retry(exc=e)
+
 
 # =========================================================
 # Tareas relacionadas con el ML (Machine Learning)

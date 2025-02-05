@@ -356,7 +356,7 @@ async def send_whatsapp_message(user_id: str, message: str, buttons: Optional[Li
             "text": {"body": message}
         }
 
-        if buttons:
+        if buttons and isinstance(buttons, list) and all(isinstance(b, dict) for b in buttons):
             payload["type"] = "interactive"
             payload["interactive"] = {
                 "type": "button",
@@ -371,3 +371,4 @@ async def send_whatsapp_message(user_id: str, message: str, buttons: Optional[Li
 
     except Exception as e:
         logger.error(f"Error enviando mensaje a {user_id}: {e}", exc_info=True)
+

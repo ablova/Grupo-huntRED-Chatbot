@@ -454,10 +454,6 @@ for candidate in Person.objects.filter(linkedin_url__isnull=False)[:1]:
 from app.models import BusinessUnit
 from app.utilidades.parser import IMAPCVProcessor
 
-unit_name = "huntRED"  # Cambia al nombre de la unidad que desees probar
-unit = BusinessUnit.objects.get(name=unit_name)
-
-
 # Prueba 1: Cargar configuración
 unit_name = "huntRED"  # Cambia al nombre de la unidad que desees probar
 unit = BusinessUnit.objects.get(name=unit_name)
@@ -465,29 +461,84 @@ imap_processor = IMAPCVProcessor(unit)
 
 # Prueba 2: Verificar configuración IMAP
 config = imap_processor._load_config(unit)
-print("Configuración de Servicor de Correo (SMTP) cargada:")
-print(config)
 
-# Prueba 3: Conexión al servidor de correo
 try:
     mail = imap_processor._connect_imap(config)
     if mail:
-        print("Conexión exitosa al servidor .")
+        print("Conexión exitosa al servidor IMAP.")
         mail.logout()
     else:
-        print("Fallo en la conexión al servidor .")
+        print("No se pudo conectar al servidor IMAP.")
 except Exception as e:
-    print(f"Error durante la conexión: {e}")
+    print(f"Error: {e}")
+
 
 # Prueba 4: Procesar correos y adjuntos
 imap_processor.process_emails()
+
+import email
+from email import message_from_bytes
+from pathlib import Path
+from app.utilidades.parser import IMAPCVProcessor
+from app.models import BusinessUnit
+
+unit_name = "huntRED"
+unit = BusinessUnit.objects.get(name=unit_name)
+imap_processor = IMAPCVProcessor(unit)  # Crear una instancia
+parser = imap_processor.parser  # Obtener la instancia de CVParser desde IMAPCVProcessor
+
+
+# Probar extracción de adjuntos
+mail = imap_processor._connect_imap(imap_processor.config)
+mail.select(imap_processor.FOLDER_CONFIG['cv_folder'])
+status, messages = mail.search(None, 'ALL')
+email_ids = messages[0].split()
+
+# Procesar solo los primeros 10 correos
+for email_id in email_ids[:2]:  # Rebanando la lista para limitar a 2 para las pruebas
+
+    status, data = mail.fetch(email_id, "(RFC822)")
+    message = email.message_from_bytes(data[0][1])
+    attachments = imap_processor.parser.extract_attachments(message)
+    
+    if attachments:
+        print(f"Adjuntos encontrados en correo {email_id}:")
+        for attachment in attachments:
+            print(f"  - Nombre: {attachment['filename']}, Tamaño: {len(attachment['content'])} bytes")
+    else:
+        print(f"Correo {email_id} no tiene adjuntos válidos.")
+# Procesar archivos
+for attachment in attachments:
+    temp_path = Path(f"/tmp/{attachment['filename']}")
+    temp_path.write_bytes(attachment['content'])
+
+    try:
+        # Usar la instancia del parser
+        text = parser.extract_text_from_file(temp_path)
+        if text:
+            parsed_data = parser.parse(text)
+            email = parsed_data.get("email")
+            phone = parsed_data.get("phone")
+
+            candidate = Person.objects.filter(email=email).first() or Person.objects.filter(phone=phone).first()
+            if candidate:
+                parser._update_candidate(candidate, parsed_data, temp_path)
+            else:
+                parser._create_new_candidate(parsed_data, temp_path)
+
+            imap_processor.stats["processed"] += 1
+    except Exception as e:
+        logger.error(f"Error procesando el archivo {attachment['filename']}: {e}")
+    finally:
+        temp_path.unlink()  # Limpiar archivo temporal
+
 
 # Prueba 5: Confirmar creación/actualización de candidatos
 from app.models import Person
 candidates = Person.objects.all()
 print(f"Total de candidatos creados/actualizados: {candidates.count()}")
 for candidate in candidates:
-    print(f"{candidate.nombre} {candidate.apellido_paterno} - {candidate.email}")
+    print(f"Candidato Ajustado / Creado - {candidate.nombre} {candidate.apellido_paterno} - {candidate.email}")
 
 
 from app.models import Person
@@ -632,8 +683,8 @@ import asyncio
 from app.utilidades.scraping import run_scraper, scrape_domains, get_scraper_for_platform
 
 # 1. Verificar los dominios activos
-#dominios = DominioScraping.objects.filter(activo=True)
-#print(f"Dominios activos: {[d.dominio for d in dominios]}")
+dominios = DominioScraping.objects.filter(activo=True)
+print(f"Dominios activos: {[d.dominio for d in dominios]}")
 
 # 2. Probar scraping general
 # Probar con el primer dominio activo
@@ -652,3 +703,78 @@ for dominio in dominios:
         print(f"Vacantes extraídas: {len(vacantes)}")
     else:
         print(f"No se pudo obtener scraper para {dominio.dominio}.")
+
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+
+options = Options()
+options.add_argument("--headless")
+driver = webdriver.Chrome(options=options)
+
+driver.get("https://santander.wd3.myworkdayjobs.com/es/SantanderCareers?locationCountry=e2adff9272454660ac4fdb56fc70bb51")
+html_content = driver.page_source
+print(html_content)
+
+driver.quit()
+
+import asyncio
+from app.models import DominioScraping
+from app.utilidades.scraping import run_scraper
+
+# Obtener todos los dominios activos
+dominios_activos = DominioScraping.objects.filter(activo=True)
+
+if dominios_activos.exists():
+    for dominio in dominios_activos:
+        print(f"\n=== Iniciando scraping para el dominio: {dominio.dominio} ===")
+        try:
+            vacantes = asyncio.run(run_scraper(dominio))
+            print(f"Vacantes extraídas para {dominio.dominio}: {len(vacantes)}")
+            for vacante in vacantes[:3]:  # Muestra las primeras 3 vacantes
+                print(f"- {vacante.get('title', 'Título no disponible')} ({vacante.get('location', 'Ubicación no disponible')})")
+        except Exception as e:
+            print(f"❌ Error durante el scraping de {dominio.dominio}: {e}")
+else:
+    print("No hay dominios activos configurados.")
+
+
+import asyncio
+from app.models import DominioScraping
+from app.utilidades.scraping import run_scraper, save_vacantes
+
+# Obtener el dominio de LinkedIn por ID
+linkedin_dominio = DominioScraping.objects.get(id=27)
+
+# Ejecutar el scraping
+print(f"Iniciando scraping para: {linkedin_dominio.dominio}")
+print(f"Iniciando scraping para: {linkedin_dominio.plataforma}")
+vacantes = asyncio.run(run_scraper(linkedin_dominio))
+
+# Mostrar resultados
+print(f"Vacantes extraídas: {len(vacantes)}")
+for vacante in vacantes[:3]:  # Muestra las primeras 3 vacantes
+    print(f"- {vacante['title']} en {vacante['company']} ({vacante['location']}) - {vacante['link']}")
+
+response = await self.fetch(session, url)
+print(response)  # Verifica el HTML completo para analizarlo
+
+
+# Guardar vacantes en la base de datos
+asyncio.run(save_vacantes(vacantes, linkedin_dominio))
+print("Vacantes guardadas correctamente.")
+
+
+import asyncio
+from app.models import DominioScraping
+
+async def main():
+    # Obtener un dominio específico
+    dominio_scraping = await sync_to_async(DominioScraping.objects.get)(id=27)
+    # Ejecutar el scraper
+    vacantes = await run_scraper(dominio_scraping)
+    print(f"Vacantes extraídas: {len(vacantes)}")
+    for vacante in vacantes[:3]:  # Mostrar las primeras 3 vacantes
+        print(f"- {vacante['title']} en {vacante['company']} ({vacante['location']})")
+
+# Ejecutar el código
+asyncio.run(main())

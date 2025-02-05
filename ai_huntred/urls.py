@@ -30,6 +30,7 @@ from app.views.candidatos_views import (
     send_notification,
 )
 
+
 def health_check(request):
     return HttpResponse("OK")
 
@@ -76,6 +77,10 @@ urlpatterns = [
 
     # Incluir las rutas de 'app.urls.py' bajo el prefijo 'webhook/'
     path('webhook/', include('app.urls.webhook_urls')),  # Incluye solo las rutas de 'webhook_urls.py'
+
+    #Incluir sexsi
+    path('sexsi/', include('ai_huntred.sexsi.urls', namespace='sexsi')),
+
 ]
 
 urlpatterns += staticfiles_urlpatterns()

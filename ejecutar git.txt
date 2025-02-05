@@ -19,7 +19,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git /home/pablollh
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Ajustado de folders y partiendo app en ml, chatbot, utilidades, ..." &&
+git commit -m "Ajustado de folders y partiendo app en ml, chatbot, utilidades, cracion de SEXSI, ..." &&
 git push origin main
 
 
@@ -44,6 +44,7 @@ git reset --hard origin/main &&
 git clean -fd &&
 git status &&
 git log -1 &&
+python manage.py makemigrations && python manage.py migrate && python manage.py shell 
 mkdir -p /home/pablollh/logs &&
 touch /home/pablollh/logs/debug.log && 
 chmod 664 /home/pablollh/logs/debug.log &&

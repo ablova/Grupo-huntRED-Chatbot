@@ -14,6 +14,7 @@ from app.chatbot.integrations.services import (
     send_message, send_email, reset_chat_state
 )
 from app.chatbot.utils import analyze_text  # Encargado del NLP y patrones de intents
+from sexsi.sexsi_flow import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,15 @@ class ChatBotHandler:
             # Manejar acciones sobre vacantes
             if any(text.startswith(prefix) for prefix in ["apply_", "details_", "schedule_", "tips_", "book_slot_"]):
                 await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
+                return
+            
+            # Si el Business Unit es SEXSI, ejecutamos el flujo SEXSI
+            if business_unit.name.lower() == "sexsi":
+                # Puedes determinar qué parte del flujo ejecutar basado en el contexto del mensaje.
+                # Por ejemplo, si es el primer mensaje, se inicia el flujo SEXSI.
+                response = iniciar_flujo_sexsi(user_id, user, business_unit, chat_state.context)
+                await send_message(platform, user_id, response, business_unit)
+                await self.store_bot_message(chat_state, response)
                 return
 
             # Respuesta de fallback usando GPT
