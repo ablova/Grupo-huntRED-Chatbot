@@ -1,10 +1,10 @@
-# Ubicacion SEXSI -- /home/pablollh/sexsi/biometric_auth.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/biometric_auth.py
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.utils.timezone import now
 from django.contrib import messages
-from .models import ConsentAgreement
+from app.sexsi.models import ConsentAgreement
 import base64
 import json
 

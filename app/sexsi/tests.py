@@ -1,9 +1,9 @@
-# Ubicacion SEXSI -- /home/pablollh/sexsi/tests.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/tests.py
 
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.utils.timezone import now, timedelta
-from .models import ConsentAgreement
+from app.sexsi.models import ConsentAgreement
 import uuid
 import base64
 

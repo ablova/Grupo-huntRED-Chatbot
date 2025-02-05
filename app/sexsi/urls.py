@@ -1,8 +1,8 @@
-# Ubicacion SEXSI -- /home/pablollh/sexsi/urls.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/urls.py
 
 from django.urls import path
-from .views import create_agreement, agreement_detail, sign_agreement, download_pdf
-from .biometric_auth import save_biometric_signature
+from app.sexsi.views import create_agreement, agreement_detail, sign_agreement, download_pdf
+from app.sexsi.biometric_auth import save_biometric_signature
 
 app_name = 'sexsi'
 
