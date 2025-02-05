@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablollh/sexsi/views.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse

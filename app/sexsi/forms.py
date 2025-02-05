@@ -1,7 +1,7 @@
-# Ubicacion SEXSI -- /home/pablollh/sexsi/forms.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/forms.py
 
 from django import forms
-from .models import ConsentAgreement
+from app.sexsi.models import ConsentAgreement
 
 class ConsentAgreementForm(forms.ModelForm):
     class Meta:
