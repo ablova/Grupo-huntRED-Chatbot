@@ -1,14 +1,12 @@
-# Ubicacion SEXSI -- /home/pablollh/sexsi/tasks.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/tasks.py
 
 from celery import shared_task
 from django.utils.timezone import now, timedelta
-from .models import ConsentAgreement
-from .sexsi_flow import send_signature_reminder
+from app.sexsi.models import ConsentAgreement
+from app.sexsi.sexsi_flow import send_signature_reminder
 from app.chatbot.integrations.services import send_message
 from django.contrib.auth.models import User
-import 
-# Modelo de cupones
-from .models import DiscountCoupon
+from app.sexsi.models import DiscountCoupon # Modelo de cupones
 
 @shared_task
 def send_signature_reminder_intervals():

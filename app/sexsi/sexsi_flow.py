@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablollh/sexsi/sexsi_flow.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/sexsi_flow.py
 
 
 import uuid
@@ -7,7 +7,7 @@ from asgiref.sync import async_to_sync
 from app.chatbot.integrations.services import send_message
 from forex_python.converter import CurrencyRates
 from django.utils.timezone import now
-from .models import
+from app.sexsi.models import ConsentAgreement, SexsiConfig, DiscountCoupon
 
 # -------------------------
 # CONFIGURACIÓN DE REDONDEO
