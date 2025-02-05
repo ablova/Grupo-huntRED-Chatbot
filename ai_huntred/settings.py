@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     'app.chatbot',
     'app.ml',
     'app.utilidades',
+    'sexsi',
     # Librerías externas
     'rest_framework',
     'django_filters',
