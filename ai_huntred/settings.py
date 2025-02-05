@@ -59,6 +59,7 @@ DATABASES = {
         }
     }
 }
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Celery Configuration
 CELERY_BROKER_URL = env('CELERY_BROKER_URL')
@@ -88,7 +89,8 @@ INSTALLED_APPS = [
     'app.chatbot',
     'app.ml',
     'app.utilidades',
-    'sexsi',
+    'app.sexsi',
+    'app.milkyleak',
     # Librerías externas
     'rest_framework',
     'django_filters',

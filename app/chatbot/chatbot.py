@@ -14,7 +14,7 @@ from app.chatbot.integrations.services import (
     send_message, send_email, reset_chat_state
 )
 from app.chatbot.utils import analyze_text  # Encargado del NLP y patrones de intents
-from sexsi.sexsi_flow import iniciar_flujo_sexsi, confirmar_pago_sexsi
+from app.sexsi.sexsi_flow import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 
 logger = logging.getLogger(__name__)
