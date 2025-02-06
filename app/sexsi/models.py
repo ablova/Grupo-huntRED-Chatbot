@@ -66,6 +66,9 @@ class ConsentAgreement(models.Model):
         default="internal",
         help_text="Método de firma elegido"
     )
+        # Nuevo campo para registro de aceptación de TOS
+    tos_accepted = models.BooleanField(default=False)
+    tos_accepted_timestamp = models.DateTimeField(null=True, blank=True)
     
     def __str__(self):
         return f"Consentimiento #{self.id} - {self.creator.username}"

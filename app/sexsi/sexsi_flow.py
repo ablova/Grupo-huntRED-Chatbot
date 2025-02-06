@@ -28,7 +28,6 @@ def redondear_a_50_centavos(valor, redondear=REDONDEAR_PRECIO):
 # -------------------------
 # MÓDULO DE PRECIOS Y CONVERSIÓN DINÁMICA
 # -------------------------
-
 IVA_RATE = 0.16  # 16% de IVA
 
 def calcular_precio_con_iva(precio_base):
@@ -43,9 +42,8 @@ def obtener_tasa_conversion(base_currency="USD", target_currency="MXN"):
         c = CurrencyRates()
         rate = c.get_rate(base_currency, target_currency)
         return rate
-    except Exception as e:
-        # En caso de error, se utiliza una tasa de respaldo.
-        return 20.53
+    except Exception:
+        return 20.53  # Tasa de respaldo en caso de error
 
 def convertir_usd_a_mxn(precio_usd):
     """
@@ -90,24 +88,22 @@ PRICING_OPTIONS = obtener_pricing_options()
 # -------------------------
 # FUNCIONES DEL FLUJO SEXSI
 # -------------------------
-
-def process_sexsi_payment(user, amount, payment_details=None):
+def process_sexsi_payment(user, amount):
     """
-    Función simulada para procesar el pago mediante PayPal (o similar).
-    Devuelve (True, transaction_id) si es exitoso, o (False, None) si falla.
+    Simula el procesamiento de pago. Devuelve (True, transaction_id) si es exitoso, (False, None) si falla.
     """
     transaction_id = str(uuid.uuid4())  # Simula un ID de transacción
     return True, transaction_id
 
 def iniciar_flujo_sexsi(phone_id, user, business_unit, context):
     """
-    Inicia el flujo SEXSI, mostrando al usuario las opciones con precios en USD y su conversión a MXN.
+    Inicia el flujo SEXSI mostrando las opciones de firma y precios.
     """
     mensaje = (
         "Bienvenido al flujo SEXSI. Por favor, elige tu opción para firmar el contrato:\n"
-        f"1. Firma electrónica a través de Hellosign (Precio: ${PRICING_OPTIONS['hellosign']['precio_total_usd']} USD, "
+        f"1. Firma electrónica con Hellosign (Precio: ${PRICING_OPTIONS['hellosign']['precio_total_usd']} USD, "
         f"{PRICING_OPTIONS['hellosign']['precio_total_mxn']} MXN).\n"
-        f"2. Firma electrónica con nuestro desarrollo interno (Precio: ${PRICING_OPTIONS['internal']['precio_total_usd']} USD, "
+        f"2. Firma interna (Precio: ${PRICING_OPTIONS['internal']['precio_total_usd']} USD, "
         f"{PRICING_OPTIONS['internal']['precio_total_mxn']} MXN).\n"
         "Responde con '1' o '2'."
     )
@@ -120,37 +116,26 @@ def iniciar_flujo_sexsi(phone_id, user, business_unit, context):
 
 def confirmar_pago_sexsi(phone_id, user, business_unit, context, choice):
     """
-    Procesa el pago según la opción elegida por el cliente. 'choice' debe ser '1' (Hellosign) o '2' (Desarrollo Interno).
+    Procesa el pago según la opción elegida por el usuario.
     """
     operacion = context.get('operacion_sexsi', {})
     if not operacion.get('pending_choice'):
         async_to_sync(send_message)("whatsapp", phone_id, "No hay una operación pendiente.", business_unit)
         return False, None
 
-    if choice == '1':
-        pricing = operacion.get('pricing', {}).get('hellosign', {})
-        amount = pricing.get('precio_total_usd', 0)
-        signature_method = "hellosign"
-    elif choice == '2':
-        pricing = operacion.get('pricing', {}).get('internal', {})
-        amount = pricing.get('precio_total_usd', 0)
-        signature_method = "internal"
-    else:
-        async_to_sync(send_message)("whatsapp", phone_id, "Opción inválida. Por favor, responde '1' o '2'.", business_unit)
-        return False, None
-
+    signature_method = "hellosign" if choice == '1' else "internal"
+    pricing = operacion.get('pricing', {}).get(signature_method, {})
+    amount = pricing.get('precio_total_usd', 0)
+    
     pago_exitoso, transaction_id = process_sexsi_payment(user, amount)
     if pago_exitoso:
         operacion['pending_choice'] = False
         operacion['transaction_id'] = transaction_id
         operacion['signature_method'] = signature_method
         context['operacion_sexsi'] = operacion
-
         mensaje_pago = (
             f"Pago procesado con éxito (ID: {transaction_id}). "
-            f"Has elegido el método de firma: {signature_method.capitalize()}.\n"
-            "Ahora, por favor, completa la información para el acuerdo SEXSI."
-        )
+            f"Has elegido el método de firma: {signature_method.capitalize()}.")
         async_to_sync(send_message)("whatsapp", phone_id, mensaje_pago, business_unit)
         return True, transaction_id
     else:
