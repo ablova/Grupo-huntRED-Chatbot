@@ -10,6 +10,7 @@ urlpatterns = [
     path('create/', create_agreement, name='create_agreement'),
     path('agreement/<int:agreement_id>/', agreement_detail, name='agreement_detail'),
     path('sign/<int:agreement_id>/', sign_agreement, name='sign_agreement'),
+    path('sign/<int:agreement_id>/<str:signer>/<uuid:token>/', sign_agreement, name='sign_agreement'),
     path('download/<int:agreement_id>/', download_pdf, name='download_pdf'),
     path('sign/biometric/<int:agreement_id>/', save_biometric_signature, name='save_biometric_signature'),
 ]
