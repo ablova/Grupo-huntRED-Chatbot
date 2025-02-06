@@ -79,7 +79,7 @@ urlpatterns = [
     path('webhook/', include('app.urls.webhook_urls')),  # Incluye solo las rutas de 'webhook_urls.py'
 
     #Incluir sexsi
-    path('sexsi/', include('app.sexsi.urls', namespace='sexsi')),
+    path('app/sexsi/', include('app.sexsi.urls', namespace='sexsi')),
 
 ]
 
