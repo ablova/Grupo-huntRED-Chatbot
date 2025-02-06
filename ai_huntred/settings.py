@@ -116,6 +116,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(BASE_DIR, 'templates'),  # 🔹 Plantillas generales
+            os.path.join(BASE_DIR, 'app', 'templates', 'admin'),  # 📌 Templates Admin
             os.path.join(BASE_DIR, 'app', 'sexsi', 'templates'), # 🔥 Plantillas de SEXSI
         ],
         'APP_DIRS': True,

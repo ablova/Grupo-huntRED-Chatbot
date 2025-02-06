@@ -1,0 +1,19 @@
+<!-- /home/pablollh/templates/admin/change_list.html -->
+{% extends "admin/base_site.html" %}
+{% load i18n admin_list %}
+
+{% block content %}
+    <h1>{% block title %}{% trans 'Lista de Registros' %}{% endblock %}</h1>
+    <div class="module">
+        {% if cl.result_count %}
+            <form id="changelist-form" method="post" novalidate>
+                {% csrf_token %}
+                <div class="results">
+                    {% result_list cl %}
+                </div>
+            </form>
+        {% else %}
+            <p>{% trans "No hay elementos disponibles." %}</p>
+        {% endif %}
+    </div>
+{% endblock %}
