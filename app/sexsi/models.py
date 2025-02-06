@@ -1,6 +1,7 @@
 # Ubicacion SEXSI -- /home/pablollh/app/sexsi/models.py
 
 from django.db import models
+from datetime import timedelta
 from django.contrib.auth.models import User
 import uuid
 
@@ -39,6 +40,11 @@ class ConsentAgreement(models.Model):
         help_text="Número o identificador del canal (WhatsApp, Telegram, etc.)"
     )
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    
+    def default_token_expiry():
+        return now() + timedelta(days=2)
+
+    token_expiry = models.DateTimeField(default=default_token_expiry)
     date_created = models.DateTimeField(auto_now_add=True)
     date_of_encounter = models.DateField(null=True, blank=True)
     location = models.CharField(max_length=255, blank=True)

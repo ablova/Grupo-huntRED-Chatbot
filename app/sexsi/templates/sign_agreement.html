@@ -6,8 +6,6 @@
 <p>Para dar validez legal a esta transacción, se registrarán detalles como el origen de la solicitud, fecha, hora y, en la medida de lo posible, la ubicación de ambas partes.</p>
 <p>Por favor, sube tu firma electrónica o utiliza la opción de firma biométrica.</p>
 
-
-
 {% if messages %}
 <ul class="messages">
     {% for message in messages %}
@@ -19,14 +17,13 @@
 <p>Firmando como: 
     <strong>
         {% if signer == "creator" %}
-            Creador - {{ agreement.invitee_contact }}
+            Creador - {{ agreement.creator.username }}
         {% else %}
             Invitado - {{ agreement.invitee_contact }}
         {% endif %}
     </strong>
 </p>
 <p>Por favor, sube tu firma electrónica o utiliza la opción de firma biométrica.</p>
-
 
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
@@ -71,7 +68,7 @@
         let canvas = document.getElementById("biometricCanvas");
         let biometricData = canvas.toDataURL("image/png").replace("data:image/png;base64,", "");
         
-        fetch("{% url 'sexsi:save_biometric_signature' agreement.id %}?token={{ token }}&signer={{ signer }}", {
+        fetch("{% url 'sexsi:save_biometric_signature' agreement.id signer token %}", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ biometric_data: biometricData })
