@@ -44,6 +44,7 @@ BUSINESS_UNIT_CHOICES = [
     ('huntRED_executive', 'huntRED® Executive'),
     ('huntu', 'huntU®'),
     ('amigro', 'Amigro®'),
+    ('sexsi', 'SexSI'),
 ]
 
 COMUNICATION_CHOICES =[
