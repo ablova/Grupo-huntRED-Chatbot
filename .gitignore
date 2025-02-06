@@ -13,7 +13,7 @@ shell.py
 *.json
 
 # Archivos estáticos generados
-staticfiles/
+# staticfiles/
 media/
 # Ignorar archivos temporales
 ~*
