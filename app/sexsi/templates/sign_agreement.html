@@ -6,6 +6,8 @@
 <p>Para dar validez legal a esta transacción, se registrarán detalles como el origen de la solicitud, fecha, hora y, en la medida de lo posible, la ubicación de ambas partes.</p>
 <p>Por favor, sube tu firma electrónica o utiliza la opción de firma biométrica.</p>
 
+
+
 {% if messages %}
 <ul class="messages">
     {% for message in messages %}
@@ -13,6 +15,18 @@
     {% endfor %}
 </ul>
 {% endif %}
+
+<p>Firmando como: 
+    <strong>
+        {% if signer == "creator" %}
+            Creador - {{ agreement.invitee_contact }}
+        {% else %}
+            Invitado - {{ agreement.invitee_contact }}
+        {% endif %}
+    </strong>
+</p>
+<p>Por favor, sube tu firma electrónica o utiliza la opción de firma biométrica.</p>
+
 
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
