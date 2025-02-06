@@ -47,26 +47,15 @@ def agreement_detail(request, agreement_id):
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
     return render(request, 'agreement_detail.html', {'agreement': agreement})
 
-def sign_agreement(request, agreement_id):
+def sign_agreement(request, agreement_id, signer, token):
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
-    token = request.GET.get("token")
-    signer = request.GET.get("signer")
 
     if not validate_token(agreement, token):
         messages.error(request, "El token de firma ha expirado o no es válido.")
         return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
 
-    if request.method == "POST":
-        process_signature(agreement, request, signer)
-        messages.success(request, "Firma registrada con éxito.")
-        return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
+    return render(request, "sign_agreement.html", {"agreement": agreement, "signer": signer, "token": token})
 
-    return render(request, "sign_agreement.html", {
-        "agreement": agreement,
-        "token": token,
-        "signer": signer,
-        "invitee_name": agreement.invitee_contact
-    })
 
 @login_required
 def download_pdf(request, agreement_id):
