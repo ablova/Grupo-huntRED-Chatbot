@@ -184,3 +184,84 @@ def apply_discount_coupon(user, original_price):
         return discounted_price, coupon.code
     
     return original_price, None
+
+# -------------------------
+# VALIDACIÓN DE IDENTIDAD Y FIRMA
+# -------------------------
+
+def solicitar_validacion_identidad(agreement):
+    """Solicita al invitado en WhatsApp que valide su identidad antes de firmar."""
+    
+    message = (
+        f"📜 Acuerdo pendiente en SEXSI:\n"
+        f"{agreement.agreement_text[:100]}...\n\n"
+        "Antes de firmar, necesitamos validar tu identidad. Responde con:\n"
+        "1️⃣ Foto de tu INE o pasaporte.\n"
+        "2️⃣ Tu *nombre completo* como aparece en tu documento.\n"
+        "3️⃣ Tu *fecha de nacimiento* (DD/MM/AAAA).\n"
+        "4️⃣ *¿Estás consciente y en pleno uso de tus facultades?* (SÍ/NO)\n"
+        "5️⃣ *¿Has consumido alcohol o drogas en las últimas 6 horas?* (SÍ/NO)\n"
+        "6️⃣ Responde 'ACEPTO' si deseas continuar con la firma."
+    )
+
+    business_unit = BusinessUnit.objects.get(name="sexsi")
+    async_to_sync(send_message)("whatsapp", agreement.invitee_contact, message, business_unit)
+
+
+def validar_respuesta_identidad(agreement, name, birthdate, conscious, sober):
+    """Valida la respuesta del usuario antes de permitir la firma."""
+    from datetime import datetime
+    import re
+
+    # Validar nombre
+    if not re.match(r"^[A-Za-zÁÉÍÓÚÑáéíóúñ\s]{5,}$", name):
+        return False, "El nombre ingresado no es válido. Asegúrate de escribirlo como aparece en tu INE."
+    
+    # Validar fecha de nacimiento
+    try:
+        birth_date = datetime.strptime(birthdate, "%d/%m/%Y")
+        age = (datetime.now() - birth_date).days // 365
+        if age < 18:
+            return False, "No puedes firmar este acuerdo porque eres menor de edad."
+    except ValueError:
+        return False, "La fecha de nacimiento no tiene el formato correcto (DD/MM/AAAA)."
+    
+    # Verificar estado de conciencia
+    if conscious.lower() != "sí":
+        return False, "No puedes firmar este acuerdo si no estás en pleno uso de tus facultades mentales."
+    
+    # Verificar sobriedad
+    if sober.lower() == "sí":
+        return False, "No puedes firmar este acuerdo si has consumido alcohol o drogas recientemente."
+    
+    # Si todo está validado, guardar en el acuerdo
+    agreement.full_name_verified = name
+    agreement.birthdate_verified = birthdate
+    agreement.is_conscious = True
+    agreement.is_sober = True
+    agreement.identity_verified = True
+    agreement.save()
+    return True, "✅ Identidad validada y puedes proceder con la firma."
+
+
+# -------------------------
+# FIRMA Y ACEPTACIÓN PARCIAL DEL ACUERDO
+# -------------------------
+
+def aceptar_rechazar_actividades(agreement, accepted_activities, rejected_activities):
+    """Permite aceptar o rechazar actividades sin invalidar el acuerdo."""
+    agreement.consensual_activities = {"accepted": accepted_activities, "rejected": rejected_activities}
+    if rejected_activities:
+        agreement.modifications_pending = True
+    agreement.save()
+    return "✅ Has actualizado el acuerdo. El creador debe aprobar los cambios antes de firmar."
+
+
+def aprobar_cambios_y_firmar(agreement, user):
+    """Permite que el creador apruebe modificaciones y complete la firma."""
+    if agreement.modifications_pending and agreement.creator == user:
+        agreement.modifications_pending = False
+        agreement.is_signed_by_creator = True
+        agreement.save()
+        return "✅ Cambios aprobados y acuerdo firmado por el creador."
+    return "⚠️ No tienes permisos para aprobar este acuerdo o no hay cambios pendientes."

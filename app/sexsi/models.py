@@ -45,6 +45,7 @@ class ConsentAgreement(models.Model):
     agreement_text = models.TextField(
         default="Ambas partes están de acuerdo en tener un encuentro íntimo..."
     )
+    consensual_activities = models.JSONField(default=dict, help_text="Actividades aceptadas por ambas partes")
     is_signed_by_creator = models.BooleanField(default=False)
     is_signed_by_invitee = models.BooleanField(default=False)
     creator_signature = models.ImageField(

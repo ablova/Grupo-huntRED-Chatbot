@@ -114,7 +114,10 @@ ROOT_URLCONF = 'ai_huntred.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),  # 🔹 Plantillas generales
+            os.path.join(BASE_DIR, 'app', 'sexsi', 'templates'), # 🔥 Plantillas de SEXSI
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -126,6 +129,8 @@ TEMPLATES = [
         },
     },
 ]
+
+
 
 WSGI_APPLICATION = 'ai_huntred.wsgi.application'
 
