@@ -1,12 +1,16 @@
 <!--# Ubicacion SEXSI -- /home/pablollh/app/sexsi/templates/create_agreement.html -->
 
-{% extends "base.html" %}
+{{% extends "base.html" %}
 {% block content %}
 <h1>Crear Acuerdo SEXSI</h1>
 <p>Por favor, ingresa la información completa. Esta transacción incluirá detalles legales como el origen de la solicitud, fecha, hora y ubicaciones de ambas partes.</p>
 <form method="post">
     {% csrf_token %}
     {{ form.as_p }}
+    <p>
+        <input type="checkbox" name="accept_tos" required>
+        Acepto los <a href="#">Términos de Servicio</a> y la <a href="#">Política de Privacidad</a>.
+    </p>
     <button type="submit">Crear Acuerdo</button>
 </form>
 {% endblock %}
