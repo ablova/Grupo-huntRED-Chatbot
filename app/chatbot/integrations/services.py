@@ -77,8 +77,15 @@ async def send_message(
                 buttons=options,  
                 business_unit=business_unit
             )
-        elif platform in ['telegram', 'messenger', 'instagram']:
-            # Ejemplo de Telegram, Messenger, etc.
+        elif platform == 'telegram':
+            await send_function(
+                chat_id=user_id,  # ✅ Corrección: se usa `chat_id`
+                message=message,
+                buttons=options,
+                access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
+            )
+        elif platform in ['messenger', 'instagram']:
+            # Ejemplo de Messenger, etc.
             await send_function(
                 user_id=user_id,
                 message=message,

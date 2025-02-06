@@ -19,7 +19,7 @@ from django.views.generic import ListView
 
 class ConsentAgreementListView(ListView):
     model = ConsentAgreement
-    template_name = "sexsi/consent_list.html"
+    template_name = "consent_list.html"
     context_object_name = "agreements"
 
     def get_queryset(self):
@@ -40,12 +40,12 @@ def create_agreement(request):
             return redirect('sexsi:agreement_detail', agreement.id)
     else:
         form = ConsentAgreementForm()
-    return render(request, 'sexsi/create_agreement.html', {'form': form})
+    return render(request, 'create_agreement.html', {'form': form})
 
 @login_required
 def agreement_detail(request, agreement_id):
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
-    return render(request, 'sexsi/agreement_detail.html', {'agreement': agreement})
+    return render(request, 'agreement_detail.html', {'agreement': agreement})
 
 def sign_agreement(request, agreement_id):
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
@@ -59,7 +59,7 @@ def sign_agreement(request, agreement_id):
         messages.success(request, "Firma registrada con éxito.")
         return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
     
-    return render(request, "sexsi/sign_agreement.html", {"agreement": agreement, "token": token})
+    return render(request, "sign_agreement.html", {"agreement": agreement, "token": token})
 
 @login_required
 def download_pdf(request, agreement_id):
@@ -89,7 +89,7 @@ def process_signature(agreement, request):
         agreement.save()
 
 def generate_pdf_response(agreement):
-    html_string = render_to_string('sexsi/pdf_template.html', {'agreement': agreement})
+    html_string = render_to_string('pdf_template.html', {'agreement': agreement})
     html = HTML(string=html_string)
     pdf_file = html.write_pdf()
     response = HttpResponse(pdf_file, content_type='application/pdf')
