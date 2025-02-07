@@ -32,6 +32,7 @@ class ConsentAgreement(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     date_of_encounter = models.DateField(null=True, blank=True)
     location = models.CharField(max_length=255, blank=True)
+    consensual_activities = models.JSONField(default=dict, help_text="Actividades aceptadas por ambas partes")
     
     # Firma y validaciones
     is_signed_by_creator = models.BooleanField(default=False)
