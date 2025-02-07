@@ -26,6 +26,15 @@ class SexsiConfig(models.Model):
 
 class ConsentAgreement(models.Model):
     """Modelo de Acuerdo de Consentimiento con doble validación de firma."""
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('pending_review', 'Pendiente de Revisión'),
+        ('needs_revision', 'Requiere Revisión'),
+        ('signed', 'Firmado por Ambas Partes'),
+        ('completed', 'Completado')
+    ]
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_agreements')
     invitee_contact = models.CharField(max_length=50, help_text="Número o identificador del canal")
     agreement_text = models.TextField()
