@@ -4,27 +4,9 @@
 {% block content %}
 <h1 align="center">Firmar Acuerdo SEXSI</h1>
 <p>Para brindar la mayor validez legal a esta transacción, se registrarán detalles como el origen de la solicitud, fecha, hora y ubicación de ambas partes.</p>
-
-{% if messages %}
-<ul class="messages">
-    {% for message in messages %}
-    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-    {% endfor %}
-</ul>
-{% endif %}
-
-<p>Firmando como: 
-    <strong>
-        {% if signer == "creator" %}
-            Creador - {{ agreement.creator.username }}
-        {% else %}
-            Invitado - {{ agreement.invitee_contact }}
-        {% endif %}
-    </strong>
-</p>
+<p><strong>Estado del Acuerdo:</strong> <span id="agreementStatus">{{ agreement.get_status_display }}</span></p>
 
 <h2>Opciones de Firma</h2>
-
 <h3>📸 Firma con Identificación (Selfie + INE/Pasaporte)</h3>
 <p><strong>Importante:</strong> Sube una imagen donde aparezca tu identificación oficial (INE o pasaporte) junto con tu rostro.</p>
 <p>⚠️ <strong>Si la imagen no cumple con estos requisitos, el acuerdo podría ser inválido.</strong></p>
@@ -44,6 +26,7 @@
     <button type="button" id="clearBiometric">🗑 Limpiar Firma</button>
     <br><br>
     <button type="button" id="sendBiometric">Enviar Firma y Selfie</button>
+    <button type="button" id="requestRevision" style="background-color: #ffc107;">Solicitar Revisión</button>
 </form>
 
 <script>
@@ -115,7 +98,6 @@
         document.getElementById("sendBiometric").addEventListener("click", function () {
             let biometricData = canvas.toDataURL("image/png");
             let selfieFile = document.getElementById("signature").files[0];
-
             if (!selfieFile || biometricData.length < 1000) {
                 alert("⚠️ Debes subir una selfie con identificación y firmar en el recuadro.");
                 return;
@@ -127,7 +109,7 @@
             formData.append("latitude", userLat || "Ubicación desconocida");
             formData.append("longitude", userLon || "Ubicación desconocida");
 
-            fetch(`/app/sexsi/sign/save/${agreementId}/?signer=${signer}`, {  // 🔹 Pasamos `signer` como parámetro en GET
+            fetch(`/app/sexsi/sign/save/${agreementId}/?signer=${signer}`, {
                 method: "POST",
                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                 body: formData
@@ -146,59 +128,6 @@
                 alert("⚠️ Hubo un problema al enviar los datos.");
             });
         });
-
-        document.getElementById("finalizeAgreement").addEventListener("click", function () {
-            fetch(`/app/sexsi/sign/save/${agreementId}/${signer}/${token}/`, {
-                method: "POST",
-                headers: { "X-CSRFToken": "{{ csrf_token }}" }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert("✅ Acuerdo firmado correctamente. Redirigiendo...");
-                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
-                } else {
-                    alert("⚠️ Error al guardar la firma: " + data.message);
-                }
-            })
-            .catch(error => {
-                console.error("Error al guardar:", error);
-                alert("⚠️ Hubo un problema al guardar la firma.");
-            });
-        });
-
     });
 </script>
-
-<style>
-    #signature-container {
-        touch-action: none;
-        display: flex;
-        justify-content: center;
-        margin-bottom: 10px;
-    }
-
-    canvas {
-        border: 2px solid black;
-        background-color: white;
-    }
-
-    #finalizeAgreement {
-        display: none; /* 🔹 Oculto hasta que se suban la firma y la selfie */
-        width: 100%;
-        padding: 12px;
-        font-size: 18px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-align: center;
-        margin-top: 15px;
-    }
-
-    #finalizeAgreement:hover {
-        background-color: #218838;
-    }
-</style>
 {% endblock %}

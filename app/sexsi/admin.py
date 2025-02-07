@@ -5,8 +5,8 @@ from app.sexsi.models import ConsentAgreement, PaymentTransaction, SexsiConfig
 
 @admin.register(ConsentAgreement)
 class ConsentAgreementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'creator', 'date_created', 'signature_method', 'is_signed_by_creator', 'is_signed_by_invitee', 'tos_accepted')
-    list_filter = ('signature_method', 'is_signed_by_creator', 'is_signed_by_invitee', 'tos_accepted')
+    list_display = ('id', 'status', 'creator', 'date_created', 'signature_method', 'is_signed_by_creator', 'is_signed_by_invitee', 'tos_accepted')
+    list_filter = ('status', 'signature_method', 'is_signed_by_creator', 'is_signed_by_invitee', 'tos_accepted')
     search_fields = ('creator__username', 'invitee_contact',)
     change_list_template = "admin/consentagreement_change_list.html"
     
