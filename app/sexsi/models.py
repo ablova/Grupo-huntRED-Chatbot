@@ -49,6 +49,8 @@ class ConsentAgreement(models.Model):
     otp_expiry = models.DateTimeField(null=True, blank=True)
     creator_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
     invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
+    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del creador con identificación")
+    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del invitado con identificación")
     
     # Seguridad y control de token
     def get_token_expiry():
