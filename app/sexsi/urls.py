@@ -16,4 +16,7 @@ urlpatterns = [
     path('sign/finalize/<int:agreement_id>/<str:signer>/<uuid:token>/', finalize_agreement, name='finalize_agreement'),
     path('sign/revision/<int:agreement_id>/', request_revision, name='request_revision'),
     path('sign/revoke/<int:agreement_id>/', views.revoke_agreement, name='revoke_agreement'),
+
+    # PAYPAL
+    path('webhook/paypal/', views.paypal_webhook, name='paypal_webhook'),
 ]
