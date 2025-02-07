@@ -39,10 +39,13 @@
         let signer = "{{ signer }}";
         let token = "{{ token }}";
         let agreementId = "{{ agreement.id }}";
+        let sendButton = document.getElementById("sendBiometric");
 
         function resizeCanvas() {
-            canvas.width = Math.min(window.innerWidth * 0.9, 350);
-            canvas.height = 200;
+            const pixelRatio = window.devicePixelRatio || 1;
+            canvas.width = Math.min(window.innerWidth * 0.9, 350) * pixelRatio;
+            canvas.height = 200 * pixelRatio;
+            ctx.scale(pixelRatio, pixelRatio);
             ctx.fillStyle = "#FFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
@@ -56,6 +59,7 @@
                     userLon = position.coords.longitude;
                 }, error => {
                     console.warn("⚠️ No se pudo obtener la ubicación:", error);
+                    alert("⚠️ No se pudo obtener la ubicación. Asegúrate de habilitar el GPS.");
                 });
             }
         }
@@ -95,13 +99,17 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         });
 
-        document.getElementById("sendBiometric").addEventListener("click", function () {
+        sendButton.addEventListener("click", function () {
             let biometricData = canvas.toDataURL("image/png");
             let selfieFile = document.getElementById("signature").files[0];
+
             if (!selfieFile || biometricData.length < 1000) {
                 alert("⚠️ Debes subir una selfie con identificación y firmar en el recuadro.");
                 return;
             }
+
+            sendButton.disabled = true;
+            sendButton.innerText = "Enviando...";
 
             let formData = new FormData();
             formData.append("signature", selfieFile);
@@ -121,13 +129,35 @@
                     window.location.href = `/app/sexsi/agreement/${agreementId}/`;
                 } else {
                     alert("⚠️ Error: " + data.message);
+                    sendButton.disabled = false;
+                    sendButton.innerText = "Enviar Firma y Selfie";
                 }
             })
             .catch(error => {
                 console.error("Error en el envío:", error);
                 alert("⚠️ Hubo un problema al enviar los datos.");
+                sendButton.disabled = false;
+                sendButton.innerText = "Enviar Firma y Selfie";
             });
         });
+
     });
 </script>
+
+<style>
+    #signature-container {
+        touch-action: none;
+        display: flex;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+    canvas {
+        border: 2px solid black;
+        background-color: white;
+        width: 100%;
+        height: 200px;
+    }
+</style>
+
 {% endblock %}
