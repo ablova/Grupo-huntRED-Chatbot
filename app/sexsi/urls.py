@@ -1,13 +1,16 @@
 # Ubicacion SEXSI -- /home/pablollh/app/sexsi/urls.py
 from django.urls import path
 from app.sexsi.views import (
-    create_agreement, agreement_detail, sign_agreement, 
+    create_agreement, agreement_detail, sign_agreement,
     download_pdf, upload_signature_and_selfie, finalize_agreement, request_revision, revoke_agreement, paypal_webhook
 )
+from app.chatbot.integrations.telegram import telegram_webhook
 
 app_name = 'sexsi'
 
 urlpatterns = [
+    path('webhook/telegram/', telegram_webhook, name='telegram_webhook'),
+
     path('create/', create_agreement, name='create_agreement'),
     path('agreement/<int:agreement_id>/', agreement_detail, name='agreement_detail'),
     path('sign/<int:agreement_id>/<str:signer>/<uuid:token>/', sign_agreement, name='sign_agreement'),
