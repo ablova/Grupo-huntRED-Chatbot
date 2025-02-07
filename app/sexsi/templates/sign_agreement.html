@@ -2,9 +2,8 @@
 
 {% extends "base.html" %}
 {% block content %}
-<h1>Firmar Acuerdo SEXSI</h1>
-<p>Para dar validez legal a esta transacción, se registrarán detalles como el origen de la solicitud, fecha, hora y, en la medida de lo posible, la ubicación de ambas partes.</p>
-<p>Por favor, sube tu firma electrónica o utiliza la opción de firma biométrica.</p>
+<h1 align="center">Firmar Acuerdo SEXSI</h1>
+<p>Para garantizar la mayor validez legal, se registrarán detalles como la ubicación, fecha y hora de ambas partes.</p>
 
 {% if messages %}
 <ul class="messages">
@@ -14,69 +13,43 @@
 </ul>
 {% endif %}
 
-<p>Firmando como: 
-    <strong>
-        {% if signer == "creator" %}
-            Creador - {{ agreement.creator.username }}
-        {% else %}
-            Invitado - {{ agreement.invitee_contact }}
-        {% endif %}
-    </strong>
-</p>
-<p>Por favor, sube tu firma electrónica o utiliza la opción de firma biométrica.</p>
+<p>Firmando como: <strong>
+    {% if signer == "creator" %}Creador - {{ agreement.creator.username }}
+    {% else %}Invitado - {{ agreement.invitee_contact }}
+    {% endif %}
+</strong></p>
 
-<form method="post" enctype="multipart/form-data">
+<h2>📸 Paso 1: Subir Selfie con Identificación</h2>
+<form id="selfieForm" method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <label for="signature">Firma Electrónica:</label>
-    <input type="file" name="signature" id="signature" accept="image/*">
+    <label for="selfie">Toma una selfie con tu identificación oficial (INE o pasaporte):</label>
+    <input type="file" name="selfie" id="selfie" accept="image/*" capture="user" required>
     <br>
-    <img id="preview" src="#" alt="Vista previa de la firma" style="display:none; max-width: 200px; margin-top: 10px;">
+    <img id="previewSelfie" src="#" alt="Vista previa de la selfie" style="display:none; max-width: 250px; margin-top: 10px;">
     <br>
-    <button type="submit">Enviar Firma</button>
+    <button type="submit">Subir Selfie</button>
 </form>
 
-<!-- Sección para firma biométrica -->
-<h2>Opción de Firma Biométrica</h2>
-<button id="startBiometric">Capturar Firma Biométrica</button>
-<canvas id="biometricCanvas" style="display:none; border: 1px solid black;"></canvas>
-<button id="sendBiometric" style="display:none;">Enviar Firma Biométrica</button>
+<h2>✍️ Paso 2: Firma Autógrafa</h2>
+<p>Usa tu dedo o un stylus para firmar en el recuadro. Se registrará tu ubicación.</p>
+<div id="signature-container">
+    <canvas id="biometricCanvas"></canvas>
+</div>
+<button id="clearBiometric">🗑 Limpiar Firma</button>
+<button id="sendBiometric">Enviar Firma</button>
 
 <script>
-    document.getElementById("signature").onchange = function (event) {
-        var reader = new FileReader();
-        reader.onload = function () {
-            var img = document.getElementById("preview");
-            img.src = reader.result;
-            img.style.display = "block";
-        };
-        reader.readAsDataURL(event.target.files[0]);
-    };
-
-    // Capturar firma biométrica desde canvas
-    document.getElementById("startBiometric").addEventListener("click", function() {
-        let canvas = document.getElementById("biometricCanvas");
-        let ctx = canvas.getContext("2d");
-        canvas.width = 300;
-        canvas.height = 150;
-        canvas.style.display = "block";
-        document.getElementById("sendBiometric").style.display = "block";
-        ctx.fillStyle = "#FFF";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-    });
-
-    document.getElementById("sendBiometric").addEventListener("click", function() {
-        let canvas = document.getElementById("biometricCanvas");
-        let biometricData = canvas.toDataURL("image/png").replace("data:image/png;base64,", "");
-        
-        fetch("{% url 'sexsi:save_biometric_signature' agreement.id signer token %}", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ biometric_data: biometricData })
-        })
-        .then(response => response.json())
-        .then(data => alert(data.message))
-        .catch(error => alert("Error enviando firma biométrica"));
+    document.addEventListener("DOMContentLoaded", function () {
+        let selfieInput = document.getElementById("selfie");
+        selfieInput.addEventListener("change", function (event) {
+            let reader = new FileReader();
+            reader.onload = function () {
+                let img = document.getElementById("previewSelfie");
+                img.src = reader.result;
+                img.style.display = "block";
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        });
     });
 </script>
-
 {% endblock %}

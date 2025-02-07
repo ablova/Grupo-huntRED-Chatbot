@@ -56,9 +56,23 @@ def generate_discount_coupon(user):
     return coupon
 
 @shared_task
-def expire_old_coupons():
-    """Desactiva cupones expirados automáticamente."""
+def delete_expired_otps_and_tokens():
+    """Elimina OTPs, tokens expirados y cupones vencidos automáticamente."""
+    expired_agreements = ConsentAgreement.objects.filter(
+        otp_expiry__lt=now()
+    )
+    count_otps = expired_agreements.count()
+    expired_agreements.update(otp_code=None, otp_expiry=None)
+    
+    expired_tokens = ConsentAgreement.objects.filter(
+        token_expiry__lt=now()
+    )
+    count_tokens = expired_tokens.count()
+    expired_tokens.update(token=None)
+    
     expired_coupons = DiscountCoupon.objects.filter(expiration_date__lt=now(), is_used=False)
-    count = expired_coupons.count()
+    count_coupons = expired_coupons.count()
     expired_coupons.update(is_used=True)
-    return f"{count} cupones expirados."
+    
+    logger.info(f"{count_otps} OTPs eliminados, {count_tokens} tokens eliminados, {count_coupons} cupones expirados.")
+    return f"{count_otps} OTPs eliminados, {count_tokens} tokens eliminados, {count_coupons} cupones expirados."

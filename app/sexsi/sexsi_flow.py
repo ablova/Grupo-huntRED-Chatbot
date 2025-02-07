@@ -174,16 +174,29 @@ def process_pending_agreements():
 
 def apply_discount_coupon(user, original_price):
     """Aplica un cupón de descuento válido al precio original."""
-    valid_coupons = DiscountCoupon.objects.filter(user=user, is_used=False, expiration_date__gt=now())
+    valid_coupons = DiscountCoupon.objects.filter(user=user, is_used=False, expiration_date__gt=now()).order_by('-discount_percentage')
     
     if valid_coupons.exists():
         coupon = valid_coupons.first()
         discounted_price = original_price * (1 - (coupon.discount_percentage / 100))
         coupon.is_used = True
         coupon.save()
-        return discounted_price, coupon.code
+        return max(discounted_price, 0), coupon.code  # Asegurar que no sea menor a 0
     
     return original_price, None
+
+def generate_discount_coupon(user, discount_percentage):
+    """Genera un cupón con un porcentaje de descuento específico y una validez definida."""
+    coupon_code = str(uuid.uuid4())[:8].upper()
+    expiration_date = now() + timedelta(days=30)
+    coupon = DiscountCoupon.objects.create(
+        user=user,
+        code=coupon_code,
+        discount_percentage=discount_percentage,
+        expiration_date=expiration_date,
+        is_used=False
+    )
+    return coupon
 
 # -------------------------
 # VALIDACIÓN DE IDENTIDAD Y FIRMA
