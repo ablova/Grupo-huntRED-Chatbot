@@ -27,6 +27,9 @@
     <br><br>
     <button type="button" id="sendBiometric">Enviar Firma y Selfie</button>
     <button type="button" id="requestRevision" style="background-color: #ffc107;">Solicitar Revisión</button>
+    <button type="button" id="revokeAgreement" style="background-color: #dc3545; color: white;">
+        ❌ Rechazar Acuerdo
+    </button>
 </form>
 
 <script>
@@ -138,6 +141,27 @@
                 alert("⚠️ Hubo un problema al enviar los datos.");
                 sendButton.disabled = false;
                 sendButton.innerText = "Enviar Firma y Selfie";
+            });
+        });
+        document.getElementById("revokeAgreement").addEventListener("click", function () {
+            if (!confirm("⚠️ ¿Estás seguro de que deseas revocar este acuerdo? Esto no se puede deshacer.")) return;
+
+            fetch(`/app/sexsi/sign/revoke/${agreementId}/`, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("🚨 Acuerdo revocado correctamente.");
+                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
+                } else {
+                    alert("⚠️ Error: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error al revocar:", error);
+                alert("⚠️ Hubo un problema al revocar el acuerdo.");
             });
         });
 
