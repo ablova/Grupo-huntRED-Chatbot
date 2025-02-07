@@ -25,60 +25,45 @@ class SexsiConfig(models.Model):
         return self.name
 
 class ConsentAgreement(models.Model):
-    """
-    Modelo que representa el acuerdo de consentimiento SEXSI.
-    Se incluirá un campo para definir el método de firma (hellosign o interno)
-    y se puede relacionar con las transacciones de pago.
-    """
-    creator = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='created_agreements'
-    )
-    invitee_contact = models.CharField(
-        max_length=50, 
-        help_text="Número o identificador del canal (WhatsApp, Telegram, etc.)"
-    )
-    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    
-    def default_token_expiry():
-        return now() + timedelta(days=2)
-
-    token_expiry = models.DateTimeField(default=default_token_expiry)
+    """Modelo de Acuerdo de Consentimiento con doble validación de firma."""
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_agreements')
+    invitee_contact = models.CharField(max_length=50, help_text="Número o identificador del canal")
+    agreement_text = models.TextField()
     date_created = models.DateTimeField(auto_now_add=True)
     date_of_encounter = models.DateField(null=True, blank=True)
     location = models.CharField(max_length=255, blank=True)
-    agreement_text = models.TextField(
-        default="Ambas partes están de acuerdo en tener un encuentro íntimo..."
-    )
-    consensual_activities = models.JSONField(default=dict, help_text="Actividades aceptadas por ambas partes")
+    
+    # Firma y validaciones
     is_signed_by_creator = models.BooleanField(default=False)
     is_signed_by_invitee = models.BooleanField(default=False)
-    creator_signature = models.ImageField(
-        upload_to='signatures/', 
-        null=True, 
-        blank=True,
-        help_text="Firma electrónica del creador"
-    )
-    invitee_signature = models.ImageField(
-        upload_to='signatures/', 
-        null=True, 
-        blank=True,
-        help_text="Firma electrónica del invitado"
-    )
-    # Opción elegida para la firma: 'hellosign' o 'internal'
-    signature_method = models.CharField(
-        max_length=20, 
-        choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),
-        default="internal",
-        help_text="Método de firma elegido"
-    )
-        # Nuevo campo para registro de aceptación de TOS
-    tos_accepted = models.BooleanField(default=False)
-    tos_accepted_timestamp = models.DateTimeField(null=True, blank=True)
+    creator_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    invitee_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True)
+    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True)
+    
+    # OTP y verificación de identidad
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_expiry = models.DateTimeField(null=True, blank=True)
+    creator_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
+    invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
+    
+    # Seguridad y control de token
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    token_expiry = models.DateTimeField(default=now() + timedelta(hours=24))
+    
+    def generate_otp(self):
+        """Genera un código OTP de 6 dígitos y lo almacena con una validez de 10 minutos."""
+        self.otp_code = str(uuid.uuid4().int)[:6]
+        self.otp_expiry = now() + timedelta(minutes=10)
+        self.save()
+        return self.otp_code
+    
+    def verify_otp(self, otp_input):
+        """Verifica si el OTP ingresado es válido."""
+        return self.otp_code == otp_input and now() < self.otp_expiry
     
     def __str__(self):
-        return f"Consentimiento #{self.id} - {self.creator.username}"
+        return f"Acuerdo {self.id} - {self.creator.username}"
 
 class PaymentTransaction(models.Model):
     """
@@ -102,10 +87,10 @@ class PaymentTransaction(models.Model):
         return f"Pago {self.id} para Acuerdo #{self.agreement.id}"
     
 class DiscountCoupon(models.Model):
-    """Modelo para almacenar cupones de descuento."""
+    """Modelo para almacenar cupones de descuento con diferentes porcentajes y un cupón de 100%."""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='discount_coupons')
     code = models.CharField(max_length=10, unique=True)
-    discount_percentage = models.PositiveIntegerField(default=50)
+    discount_percentage = models.PositiveIntegerField()
     expiration_date = models.DateTimeField()
     is_used = models.BooleanField(default=False)
     
@@ -113,4 +98,4 @@ class DiscountCoupon(models.Model):
         return not self.is_used and self.expiration_date > now()
     
     def __str__(self):
-        return f"Cupon {self.code} - {'Usado' if self.is_used else 'Disponible'}"
+        return f"Cupon {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"

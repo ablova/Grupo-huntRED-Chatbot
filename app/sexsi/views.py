@@ -3,7 +3,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 from django.utils.timezone import now
 from django.contrib import messages
@@ -16,6 +16,13 @@ from app.chatbot.integrations.services import send_message
 from asgiref.sync import async_to_sync
 
 from django.views.generic import ListView
+
+import logging
+import base64
+from django.core.files.base import ContentFile
+
+logger = logging.getLogger(sexsi.log)
+
 
 class ConsentAgreementListView(ListView):
     model = ConsentAgreement
@@ -55,6 +62,64 @@ def sign_agreement(request, agreement_id, signer, token):
         return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
 
     return render(request, "sign_agreement.html", {"agreement": agreement, "signer": signer, "token": token})
+
+# Ubicacion SEXSI -- /home/pablollh/sexsi/views.py
+
+import logging
+import os
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.utils.timezone import now
+from django.contrib import messages
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from .models import ConsentAgreement
+import json
+
+logger = logging.getLogger(__name__)
+
+@login_required
+def upload_signature_and_selfie(request, agreement_id):
+    """Sube tanto la firma autógrafa como la selfie con identificación para validación."""
+    agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
+    signer = request.GET.get("signer")
+    
+    if request.method == "POST":
+        signature = request.FILES.get("signature")
+        selfie = request.FILES.get("selfie")
+        
+        if not signature or not selfie:
+            logger.warning(f"Firma y/o selfie faltante para acuerdo {agreement.id}")
+            return JsonResponse({"status": "error", "message": "Ambos archivos (firma y selfie) son requeridos."}, status=400)
+        
+        # Validación de formato
+        allowed_formats = ["image/png", "image/jpeg"]
+        if signature.content_type not in allowed_formats or selfie.content_type not in allowed_formats:
+            logger.error(f"Formato de archivo inválido para acuerdo {agreement.id}")
+            return JsonResponse({"status": "error", "message": "Formato inválido. Solo se permiten PNG y JPG."}, status=400)
+        
+        # Guardado seguro con nombres únicos
+        signature_path = f"signatures/{signer}_{agreement.id}_{now().timestamp()}.png"
+        selfie_path = f"selfies/{signer}_{agreement.id}_{now().timestamp()}.png"
+        default_storage.save(signature_path, ContentFile(signature.read()))
+        default_storage.save(selfie_path, ContentFile(selfie.read()))
+        
+        if signer == "creator":
+            agreement.creator_signature = signature_path
+            agreement.creator_selfie = selfie_path
+            agreement.is_signed_by_creator = True
+        else:
+            agreement.invitee_signature = signature_path
+            agreement.invitee_selfie = selfie_path
+            agreement.is_signed_by_invitee = True
+        
+        agreement.save()
+        logger.info(f"Firma y selfie registradas correctamente para acuerdo {agreement.id}")
+        messages.success(request, "Firma y selfie registradas con éxito.")
+        return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
+    
+    return JsonResponse({"status": "error", "message": "Método no permitido."}, status=405)
 
 
 @login_required
