@@ -3,7 +3,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 align="center">Firmar Acuerdo SEXSI</h1>
-<p>Para garantizar la mayor validez legal, se registrarán detalles como la ubicación, fecha y hora de ambas partes.</p>
+<p>Para brindar la mayor validez legal a esta transacción, se registrarán detalles como el origen de la solicitud, fecha, hora y ubicación de ambas partes.</p>
 
 {% if messages %}
 <ul class="messages">
@@ -13,43 +13,152 @@
 </ul>
 {% endif %}
 
-<p>Firmando como: <strong>
-    {% if signer == "creator" %}Creador - {{ agreement.creator.username }}
-    {% else %}Invitado - {{ agreement.invitee_contact }}
-    {% endif %}
-</strong></p>
+<p>Firmando como: 
+    <strong>
+        {% if signer == "creator" %}
+            Creador - {{ agreement.creator.username }}
+        {% else %}
+            Invitado - {{ agreement.invitee_contact }}
+        {% endif %}
+    </strong>
+</p>
 
-<h2>📸 Paso 1: Subir Selfie con Identificación</h2>
-<form id="selfieForm" method="post" enctype="multipart/form-data">
+<h2>Opciones de Firma</h2>
+
+<h3>📸 Firma con Identificación (Selfie + INE/Pasaporte)</h3>
+<p><strong>Importante:</strong> Sube una imagen donde aparezca tu identificación oficial (INE o pasaporte) junto con tu rostro.</p>
+<p>⚠️ <strong>Si la imagen no cumple con estos requisitos, el acuerdo podría ser inválido.</strong></p>
+
+<form id="signatureForm" method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <label for="selfie">Toma una selfie con tu identificación oficial (INE o pasaporte):</label>
-    <input type="file" name="selfie" id="selfie" accept="image/*" capture="user" required>
+    <label for="signature">Realizar Selfie con Identificación Oficial:</label>
+    <input type="file" name="signature" id="signature" accept="image/*" capture="user">
     <br>
-    <img id="previewSelfie" src="#" alt="Vista previa de la selfie" style="display:none; max-width: 250px; margin-top: 10px;">
+    <img id="preview" src="#" alt="Vista previa de la imagen" style="display:none; max-width: 250px; margin-top: 10px;">
     <br>
-    <button type="submit">Subir Selfie</button>
+    <h3>✍️ Firma Autógrafa (Dibujar en pantalla)</h3>
+    <p>Usa tu dedo o un stylus para firmar en el recuadro.</p>
+    <div id="signature-container">
+        <canvas id="biometricCanvas"></canvas>
+    </div>
+    <button type="button" id="clearBiometric">🗑 Limpiar Firma</button>
+    <br><br>
+    <button type="button" id="sendBiometric">Enviar Firma y Selfie</button>
 </form>
-
-<h2>✍️ Paso 2: Firma Autógrafa</h2>
-<p>Usa tu dedo o un stylus para firmar en el recuadro. Se registrará tu ubicación.</p>
-<div id="signature-container">
-    <canvas id="biometricCanvas"></canvas>
-</div>
-<button id="clearBiometric">🗑 Limpiar Firma</button>
-<button id="sendBiometric">Enviar Firma</button>
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        let selfieInput = document.getElementById("selfie");
-        selfieInput.addEventListener("change", function (event) {
-            let reader = new FileReader();
-            reader.onload = function () {
-                let img = document.getElementById("previewSelfie");
-                img.src = reader.result;
-                img.style.display = "block";
-            };
-            reader.readAsDataURL(event.target.files[0]);
+        let canvas = document.getElementById("biometricCanvas");
+        let ctx = canvas.getContext("2d");
+        let isDrawing = false;
+        let userLat = null;
+        let userLon = null;
+        let signer = "{{ signer }}";
+        let token = "{{ token }}";
+        let agreementId = "{{ agreement.id }}";
+
+        function resizeCanvas() {
+            canvas.width = Math.min(window.innerWidth * 0.9, 350);
+            canvas.height = 200;
+            ctx.fillStyle = "#FFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    userLat = position.coords.latitude;
+                    userLon = position.coords.longitude;
+                }, error => {
+                    console.warn("⚠️ No se pudo obtener la ubicación:", error);
+                });
+            }
+        }
+        getLocation();
+
+        function startDrawing(event) {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(event.offsetX || event.touches[0].clientX, event.offsetY || event.touches[0].clientY);
+            event.preventDefault();
+        }
+
+        function draw(event) {
+            if (!isDrawing) return;
+            ctx.lineTo(event.offsetX || event.touches[0].clientX, event.offsetY || event.touches[0].clientY);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            event.preventDefault();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("mouseup", stopDrawing);
+        canvas.addEventListener("mouseleave", stopDrawing);
+        canvas.addEventListener("touchstart", startDrawing);
+        canvas.addEventListener("touchmove", draw);
+        canvas.addEventListener("touchend", stopDrawing);
+
+        document.getElementById("clearBiometric").addEventListener("click", function () {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#FFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        });
+
+        document.getElementById("sendBiometric").addEventListener("click", function () {
+            let biometricData = canvas.toDataURL("image/png");
+            let selfieFile = document.getElementById("signature").files[0];
+            if (!selfieFile || biometricData.length < 1000) {
+                alert("⚠️ Debes subir una selfie con identificación y firmar en el recuadro.");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("signature", selfieFile);
+            formData.append("biometric_data", biometricData);
+            formData.append("latitude", userLat || "Ubicación desconocida");
+            formData.append("longitude", userLon || "Ubicación desconocida");
+
+            fetch(`/app/sexsi/sign/save/${agreementId}/${signer}/${token}/`, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("✅ Firma y selfie enviadas con éxito.");
+                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
+                } else {
+                    alert("⚠️ Error: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error en el envío:", error);
+                alert("⚠️ Hubo un problema al enviar los datos.");
+            });
         });
     });
 </script>
+
+<style>
+    #signature-container {
+        touch-action: none;
+        display: flex;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+    canvas {
+        border: 2px solid black;
+        background-color: white;
+    }
+</style>
 {% endblock %}
