@@ -1,11 +1,13 @@
-<!-- Ubicacion SEXSI -- /home/pablollh/app/sexsi/templates/sign_agreement.html -->
-
 {% extends "base.html" %}
 {% block content %}
 <h1 align="center">Firmar Acuerdo SEXSI</h1>
 <p>Para brindar la mayor validez legal a esta transacción, se registrarán detalles como el origen de la solicitud, fecha, hora y ubicación de ambas partes.</p>
 <p><strong>Estado del Acuerdo:</strong> <span id="agreementStatus">{{ agreement.get_status_display }}</span></p>
-
+<h2>📜 Contenido del Acuerdo</h2>
+<div id="agreementTextContainer">
+    <p>{{ agreement.agreement_text|linebreaks }}</p>
+</div>
+<hr>
 <h2>Opciones de Firma</h2>
 <h3>📸 Firma con Identificación (Selfie + INE/Pasaporte)</h3>
 <p><strong>Importante:</strong> Sube una imagen donde aparezca tu identificación oficial (INE o pasaporte) junto con tu rostro.</p>
@@ -25,11 +27,15 @@
     </div>
     <button type="button" id="clearBiometric">🗑 Limpiar Firma</button>
     <br><br>
-    <button type="button" id="sendBiometric">Enviar Firma y Selfie</button>
-    <button type="button" id="requestRevision" style="background-color: #ffc107;">Solicitar Revisión</button>
-    <button type="button" id="revokeAgreement" style="background-color: #dc3545; color: white;">
-        ❌ Rechazar Acuerdo
-    </button>
+    <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 10px;">
+        <button type="button" id="requestRevision" style="background-color: #ffc107;">Solicitar Revisión</button>
+        <button type="button" id="revokeAgreement" style="background-color: #dc3545; color: white;">❌ Rechazar Acuerdo</button>
+    </div>
+    <div style="text-align: center;">
+        <button type="button" id="sendBiometric" style="background-color: #28a745; color: white; width: 100%;">
+            ✅ Enviar Firma y Selfie - Autorizar Acuerdo
+        </button>
+    </div>
 </form>
 
 <script>
@@ -45,15 +51,12 @@
         let sendButton = document.getElementById("sendBiometric");
 
         function resizeCanvas() {
-            const pixelRatio = window.devicePixelRatio || 1;
-            canvas.width = Math.min(window.innerWidth * 0.9, 350) * pixelRatio;
-            canvas.height = 200 * pixelRatio;
-            ctx.scale(pixelRatio, pixelRatio);
+            canvas.width = 350;
+            canvas.height = 200;
             ctx.fillStyle = "#FFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
         resizeCanvas();
-        window.addEventListener("resize", resizeCanvas);
 
         function getLocation() {
             if (navigator.geolocation) {
@@ -106,8 +109,13 @@
             let biometricData = canvas.toDataURL("image/png");
             let selfieFile = document.getElementById("signature").files[0];
 
-            if (!selfieFile || biometricData.length < 1000) {
-                alert("⚠️ Debes subir una selfie con identificación y firmar en el recuadro.");
+            if (!selfieFile) {
+                alert("⚠️ Debes subir una selfie con identificación.");
+                return;
+            }
+
+            if (biometricData.length < 1000) {
+                alert("⚠️ Debes firmar en el recuadro.");
                 return;
             }
 
@@ -133,55 +141,16 @@
                 } else {
                     alert("⚠️ Error: " + data.message);
                     sendButton.disabled = false;
-                    sendButton.innerText = "Enviar Firma y Selfie";
+                    sendButton.innerText = "✅ Enviar Firma y Selfie - Autorizar Acuerdo";
                 }
             })
             .catch(error => {
                 console.error("Error en el envío:", error);
                 alert("⚠️ Hubo un problema al enviar los datos.");
                 sendButton.disabled = false;
-                sendButton.innerText = "Enviar Firma y Selfie";
+                sendButton.innerText = "✅ Enviar Firma y Selfie - Autorizar Acuerdo";
             });
         });
-        document.getElementById("revokeAgreement").addEventListener("click", function () {
-            if (!confirm("⚠️ ¿Estás seguro de que deseas revocar este acuerdo? Esto no se puede deshacer.")) return;
-
-            fetch(`/app/sexsi/sign/revoke/${agreementId}/`, {
-                method: "POST",
-                headers: { "X-CSRFToken": "{{ csrf_token }}" }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert("🚨 Acuerdo revocado correctamente.");
-                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
-                } else {
-                    alert("⚠️ Error: " + data.message);
-                }
-            })
-            .catch(error => {
-                console.error("Error al revocar:", error);
-                alert("⚠️ Hubo un problema al revocar el acuerdo.");
-            });
-        });
-
     });
 </script>
-
-<style>
-    #signature-container {
-        touch-action: none;
-        display: flex;
-        justify-content: center;
-        margin-bottom: 10px;
-    }
-
-    canvas {
-        border: 2px solid black;
-        background-color: white;
-        width: 100%;
-        height: 200px;
-    }
-</style>
-
 {% endblock %}

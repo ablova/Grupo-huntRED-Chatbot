@@ -11,7 +11,7 @@ from weasyprint import HTML
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from app.sexsi.models import ConsentAgreement
+from app.sexsi.models import ConsentAgreement, PaymentTransaction
 from app.sexsi.forms import ConsentAgreementForm
 from app.chatbot.integrations.services import send_message
 from asgiref.sync import async_to_sync
@@ -20,6 +20,33 @@ import os
 import logging
 
 logger = logging.getLogger(__name__)
+
+####  📌 VISTAS PAYPAL
+@csrf_exempt
+def paypal_webhook(request):
+    """ Recibe notificaciones de PayPal y actualiza el estado de los pagos """
+    try:
+        data = json.loads(request.body)
+        event_type = data.get("event_type")
+
+        if event_type == "PAYMENT.SALE.COMPLETED":
+            transaction_id = data["resource"]["id"]
+            agreement_id = data["resource"]["invoice_id"]  # Asegúrate de enviar este ID al crear el pago
+            
+            # Actualiza la transacción en la base de datos
+            transaction = PaymentTransaction.objects.filter(paypal_transaction_id=transaction_id).first()
+            if transaction:
+                transaction.transaction_status = "completed"
+                transaction.save()
+
+                return JsonResponse({"status": "success", "message": "Pago procesado exitosamente."}, status=200)
+
+        return JsonResponse({"status": "ignored", "message": "Evento no manejado."}, status=200)
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+
 
 STATUS_TRANSITIONS = {
     "draft": "pending_review",
