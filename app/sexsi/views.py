@@ -4,6 +4,7 @@ from django.views.generic import ListView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from django.utils.timezone import now
 from django.contrib import messages
