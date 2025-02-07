@@ -108,6 +108,22 @@ def request_revision(request, agreement_id):
         agreement.is_signed_by_invitee = False
         agreement.save()
         return JsonResponse({"success": True, "message": "✅ Solicitud de revisión enviada."})
+    
+@login_required
+def revoke_agreement(request, agreement_id):
+    """Permite al invitado rechazar el acuerdo y devolverlo al creador sin posibilidad de modificación."""
+    agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
+
+    if request.method == 'POST':
+        agreement.status = 'revoked'
+        agreement.is_signed_by_creator = False
+        agreement.is_signed_by_invitee = False
+        agreement.save()
+
+        messages.warning(request, "🚨 El acuerdo ha sido revocado y notificado al creador.")
+        return JsonResponse({"success": True, "message": "✅ Acuerdo revocado correctamente."})
+
+    return JsonResponse({"success": False, "message": "⚠️ Método no permitido."}, status=405)
 
 @login_required
 def finalize_agreement(request, agreement_id, signer, token):
