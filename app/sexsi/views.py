@@ -1,5 +1,6 @@
  # Ubicacion SEXSI -- /home/pablollh/app/sexsi/views.py
-
+import paypalrestsdk
+from django.shortcuts import redirect
 from django.views.generic import ListView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
@@ -48,6 +49,38 @@ def paypal_webhook(request):
         return JsonResponse({"status": "error", "message": str(e)}, status=400)
 
 
+def process_payment(request, agreement_id):
+    """Inicia el proceso de pago con PayPal."""
+    agreement = ConsentAgreement.objects.get(id=agreement_id)
+    
+    paypalrestsdk.configure({
+        "mode": "sandbox",  # Cambia a "live" en producción
+        "client_id": PAYPAL_CLIENT_ID,
+        "client_secret": PAYPAL_SECRET,
+    })
+
+    payment = paypalrestsdk.Payment({
+        "intent": "sale",
+        "payer": {"payment_method": "paypal"},
+        "redirect_urls": {
+            "return_url": PAYPAL_RETURN_URL,
+            "cancel_url": PAYPAL_CANCEL_URL,
+        },
+        "transactions": [{
+            "amount": {
+                "total": str(agreement.amount),
+                "currency": "USD",
+            },
+            "description": f"Pago por acuerdo SEXSI #{agreement.id}",
+        }]
+    })
+
+    if payment.create():
+        for link in payment.links:
+            if link.rel == "approval_url":
+                return redirect(link.href)  # Redirige al usuario a PayPal
+
+    return redirect("sexsi:payment_failed")
 
 STATUS_TRANSITIONS = {
     "draft": "pending_review",

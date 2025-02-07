@@ -2,7 +2,7 @@
 from django.urls import path
 from app.sexsi.views import (
     create_agreement, agreement_detail, sign_agreement, 
-    download_pdf, upload_signature_and_selfie, finalize_agreement, request_revision, revoke_agreement
+    download_pdf, upload_signature_and_selfie, finalize_agreement, request_revision, revoke_agreement, paypal_webhook
 )
 
 app_name = 'sexsi'
@@ -18,5 +18,5 @@ urlpatterns = [
     path('sign/revoke/<int:agreement_id>/', revoke_agreement, name='revoke_agreement'),
 
     # PAYPAL
-    path('webhook/paypal/', views.paypal_webhook, name='paypal_webhook'),
+    path('webhook/paypal/', paypal_webhook, name='paypal_webhook'),
 ]
