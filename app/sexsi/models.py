@@ -48,8 +48,10 @@ class ConsentAgreement(models.Model):
     invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
     
     # Seguridad y control de token
+    def get_token_expiry():
+        return now() + timedelta(hours=36)
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    token_expiry = models.DateTimeField(default=now() + timedelta(hours=24))
+    token_expiry = models.DateTimeField(default=get_token_expiry)
     
     def generate_otp(self):
         """Genera un código OTP de 6 dígitos y lo almacena con una validez de 10 minutos."""
