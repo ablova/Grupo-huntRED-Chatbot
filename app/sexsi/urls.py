@@ -1,9 +1,7 @@
 # Ubicacion SEXSI -- /home/pablollh/app/sexsi/urls.py
 from django.urls import path
-from app.sexsi.views import (
-    create_agreement, agreement_detail, sign_agreement, 
-    download_pdf, upload_signature_and_selfie, finalize_agreement, request_revision, revoke_agreement
-)
+from app.sexsi import views  # 🔹 Importa todas las vistas
+
 
 app_name = 'sexsi'
 
