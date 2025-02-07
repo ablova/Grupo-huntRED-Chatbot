@@ -1,5 +1,6 @@
  # Ubicacion SEXSI -- /home/pablollh/app/sexsi/views.py
 
+from django.views.generic import ListView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
