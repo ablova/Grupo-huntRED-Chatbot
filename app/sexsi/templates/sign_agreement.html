@@ -115,19 +115,19 @@
         document.getElementById("sendBiometric").addEventListener("click", function () {
             let biometricData = canvas.toDataURL("image/png");
             let selfieFile = document.getElementById("signature").files[0];
-            let formData = new FormData();
 
-            if (!selfieFile && biometricData.length < 1000) {
-                alert("⚠️ Debes subir una selfie con identificación y/o firmar en el recuadro.");
+            if (!selfieFile) {
+                alert("⚠️ Debes subir una selfie con identificación.");
+                return;
+            }
+            if (biometricData.length < 1000) {
+                alert("⚠️ Debes firmar en el recuadro.");
                 return;
             }
 
-            if (selfieFile) {
-                formData.append("signature", selfieFile);
-            }
-            if (biometricData.length >= 1000) {
-                formData.append("biometric_data", biometricData);
-            }
+            let formData = new FormData();
+            formData.append("signature", selfieFile);
+            formData.append("biometric_data", biometricData);
             formData.append("latitude", userLat || "Ubicación desconocida");
             formData.append("longitude", userLon || "Ubicación desconocida");
 
@@ -139,8 +139,8 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert("✅ Firma enviada con éxito.");
-                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
+                    alert("✅ Firma y selfie enviadas con éxito.");
+                    document.getElementById("finalizeAgreement").style.display = "block"; // 🔹 Muestra el botón de continuar
                 } else {
                     alert("⚠️ Error: " + data.message);
                 }
@@ -150,6 +150,27 @@
                 alert("⚠️ Hubo un problema al enviar los datos.");
             });
         });
+
+        document.getElementById("finalizeAgreement").addEventListener("click", function () {
+            fetch(`/app/sexsi/sign/save/${agreementId}/${signer}/${token}/`, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("✅ Acuerdo firmado correctamente. Redirigiendo...");
+                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
+                } else {
+                    alert("⚠️ Error al guardar la firma: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error al guardar:", error);
+                alert("⚠️ Hubo un problema al guardar la firma.");
+            });
+        });
+
     });
 </script>
 
@@ -164,6 +185,24 @@
     canvas {
         border: 2px solid black;
         background-color: white;
+    }
+
+    #finalizeAgreement {
+        display: none; /* 🔹 Oculto hasta que se suban la firma y la selfie */
+        width: 100%;
+        padding: 12px;
+        font-size: 18px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    #finalizeAgreement:hover {
+        background-color: #218838;
     }
 </style>
 {% endblock %}

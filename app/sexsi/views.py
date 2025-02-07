@@ -68,54 +68,45 @@ def sign_agreement(request, agreement_id, signer, token):
 
 @login_required
 def upload_signature_and_selfie(request, agreement_id):
-    """Sube la firma, la selfie con identificación y almacena la ubicación."""
+    """Sube la firma y la selfie con identificación."""
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
-    signer = request.GET.get("signer")
-    
+    signer = request.GET.get("signer")  # 🔹 Obtenemos 'signer' de la consulta GET
+
     if request.method == "POST":
         signature = request.FILES.get("signature")
-        biometric_data = request.POST.get("biometric_data")
-        latitude = request.POST.get("latitude")
-        longitude = request.POST.get("longitude")
+        selfie = request.FILES.get("selfie")
 
-        if not signature and not biometric_data:
-            logger.warning(f"⚠️ Firma faltante para acuerdo {agreement.id}")
-            return JsonResponse({"status": "error", "message": "Se requiere una firma (imagen o digital)."}, status=400)
+        if not signature or not selfie:
+            logger.warning(f"⚠️ Firma y/o selfie faltante para acuerdo {agreement.id}")
+            return JsonResponse({"success": False, "message": "Firma y selfie son requeridas."}, status=400)
 
-        # Guardado seguro con nombres únicos
-        if signature:
-            signature_path = f"signatures/{signer}_{agreement.id}_{now().timestamp()}.png"
-            default_storage.save(signature_path, ContentFile(signature.read()))
-            if signer == "creator":
-                agreement.creator_signature = signature_path
-            else:
-                agreement.invitee_signature = signature_path
-        
-        if biometric_data:
-            biometric_path = f"signatures/{signer}_biometric_{agreement.id}_{now().timestamp()}.png"
-            format, imgstr = biometric_data.split(';base64,')
-            ext = format.split('/')[-1]
-            biometric_file = ContentFile(base64.b64decode(imgstr), name=f"{biometric_path}.{ext}")
-            default_storage.save(biometric_path, biometric_file)
-            if signer == "creator":
-                agreement.creator_signature = biometric_path
-            else:
-                agreement.invitee_signature = biometric_path
-        
-        # Guardar ubicación
+        # Validar formatos permitidos
+        allowed_formats = ["image/png", "image/jpeg"]
+        if signature.content_type not in allowed_formats or selfie.content_type not in allowed_formats:
+            logger.error(f"⛔ Formato inválido en acuerdo {agreement.id}")
+            return JsonResponse({"success": False, "message": "Formato inválido. Solo se permiten PNG y JPG."}, status=400)
+
+        # Guardar con nombres únicos
+        signature_path = f"signatures/{signer}_{agreement.id}_{now().timestamp()}.png"
+        selfie_path = f"selfies/{signer}_{agreement.id}_{now().timestamp()}.png"
+        default_storage.save(signature_path, ContentFile(signature.read()))
+        default_storage.save(selfie_path, ContentFile(selfie.read()))
+
         if signer == "creator":
-            agreement.creator_location = f"{latitude}, {longitude}" if latitude and longitude else "Ubicación no disponible"
+            agreement.creator_signature = signature_path
+            agreement.creator_selfie = selfie_path
             agreement.is_signed_by_creator = True
         else:
-            agreement.invitee_location = f"{latitude}, {longitude}" if latitude and longitude else "Ubicación no disponible"
+            agreement.invitee_signature = signature_path
+            agreement.invitee_selfie = selfie_path
             agreement.is_signed_by_invitee = True
-        
+
         agreement.save()
-        logger.info(f"✅ Firma registrada con éxito para acuerdo {agreement.id}")
-        messages.success(request, "✅ Firma registrada con éxito.")
-        return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
-    
-    return JsonResponse({"status": "error", "message": "Método no permitido."}, status=405)
+        logger.info(f"✅ Firma y selfie guardadas para acuerdo {agreement.id}")
+        messages.success(request, "✅ Firma y selfie registradas con éxito.")
+        return JsonResponse({"success": True, "message": "✅ Firma y selfie registradas con éxito."})
+
+    return JsonResponse({"success": False, "message": "⚠️ Método no permitido."}, status=405)
 
 @login_required
 def download_pdf(request, agreement_id):
