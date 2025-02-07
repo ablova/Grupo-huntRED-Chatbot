@@ -1,5 +1,8 @@
-# Ubicacion SEXSI -- /home/pablollh/app/sexsi/views.py
+# Ubicación SEXSI -- /home/pablollh/app/sexsi/views.py
 
+import logging
+import json
+import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
@@ -8,22 +11,22 @@ from django.template.loader import render_to_string
 from django.utils.timezone import now
 from django.contrib import messages
 from weasyprint import HTML
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 from app.sexsi.models import ConsentAgreement
 from app.sexsi.forms import ConsentAgreementForm
-
 from app.chatbot.integrations.services import send_message
 from asgiref.sync import async_to_sync
-
 from django.views.generic import ListView
 
-import logging
-import base64
-from django.core.files.base import ContentFile
-
+# Inicializar logger
 logger = logging.getLogger(__name__)
 
+### 📌 VISTAS PRINCIPALES
+
 class ConsentAgreementListView(ListView):
+    """Vista para listar acuerdos creados por el usuario."""
     model = ConsentAgreement
     template_name = "consent_list.html"
     context_object_name = "agreements"
@@ -33,6 +36,7 @@ class ConsentAgreementListView(ListView):
 
 @login_required
 def create_agreement(request):
+    """Vista para crear un nuevo acuerdo."""
     if request.method == 'POST':
         form = ConsentAgreementForm(request.POST)
         if form.is_valid():
@@ -41,8 +45,8 @@ def create_agreement(request):
             agreement.tos_accepted = request.POST.get("accept_tos") == "on"
             agreement.tos_accepted_timestamp = now() if agreement.tos_accepted else None
             agreement.save()
-            messages.success(request, "Acuerdo creado exitosamente. Recuerda que debes aceptar los Términos de Servicio y la Política de Privacidad.")
-            invitation_link = send_invitation(agreement)
+            messages.success(request, "✅ Acuerdo creado exitosamente.")
+            send_invitation(agreement)
             return redirect('sexsi:agreement_detail', agreement.id)
     else:
         form = ConsentAgreementForm()
@@ -50,44 +54,46 @@ def create_agreement(request):
 
 @login_required
 def agreement_detail(request, agreement_id):
+    """Muestra los detalles de un acuerdo específico."""
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
     return render(request, 'agreement_detail.html', {'agreement': agreement})
 
 def sign_agreement(request, agreement_id, signer, token):
+    """Página de firma del acuerdo."""
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
 
     if not validate_token(agreement, token):
-        messages.error(request, "El token de firma ha expirado o no es válido.")
+        messages.error(request, "⚠️ Token inválido o expirado.")
         return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
 
     return render(request, "sign_agreement.html", {"agreement": agreement, "signer": signer, "token": token})
 
 @login_required
 def upload_signature_and_selfie(request, agreement_id):
-    """Sube tanto la firma autógrafa como la selfie con identificación para validación."""
+    """Sube la firma y la selfie con identificación."""
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
     signer = request.GET.get("signer")
-    
+
     if request.method == "POST":
         signature = request.FILES.get("signature")
         selfie = request.FILES.get("selfie")
-        
+
         if not signature or not selfie:
-            logger.warning(f"Firma y/o selfie faltante para acuerdo {agreement.id}")
-            return JsonResponse({"status": "error", "message": "Ambos archivos (firma y selfie) son requeridos."}, status=400)
-        
-        # Validación de formato
+            logger.warning(f"⚠️ Firma y/o selfie faltante para acuerdo {agreement.id}")
+            return JsonResponse({"status": "error", "message": "Firma y selfie son requeridas."}, status=400)
+
+        # Validar formatos permitidos
         allowed_formats = ["image/png", "image/jpeg"]
         if signature.content_type not in allowed_formats or selfie.content_type not in allowed_formats:
-            logger.error(f"Formato de archivo inválido para acuerdo {agreement.id}")
+            logger.error(f"⛔ Formato inválido en acuerdo {agreement.id}")
             return JsonResponse({"status": "error", "message": "Formato inválido. Solo se permiten PNG y JPG."}, status=400)
-        
-        # Guardado seguro con nombres únicos
+
+        # Guardar con nombres únicos
         signature_path = f"signatures/{signer}_{agreement.id}_{now().timestamp()}.png"
         selfie_path = f"selfies/{signer}_{agreement.id}_{now().timestamp()}.png"
         default_storage.save(signature_path, ContentFile(signature.read()))
         default_storage.save(selfie_path, ContentFile(selfie.read()))
-        
+
         if signer == "creator":
             agreement.creator_signature = signature_path
             agreement.creator_selfie = selfie_path
@@ -96,43 +102,39 @@ def upload_signature_and_selfie(request, agreement_id):
             agreement.invitee_signature = signature_path
             agreement.invitee_selfie = selfie_path
             agreement.is_signed_by_invitee = True
-        
+
         agreement.save()
-        logger.info(f"Firma y selfie registradas correctamente para acuerdo {agreement.id}")
-        messages.success(request, "Firma y selfie registradas con éxito.")
+        logger.info(f"✅ Firma y selfie guardadas para acuerdo {agreement.id}")
+        messages.success(request, "✅ Firma y selfie registradas con éxito.")
         return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
-    
+
     return JsonResponse({"status": "error", "message": "Método no permitido."}, status=405)
 
+### 📌 DESCARGA DE PDF
 
 @login_required
 def download_pdf(request, agreement_id):
+    """Genera y permite la descarga del acuerdo en PDF."""
     agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
     if agreement.is_signed_by_creator and agreement.is_signed_by_invitee:
         return generate_pdf_response(agreement)
     else:
-        return HttpResponse("El acuerdo no está completamente firmado.", status=403)
+        return HttpResponse("⚠️ El acuerdo no está completamente firmado.", status=403)
 
-# Helper functions
+### 📌 FUNCIONES AUXILIARES
+
 def send_invitation(agreement):
+    """Envía invitación al invitado para firmar."""
     invitation_link = agreement.build_invitation_link()
     send_message_to_invitee(invitation_link, agreement.invitee_contact)
     return invitation_link
 
 def validate_token(agreement, token):
+    """Valida que el token de firma sea válido y no haya expirado."""
     return agreement.token == token and agreement.token_expiry > now()
 
-def process_signature(agreement, request):
-    signature = request.FILES.get("signature")
-    user_lat = request.COOKIES.get("user_lat")
-    user_lon = request.COOKIES.get("user_lon")
-    if signature:
-        agreement.invitee_signature = signature
-        agreement.invitee_location = f"{user_lat}, {user_lon}" if user_lat and user_lon else "Ubicación no disponible"
-        agreement.is_signed_by_invitee = True
-        agreement.save()
-
 def generate_pdf_response(agreement):
+    """Genera un PDF con los datos del acuerdo."""
     html_string = render_to_string('pdf_template.html', {'agreement': agreement})
     html = HTML(string=html_string)
     pdf_file = html.write_pdf()
