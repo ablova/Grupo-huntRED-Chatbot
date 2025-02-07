@@ -45,7 +45,7 @@ git clean -fd &&
 git status &&
 git log -1 &&
 sudo systemctl restart gunicorn nginx &&
-python manage.py makemigrations && python manage.py migrate && python manage.py shell 
+python manage.py makemigrations && python manage.py collectstatic && python manage.py migrate && python manage.py shell 
 mkdir -p /home/pablollh/logs &&
 touch /home/pablollh/logs/debug.log && 
 chmod 664 /home/pablollh/logs/debug.log &&
