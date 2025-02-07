@@ -1,7 +1,7 @@
 # Ubicacion SEXSI -- /home/pablollh/app/sexsi/models.py
 
 from django.db import models
-from datetime import timedelta
+from django.utils.timezone import now, timedelta
 from django.contrib.auth.models import User
 import uuid
 
