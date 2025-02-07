@@ -115,14 +115,19 @@
         document.getElementById("sendBiometric").addEventListener("click", function () {
             let biometricData = canvas.toDataURL("image/png");
             let selfieFile = document.getElementById("signature").files[0];
-            if (!selfieFile || biometricData.length < 1000) {
-                alert("⚠️ Debes subir una selfie con identificación y firmar en el recuadro.");
+            let formData = new FormData();
+
+            if (!selfieFile && biometricData.length < 1000) {
+                alert("⚠️ Debes subir una selfie con identificación y/o firmar en el recuadro.");
                 return;
             }
 
-            let formData = new FormData();
-            formData.append("signature", selfieFile);
-            formData.append("biometric_data", biometricData);
+            if (selfieFile) {
+                formData.append("signature", selfieFile);
+            }
+            if (biometricData.length >= 1000) {
+                formData.append("biometric_data", biometricData);
+            }
             formData.append("latitude", userLat || "Ubicación desconocida");
             formData.append("longitude", userLon || "Ubicación desconocida");
 
@@ -134,7 +139,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert("✅ Firma y selfie enviadas con éxito.");
+                    alert("✅ Firma enviada con éxito.");
                     window.location.href = `/app/sexsi/agreement/${agreementId}/`;
                 } else {
                     alert("⚠️ Error: " + data.message);
