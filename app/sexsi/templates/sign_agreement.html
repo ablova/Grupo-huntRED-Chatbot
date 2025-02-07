@@ -116,12 +116,8 @@
             let biometricData = canvas.toDataURL("image/png");
             let selfieFile = document.getElementById("signature").files[0];
 
-            if (!selfieFile) {
-                alert("⚠️ Debes subir una selfie con identificación.");
-                return;
-            }
-            if (biometricData.length < 1000) {
-                alert("⚠️ Debes firmar en el recuadro.");
+            if (!selfieFile || biometricData.length < 1000) {
+                alert("⚠️ Debes subir una selfie con identificación y firmar en el recuadro.");
                 return;
             }
 
@@ -131,7 +127,7 @@
             formData.append("latitude", userLat || "Ubicación desconocida");
             formData.append("longitude", userLon || "Ubicación desconocida");
 
-            fetch(`/app/sexsi/sign/save/${agreementId}/${signer}/${token}/`, {
+            fetch(`/app/sexsi/sign/save/${agreementId}/?signer=${signer}`, {  // 🔹 Pasamos `signer` como parámetro en GET
                 method: "POST",
                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                 body: formData
@@ -140,7 +136,7 @@
             .then(data => {
                 if (data.success) {
                     alert("✅ Firma y selfie enviadas con éxito.");
-                    document.getElementById("finalizeAgreement").style.display = "block"; // 🔹 Muestra el botón de continuar
+                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
                 } else {
                     alert("⚠️ Error: " + data.message);
                 }
