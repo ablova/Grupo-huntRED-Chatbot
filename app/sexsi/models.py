@@ -41,6 +41,8 @@ class ConsentAgreement(models.Model):
     invitee_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
     creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True)
     invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True)
+    signature_method = models.CharField(max_length=20, choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),default="internal",help_text="Método de firma elegido")
+    tos_accepted = models.BooleanField(default=False)
     
     # OTP y verificación de identidad
     otp_code = models.CharField(max_length=6, blank=True, null=True)
