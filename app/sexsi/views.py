@@ -21,8 +21,7 @@ import logging
 import base64
 from django.core.files.base import ContentFile
 
-logger = logging.getLogger(sexsi.log)
-
+logger = logging.getLogger(__name__)
 
 class ConsentAgreementListView(ListView):
     model = ConsentAgreement
@@ -62,22 +61,6 @@ def sign_agreement(request, agreement_id, signer, token):
         return redirect("sexsi:agreement_detail", agreement_id=agreement.id)
 
     return render(request, "sign_agreement.html", {"agreement": agreement, "signer": signer, "token": token})
-
-# Ubicacion SEXSI -- /home/pablollh/sexsi/views.py
-
-import logging
-import os
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.utils.timezone import now
-from django.contrib import messages
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-from .models import ConsentAgreement
-import json
-
-logger = logging.getLogger(__name__)
 
 @login_required
 def upload_signature_and_selfie(request, agreement_id):
