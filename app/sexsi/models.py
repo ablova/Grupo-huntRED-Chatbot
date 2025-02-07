@@ -31,7 +31,8 @@ class ConsentAgreement(models.Model):
         ('pending_review', 'Pendiente de Revisión'),
         ('needs_revision', 'Requiere Revisión'),
         ('signed', 'Firmado por Ambas Partes'),
-        ('completed', 'Completado')
+        ('completed', 'Completado'),
+        ('revoked', 'Revoked')  # 🔹 Nuevo estado añadido
     ]
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
