@@ -32,17 +32,6 @@ def trigger_error(request):
     """Simula un error para pruebas con Sentry u otros sistemas de monitoreo."""
     division_by_zero = 1 / 0
 
-class WorkflowStageListView(ListView):
-    pass
-
-class WorkflowStageCreateView(CreateView):
-    pass
-
-class WorkflowStageUpdateView(UpdateView):
-    pass
-
-class WorkflowStageDeleteView(DeleteView):
-    pass
 
 urlpatterns = [
     # Administración
