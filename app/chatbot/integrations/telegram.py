@@ -3,6 +3,7 @@
 import logging
 import json
 import httpx
+import asyncio
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from asgiref.sync import sync_to_async
@@ -36,12 +37,21 @@ def telegram_webhook(request):
         logger.info(f"📨 Mensaje recibido de {chat_id}: {text}")
         
         # Buscar el bot correcto según el `chat_id`
-        telegram_api = TelegramAPI.objects.filter(is_active=True).first()
+        access_token = request.headers.get("X-Telegram-Bot-Token")  # Obtiene el token del bot que envió el mensaje
+
+        telegram_api = TelegramAPI.objects.filter(
+            api_key=access_token,
+            is_active=True
+        ).first()
         if not telegram_api:
             logger.error("❌ No se encontró configuración de TelegramAPI activa.")
             return JsonResponse({"status": "error", "message": "Configuración no encontrada"}, status=500)
         
         # Obtener Business Unit (asumimos que está relacionada con TelegramAPI)
+        if not telegram_api:
+            logger.error("❌ No se encontró el bot correcto basado en el token recibido.")
+            return JsonResponse({"status": "error", "message": "Bot no registrado en la base de datos."}, status=400)
+
         business_unit = telegram_api.business_unit
         
         # Inicializar el manejador del chatbot
@@ -79,7 +89,7 @@ async def send_telegram_message(chat_id, message, buttons=None, access_token=Non
     while attempt < MAX_RETRIES:
         try:
             if not access_token:
-                telegram_api = await sync_to_async(TelegramAPI.objects.filter)(is_active=True).afirst()
+                telegram_api = await sync_to_async(lambda: TelegramAPI.objects.filter(is_active=True).first())()
                 if not telegram_api:
                     logger.error("Configuración de TelegramAPI no encontrada.")
                     return

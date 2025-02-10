@@ -10,7 +10,6 @@ class SexsiConfig(models.Model):
     Configuración exclusiva para el flujo SEXSI.
     Almacena los datos de integración para Hellosign y PayPal.
     """
-    # Relacionado al Business Unit si se requiere, o puede ser global para SEXSI.
     name = models.CharField(max_length=100, default="SEXSI Configuración")
     
     # Integración Hellosign
@@ -32,7 +31,7 @@ class ConsentAgreement(models.Model):
         ('needs_revision', 'Requiere Revisión'),
         ('signed', 'Firmado por Ambas Partes'),
         ('completed', 'Completado'),
-        ('revoked', 'Revoked')  # 🔹 Nuevo estado añadido
+        ('revoked', 'Revocado')  # 🔹 Estado corregido
     ]
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
@@ -49,9 +48,14 @@ class ConsentAgreement(models.Model):
     is_signed_by_invitee = models.BooleanField(default=False)
     creator_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
     invitee_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
-    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del creador con identificación")
-    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del invitado con identificación")
-    signature_method = models.CharField(max_length=20, choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),default="internal",help_text="Método de firma elegido")
+    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True, help_text="Selfie del creador con identificación")
+    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True, help_text="Selfie del invitado con identificación")
+    signature_method = models.CharField(
+        max_length=20, 
+        choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),
+        default="internal",
+        help_text="Método de firma elegido"
+    )
     tos_accepted = models.BooleanField(default=False)
     
     # OTP y verificación de identidad
@@ -60,13 +64,10 @@ class ConsentAgreement(models.Model):
     creator_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
     invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
     
-    
     # Seguridad y control de token
-    def get_token_expiry():
-        return now() + timedelta(hours=36)
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    token_expiry = models.DateTimeField(default=get_token_expiry)
-    
+    token_expiry = models.DateTimeField(default=lambda: now() + timedelta(hours=36))
+
     def generate_otp(self):
         """Genera un código OTP de 6 dígitos y lo almacena con una validez de 10 minutos."""
         self.otp_code = str(uuid.uuid4().int)[:6]
@@ -88,12 +89,11 @@ class PaymentTransaction(models.Model):
     y el estado del pago.
     """
     agreement = models.ForeignKey(ConsentAgreement, on_delete=models.CASCADE, related_name="payment_transactions")
-    # Método de firma elegido para esta transacción, para referencia:
     signature_method = models.CharField(
         max_length=20, 
-        choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno"))
+        choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),
+        default="internal"  # 🔹 Se agregó un valor por defecto
     )
-    # Si se usa PayPal, se registra el ID de transacción
     paypal_transaction_id = models.CharField(max_length=255, blank=True, null=True)
     transaction_status = models.CharField(max_length=50, default="pending", help_text="Estado del pago")
     amount = models.DecimalField(max_digits=8, decimal_places=2)
