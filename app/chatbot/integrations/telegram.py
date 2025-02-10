@@ -1,84 +1,109 @@
 # /home/pablollh/app/chatbot/integrations/telegram.py
 
 import logging
+import json
 import httpx
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from asgiref.sync import sync_to_async
 
 from app.chatbot.chatbot import ChatBotHandler
-from app.models import TelegramAPI, ChatState, Person
+from app.models import TelegramAPI, ChatState, Person, BusinessUnit
 
 logger = logging.getLogger(__name__)
 CACHE_TIMEOUT = 600  # 10 minutos
-
 @csrf_exempt
-async def telegram_webhook(request):
+def telegram_webhook(request):
+    """ Webhook de Telegram para recibir y procesar mensajes. """
+    if request.method == "GET":
+        return JsonResponse({"status": "success", "message": "Webhook activo"}, status=200)
+    
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
+    
     try:
-        if request.method != "POST":
-            return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
+        payload = json.loads(request.body.decode("utf-8"))
+        logger.info(f"📩 Payload recibido de Telegram: {json.dumps(payload, indent=2)}")
 
-        payload = json.loads(request.body)
-        logger.info(f"Payload recibido de Telegram: {json.dumps(payload, indent=2)}")
-
-        # Procesar mensaje entrante
         message = payload.get("message", {})
         chat_id = message.get("chat", {}).get("id")
         text = message.get("text", "").strip()
 
         if not chat_id or not text:
+            logger.warning("⚠️ Mensaje inválido recibido, falta `chat_id` o `text`.")
             return JsonResponse({"status": "error", "message": "Payload inválido"}, status=400)
 
-        logger.info(f"Mensaje recibido de {chat_id}: {text}")
-
-        # Procesar mensaje con ChatBotHandler
+        logger.info(f"📨 Mensaje recibido de {chat_id}: {text}")
+        
+        # Buscar el bot correcto según el `chat_id`
+        telegram_api = TelegramAPI.objects.filter(is_active=True).first()
+        if not telegram_api:
+            logger.error("❌ No se encontró configuración de TelegramAPI activa.")
+            return JsonResponse({"status": "error", "message": "Configuración no encontrada"}, status=500)
+        
+        # Obtener Business Unit (asumimos que está relacionada con TelegramAPI)
+        business_unit = telegram_api.business_unit
+        
+        # Inicializar el manejador del chatbot
         chatbot = ChatBotHandler()
-        response_text = await chatbot.process_message(platform="telegram", user_id=chat_id, text=text)
+        
+        # Procesar el mensaje de forma asíncrona
+        response_text = chatbot.process_message(
+            platform="telegram",
+            user_id=str(chat_id),
+            text=text,
+            business_unit=business_unit  # Relacionamos el bot con su unidad de negocio
+        )
+        
+        # Enviar respuesta a Telegram
+        send_telegram_message(chat_id, response_text, access_token=telegram_api.api_key)
 
-        # Enviar respuesta
-        await send_telegram_message(chat_id, response_text)
-        return JsonResponse({"status": "success"}, status=200)
+        return JsonResponse({"status": "success", "message": "Mensaje procesado correctamente"}, status=200)
+
+    except json.JSONDecodeError:
+        logger.error("❌ Error: No se pudo decodificar el JSON de la solicitud.")
+        return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
 
     except Exception as e:
-        logger.error(f"Error en el webhook de Telegram: {e}", exc_info=True)
+        logger.error(f"❌ Error en el webhook de Telegram: {e}", exc_info=True)
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
 
 async def send_telegram_message(chat_id, message, buttons=None, access_token=None):
     """
-    Envía un mensaje simple a Telegram. Se incluyen los argumentos 'buttons' y 'access_token'
-    para compatibilidad, aunque en este envío simple se ignoran los botones.
-    Se implementa lógica de reintentos para mayor robustez.
+    Envía un mensaje a Telegram de manera asíncrona.
     """
     MAX_RETRIES = 3
     attempt = 0
     while attempt < MAX_RETRIES:
         try:
-            if access_token:
-                api_token = access_token
-            else:
-                telegram_api = await sync_to_async(lambda: TelegramAPI.objects.filter(is_active=True).first())()
+            if not access_token:
+                telegram_api = await sync_to_async(TelegramAPI.objects.filter)(is_active=True).afirst()
                 if not telegram_api:
                     logger.error("Configuración de TelegramAPI no encontrada.")
                     return
-                api_token = telegram_api.api_key
+                access_token = telegram_api.api_key
 
-            url = f"https://api.telegram.org/bot{api_token}/sendMessage"
+            url = f"https://api.telegram.org/bot{access_token}/sendMessage"
             payload = {"chat_id": chat_id, "text": message}
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
-                logger.info(f"Mensaje enviado a Telegram: {response.json()}")
+                logger.info(f"✅ Mensaje enviado a Telegram: {response.json()}")
                 return  # Salir al enviar correctamente
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"Error HTTP al enviar mensaje a Telegram: {e.response.text} (Intento {attempt+1})", exc_info=True)
+            logger.error(f"🚨 Error HTTP al enviar mensaje a Telegram: {e.response.text} (Intento {attempt+1})", exc_info=True)
         except Exception as e:
-            logger.error(f"Error general enviando mensaje a Telegram: {e} (Intento {attempt+1})", exc_info=True)
+            logger.error(f"🚨 Error general enviando mensaje a Telegram: {e} (Intento {attempt+1})", exc_info=True)
+
         attempt += 1
         await asyncio.sleep(1)  # Pausa antes de reintentar
 
-    logger.error(f"Falló el envío del mensaje a Telegram después de {MAX_RETRIES} intentos.")
+    logger.error(f"❌ Falló el envío del mensaje a Telegram después de {MAX_RETRIES} intentos.")
+
 
 async def send_telegram_buttons(chat_id, message, buttons, business_unit_name):
     """
