@@ -54,7 +54,7 @@ def candidato_recommendations(request, candidato_id):
         logger.error(f"Error obteniendo recomendaciones para el candidato {candidato_id}: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 
-@m@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_exempt, name='dispatch')
 class ProcessMessageView(View):
     """
     Vista para procesar mensajes del chatbot.
