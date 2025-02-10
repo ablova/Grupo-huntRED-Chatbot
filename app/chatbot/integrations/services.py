@@ -70,6 +70,7 @@ async def send_message(
 
         # Llamada unificada, incluidas 'buttons' y 'phone_id'
         if platform == 'whatsapp':
+            from app.chatbot.integrations.whatsapp import send_whatsapp_message
             await send_function(
                 user_id=user_id,
                 message=message,
@@ -78,6 +79,7 @@ async def send_message(
                 business_unit=business_unit
             )
         elif platform == 'telegram':
+            from app.chatbot.integrations.telegram import send_telegram_message
             await send_function(
                 chat_id=user_id,  # ✅ Corrección: se usa `chat_id`
                 message=message,
@@ -85,6 +87,8 @@ async def send_message(
                 access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
             )
         elif platform in ['messenger', 'instagram']:
+            from app.chatbot.integrations.messenger import send_messenger_message  # Si aplica
+            from app.chatbot.integrations.messenger import send_instagram_message  # Si aplica
             # Ejemplo de Messenger, etc.
             await send_function(
                 user_id=user_id,

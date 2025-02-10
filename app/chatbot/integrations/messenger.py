@@ -117,7 +117,7 @@ async def get_or_create_chat_state(user_id: str, platform: str) -> ChatState:
         logger.error(f"Error obteniendo o creando ChatState para {user_id}: {e}", exc_info=True)
         raise
 
-async def send_messenger_response(user_id: str, message: str, options: Optional[List[Dict]], business_unit: BusinessUnit, messenger_api: MessengerAPI):
+async def send_messenger_message(user_id: str, message: str, options: Optional[List[Dict]], business_unit: BusinessUnit, messenger_api: MessengerAPI):
     """
     Envía una respuesta a Messenger, incluyendo botones si están disponibles.
     """
