@@ -14,7 +14,7 @@ from app.models import TelegramAPI, ChatState, Person, BusinessUnit
 logger = logging.getLogger(__name__)
 CACHE_TIMEOUT = 600  # 10 minutos
 @csrf_exempt
-def telegram_webhook(request):
+async def telegram_webhook(request):
     """ Webhook de Telegram para recibir y procesar mensajes. """
     if request.method == "GET":
         return JsonResponse({"status": "success", "message": "Webhook activo"}, status=200)
@@ -58,7 +58,7 @@ def telegram_webhook(request):
         chatbot = ChatBotHandler()
         
         # Procesar el mensaje de forma asíncrona
-        response_text = chatbot.process_message(
+        response_text = await chatbot.process_message(
             platform="telegram",
             user_id=str(chat_id),
             text=text,
