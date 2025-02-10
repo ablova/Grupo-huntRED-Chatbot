@@ -125,7 +125,7 @@ async def get_or_create_chat_state(user_id: str, platform: str) -> ChatState:
         logger.error(f"Error obteniendo o creando ChatState para {user_id}: {e}", exc_info=True)
         raise
 
-async def send_instagram_response(user_id: str, message: str, options: Optional[List[Dict]], business_unit: BusinessUnit):
+async def send_instagram_message(user_id: str, message: str, options: Optional[List[Dict]], business_unit: BusinessUnit):
     """
     Envía una respuesta a Instagram, incluyendo botones si están disponibles.
     """

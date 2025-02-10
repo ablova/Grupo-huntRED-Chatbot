@@ -49,8 +49,8 @@ class ConsentAgreement(models.Model):
     is_signed_by_invitee = models.BooleanField(default=False)
     creator_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
     invitee_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
-    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True)
-    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True)
+    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del creador con identificación")
+    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del invitado con identificación")
     signature_method = models.CharField(max_length=20, choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),default="internal",help_text="Método de firma elegido")
     tos_accepted = models.BooleanField(default=False)
     
@@ -59,8 +59,7 @@ class ConsentAgreement(models.Model):
     otp_expiry = models.DateTimeField(null=True, blank=True)
     creator_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
     invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
-    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del creador con identificación")
-    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True,help_text="Selfie del invitado con identificación")
+    
     
     # Seguridad y control de token
     def get_token_expiry():
