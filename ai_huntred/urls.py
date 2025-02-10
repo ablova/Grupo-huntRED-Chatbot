@@ -14,27 +14,22 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-
-# Archivo simplificado para modularidad de rutas en el proyecto Django
+# Descripción: Configuración principal de rutas para el proyecto Django
 
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-from app.views.dashboard_views import dashboard_view
-from app.views.candidatos_views import (
-    list_candidatos,
-    candidato_dashboard,
-    evaluate_candidate,
-    send_notification,
-)
 
-
+# ---------------------------------
+# 📌 FUNCIONES DE SALUD Y DEBUGGING
+# ---------------------------------
 def health_check(request):
+    """Verifica si el servidor está activo."""
     return HttpResponse("OK")
 
 def trigger_error(request):
+    """Simula un error para pruebas con Sentry u otros sistemas de monitoreo."""
     division_by_zero = 1 / 0
 
 class WorkflowStageListView(ListView):
@@ -56,31 +51,12 @@ urlpatterns = [
     # Grappelli (si está habilitado)
     path('grappelli/', include('grappelli.urls')),
 
-    # APIs principales
-    #path('api/chatbot/', include('chatbot.urls')),  # API del chatbot
-    #path('api/users/', include('users.urls')),      # API de usuarios
-    #path('api/tasks/', include('tasks.urls')),      # API de tareas
-
-    # Health Check
+    # Health Check y Debugging
     path('health/', health_check, name='health_check'),
     path('sentry-debug/', trigger_error),
 
-    # Rutas para el flujo de trabajo
-    path('business-unit/', include('app.urls.workflow_urls')),
-
-    # Nuevas rutas
-    path('dashboard/', dashboard_view, name='dashboard'),
-    path('candidatos/', list_candidatos, name='list_candidatos'),
-    path('candidatos/dashboard/', candidato_dashboard, name='candidate_dashboard'),
-    path('candidatos/<int:candidate_id>/evaluate/', evaluate_candidate, name='evaluate_candidate'),
-    path('send-notification/', send_notification, name='send_notification'),
-
-    # Incluir las rutas de 'app.urls.py' bajo el prefijo 'webhook/'
-    path('webhook/', include('app.urls.webhook_urls')),  # Incluye solo las rutas de 'webhook_urls.py'
-
-    #Incluir sexsi
-    path('app/sexsi/', include('app.sexsi.urls', namespace='sexsi')),
-
+    # Rutas de la aplicación principal (contiene chatbot, candidatos, workflows, sexsi, webhooks, etc.)
+    path('', include('app.urls')),  
 ]
 
 urlpatterns += staticfiles_urlpatterns()
