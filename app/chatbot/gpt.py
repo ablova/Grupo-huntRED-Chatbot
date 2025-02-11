@@ -2,8 +2,7 @@
 
 import logging
 import backoff
-import openai
-from openai import OpenAIError, RateLimitError
+from openai import OpenAI, OpenAIError, RateLimitError
 from typing import Dict, Optional
 from app.models import GptApi
 from app.chatbot.integrations.services import send_email
@@ -13,7 +12,7 @@ import asyncio
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # Establece el nivel de logging según sea necesario
+logger.setLevel(logging.DEBUG)
 
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
@@ -34,12 +33,7 @@ class GPTHandler:
             gpt_api = GptApi.objects.first()
             if gpt_api:
                 logger.debug("Se encontró una instancia de GptApi en la base de datos.")
-                logger.debug(f"Modelo: {gpt_api.model}, Organización: {gpt_api.organization}, Proyecto: {gpt_api.project}")
-
-                openai.api_key = gpt_api.api_token
-                if gpt_api.organization:
-                    openai.organization = gpt_api.organization
-
+                self.client = OpenAI(api_key=gpt_api.api_token, organization=gpt_api.organization)
                 self.model = gpt_api.model or "gpt-4"
                 self.max_tokens = gpt_api.max_tokens or 150
                 self.temperature = gpt_api.temperature or 0.7
@@ -55,10 +49,8 @@ class GPTHandler:
     async def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
         logger.debug(f"Generando respuesta para el prompt: {prompt}")
         try:
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None,
-                openai.ChatCompletion.create,
+            response = await asyncio.to_thread(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=self.max_tokens,
@@ -66,7 +58,7 @@ class GPTHandler:
                 top_p=self.top_p
             )
             logger.debug("Respuesta recibida de OpenAI.")
-            respuesta_texto = response["choices"][0]["message"]["content"].strip()
+            respuesta_texto = response.choices[0].message.content.strip()
             logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
             return respuesta_texto
         except RateLimitError:
@@ -81,9 +73,6 @@ class GPTHandler:
             return "Lo siento, ocurrió un error inesperado."
 
     def _notify_quota_exceeded(self):
-        """
-        Envía un correo notificando que se acabó la cuota de OpenAI.
-        """
         logger.debug("Enviando notificación de cuota excedida.")
         subject = "Se acabó la cuota de OpenAI"
         body = (
@@ -109,16 +98,16 @@ class GPTHandler:
     async def gpt_message(api_token: str, text: str, model: str = "gpt-4") -> Optional[str]:
         logger.debug(f"Generando respuesta con gpt_message para el texto: {text}")
         try:
-            openai.api_key = api_token
+            client = OpenAI(api_key=api_token)
             response = await asyncio.to_thread(
-                openai.ChatCompletion.create,
+                client.chat.completions.create,
                 model=model,
                 messages=[{"role": "user", "content": text}],
                 max_tokens=150,
                 temperature=0.7,
                 top_p=1.0
             )
-            respuesta_texto = response["choices"][0]["message"]["content"].strip()
+            respuesta_texto = response.choices[0].message.content.strip()
             logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
             return respuesta_texto
         except RateLimitError:
@@ -133,20 +122,17 @@ class GPTHandler:
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
     async def generate_response_with_retries(self, prompt: str, context: Optional[Dict] = None) -> str:
-        """
-        Genera una respuesta con reintentos en caso de errores.
-        """
         logger.debug(f"Generando respuesta con reintentos para el prompt: {prompt}")
         try:
             response = await asyncio.to_thread(
-                openai.ChatCompletion.create,
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p
             )
-            respuesta_texto = response["choices"][0]["message"]["content"].strip()
+            respuesta_texto = response.choices[0].message.content.strip()
             logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
             return respuesta_texto
         except OpenAIError as oe:
