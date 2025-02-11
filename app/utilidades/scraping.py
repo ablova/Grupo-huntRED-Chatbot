@@ -35,7 +35,7 @@ from app.models import (
 )
 from app.utilidades.loader import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
 from app.chatbot.utils import clean_text
-from app.chatbot.chatbot import ChatBotHandler  # Solo si se usa en scraping
+
 
 logging.basicConfig(
     level=logging.INFO,  # Cambia a DEBUG para más detalles

@@ -302,7 +302,7 @@ class IMAPCVProcessor:
 
         except Exception as e:
             logger.error(f"Error procesando alerta de empleo {email_id}: {e}")
-            self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'
+            self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
 
 
 class CVParser:
