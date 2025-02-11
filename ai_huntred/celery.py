@@ -21,7 +21,8 @@ app.conf.update(
 )
 
 # Autodetectar tareas definidas en apps instaladas
-app.autodiscover_tasks()
+app.autodiscover_tasks(['app'])
+
 
 @app.task(bind=True)
 def debug_task(self):
