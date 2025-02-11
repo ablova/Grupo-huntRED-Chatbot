@@ -233,6 +233,12 @@ LOGGING = {
             'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
             'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
         },
+        'celery': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/celery.log'),
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'django': {
@@ -263,6 +269,11 @@ LOGGING = {
         'telegram': {
             'handlers': ['telegram_file', 'console'],
             'level': env('TELEGRAM_LOG_LEVEL', default='ERROR'),
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['celery'],
+            'level':  env('DJANGO_LOG_LEVEL', default='INFO'),
             'propagate': False,
         },
     },
