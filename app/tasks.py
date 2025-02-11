@@ -484,20 +484,22 @@ def execute_ml_and_scraping(self):
         logger.info("🧠 Iniciando proceso ML inicial")
         business_units = BusinessUnit.objects.all()
         for bu in business_units:
-            pipeline = GrupohuntREDMLPipeline(bu.name)
-            pipeline.load_model()
-            pipeline.predict_pending()
-            logger.info(f"✅ ML inicial completado para {bu.name}")
+            try:
+                pipeline = GrupohuntREDMLPipeline(bu.name)
+                pipeline.load_model()  # Esto intentará cargar o construir el modelo si no existe
+                pipeline.predict_pending()
+                logger.info(f"✅ ML inicial completado para {bu.name}")
+            except Exception as e:
+                logger.error(f"❌ Error en ML inicial para {bu.name}: {str(e)}")
+                continue  # Evita que el fallo en una unidad de negocio detenga todo el proceso
 
         # 2. Ejecutar scraping para cada dominio verificado
         logger.info("🔍 Iniciando proceso de scraping")
         dominios = DominioScraping.objects.filter(verificado=True)
         for dominio in dominios:
             try:
-                # Ejecutar scraping
-                vacantes = asyncio.run(run_scraper(dominio))
+                vacantes = asyncio.run(run_scraper(dominio))  # Ejecuta el scraping de manera asincrónica
                 
-                # Registrar resultados
                 RegistroScraping.objects.create(
                     dominio=dominio,
                     estado="exitoso",
@@ -505,25 +507,29 @@ def execute_ml_and_scraping(self):
                     fecha_fin=timezone.now(),
                     mensaje=f"Scraping completado. Vacantes encontradas: {len(vacantes)}"
                 )
-                
                 logger.info(f"✅ Scraping completado para {dominio.empresa}: {len(vacantes)} vacantes")
             except Exception as e:
                 logger.error(f"❌ Error en scraping para {dominio.empresa}: {str(e)}")
-                continue
+                continue  # No detener la ejecución si un dominio falla
 
         # 3. Ejecutar ML final
         logger.info("🧠 Iniciando proceso ML final")
         for bu in business_units:
-            pipeline = GrupohuntREDMLPipeline(bu.name)
-            pipeline.load_model()
-            pipeline.predict_pending()
-            logger.info(f"✅ ML final completado para {bu.name}")
+            try:
+                pipeline = GrupohuntREDMLPipeline(bu.name)
+                pipeline.load_model()  # Esto intentará cargar o construir el modelo si no existe
+                pipeline.predict_pending()
+                logger.info(f"✅ ML final completado para {bu.name}")
+            except Exception as e:
+                logger.error(f"❌ Error en ML final para {bu.name}: {str(e)}")
+                continue  # Evita que un error en una BU detenga las demás
 
         logger.info("✨ Proceso completo de ML y scraping finalizado exitosamente")
 
     except Exception as e:
         logger.error(f"❌ Error en el proceso de ML y scraping: {str(e)}")
         self.retry(exc=e)
+
 # =========================================================
 # Tareas de Notificaciones
 # =========================================================
