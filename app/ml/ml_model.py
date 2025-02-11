@@ -663,36 +663,54 @@ class AdaptiveMLFramework:
         self.model = None
         self.scaler = StandardScaler()
 
-    def build_model(self, input_shape):
-        """Dynamically construct neural network"""
+    def load_model(self):
+        """
+        Carga un modelo previamente entrenado. Si no existe, construye uno nuevo.
+        """
+        model_path = os.path.join(settings.ML_MODELS_DIR, f'{self.business_unit}_full_model.h5')
+
+        if os.path.exists(model_path):
+            try:
+                self.model = tf.keras.models.load_model(model_path)
+                logger.info(f"Modelo cargado exitosamente desde {model_path}")
+            except Exception as e:
+                logger.error(f"Error al cargar el modelo desde {model_path}: {e}")
+                logger.info("Construyendo un nuevo modelo debido a fallo en la carga.")
+                self.build_model()
+        else:
+            logger.info(f"No se encontró modelo en {model_path}, construyendo uno nuevo.")
+            self.build_model()
+        
+        return self.model
+
+    def build_model(self):
+        """
+        Construye un nuevo modelo de machine learning basado en la configuración de la unidad de negocio.
+        """
+        config = self.model_config.get(self.business_unit, self.model_config['huntRED®'])
+        
         model = tf.keras.Sequential()
-
-        # Add hidden layers
-        for units in self.config.get('layers', [64, 32]):
+        
+        for units in config['layers']:
             model.add(tf.keras.layers.Dense(
-                units,
-                activation=self.config.get('activation', 'relu')
+                units, 
+                activation='relu',
+                kernel_regularizer=tf.keras.regularizers.l2(0.001)
             ))
-            model.add(tf.keras.layers.Dropout(
-                self.config.get('dropout_rate', 0.3)
-            ))
-
-        # Output layer
+            model.add(tf.keras.layers.Dropout(config['dropout_rate']))
+        
         model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
 
-        # Compile model
-        optimizer = tf.keras.optimizers.Adam(
-            learning_rate=self.config.get('learning_rate', 0.001)
-        )
+        optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'])
 
         model.compile(
             optimizer=optimizer,
             loss='binary_crossentropy',
-            metrics=['accuracy']
+            metrics=['accuracy', 'AUC']
         )
 
         self.model = model
-        logger.info("AdaptiveMLFramework: Modelo construido exitosamente.")
+        logger.info(f"Nuevo modelo construido para {self.business_unit}.")
         return model
 
     def train_and_optimize(self, X, y, validation_split=0.2):
