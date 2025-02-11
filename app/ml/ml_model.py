@@ -445,52 +445,30 @@ class GrupohuntREDMLPipeline:
         self.scaler = StandardScaler()
         self.model = None
         self.history = None
+        self.model_path = os.path.join(settings.ML_MODELS_DIR, f'{business_unit}_model.h5')
 
-    def load_data(self, filepath):
-        """
-        Robust data loading with multiple format support
-        """
-        try:
-            if filepath.endswith('.csv'):
-                data = pd.read_csv(filepath)
-            elif filepath.endswith('.xlsx'):
-                data = pd.read_excel(filepath)
-            elif filepath.endswith('.json'):
-                data = pd.read_json(filepath)
-            else:
-                raise ValueError("Unsupported file format")
-            
-            logger.info(f"Data loaded successfully from {filepath}")
-            return data
-        except Exception as e:
-            logger.error(f"Error loading data from {filepath}: {e}")
-            raise
 
-    def preprocess_data(self, data, target_column='success_label'):
+    def build_model(self):
         """
-        Advanced preprocessing with feature engineering
+        Construye un modelo de red neuronal para clasificación binaria.
         """
-        if target_column not in data.columns:
-            logger.error(f"Columna objetivo '{target_column}' no encontrada en los datos.")
-            raise ValueError(f"Columna objetivo '{target_column}' no encontrada en los datos.")
-        
-        X = data.drop(columns=[target_column])
-        y = data[target_column]
-        
-        # Handle categorical variables
-        X = pd.get_dummies(X)
-        
-        # Scale features
-        X_scaled = self.scaler.fit_transform(X)
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_scaled, y, test_size=0.2, random_state=42
+        model = tf.keras.Sequential([
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dropout(0.3),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(1, activation='sigmoid')
+        ])
+
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+            loss='binary_crossentropy',
+            metrics=['accuracy', 'AUC']
         )
-        
-        logger.info("Data preprocessing completed successfully.")
-        return X_train, X_test, y_train, y_test
 
+        self.model = model
+        logger.info("Neural network architecture built successfully.")
+    
     def build_model(self):
         """
         Dynamic neural network architecture
@@ -529,6 +507,43 @@ class GrupohuntREDMLPipeline:
         logger.info("Neural network architecture built successfully.")
         return model
 
+    def load_model(self):
+        """
+        Carga un modelo existente o lo construye si no existe.
+        """
+        if os.path.exists(self.model_path):
+            self.model = tf.keras.models.load_model(self.model_path)
+            logger.info(f"Modelo cargado desde {self.model_path}")
+        else:
+            logger.warning("No se encontró un modelo entrenado. Construyendo nuevo modelo.")
+            self.build_model()
+
+    def preprocess_data(self, data, target_column='success_label'):
+        """
+        Advanced preprocessing with feature engineering
+        """
+        if target_column not in data.columns:
+            logger.error(f"Columna objetivo '{target_column}' no encontrada en los datos.")
+            raise ValueError(f"Columna objetivo '{target_column}' no encontrada en los datos.")
+        
+        X = data.drop(columns=[target_column])
+        y = data[target_column]
+        
+        # Handle categorical variables
+        X = pd.get_dummies(X)
+        
+        # Scale features
+        X_scaled = self.scaler.fit_transform(X)
+        
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=0.2, random_state=42
+        )
+        
+        logger.info("Data preprocessing completed successfully.")
+        return X_train, X_test, y_train, y_test
+
+
     def train(self, X_train, y_train, X_test, y_test):
         """
         Advanced training with callbacks
@@ -557,6 +572,37 @@ class GrupohuntREDMLPipeline:
         
         logger.info("Model training completed successfully.")
         return self.history
+    
+    def train_model(self, X, y):
+        """
+        Entrena el modelo con los datos proporcionados.
+        """
+        X_scaled = self.scaler.fit_transform(X)
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+        self.build_model()
+        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+        self.model.fit(
+            X_train, y_train,
+            validation_data=(X_test, y_test),
+            epochs=50,
+            batch_size=32,
+            callbacks=[early_stopping]
+        )
+
+        # Guardar modelo
+        self.model.save(self.model_path)
+        logger.info(f"Modelo guardado en {self.model_path}")
+
+        # Evaluar modelo
+        y_pred = (self.model.predict(X_test) > 0.5).astype(int)
+        report = classification_report(y_test, y_pred)
+        cm = confusion_matrix(y_test, y_pred)
+
+        logger.info(f"Classification Report:\n{report}")
+        logger.info(f"Confusion Matrix:\n{cm}")
+
 
     def evaluate_model(self, X_test, y_test):
         """
@@ -607,6 +653,16 @@ class GrupohuntREDMLPipeline:
         predictions = self.model.predict(new_data_scaled)
         
         logger.info("Predicciones realizadas exitosamente.")
+        return predictions
+    def predict(self, X):
+        """
+        Realiza una predicción con el modelo cargado.
+        """
+        if self.model is None:
+            self.load_model()
+
+        X_scaled = self.scaler.transform(X)
+        predictions = self.model.predict(X_scaled)
         return predictions
 
 # Uso Ejemplo
@@ -682,36 +738,78 @@ class AdaptiveMLFramework:
             self.build_model()
         
         return self.model
-
-    def build_model(self):
+    
+    def build_model(self, input_shape):
         """
-        Construye un nuevo modelo de machine learning basado en la configuración de la unidad de negocio.
+        Construye un modelo de red neuronal adaptativo.
         """
-        config = self.model_config.get(self.business_unit, self.model_config['huntRED®'])
-        
-        model = tf.keras.Sequential()
-        
-        for units in config['layers']:
-            model.add(tf.keras.layers.Dense(
-                units, 
-                activation='relu',
-                kernel_regularizer=tf.keras.regularizers.l2(0.001)
-            ))
-            model.add(tf.keras.layers.Dropout(config['dropout_rate']))
-        
-        model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
-
-        optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'])
+        model = tf.keras.Sequential([
+            tf.keras.layers.Dense(64, activation='relu', input_shape=(input_shape,)),
+            tf.keras.layers.Dropout(0.3),
+            tf.keras.layers.Dense(32, activation='relu'),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(1, activation='sigmoid')
+        ])
 
         model.compile(
-            optimizer=optimizer,
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
             loss='binary_crossentropy',
             metrics=['accuracy', 'AUC']
         )
 
         self.model = model
-        logger.info(f"Nuevo modelo construido para {self.business_unit}.")
+        logger.info("AdaptiveMLFramework: Modelo construido exitosamente.")
+
+    def load_model(self):
+        """
+        Carga un modelo entrenado o lo construye si no existe.
+        """
+        if os.path.exists(self.model_path):
+            self.model = tf.keras.models.load_model(self.model_path)
+            logger.info(f"Modelo cargado desde {self.model_path}")
+        else:
+            logger.warning("No se encontró modelo. Construyendo nuevo modelo.")
+            self.build_model(10)  # Ajusta el input_shape según los datos esperados
+
+
+    def build_model(self, input_shape):
+        """
+        Construye y compila dinámicamente un modelo de red neuronal basado en la configuración de la unidad de negocio.
+        """
+        if not self.config:
+            logger.error(f"No se encontró configuración para {self.business_unit}, usando valores predeterminados.")
+            self.config = {
+                'layers': [64, 32, 16],
+                'activation': 'relu',
+                'learning_rate': 0.001,
+                'dropout_rate': 0.3
+            }
+
+        model = tf.keras.Sequential()
+
+        # Añadir capas ocultas dinámicamente según la configuración de la BU
+        for units in self.config['layers']:
+            model.add(tf.keras.layers.Dense(
+                units, activation=self.config['activation']
+            ))
+            model.add(tf.keras.layers.Dropout(self.config['dropout_rate']))
+
+        # Capa de salida
+        model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
+
+        # Compilar el modelo
+        optimizer = tf.keras.optimizers.Adam(learning_rate=self.config['learning_rate'])
+        model.compile(
+            optimizer=optimizer,
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+
+        self.model = model
+        logger.info(f"Modelo construido correctamente para {self.business_unit}")
+
         return model
+
 
     def train_and_optimize(self, X, y, validation_split=0.2):
         """
