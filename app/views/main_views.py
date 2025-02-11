@@ -91,4 +91,5 @@ def submit_application(request, job_id):
     return render(request, 'apply.html', {'job_id': job_id})
 
 def home(request):
-    return render(request, 'home.html')  # Asegúrate de que la plantilla exista
+    return HttpResponse("Bienvenido al sistema")
+    #return render(request, 'home.html')  # Asegúrate de que la plantilla exista
