@@ -21,7 +21,9 @@ app.conf.update(
 )
 
 # Autodetectar tareas definidas en apps instaladas
-app.autodiscover_tasks(['app'])
+
+app.autodiscover_tasks()
+
 
 
 @app.task(bind=True)
