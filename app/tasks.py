@@ -916,7 +916,7 @@ def check_emails_and_parse_cvs(self):
         logger.error(f"Error al procesar correos y CVs: {e}")
         self.retry(exc=e)
 
-@app.task
+@shared_task
 def execute_email_scraper():
     """ Ejecuta la extracción de vacantes desde correos electrónicos """
     try:

@@ -101,14 +101,11 @@ class VacanteManager:
         self.wp_url = self.configuracion.dominio_bu
 
     def _init_openai_client(self):
-        """Initialize OpenAI client if not already done"""
+        """Inicializa el cliente de OpenAI si no está inicializado."""
         if self.client is None:
             gpt_api = self.get_gpt_api_config()
             if gpt_api:
-                self.client = OpenAI(
-                    api_key=gpt_api.api_token,
-                    organization=gpt_api.organization
-                )
+                self.client = OpenAI(api_key=gpt_api.api_token, organization=gpt_api.organization)
         return self.client is not None
     
     @staticmethod
