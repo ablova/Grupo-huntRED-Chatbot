@@ -8,7 +8,8 @@ import email
 from tempfile import NamedTemporaryFile
 from email import message_from_bytes
 from email.header import decode_header
-from app.models import ConfiguracionBU, Person
+from app.models import ConfiguracionBU, Person, Vacante
+from app.utilidades.vacantes import VacanteManager
 from functools import lru_cache
 from pathlib import Path
 import spacy
@@ -42,6 +43,7 @@ def load_spacy_model_by_language(language):
 
 # Diccionario de folders por acción
 FOLDER_CONFIG = {
+    "inbox": "INBOX",
     "cv_folder": "INBOX.CV",  # Reemplaza por la ruta correcta
     "parsed_folder": "INBOX.Parsed",
     "error_folder": "INBOX.Error",
@@ -235,6 +237,72 @@ class IMAPCVProcessor:
 
         except Exception as e:
             logger.error(f"Error enviando el resumen: {e}", exc_info=True)
+
+
+
+    def _process_job_alert_email(self, mail, email_id, message):
+        """
+        Procesa correos de alertas de empleo de LinkedIn y Glassdoor.
+        """
+        try:
+            sender = message["From"]
+            subject = message["Subject"]
+
+            if not sender or not subject:
+                return
+
+            # Identificar correos de LinkedIn y Glassdoor
+            if sender.lower() not in ['jobs-noreply@linkedin.com', 'jobalerts-noreply@linkedin.com', 'jobs-listings@linkedin.com', 'alerts@glassdoor.com', 'noreply@glassdoor.com', 'TalentCommunity@talent.honeywell.com', 'santander@myworkday.com']:
+                return  # Si no es un remitente válido, ignorar
+
+            # Extraer contenido del correo
+            body = None
+            if message.is_multipart():
+                for part in message.walk():
+                    if part.get_content_type() == "text/html":
+                        body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                        break
+            else:
+                body = message.get_payload(decode=True).decode("utf-8", errors="ignore")
+
+            if not body:
+                logger.warning(f"Correo {email_id} de {sender} sin contenido HTML procesable.")
+                return
+
+            # Parsear el HTML para encontrar vacantes
+            soup = BeautifulSoup(body, "html.parser")
+            job_listings = []
+
+            # LinkedIn: Buscar vacantes en el cuerpo del correo
+            for job_section in soup.find_all("a", href=True):
+                job_title = job_section.get_text(strip=True)
+                job_link = job_section["href"]
+
+                # Validar que sea una vacante real
+                if "linkedin.com/jobs/view" in job_link:
+                    job_listings.append({
+                        "job_title": job_title,
+                        "job_link": job_link,
+                        "company_name": "LinkedIn Alert",
+                        "job_description": f"Vacante detectada desde LinkedIn: {job_title}",
+                        "business_unit": 4  # Ajustar según la unidad de negocio
+                    })
+
+            if not job_listings:
+                logger.warning(f"No se detectaron vacantes en correo {email_id}")
+                return
+
+            # Crear vacantes en el sistema
+            for job_data in job_listings:
+                vacante_manager = VacanteManager(job_data)
+                vacante_manager.create_job_listing()
+
+            # Mover el correo procesado
+            self._move_email(mail, email_id, self.FOLDER_CONFIG['parsed_folder'])
+
+        except Exception as e:
+            logger.error(f"Error procesando alerta de empleo {email_id}: {e}")
+            self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'
 
 
 class CVParser:

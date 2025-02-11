@@ -32,7 +32,7 @@ class ChatBotHandler:
         """
         try:
             # Obtener ChatState y Person ya están manejados en handle_incoming_message
-            chat_state = await sync_to_async(ChatState.objects.get)(user_id=user_id, business_unit=business_unit)
+            chat_state = await sync_to_async(lambda: ChatState.objects.get(user_id=user_id, business_unit=business_unit))()
             user = chat_state.person
 
             logger.info(f"Processing message for {user_id} on {platform} for BU {business_unit.name}")

@@ -17,6 +17,7 @@ from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_message, send_email
 from app.chatbot.chatbot import ChatBotHandler
 from app.utilidades.parser import CVParser, IMAPCVProcessor
+from app.utilidades.email_scraper import email_scraper
 from app.models import (
     Configuracion,
     ConfiguracionBU,
@@ -94,6 +95,14 @@ app.conf.beat_schedule.update({
         'task': 'app.tasks.check_emails_and_parse_cvs',
         'schedule': crontab(minute=0, hour='*'),  # Cada hora
     },
+    'run-email-scraper-morning': {
+        'task': 'tasks.execute_email_scraper',
+        'schedule': crontab(hour=8, minute=30),
+    },
+    'run-email-scraper-night': {
+        'task': 'tasks.execute_email_scraper',
+        'schedule': crontab(hour=22, minute=30),
+    },
 })
 
 # Definición de colas específicas
@@ -123,6 +132,7 @@ app.conf.task_routes = {
     'app.tasks.send_whatsapp_message': {'queue': 'notifications'},
     'app.tasks.send_telegram_message': {'queue': 'notifications'},
     'app.tasks.send_messenger_message': {'queue': 'notifications'},
+    
     # Añade otras tareas según sea necesario
 }
 
@@ -905,3 +915,12 @@ def check_emails_and_parse_cvs(self):
     except Exception as e:
         logger.error(f"Error al procesar correos y CVs: {e}")
         self.retry(exc=e)
+
+@app.task
+def execute_email_scraper():
+    """ Ejecuta la extracción de vacantes desde correos electrónicos """
+    try:
+        email_scraper()
+        logger.info("Email scraper ejecutado correctamente.")
+    except Exception as e:
+        logger.error(f"Error en email scraper: {e}")
