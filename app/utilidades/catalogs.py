@@ -1,4 +1,4 @@
-# /home/pablollh/app/utilidades/catalogs.py
+# /home/pablo/app/utilidades/catalogs.py
 
 from app.utilidades.loader import BUSINESS_UNITS, DIVISIONES, load_unit_skills
 import logging

@@ -1,4 +1,4 @@
-# /home/pablollh/app/tasks.py
+# /home/pablo/app/tasks.py
 
 import logging
 import asyncio
@@ -274,7 +274,7 @@ def train_ml_task(self, business_unit_id=None):
 
             try:
                 # Cargar datos
-                data = pipeline.load_data('/home/pablollh/app/model/training_data.csv')
+                data = pipeline.load_data('/home/pablo/app/model/training_data.csv')
                 
                 # Preprocesar datos
                 X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
@@ -307,7 +307,7 @@ def ejecutar_ml(self):
         for bu in business_units:
             logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
             pipeline = GrupohuntREDMLPipeline(bu.name)
-            data = pipeline.load_data('/home/pablollh/app/model/training_data.csv')
+            data = pipeline.load_data('/home/pablo/app/model/training_data.csv')
             X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
             pipeline.build_model()
             pipeline.train(X_train, y_train, X_test, y_test)
@@ -334,7 +334,7 @@ def train_matchmaking_model_task(self, business_unit_id=None):
             return
 
         pipeline = GrupohuntREDMLPipeline(bu.name)
-        data = pipeline.load_data('/home/pablollh/app/model/training_data.csv')
+        data = pipeline.load_data('/home/pablo/app/model/training_data.csv')
         X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
         pipeline.build_model()
         pipeline.train(X_train, y_train, X_test, y_test)
@@ -565,7 +565,7 @@ def process_linkedin_api_data_task(member_ids: list):
     logger.info("Datos vía API LinkedIn completado.")
 
 @shared_task
-def process_linkedin_csv_task(csv_path: str = "/home/pablollh/connections.csv"):
+def process_linkedin_csv_task(csv_path: str = "/home/pablo/connections.csv"):
     """
     Procesa el CSV de conexiones de LinkedIn.
     """
@@ -602,7 +602,7 @@ def scrape_single_profile_task(profile_url: str):
     return data
 
 @shared_task(bind=True, queue='scraping')
-def process_csv_and_scrape_task(self, csv_path: str = "/home/pablollh/connections.csv"):
+def process_csv_and_scrape_task(self, csv_path: str = "/home/pablo/connections.csv"):
     """
     Procesa el archivo CSV y ejecuta scraping de los perfiles.
     """

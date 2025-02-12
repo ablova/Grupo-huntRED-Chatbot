@@ -1,4 +1,4 @@
-# /home/pablollh/app/views/workflow_views.py
+# /home/pablo/app/views/workflow_views.py
 
 from django.views import View
 from django.shortcuts import render, redirect, get_object_or_404

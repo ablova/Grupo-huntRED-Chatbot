@@ -1,4 +1,4 @@
-# /home/pablollh/app/scraping.py
+# /home/pablo/app/scraping.py
 
 # Módulos estándar de Python
 import json
