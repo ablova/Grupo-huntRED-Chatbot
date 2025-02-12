@@ -1,4 +1,4 @@
-# /home/pablollh/ai_huntred/asgi.py
+# /home/pablo/ai_huntred/asgi.py
 """
 ASGI config for ai_huntred project.
 

@@ -1,5 +1,5 @@
 """
-Ubicación en servidor: /home/pablollh/app/chatbot/integrations/whatsapp.py
+Ubicación en servidor: /home/pablo/app/chatbot/integrations/whatsapp.py
 Nombre del archivo: whatsapp.py
 """
 

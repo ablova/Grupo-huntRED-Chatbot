@@ -1,4 +1,4 @@
-# /home/pablollh/app/ml/ml_model.py
+# /home/pablo/app/ml/ml_model.py
 
 import os
 import logging
@@ -457,21 +457,25 @@ class GrupohuntREDMLPipeline:
 
         self.model = model
         logger.info(f"Modelo de red neuronal construido para {self.business_unit}")
+    
+    _loaded_models = {}
 
     def load_model(self):
         """
-        Carga un modelo entrenado o lo construye si no existe.
+        Carga el modelo en memoria solo si no ha sido cargado previamente.
         """
+        if self.business_unit in self._loaded_models:
+            self.model = self._loaded_models[self.business_unit]
+            logger.info(f"Usando modelo en memoria para {self.business_unit}")
+            return
+
         if os.path.exists(self.model_path):
             self.model = tf.keras.models.load_model(self.model_path)
-            logger.info(f"Modelo cargado exitosamente desde {self.model_path}")
+            self._loaded_models[self.business_unit] = self.model
+            logger.info(f"Modelo cargado desde {self.model_path}")
         else:
-            logger.warning("No se encontró modelo entrenado. Construyendo uno nuevo.")
+            logger.warning("No se encontró un modelo entrenado. Construyendo uno nuevo.")
             self.build_model()
-
-        if os.path.exists(self.scaler_path):
-            self.scaler = load(self.scaler_path)
-            logger.info(f"Scaler cargado desde {self.scaler_path}")
 
     def preprocess_data(self, data, target_column='success_label'):
         """

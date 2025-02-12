@@ -1,4 +1,4 @@
-# Ubicación: /home/pablollh/app/tests.py
+# Ubicación: /home/pablo/app/tests.py
 
 import pytest
 from datetime import datetime, timedelta

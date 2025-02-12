@@ -1,4 +1,4 @@
-# Ubicación: /home/pablollh/app/utilidades/vacantes.py
+# Ubicación: /home/pablo/app/utilidades/vacantes.py
 
 import requests
 import logging

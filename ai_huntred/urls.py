@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/pablollh/ai_huntred/urls.py
+# Ubicación del archivo: /home/pablo/ai_huntred/urls.py
 """ai_huntred URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
