@@ -1,4 +1,4 @@
-# Ubicación /home/pablollh/app/utilidades/email_scaper.py
+# Ubicación /home/pablo/app/utilidades/email_scaper.py
 
 import imaplib
 import email

@@ -1,3 +1,3 @@
-# /home/pablollh/app/__init__.py
+# /home/pablo/app/__init__.py
 
 default_app_config = 'app.apps.AppConfig'

@@ -1,4 +1,4 @@
-# /home/pablollh/app/views/utils_views.py
+# /home/pablo/app/views/utils_views.py
 
 from django.views import View
 from django.http import JsonResponse

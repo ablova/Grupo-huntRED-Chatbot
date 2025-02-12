@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/pablollh/ai_huntred/settings.py
+# Ubicación del archivo: /home/pablo/ai_huntred/settings.py
 import os
 from pathlib import Path
 from django.core.mail import get_connection, send_mail
@@ -70,6 +70,11 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = env('TIMEZONE', default='America/Mexico_City')
 CELERY_ENABLE_UTC = True
 CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
+CELERYD_PREFETCH_MULTIPLIER = 1  # Para evitar que un worker tome demasiadas tareas
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 100000  # 100MB por proceso
+CELERYD_MAX_TASKS_PER_CHILD = 10  # 🔹 Reinicia workers después de X tareas
+CELERYD_MAX_MEMORY_PER_CHILD = 150000  # 🔹 Evita uso excesivo de memoria
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)

@@ -1,4 +1,4 @@
-# /home/pablollh/app/chatbot/nlp.py
+# /home/pablo/app/chatbot/nlp.py
 
 import logging
 import nltk
@@ -31,7 +31,7 @@ try:
     phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER") if nlp else None
 
     # Ruta al JSON con la base de datos de skills
-    skill_db_path = "/home/pablollh/app/skill_db_relax_20.json"
+    skill_db_path = "/home/pablo/skill_db_relax_20.json"
     with open(skill_db_path, 'r', encoding='utf-8') as f:
         skills_db = json.load(f)
 

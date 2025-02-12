@@ -1,4 +1,4 @@
-# Ubicación: /home/pablollh/app/urls.py
+# Ubicación: /home/pablo/app/urls.py
 # Descripción: Archivo principal de rutas centralizadas para toda la aplicación.
 
 from django.urls import path

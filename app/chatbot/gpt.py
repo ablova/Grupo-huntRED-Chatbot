@@ -1,4 +1,4 @@
-# /home/pablollh/app/chatbot/gpt.py
+# /home/pablo/app/chatbot/gpt.py
 
 import logging
 import backoff
@@ -47,6 +47,9 @@ class GPTHandler:
             raise e
 
     async def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
+        """
+        Genera una respuesta utilizando OpenAI de forma asíncrona.
+        """
         logger.debug(f"Generando respuesta para el prompt: {prompt}")
         try:
             response = await asyncio.to_thread(
@@ -63,7 +66,6 @@ class GPTHandler:
             return respuesta_texto
         except RateLimitError:
             logger.error("Excediste tu cuota de OpenAI.")
-            self._notify_quota_exceeded()
             return "Lo siento, se ha excedido la cuota actual de la API de OpenAI."
         except OpenAIError as oe:
             logger.error(f"Error de OpenAI: {oe}", exc_info=True)
@@ -71,6 +73,21 @@ class GPTHandler:
         except Exception as e:
             logger.error(f"Error generando respuesta con GPT: {e}", exc_info=True)
             return "Lo siento, ocurrió un error inesperado."
+
+    def generate_response_sync(self, prompt: str, context: Optional[Dict] = None) -> str:
+        """
+        Versión síncrona de `generate_response`, que maneja el loop de asyncio internamente.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                logger.warning("Se está ejecutando en un loop de asyncio. Usando `asyncio.ensure_future`.")
+                return asyncio.ensure_future(self.generate_response(prompt))
+            else:
+                return asyncio.run(self.generate_response(prompt))
+        except Exception as e:
+            logger.error(f"Error generando respuesta sincronizada con GPT: {e}", exc_info=True)
+            return "Error inesperado al procesar la solicitud."
 
     def _notify_quota_exceeded(self):
         logger.debug("Enviando notificación de cuota excedida.")
