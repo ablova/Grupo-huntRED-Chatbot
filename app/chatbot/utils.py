@@ -241,3 +241,27 @@ def log_with_correlation_id(message: str, correlation_id: str, level: str = "inf
         logger.error(log_message)
     else:
         logger.debug(log_message)
+
+def get_all_skills_for_unit(unit_name: str) -> list:
+    """
+    Devuelve todas las habilidades (técnicas y blandas) de una unidad de negocio.
+
+    Args:
+        unit_name (str): Nombre de la unidad de negocio.
+
+    Returns:
+        list: Lista de todas las habilidades encontradas.
+    """
+    try:
+        skills_data = catalog_data.get(unit_name, {})
+        all_skills = []
+
+        for division, roles in skills_data.items():
+            for role, attributes in roles.items():
+                all_skills.extend(attributes.get("Habilidades Técnicas", []))
+                all_skills.extend(attributes.get("Habilidades Blandas", []))
+
+        return list(set(all_skills))  # Eliminar duplicados
+    except Exception as e:
+        logger.error(f"Error al obtener habilidades para {unit_name}: {e}", exc_info=True)
+        return []

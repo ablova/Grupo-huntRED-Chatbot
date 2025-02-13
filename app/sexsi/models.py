@@ -66,8 +66,10 @@ class ConsentAgreement(models.Model):
     
     # Seguridad y control de token
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    token_expiry = models.DateTimeField(default=lambda: now() + timedelta(hours=36))
+    def default_token_expiry():
+        return now() + timedelta(hours=36)
 
+    token_expiry = models.DateTimeField(default=default_token_expiry)
     def generate_otp(self):
         """Genera un código OTP de 6 dígitos y lo almacena con una validez de 10 minutos."""
         self.otp_code = str(uuid.uuid4().int)[:6]
