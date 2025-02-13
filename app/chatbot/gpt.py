@@ -14,6 +14,8 @@ import asyncio
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+REQUEST_TIMEOUT = 10.0  # ya definido en services.py; se puede importar si se centraliza
+
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 console_formatter = logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(message)s')
@@ -49,13 +51,18 @@ class GPTHandler:
     async def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
         """
         Genera una respuesta utilizando OpenAI de forma asíncrona.
+        Si se proporciona un contexto, se incorpora al prompt.
         """
-        logger.debug(f"Generando respuesta para el prompt: {prompt}")
+        full_prompt = prompt
+        if context:
+            # Por ejemplo, unir el contexto (se puede ajustar según el formato deseado)
+            full_prompt += "\nContexto adicional:\n" + json.dumps(context)
+        logger.debug(f"Generando respuesta para el prompt: {full_prompt}")
         try:
             response = await asyncio.to_thread(
                 self.client.chat.completions.create,
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": full_prompt}],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p
@@ -74,20 +81,24 @@ class GPTHandler:
             logger.error(f"Error generando respuesta con GPT: {e}", exc_info=True)
             return "Lo siento, ocurrió un error inesperado."
 
+
     def generate_response_sync(self, prompt: str, context: Optional[Dict] = None) -> str:
         """
-        Versión síncrona de `generate_response`, que maneja el loop de asyncio internamente.
+        Versión síncrona de generate_response.
+        Si se detecta un loop en ejecución, se recomienda llamar a la versión asíncrona.
         """
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                logger.warning("Se está ejecutando en un loop de asyncio. Usando `asyncio.ensure_future`.")
-                return asyncio.ensure_future(self.generate_response(prompt))
+                logger.warning("Ejecutando en un loop asíncrono; se recomienda usar generate_response directamente.")
+                # Devuelve la futura para que se maneje asíncronamente
+                return asyncio.run(self.generate_response(prompt, context))
             else:
-                return asyncio.run(self.generate_response(prompt))
+                return asyncio.run(self.generate_response(prompt, context))
         except Exception as e:
             logger.error(f"Error generando respuesta sincronizada con GPT: {e}", exc_info=True)
             return "Error inesperado al procesar la solicitud."
+
 
     def _notify_quota_exceeded(self):
         logger.debug("Enviando notificación de cuota excedida.")
@@ -139,12 +150,15 @@ class GPTHandler:
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
     async def generate_response_with_retries(self, prompt: str, context: Optional[Dict] = None) -> str:
-        logger.debug(f"Generando respuesta con reintentos para el prompt: {prompt}")
+        full_prompt = prompt
+        if context:
+            full_prompt += "\nContexto adicional:\n" + json.dumps(context)
+        logger.debug(f"Generando respuesta con reintentos para el prompt: {full_prompt}")
         try:
             response = await asyncio.to_thread(
                 self.client.chat.completions.create,
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": full_prompt}],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p
@@ -158,3 +172,4 @@ class GPTHandler:
         except Exception as e:
             logger.error(f"Error generando respuesta con GPT en generate_response_with_retries: {e}", exc_info=True)
             raise e
+
