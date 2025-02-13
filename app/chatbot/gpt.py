@@ -30,22 +30,35 @@ logger.addHandler(file_handler)
 
 class GPTHandler:
     def __init__(self):
-        logger.debug("Inicializando GPTHandler...")
+        logger.debug("Creando instancia de GPTHandler...")
+        # Inicialización diferida: estos atributos se cargarán en initialize()
+        self.gpt_api = None
+        self.client = None
+        self.model = None
+        self.max_tokens = None
+        self.temperature = None
+        self.top_p = None
+
+    async def initialize(self):
+        """
+        Inicializa la configuración de GPT cargando la instancia de GptApi de la base de datos.
+        """
         try:
-            gpt_api = GptApi.objects.first()
+            # Ejecutar la consulta en un hilo separado
+            gpt_api = await sync_to_async(lambda: GptApi.objects.first())()
             if gpt_api:
-                logger.debug("Se encontró una instancia de GptApi en la base de datos.")
+                self.gpt_api = gpt_api
                 self.client = OpenAI(api_key=gpt_api.api_token, organization=gpt_api.organization)
                 self.model = gpt_api.model or "gpt-4"
                 self.max_tokens = gpt_api.max_tokens or 150
                 self.temperature = gpt_api.temperature or 0.7
                 self.top_p = gpt_api.top_p or 1.0
-                logger.debug(f"Configurado para usar el modelo: {self.model}")
+                logger.debug(f"GPTHandler configurado para usar el modelo: {self.model}")
             else:
                 logger.error("No se encontró una instancia de GptApi en la base de datos.")
                 raise ValueError("No hay GPT API configurada en la base de datos.")
         except Exception as e:
-            logger.exception("Error al inicializar GPTHandler: ", exc_info=True)
+            logger.exception("Error al inicializar GPTHandler:", exc_info=True)
             raise e
 
     async def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
@@ -53,9 +66,9 @@ class GPTHandler:
         Genera una respuesta utilizando OpenAI de forma asíncrona.
         Si se proporciona un contexto, se incorpora al prompt.
         """
+        import json  # Asegúrese de importar json si aún no está
         full_prompt = prompt
         if context:
-            # Por ejemplo, unir el contexto (se puede ajustar según el formato deseado)
             full_prompt += "\nContexto adicional:\n" + json.dumps(context)
         logger.debug(f"Generando respuesta para el prompt: {full_prompt}")
         try:
@@ -81,24 +94,21 @@ class GPTHandler:
             logger.error(f"Error generando respuesta con GPT: {e}", exc_info=True)
             return "Lo siento, ocurrió un error inesperado."
 
-
     def generate_response_sync(self, prompt: str, context: Optional[Dict] = None) -> str:
         """
         Versión síncrona de generate_response.
-        Si se detecta un loop en ejecución, se recomienda llamar a la versión asíncrona.
+        Se recomienda llamar a la versión asíncrona desde un entorno asíncrono.
         """
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                logger.warning("Ejecutando en un loop asíncrono; se recomienda usar generate_response directamente.")
-                # Devuelve la futura para que se maneje asíncronamente
+                logger.warning("Se está ejecutando en un loop asíncrono; se recomienda usar generate_response directamente.")
                 return asyncio.run(self.generate_response(prompt, context))
             else:
                 return asyncio.run(self.generate_response(prompt, context))
         except Exception as e:
             logger.error(f"Error generando respuesta sincronizada con GPT: {e}", exc_info=True)
             return "Error inesperado al procesar la solicitud."
-
 
     def _notify_quota_exceeded(self):
         logger.debug("Enviando notificación de cuota excedida.")
@@ -150,6 +160,7 @@ class GPTHandler:
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
     async def generate_response_with_retries(self, prompt: str, context: Optional[Dict] = None) -> str:
+        import json
         full_prompt = prompt
         if context:
             full_prompt += "\nContexto adicional:\n" + json.dumps(context)
@@ -172,4 +183,3 @@ class GPTHandler:
         except Exception as e:
             logger.error(f"Error generando respuesta con GPT en generate_response_with_retries: {e}", exc_info=True)
             raise e
-

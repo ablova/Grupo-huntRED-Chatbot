@@ -367,7 +367,7 @@ class ChatBotHandler:
 
     async def generate_dynamic_response(self, user: Person, event: ChatState, user_message: str, entities, sentiment) -> str:
         """
-        Genera una respuesta dinámica usando GPT.
+        Genera una respuesta dinámica usando GPT. El prompt se construye a partir del historial y contexto.
         """
         history = await self.get_conversation_history(event)
         prompt = self.build_gpt_prompt(history, user_message, user, entities, sentiment)
@@ -376,9 +376,14 @@ class ChatBotHandler:
         if not gpt_api:
             logger.warning("No se encontró configuración GptApi, no se puede usar GPT.")
             return "Lo siento, no tengo suficiente información para responder."
-        # Asegurarse de await la respuesta asíncrona de GPTHandler
+
+        # Inicializar GPTHandler si aún no se ha hecho
+        if self.gpt_handler.gpt_api is None:
+            await self.gpt_handler.initialize()
+
         gpt_response = await self.gpt_handler.generate_response(prompt)
         return gpt_response
+
 
     def build_gpt_prompt(self, history, user_message, user: Person, entities, sentiment):
         """
