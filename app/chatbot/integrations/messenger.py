@@ -3,6 +3,7 @@
 import logging
 import json
 import httpx
+import asyncio
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
@@ -13,6 +14,7 @@ from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 
 logger = logging.getLogger('messenger')
+REQUEST_TIMEOUT = 10.0  # segundos (si no está definido globalmente)
 CACHE_TIMEOUT = 600  # 10 minutos
 
 @csrf_exempt
@@ -26,7 +28,7 @@ async def messenger_webhook(request, page_id):
         try:
             body = request.body.decode('utf-8')
             payload = json.loads(body)
-            logger.info(f"Payload recibido de Messenger: {json.dumps(payload, indent=4)}")
+            logger.info(f"[messenger_webhook] Payload recibido: {json.dumps(payload, indent=2)}")
     
             # Obtener MessengerAPI basado en page_id
             messenger_api = await sync_to_async(
@@ -62,13 +64,13 @@ async def messenger_webhook(request, page_id):
 
             return HttpResponse(status=200)
         except json.JSONDecodeError as e:
-            logger.error(f"Error al decodificar JSON: {e}", exc_info=True)
+            logger.error(f"[messenger_webhook] JSON inválido: {e}", exc_info=True)
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except Exception as e:
-            logger.error(f"Error al manejar el webhook de Messenger: {e}", exc_info=True)
+            logger.error(f"[messenger_webhook] Error en webhook de Messenger: {e}", exc_info=True)
             return JsonResponse({"error": "Internal Server Error"}, status=500)
     else:
-        logger.warning(f"Método no permitido: {request.method}")
+        logger.warning(f"[messenger_webhook] Método no permitido: {request.method}")
         return HttpResponse(status=405)
 
 async def verify_messenger_token(request, page_id):
@@ -129,18 +131,12 @@ async def send_messenger_message(user_id: str, message: str, options: Optional[L
 async def send_messenger_buttons(user_id, message, buttons, access_token):
     """
     Envía un mensaje con botones a través de Facebook Messenger usando respuestas rápidas.
-    :param user_id: ID del usuario en Messenger.
-    :param message: Mensaje de texto a enviar.
-    :param buttons: Lista de botones [{'content_type': 'text', 'title': 'Botón 1', 'payload': 'boton_1'}].
-    :param access_token: Token de acceso de la página de Facebook.
     """
     url = "https://graph.facebook.com/v11.0/me/messages"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
-
-    # Construcción del payload para enviar el mensaje con botones
     payload = {
         "recipient": {"id": user_id},
         "message": {
@@ -148,14 +144,19 @@ async def send_messenger_buttons(user_id, message, buttons, access_token):
             "quick_replies": buttons
         }
     }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            logger.debug(f"Enviando botones a Messenger para el usuario {user_id}")
-            response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()  # Verifica si hubo algún error
-            logger.info(f"Botones enviados correctamente a Messenger. Respuesta: {response.text}")
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Error enviando botones a Messenger: {e.response.text}")
-    except Exception as e:
-        logger.error(f"Error enviando botones a Messenger: {e}", exc_info=True)
+    max_retries = 3
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                logger.info(f"[send_messenger_buttons] Mensaje enviado a Messenger para {user_id}. Respuesta: {response.text}")
+                return
+        except httpx.HTTPStatusError as e:
+            logger.error(f"[send_messenger_buttons] Error HTTP en intento {attempt+1} para {user_id}: {e.response.text}", exc_info=True)
+        except Exception as e:
+            logger.error(f"[send_messenger_buttons] Error en intento {attempt+1} para {user_id}: {e}", exc_info=True)
+        attempt += 1
+        await asyncio.sleep(2 ** attempt)
+    logger.error(f"[send_messenger_buttons] Falló el envío a {user_id} tras {attempt} intentos.")
