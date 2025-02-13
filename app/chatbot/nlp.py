@@ -97,19 +97,26 @@ class NLPProcessor:
             "detected_divisions": detected_divisions
         }
 
+    # Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
+
     def extract_skills(self, text: str) -> list:
         """
         Extrae habilidades del texto combinando información de un catálogo y SkillExtractor.
         """
-        from app.chatbot.utils import get_division_skills
+        # Importar funciones necesarias desde utils:
+        # Utilizamos get_divisiones() para obtener la lista de divisiones disponibles
+        # y get_skills_for_unit(division) para obtener las habilidades de cada división.
+        from app.chatbot.utils import get_divisiones, get_skills_for_unit
         skills = []
-        detected_divisions = [division for division in get_division_skills().keys() if division.lower() in text.lower()]
+        # Usar get_divisiones() en lugar de get_division_skills() sin parámetros.
+        detected_divisions = [division for division in get_divisiones() if division.lower() in text.lower()]
 
         for division in detected_divisions:
-            division_skills = get_division_skills(division)
+            division_skills = get_skills_for_unit(division)
             skills.extend(division_skills.get("Habilidades Técnicas", []))
             skills.extend(division_skills.get("Habilidades Blandas", []))
 
+        # Si SkillExtractor (sn) está inicializado, extraer habilidades adicionales
         if sn:
             try:
                 results = sn.annotate(text)
@@ -120,9 +127,11 @@ class NLPProcessor:
         else:
             logger.warning("SkillExtractor no está inicializado; se omiten habilidades extra.")
 
+        # Eliminar duplicados
         skills = list(set(skills))
         logger.debug(f"Habilidades extraídas: {skills}")
         return skills
+
     
     def infer_gender(self, name: str) -> str:
         """
