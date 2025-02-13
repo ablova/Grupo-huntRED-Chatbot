@@ -23,6 +23,7 @@ from django.core.mail import EmailMultiAlternatives
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+whatsapp_semaphore = asyncio.Semaphore(10)
 
 CACHE_TIMEOUT = 600  # 10 minutos
 
@@ -207,9 +208,9 @@ async def send_whatsapp_message(
     try:
         if not phone_id and business_unit:
             # Si no se pasa phone_id y hay business_unit, busca la configuración
-            whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
+            whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
                 business_unit=business_unit, is_active=True
-            ).select_related('business_unit').first()
+            ).select_related('business_unit').first())() 
             if not whatsapp_api:
                 logger.error(f"[send_whatsapp_message] No se encontró WhatsAppAPI activo para {business_unit.name}")
                 return
@@ -218,9 +219,9 @@ async def send_whatsapp_message(
         else:
             # phone_id se pasa manualmente; obtener api_token
             if business_unit:
-                whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
+                whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
                     business_unit=business_unit, is_active=True
-                ).select_related('business_unit').first()
+                ).select_related('business_unit').first())() 
                 api_token = whatsapp_api.api_token if whatsapp_api else None
             else:
                 # Manejo minimal: phone_id y token están "hardcoded" o algo
@@ -298,9 +299,9 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
 
     try:
         # Obtener la configuración de WhatsAppAPI vinculada a la unidad de negocio
-        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-            business_unit=business_unit, is_active=True
-        ).select_related('business_unit').first()
+        whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
+                business_unit=business_unit, is_active=True
+        ).select_related('business_unit').first())() 
         
         if not whatsapp_api:
             raise ValueError(f"No se encontró configuración activa de WhatsAppAPI para la unidad de negocio: {business_unit.name}")
@@ -494,9 +495,9 @@ async def notify_employer(worker, message):
     """
     try:
         if worker.whatsapp:
-            whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-                phoneID=worker.whatsapp, is_active=True
-            ).select_related('business_unit').first()
+            whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
+                business_unit=business_unit, is_active=True
+            ).select_related('business_unit').first())() 
             if whatsapp_api:
                 await send_whatsapp_message(
                     user_id=worker.whatsapp,
