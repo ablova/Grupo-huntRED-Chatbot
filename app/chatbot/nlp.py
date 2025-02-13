@@ -67,29 +67,45 @@ class NLPProcessor:
         logger.debug("Patrones de saludo definidos en Matcher.")
 
     def analyze(self, text: str) -> dict:
-        """
+        """ 
         Analiza el texto para extraer intenciones, entidades, sentimiento y divisiones detectadas.
         """
-        from app.chatbot.utils import clean_text, validate_term_in_catalog, get_division_skills
+        from app.chatbot.utils import clean_text, validate_term_in_catalog, get_all_divisions
 
         if not nlp:
             logger.error("No se ha cargado el modelo spaCy, devolviendo análisis vacío.")
-            return {"intents": [], "entities": [], "sentiment": {}}
+            return {"intents": [], "entities": [], "sentiment": {}, "detected_divisions": []}
 
         cleaned_text = clean_text(text)
         doc = nlp(cleaned_text)
+
+        # Detectar entidades mejoradas
         entities = [(ent.text, ent.label_) for ent in doc.ents]
         
+        # Matcher personalizado para reconocer habilidades y términos clave
+        phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
+        keywords = ["Python", "Django", "SQL", "Machine Learning", "Tableau", "gestión de riesgos"]
+        patterns = [nlp(keyword) for keyword in keywords]
+        phrase_matcher.add("TECH_SKILLS", patterns)
+
+        matches = phrase_matcher(doc)
+        matched_terms = [doc[start:end].text for match_id, start, end in matches]
+        for term in matched_terms:
+            entities.append((term, "SKILL"))
+
+        # Extraer intenciones
         intents = []
         if self.matcher:
             matches = self.matcher(doc)
             intents = [nlp.vocab.strings[match_id] for match_id, _, _ in matches]
 
+        # Analizar sentimiento
         sentiment = self.sia.polarity_scores(cleaned_text) if self.sia else {}
-        from app.chatbot.utils import get_all_divisions  # Asegurar que esta función existe en utils.py
+
+        # Detectar divisiones
         all_divisions = get_all_divisions()
-  
         detected_divisions = [term for term in entities if validate_term_in_catalog(term[0], all_divisions)]
+
         logger.debug(f"Análisis: Intenciones={intents}, Entidades={entities}, Sentimiento={sentiment}")
         return {
             "entities": entities,
@@ -98,7 +114,6 @@ class NLPProcessor:
             "detected_divisions": detected_divisions
         }
 
-    # Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
 
     def extract_skills(self, text: str) -> list:
         """
