@@ -6,6 +6,7 @@ import json
 from spacy.matcher import Matcher, PhraseMatcher
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from skillNer.skill_extractor_class import SkillExtractor
+from app.models import BusinessUnit
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -114,50 +115,57 @@ class NLPProcessor:
             "detected_divisions": detected_divisions
         }
 
-
-    def extract_skills(self, text: str) -> list:
+    def extract_skills(self, text: str, user_id: str = None) -> list:
         """
         Extrae habilidades del texto combinando información de un catálogo y SkillExtractor.
-        Se verifica que el resultado de sn.annotate tenga el formato esperado.
+
+        Args:
+            text (str): Texto a analizar.
+            user_id (str, opcional): ID del usuario (WhatsApp phone ID, Telegram bot ID, etc.).
+
+        Returns:
+            list: Lista de habilidades detectadas.
         """
-        from app.utilidades.catalogs import get_divisiones, get_skills_for_unit
-        import json
+        from app.chatbot.utils import get_all_skills_for_unit
+
+        # Obtener la unidad de negocio desde ChatState
+        business_unit = "huntRED®"  # Valor por defecto
+        if user_id:
+            try:
+                from app.models import ChatState
+                chat_state = ChatState.objects.get(user_id=user_id)
+                business_unit = chat_state.business_unit.name
+            except ChatState.DoesNotExist:
+                logger.error(f"No se encontró ChatState para user_id: {user_id}, usando '{business_unit}'.")
+            except Exception as e:
+                logger.error(f"Error obteniendo BusinessUnit desde user_id ({user_id}): {e}")
+
+        # Obtener todas las habilidades de la unidad de negocio correspondiente
         skills = []
-        from app.chatbot.utils import get_all_divisions  # Asegurar que esta función existe en utils.py
-        all_divisions = get_all_divisions()
+        all_skills = get_all_skills_for_unit(business_unit)
 
-        detected_divisions = [division for division in get_divisiones() if division.lower() in text.lower()]
+        # Buscar coincidencias manualmente con palabras clave del catálogo
+        for skill in all_skills:
+            if skill.lower() in text.lower():
+                skills.append(skill)
 
-        for division in detected_divisions:
-            division_skills = get_skills_for_unit(division)
-            skills.extend(division_skills.get("Habilidades Técnicas", []))
-            skills.extend(division_skills.get("Habilidades Blandas", []))
-
+        # Si SkillExtractor está disponible, extraer habilidades adicionales
         if sn:
             try:
                 results = sn.annotate(text)
-                # Si el resultado es una cadena, intentar convertirlo a dict
-                if isinstance(results, str):
-                    results = json.loads(results)
-                extracted_skills = []
-                # Verificar que results sea un diccionario y contenga la clave "results"
                 if isinstance(results, dict) and "results" in results:
-                    # Asegurarse de que cada item sea un diccionario con la clave 'skill'
-                    extracted_skills = [
-                        item['skill'] for item in results.get("results", [])
-                        if isinstance(item, dict) and 'skill' in item
-                    ]
+                    extracted_skills = [item["skill"] for item in results["results"] if isinstance(item, dict)]
+                    skills.extend(extracted_skills)
                 else:
-                    logger.warning("El resultado de SkillExtractor no tiene el formato esperado.")
-                skills.extend(extracted_skills)
+                    logger.error(f"Formato inesperado en resultados de SkillExtractor: {results}")
             except Exception as e:
                 logger.error(f"Error extrayendo habilidades con SkillExtractor: {e}", exc_info=True)
-        else:
-            logger.warning("SkillExtractor no está inicializado; se omiten habilidades extra.")
 
+        # Eliminar duplicados
         skills = list(set(skills))
-        logger.debug(f"Habilidades extraídas: {skills}")
+        logger.debug(f"Habilidades extraídas para {business_unit}: {skills}")
         return skills
+
 
     
     def infer_gender(self, name: str) -> str:
