@@ -6,7 +6,7 @@ from app.utilidades.loader import BUSINESS_UNITS, DIVISIONES, load_unit_skills
 
 logger = logging.getLogger(__name__)
 
-# Caché simple para skills (opcional)
+# Caché simple para skills
 _skills_cache = {}
 
 def get_business_units() -> list:
@@ -24,39 +24,53 @@ def get_divisiones() -> list:
 def get_skills_for_unit(unit_name: str) -> dict:
     """
     Devuelve las habilidades específicas para una unidad de negocio.
-    Se utiliza caché para evitar recargas repetidas.
-    
-    Args:
-        unit_name (str): Nombre de la unidad de negocio.
-        
-    Returns:
-        dict: Diccionario con habilidades técnicas y blandas, o vacío si no se encuentra.
+    Se utiliza como base el archivo 'skill_db_relax_20.json'. Además, si se
+    encuentran habilidades adicionales mediante load_unit_skills, se fusionan,
+    evitando duplicados.
     """
     if unit_name in _skills_cache:
         logger.debug(f"Skills para {unit_name} obtenidas de caché.")
         return _skills_cache[unit_name]
+    
     try:
-        skills = load_unit_skills(unit_name)
-        if not skills:
-            logger.warning(f"No se encontraron habilidades para la unidad: {unit_name}")
-            skills = {}
+        with open("/home/pablo/skill_db_relax_20.json", 'r', encoding='utf-8') as f:
+            base_skills = json.load(f)
+        logger.info("Se cargaron las habilidades base desde skill_db_relax_20.json.")
     except Exception as e:
-        logger.error(f"Error al cargar skills para {unit_name}: {e}", exc_info=True)
-        skills = {}
-    _skills_cache[unit_name] = skills
-    return skills
+        logger.error(f"Error al cargar skill_db_relax_20.json: {e}", exc_info=True)
+        base_skills = {}
+
+    try:
+        additional_skills = load_unit_skills(unit_name)
+        if additional_skills:
+            logger.info(f"Se encontraron habilidades adicionales para {unit_name}.")
+        else:
+            logger.info(f"No se encontraron habilidades adicionales para {unit_name}.")
+    except Exception as e:
+        logger.error(f"Error al cargar habilidades adicionales para {unit_name}: {e}", exc_info=True)
+        additional_skills = {}
+
+    # Fusionar las dos fuentes sin duplicados
+    merged_skills = base_skills.copy()
+    if additional_skills:
+        for division, roles in additional_skills.items():
+            if division in merged_skills:
+                for role, attributes in roles.items():
+                    if role in merged_skills[division]:
+                        for key in ["Habilidades Técnicas", "Habilidades Blandas"]:
+                            base_list = merged_skills[division][role].get(key, [])
+                            add_list = attributes.get(key, [])
+                            merged_list = list(set(base_list) | set(add_list))
+                            merged_skills[division][role][key] = merged_list
+                    else:
+                        merged_skills[division][role] = attributes
+            else:
+                merged_skills[division] = roles
+
+    _skills_cache[unit_name] = merged_skills
+    return merged_skills
 
 def validate_skill_in_unit(skill: str, unit_name: str) -> bool:
-    """
-    Valida si una habilidad pertenece a una unidad de negocio específica.
-    
-    Args:
-        skill (str): Habilidad a validar.
-        unit_name (str): Unidad de negocio donde buscar la habilidad.
-        
-    Returns:
-        bool: True si la habilidad pertenece a la unidad, False de lo contrario.
-    """
     skills = get_skills_for_unit(unit_name)
     all_skills = []
     for division, roles in skills.items():
@@ -66,15 +80,6 @@ def validate_skill_in_unit(skill: str, unit_name: str) -> bool:
     return skill.lower() in [s.lower() for s in all_skills]
 
 def get_all_skills_for_unit(unit_name: str) -> list:
-    """
-    Devuelve todas las habilidades (técnicas y blandas) para una unidad de negocio.
-    
-    Args:
-        unit_name (str): Nombre de la unidad de negocio.
-        
-    Returns:
-        list: Lista de todas las habilidades encontradas, sin duplicados.
-    """
     skills = get_skills_for_unit(unit_name)
     all_skills = []
     for division, roles in skills.items():
