@@ -343,3 +343,4 @@ async def send_whatsapp_message(user_id: str, message: str, buttons: Optional[Li
         await asyncio.sleep(1)
 
     logger.error(f"Falló el envío del mensaje a {user_id} después de {MAX_RETRIES} intentos.")
+python -m django --version

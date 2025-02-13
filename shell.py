@@ -74,6 +74,88 @@ python manage.py shell
 #Crear ALIAS
 nano ~/.bashrc && source ~/.bashrc
 
+# === Activar colores en la terminal ===
+export LS_OPTIONS='--color=auto'
+alias ls='ls $LS_OPTIONS'
+alias ll='ls -la $LS_OPTIONS'
+alias grep='grep --color=auto'
+
+# === Personalizar el prompt (PS1) con colores ===
+export PS1="\[\033[1;32m\]\u@\h:\[\033[1;34m\]\w\[\033[1;36m\]\$ \[\033[0m\]"
+
+# === Alias generales ===
+alias iniciar='cd /home/pablo && source venv/bin/activate'
+alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt autoremove -y'
+
+# === Alias para edición rápida de archivos principales ===
+alias edit_ai_urls='sudo rm /home/pablo/ai_huntred/urls.py && sudo nano /home/pablo/ai_huntred/urls.py'
+alias edit_settings='sudo rm /home/pablo/ai_huntred/settings.py && sudo nano /home/pablo/ai_huntred/settings.py'
+alias edit_celery='sudo rm /home/pablo/ai_huntred/celery.py && sudo nano /home/pablo/ai_huntred/celery.py'
+
+alias edit_models='sudo rm /home/pablo/app/models.py && sudo nano /home/pablo/app/models.py'
+alias edit_tasks='sudo rm /home/pablo/app/tasks.py && sudo nano /home/pablo/app/tasks.py'
+alias edit_admin='sudo rm /home/pablo/app/admin.py && sudo nano /home/pablo/app/admin.py'
+alias edit_urls='sudo rm /home/pablo/app/urls.py && sudo nano /home/pablo/app/urls.py'
+alias edit_signal='sudo rm /home/pablo/app/signal.py && sudo nano /home/pablo/app/signal.py'
+alias edit_monitoring='sudo rm /home/pablo/app/monitoring.py && sudo nano /home/pablo/app/monitoring.py'
+
+# === Alias para edición de archivos en utilidades ===
+alias edit_catalogs='sudo rm /home/pablo/app/utilidades/catalogs.py && sudo nano /home/pablo/app/utilidades/catalogs.py'
+alias edit_loader='sudo rm /home/pablo/app/utilidades/loader.py && sudo nano /home/pablo/app/utilidades/loader.py'
+alias edit_calendar='sudo rm /home/pablo/app/utilidades/google_calendar.py && sudo nano /home/pablo/app/utilidades/google_calendar.py'
+alias edit_reports='sudo rm /home/pablo/app/utilidades/report_generator.py && sudo nano /home/pablo/app/utilidades/report_generator.py'
+alias edit_parser='sudo rm /home/pablo/app/utilidades/parser.py && sudo nano /home/pablo/app/utilidades/parser.py'
+alias edit_vacantes='sudo rm /home/pablo/app/utilidades/vacantes.py && sudo nano /home/pablo/app/utilidades/vacantes.py'
+alias edit_linkedin='sudo rm /home/pablo/app/utilidades/linkedin.py && sudo nano /home/pablo/app/utilidades/linkedin.py'
+
+# === Alias para chatbot e integraciones ===
+alias edit_chatbot='sudo rm /home/pablo/app/chatbot/chatbot.py && sudo nano /home/pablo/app/chatbot/chatbot.py'
+alias edit_nlp='sudo rm /home/pablo/app/chatbot/nlp.py && sudo nano /home/pablo/app/chatbot/nlp.py'
+alias edit_whatsapp='sudo rm /home/pablo/app/chatbot/integrations/whatsapp.py && sudo nano /home/pablo/app/chatbot/integrations/whatsapp.py'
+alias edit_telegram='sudo rm /home/pablo/app/chatbot/integrations/telegram.py && sudo nano /home/pablo/app/chatbot/integrations/telegram.py'
+alias edit_messenger='sudo rm /home/pablo/app/chatbot/integrations/messenger.py && sudo nano /home/pablo/app/chatbot/integrations/messenger.py'
+alias edit_instagram='sudo rm /home/pablo/app/chatbot/integrations/instagram.py && sudo nano /home/pablo/app/chatbot/integrations/instagram.py'
+alias edit_services='sudo rm /home/pablo/app/chatbot/integrations/services.py && sudo nano /home/pablo/app/chatbot/integrations/services.py'
+
+# === Alias para edición de views ===
+alias edit_views='sudo rm /home/pablo/app/views.py && sudo nano /home/pablo/app/views.py'
+alias edit_candidatos_views='sudo rm /home/pablo/app/views/candidatos_views.py && sudo nano /home/pablo/app/views/candidatos_views.py'
+alias edit_vacantes_views='sudo rm /home/pablo/app/views/vacantes_views.py && sudo nano /home/pablo/app/views/vacantes_views.py'
+alias edit_clientes_views='sudo rm /home/pablo/app/views/clientes_views.py && sudo nano /home/pablo/app/views/clientes_views.py'
+alias edit_chatbot_views='sudo rm /home/pablo/app/views/chatbot_views.py && sudo nano /home/pablo/app/views/chatbot_views.py'
+alias edit_utilidades_views='sudo rm /home/pablo/app/views/utilidades_views.py && sudo nano /home/pablo/app/views/utilidades_views.py'
+alias edit_integraciones_views='sudo rm /home/pablo/app/views/integraciones_views.py && sudo nano /home/pablo/app/views/integraciones_views.py'
+alias edit_auth_views='sudo rm /home/pablo/app/views/auth_views.py && sudo nano /home/pablo/app/views/auth_views.py'
+
+alias edit_forms='sudo rm /home/pablo/app/forms.py && sudo nano /home/pablo/app/forms.py'
+alias edit_serializers='sudo rm /home/pablo/app/serializers.py && sudo nano /home/pablo/app/serializers.py'
+alias edit_permissions='sudo rm /home/pablo/app/permissions.py && sudo nano /home/pablo/app/permissions.py'
+alias edit_middlewares='sudo rm /home/pablo/app/middleware.py && sudo nano /home/pablo/app/middleware.py'
+
+# === Alias para logs y procesos en segundo plano ===
+alias logs_celery='sudo journalctl -u celery -f'
+alias logs_gunicorn='sudo journalctl -u gunicorn -f'
+alias logs_nginx='sudo journalctl -u nginx -f'
+alias logs_all='sudo tail -f /home/pablo/logs/*.log'
+
+# === Alias generales ===
+alias reload_aliases='source ~/.bashrc'
+alias rserver='sudo systemctl restart gunicorn nginx'
+alias check_logs='tail -f /home/pablo/logs/*.log'
+alias clear_logs='sudo rm -rf /home/pablo/logs/*.log && touch /home/pablo/logs/empty.log'
+alias edit_env='sudo nano /home/pablo/.env'
+alias edit_alias='nano ~/.bashrc'
+
+# === Alias para gestión del sistema ===
+alias migrate='python /home/pablo/manage.py migrate'
+alias makemigrations='python /home/pablo/manage.py makemigrations'
+alias collectstatic='python /home/pablo/manage.py collectstatic --noinput'
+alias shell='python /home/pablo/manage.py shell'
+alias restart_celery='sudo systemctl restart celery'
+alias restart_gunicorn='sudo systemctl restart gunicorn'
+alias restart_nginx='sudo systemctl restart nginx'
+alias restart_all='sudo systemctl restart gunicorn nginx celery'
+
 # Then in the Python shell, you can import and profile specific tasks
 from memory_profiler import profile
 from ai_huntred import your_specific_task
