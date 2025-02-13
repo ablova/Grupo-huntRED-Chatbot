@@ -29,7 +29,7 @@ except Exception as e:
 
 try:
     # Inicializar PhraseMatcher para mejorar la detección de patrones (además del Matcher)
-    phrase_matcher = PhraseMatcher(nlp.vocab, attr="LOWER") if nlp else None
+    phrase_matcher_callable = (lambda doc: PhraseMatcher(nlp.vocab, attr="LOWER")(doc)) if nlp else None
 
     # Ruta al JSON con la base de datos de skills (usar variable de entorno en producción)
     skill_db_path = "/home/pablo/skill_db_relax_20.json"
@@ -39,7 +39,7 @@ try:
     sn = SkillExtractor(
         nlp=nlp,
         skills_db=skills_db,
-        phraseMatcher=phrase_matcher
+        phraseMatcher=phrase_matcher_callable
     ) if nlp else None
 
     logger.info("SkillExtractor inicializado correctamente con skill_db_path.")
