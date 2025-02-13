@@ -30,4 +30,3 @@ no_borrar.json
 .chainlit/
 logs/
 app/migrations/
-app/milkyleak.py
