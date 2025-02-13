@@ -13,6 +13,7 @@ from itsdangerous import URLSafeTimedSerializer
 from django.conf import settings
 from typing import Dict, List
 import json
+from app.utilidades.catalogs import get_divisiones
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,12 @@ def sanitize_business_unit_name(name: str) -> str:
     Por ejemplo: 'Hunt RED' -> 'huntred'
     """
     return re.sub(r'\W+', '', name).lower()
+
+def get_all_divisions():
+    """
+    Obtiene todas las divisiones disponibles en los catálogos.
+    """
+    return get_divisiones()
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     """
