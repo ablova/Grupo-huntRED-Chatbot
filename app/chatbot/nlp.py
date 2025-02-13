@@ -1,5 +1,3 @@
-# /home/pablo/app/chatbot/nlp.py
-
 # Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
 import logging
 import nltk
@@ -9,7 +7,6 @@ from spacy.matcher import Matcher, PhraseMatcher
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from skillNer.skill_extractor_class import SkillExtractor
 
-# Configuración básica del logger (opcionalmente, se puede configurar en un módulo central)
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
@@ -17,9 +14,8 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
-# Descarga de recursos NLTK (verifica si ya están instalados)
+# Descarga de recursos NLTK (se ejecuta solo si no están ya descargados)
 nltk.download('vader_lexicon', quiet=True)
-
 try:
     nlp = spacy.load("es_core_news_md")
     logger.info("Modelo de spaCy 'es_core_news_md' cargado correctamente.")
@@ -28,10 +24,11 @@ except Exception as e:
     nlp = None
 
 try:
-    # Inicializar PhraseMatcher para mejorar la detección de patrones (además del Matcher)
-    phrase_matcher_callable = (lambda doc: PhraseMatcher(nlp.vocab, attr="LOWER")(doc)) if nlp else None
+    # Inicializar un callable para PhraseMatcher que ignore los argumentos recibidos,
+    # de modo que siempre se cree una instancia usando nlp.vocab y attr="LOWER"
+    phrase_matcher_callable = (lambda *args, **kwargs: PhraseMatcher(nlp.vocab, attr="LOWER")) if nlp else None
 
-    # Ruta al JSON con la base de datos de skills (usar variable de entorno en producción)
+    # Ruta al JSON con la base de datos de skills
     skill_db_path = "/home/pablo/skill_db_relax_20.json"
     with open(skill_db_path, 'r', encoding='utf-8') as f:
         skills_db = json.load(f)
@@ -42,7 +39,7 @@ try:
         phraseMatcher=phrase_matcher_callable
     ) if nlp else None
 
-    logger.info("SkillExtractor inicializado correctamente con skill_db_path.")
+    logger.info("SkillExtractor inicializado correctamente con skill_db_relax_20.json.")
 except Exception as e:
     logger.error(f"Error inicializando SkillExtractor: {e}", exc_info=True)
     sn = None
@@ -53,7 +50,6 @@ class NLPProcessor:
     sentimiento y habilidades.
     """
     def __init__(self):
-        # Usamos Matcher para patrones simples; se puede combinar con PhraseMatcher si se desea
         self.matcher = Matcher(nlp.vocab) if nlp else None
         self.define_intent_patterns()
         self.sia = SentimentIntensityAnalyzer() if nltk else None
@@ -64,7 +60,6 @@ class NLPProcessor:
         """
         if not self.matcher:
             return
-        # Se pueden agregar más patrones según sea necesario
         saludo_patterns = [
             [{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "qué tal"]}}]
         ]
@@ -75,7 +70,6 @@ class NLPProcessor:
         """
         Analiza el texto para extraer intenciones, entidades, sentimiento y divisiones detectadas.
         """
-        # Importar funciones necesarias desde utils (asegúrese de que estén definidas)
         from app.chatbot.utils import clean_text, validate_term_in_catalog, get_division_skills
 
         if not nlp:
@@ -86,16 +80,13 @@ class NLPProcessor:
         doc = nlp(cleaned_text)
         entities = [(ent.text, ent.label_) for ent in doc.ents]
         
-        # Extraer intenciones usando Matcher
         intents = []
         if self.matcher:
             matches = self.matcher(doc)
             intents = [nlp.vocab.strings[match_id] for match_id, _, _ in matches]
 
-        # Analizar sentimiento
         sentiment = self.sia.polarity_scores(cleaned_text) if self.sia else {}
 
-        # Detectar divisiones basadas en catalogo
         detected_divisions = [term for term in entities if validate_term_in_catalog(term[0], get_division_skills().keys())]
 
         logger.debug(f"Análisis: Intenciones={intents}, Entidades={entities}, Sentimiento={sentiment}")
@@ -112,7 +103,6 @@ class NLPProcessor:
         """
         from app.chatbot.utils import get_division_skills
         skills = []
-        # Detectar divisiones usando el catálogo de habilidades
         detected_divisions = [division for division in get_division_skills().keys() if division.lower() in text.lower()]
 
         for division in detected_divisions:
@@ -120,7 +110,6 @@ class NLPProcessor:
             skills.extend(division_skills.get("Habilidades Técnicas", []))
             skills.extend(division_skills.get("Habilidades Blandas", []))
 
-        # Si SkillExtractor (sn) está inicializado, extraer habilidades adicionales
         if sn:
             try:
                 results = sn.annotate(text)
@@ -131,7 +120,6 @@ class NLPProcessor:
         else:
             logger.warning("SkillExtractor no está inicializado; se omiten habilidades extra.")
 
-        # Eliminar duplicados
         skills = list(set(skills))
         logger.debug(f"Habilidades extraídas: {skills}")
         return skills
@@ -160,3 +148,20 @@ class NLPProcessor:
 
 # Instancia global del procesador
 nlp_processor = NLPProcessor()
+
+def load_catalog() -> dict:
+    """
+    Carga el catálogo desde '/home/pablo/app/utilidades/catalogs/catalogs.json'.
+    Si ocurre algún error (archivo vacío o JSON mal formado), se devuelve un diccionario vacío.
+    """
+    catalog_path = "/home/pablo/app/utilidades/catalogs/catalogs.json"
+    try:
+        with open(catalog_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not data:
+            logger.warning(f"El archivo {catalog_path} está vacío. Se utilizará un catálogo vacío.")
+            return {}
+        return data
+    except Exception as e:
+        logger.error(f"Error al cargar el catálogo desde {catalog_path}: {e}", exc_info=True)
+        return {}
