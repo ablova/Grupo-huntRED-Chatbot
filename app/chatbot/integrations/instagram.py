@@ -2,6 +2,7 @@
 import logging
 import json
 import httpx
+import asyncio
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from asgiref.sync import sync_to_async
@@ -11,6 +12,7 @@ from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 
 logger = logging.getLogger('instagram')
+REQUEST_TIMEOUT = 10.0  # segundos
 CACHE_TIMEOUT = 600  # 10 minutos
 
 @csrf_exempt
@@ -24,9 +26,8 @@ async def instagram_webhook(request):
         try:
             body = request.body.decode('utf-8')
             payload = json.loads(body)
-            logger.info(f"Payload recibido de Instagram: {json.dumps(payload, indent=4)}")
-    
-            # Procesar los mensajes recibidos
+            logger.info(f"[instagram_webhook] Payload recibido: {json.dumps(payload, indent=2)}")
+            # Procesamiento del payload
             for entry in payload.get('entry', []):
                 for change in entry.get('changes', []):
                     value = change.get('value', {})
@@ -35,9 +36,9 @@ async def instagram_webhook(request):
                         sender_id = message.get('from')
                         message_text = message.get('text', {}).get('body', '').strip()
                         if not message_text:
-                            logger.warning(f"Mensaje vacío recibido de {sender_id}")
+                            logger.warning(f"[instagram_webhook] Mensaje vacío de {sender_id}")
                             continue
-                        logger.info(f"Mensaje recibido de {sender_id}: {message_text}")
+                        logger.info(f"[instagram_webhook] Mensaje de {sender_id}: {message_text}")
     
                         # Obtener o crear el ChatState
                         chat_state = await get_or_create_chat_state(sender_id, 'instagram')
@@ -51,13 +52,13 @@ async def instagram_webhook(request):
     
             return HttpResponse(status=200)
         except json.JSONDecodeError as e:
-            logger.error(f"Error al decodificar JSON: {e}", exc_info=True)
+            logger.error(f"[instagram_webhook] Error al decodificar JSON: {e}", exc_info=True)
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except Exception as e:
-            logger.error(f"Error al manejar el webhook de Instagram: {e}", exc_info=True)
+            logger.error(f"[instagram_webhook] Error en el webhook de Instagram: {e}", exc_info=True)
             return JsonResponse({"error": "Internal Server Error"}, status=500)
     else:
-        logger.warning(f"Método no permitido: {request.method}")
+        logger.warning(f"[instagram_webhook] Método no permitido: {request.method}")
         return HttpResponse(status=405)
 
 async def verify_instagram_token(request):
@@ -137,18 +138,12 @@ async def send_instagram_message(user_id: str, message: str, options: Optional[L
 async def send_instagram_buttons(user_id, message, buttons, access_token):
     """
     Envía un mensaje con botones a través de Instagram usando respuestas rápidas.
-    :param user_id: ID del usuario en Instagram.
-    :param message: Mensaje de texto a enviar.
-    :param buttons: Lista de botones [{'content_type': 'text', 'title': 'Boton 1', 'payload': 'boton_1'}].
-    :param access_token: Token de acceso de la cuenta de Instagram.
     """
     url = f"https://graph.facebook.com/v11.0/me/messages"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
-
-    # Construcción del payload para enviar el mensaje con botones
     payload = {
         "recipient": {"id": user_id},
         "message": {
@@ -156,14 +151,19 @@ async def send_instagram_buttons(user_id, message, buttons, access_token):
             "quick_replies": buttons
         }
     }
-
-    try:
-        async with httpx.AsyncClient() as client:
-            logger.debug(f"Enviando botones a Instagram para el usuario {user_id}")
-            response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            logger.info(f"Botones enviados correctamente a Instagram. Respuesta: {response.text}")
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Error enviando botones a Instagram: {e.response.text}")
-    except Exception as e:
-        logger.error(f"Error enviando botones a Instagram: {e}", exc_info=True)
+    max_retries = 3
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                logger.info(f"[send_instagram_buttons] Botones enviados a Instagram para {user_id}. Respuesta: {response.text}")
+                return
+        except httpx.HTTPStatusError as e:
+            logger.error(f"[send_instagram_buttons] Error HTTP en intento {attempt+1} para {user_id}: {e.response.text}", exc_info=True)
+        except Exception as e:
+            logger.error(f"[send_instagram_buttons] Error en intento {attempt+1} para {user_id}: {e}", exc_info=True)
+        attempt += 1
+        await asyncio.sleep(2 ** attempt)
+    logger.error(f"[send_instagram_buttons] Falló el envío a {user_id} tras {attempt} intentos.")

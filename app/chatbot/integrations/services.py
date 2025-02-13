@@ -1,5 +1,4 @@
 # /home/pablo/app/chatbot/integrations/services.py
-
 import logging
 import smtplib
 import httpx
@@ -23,9 +22,13 @@ from django.core.mail import EmailMultiAlternatives
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+# Semáforo para controlar la concurrencia en WhatsApp (se usa en whatsapp.py)
 whatsapp_semaphore = asyncio.Semaphore(10)
 
-CACHE_TIMEOUT = 600  # 10 minutos
+# Constantes globales
+MAX_RETRIES = 3
+REQUEST_TIMEOUT = 10.0  # segundos
+CACHE_TIMEOUT = 600     # 10 minutos
 
 platform_send_functions = {
     'telegram': 'send_telegram_message',
@@ -33,6 +36,10 @@ platform_send_functions = {
     'messenger': 'send_messenger_message',
     'instagram': 'send_instagram_message',
 }
+
+# Función helper para ejecutar consultas sincrónicas
+async def execute_sync(query_lambda):
+    return await sync_to_async(query_lambda)()
 
 async def send_message(
     platform: str,
@@ -42,55 +49,52 @@ async def send_message(
     options: Optional[List[dict]] = None
 ):
     """
-    Envía un mensaje al usuario en la plataforma especificada, con opciones si las hay.
-    Ajustado para que 'whatsapp' reciba (user_id, message, phone_id, buttons, business_unit).
+    Envía un mensaje al usuario en la plataforma especificada, delegando en la función
+    específica de cada canal.
     """
     try:
-        logger.info(f"[send_message] Platform: {platform}, User: {user_id}, BU: {business_unit.name}, Msg: {message[:30]}...")
-
+        logger.info(f"[send_message] Plataforma: {platform}, User: {user_id}, BU: {business_unit.name}, Msg: {message[:30]}...")
         send_function_name = platform_send_functions.get(platform)
         if not send_function_name:
             logger.error(f"[send_message] Plataforma desconocida: {platform}")
             return
 
-        # Obtener instancia del API
+        # Obtener instancia del API de forma asíncrona
         api_instance = await get_api_instance(platform, business_unit)
         if not api_instance:
-            logger.error(f"[send_message] No API configuration for {platform} / BU {business_unit.name}. Abort.")
+            logger.error(f"[send_message] No se encontró configuración API para {platform} / BU {business_unit.name}. Abortando.")
             return
 
-        # Importar dinámicamente la función de envío
+        # Importar dinámicamente la función de envío del canal correspondiente
         send_module = __import__(f'app.chatbot.integrations.{platform}', fromlist=[send_function_name])
         send_function = getattr(send_module, send_function_name, None)
-
         if not send_function:
-            logger.error(f"[send_message] No se encontró la función '{send_function_name}' en {platform}.py")
+            logger.error(f"[send_message] Función '{send_function_name}' no encontrada en {platform}.py")
             return
 
         logger.debug(f"[send_message] Llamando a '{send_function_name}' con phone_id={getattr(api_instance, 'phoneID', None)}")
 
-        # Llamada unificada, incluidas 'buttons' y 'phone_id'
+        # Delegar la llamada según el canal
         if platform == 'whatsapp':
             from app.chatbot.integrations.whatsapp import send_whatsapp_message
             await send_function(
                 user_id=user_id,
                 message=message,
-                phone_id=getattr(api_instance, 'phoneID', None), 
-                buttons=options,  
+                phone_id=getattr(api_instance, 'phoneID', None),
+                buttons=options,
                 business_unit=business_unit
             )
         elif platform == 'telegram':
             from app.chatbot.integrations.telegram import send_telegram_message
             await send_function(
-                chat_id=user_id,  # ✅ Corrección: se usa `chat_id`
+                chat_id=user_id,
                 message=message,
                 buttons=options,
                 access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
             )
         elif platform in ['messenger', 'instagram']:
-            from app.chatbot.integrations.messenger import send_messenger_message  # Si aplica
-            from app.chatbot.integrations.messenger import send_instagram_message  # Si aplica
-            # Ejemplo de Messenger, etc.
+            from app.chatbot.integrations.messenger import send_messenger_message
+            from app.chatbot.integrations.messenger import send_instagram_message
             await send_function(
                 user_id=user_id,
                 message=message,
@@ -115,11 +119,16 @@ def fetch_api_instance(model_class, business_unit):
 async def get_api_instance(platform: str, business_unit: BusinessUnit):
     """
     Obtiene la instancia de configuración de la API según la plataforma y unidad de negocio.
+    Se cachea el resultado para evitar consultas repetidas.
     """
     cache_key = f"api_instance:{platform}:{business_unit.id}"
     api_instance = cache.get(cache_key)
 
-    if not api_instance:
+    if api_instance:
+        logger.debug(f"[get_api_instance] Instancia obtenida desde cache: {cache_key}")
+    else:
+        logger.info(f"[get_api_instance] Cache vacía para {cache_key}, consultando DB.")
+
         model_mapping = {
             'whatsapp': 'WhatsAppAPI',
             'telegram': 'TelegramAPI',
@@ -128,23 +137,20 @@ async def get_api_instance(platform: str, business_unit: BusinessUnit):
         }
         model_name = model_mapping.get(platform)
         if not model_name:
-            logger.error(f"No model mapping found for platform: {platform}")
+            logger.error(f"[get_api_instance] No se encontró mapping para plataforma: {platform}")
             return None
 
         model_class = getattr(__import__('app.models', fromlist=[model_name]), model_name)
-
-        # Ejecutar la consulta de manera asíncrona
-        api_instance = await sync_to_async(fetch_api_instance)(model_class, business_unit)
+        api_instance = await execute_sync(lambda: fetch_api_instance(model_class, business_unit))
 
         if not api_instance:
-            logger.error(f"No API instance found for platform: {platform}, BU {business_unit.name}")
+            logger.error(f"[get_api_instance] No se encontró instancia API para {platform}, BU {business_unit.name}")
             return None
 
         cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
+        logger.info(f"[get_api_instance] Instancia almacenada en cache: {cache_key}")
 
     return api_instance
-
-
 
 async def send_email(business_unit_name: str, subject: str, to_email: str, body: str, from_email: Optional[str] = None, domain_bu: str = "huntred.com"):
     """
@@ -152,207 +158,40 @@ async def send_email(business_unit_name: str, subject: str, to_email: str, body:
     """
     server = None
     try:
-        logger.info(f"Iniciando envío de correo para business_unit: {business_unit_name}")
-        
-        # Obtener configuración
+        logger.info(f"[send_email] Iniciando envío de correo para BU: {business_unit_name}")
         config_bu = await sync_to_async(ConfiguracionBU.objects.select_related('business_unit').get)(
             business_unit__name=business_unit_name
         )
-
         smtp_host = config_bu.smtp_host or "mail.huntred.com"
         smtp_port = config_bu.smtp_port or 465
         smtp_username = config_bu.smtp_username or config_bu.correo_bu
         smtp_password = config_bu.smtp_password
-        use_ssl = True  # Forzamos SSL como predeterminado
+        use_ssl = True
         from_email = from_email or smtp_username
+        logger.info(f"[send_email] Configuración SMTP: {smtp_host}:{smtp_port}, Usuario: {smtp_username}")
 
-        logger.info(f"Configuración SMTP: {smtp_host}:{smtp_port}, Usuario: {smtp_username}")
-
-        # Configuración del mensaje
         msg = MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'html'))
 
-        # Conexión y envío
         if use_ssl:
             server = smtplib.SMTP_SSL(smtp_host, smtp_port)
         else:
             server = smtplib.SMTP(smtp_host, smtp_port)
             server.starttls()
-        
         server.login(smtp_username, smtp_password)
         server.send_message(msg)
-        logger.info("Correo enviado exitosamente.")
+        logger.info("[send_email] Correo enviado exitosamente.")
         server.quit()
-
         return {"status": "success", "message": "Correo enviado correctamente."}
 
     except Exception as e:
-        logger.error(f"Error enviando correo: {e}", exc_info=True)
+        logger.error(f"[send_email] Error enviando correo: {e}", exc_info=True)
         if server:
             server.quit()
         return {"status": "error", "message": str(e)}
-
-async def send_whatsapp_message(
-    user_id: str, 
-    message: str, 
-    buttons: Optional[List[dict]] = None, 
-    phone_id: Optional[str] = None, 
-    business_unit: Optional[BusinessUnit] = None
-):
-    """
-    Envía un mensaje directo a un usuario de WhatsApp, permitiendo botones y phone_id si se requiere.
-    """
-    try:
-        if not phone_id and business_unit:
-            # Si no se pasa phone_id y hay business_unit, busca la configuración
-            whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
-                business_unit=business_unit, is_active=True
-            ).select_related('business_unit').first())() 
-            if not whatsapp_api:
-                logger.error(f"[send_whatsapp_message] No se encontró WhatsAppAPI activo para {business_unit.name}")
-                return
-            phone_id = whatsapp_api.phoneID
-            api_token = whatsapp_api.api_token
-        else:
-            # phone_id se pasa manualmente; obtener api_token
-            if business_unit:
-                whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
-                    business_unit=business_unit, is_active=True
-                ).select_related('business_unit').first())() 
-                api_token = whatsapp_api.api_token if whatsapp_api else None
-            else:
-                # Manejo minimal: phone_id y token están "hardcoded" o algo
-                logger.warning("[send_whatsapp_message] No se pasó business_unit, asumiendo phone_id y token predefinidos.")
-                api_token = phone_id  # <--- Ajustar según lógica real
-    
-        if not phone_id or not api_token:
-            logger.error("[send_whatsapp_message] No se cuenta con phone_id o api_token válido.")
-            return
-    
-        logger.debug(f"[send_whatsapp_message] user_id={user_id}, phone_id={phone_id}, tiene botones={bool(buttons)}")
-    
-        url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
-        headers = {
-            "Authorization": f"Bearer {api_token}",
-            "Content-Type": "application/json"
-        }
-    
-        # Construir payload base
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": user_id,
-            "type": "text",
-            "text": {
-                "body": message
-            }
-        }
-    
-        # Si se proveen buttons, se cambia el 'type' a 'interactive'
-        if buttons:
-            logger.debug(f"[send_whatsapp_message] Convirtiendo a mensaje interactivo con {len(buttons)} botón(es).")
-            formatted_buttons = []
-            # Asumiendo que cada dict en 'buttons' es como {'title': '...', 'payload': '...'}
-            for btn in buttons:
-                formatted_buttons.append({
-                    "type": "reply",
-                    "reply": {
-                        "id": btn.get('payload', 'btn_id'),
-                        "title": btn.get('title', '')[:20]  # WhatsApp limita a 20 chars
-                    }
-                })
-    
-            payload = {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": user_id,
-                "type": "interactive",
-                "interactive": {
-                    "type": "button",
-                    "body": {
-                        "text": message
-                    },
-                    "action": {
-                        "buttons": formatted_buttons
-                    }
-                }
-            }
-    
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            logger.info(f"[send_whatsapp_message] Mensaje enviado a {user_id}. Respuesta: {response.text[:200]}")
-    
-    except httpx.HTTPStatusError as e:
-        logger.error(f"[send_whatsapp_message] Error HTTP al enviar mensaje a {user_id}: {e.response.text}", exc_info=True)
-    except Exception as e:
-        logger.error(f"[send_whatsapp_message] Error general al enviar mensaje a {user_id}: {e}", exc_info=True)
-
-async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
-    """
-    Envía botones interactivos a través de WhatsApp usando la configuración asociada a la unidad de negocio.
-    """
-    from app.models import WhatsAppAPI
-
-    try:
-        # Obtener la configuración de WhatsAppAPI vinculada a la unidad de negocio
-        whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
-                business_unit=business_unit, is_active=True
-        ).select_related('business_unit').first())() 
-        
-        if not whatsapp_api:
-            raise ValueError(f"No se encontró configuración activa de WhatsAppAPI para la unidad de negocio: {business_unit.name}")
-
-        url = f"https://graph.facebook.com/v17.0/{whatsapp_api.phoneID}/messages"
-        headers = {
-            "Authorization": f"Bearer {whatsapp_api.api_token}",
-            "Content-Type": "application/json"
-        }
-
-        # Formatear botones para WhatsApp
-        formatted_buttons = [
-            {
-                "type": "reply",
-                "reply": {
-                    "id": button['payload'],
-                    "title": button['title'][:20]  # WhatsApp limita a 20 caracteres
-                }
-            }
-            for button in buttons
-        ]
-
-        # Construir el payload de la solicitud
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": user_id,
-            "type": "interactive",
-            "interactive": {
-                "type": "button",
-                "body": {
-                    "text": message  # El mensaje que acompaña los botones
-                },
-                "action": {
-                    "buttons": formatted_buttons
-                }
-            }
-        }
-
-        # Enviar la solicitud
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            logger.info(f"Botones enviados correctamente a WhatsApp. Respuesta: {response.text}")
-
-    except ValueError as e:
-        logger.error(f"Error en configuración: {e}")
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Error al enviar botones a WhatsApp: {e.response.text}", exc_info=True)
-    except Exception as e:
-        logger.error(f"Error general al enviar botones a WhatsApp: {e}", exc_info=True)
 
 async def reset_chat_state(user_id: Optional[str] = None):
     """
@@ -362,32 +201,31 @@ async def reset_chat_state(user_id: Optional[str] = None):
         if user_id:
             chat_state = await sync_to_async(ChatState.objects.get)(user_id=user_id)
             await sync_to_async(chat_state.delete)()
-            logger.info(f"Chatbot state reset for user {user_id}.")
+            logger.info(f"[reset_chat_state] Estado de chat reseteado para {user_id}.")
         else:
             await sync_to_async(ChatState.objects.all().delete)()
-            logger.info("Chatbot state reset for all users.")
+            logger.info("[reset_chat_state] Estado de chat reseteado para todos los usuarios.")
     except ChatState.DoesNotExist:
-        logger.warning(f"No chatbot state found for user {user_id}.")
+        logger.warning(f"[reset_chat_state] No se encontró estado de chat para {user_id}.")
     except Exception as e:
-        logger.error(f"Error resetting chatbot state: {e}", exc_info=True)
+        logger.error(f"[reset_chat_state] Error al resetear estado de chat: {e}", exc_info=True)
 
 async def send_logo(platform, user_id, business_unit):
     """
     Envía el logo de la empresa al usuario.
     """
     try:
-        configuracion = await sync_to_async(ConfiguracionBU.objects.filter)(business_unit=business_unit).select_related('business_unit').first()
+        configuracion = await sync_to_async(lambda: ConfiguracionBU.objects.filter(
+            business_unit=business_unit
+        ).select_related('business_unit').first())()
         image_url = configuracion.logo_url if configuracion else "https://huntred.com/logo.png"
 
-        if platform == 'whatsapp':
-            await send_message(platform, user_id, 'Aquí tienes nuestro logo:', business_unit, options=[{'type': 'image', 'url': image_url}])
-        elif platform == 'messenger':
+        if platform in ['whatsapp', 'messenger']:
             await send_message(platform, user_id, 'Aquí tienes nuestro logo:', business_unit, options=[{'type': 'image', 'url': image_url}])
         else:
-            logger.error(f"Image sending not supported for platform {platform}")
-
+            logger.error(f"[send_logo] Envío de imagen no soportado para {platform}.")
     except Exception as e:
-        logger.error(f"Error sending image on {platform}: {e}", exc_info=True)
+        logger.error(f"[send_logo] Error al enviar logo en {platform}: {e}", exc_info=True)
 
 async def send_image(platform, user_id, message, image_url, business_unit):
     """
@@ -395,9 +233,9 @@ async def send_image(platform, user_id, message, image_url, business_unit):
     """
     try:
         await send_message(platform, user_id, message, business_unit, options=[{'type': 'image', 'url': image_url}])
-        logger.info(f"Imagen enviada a {user_id} en {platform}")
+        logger.info(f"[send_image] Imagen enviada a {user_id} en {platform}.")
     except Exception as e:
-        logger.error(f"Error enviando imagen en {platform} a {user_id}: {e}", exc_info=True)
+        logger.error(f"[send_image] Error enviando imagen en {platform} a {user_id}: {e}", exc_info=True)
 
 async def send_menu(platform, user_id, business_unit):
     """
@@ -424,8 +262,8 @@ def render_dynamic_content(template_text, context):
         content = template_text.format(**context)
         return content
     except KeyError as e:
-        logger.error(f"Error rendering dynamic content: Missing variable {e}")
-        return template_text  # Return the original text in case of error
+        logger.error(f"[render_dynamic_content] Error: Falta la variable {e}")
+        return template_text
 
 async def process_text_message(platform, sender_id, message_text, business_unit):
     """
@@ -433,7 +271,6 @@ async def process_text_message(platform, sender_id, message_text, business_unit)
     """
     from app.chatbot.chatbot import ChatBotHandler
     chatbot_handler = ChatBotHandler()
-
     try:
         await chatbot_handler.process_message(
             platform=platform,
@@ -442,7 +279,7 @@ async def process_text_message(platform, sender_id, message_text, business_unit)
             business_unit=business_unit
         )
     except Exception as e:
-        logger.error(f"Error processing text message: {e}", exc_info=True)
+        logger.error(f"[process_text_message] Error procesando mensaje: {e}", exc_info=True)
 
 async def send_options(platform, user_id, message, buttons=None, business_unit: Optional[BusinessUnit] = None):
     """
@@ -451,6 +288,7 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
     try:
         if platform == 'whatsapp' and buttons and business_unit:
             formatted_buttons = [{"title": button['title']} for button in buttons]
+            from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
             await send_whatsapp_decision_buttons(
                 user_id=user_id,
                 message=message,
@@ -484,10 +322,9 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
                 user_id, message, buttons, business_unit.instagram_api.access_token
             )
         else:
-            logger.error(f"Plataforma desconocida o botones faltantes: {platform}")
-
+            logger.error(f"[send_options] Plataforma desconocida o botones faltantes: {platform}")
     except Exception as e:
-        logger.error(f"Error enviando opciones a través de {platform}: {e}", exc_info=True)
+        logger.error(f"[send_options] Error enviando opciones a través de {platform}: {e}", exc_info=True)
 
 async def notify_employer(worker, message):
     """
@@ -495,23 +332,24 @@ async def notify_employer(worker, message):
     """
     try:
         if worker.whatsapp:
-            whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter( 
-                business_unit=business_unit, is_active=True
-            ).select_related('business_unit').first())() 
+            whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
+                business_unit=worker.business_unit, is_active=True
+            ).select_related('business_unit').first())()
             if whatsapp_api:
+                from app.chatbot.integrations.whatsapp import send_whatsapp_message
                 await send_whatsapp_message(
                     user_id=worker.whatsapp,
                     message=message,
                     phone_id=whatsapp_api.phoneID,
                     business_unit=whatsapp_api.business_unit
                 )
-                logger.info(f"Notificación enviada al empleador {worker.name} vía WhatsApp.")
+                logger.info(f"[notify_employer] Notificación enviada al empleador {worker.name} vía WhatsApp.")
             else:
-                logger.error("No se encontró configuración de WhatsAppAPI.")
+                logger.error("[notify_employer] No se encontró configuración de WhatsAppAPI.")
         else:
-            logger.warning(f"El empleador {worker.name} no tiene número de WhatsApp configurado.")
+            logger.warning(f"[notify_employer] El empleador {worker.name} no tiene número de WhatsApp configurado.")
     except Exception as e:
-        logger.error(f"Error enviando notificación al empleador {worker.name}: {e}", exc_info=True)
+        logger.error(f"[notify_employer] Error enviando notificación al empleador {worker.name}: {e}", exc_info=True)
 
 class GamificationService:
     def __init__(self):
@@ -528,9 +366,9 @@ class GamificationService:
             )
             profile.award_points(activity_type, points)
             await sync_to_async(profile.save)()
-            logger.info(f"Otorgados {points} puntos a {user.nombre} por {activity_type}. Total puntos: {profile.points}")
+            logger.info(f"[GamificationService] Otorgados {points} puntos a {user.nombre} por {activity_type}. Total: {profile.points}")
         except Exception as e:
-            logger.error(f"Error otorgando puntos a {user.nombre}: {e}", exc_info=True)
+            logger.error(f"[GamificationService] Error otorgando puntos a {user.nombre}: {e}", exc_info=True)
 
     async def notify_user_gamification_update(self, user: Person, activity_type: str):
         """
@@ -539,10 +377,8 @@ class GamificationService:
         try:
             profile = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get)(user=user)
             message = f"¡Has ganado puntos por {activity_type}! Ahora tienes {profile.points} puntos."
-            # Determinar la plataforma del usuario para enviar la notificación
-            platform = user.chat_state.platform if hasattr(user, 'chat_state') else 'whatsapp'  # Asumiendo WhatsApp por defecto
+            platform = user.chat_state.platform if hasattr(user, 'chat_state') else 'whatsapp'
             business_unit = user.chat_state.business_unit if hasattr(user, 'chat_state') else user.business_unit
-
             if platform and business_unit:
                 await send_message(
                     platform=platform,
@@ -551,9 +387,9 @@ class GamificationService:
                     business_unit=business_unit
                 )
         except EnhancedNetworkGamificationProfile.DoesNotExist:
-            logger.warning(f"No perfil de gamificación encontrado para {user.nombre}")
+            logger.warning(f"[GamificationService] No se encontró perfil de gamificación para {user.nombre}")
         except Exception as e:
-            logger.error(f"Error notificando actualización de gamificación a {user.nombre}: {e}", exc_info=True)
+            logger.error(f"[GamificationService] Error notificando gamificación a {user.nombre}: {e}", exc_info=True)
 
     async def generate_challenges(self, user: Person):
         """Genera desafíos personalizados para el usuario."""
@@ -566,7 +402,6 @@ class GamificationService:
     async def notify_user_challenges(self, user: Person):
         """Notifica al usuario sobre nuevos desafíos."""
         challenges = await self.generate_challenges(user)
-        # Enviar desafíos al usuario a través del canal activo
         if challenges:
             message = f"Tienes nuevos desafíos: {', '.join(challenges)}"
             await send_message(
@@ -575,3 +410,7 @@ class GamificationService:
                 message=message,
                 business_unit=user.chat_state.business_unit if hasattr(user, 'chat_state') else user.business_unit
             )
+            
+# Función helper para ejecutar consultas sincrónicas
+async def execute_sync(query_lambda):
+    return await sync_to_async(query_lambda)()
