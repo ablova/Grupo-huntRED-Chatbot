@@ -86,9 +86,10 @@ class NLPProcessor:
             intents = [nlp.vocab.strings[match_id] for match_id, _, _ in matches]
 
         sentiment = self.sia.polarity_scores(cleaned_text) if self.sia else {}
-
-        detected_divisions = [term for term in entities if validate_term_in_catalog(term[0], get_division_skills().keys())]
-
+        from app.chatbot.utils import get_all_divisions  # Asegurar que esta función existe en utils.py
+        all_divisions = get_all_divisions()
+  
+        detected_divisions = [term for term in entities if validate_term_in_catalog(term[0], all_divisions)]
         logger.debug(f"Análisis: Intenciones={intents}, Entidades={entities}, Sentimiento={sentiment}")
         return {
             "entities": entities,
@@ -102,13 +103,14 @@ class NLPProcessor:
     def extract_skills(self, text: str) -> list:
         """
         Extrae habilidades del texto combinando información de un catálogo y SkillExtractor.
+        Se verifica que el resultado de sn.annotate tenga el formato esperado.
         """
-        # Importar funciones necesarias desde utils:
-        # Utilizamos get_divisiones() para obtener la lista de divisiones disponibles
-        # y get_skills_for_unit(division) para obtener las habilidades de cada división.
-        from app.chatbot.utils import get_divisiones, get_skills_for_unit
+        from app.utilidades.catalogs import get_divisiones, get_skills_for_unit
+        import json
         skills = []
-        # Usar get_divisiones() en lugar de get_division_skills() sin parámetros.
+        from app.chatbot.utils import get_all_divisions  # Asegurar que esta función existe en utils.py
+        all_divisions = get_all_divisions()
+
         detected_divisions = [division for division in get_divisiones() if division.lower() in text.lower()]
 
         for division in detected_divisions:
@@ -116,18 +118,28 @@ class NLPProcessor:
             skills.extend(division_skills.get("Habilidades Técnicas", []))
             skills.extend(division_skills.get("Habilidades Blandas", []))
 
-        # Si SkillExtractor (sn) está inicializado, extraer habilidades adicionales
         if sn:
             try:
                 results = sn.annotate(text)
-                extracted_skills = [item['skill'] for item in results.get("results", [])]
+                # Si el resultado es una cadena, intentar convertirlo a dict
+                if isinstance(results, str):
+                    results = json.loads(results)
+                extracted_skills = []
+                # Verificar que results sea un diccionario y contenga la clave "results"
+                if isinstance(results, dict) and "results" in results:
+                    # Asegurarse de que cada item sea un diccionario con la clave 'skill'
+                    extracted_skills = [
+                        item['skill'] for item in results.get("results", [])
+                        if isinstance(item, dict) and 'skill' in item
+                    ]
+                else:
+                    logger.warning("El resultado de SkillExtractor no tiene el formato esperado.")
                 skills.extend(extracted_skills)
             except Exception as e:
                 logger.error(f"Error extrayendo habilidades con SkillExtractor: {e}", exc_info=True)
         else:
             logger.warning("SkillExtractor no está inicializado; se omiten habilidades extra.")
 
-        # Eliminar duplicados
         skills = list(set(skills))
         logger.debug(f"Habilidades extraídas: {skills}")
         return skills
