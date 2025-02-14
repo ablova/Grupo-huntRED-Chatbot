@@ -75,13 +75,15 @@ def get_all_divisions():
     """ Obtiene todas las divisiones disponibles en los catálogos. """
     return get_divisiones()
 
-def prioritize_interests(skills: List[str]) -> Dict[str, int]:
-    """ Asigna prioridad a los intereses detectados basándose en la frecuencia. """
-    priorities = {}
+def prioritize_interests(skills: List[str], priorities: Dict[str, int] = None) -> Dict[str, int]:
+    """ Asigna prioridad a los intereses detectados basándose en la frecuencia y peso."""
+    if priorities is None:
+        priorities = {}
+    
     for skill in skills:
         priorities[skill] = priorities.get(skill, 0) + 1
-    sorted_interests = dict(sorted(priorities.items(), key=lambda x: x[1], reverse=True))
-    return sorted_interests
+
+    return dict(sorted(priorities.items(), key=lambda x: x[1], reverse=True))
 
 def generate_verification_token(key):
     """ Genera un token seguro para verificación. """
