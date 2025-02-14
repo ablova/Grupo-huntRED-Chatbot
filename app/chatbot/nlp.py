@@ -149,14 +149,12 @@ class NLPProcessor:
 
         logger.info(f"🔎 Análisis final: {result}")
         return result
-    
     def extract_interests_and_skills(self, text: str) -> dict:
         """
         Extrae intereses explícitos, habilidades y sugiere roles priorizando lo mencionado por el usuario.
         """
         text_normalized = unidecode.unidecode(text.lower())
         skills = set()
-        interests = set()
         priorities = {}
 
         # Cargar habilidades desde catálogos
@@ -172,7 +170,7 @@ class NLPProcessor:
             skill_normalized = unidecode.unidecode(skill.lower())
             if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
                 skills.add(skill)
-                priorities[skill] = 2
+                priorities[skill] = 2  # Mayor peso a lo mencionado directamente
 
         # Extraer habilidades con SkillExtractor
         if sn and nlp and nlp.vocab.vectors_length > 0:
@@ -182,19 +180,18 @@ class NLPProcessor:
                     extracted_skills = {item["skill"] for item in results["results"] if isinstance(item, dict)}
                     skills.update(extracted_skills)
                     for skill in extracted_skills:
-                        priorities[skill] = priorities.get(skill, 1)
-                    logger.info(f"🧠 Habilidades extraídas: {extracted_skills}")
+                        priorities[skill] = priorities.get(skill, 1)  # Menor peso a lo detectado automáticamente
+                    logger.info(f"🧠 Habilidades extraídas por SkillExtractor: {extracted_skills}")
             except Exception as e:
                 logger.error(f"❌ Error en SkillExtractor: {e}", exc_info=True)
 
         # Aplicar ponderación a intereses
-        skills, skill_weights = prioritize_interests(skills, priorities)
-
+        prioritized_interests = prioritize_interests(list(skills))  # Se pasa solo la lista de skills
+        
         return {
-            "skills": skills,
-            "prioritized_skills": skill_weights
+            "skills": list(skills),
+            "prioritized_skills": prioritized_interests
         }
-
     def infer_gender(self, name: str) -> str:
         """ Infiera género basado en heurísticas simples. """
         GENDER_DICT = {"jose": "M", "maria": "F", "andrea": "F", "juan": "M"}
