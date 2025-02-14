@@ -61,7 +61,7 @@ def analyze_text(text: str) -> dict:
     """ Analiza el texto del usuario y extrae intenciones, entidades y sentimiento. """
     try:
         from app.chatbot.nlp import nlp_processor
-        cleaned = clean_text(text)
+        cleaned = text.strip()
         return nlp_processor.analyze(cleaned)
     except Exception as e:
         logger.error(f"Error analizando texto: {e}", exc_info=True)
@@ -75,11 +75,13 @@ def get_all_divisions():
     """ Obtiene todas las divisiones disponibles en los catálogos. """
     return get_divisiones()
 
-def prioritize_interests(text: str) -> list:
-    """ Prioriza habilidades según el interés expresado en la conversación o CV. """
-    from app.chatbot.nlp import nlp_processor  
-    skills = nlp_processor.extract_skills(text)
-    return sorted(skills, key=lambda x: x.lower())
+def prioritize_interests(skills: List[str]) -> Dict[str, int]:
+    """ Asigna prioridad a los intereses detectados basándose en la frecuencia. """
+    priorities = {}
+    for skill in skills:
+        priorities[skill] = priorities.get(skill, 0) + 1
+    sorted_interests = dict(sorted(priorities.items(), key=lambda x: x[1], reverse=True))
+    return sorted_interests
 
 def generate_verification_token(key):
     """ Genera un token seguro para verificación. """
@@ -129,57 +131,21 @@ def log_with_correlation_id(message: str, correlation_id: str, level: str = "inf
     else:
         logger.debug(log_message)
 
-def get_positions_by_skills(skills, threshold=0.6):
-    """
-    Obtiene vacantes adecuadas basadas en las habilidades encontradas.
-
-    Args:
-        skills (list): Lista de habilidades detectadas.
-        threshold (float): Umbral mínimo de coincidencia (0-1).
-
-    Returns:
-        list: Lista de vacantes sugeridas con su puntuación.
-    """
-    from app.models import Vacante
-
-    if not skills:
+def get_all_skills_for_unit(unit_name: str = "huntRED®") -> list:
+    """ Devuelve todas las habilidades de una unidad de negocio. """
+    skills = []
+    try:
+        catalog = load_catalog()
+        unit_data = catalog.get(unit_name, {})
+        for division, roles in unit_data.items():
+            for role, attributes in roles.items():
+                for key in ["Habilidades Técnicas", "Habilidades Blandas", "Herramientas"]:
+                    skills.extend(attributes.get(key, []))
+        return list(set(skills))
+    except Exception as e:
+        logger.error(f"Error obteniendo habilidades de {unit_name}: {e}")
         return []
-
-    normalized_skills = [skill.lower() for skill in skills]
-    suggested = []
-
-    all_vacantes = Vacante.objects.exclude(skills_required__isnull=True)
-
-    for vacante in all_vacantes:
-        try:
-            position_skills = []
-            if isinstance(vacante.skills_required, dict) and 'skills' in vacante.skills_required:
-                position_skills = [s.lower() for s in vacante.skills_required['skills']]
-            elif isinstance(vacante.skills_required, list):
-                position_skills = [s.lower() for s in vacante.skills_required]
-            else:
-                continue
-
-            if not position_skills:
-                continue
-
-            matches = sum(1 for skill in normalized_skills if skill in position_skills)
-            score = matches / len(position_skills) if len(position_skills) > 0 else 0
-
-            if score >= threshold:
-                suggested.append({
-                    'position': vacante.titulo,
-                    'score': round(score * 100, 1),
-                    'business_unit': vacante.business_unit.name if vacante.business_unit else None,
-                    'empresa': vacante.empresa,
-                    'id': vacante.id
-                })
-        except Exception as e:
-            logger.error(f"Error al procesar vacante {vacante.id}: {e}")
-
-    suggested.sort(key=lambda x: x['score'], reverse=True)
-    return suggested
-
+    
 ####---------------------------------------------------------
 ### UTILIDADES PARA FUNCIONES DE LOCALIZACION, VALIDACION, ETC
 ####--------------------------------------------------------
