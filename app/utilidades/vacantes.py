@@ -375,38 +375,44 @@ class VacanteManager:
         return tags
 
     @staticmethod
-    def match_person_with_jobs(person):
+    def match_person_with_jobs(person, job_list):
         """
-        Encuentra coincidencias de vacantes con base en habilidades del candidato.
+        Coincide un usuario con una lista de vacantes.
         """
-        logger.info(f"Buscando coincidencias de trabajo para {person.name}")
-        all_jobs = get_wordpress_jobs()
+        from app.chatbot.utils import get_positions_by_skills  # Importación dentro de la función
 
-        if not all_jobs:
-            logger.info("No se encontraron vacantes disponibles.")
-            return []
+        matches = []
+        person_location = (person.lat, person.lon) if person.lat and person.lon else None
+        person_skills = set(person.skills.split(",")) if person.skills else set()
 
-        user_skills = person.skills.lower().split(',') if person.skills else []
-        user_skills_text = ' '.join(user_skills)
+        for job in job_list:
+            try:
+                score = 0
+                job_skills = set(job.requisitos.split(",")) if job.requisitos else set()
+                skill_match = len(person_skills & job_skills)
+                score += skill_match * 2
 
-        job_descriptions = []
-        job_list = []
+                if person_location and job.lat and job.lon:
+                    job_location = (job.lat, job.lon)
+                    distance = geodesic(person_location, job_location).km
+                    if distance <= 10:
+                        score += 3
+                    elif distance <= 50:
+                        score += 1
 
-        for job in all_jobs:
-            job_skills = job.required_skills.lower().split(',') if job.required_skills else []
-            job_descriptions.append(' '.join(job_skills))
-            job_list.append(job)
+                if person.nivel_salarial and job.salario:
+                    if job.salario >= person.nivel_salarial:
+                        score += 2
 
-        if not job_descriptions:
-            return []
+                if job.fecha_scraping and (datetime.now() - job.fecha_scraping).days <= 7:
+                    score += 1
 
-        vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform(job_descriptions + [user_skills_text])
-        cosine_similarities = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])
-        similarity_scores = cosine_similarities[0]
+                matches.append((job, score))
+            except Exception as e:
+                logger.error(f"Error al procesar coincidencia para el trabajo {job.id}: {e}")
 
-        top_jobs = sorted(zip(job_list, similarity_scores), key=lambda x: x[1], reverse=True)
-        return top_jobs[:5]
+        matches = sorted(matches, key=lambda x: x[1], reverse=True)
+        return matches
     
     def calculate_match_score(person, vacante, weights):
         """
