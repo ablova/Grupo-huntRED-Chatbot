@@ -17,6 +17,7 @@ from app.models import Person, ConfiguracionBU, Division, Skill, BusinessUnit
 from typing import List, Dict, Tuple, Optional
 from django.utils.timezone import now
 from datetime import datetime
+from langdetect import detect
 
 import logging
 from PyPDF2 import PdfReader
@@ -82,7 +83,6 @@ class IMAPCVProcessor:
         self.parser = CVParser(business_unit)
         self.stats = {"processed": 0, "created": 0, "updated": 0}
         self.FOLDER_CONFIG = FOLDER_CONFIG
-        self.nlp = self.load_spacy_model(language="es")
 
     def _verify_folders(self, mail):
         for folder_key, folder_name in self.FOLDER_CONFIG.items():
@@ -320,52 +320,59 @@ class IMAPCVProcessor:
 
 
 class CVParser:
-    def __init__(self, business_unit: str):
+    def __init__(self, business_unit: str, text_sample: Optional[str] = None):
         """
-        Initialize the CVParser with specific configurations for a business unit.
+        Inicializa el parser con un modelo NLP adecuado según el idioma detectado.
+        - `text_sample`: Opcional, si se proporciona, se usa para detectar el idioma antes de cargar el modelo.
+        - Si no hay `text_sample`, el default es español (`es`).
         """
         self.business_unit = business_unit
-        self.nlp = self.load_spacy_model()
+        self.detected_language = self.detect_language(text_sample) if text_sample else "es"
+        self.nlp = self.load_spacy_model(self.detected_language)  # Carga modelo correcto
         self.analysis_points = self.get_analysis_points()
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
 
     def detect_language(self, text: str) -> str:
         """
-        Detects the language of the text.
+        Detecta el idioma del texto y lo normaliza a 'es' o 'en'.
         """
+        if not text or len(text.strip()) < 5:  # Si el texto es muy corto, default a español
+            return "es"
+
         try:
-            language = detect(text)
-            logger.info(f"Idioma detectado: {language}")
+            detected_lang = detect(text)
+            language = "es" if detected_lang in ["es", "pt"] else "en"  # Consideramos portugués como similar al español
+            logger.info(f"Idioma detectado: {detected_lang} (Usando: {language})")
             return language
         except Exception as e:
             logger.error(f"Error detectando idioma: {e}")
-            return "unknown"
+            return "es"  # Default a español si hay un error
 
-    def load_spacy_model(self, language: str) -> spacy.Language:
+    def load_spacy_model(self, language: str):
         """
-        Loads a SpaCy model dynamically based on the language detected.
+        Carga dinámicamente el modelo de NLP según el idioma detectado.
         """
         models = {
             "es": "es_core_news_sm",
             "en": "en_core_web_sm",
         }
-        model_name = models.get(language, "en_core_web_sm")  # Default to English
+        model_name = models.get(language, "es_core_news_sm")  # Default español
+
         try:
-            logger.info(f"Cargando modelo SpaCy para idioma: {language}")
+            logger.info(f"Cargando modelo SpaCy para idioma: {language} -> {model_name}")
             return spacy.load(model_name)
         except Exception as e:
             logger.error(f"Error cargando modelo SpaCy para {language}: {e}")
-            raise
+            return spacy.load("es_core_news_sm")  # Fallback a español en caso de error
 
     def prepare_nlp_model(self, text: str):
         """
-        Detecta el idioma y prepara el modelo NLP correspondiente.
+        Detecta el idioma del texto y prepara el modelo NLP correspondiente.
         """
-        language = self.detect_language(text)
-        self.nlp = self.load_spacy_model(language)
-        logger.info(f"Modelo NLP cargado para idioma: {language}")
-
+        self.detected_language = self.detect_language(text)
+        self.nlp = self.load_spacy_model(self.detected_language)
+        logger.info(f"✅ Modelo NLP cargado para idioma: {self.detected_language}")
 
     def get_analysis_points(self) -> Dict:
         """
@@ -414,61 +421,56 @@ class CVParser:
 
     def extract_text_from_file(self, file_path: Path) -> Optional[str]:
         """
-        Extract text from a PDF or DOCX file.
+        Extrae texto de un archivo PDF o DOCX.
         """
         if not file_path.exists():
-            logger.error(f"Archivo no encontrado: {file_path}")
+            logger.error(f"❌ Archivo no encontrado: {file_path}")
             return None
 
         try:
             if file_path.suffix.lower() == '.pdf':
                 reader = PdfReader(str(file_path))
-                text = ' '.join(page.extract_text() for page in reader.pages)
+                text = ' '.join([page.extract_text() or "" for page in reader.pages])
             elif file_path.suffix.lower() in ['.doc', '.docx']:
                 doc = docx.Document(str(file_path))
                 text = "\n".join(para.text for para in doc.paragraphs)
             else:
-                logger.warning(f"Formato de archivo no soportado: {file_path}")
+                logger.warning(f"⚠ Formato de archivo no soportado: {file_path}")
                 return None
-                
+                    
             if not text.strip():
-                logger.warning(f"No se pudo extraer texto de: {file_path}")
+                logger.warning(f"⚠ No se pudo extraer texto de: {file_path}")
                 return None
-                
+
             return text
         except Exception as e:
-            logger.error(f"Error extrayendo texto de {file_path}: {e}")
+            logger.error(f"❌ Error extrayendo texto de {file_path}: {e}")
             return None
 
     def parse(self, text: str) -> Dict:
         """
-        Parse text from a CV to extract relevant information.
+        Analiza el texto del CV para extraer información clave.
         """
-        logger.info("Iniciando análisis de texto...")
+        if not text or len(text.strip()) < 10:
+            logger.warning("⚠ El texto proporcionado para el análisis es demasiado corto.")
+            return {"education": [], "experience": [], "skills": []}
 
-        # Preparar modelo de NLP dinámicamente según el idioma
+        # Detectar idioma antes de procesar
         self.prepare_nlp_model(text)
 
         parsed_data = {"education": [], "experience": [], "skills": []}
 
         try:
             doc = self.nlp(text)
-
-            # Extract education
             parsed_data["education"] = self._extract_education(doc)
-
-            # Extract experience
             parsed_data["experience"] = self._extract_experience(doc)
-
-            # Extract skills
             parsed_data["skills"] = self._extract_skills(doc)
 
-            logger.info("Análisis completado con éxito.")
+            logger.info("✅ Análisis completado con éxito.")
             return parsed_data
         except Exception as e:
-            logger.error(f"Error analizando texto: {e}")
+            logger.error(f"❌ Error analizando texto: {e}")
             return {}
-
 
     def get_analysis_points(self):
         """
@@ -525,7 +527,6 @@ class CVParser:
             return self.extract_international_experience(doc)
         else:
             return f"Analysis point '{point}' is not defined."
-
     # Métodos específicos mejorados
     def extract_skills(self, doc):
         """
@@ -619,8 +620,10 @@ class CVParser:
                 work_authorization.append(sent.text.strip())
         logger.debug(f"Autorización de trabajo extraída: {work_authorization}")
         return work_authorization
-
-    # Métodos adicionales para análisis específicos
+    
+#------------------------------------------------------------------------------------------------------------
+# Métodos adicionales para análisis específicos
+#------------------------------------------------------------------------------------------------------------
     def extract_strategic_planning(self, doc):
         """
         Extrae información relacionada con planificación estratégica.
