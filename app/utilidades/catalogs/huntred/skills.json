@@ -1,0 +1,941 @@
+{
+    "Servicios Financieros": {
+        "Banca y Entidades Financieras": {
+            "Habilidades Técnicas": [
+                "Análisis Financiero",
+                "Gestión de Riesgos",
+                "Contabilidad Financiera",
+                "Planeación Financiera",
+                "Fusiones y Adquisiciones",
+                "Auditoría Interna",
+                "Compliance",
+                "Gestión de Portafolios",
+                "Regulación Bancaria",
+                "Modelado Financiero"
+            ],
+            "Habilidades Blandas": [
+                "Liderazgo",
+                "Comunicación Efectiva",
+                "Toma de Decisiones",
+                "Negociación",
+                "Pensamiento Estratégico",
+                "Gestión de Equipos",
+                "Resolución de Problemas"
+            ],
+            "Certificaciones": [
+                "CFA (Chartered Financial Analyst)",
+                "CPA (Certified Public Accountant)",
+                "FRM (Financial Risk Manager)",
+                "CISA (Certified Information Systems Auditor)"
+            ],
+            "Herramientas": [
+                "Excel Avanzado",
+                "SAP Financials",
+                "Oracle Financials",
+                "Bloomberg Terminal",
+                "Power BI",
+                "Tableau"
+            ]
+        },
+        "Investment & Corporate Banking (Subespecialidad)": {
+            "Habilidades Técnicas": [
+                "Análisis de Inversiones",
+                "Valoración de Empresas",
+                "Estructuración de Transacciones",
+                "Gestión de Relaciones con Clientes",
+                "Financiación Corporativa",
+                "Mercados de Capitales",
+                "Modelado Financiero Avanzado"
+            ],
+            "Habilidades Blandas": [
+                "Habilidades de Presentación",
+                "Networking",
+                "Gestión del Tiempo",
+                "Trabajo en Equipo",
+                "Pensamiento Crítico"
+            ],
+            "Certificaciones": [
+                "CFA",
+                "MBA en Finanzas",
+                "FRM"
+            ],
+            "Herramientas": [
+                "Bloomberg Terminal",
+                "Power BI",
+                "Capital IQ",
+                "PitchBook",
+                "Excel",
+                "PowerPoint"
+            ]
+        },
+    "Farma / Healthcare": {
+        "Farma": {
+            "Habilidades Técnicas": [
+                "Gestión de Acceso al Mercado",
+                "Desarrollo de Productos Farmacéuticos",
+                "Regulación Farmacéutica",
+                "Investigación y Desarrollo (I+D)",
+                "Gestión de Cuentas Clave",
+                "Estrategias de Ventas",
+                "Marketing Farmacéutico"
+            ],
+            "Habilidades Blandas": [
+                "Comunicación Interpersonal",
+                "Liderazgo",
+                "Gestión de Proyectos",
+                "Pensamiento Analítico",
+                "Negociación"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión Farmacéutica",
+                "MBA en Salud",
+                "Certificación en Marketing Farmacéutico"
+            ],
+            "Herramientas": [
+                "CRM (Salesforce)",
+                "MS Office",
+                "SAP",
+                "Tableau",
+                "Power BI"
+            ]
+        },
+        "Áreas Técnicas": {
+            "Habilidades Técnicas": [
+                "Asuntos Regulatorios",
+                "Calidad Farmacéutica",
+                "Investigación Clínica",
+                "Desarrollo de Procesos",
+                "Control de Calidad",
+                "Validación de Procesos"
+            ],
+            "Habilidades Blandas": [
+                "Atención al Detalle",
+                "Gestión del Tiempo",
+                "Resolución de Problemas",
+                "Comunicación Técnica",
+                "Trabajo en Equipo"
+            ],
+            "Certificaciones": [
+                "Certificación en Buenas Prácticas de Manufactura (GMP)",
+                "Certificación en Calidad y Auditoría",
+                "Certificación en Gestión de Proyectos"
+            ],
+            "Herramientas": [
+                "SAS",
+                "R",
+                "SPSS",
+                "MS Office",
+                "ERP (SAP)"
+            ]
+        },
+        "HealthCare": {
+            "Habilidades Técnicas": [
+                "Gestión de Servicios de Salud",
+                "Marketing de Salud",
+                "Gestión de Acceso al Mercado",
+                "Estrategias de Ventas Clínicas",
+                "Desarrollo de Programas de Salud",
+                "Análisis de Datos de Salud"
+            ],
+            "Habilidades Blandas": [
+                "Empatía",
+                "Comunicación Efectiva",
+                "Liderazgo",
+                "Gestión de Proyectos",
+                "Pensamiento Estratégico"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión de Salud",
+                "MBA en Salud",
+                "Certificación en Marketing de Salud"
+            ],
+            "Herramientas": [
+                "CRM (Salesforce Health Cloud)",
+                "MS Office",
+                "Tableau",
+                "Power BI",
+                "ERP (SAP)"
+            ]
+        }
+    },
+    "Legal": {
+        "Empresas": {
+            "Habilidades Técnicas": [
+                "Derecho Corporativo",
+                "Compliance",
+                "Gestión de Riesgos Legales",
+                "Contratación Comercial",
+                "Resolución de Conflictos",
+                "Asesoría Jurídica Empresarial",
+                "Derecho Laboral"
+            ],
+            "Habilidades Blandas": [
+                "Comunicación Efectiva",
+                "Negociación",
+                "Pensamiento Crítico",
+                "Atención al Detalle",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Título de Abogado",
+                "Certificación en Compliance",
+                "MBA Legal"
+            ],
+            "Herramientas": [
+                "MS Office",
+                "Legal Management Software (Clio, LexisNexis)",
+                "ERP (SAP)",
+                "Sistemas de Gestión de Documentos"
+            ]
+        },
+        "Despacho de Abogados": {
+            "Habilidades Técnicas": [
+                "Litigio",
+                "Derecho Civil",
+                "Derecho Mercantil",
+                "Derecho Corporativo",
+                "Derecho Fiscal",
+                "Derecho Automotriz",
+                "Derecho Minero",
+                "Derecho Agrario",
+                "Derecho Náutico",
+                "Derecho Internacional"
+            ],
+            "Habilidades Blandas": [
+                "Habilidades de Investigación",
+                "Comunicación Oral y Escrita",
+                "Negociación",
+                "Pensamiento Analítico",
+                "Trabajo en Equipo"
+            ],
+            "Certificaciones": [
+                "Título de Abogado",
+                "Certificación en Litigio",
+                "Certificación en Derecho Especializado (Civil, Mercantil, etc.)"
+            ],
+            "Herramientas": [
+                "MS Office",
+                "Legal Management Software (Clio, LexisNexis)",
+                "Sistemas de Gestión de Casos",
+                "Bases de Datos Jurídicas (Westlaw, LexisNexis)"
+            ]
+        }
+    },
+    "Energía": {
+        "Oil & Gas": {
+            "Habilidades Técnicas": [
+                "Gestión de Proyectos EPC",
+                "Operaciones de Gasolineras",
+                "Simulación Sísmica",
+                "Geología de Yacimientos",
+                "Mantenimiento de Infraestructura",
+                "Control de Calidad en Energía",
+                "Ingeniería de Perforación"
+            ],
+            "Habilidades Blandas": [
+                "Gestión de Equipos",
+                "Comunicación Efectiva",
+                "Resolución de Problemas",
+                "Pensamiento Crítico",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión de Proyectos (PMP)",
+                "Certificación en Seguridad Industrial",
+                "Certificación en Energía y Recursos"
+            ],
+            "Herramientas": [
+                "AutoCAD",
+                "MATLAB",
+                "SAS",
+                "ERP (SAP)",
+                "Software de Simulación (Petrel, Schlumberger)"
+            ]
+        },
+        "Energía Sustentable / Renovables": {
+            "Habilidades Técnicas": [
+                "Gestión de Proyectos de Energía Renovable",
+                "Operaciones y Mantenimiento de Sistemas Renovables",
+                "Diseño de Proyectos de Alta Tensión",
+                "Gestión de Proyectos Fotovoltaicos y Eólicos",
+                "Optimización Energética",
+                "Sistemas de Almacenamiento de Energía",
+                "Evaluación de Impacto Ambiental"
+            ],
+            "Habilidades Blandas": [
+                "Innovación",
+                "Gestión de Proyectos",
+                "Comunicación Efectiva",
+                "Liderazgo",
+                "Pensamiento Estratégico"
+            ],
+            "Certificaciones": [
+                "Certificación en Energía Renovable",
+                "Certificación en Gestión de Proyectos",
+                "Certificación en Sostenibilidad"
+            ],
+            "Herramientas": [
+                "AutoCAD",
+                "PVsyst",
+                "HOMER Energy",
+                "MATLAB",
+                "ERP (SAP)",
+                "GIS Software (ArcGIS)"
+            ]
+        }
+    },
+    "Finanzas & Contabilidad": {
+        "Finanzas": {
+            "Habilidades Técnicas": [
+                "Análisis Financiero",
+                "Gestión de Auditorías",
+                "Contabilidad General",
+                "Planeación Financiera",
+                "Gestión de Inversiones",
+                "Tesorería",
+                "Gestión de Riesgos Financieros"
+            ],
+            "Habilidades Blandas": [
+                "Liderazgo",
+                "Comunicación Efectiva",
+                "Pensamiento Estratégico",
+                "Resolución de Problemas",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "CFA (Chartered Financial Analyst)",
+                "CPA (Certified Public Accountant)",
+                "FRM (Financial Risk Manager)"
+            ],
+            "Herramientas": [
+                "Excel Avanzado",
+                "SAP Financials",
+                "Oracle Financials",
+                "Power BI",
+                "Tableau",
+                "QuickBooks"
+            ]
+        },
+        "Impuestos": {
+            "Habilidades Técnicas": [
+                "Planificación Fiscal",
+                "Gestión de Impuestos Directos e Indirectos",
+                "Impuestos Internacionales",
+                "Precios de Transferencia",
+                "Impuestos Diferidos",
+                "Compliance Fiscal",
+                "Auditoría Fiscal"
+            ],
+            "Habilidades Blandas": [
+                "Atención al Detalle",
+                "Comunicación Efectiva",
+                "Resolución de Problemas",
+                "Pensamiento Crítico",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión Fiscal",
+                "Título en Derecho Tributario",
+                "MBA en Finanzas"
+            ],
+            "Herramientas": [
+                "SAP",
+                "Oracle Financials",
+                "Excel Avanzado",
+                "Power BI",
+                "Software de Gestión Fiscal"
+            ]
+        },
+        "Contabilidad": {
+            "Habilidades Técnicas": [
+                "Contabilidad General y Especial",
+                "Gestión de Cuentas por Pagar y Cobrar",
+                "Consolidación Financiera",
+                "Control de Costos",
+                "Auditoría Interna",
+                "Reportes Financieros",
+                "Normas Internacionales de Información Financiera (NIIF)"
+            ],
+            "Habilidades Blandas": [
+                "Organización",
+                "Comunicación Efectiva",
+                "Pensamiento Analítico",
+                "Gestión del Tiempo",
+                "Resolución de Problemas"
+            ],
+            "Certificaciones": [
+                "CPA (Certified Public Accountant)",
+                "CMA (Certified Management Accountant)",
+                "Título en Contabilidad"
+            ],
+            "Herramientas": [
+                "Excel Avanzado",
+                "SAP Contabilidad",
+                "Oracle Financials",
+                "QuickBooks",
+                "Power BI",
+                "Tableau"
+            ]
+        },
+        "Recursos Humanos": {
+            "Habilidades Técnicas": [
+                "Gestión de Talento",
+                "Desarrollo Organizacional",
+                "Gestión de Compensaciones y Beneficios",
+                "Reclutamiento y Selección",
+                "Capacitación y Desarrollo",
+                "Gestión de Relaciones Laborales",
+                "Gestión de Nómina"
+            ],
+            "Habilidades Blandas": [
+                "Empatía",
+                "Comunicación Efectiva",
+                "Liderazgo",
+                "Resolución de Conflictos",
+                "Pensamiento Estratégico"
+            ],
+            "Certificaciones": [
+                "SHRM-CP / SHRM-SCP",
+                "PMP (Project Management Professional)",
+                "Certificación en Gestión de Recursos Humanos"
+            ],
+            "Herramientas": [
+                "HRIS (SAP SuccessFactors, Workday)",
+                "MS Office",
+                "LinkedIn Recruiter",
+                "Software de Gestión de Nómina",
+                "Sistemas de Gestión de Aprendizaje (LMS)"
+            ]
+        }
+    },
+    "Ventas & Mercadotecnia": {
+        "Ventas": {
+            "Habilidades Técnicas": [
+                "Gestión de Ventas",
+                "Desarrollo de Negocios",
+                "Gestión de Cuentas Clave",
+                "Estrategias de Trade Marketing",
+                "Planeación de Ventas",
+                "Análisis de Mercado",
+                "CRM (Customer Relationship Management)"
+            ],
+            "Habilidades Blandas": [
+                "Comunicación Efectiva",
+                "Negociación",
+                "Liderazgo",
+                "Gestión del Tiempo",
+                "Pensamiento Estratégico"
+            ],
+            "Certificaciones": [
+                "Certificación en Ventas (Salesforce, HubSpot)",
+                "MBA en Marketing",
+                "Certificación en Gestión de Cuentas"
+            ],
+            "Herramientas": [
+                "Salesforce",
+                "HubSpot",
+                "MS Office",
+                "Tableau",
+                "Power BI",
+                "CRM Software"
+            ]
+        },
+        "Marketing": {
+            "Habilidades Técnicas": [
+                "Marketing Digital",
+                "Gestión de Marca",
+                "Investigación de Mercado",
+                "Estrategias de Comunicación",
+                "Content Marketing",
+                "SEO/SEM",
+                "Gestión de Redes Sociales"
+            ],
+            "Habilidades Blandas": [
+                "Creatividad",
+                "Comunicación Efectiva",
+                "Gestión de Proyectos",
+                "Pensamiento Estratégico",
+                "Análisis de Datos"
+            ],
+            "Certificaciones": [
+                "Certificación en Marketing Digital (Google, HubSpot)",
+                "Certificación en Gestión de Marca",
+                "Certificación en Content Marketing"
+            ],
+            "Herramientas": [
+                "Google Analytics",
+                "HubSpot",
+                "SEMrush",
+                "Hootsuite",
+                "MS Office",
+                "Adobe Creative Suite",
+                "Tableau",
+                "Power BI"
+            ]
+        },
+        "START UP": {
+            "Habilidades Técnicas": [
+                "Gestión de Startups",
+                "Innovación Empresarial",
+                "Desarrollo de Productos",
+                "Estrategias de Crecimiento",
+                "Financiación de Startups",
+                "Marketing Digital para Startups",
+                "Gestión de Equipos en Startups"
+            ],
+            "Habilidades Blandas": [
+                "Adaptabilidad",
+                "Pensamiento Creativo",
+                "Resolución de Problemas",
+                "Liderazgo",
+                "Comunicación Efectiva"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión de Startups",
+                "MBA en Emprendimiento",
+                "Certificación en Innovación Empresarial"
+            ],
+            "Herramientas": [
+                "Trello",
+                "Asana",
+                "Slack",
+                "Google Workspace",
+                "MS Office",
+                "CRM (Salesforce, HubSpot)"
+            ]
+        }
+    },
+    "Manufactura e Industria": {
+        "Operaciones de Manufactura": {
+            "Habilidades Técnicas": [
+                "Gestión de Producción",
+                "Optimización de Procesos",
+                "Control de Calidad",
+                "Planificación de Producción",
+                "Gestión de Inventarios",
+                "Lean Manufacturing",
+                "Six Sigma"
+            ],
+            "Habilidades Blandas": [
+                "Liderazgo",
+                "Comunicación Efectiva",
+                "Resolución de Problemas",
+                "Pensamiento Analítico",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Certificación en Lean Manufacturing",
+                "Certificación Six Sigma",
+                "Certificación en Gestión de Producción"
+            ],
+            "Herramientas": [
+                "ERP (SAP, Oracle)",
+                "MS Office",
+                "AutoCAD",
+                "Tableau",
+                "Power BI",
+                "Software de Gestión de Inventarios"
+            ]
+        },
+        "Ingeniería y Desarrollo de Productos": {
+            "Habilidades Técnicas": [
+                "Diseño de Productos",
+                "Ingeniería de Procesos",
+                "Desarrollo de Prototipos",
+                "Gestión de Proyectos de Ingeniería",
+                "Automatización Industrial",
+                "CAD (Diseño Asistido por Computadora)",
+                "Análisis de Sistemas"
+            ],
+            "Habilidades Blandas": [
+                "Creatividad",
+                "Gestión de Proyectos",
+                "Comunicación Técnica",
+                "Trabajo en Equipo",
+                "Pensamiento Crítico"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión de Proyectos (PMP)",
+                "Certificación en CAD",
+                "Certificación en Ingeniería de Procesos"
+            ],
+            "Herramientas": [
+                "AutoCAD",
+                "SolidWorks",
+                "MATLAB",
+                "MS Office",
+                "ERP (SAP)",
+                "Tableau",
+                "Power BI"
+            ]
+        },
+        "Calidad y Mejora Continua": {
+            "Habilidades Técnicas": [
+                "Gestión de Calidad",
+                "Auditoría de Calidad",
+                "Implementación de Metodologías de Mejora Continua",
+                "Control Estadístico de Procesos",
+                "Gestión de Riesgos",
+                "Normas ISO",
+                "Six Sigma"
+            ],
+            "Habilidades Blandas": [
+                "Atención al Detalle",
+                "Resolución de Problemas",
+                "Comunicación Efectiva",
+                "Pensamiento Analítico",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión de Calidad",
+                "Certificación Six Sigma",
+                "Certificación en Lean Manufacturing"
+            ],
+            "Herramientas": [
+                "MS Office",
+                "ERP (SAP, Oracle)",
+                "Tableau",
+                "Power BI",
+                "Software de Gestión de Calidad"
+            ]
+        },
+        "Logística y Cadena de Suministro": {
+            "Habilidades Técnicas": [
+                "Gestión de la Cadena de Suministro",
+                "Logística Internacional",
+                "Planificación de la Demanda",
+                "Gestión de Inventarios",
+                "Optimización de Rutas",
+                "Gestión de Almacenes",
+                "ERP (SAP, Oracle)"
+            ],
+            "Habilidades Blandas": [
+                "Organización",
+                "Comunicación Efectiva",
+                "Pensamiento Estratégico",
+                "Resolución de Problemas",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Certificación en Logística",
+                "Certificación en Gestión de la Cadena de Suministro",
+                "Certificación en Lean Logistics"
+            ],
+            "Herramientas": [
+                "SAP SCM",
+                "Oracle SCM",
+                "MS Office",
+                "Tableau",
+                "Power BI",
+                "Software de Gestión de Inventarios"
+            ]
+        },
+        "Mantenimiento y Fiabilidad": {
+            "Habilidades Técnicas": [
+                "Gestión de Mantenimiento Preventivo",
+                "Mantenimiento Predictivo",
+                "Gestión de Equipos de Mantenimiento",
+                "Análisis de Fiabilidad",
+                "Gestión de Activos",
+                "Automatización de Mantenimiento",
+                "Herramientas de Gestión de Mantenimiento (CMMS)"
+            ],
+            "Habilidades Blandas": [
+                "Atención al Detalle",
+                "Comunicación Efectiva",
+                "Resolución de Problemas",
+                "Pensamiento Analítico",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Certificación en Gestión de Mantenimiento",
+                "Certificación en Fiabilidad de Equipos",
+                "Certificación en Lean Maintenance"
+            ],
+            "Herramientas": [
+                "CMMS (Computerized Maintenance Management Systems)",
+                "MS Office",
+                "ERP (SAP, Oracle)",
+                "Tableau",
+                "Power BI",
+                "Software de Gestión de Activos"
+            ]
+        },
+        "Sostenibilidad y Eficiencia Energética": {
+            "Habilidades Técnicas": [
+                "Gestión de Sostenibilidad",
+                "Eficiencia Energética",
+                "Gestión de Residuos",
+                "Energías Renovables",
+                "Evaluación de Impacto Ambiental",
+                "Certificaciones Ambientales",
+                "Implementación de Políticas de Sostenibilidad"
+            ],
+            "Habilidades Blandas": [
+                "Pensamiento Estratégico",
+                "Comunicación Efectiva",
+                "Innovación",
+                "Gestión de Proyectos",
+                "Resolución de Problemas"
+            ],
+            "Certificaciones": [
+                "Certificación en Sostenibilidad",
+                "Certificación en Eficiencia Energética",
+                "Certificación en Gestión Ambiental"
+            ],
+            "Herramientas": [
+                "MS Office",
+                "Tableau",
+                "Power BI",
+                "Software de Gestión Ambiental",
+                "ERP (SAP)"
+            ]
+        },
+        "Gestión de Proyectos de Manufactura": {
+            "Habilidades Técnicas": [
+                "Gestión de Proyectos",
+                "Planificación y Ejecución de Proyectos",
+                "Control de Costos",
+                "Gestión de Riesgos",
+                "Metodologías Ágiles",
+                "Gestión de Equipos",
+                "Software de Gestión de Proyectos (MS Project, Asana)"
+            ],
+            "Habilidades Blandas": [
+                "Liderazgo",
+                "Comunicación Efectiva",
+                "Resolución de Problemas",
+                "Pensamiento Crítico",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "PMP (Project Management Professional)",
+                "Scrum Master",
+                "Certificación en Gestión de Proyectos de Manufactura"
+            ],
+            "Herramientas": [
+                "MS Project",
+                "Asana",
+                "Trello",
+                "MS Office",
+                "Tableau",
+                "Power BI"
+            ]
+        }
+    },
+    "Tecnologías de la Información": {
+        "Desarrollo de Software": {
+            "Habilidades Técnicas": [
+                "Desarrollo Front-end",
+                "Desarrollo Back-end",
+                "Desarrollo Full Stack",
+                "Desarrollo de Aplicaciones Móviles",
+                "DevOps",
+                "Ingeniería de Datos",
+                "Programación en Python, Java, JavaScript, etc.",
+                "Frameworks (React, Angular, Node.js, etc.)",
+                "Control de Versiones (Git, SVN)",
+                "Arquitectura de Software"
+            ],
+            "Habilidades Blandas": [
+                "Resolución de Problemas",
+                "Comunicación Efectiva",
+                "Trabajo en Equipo",
+                "Gestión del Tiempo",
+                "Pensamiento Crítico"
+            ],
+            "Certificaciones": [
+                "Certificación en Desarrollo de Software",
+                "Certificación en DevOps",
+                "Certificación en Ingeniería de Datos",
+                "Certificación en Frameworks Específicos"
+            ],
+            "Herramientas": [
+                "Visual Studio Code",
+                "IntelliJ IDEA",
+                "GitHub",
+                "JIRA",
+                "Docker",
+                "Kubernetes",
+                "AWS",
+                "Azure",
+                "Google Cloud"
+            ]
+        },
+        "Infraestructura": {
+            "Habilidades Técnicas": [
+                "Administración de Sistemas",
+                "Ingeniería de Redes",
+                "Gestión de Infraestructura en la Nube",
+                "Soporte Técnico",
+                "Arquitectura de TI",
+                "Virtualización",
+                "Seguridad de Infraestructura",
+                "Automatización de Infraestructura",
+                "Monitorización de Sistemas"
+            ],
+            "Habilidades Blandas": [
+                "Resolución de Problemas",
+                "Comunicación Efectiva",
+                "Gestión del Tiempo",
+                "Trabajo en Equipo",
+                "Pensamiento Analítico"
+            ],
+            "Certificaciones": [
+                "Certificación en AWS, Azure o Google Cloud",
+                "Cisco Certified Network Associate (CCNA)",
+                "CompTIA Security+",
+                "ITIL Foundation",
+                "VMware Certified Professional"
+            ],
+            "Herramientas": [
+                "AWS Management Console",
+                "Azure Portal",
+                "Google Cloud Platform",
+                "Cisco IOS",
+                "VMware vSphere",
+                "Ansible",
+                "Puppet",
+                "Nagios",
+                "Splunk"
+            ]
+        },
+        "Ciberseguridad": {
+            "Habilidades Técnicas": [
+                "Análisis de Seguridad",
+                "Ingeniería de Seguridad",
+                "Gestión de Seguridad de la Información",
+                "Gestión de Riesgos de Seguridad",
+                "Respuesta a Incidentes",
+                "Seguridad de Redes",
+                "Criptografía",
+                "Pruebas de Penetración",
+                "Auditoría de Seguridad"
+            ],
+            "Habilidades Blandas": [
+                "Pensamiento Crítico",
+                "Resolución de Problemas",
+                "Comunicación Efectiva",
+                "Atención al Detalle",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "CISSP (Certified Information Systems Security Professional)",
+                "CEH (Certified Ethical Hacker)",
+                "CISM (Certified Information Security Manager)",
+                "CompTIA Security+",
+                "OSCP (Offensive Security Certified Professional)"
+            ],
+            "Herramientas": [
+                "SIEM (Splunk, QRadar)",
+                "Firewalls (Palo Alto, Cisco ASA)",
+                "Herramientas de Penetración (Metasploit, Burp Suite)",
+                "Antivirus y Anti-Malware",
+                "Herramientas de Análisis de Vulnerabilidades (Nessus, OpenVAS)",
+                "Sistemas de Gestión de Identidad y Acceso (IAM)"
+            ]
+        },
+        "Gestión de Proyectos de TI": {
+            "Habilidades Técnicas": [
+                "Planificación de Proyectos",
+                "Gestión de Riesgos",
+                "Gestión de Recursos",
+                "Implementación de Metodologías Ágiles",
+                "Gestión de Cambios",
+                "Control de Costos",
+                "Uso de Software de Gestión de Proyectos"
+            ],
+            "Habilidades Blandas": [
+                "Liderazgo",
+                "Comunicación Efectiva",
+                "Resolución de Problemas",
+                "Gestión del Tiempo",
+                "Pensamiento Estratégico"
+            ],
+            "Certificaciones": [
+                "PMP (Project Management Professional)",
+                "Certified Scrum Master",
+                "Agile Certified Practitioner (PMI-ACP)",
+                "Prince2 Certification"
+            ],
+            "Herramientas": [
+                "JIRA",
+                "Asana",
+                "Trello",
+                "Microsoft Project",
+                "Basecamp",
+                "Slack",
+                "Confluence"
+            ]
+        },
+        "Inteligencia Artificial y Machine Learning": {
+            "Habilidades Técnicas": [
+                "Desarrollo de Modelos de ML",
+                "Análisis de Datos",
+                "Programación en Python/R",
+                "Deep Learning",
+                "NLP (Procesamiento de Lenguaje Natural)",
+                "Computer Vision",
+                "Implementación de Algoritmos",
+                "Gestión de Datos",
+                "Automatización de ML"
+            ],
+            "Habilidades Blandas": [
+                "Pensamiento Analítico",
+                "Resolución de Problemas",
+                "Comunicación Efectiva",
+                "Trabajo en Equipo",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "Certificación en Machine Learning (Coursera, edX)",
+                "Certificación en Deep Learning",
+                "Certificación en Data Science",
+                "Certificación en NLP"
+            ],
+            "Herramientas": [
+                "TensorFlow",
+                "PyTorch",
+                "Scikit-learn",
+                "Keras",
+                "Jupyter Notebook",
+                "Pandas",
+                "NumPy",
+                "Tableau",
+                "Power BI"
+            ]
+        },
+        "Arquitectura Empresarial": {
+            "Habilidades Técnicas": [
+                "Diseño de Arquitectura de Soluciones",
+                "Alineamiento Estratégico de TI",
+                "Integración de Sistemas",
+                "Gestión de Proyectos de Arquitectura",
+                "Evaluación de Tecnologías Emergentes",
+                "Estándares de Arquitectura (TOGAF, Zachman)"
+            ],
+            "Habilidades Blandas": [
+                "Pensamiento Estratégico",
+                "Comunicación Efectiva",
+                "Resolución de Problemas",
+                "Liderazgo",
+                "Gestión del Tiempo"
+            ],
+            "Certificaciones": [
+                "TOGAF Certification",
+                "Certified Enterprise Architect",
+                "AWS Certified Solutions Architect",
+                "Azure Solutions Architect Expert"
+            ],
+            "Herramientas": [
+                "Archimate",
+                "Enterprise Architect",
+                "Microsoft Visio",
+                "Lucidchart",
+                "AWS Architecture Tools",
+                "Azure Architecture Center"
+            ]
+        }
+    }
+}
+}

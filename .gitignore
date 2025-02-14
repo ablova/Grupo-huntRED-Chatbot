@@ -10,7 +10,7 @@ shell.py
 
 # Archivos de respaldo
 *_old.py
-*.json
+
 
 # Archivos estáticos generados
 # staticfiles/
