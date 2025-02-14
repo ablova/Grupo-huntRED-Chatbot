@@ -82,6 +82,7 @@ class IMAPCVProcessor:
         self.parser = CVParser(business_unit)
         self.stats = {"processed": 0, "created": 0, "updated": 0}
         self.FOLDER_CONFIG = FOLDER_CONFIG
+        self.nlp = self.load_spacy_model(language="es")
 
     def _verify_folders(self, mail):
         for folder_key, folder_name in self.FOLDER_CONFIG.items():
