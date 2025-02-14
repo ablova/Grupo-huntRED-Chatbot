@@ -1,0 +1,142 @@
+{
+    "Servicios Financieros": {
+        "Banca y Entidades Financieras": {
+            "Cajero Bancario": {
+                "Habilidades Técnicas": [
+                    "Manejo de efectivo y transacciones bancarias",
+                    "Conocimiento de productos bancarios básicos",
+                    "Dominio de software bancario"
+                ],
+                "Habilidades Blandas": [
+                    "Atención al cliente",
+                    "Precisión",
+                    "Trabajo bajo presión"
+                ],
+                "Certificaciones": [
+                    "Certificación en manejo de efectivo",
+                    "Curso en operaciones bancarias"
+                ],
+                "Herramientas": [
+                    "Cajeros automáticos",
+                    "Software bancario",
+                    "Calculadoras"
+                ]
+            },
+            "Asesor Financiero": {
+                "Habilidades Técnicas": [
+                    "Asesoramiento en productos financieros",
+                    "Análisis de necesidades del cliente",
+                    "Cumplimiento de normativas financieras"
+                ],
+                "Habilidades Blandas": [
+                    "Persuasión",
+                    "Empatía",
+                    "Comunicación efectiva"
+                ],
+                "Certificaciones": [
+                    "Curso en asesoramiento financiero",
+                    "Certificación en ventas"
+                ],
+                "Herramientas": [
+                    "Tablets",
+                    "CRM financiero",
+                    "Material promocional"
+                ]
+            },
+            "Ejecutivo de Cuenta": {
+                "Habilidades Técnicas": [
+                    "Gestión de cuentas personales y empresariales",
+                    "Conocimiento avanzado de productos financieros",
+                    "Cumplimiento de metas comerciales"
+                ],
+                "Habilidades Blandas": [
+                    "Relaciones interpersonales",
+                    "Negociación",
+                    "Resolución de conflictos"
+                ],
+                "Certificaciones": [
+                    "Curso en ventas financieras",
+                    "Capacitación en normativas bancarias"
+                ],
+                "Herramientas": [
+                    "Software de gestión bancaria",
+                    "Tablets para ventas móviles",
+                    "Sistemas CRM"
+                ]
+            }
+        },
+        "Fintech": {
+            "Soporte de Aplicaciones Financieras": {
+                "Habilidades Técnicas": [
+                    "Resolución de problemas en plataformas digitales",
+                    "Configuración de sistemas financieros en línea",
+                    "Soporte técnico de nivel 1"
+                ],
+                "Habilidades Blandas": [
+                    "Paciencia",
+                    "Resolución de problemas",
+                    "Comunicación clara"
+                ],
+                "Certificaciones": [
+                    "Curso de soporte técnico",
+                    "Capacitación en aplicaciones fintech"
+                ],
+                "Herramientas": [
+                    "Software de ticketing",
+                    "Plataformas de banca digital",
+                    "Sistemas de monitoreo en tiempo real"
+                ]
+            }
+        }
+    },
+    "Farma / Healthcare": {
+        "Farma": {
+            "Operario de Producción Farmacéutica": {
+                "Habilidades Técnicas": [
+                    "Operación de maquinaria farmacéutica",
+                    "Cumplimiento de normas GMP",
+                    "Manejo seguro de insumos químicos"
+                ],
+                "Habilidades Blandas": [
+                    "Trabajo en equipo",
+                    "Puntualidad",
+                    "Responsabilidad"
+                ],
+                "Certificaciones": [
+                    "Curso en producción farmacéutica",
+                    "Certificación en normas GMP"
+                ],
+                "Herramientas": [
+                    "Equipos de producción",
+                    "Sistemas de monitoreo",
+                    "Software de control de calidad"
+                ]
+            }
+        }
+    },
+    "Manufactura e Industria": {
+        "Agro": {
+            "Jornalero Agro": {
+                "Habilidades Técnicas": [
+                    "Cosecha y plantación de cultivos",
+                    "Uso de herramientas agrícolas",
+                    "Conocimiento básico de manejo de cultivos"
+                ],
+                "Habilidades Blandas": [
+                    "Resistencia física",
+                    "Trabajo en equipo",
+                    "Responsabilidad"
+                ],
+                "Certificaciones": [
+                    "Curso en técnicas agrícolas",
+                    "Capacitación en seguridad laboral"
+                ],
+                "Herramientas": [
+                    "Herramientas manuales de cultivo",
+                    "Equipos de protección personal (EPP)",
+                    "Sistemas básicos de riego"
+                ]
+            }
+        }
+    }
+}
