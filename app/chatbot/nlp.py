@@ -21,9 +21,6 @@ logging.basicConfig(
 # ✅ Descargar recursos de NLTK
 nltk.download('vader_lexicon', quiet=True)
 
-# ✅ Definir `nlp` antes de usarlo en NLPProcessor
-nlp = load_nlp_model("es")  # Modelo por defecto en español
-
 # ✅ Diccionario de modelos NLP disponibles
 MODEL_LANGUAGES = {
     "es": "es_core_news_md",
@@ -65,6 +62,9 @@ def detect_and_load_nlp(text: str):
         logger.error(f"❌ Error detectando idioma: {e}")
         return load_nlp_model("es")  # Fallback a español
 
+# ✅ Se mueve la inicialización después de definir las funciones
+nlp = load_nlp_model("es")  # Modelo por defecto en español
+
 # ✅ Creación de PhraseMatcher dinámico
 def phrase_matcher_factory(nlp_model):
     """Crea una instancia de PhraseMatcher según el modelo NLP disponible."""
@@ -90,8 +90,6 @@ except Exception as e:
     logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
     sn = None
 
-
-
 # ✅ Modificar NLPProcessor para manejar modelos dinámicos
 class NLPProcessor:
     """ Procesador de NLP para análisis de texto, intenciones, sentimiento e intereses. """
@@ -103,7 +101,7 @@ class NLPProcessor:
         self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
         self.define_intent_patterns()
         self.sia = SentimentIntensityAnalyzer() if nltk else None
-        
+
     def set_language(self, language: str):
         """ Permite cambiar dinámicamente el idioma del modelo NLP. """
         self.language = language
