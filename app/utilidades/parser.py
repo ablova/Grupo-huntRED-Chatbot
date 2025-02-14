@@ -319,18 +319,19 @@ class IMAPCVProcessor:
             self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
 
 
+# Ajuste en la inicialización de CVParser
 class CVParser:
     def __init__(self, business_unit: str, text_sample: Optional[str] = None):
         """
         Inicializa el parser con un modelo NLP adecuado según el idioma detectado.
         """
-        self.business_unit = business_unit  # Ya es un string válido
+        self.business_unit = business_unit.strip()  # ✅ Evita espacios extra
         self.detected_language = self.detect_language(text_sample) if text_sample else "es"
-        self.nlp = self.load_spacy_model(self.detected_language)  # Carga modelo correcto
-        self.analysis_points = self.get_analysis_points()  # Se asegura que usa la clave correcta
+        self.nlp = detect_and_load_nlp(text_sample)  # ✅ Carga el modelo NLP correcto
+        self.analysis_points = self.get_analysis_points()  # ✅ Corrección aplicada
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
-        
+
     def detect_language(self, text: str) -> str:
         """
         Detecta el idioma del texto y lo normaliza a 'es' o 'en'.
@@ -340,36 +341,25 @@ class CVParser:
 
         try:
             detected_lang = detect(text)
-            language = "es" if detected_lang in ["es", "pt"] else "en"  # Consideramos portugués como similar al español
-            logger.info(f"Idioma detectado: {detected_lang} (Usando: {language})")
+            language = detected_lang if detected_lang in MODEL_LANGUAGES else "es"
+            logger.info(f"🌍 Idioma detectado: {detected_lang} (Usando modelo {MODEL_LANGUAGES[language]})")
             return language
         except Exception as e:
-            logger.error(f"Error detectando idioma: {e}")
+            logger.error(f"❌ Error detectando idioma: {e}")
             return "es"  # Default a español si hay un error
 
     def load_spacy_model(self, language: str):
         """
         Carga dinámicamente el modelo de NLP según el idioma detectado.
         """
-        models = {
-            "es": "es_core_news_sm",
-            "en": "en_core_web_sm",
-        }
-        model_name = models.get(language, "es_core_news_sm")  # Default español
-
-        try:
-            logger.info(f"Cargando modelo SpaCy para idioma: {language} -> {model_name}")
-            return spacy.load(model_name)
-        except Exception as e:
-            logger.error(f"Error cargando modelo SpaCy para {language}: {e}")
-            return spacy.load("es_core_news_sm")  # Fallback a español en caso de error
+        return detect_and_load_nlp(language)  # ✅ Usa la función centralizada de NLP
 
     def prepare_nlp_model(self, text: str):
         """
         Detecta el idioma del texto y prepara el modelo NLP correspondiente.
         """
         self.detected_language = self.detect_language(text)
-        self.nlp = self.load_spacy_model(self.detected_language)
+        self.nlp = detect_and_load_nlp(self.detected_language)
         logger.info(f"✅ Modelo NLP cargado para idioma: {self.detected_language}")
 
     def get_analysis_points(self) -> Dict:
@@ -377,21 +367,43 @@ class CVParser:
         Devuelve los puntos de análisis basados en la unidad de negocio.
         """
         analysis_points = {
-            'huntRED®': ['leadership_skills', 'executive_experience', 'achievements', 'management_experience', 'responsibilities', 'language_skills'],
-            'huntRED® Executive': ['strategic_planning', 'board_experience', 'global_exposure', 'executive_experience', 'responsibilities', 'language_skills', 'international_experience'],
-            'huntu': ['education', 'projects', 'skills', 'potential_for_growth', 'achievements'],
-            'amigro': ['work_authorization', 'language_skills', 'international_experience', 'skills'],
+            'huntRED®': [
+                'habilidades_liderazgo', 'experiencia_ejecutiva', 'logros', 'gestión_empresarial',
+                'responsabilidades', 'idiomas', 'red_de_contactos', 'gestión_stakeholders'
+            ],
+            'huntRED® Executive': [
+                'planificación_estratégica', 'experiencia_consejo', 'exposición_global', 'experiencia_ejecutiva',
+                'responsabilidades', 'idiomas', 'experiencia_internacional', 'conocimiento_tecnológico'
+            ],
+            'huntU': [
+                'educación', 'proyectos', 'habilidades_técnicas', 'potencial_crecimiento', 'logros', 'tecnología'
+            ],
+            'amigro': [
+                'permiso_trabajo', 'idiomas', 'experiencia_internacional', 'habilidades',
+                'habilidades_blandas', 'certificaciones'
+            ],
+            'huntRED® Tech': [
+                'desarrollo_software', 'arquitectura_datos', 'inteligencia_artificial', 'ciberseguridad'
+            ],
         }
-        default_analysis = ['skills', 'experience', 'education']
-        return analysis_points.get(self.business_unit, default_analysis)  # Ahora usa `self.business_unit` como string
+        default_analysis = ['habilidades', 'experiencia', 'educación']
+        return analysis_points.get(self.business_unit, default_analysis)
 
     def get_cross_analysis(self) -> Dict:
         """
-        Load cross-analysis configuration.
+        Devuelve los factores de análisis cruzado entre unidades de negocio.
         """
-        logger.info("Cargando análisis cruzado...")
-        # Replace with real implementation
-        return {"division_specific": []}
+        cross_analysis = {
+            'huntRED®': ['planificación_estratégica', 'experiencia_consejo', 'potencial_liderazgo'],
+            'huntRED® Executive': ['gestión_empresarial', 'logros', 'conocimiento_tecnológico'],
+            'huntU': ['logros', 'gestión_empresarial', 'potencial_liderazgo'],
+            'amigro': ['ubicación', 'viaja_con_familia', 'estatus_migratorio', 'certificaciones'],
+            'huntRED® Tech': ['conocimiento_tecnológico', 'inteligencia_artificial', 'ciberseguridad'],
+            'huntRED® - huntU': ['mentalidad_emprendedora', 'solución_problemas'],
+            'amigro - huntU': ['idiomas', 'educación', 'adaptabilidad'],
+            'amigro - huntRED®': ['idiomas', 'certificaciones', 'red_de_contactos'],
+        }
+        return cross_analysis.get(self.business_unit, [])
 
     def _load_division_skills(self) -> Dict:
         """
@@ -474,31 +486,6 @@ class CVParser:
         except Exception as e:
             logger.error(f"❌ Error analizando texto: {e}")
             return {}
-
-    def get_analysis_points(self):
-        """
-        Returns the primary analysis points based on the business unit.
-        """
-        analysis_points = {
-            'huntRED®': ['leadership_skills', 'executive_experience', 'achievements', 'management_experience', 'responsibilities', 'language_skills'],
-            'huntRED® Executive': ['strategic_planning', 'board_experience', 'global_exposure', 'executive_experience', 'responsibilities', 'language_skills', 'international_experience'],
-            'huntu': ['education', 'projects', 'skills', 'potential_for_growth', 'achievements'],
-            'amigro': ['work_authorization', 'language_skills', 'international_experience', 'skills'],
-        }
-        default_analysis = ['skills', 'experience', 'education']
-        return analysis_points.get(self.business_unit.name, default_analysis)
-
-    def get_cross_analysis(self):
-        """
-        Returns analysis points for cross-checking between units to ensure flexibility.
-        """
-        cross_analysis = {
-            'huntRED®': ['strategic_planning', 'board_experience'],  # Consider huntRED Executive attributes
-            'huntRED® Executive': ['management_experience', 'achievements'],  # Consider huntRED attributes
-            'huntu': ['achievements', 'management_experience'],  # Check readiness for huntRED
-            'amigro': []  # No cross-analysis for Amigro, as the boundary is clear
-        }
-        return cross_analysis.get(self.business_unit.name, [])
 
     def extract_information(self, doc, point):
         """
