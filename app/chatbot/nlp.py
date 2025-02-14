@@ -18,38 +18,73 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
-# Descargar recursos de NLTK
+# ✅ Descargar recursos de NLTK
 nltk.download('vader_lexicon', quiet=True)
 
-# Cargar modelo spaCy
-try:
-    nlp = spacy.load("es_core_news_lg")
-    logger.info("Modelo de spaCy 'es_core_news_lg' cargado correctamente.")
-except Exception as e:
-    logger.error(f"Error cargando modelo SpaCy: {e}", exc_info=True)
-    nlp = None
+# ✅ Diccionario de modelos NLP disponibles
+MODEL_LANGUAGES = {
+    "es": "es_core_news_md",
+    "en": "en_core_web_md",
+    "fr": "fr_core_news_md",
+    "it": "it_core_news_md",
+    "de": "de_core_news_md",
+    "ru": "ru_core_news_md",
+    "pt": "pt_core_news_md"
+}
 
-# ✅ Corrección: Creación correcta de PhraseMatcher
-def phrase_matcher_factory():
-    """ Crea y devuelve una instancia válida de PhraseMatcher. """
-    return PhraseMatcher(nlp.vocab, attr="LOWER") if nlp else None
+# ✅ Cargar modelos dinámicamente
+loaded_models = {}
 
-# ✅ Inicialización de SkillExtractor asegurando instancias correctas
+def load_nlp_model(language: str):
+    """Carga el modelo de NLP para el idioma especificado, con fallback a español."""
+    model_name = MODEL_LANGUAGES.get(language, "es_core_news_md")
+    
+    if model_name in loaded_models:
+        return loaded_models[model_name]
+
+    try:
+        loaded_models[model_name] = spacy.load(model_name)
+        logger.info(f"✅ Modelo SpaCy '{model_name}' cargado correctamente.")
+        return loaded_models[model_name]
+    except Exception as e:
+        logger.error(f"❌ Error cargando modelo SpaCy para {language} ({model_name}): {e}")
+        return loaded_models.get("es_core_news_md", None)  # Fallback a español
+
+# ✅ Función para detectar idioma y cargar modelo correcto
+def detect_and_load_nlp(text: str):
+    """Detecta el idioma y carga el modelo NLP correspondiente."""
+    try:
+        detected_lang = detect(text)
+        language = detected_lang if detected_lang in MODEL_LANGUAGES else "es"
+        logger.info(f"🌍 Idioma detectado: {detected_lang} (Usando modelo {MODEL_LANGUAGES[language]})")
+        return load_nlp_model(language)
+    except Exception as e:
+        logger.error(f"❌ Error detectando idioma: {e}")
+        return load_nlp_model("es")  # Fallback a español
+
+# ✅ Creación de PhraseMatcher dinámico
+def phrase_matcher_factory(nlp_model):
+    """Crea una instancia de PhraseMatcher según el modelo NLP disponible."""
+    return PhraseMatcher(nlp_model.vocab, attr="LOWER") if nlp_model else None
+
+# ✅ Inicialización de SkillExtractor con idioma dinámico
 try:
     skill_db_path = "/home/pablo/skill_db_relax_20.json"
     with open(skill_db_path, 'r', encoding='utf-8') as f:
         skills_db = json.load(f)
 
-    phrase_matcher = phrase_matcher_factory()  # Genera la instancia antes de pasarla
+    nlp_default = load_nlp_model("es")  # Usamos español por defecto
+    phrase_matcher = phrase_matcher_factory(nlp_default)
 
-    if nlp and phrase_matcher:
-        sn = SkillExtractor(nlp=nlp, skills_db=skills_db, phraseMatcher=phrase_matcher)
+    if nlp_default and phrase_matcher:
+        sn = SkillExtractor(nlp=nlp_default, skills_db=skills_db, phraseMatcher=phrase_matcher)
+        logger.info("✅ SkillExtractor inicializado con modelo en español.")
     else:
         sn = None
+        logger.warning("⚠ No se pudo inicializar SkillExtractor correctamente.")
 
-    logger.info("SkillExtractor inicializado correctamente con skill_db_relax_20.json.")
 except Exception as e:
-    logger.error(f"Error inicializando SkillExtractor: {e}", exc_info=True)
+    logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
     sn = None
 
 class NLPProcessor:
