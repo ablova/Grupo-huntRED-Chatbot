@@ -146,6 +146,62 @@ def get_all_skills_for_unit(unit_name: str = "huntRED®") -> list:
         logger.error(f"Error obteniendo habilidades de {unit_name}: {e}")
         return []
     
+def get_positions_by_skills(skills: List[str], threshold: float = 0.6) -> List[Dict]:
+    """
+    Obtiene vacantes adecuadas basadas en las habilidades detectadas.
+
+    Args:
+        skills (list): Lista de habilidades detectadas
+        threshold (float): Umbral mínimo de coincidencia (0-1)
+
+    Returns:
+        list: Lista de diccionarios con vacantes sugeridas y su puntuación
+    """
+    from app.models import Vacante
+
+    if not skills:
+        return []
+
+    normalized_skills = [skill.lower() for skill in skills]
+    suggested = []
+
+    # Obtener todas las vacantes que tienen habilidades requeridas
+    all_vacantes = Vacante.objects.exclude(skills_required__isnull=True)
+
+    for vacante in all_vacantes:
+        try:
+            # Obtener habilidades requeridas para esta vacante
+            position_skills = []
+            if isinstance(vacante.skills_required, dict) and 'skills' in vacante.skills_required:
+                position_skills = [s.lower() for s in vacante.skills_required['skills']]
+            elif isinstance(vacante.skills_required, list):
+                position_skills = [s.lower() for s in vacante.skills_required]
+            else:
+                continue
+            
+            if not position_skills:
+                continue
+
+            # Calcular coincidencia
+            matches = sum(1 for skill in normalized_skills if skill in position_skills)
+            score = matches / len(position_skills) if len(position_skills) > 0 else 0
+            
+            if score >= threshold:
+                suggested.append({
+                    'position': vacante.titulo,
+                    'score': round(score * 100, 1),
+                    'business_unit': vacante.business_unit.name if vacante.business_unit else None,
+                    'empresa': vacante.empresa,
+                    'id': vacante.id
+                })
+        except Exception as e:
+            logger.error(f"Error al procesar vacante {vacante.id}: {e}")
+            continue
+
+    # Ordenar por puntuación descendente
+    suggested.sort(key=lambda x: x['score'], reverse=True)
+    return suggested
+
 ####---------------------------------------------------------
 ### UTILIDADES PARA FUNCIONES DE LOCALIZACION, VALIDACION, ETC
 ####--------------------------------------------------------

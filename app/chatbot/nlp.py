@@ -1,3 +1,4 @@
+# Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
 import logging
 import nltk
 import spacy
@@ -92,11 +93,11 @@ class NLPProcessor:
         }
     
     def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
-        """ Extrae habilidades y sugiere posiciones. """
-        from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills
-        
+        """ Extrae habilidades, prioriza intereses y sugiere posiciones. """
+        from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests
+
         text_normalized = unidecode.unidecode(text.lower())
-        skills = set()  # Usamos `set` para evitar duplicados
+        skills = set()  # Evita duplicados
         
         # 1️⃣ Cargar habilidades desde catálogos y vacantes
         try:
@@ -106,7 +107,7 @@ class NLPProcessor:
             logger.error(f"Error obteniendo habilidades para {business_unit}: {e}")
             all_skills = []
 
-        # 2️⃣ Coincidencias manuales con regex optimizado (evita falsos positivos)
+        # 2️⃣ Coincidencias manuales con regex optimizado
         for skill in all_skills:
             skill_normalized = unidecode.unidecode(skill.lower())
             if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
@@ -125,7 +126,10 @@ class NLPProcessor:
             except Exception as e:
                 logger.error(f"❌ Error en SkillExtractor: {e}", exc_info=True)
 
-        # 4️⃣ Buscar posiciones adecuadas con las habilidades encontradas
+        # 4️⃣ Priorizar intereses detectados
+        prioritized_interests = prioritize_interests(list(skills))
+        
+        # 5️⃣ Buscar posiciones adecuadas con las habilidades encontradas
         suggested_positions = []
         if skills:
             try:
@@ -134,15 +138,16 @@ class NLPProcessor:
             except Exception as e:
                 logger.error(f"Error obteniendo posiciones sugeridas: {e}", exc_info=True)
 
-        # 5️⃣ Retornar en formato estructurado
+        # 6️⃣ Retornar en formato estructurado
         result = {
             "skills": list(skills),
+            "prioritized_interests": prioritized_interests,
             "suggested_positions": suggested_positions
         }
 
         logger.info(f"🔎 Análisis final: {result}")
         return result
-
+    
     def extract_interests_and_skills(self, text: str) -> dict:
         """
         Extrae intereses explícitos, habilidades y sugiere roles priorizando lo mencionado por el usuario.
