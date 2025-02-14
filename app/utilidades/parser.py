@@ -323,13 +323,11 @@ class CVParser:
     def __init__(self, business_unit: str, text_sample: Optional[str] = None):
         """
         Inicializa el parser con un modelo NLP adecuado según el idioma detectado.
-        - `text_sample`: Opcional, si se proporciona, se usa para detectar el idioma antes de cargar el modelo.
-        - Si no hay `text_sample`, el default es español (`es`).
         """
         self.business_unit = business_unit
         self.detected_language = self.detect_language(text_sample) if text_sample else "es"
         self.nlp = self.load_spacy_model(self.detected_language)  # Carga modelo correcto
-        self.analysis_points = self.get_analysis_points()
+        self.analysis_points = self.get_analysis_points()  # Sin `.name`
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
 
@@ -376,11 +374,16 @@ class CVParser:
 
     def get_analysis_points(self) -> Dict:
         """
-        Load analysis points for parsing.
+        Devuelve los puntos de análisis basados en la unidad de negocio.
         """
-        logger.info("Cargando puntos de análisis...")
-        # Replace with real implementation, e.g., loading from config or database
-        return {"education": [], "skills": [], "experience": []}
+        analysis_points = {
+            'huntRED®': ['leadership_skills', 'executive_experience', 'achievements', 'management_experience', 'responsibilities', 'language_skills'],
+            'huntRED® Executive': ['strategic_planning', 'board_experience', 'global_exposure', 'executive_experience', 'responsibilities', 'language_skills', 'international_experience'],
+            'huntu': ['education', 'projects', 'skills', 'potential_for_growth', 'achievements'],
+            'amigro': ['work_authorization', 'language_skills', 'international_experience', 'skills'],
+        }
+        default_analysis = ['skills', 'experience', 'education']
+        return analysis_points.get(self.business_unit, default_analysis)  # Ahora usa `self.business_unit`]}
 
     def get_cross_analysis(self) -> Dict:
         """
