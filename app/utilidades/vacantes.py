@@ -8,6 +8,7 @@ from typing import List, Dict
 from functools import lru_cache
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
+from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
@@ -29,25 +30,26 @@ def main(message):
     candidate_profile = extract_candidate_profile(message)
     job_matches = match_candidate_to_job(candidate_profile)
     print(f"Encontré estas vacantes para ti: {job_matches}")   
-from geopy.distance import geodesic
 
 def match_person_with_jobs(person, job_list):
     """
     Coincide un usuario con una lista de vacantes.
     """
-    matches = []
+    if not person:
+        logger.warning("No hay candidatos registrados para hacer matching con vacantes.")
+        return []
+    
     person_location = (person.lat, person.lon) if person.lat and person.lon else None
     person_skills = set(person.skills.split(",")) if person.skills else set()
 
+    matches = []
     for job in job_list:
         try:
             score = 0
-            # Comparar habilidades
             job_skills = set(job.requisitos.split(",")) if job.requisitos else set()
             skill_match = len(person_skills & job_skills)
             score += skill_match * 2
 
-            # Comparar ubicación
             if person_location and job.lat and job.lon:
                 job_location = (job.lat, job.lon)
                 distance = geodesic(person_location, job_location).km
@@ -56,12 +58,10 @@ def match_person_with_jobs(person, job_list):
                 elif distance <= 50:
                     score += 1
 
-            # Comparar salario
             if person.nivel_salarial and job.salario:
                 if job.salario >= person.nivel_salarial:
                     score += 2
 
-            # Fecha de publicación
             if job.fecha_scraping and (datetime.now() - job.fecha_scraping).days <= 7:
                 score += 1
 
@@ -71,7 +71,6 @@ def match_person_with_jobs(person, job_list):
 
     matches = sorted(matches, key=lambda x: x[1], reverse=True)
     return matches
-
 # Configuración del logger
 logger = logging.getLogger(__name__)
 
