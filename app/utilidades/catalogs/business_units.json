@@ -1,0 +1,588 @@
+{
+    "huntRED®": {
+        "Servicios Financieros": {
+            "Banca y Entidades Financieras": [
+                "Director Comercial (Posicion Analizada)",
+                "Director Crédito y Riesgo",
+                "Director de Contabilidad e Impuestos",
+                "Director de Financiamiento",
+                "Director de M&A - Fusiones y Adquisiciones",
+                "Gerente Comercial / Key Account Manager",
+                "Gerente de Contabilidad e Impuestos",
+                "Gerente de Crédito y Riesgo",
+                "Head de Control Interno, Auditoría, Compliance",
+                "Product Manager",
+                "Project Manager",
+                "Subdirector Comercial - Región, Zona y División",
+                "Subdirector de Contabilidad e Impuestos",
+                "Subdirector de Crédito y Riesgo"
+            ],
+            "Investment & Corporate Banking (Subespecialidad)": [
+                "Analista",
+                "Analista Junior",
+                "Assistant Vice President / Vice President",
+                "Associate",
+                "Associate Director",
+                "Executive Director",
+                "Managing Director"
+            ],
+            "Venture Capital (Capital Semilla, Capital Emprendedor e Inversión de Impacto)": [
+                "Associate / Vicepresident",
+                "Investment Analyst Junior",
+                "Investment Officer",
+                "Principal / Partner / Managing Director"
+            ],
+            "Private Equity: Capital de crecimiento & Mezzanine, Family Offices y Bienes Raíces": [
+                "Analista",
+                "Analista Junior",
+                "Asociado",
+                "Controller de Fondo",
+                "Managing Partner",
+                "Relación con Inversionistas",
+                "Vice President / Principal",
+                "Managing Director / CEO / Partner",
+                "VP Finance / Operations / Marketing / Commercial",
+                "Manager Finance / Operations / Marketing / Commercial",
+                "Quantitative / Data / Innovation / Strategy Analysis"
+            ],
+            "Sector Asegurador - Asistencia": [
+                "Director Comercial",
+                "Director de Finanzas",
+                "Subdirector Comercial",
+                "Gerente Comercial"
+            ],
+            "Reaseguro": [
+                "Director Comercial",
+                "Director de Suscripción",
+                "Gerente Comercial",
+                "Gerente de Suscripción"
+            ],
+            "Fianzas": [
+                "Director de Operaciones",
+                "Director de Siniestros",
+                "Director de Suscripción",
+                "Director Técnico",
+                "Gerente de Producción",
+                "Suscriptor de Contratos",
+                "Suscriptor Facultativo",
+                "Suscriptor Lob"
+            ]
+        },
+        "Farma / Healthcare": {
+            "Farma": [
+                "Director / Gerente de Unidad de Negocio",
+                "Gerente / Director de Acceso",
+                "Gerente de Cuentas Clave",
+                "Gerente de Desarrollo de Negocio Regional",
+                "Gerente de Excelencia Comercial",
+                "Gerente de Producto",
+                "Gerente Nacional de Ventas",
+                "Gerente Regional de Ventas"
+            ],
+            "Áreas Técnicas": [
+                "Director / Gerente de Asuntos Regulatorios",
+                "Director / Gerente Médico",
+                "Director de Calidad Farmacéutica",
+                "Gerente de Investigación y Desarrollo"
+            ],
+            "HealthCare": [
+                "Director / Gerente de Asuntos Regulatorios",
+                "Director / Gerente de Servicio Técnico",
+                "Director Comercial",
+                "Gerente / Director de Marketing",
+                "Gerente de Acceso",
+                "Gerente de Cuentas Clave",
+                "Gerente de Unidad de Negocio",
+                "Gerente de Ventas",
+                "Gerente de Ventas Clínicas"
+            ]
+        },
+        "Legal": {
+            "In-house": [
+                "Director Jurídico",
+                "Gerente Jurídico",
+                "Subdirector Jurídico",
+                "Vicepresidente Legal",
+                "Head of Compliance",
+                "Compliance Officer"
+            ],
+            "Despacho de Abogados": [
+                "Socio",
+                "Compliance Officer",
+                "Asociado Senior",
+                "Asociado",
+                "Abogado",
+                "Especialista en Derecho Civil",
+                "Especialista en Derecho Mercantil",
+                "Especialista en Derecho Corporativo",
+                "Especialista en Litigio",
+                "Especialista en Derecho Fiscal",
+                "Especialista en Derecho Náutico",
+                "Especialista en Derecho Automotriz",
+                "Especialista en Derecho Minero",
+                "Especialista en Derecho Agrario"
+            ]
+        },
+        "Energía": {
+            "Oil & Gas": [
+                "Director de Control de Proyectos",
+                "Director de Operaciones de Gasolineras",
+                "Director de Proyecto EPC de Gasoducto",
+                "Geofísico de Inversión Sísmica AVO",
+                "Geofísico de Simulación Numérica",
+                "Geólogo de Pozo (Well Site)",
+                "Geomecánico",
+                "Geomodelador Senior",
+                "Gerente de Calidad",
+                "Gerente de EHS - Downstream",
+                "Gerente de EHS - Upstream",
+                "Gerente de Ingeniería Senior",
+                "Gerente de Operaciones y Mantenimiento (Perforación)",
+                "Gerente de Transportación y Comercialización de Gas Natural",
+                "Ingeniero de Perforación",
+                "Ingeniero Senior de Yacimientos",
+                "Petrofísico Senior",
+                "Superintendente Senior"
+            ],
+            "Energía Sustentable / Renovables": [
+                "Asset Management Manager",
+                "Gerente de Desarrollo de Proyectos Energía Renovable",
+                "Gerente de Operaciones y Mantenimiento Energía Renovable",
+                "Gerente de Proyectos Alta Tensión",
+                "Gerente de Proyectos Fotovoltáicos o Eólico"
+            ]
+        },
+        "Finanzas & Contabilidad": {
+            "Finanzas": [
+                "Business Controller",
+                "Director / Gerente de Auditoría Interna",
+                "Director / Gerente de Contabilidad",
+                "Director / Gerente de Planeación Financiera",
+                "Director / Gerente de Relación con Inversionistas",
+                "Director / Gerente de Shared Service Center (SSC)",
+                "Director / Gerente de Tesorería / Tesorero",
+                "Director Administrativo Financiero",
+                "Gerente de Administración y Finanzas / Contralor Financiero",
+                "Gerente de Crédito y Cobranza"
+            ],
+            "Impuestos": [
+                "Director de Impuestos",
+                "Gerente de Impuestos",
+                "Gerente de Impuestos Diferidos",
+                "Gerente de Impuestos Directos / Indirectos",
+                "Gerente de Planeación Fiscal",
+                "Gerente de Precios de Transferencia",
+                "Gerente Fiscal Despacho",
+                "Gerente Fiscal Internacional",
+                "Socio Fiscal Despacho"
+            ],
+            "Contabilidad": [
+                "Director de Finanzas",
+                "Contralor",
+                "Gerente de Crédito y Cobranza",
+                "Gerente de Contabilidad",
+                "Contralor de Planta",
+                "Project Finance",
+                "Tesorero",
+                "Supervisor de Contabilidad",
+                "Supervisor de Finanzas",
+                "Gerente de Cumplimiento Aduanero",
+                "Gerente de Costos",
+                "Director de Impuestos",
+                "Gerente Fiscal Internacional",
+                "Gerente de Planeación Fiscal",
+                "Gerente de Precios de Transferencia"
+            ],
+            "Recursos Humanos": [
+                "Administración de Personal / Nómina",
+                "Business Partner",
+                "Director / Gerente de Total Rewards",
+                "Director de Recursos Humanos",
+                "Gerente Corporativo de Recursos Humanos",
+                "Gerente de Atracción de Talento",
+                "Gerente de Capacitación",
+                "Gerente de Compensaciones y Beneficios",
+                "Gerente de Comunicación",
+                "Gerente de Desarrollo Organizacional",
+                "Gerente de Recursos Humanos - Planta",
+                "Gerente de Relaciones Laborales",
+                "Talent Management",
+                "Vicepresidente de Recursos Humanos / Dirección Regional"
+            ]
+        },
+        "Ventas & Mercadotecnia": {
+            "Ventas": [
+                "Business Development Manager",
+                "Director Comercial",
+                "Director de Category Management",
+                "Director de Trade Marketing",
+                "Director de Ventas",
+                "Gerente de Category Management",
+                "Gerente de Desarrollo de Negocios",
+                "Gerente de Preventa",
+                "Gerente de Trade Marketing",
+                "Gerente Divisional de Ventas",
+                "Gerente Nacional de Ventas",
+                "Gerente Regional de Ventas",
+                "Gerente Senior de Trade Marketing",
+                "Key Account Manager",
+                "Senior Key Account Manager",
+                "Team Leader Cuentas Clave / Canales"
+            ],
+            "Marketing": [
+                "Director de Marketing",
+                "Gerente de Marca, Medios y Relaciones Públicas",
+                "Gerente de Producto",
+                "Grouper",
+                "Senior Brand Manager",
+                "Gerente de Mercadotecnia",
+                "Director de Comunicación & RP",
+                "Gerente de Comunicación & RP",
+                "Director Shopper / Customer Marketing",
+                "Gerente Shopper / Customer Marketing",
+                "Director de Investigación de Mercado",
+                "Gerente de Investigación de Mercado",
+                "Director de Marketing Digital",
+                "Gerente de Marketing Digital",
+                "Director de E-commerce",
+                "E-commerce Operations Manager",
+                "Gerente de E-commerce",
+                "E-commerce Project Manager",
+                "Director de Comercial Media",
+                "Business Development Manager",
+                "Ad Sales Manager",
+                "Director Creativo",
+                "Director de Cuentas",
+                "Director de Planning Digital *",
+                "Director de Servicio al Cliente",
+                "Director Digital *",
+                "Gerente de Planning Digital",
+                "VP Creativo",
+                "Chief Digital Officer",
+                "Content Manager",
+                "Director Agencia de Noticias",
+                "Editor en Jefe",
+                "Head of Branded Content",
+                "Productor de Video Digital",
+                "Programmatic Head"
+            ],
+            "Start Up": [
+                "Chief Operations Officer (E-commerce / Digital)",
+                "Co-Founder (Startup)",
+                "Country Manager (Medios / Digital)",
+                "Gerente de Ventas Digital (Medios)",
+                "Gerente de Marketing / Producto",
+                "Product Manager (IT)"
+            ]
+        },
+        "Manufactura e Industria": {
+            "Operaciones de Manufactura": [
+                "Gerente de Planta",
+                "Director de Operaciones de Planta",
+                "Gerente de Operaciones",
+                "Operations Manager",
+                "Director de Producción",
+                "Production Director",
+                "Head of Production"
+            ],
+            "Ingeniería y Desarrollo de Productos": [
+                "Gerente de Ingeniería",
+                "Engineering Manager",
+                "Director de Ingeniería",
+                "Director de Desarrollo de Productos",
+                "Product Development Director",
+                "Head of Product Development",
+                "Ingeniero de Procesos",
+                "Process Engineering Manager",
+                "Senior Process Engineer"
+            ],
+            "Calidad y Mejora Continua": [
+                "Gerente de Calidad",
+                "Quality Manager",
+                "Director de Calidad",
+                "Quality Director",
+                "Head of Quality Assurance",
+                "Especialista en Mejora Continua",
+                "Continuous Improvement Manager",
+                "Lean Manager"
+            ],
+            "Logística y Cadena de Suministro": [
+                "Gerente de Cadena de Suministro",
+                "Supply Chain Manager",
+                "Director of Supply Chain",
+                "Director de Logística",
+                "Logistics Director",
+                "Head of Logistics",
+                "Gerente de Inventarios",
+                "Inventory Manager",
+                "Director de Inventarios"
+            ],
+            "Mantenimiento y Fiabilidad": [
+                "Gerente de Mantenimiento",
+                "Maintenance Manager",
+                "Director de Mantenimiento",
+                "Reliability Director",
+                "Head of Reliability Engineering",
+                "Ingeniero de Mantenimiento",
+                "Maintenance Engineering Manager",
+                "Senior Maintenance Engineer"
+            ],
+            "Sostenibilidad y Eficiencia Energética": [
+                "Gerente de Sostenibilidad",
+                "Sustainability Manager",
+                "Director de Sostenibilidad",
+                "Director de Eficiencia Energética",
+                "Energy Efficiency Director",
+                "Head of Energy Management"
+            ],
+            "Gestión de Proyectos de Manufactura": [
+                "Gerente de Proyectos",
+                "Project Manager",
+                "Senior Project Manager",
+                "Director de Proyectos de Manufactura",
+                "Manufacturing Project Director",
+                "Head of Manufacturing Projects"
+            ]
+        },
+        "Tecnologías de la Información": {
+            "Desarrollo de Software": [
+                "Gerente de Desarrollo Front-end",
+                "Líder de UI/UX",
+                "Gerente de Desarrollo Back-end",
+                "Arquitecto de Software",
+                "Gerente de Desarrollo Full Stack",
+                "Líder de Proyectos Full Stack",
+                "Gerente de Desarrollo Móvil",
+                "Arquitecto de Aplicaciones Móviles",
+                "Gerente de DevOps",
+                "Ingeniero de Automatización",
+                "Gerente de Ingeniería de Datos",
+                "Arquitecto de Big Data"
+            ],
+            "Infraestructura": [
+                "Gerente de Sistemas",
+                "Administrador de Servidores",
+                "Gerente de Redes",
+                "Ingeniero de Redes",
+                "Gerente de Infraestructura en la Nube",
+                "Arquitecto Cloud",
+                "Gerente de Soporte Técnico",
+                "Coordinador de Operaciones TI",
+                "Arquitecto de TI",
+                "Director de Arquitectura Empresarial"
+            ],
+            "Ciberseguridad": [
+                "Gerente de Seguridad",
+                "Analista Senior de Seguridad",
+                "Gerente de Ingeniería de Seguridad",
+                "Ingeniero de Seguridad",
+                "Chief Information Security Officer (CISO)",
+                "Gerente de Riesgos de Seguridad",
+                "Especialista en Compliance",
+                "Gerente de Respuesta a Incidentes",
+                "Coordinador de SOC (Security Operations Center)"
+            ],
+            "Gestión de Proyectos de TI": [
+                "Project Manager",
+                "Senior Project Manager",
+                "Scrum Master Senior",
+                "Agile Coach",
+                "Product Owner Senior",
+                "Director de Producto"
+            ],
+            "Inteligencia Artificial y Machine Learning": [
+                "Gerente de ML",
+                "Ingeniero Senior de ML",
+                "Gerente de Ciencia de Datos",
+                "Líder de Equipo de Datos",
+                "Director de Proyectos de IA",
+                "Gerente de Innovación"
+            ],
+            "Arquitectura Empresarial": [
+                "Gerente de Arquitectura de Soluciones",
+                "Arquitecto Senior",
+                "Enterprise Architect",
+                "Chief Enterprise Architect"
+            ]
+        },
+        "Responsabilidad Social y Sustentabilidad": {
+            "Gestión de Responsabilidad Social": [
+                "Gerente de Responsabilidad Social",
+                "Coordinador de Programas de Responsabilidad Social",
+                "Especialista en Responsabilidad Social Corporativa",
+                "Analista de Impacto Social",
+                "Director de Responsabilidad Social",
+                "Gerente de Relaciones Comunitarias"
+            ],
+            "Gestión de Sostenibilidad": [
+                "Director de Sostenibilidad",
+                "Gerente de Sostenibilidad",
+                "Especialista en Sostenibilidad",
+                "Coordinador de Iniciativas de Sostenibilidad",
+                "Analista de Sostenibilidad",
+                "Gerente de Eficiencia Energética"
+            ],
+            "Desarrollo de Programas de Sostenibilidad": [
+                "Gerente de Programas de Sostenibilidad",
+                "Coordinador de Proyectos de Sostenibilidad",
+                "Especialista en Desarrollo Sostenible",
+                "Analista de Proyectos Sostenibles",
+                "Director de Programas de Sostenibilidad"
+            ],
+            "Comunicación y Reportes de Sostenibilidad": [
+                "Gerente de Comunicación de Sostenibilidad",
+                "Especialista en Reportes de Sostenibilidad",
+                "Coordinador de Comunicación Corporativa",
+                "Analista de Reportes de Impacto",
+                "Director de Comunicación y Reportes de Sostenibilidad"
+            ]
+        }
+    },
+    "huntU®": {
+        "Servicios Financieros": [
+            "Analista Financiero Junior",
+            "Asistente de Contabilidad",
+            "Especialista en Crédito",
+            "Asistente de Tesorería",
+            "Analista de Riesgos Financieros",
+            "Coordinador de Auditoría Interna"
+        ],
+        "Legal": [
+            "Asistente Legal",
+            "Especialista en Compliance",
+            "Analista Jurídico",
+            "Coordinador de Contratos",
+            "Asesor Jurídico Junior",
+            "Investigador Legal"
+        ],
+        "Energía": [
+            "Ingeniero de Energías Renovables Junior",
+            "Asistente de Proyectos Energéticos",
+            "Analista de Eficiencia Energética",
+            "Coordinador de Mantenimiento Energético",
+            "Especialista en Sistemas Solares",
+            "Asistente de Operaciones de Energía"
+        ],
+        "Finanzas y Contabilidad": [
+            "Contador Junior",
+            "Asistente de Finanzas",
+            "Analista de Presupuestos",
+            "Especialista en Cuentas por Pagar",
+            "Asistente de Cuentas por Cobrar",
+            "Coordinador de Informes Financieros"
+        ],
+        "Ventas y Mercadotecnia": [
+            "Ejecutivo de Ventas Junior",
+            "Asistente de Marketing",
+            "Coordinador de Campañas Publicitarias",
+            "Analista de Mercado",
+            "Especialista en Marketing Digital",
+            "Diseñador Gráfico Junior"
+        ],
+        "Manufactura e Industria": [
+            "Ingeniero de Procesos Junior",
+            "Asistente de Producción",
+            "Analista de Calidad",
+            "Coordinador de Mantenimiento",
+            "Especialista en Logística",
+            "Operario de Planta"
+        ],
+        "Tecnologías de la Información": [
+            "Desarrollador de Software Junior",
+            "Analista de Sistemas",
+            "Soporte Técnico",
+            "Desarrollador Front-end",
+            "Desarrollador Back-end",
+            "Especialista en Ciberseguridad",
+            "Administrador de Bases de Datos",
+            "Analista de Datos",
+            "Ingeniero DevOps"
+        ],
+        "Responsabilidad Social y Sustentabilidad": [
+            "Coordinador de RSC Junior",
+            "Analista de Sostenibilidad",
+            "Asistente de Programas de Responsabilidad Social",
+            "Especialista en Impacto Ambiental",
+            "Asesor de Sostenibilidad",
+            "Gerente de Proyectos Sostenibles"
+        ]
+    },
+    "Amigro®": {
+        "Manufactura": [
+            "Operario de Maquinaria",
+            "Supervisor de Línea de Producción",
+            "Capataz de Taller",
+            "Jefe de Mantenimiento",
+            "Asistente de Producción",
+            "Supervisor de Inventarios",
+            "Jefe de Inventarios",
+            "Jornalero",
+            "Maquilero"
+        ],
+        "Logística y Cadena de Suministro": [
+            "Jornalero de Almacén",
+            "Operario de Transporte",
+            "Asistente de Logística",
+            "Supervisor de Transporte",
+            "Jefe de Logística",
+            "Coordinador de Almacén",
+            "Encargado de Inventarios"
+        ],
+        "Mantenimiento y Fiabilidad": [
+            "Técnico de Mantenimiento",
+            "Supervisor de Mantenimiento",
+            "Jefe de Mantenimiento",
+            "Asistente de Mantenimiento",
+            "Jornalero de Mantenimiento",
+            "Operario de Mantenimiento"
+        ],
+        "Producción y Operaciones": [
+            "Operario de Producción",
+            "Supervisor de Producción",
+            "Jefe de Operaciones",
+            "Jornalero de Producción",
+            "Capataz de Producción",
+            "Asistente de Operaciones"
+        ],
+        "Control de Calidad": [
+            "Inspector de Calidad",
+            "Operario de Control de Calidad",
+            "Supervisor de Calidad",
+            "Jefe de Control de Calidad",
+            "Asistente de Calidad",
+            "Analista de Calidad"
+        ],
+        "Seguridad y Salud Ocupacional": [
+            "Asistente de Seguridad",
+            "Técnico en Salud Ocupacional",
+            "Supervisor de Seguridad",
+            "Jefe de Seguridad",
+            "Operario de Seguridad",
+            "Jornalero de Seguridad"
+        ],
+        "Servicios Generales": [
+            "Jornalero de Limpieza",
+            "Operario de Mantenimiento General",
+            "Asistente de Servicios Generales",
+            "Supervisor de Servicios Generales",
+            "Jefe de Servicios Generales",
+            "Jornalero de Servicios"
+        ],
+        "Administración de Planta": [
+            "Asistente Administrativo de Planta",
+            "Jornalero Administrativo",
+            "Supervisor Administrativo",
+            "Jefe Administrativo",
+            "Operario Administrativo",
+            "Coordinador de Administración"
+        ],
+        "Gestión de Proyectos Operativos": [
+            "Coordinador de Proyectos Operativos",
+            "Asistente de Proyectos",
+            "Jornalero de Proyectos",
+            "Operario de Proyectos",
+            "Supervisor de Proyectos",
+            "Jefe de Proyectos"
+        ]
+    }
+}

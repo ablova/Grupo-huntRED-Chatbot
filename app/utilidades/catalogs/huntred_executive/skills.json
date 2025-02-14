@@ -1,0 +1,281 @@
+{
+    "Chief Executive Officer (CEO)": {
+        "Habilidades Técnicas": [
+            "Desarrollo de Estrategias Empresariales",
+            "Gestión de Operaciones",
+            "Toma de Decisiones Ejecutivas",
+            "Análisis Financiero Avanzado",
+            "Liderazgo Organizacional",
+            "Gestión de Cambios",
+            "Desarrollo de Negocios"
+        ],
+        "Habilidades Blandas": [
+            "Comunicación Efectiva",
+            "Pensamiento Estratégico",
+            "Resolución de Problemas",
+            "Habilidades de Negociación",
+            "Capacidad de Adaptación",
+            "Liderazgo Inspirador",
+            "Gestión del Tiempo"
+        ],
+        "Certificaciones": [
+            "MBA (Master of Business Administration)",
+            "Certificación en Liderazgo Ejecutivo",
+            "Certificación en Gestión Estratégica"
+        ],
+        "Herramientas": [
+            "Microsoft Office Suite",
+            "Herramientas de Análisis Financiero (Excel Avanzado, Tableau)",
+            "Software de Gestión de Proyectos (Asana, Trello)",
+            "CRM (Salesforce, HubSpot)"
+        ]
+    },
+    "Chief Financial Officer (CFO)": {
+        "Habilidades Técnicas": [
+            "Gestión Financiera",
+            "Planeación y Análisis Financiero",
+            "Contabilidad Avanzada",
+            "Gestión de Riesgos Financieros",
+            "Fusiones y Adquisiciones",
+            "Compliance Financiero",
+            "Modelado Financiero"
+        ],
+        "Habilidades Blandas": [
+            "Atención al Detalle",
+            "Comunicación Efectiva",
+            "Pensamiento Crítico",
+            "Liderazgo",
+            "Resolución de Conflictos",
+            "Gestión del Tiempo",
+            "Trabajo en Equipo"
+        ],
+        "Certificaciones": [
+            "CPA (Certified Public Accountant)",
+            "CFA (Chartered Financial Analyst)",
+            "Certificación en Gestión de Riesgos (FRM)"
+        ],
+        "Herramientas": [
+            "ERP Financiero (SAP, Oracle Financials)",
+            "Excel Avanzado",
+            "Power BI",
+            "Software de Auditoría"
+        ]
+    },
+    "Chief Revenue Officer (CRO)": {
+        "Habilidades Técnicas": [
+            "Desarrollo de Estrategias de Ingresos",
+            "Gestión de Ventas",
+            "Desarrollo de Negocios",
+            "Análisis de Mercado",
+            "Optimización de Precios",
+            "Gestión de Relaciones con Clientes",
+            "Forecasting de Ingresos"
+        ],
+        "Habilidades Blandas": [
+            "Liderazgo",
+            "Comunicación Efectiva",
+            "Negociación",
+            "Pensamiento Estratégico",
+            "Gestión del Tiempo",
+            "Resolución de Problemas",
+            "Trabajo en Equipo"
+        ],
+        "Certificaciones": [
+            "Certificación en Gestión de Ventas",
+            "MBA en Marketing o Ventas",
+            "Certificación en Desarrollo de Negocios"
+        ],
+        "Herramientas": [
+            "CRM (Salesforce, HubSpot)",
+            "Herramientas de Análisis de Datos (Tableau, Power BI)",
+            "Software de Gestión de Ventas"
+        ]
+    },
+    "Chief Marketing Officer / Chief Growth Officer (CMO/CGO)": {
+        "Habilidades Técnicas": [
+            "Desarrollo de Estrategias de Marketing",
+            "Marketing Digital",
+            "Gestión de Marca",
+            "Investigación de Mercado",
+            "Estrategias de Crecimiento",
+            "Optimización de Campañas",
+            "Análisis de Datos de Marketing"
+        ],
+        "Habilidades Blandas": [
+            "Creatividad",
+            "Comunicación Efectiva",
+            "Pensamiento Estratégico",
+            "Liderazgo",
+            "Resolución de Problemas",
+            "Gestión del Tiempo",
+            "Trabajo en Equipo"
+        ],
+        "Certificaciones": [
+            "Certificación en Marketing Digital (Google, HubSpot)",
+            "MBA en Marketing",
+            "Certificación en Gestión de Marca"
+        ],
+        "Herramientas": [
+            "Google Analytics",
+            "HubSpot",
+            "SEMrush",
+            "Adobe Creative Suite",
+            "Herramientas de Automatización de Marketing (Marketo, Pardot)"
+        ]
+    },
+    "Chief Operating Officer (COO)": {
+        "Habilidades Técnicas": [
+            "Gestión de Operaciones",
+            "Optimización de Procesos",
+            "Gestión de Proyectos",
+            "Control de Calidad",
+            "Gestión de la Cadena de Suministro",
+            "Implementación de Sistemas ERP",
+            "Análisis de Eficiencia Operacional"
+        ],
+        "Habilidades Blandas": [
+            "Liderazgo",
+            "Comunicación Efectiva",
+            "Pensamiento Analítico",
+            "Resolución de Problemas",
+            "Gestión del Tiempo",
+            "Trabajo en Equipo",
+            "Adaptabilidad"
+        ],
+        "Certificaciones": [
+            "Certificación en Gestión de Proyectos (PMP)",
+            "Certificación en Lean Six Sigma",
+            "MBA en Operaciones"
+        ],
+        "Herramientas": [
+            "ERP (SAP, Oracle)",
+            "MS Office Suite",
+            "Herramientas de Gestión de Proyectos (Asana, Trello)",
+            "Software de Control de Calidad"
+        ]
+    },
+    "Chief Information Officer (CIO)": {
+        "Habilidades Técnicas": [
+            "Gestión de Tecnología de la Información",
+            "Desarrollo de Estrategias IT",
+            "Implementación de Sistemas ERP",
+            "Ciberseguridad",
+            "Gestión de Infraestructura IT",
+            "Transformación Digital",
+            "Análisis de Datos y BI"
+        ],
+        "Habilidades Blandas": [
+            "Comunicación Efectiva",
+            "Pensamiento Estratégico",
+            "Liderazgo",
+            "Resolución de Problemas",
+            "Gestión del Tiempo",
+            "Trabajo en Equipo",
+            "Adaptabilidad"
+        ],
+        "Certificaciones": [
+            "Certificación en Gestión de TI (ITIL)",
+            "Certificación en Ciberseguridad (CISSP)",
+            "Certificación en Gestión de Proyectos (PMP)"
+        ],
+        "Herramientas": [
+            "ERP (SAP, Oracle)",
+            "Herramientas de Gestión de Proyectos (JIRA, Asana)",
+            "Software de Ciberseguridad",
+            "Herramientas de Análisis de Datos (Tableau, Power BI)"
+        ]
+    },
+    "CCO - Director Comercial / Director de Ventas / Director de Desarrollo Comercial": {
+        "Habilidades Técnicas": [
+            "Gestión de Ventas",
+            "Desarrollo de Estrategias Comerciales",
+            "Gestión de Cuentas Clave",
+            "Análisis de Mercado",
+            "Optimización de Procesos de Venta",
+            "Forecasting de Ventas",
+            "Gestión de Equipos de Ventas"
+        ],
+        "Habilidades Blandas": [
+            "Liderazgo",
+            "Comunicación Efectiva",
+            "Negociación",
+            "Pensamiento Estratégico",
+            "Resolución de Problemas",
+            "Gestión del Tiempo",
+            "Trabajo en Equipo"
+        ],
+        "Certificaciones": [
+            "Certificación en Gestión de Ventas",
+            "MBA en Marketing o Ventas",
+            "Certificación en Desarrollo Comercial"
+        ],
+        "Herramientas": [
+            "CRM (Salesforce, HubSpot)",
+            "Herramientas de Análisis de Ventas (Tableau, Power BI)",
+            "Software de Gestión de Ventas"
+        ]
+    },
+    "CDO - Director Digital / Director de Transformación / Chief Digital Officer (CDO)": {
+        "Habilidades Técnicas": [
+            "Desarrollo de Estrategias Digitales",
+            "Transformación Digital",
+            "Gestión de Proyectos Digitales",
+            "Innovación Tecnológica",
+            "Análisis de Datos Digitales",
+            "Desarrollo de Plataformas Digitales",
+            "Gestión de Experiencia del Cliente (CX)"
+        ],
+        "Habilidades Blandas": [
+            "Creatividad",
+            "Comunicación Efectiva",
+            "Pensamiento Estratégico",
+            "Liderazgo",
+            "Resolución de Problemas",
+            "Gestión del Tiempo",
+            "Trabajo en Equipo"
+        ],
+        "Certificaciones": [
+            "Certificación en Transformación Digital",
+            "MBA en Tecnología",
+            "Certificación en Gestión de Proyectos (PMP)"
+        ],
+        "Herramientas": [
+            "Google Analytics",
+            "HubSpot",
+            "Herramientas de Gestión de Proyectos (Asana, Trello)",
+            "Software de Innovación (IdeaScale)",
+            "Plataformas de Gestión de Experiencia del Cliente (Zendesk, Salesforce Service Cloud)"
+        ]
+    },
+    "Miembros de Consejo": {
+        "Habilidades Técnicas": [
+            "Gobernanza Corporativa",
+            "Análisis Estratégico",
+            "Gestión de Riesgos",
+            "Auditoría y Compliance",
+            "Finanzas Corporativas",
+            "Evaluación de Desempeño Empresarial",
+            "Desarrollo de Políticas Corporativas"
+        ],
+        "Habilidades Blandas": [
+            "Pensamiento Crítico",
+            "Comunicación Efectiva",
+            "Liderazgo",
+            "Integridad",
+            "Resolución de Problemas",
+            "Trabajo en Equipo",
+            "Gestión del Tiempo"
+        ],
+        "Certificaciones": [
+            "Certificación en Gobernanza Corporativa",
+            "Certificación en Gestión de Riesgos",
+            "Certificación en Auditoría Interna"
+        ],
+        "Herramientas": [
+            "MS Office Suite",
+            "Herramientas de Análisis Financiero (Excel Avanzado, Tableau)",
+            "Software de Gestión de Documentos (SharePoint)",
+            "Plataformas de Comunicación (Microsoft Teams, Zoom)"
+        ]
+    }
+}
