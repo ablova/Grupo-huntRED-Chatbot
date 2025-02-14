@@ -66,89 +66,31 @@ class NLPProcessor:
         logger.debug("Patrones de saludo definidos en Matcher.")
 
     def analyze(self, text: str) -> dict:
-        """ Analiza intenciones, entidades, sentimiento y divisiones detectadas. """
         from app.chatbot.utils import clean_text, validate_term_in_catalog, get_all_divisions
 
         if not nlp:
             logger.error("No se ha cargado el modelo spaCy, devolviendo análisis vacío.")
-            return {"intents": [], "entities": [], "sentiment": {}, "detected_divisions": [], "interests": []}
+            return {"intents": [], "entities": [], "sentiment": {}, "detected_divisions": []}
 
         cleaned_text = clean_text(text)
         doc = nlp(cleaned_text)
-
-        # Detectar entidades con spaCy
         entities = [(ent.text, ent.label_) for ent in doc.ents]
-
-        # Extraer intenciones
         intents = []
         if self.matcher:
             matches = self.matcher(doc)
             intents = [nlp.vocab.strings[match_id] for match_id, _, _ in matches]
-
-        # Analizar sentimiento
         sentiment = self.sia.polarity_scores(cleaned_text) if self.sia else {}
-
-        # Detectar divisiones
         all_divisions = get_all_divisions()
         detected_divisions = [term for term in entities if validate_term_in_catalog(term[0], all_divisions)]
 
-        # Identificar intereses explícitos
-        interests = self.extract_interests_and_skills(text)
-
-        logger.debug(f"Análisis: Intenciones={intents}, Entidades={entities}, Sentimiento={sentiment}, Intereses={interests}")
+        logger.debug(f"Análisis: Intenciones={intents}, Entidades={entities}, Sentimiento={sentiment}")
         return {
             "entities": entities,
             "intents": intents,
             "sentiment": sentiment,
-            "detected_divisions": detected_divisions,
-            "interests": interests
+            "detected_divisions": detected_divisions
         }
-
-    def extract_interests_and_skills(self, text: str) -> dict:
-        """
-        Extrae intereses explícitos, habilidades y sugiere roles priorizando lo mencionado por el usuario.
-        """
-        text_normalized = unidecode.unidecode(text.lower())
-        skills = set()
-        interests = set()
-        priorities = {}
-
-        # Cargar habilidades desde catálogos
-        try:
-            all_skills = get_all_skills_for_unit()
-            logger.info(f"📌 Habilidades cargadas: {all_skills}")  
-        except Exception as e:
-            logger.error(f"Error obteniendo habilidades: {e}")
-            all_skills = []
-
-        # Coincidencias manuales
-        for skill in all_skills:
-            skill_normalized = unidecode.unidecode(skill.lower())
-            if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
-                skills.add(skill)
-                priorities[skill] = 2
-
-        # Extraer habilidades con SkillExtractor
-        if sn and nlp and nlp.vocab.vectors_length > 0:
-            try:
-                results = sn.annotate(text)
-                if isinstance(results, dict) and "results" in results:
-                    extracted_skills = {item["skill"] for item in results["results"] if isinstance(item, dict)}
-                    skills.update(extracted_skills)
-                    for skill in extracted_skills:
-                        priorities[skill] = priorities.get(skill, 1)
-                    logger.info(f"🧠 Habilidades extraídas: {extracted_skills}")
-            except Exception as e:
-                logger.error(f"❌ Error en SkillExtractor: {e}", exc_info=True)
-
-        # Aplicar ponderación a intereses
-        skills, skill_weights = prioritize_interests(skills, priorities)
-
-        return {
-            "skills": skills,
-            "prioritized_skills": skill_weights
-        }
-
+    
     def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
         """ Extrae habilidades y sugiere posiciones. """
         from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills
@@ -200,6 +142,51 @@ class NLPProcessor:
 
         logger.info(f"🔎 Análisis final: {result}")
         return result
+
+    def extract_interests_and_skills(self, text: str) -> dict:
+        """
+        Extrae intereses explícitos, habilidades y sugiere roles priorizando lo mencionado por el usuario.
+        """
+        text_normalized = unidecode.unidecode(text.lower())
+        skills = set()
+        interests = set()
+        priorities = {}
+
+        # Cargar habilidades desde catálogos
+        try:
+            all_skills = get_all_skills_for_unit()
+            logger.info(f"📌 Habilidades cargadas: {all_skills}")  
+        except Exception as e:
+            logger.error(f"Error obteniendo habilidades: {e}")
+            all_skills = []
+
+        # Coincidencias manuales
+        for skill in all_skills:
+            skill_normalized = unidecode.unidecode(skill.lower())
+            if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
+                skills.add(skill)
+                priorities[skill] = 2
+
+        # Extraer habilidades con SkillExtractor
+        if sn and nlp and nlp.vocab.vectors_length > 0:
+            try:
+                results = sn.annotate(text)
+                if isinstance(results, dict) and "results" in results:
+                    extracted_skills = {item["skill"] for item in results["results"] if isinstance(item, dict)}
+                    skills.update(extracted_skills)
+                    for skill in extracted_skills:
+                        priorities[skill] = priorities.get(skill, 1)
+                    logger.info(f"🧠 Habilidades extraídas: {extracted_skills}")
+            except Exception as e:
+                logger.error(f"❌ Error en SkillExtractor: {e}", exc_info=True)
+
+        # Aplicar ponderación a intereses
+        skills, skill_weights = prioritize_interests(skills, priorities)
+
+        return {
+            "skills": skills,
+            "prioritized_skills": skill_weights
+        }
 
     def infer_gender(self, name: str) -> str:
         """ Infiera género basado en heurísticas simples. """
