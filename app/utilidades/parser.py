@@ -324,13 +324,13 @@ class CVParser:
         """
         Inicializa el parser con un modelo NLP adecuado según el idioma detectado.
         """
-        self.business_unit = business_unit
+        self.business_unit = business_unit  # Ya es un string válido
         self.detected_language = self.detect_language(text_sample) if text_sample else "es"
         self.nlp = self.load_spacy_model(self.detected_language)  # Carga modelo correcto
-        self.analysis_points = self.get_analysis_points()  # Sin `.name`
+        self.analysis_points = self.get_analysis_points()  # Se asegura que usa la clave correcta
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
-
+        
     def detect_language(self, text: str) -> str:
         """
         Detecta el idioma del texto y lo normaliza a 'es' o 'en'.
@@ -383,7 +383,7 @@ class CVParser:
             'amigro': ['work_authorization', 'language_skills', 'international_experience', 'skills'],
         }
         default_analysis = ['skills', 'experience', 'education']
-        return analysis_points.get(self.business_unit, default_analysis)  # Ahora usa `self.business_unit`]}
+        return analysis_points.get(self.business_unit, default_analysis)  # Ahora usa `self.business_unit` como string
 
     def get_cross_analysis(self) -> Dict:
         """
