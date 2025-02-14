@@ -17,15 +17,28 @@ from app.models import Person, ConfiguracionBU, Division, Skill, BusinessUnit
 from typing import List, Dict, Tuple, Optional
 from django.utils.timezone import now
 from datetime import datetime
-from app.chatbot.nlp import sn  # SkillNer instance
-from app.chatbot.integrations.services import send_message, send_email
+
 import logging
 from PyPDF2 import PdfReader
 import docx
+from langdetect import detect
+
+# ✅ Importación segura del módulo NLP
+try:
+    import app.chatbot.nlp as nlp_module  # Importación del módulo
+    sn = nlp_module.sn if hasattr(nlp_module, "sn") else None
+except ImportError as e:
+    logging.error(f"Error importando NLP: {e}", exc_info=True)
+    sn = None
+
+# ✅ Si `sn` no está disponible, lanzar advertencia
+if sn is None:
+    logging.warning("⚠ Warning: SkillExtractor (`sn`) no se pudo importar correctamente desde nlp.py")
+
+# ✅ Importación de servicios adicionales
+from app.chatbot.integrations.services import send_message, send_email
 
 logger = logging.getLogger(__name__)
-
-from langdetect import detect
 
 def detect_language(text):
     try:
