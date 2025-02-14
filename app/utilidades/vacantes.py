@@ -14,14 +14,8 @@ from asgiref.sync import sync_to_async
 from app.models import Worker, Person, GptApi, ConfiguracionBU
 #from app.chatbot.integrations.whatsapp import registro_amigro, nueva_posicion_amigro #Importaciones locales
 from app.ml.ml_model import MatchmakingLearningSystem
-from app.utilidades.scraping import (
-    get_session,
-    consult,
-    register,
-    login,
-    solicitud,
-    login_to_wordpress
-)
+from app.utilidades.scraping import get_session, consult, register, login, solicitud
+from app.chatbot.utils import prioritize_interests, get_positions_by_skills
 #import chainlit as cl
 #from some_ml_model import match_candidate_to_job  # Tu modelo personalizado
 
@@ -459,6 +453,46 @@ class VacanteManager:
 
         return match_score / len(desired_personality)  # Normalizado
 
+    def suggest_positions(self, extracted_skills, interests):
+        """ Sugiere posiciones basadas en habilidades detectadas e intereses expresados. """
+        prioritized_skills, skill_weights = prioritize_interests(extracted_skills, interests)
+        positions = get_positions_by_skills(prioritized_skills)
+        return {
+            "positions": positions,
+            "prioritized_skills": prioritized_skills,
+            "skill_weights": skill_weights
+        }
+
+    async def process_candidate(self, person):
+        """ Procesa a un candidato y sugiere vacantes con base en habilidades e intereses. """
+        extracted_skills = person.metadata.get("skills", [])
+        interests = person.metadata.get("interests", {})
+        suggestions = self.suggest_positions(extracted_skills, interests)
+
+        # Aplicar ranking con machine learning
+        matched_jobs = await sync_to_async(self.rank_vacancies)(person, suggestions["positions"])
+
+        logger.info(f"✅ Recomendaciones de vacantes para {person.name}: {matched_jobs}")
+        return matched_jobs
+    
+    def rank_vacancies(self, person, vacancies):
+        """ Ordena las vacantes según coincidencia con habilidades e intereses. """
+        ml_system = MatchmakingLearningSystem(person.business_unit)
+        ranked_jobs = ml_system.rank_candidates(vacancies)
+        return ranked_jobs
+
+    def fetch_latest_jobs(self, limit=5):
+        """ Obtiene las últimas vacantes publicadas. """
+        try:
+            response = requests.get(self.api_url, headers=self.headers, params={"_fields": "id,title", "per_page": limit})
+            response.raise_for_status()
+            jobs = response.json()
+            logger.info(f"Se obtuvieron {len(jobs)} vacantes.")
+            return jobs
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error al obtener vacantes: {e}")
+            return []
+        
 def create_or_update_job_on_wordpress(job_data):
     """
     Crea o actualiza una vacante en WordPress y envía una notificación al empleador si es necesario.
