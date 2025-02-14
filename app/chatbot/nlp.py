@@ -18,32 +18,34 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
+# Descargar recursos de NLTK
 nltk.download('vader_lexicon', quiet=True)
 
-# Cargar modelo spaCy con vectores completos
+# Cargar modelo spaCy
 try:
     nlp = spacy.load("es_core_news_lg")
     logger.info("Modelo de spaCy 'es_core_news_lg' cargado correctamente.")
 except Exception as e:
-    logger.error(f"Error cargando modelo spaCy: {e}", exc_info=True)
+    logger.error(f"Error cargando modelo SpaCy: {e}", exc_info=True)
     nlp = None
 
-def phrase_matcher_factory(nlp):
+# ✅ Corrección: Creación correcta de PhraseMatcher
+def phrase_matcher_factory():
+    """ Crea y devuelve una instancia válida de PhraseMatcher. """
     return PhraseMatcher(nlp.vocab, attr="LOWER") if nlp else None
 
-# Cargar la base de datos de habilidades
+# ✅ Inicialización de SkillExtractor asegurando instancias correctas
 try:
     skill_db_path = "/home/pablo/skill_db_relax_20.json"
     with open(skill_db_path, 'r', encoding='utf-8') as f:
         skills_db = json.load(f)
 
-    phrase_matcher_instance = phrase_matcher_factory(nlp) if nlp else None
+    phrase_matcher = phrase_matcher_factory()  # Genera la instancia antes de pasarla
 
-    sn = SkillExtractor(
-        nlp=nlp,
-        skills_db=skills_db,
-        phraseMatcher=phrase_matcher_instance
-    ) if nlp and phrase_matcher_instance else None
+    if nlp and phrase_matcher:
+        sn = SkillExtractor(nlp=nlp, skills_db=skills_db, phraseMatcher=phrase_matcher)
+    else:
+        sn = None
 
     logger.info("SkillExtractor inicializado correctamente con skill_db_relax_20.json.")
 except Exception as e:
