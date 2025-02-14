@@ -27,7 +27,8 @@ except Exception as e:
     logger.error(f"Error cargando modelo spaCy: {e}", exc_info=True)
     nlp = None
 
-phrase_matcher_factory = lambda vocab=None: PhraseMatcher(nlp.vocab, attr="LOWER") if nlp else None
+def phrase_matcher_factory(nlp):
+    return PhraseMatcher(nlp.vocab, attr="LOWER") if nlp else None
 
 # Cargar la base de datos de habilidades
 try:
@@ -35,11 +36,13 @@ try:
     with open(skill_db_path, 'r', encoding='utf-8') as f:
         skills_db = json.load(f)
 
+    phrase_matcher_instance = phrase_matcher_factory(nlp) if nlp else None
+
     sn = SkillExtractor(
         nlp=nlp,
         skills_db=skills_db,
-        phraseMatcher=phrase_matcher_factory
-    ) if nlp and phrase_matcher_factory else None
+        phraseMatcher=phrase_matcher_instance
+    ) if nlp and phrase_matcher_instance else None
 
     logger.info("SkillExtractor inicializado correctamente con skill_db_relax_20.json.")
 except Exception as e:
