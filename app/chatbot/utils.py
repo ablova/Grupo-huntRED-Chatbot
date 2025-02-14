@@ -75,6 +75,12 @@ def get_all_divisions():
     """ Obtiene todas las divisiones disponibles en los catálogos. """
     return get_divisiones()
 
+def prioritize_interests(text: str) -> list:
+    """ Prioriza habilidades según el interés expresado en la conversación o CV. """
+    from app.chatbot.nlp import nlp_processor  
+    skills = nlp_processor.extract_skills(text)
+    return sorted(skills, key=lambda x: x.lower())
+
 def generate_verification_token(key):
     """ Genera un token seguro para verificación. """
     serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
@@ -122,6 +128,57 @@ def log_with_correlation_id(message: str, correlation_id: str, level: str = "inf
         logger.error(log_message)
     else:
         logger.debug(log_message)
+
+def get_positions_by_skills(skills, threshold=0.6):
+    """
+    Obtiene vacantes adecuadas basadas en las habilidades encontradas.
+
+    Args:
+        skills (list): Lista de habilidades detectadas.
+        threshold (float): Umbral mínimo de coincidencia (0-1).
+
+    Returns:
+        list: Lista de vacantes sugeridas con su puntuación.
+    """
+    from app.models import Vacante
+
+    if not skills:
+        return []
+
+    normalized_skills = [skill.lower() for skill in skills]
+    suggested = []
+
+    all_vacantes = Vacante.objects.exclude(skills_required__isnull=True)
+
+    for vacante in all_vacantes:
+        try:
+            position_skills = []
+            if isinstance(vacante.skills_required, dict) and 'skills' in vacante.skills_required:
+                position_skills = [s.lower() for s in vacante.skills_required['skills']]
+            elif isinstance(vacante.skills_required, list):
+                position_skills = [s.lower() for s in vacante.skills_required]
+            else:
+                continue
+
+            if not position_skills:
+                continue
+
+            matches = sum(1 for skill in normalized_skills if skill in position_skills)
+            score = matches / len(position_skills) if len(position_skills) > 0 else 0
+
+            if score >= threshold:
+                suggested.append({
+                    'position': vacante.titulo,
+                    'score': round(score * 100, 1),
+                    'business_unit': vacante.business_unit.name if vacante.business_unit else None,
+                    'empresa': vacante.empresa,
+                    'id': vacante.id
+                })
+        except Exception as e:
+            logger.error(f"Error al procesar vacante {vacante.id}: {e}")
+
+    suggested.sort(key=lambda x: x['score'], reverse=True)
+    return suggested
 
 ####---------------------------------------------------------
 ### UTILIDADES PARA FUNCIONES DE LOCALIZACION, VALIDACION, ETC
