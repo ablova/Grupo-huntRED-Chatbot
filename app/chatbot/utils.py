@@ -1,48 +1,130 @@
-# /home/pablo/app/chatbot/utils.py
+# Ubicación en servidor: /home/pablo/app/chatbot/utils.py
 
 import math
-import re
 import os
+import json
 import logging
+import re
 import requests
 from datetime import datetime
 from app.models import GptApi
-from app.chatbot.nlp import NLPProcessor
 from django.core.exceptions import ValidationError
-from itsdangerous import URLSafeTimedSerializer
 from django.conf import settings
+from itsdangerous import URLSafeTimedSerializer
 from typing import Dict, List
-import json
 from app.utilidades.catalogs import get_divisiones
+from app.chatbot.nlp import nlp_processor
 
 logger = logging.getLogger(__name__)
 
-# Inicializar el NLPProcessor una sola vez
-nlp_processor = NLPProcessor()
+# Cargar catálogo desde el JSON centralizado
+CATALOG_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs', 'catalogs.json')
 
-# Cargar catálogo
-JSON_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs', 'catalogs.json')
-try:
-    with open(JSON_PATH, 'r', encoding='utf-8') as f:
-        catalog_data = json.load(f)
-        BUSINESS_UNITS = catalog_data.get("BUSINESS_UNITS", [])
-        DIVISIONES = catalog_data.get("DIVISIONES", [])
-        DIVISION_SKILLS = catalog_data.get("DIVISION_SKILLS", {})
-except Exception as e:
-    logger.error(f"Error al cargar el catálogo desde {JSON_PATH}: {e}")
-    BUSINESS_UNITS = []
-    DIVISIONES = []
-    DIVISION_SKILLS = {}
+def load_catalog() -> dict:
+    """ Carga el catálogo de habilidades desde JSON. """
+    try:
+        with open(CATALOG_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if data else {}
+    except Exception as e:
+        logger.error(f"Error al cargar catálogo desde {CATALOG_PATH}: {e}", exc_info=True)
+        return {}
 
 def clean_text(text: str) -> str:
-    """
-    Limpia texto eliminando caracteres especiales y espacios adicionales.
-    """
+    """ Limpia texto eliminando caracteres especiales y espacios adicionales. """
     if not text:
         return ""
-    text = re.sub(r'\s+', ' ', text)  # Reducir múltiples espacios
-    text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)  # Eliminar caracteres especiales
-    return text.strip()
+    text = re.sub(r'\s+', ' ', text).strip()  
+    text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)  
+    return text
+
+def get_all_skills_for_unit(unit_name: str) -> list:
+    """ Obtiene todas las habilidades de una unidad de negocio desde catalogs.json """
+    skills = []
+    try:
+        catalog = load_catalog()  
+        unit_data = catalog.get(unit_name, {})
+
+        for division, roles in unit_data.items():
+            for role, attributes in roles.items():
+                for key in ["Habilidades Técnicas", "Habilidades Blandas", "Herramientas"]:
+                    skills.extend(attributes.get(key, []))
+
+        skills = list(set(skills))
+        logger.info(f"🔍 Habilidades cargadas para {unit_name}: {skills}")  
+        return skills
+    except Exception as e:
+        logger.error(f"Error obteniendo habilidades de {unit_name}: {e}")
+        return []
+
+def analyze_text(text: str) -> dict:
+    """ Analiza el texto del usuario y extrae intenciones, entidades y sentimiento. """
+    try:
+        cleaned = clean_text(text)
+        return nlp_processor.analyze(cleaned)
+    except Exception as e:
+        logger.error(f"Error analizando texto: {e}", exc_info=True)
+        return {"intents": [], "entities": [], "sentiment": {}}
+
+def validate_term_in_catalog(term: str, catalog: List[str]) -> bool:
+    """ Valida si un término existe en un catálogo especificado. """
+    return term.lower() in [item.lower() for item in catalog]
+
+def get_all_divisions():
+    """ Obtiene todas las divisiones disponibles en los catálogos. """
+    return get_divisiones()
+
+def generate_verification_token(key):
+    """ Genera un token seguro para verificación. """
+    serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
+    return serializer.dumps(key, salt='verification-salt')
+
+def confirm_verification_token(token, expiration=3600):
+    """ Valida un token de verificación con tiempo de expiración. """
+    serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
+    try:
+        key = serializer.loads(token, salt='verification-salt', max_age=expiration)
+    except Exception:
+        return False
+    return key
+
+def validate_request_data(data, required_fields):
+    """ Valida que los datos enviados cumplan con los campos requeridos. """
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        raise ValidationError(f"Faltan los campos requeridos: {', '.join(missing_fields)}")
+
+def format_template_response(template: str, **kwargs) -> str:
+    """ Formatea una plantilla de texto con variables dinámicas. """
+    try:
+        return template.format(**kwargs)
+    except KeyError as e:
+        logger.error(f"Error al formatear plantilla: {str(e)}")
+        return template
+
+def validate_request_fields(required_fields: list, data: Dict) -> bool:
+    """ Valida que todos los campos requeridos estén presentes en el payload. """
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        logger.warning(f"Faltan campos requeridos: {missing_fields}")
+        return False
+    return True
+
+def log_with_correlation_id(message: str, correlation_id: str, level: str = "info"):
+    """ Registra mensajes con un ID de correlación para rastrear flujos de forma única. """
+    log_message = f"[CorrelationID: {correlation_id}] {message}"
+    if level == "info":
+        logger.info(log_message)
+    elif level == "warning":
+        logger.warning(log_message)
+    elif level == "error":
+        logger.error(log_message)
+    else:
+        logger.debug(log_message)
+
+####---------------------------------------------------------
+### UTILIDADES PARA FUNCIONES DE LOCALIZACION, VALIDACION, ETC
+####--------------------------------------------------------
 
 def get_gpt_config() -> dict:
     """
@@ -57,31 +139,6 @@ def get_gpt_config() -> dict:
         "temperature": gpt_api.temperature or 0.7,
         "top_p": gpt_api.top_p or 1.0
     }
-
-def analyze_text(text: str) -> dict:
-    """
-    Analiza el texto del usuario y extrae intenciones, entidades y sentimiento.
-    Hace uso del NLPProcessor definido en nlp.py.
-    """
-    try:
-        cleaned = clean_text(text)
-        return nlp_processor.analyze(cleaned)
-    except Exception as e:
-        logger.error(f"Error analizando texto: {e}", exc_info=True)
-        return {"intents": [], "entities": [], "sentiment": {}}
-
-def validate_term_in_catalog(term: str, catalog: List[str]) -> bool:
-    """
-    Valida si un término existe en un catálogo especificado.
-
-    Args:
-        term (str): El término a buscar.
-        catalog (list): El catálogo donde buscar el término.
-
-    Returns:
-        bool: True si el término está en el catálogo, False de lo contrario.
-    """
-    return term.lower() in [item.lower() for item in catalog]
 
 def get_division_skills(division: str) -> dict:
     """
@@ -117,12 +174,6 @@ def sanitize_business_unit_name(name: str) -> str:
     """
     return re.sub(r'\W+', '', name).lower()
 
-def get_all_divisions():
-    """
-    Obtiene todas las divisiones disponibles en los catálogos.
-    """
-    return get_divisiones()
-
 def haversine_distance(lat1, lon1, lat2, lon2):
     """
     Calcula la distancia en kilómetros entre dos puntos geográficos usando la fórmula de Haversine.
@@ -149,23 +200,7 @@ def fetch_data_from_url(url):
         return response.json()
     else:
         return {"error": f"Failed to fetch data from {url}"}
-    
-def generate_verification_token(key):
-    serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
-    return serializer.dumps(key, salt='verification-salt')
-
-def confirm_verification_token(token, expiration=3600):
-    serializer = URLSafeTimedSerializer(settings.SECRET_KEY)
-    try:
-        key = serializer.loads(
-            token,
-            salt='verification-salt',
-            max_age=expiration
-        )
-    except Exception:
-        return False
-    return key
-
+   
 def analyze_name_gender(name: str) -> str:
     """
     Analiza el género basado en el nombre usando NLPProcessor.
@@ -183,85 +218,4 @@ def parse_cv_file(filepath: str) -> dict:
     except Exception as e:
         logger.error(f"Error al leer CV: {filepath}, {e}")
         return {}
-    
-def validate_request_data(data, required_fields):
-    """
-    Valida que los datos enviados cumplan con los campos requeridos.
-    """
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        raise ValidationError(f"Faltan los campos requeridos: {', '.join(missing_fields)}")
-
-def format_template_response(template: str, **kwargs) -> str:
-    """
-    Formatea una plantilla de texto con variables dinámicas.
-    """
-    try:
-        return template.format(**kwargs)
-    except KeyError as e:
-        logger.error(f"Error al formatear plantilla: {str(e)}")
-        return template
-
-# Ejemplo de uso:
-# response = format_template_response("Hola {nombre}, tienes {mensajes} nuevos mensajes.", nombre="Juan", mensajes=3)
-# print(response)  # Hola Juan, tienes 3 nuevos mensajes.
-
-def validate_request_fields(required_fields: list, data: Dict) -> bool:
-    """
-    Valida que todos los campos requeridos estén presentes en el payload.
-
-    Args:
-        required_fields (list): Lista de campos requeridos.
-        data (dict): Datos proporcionados en la solicitud.
-
-    Returns:
-        bool: True si todos los campos están presentes, False de lo contrario.
-    """
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        logger.warning(f"Faltan campos requeridos: {missing_fields}")
-        return False
-    return True
-
-def log_with_correlation_id(message: str, correlation_id: str, level: str = "info"):
-    """
-    Registra mensajes con un ID de correlación para rastrear flujos de forma única.
-
-    Args:
-        message (str): El mensaje a registrar.
-        correlation_id (str): El ID único de correlación.
-        level (str): Nivel del log (info, warning, error).
-    """
-    log_message = f"[CorrelationID: {correlation_id}] {message}"
-    if level == "info":
-        logger.info(log_message)
-    elif level == "warning":
-        logger.warning(log_message)
-    elif level == "error":
-        logger.error(log_message)
-    else:
-        logger.debug(log_message)
-
-def get_all_skills_for_unit(unit_name: str) -> list:
-    """
-    Devuelve todas las habilidades (técnicas y blandas) de una unidad de negocio.
-
-    Args:
-        unit_name (str): Nombre de la unidad de negocio.
-
-    Returns:
-        list: Lista de todas las habilidades encontradas.
-    """
-    try:
-        skills_data = catalog_data.get(unit_name, {})
-        all_skills = []
-
-        for division, roles in skills_data.items():
-            for role, attributes in roles.items():
-                all_skills.extend(attributes.get("Habilidades Técnicas", []))
-                all_skills.extend(attributes.get("Habilidades Blandas", []))
-
-        return list(set(all_skills))  # Eliminar duplicados
-    except Exception as e:
-        logger.error(f"Error al obtener habilidades para {unit_name}: {e}", exc_info=True)
-        return []
+  
