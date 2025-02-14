@@ -1,28 +1,30 @@
-# Ubicación /home/pablo/app/utilidades/parser.py
-
+# ✅ Importaciones necesarias
+import logging
 import unicodedata
 import imaplib
 import email
 import asyncio
-import email
-from tempfile import NamedTemporaryFile
+import spacy
+import docx
+import json
 from email import message_from_bytes
 from email.header import decode_header
-from app.models import ConfiguracionBU, Person, Vacante
-from app.utilidades.vacantes import VacanteManager
-from functools import lru_cache
+from tempfile import NamedTemporaryFile
 from pathlib import Path
-import spacy
-from app.models import Person, ConfiguracionBU, Division, Skill, BusinessUnit
-from typing import List, Dict, Tuple, Optional
-from django.utils.timezone import now
 from datetime import datetime
+from functools import lru_cache
+from typing import List, Dict, Tuple, Optional
 from langdetect import detect
-
-import logging
 from PyPDF2 import PdfReader
-import docx
-from langdetect import detect
+from django.utils.timezone import now
+
+# ✅ Importaciones del proyecto
+from app.models import ConfiguracionBU, Person, Vacante, Division, Skill, BusinessUnit
+from app.utilidades.vacantes import VacanteManager
+from app.chatbot.nlp import detect_and_load_nlp  # ✅ Usar función centralizada de NLP
+
+# ✅ Configuración de logging
+logger = logging.getLogger(__name__)
 
 # ✅ Importación segura del módulo NLP
 try:
@@ -39,23 +41,7 @@ if sn is None:
 # ✅ Importación de servicios adicionales
 from app.chatbot.integrations.services import send_message, send_email
 
-logger = logging.getLogger(__name__)
-
-def detect_language(text):
-    try:
-        return detect(text)
-    except Exception as e:
-        logger.error(f"Error detectando idioma: {e}")
-        return "unknown"
-
-def load_spacy_model_by_language(language):
-    models = {
-        "es": "es_core_news_sm",
-        "en": "en_core_web_sm",
-    }
-    return spacy.load(models.get(language, "en_core_web_sm"))
-
-# Diccionario de folders por acción
+# ✅ Diccionario de carpetas por acción en IMAP
 FOLDER_CONFIG = {
     "inbox": "INBOX",
     "cv_folder": "INBOX.CV",  # Reemplaza por la ruta correcta
@@ -63,11 +49,26 @@ FOLDER_CONFIG = {
     "error_folder": "INBOX.Error",
 }
 
-@lru_cache(maxsize=1)
-def load_spacy_model():
-    return spacy.load("es_core_news_sm")
+def detect_language(text: str) -> str:
+    """
+    Detecta el idioma del texto y lo normaliza según los modelos disponibles en `nlp.py`.
+    """
+    try:
+        detected_lang = detect(text)
+        return detected_lang if detected_lang in nlp_module.MODEL_LANGUAGES else "es"
+    except Exception as e:
+        logger.error(f"Error detectando idioma: {e}")
+        return "es"  # Default a español
 
-def normalize_text(text):
+# ✅ Usar la función centralizada de `nlp.py`
+@lru_cache(maxsize=1)
+def load_spacy_model(language: str = "es"):
+    """
+    Carga el modelo NLP adecuado desde `nlp.py` para evitar inconsistencias.
+    """
+    return detect_and_load_nlp(language)
+
+def normalize_text(text: str) -> str:
     """
     Normaliza el texto eliminando acentos y convirtiendo a minúsculas.
     """
