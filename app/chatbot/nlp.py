@@ -21,6 +21,9 @@ logging.basicConfig(
 # ✅ Descargar recursos de NLTK
 nltk.download('vader_lexicon', quiet=True)
 
+# ✅ Definir `nlp` antes de usarlo en NLPProcessor
+nlp = load_nlp_model("es")  # Modelo por defecto en español
+
 # ✅ Diccionario de modelos NLP disponibles
 MODEL_LANGUAGES = {
     "es": "es_core_news_md",
@@ -87,13 +90,26 @@ except Exception as e:
     logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
     sn = None
 
+
+
+# ✅ Modificar NLPProcessor para manejar modelos dinámicos
 class NLPProcessor:
     """ Procesador de NLP para análisis de texto, intenciones, sentimiento e intereses. """
 
-    def __init__(self):
-        self.matcher = Matcher(nlp.vocab) if nlp else None
+    def __init__(self, language: str = "es"):
+        """ Inicializa el procesador NLP con el idioma especificado. """
+        self.language = language
+        self.nlp = load_nlp_model(language)  # Cargar modelo dinámicamente
+        self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
         self.define_intent_patterns()
         self.sia = SentimentIntensityAnalyzer() if nltk else None
+        
+    def set_language(self, language: str):
+        """ Permite cambiar dinámicamente el idioma del modelo NLP. """
+        self.language = language
+        self.nlp = load_nlp_model(language)
+        self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
+        logger.info(f"🔄 Modelo NLP cambiado a: {language}")
 
     def define_intent_patterns(self) -> None:
         """ Define patrones de intenciones con Matcher. """
@@ -140,6 +156,7 @@ class NLPProcessor:
         try:
             all_skills = get_all_skills_for_unit(business_unit)
             logger.info(f"📌 Habilidades cargadas para {business_unit}: {all_skills}")  
+
         except Exception as e:
             logger.error(f"Error obteniendo habilidades para {business_unit}: {e}")
             all_skills = []
@@ -184,6 +201,7 @@ class NLPProcessor:
 
         logger.info(f"🔎 Análisis final: {result}")
         return result
+    
     def extract_interests_and_skills(self, text: str) -> dict:
         """
         Extrae intereses explícitos, habilidades y sugiere roles priorizando lo mencionado por el usuario.
@@ -227,6 +245,7 @@ class NLPProcessor:
             "skills": list(skills),
             "prioritized_skills": prioritized_interests
         }
+    
     def infer_gender(self, name: str) -> str:
         """ Infiera género basado en heurísticas simples. """
         GENDER_DICT = {"jose": "M", "maria": "F", "andrea": "F", "juan": "M"}
@@ -279,7 +298,6 @@ class NLPProcessor:
             "skills": skills,
             "suggested_roles": suggested_roles
         }
-
 
 # Instancia global del procesador
 nlp_processor = NLPProcessor()
