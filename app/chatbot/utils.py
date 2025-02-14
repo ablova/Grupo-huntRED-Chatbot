@@ -13,7 +13,7 @@ from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
 from typing import Dict, List
 from app.utilidades.catalogs import get_divisiones
-from app.chatbot.nlp import nlp_processor
+
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,7 @@ def get_all_skills_for_unit(unit_name: str) -> list:
 def analyze_text(text: str) -> dict:
     """ Analiza el texto del usuario y extrae intenciones, entidades y sentimiento. """
     try:
+        from app.chatbot.nlp import nlp_processor
         cleaned = clean_text(text)
         return nlp_processor.analyze(cleaned)
     except Exception as e:
