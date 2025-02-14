@@ -749,7 +749,7 @@ class CVParser:
 
     def _update_candidate(self, candidate, parsed_data, file_path):
         """
-        Actualiza información del candidato existente.
+        Actualiza información del candidato existente y agrega el idioma detectado.
         """
         candidate.cv_file = file_path
         candidate.cv_analysis = parsed_data
@@ -759,15 +759,23 @@ class CVParser:
         # Extraer y asociar habilidades y divisiones
         skills = self.extract_skills(parsed_data.get("skills", ""))
         divisions = self.associate_divisions(skills)
-        candidate.metadata["skills"] = list(set(candidate.metadata.get("skills", []) + skills))
-        candidate.metadata["divisions"] = list(set(candidate.metadata.get("divisions", []) + divisions))
+
+        # 📌 **Agregar idioma detectado**
+        detected_languages = set(candidate.metadata.get("languages", []))  # Evitar duplicados
+        detected_languages.add(self.detected_language)
+        
+        candidate.metadata.update({
+            "skills": list(set(candidate.metadata.get("skills", []) + skills)),
+            "divisions": list(set(candidate.metadata.get("divisions", []) + divisions)),
+            "languages": list(detected_languages),  # 📌 Guardar idioma detectado
+        })
 
         candidate.save()
-        logger.info(f"Perfil actualizado: {candidate.nombre} {candidate.apellido_paterno}")
+        logger.info(f"✅ Perfil actualizado: {candidate.nombre} {candidate.apellido_paterno} (Idioma detectado: {self.detected_language})")
 
     def _create_new_candidate(self, parsed_data, file_path):
         """
-        Crea un nuevo candidato si no existe.
+        Crea un nuevo candidato si no existe y agrega el idioma detectado.
         """
         skills = self.extract_skills(parsed_data.get("skills", ""))
         divisions = self.associate_divisions(skills)
@@ -786,10 +794,11 @@ class CVParser:
                 "last_cv_update": now().isoformat(),
                 "skills": skills,
                 "divisions": divisions,
-                "created_at": now().isoformat(),  # Se agrega fecha de creación en metadata
+                "languages": [self.detected_language],  # 📌 Guardar idioma detectado
+                "created_at": now().isoformat(),  # 📌 Se agrega fecha de creación en metadata
             }
         )
-        logger.info(f"Nuevo perfil creado: {candidate.nombre} {candidate.apellido_paterno}")
+        logger.info(f"✅ Nuevo perfil creado: {candidate.nombre} {candidate.apellido_paterno} (Idioma detectado: {self.detected_language})")
 
 def send_error_alert(message):
     try:
