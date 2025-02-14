@@ -75,7 +75,7 @@ def get_all_divisions():
     """ Obtiene todas las divisiones disponibles en los catálogos. """
     return get_divisiones()
 
-def prioritize_interests(skills: List[str]) -> Tuple[List[str], Dict[str, int]]:
+def prioritize_interests(skills: List[str]) -> tuple[List[str], Dict[str, int]]:
     """ Asigna prioridad a los intereses detectados basándose en la frecuencia. """
     priorities = {}
     for skill in skills:
