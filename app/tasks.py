@@ -36,6 +36,10 @@ from app.utilidades.linkedin import (
     slow_scrape_from_csv,
     scrape_linkedin_profile
 )
+from app.chatbot.workflow.amigro import (
+    generate_candidate_summary_task,
+    send_migration_docs_task,
+    follow_up_migration_task)
 from app.utilidades.scraping import validar_url, extraer_detalles_sublink, run_scraper, ScrapingCoordinator
 from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
 from app.ml.ml_model import GrupohuntREDMLPipeline
@@ -542,6 +546,17 @@ def send_notification_task(self, platform, recipient, message):
     except Exception as e:
         logger.error(f"❌ Error enviando notificación: {e}")
         self.retry(exc=e)
+
+def trigger_amigro_workflows(candidate_id):
+    """ Ejecuta los flujos de trabajo al agendar un candidato con un cliente. """
+    generate_candidate_summary_task.delay(candidate_id)
+    send_migration_docs_task.delay(candidate_id)
+    
+    # Programar seguimiento en 5 días
+    follow_up_migration_task.apply_async(args=[candidate_id], countdown=5 * 86400)
+
+    return f"Flujos de trabajo iniciados para el candidato {candidate_id}"
+
 # =========================================================
 # Tareas para manejo de datos LinkedIn (API/Csv/Scraping)
 # =========================================================
