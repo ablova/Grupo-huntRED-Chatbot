@@ -11,6 +11,8 @@ from app.utilidades.signature.digital_sign import request_digital_signature
 from app.chatbot.integrations.services import send_message, send_image, send_menu
 from django.conf import settings
 
+
+
 def send_welcome_message(user_id, platform, business_unit):
     """ Envía un mensaje de bienvenida, el logo de la unidad y el menú de servicios. """
     # Obtener el nombre de la unidad de negocio

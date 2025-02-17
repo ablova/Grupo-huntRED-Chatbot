@@ -534,8 +534,8 @@ class ChatBotHandler:
         logger.info(f"Contratación registrada para {user.full_name} en {business_unit.name}")
 
     async def handle_client_selection(self, client_id: int, candidate_id: int, business_unit: BusinessUnit):
-        candidate = await sync_to_async(Candidate.objects.get)(id=candidate_id)
-        process = await sync_to_async(Process.objects.filter(candidate=candidate).first)()
+        candidate = await sync_to_async(Person.objects.get)(id=candidate_id)
+        process = await sync_to_async(Vacante.objects.filter(candidate=candidate).first)()
 
         if not process:
             return "El candidato no está en un proceso activo."
@@ -564,7 +564,8 @@ class ChatBotHandler:
 
     async def get_conversation_history(self, event: ChatState):
         return event.conversation_history
-async def store_user_message(self, event, text: str):
+
+    async def store_user_message(self, event, text: str):
         """
         Almacena el mensaje del usuario en el historial y actualiza la última interacción.
         """
