@@ -110,13 +110,31 @@ class ChatBotHandler:
         await send_message(platform, user_id, tos_prompt, business_unit)
         logger.info(f"Flujo inicial completado para {user_id} en {business_unit.name}")
 
-    async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, event, business_unit, user):
+    async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
         """
-        Maneja la confirmación de TOS.
-        Si el usuario responde 'acepto' (o variantes), se actualiza el campo 'tos_accepted'
-        en el modelo Person y se envía el menú principal.
+        Maneja la respuesta del usuario para la aceptación de los TOS.
+        Se envía un prompt interactivo con botones de 'Sí' y 'No', 
+        incluyendo un botón para ver los TOS según la unidad de negocio.
         """
-        if text.strip().lower() in ['acepto', 'aceptar', 'sí', 'si']:
+        # Diccionario de URLs de TOS por unidad de negocio
+        tos_urls = {
+            "huntred": "https://huntred.com/tos",
+            "huntred executive": "https://huntred.com/executive/tos",
+            "huntu": "https://huntu.mx/tos",
+            "amigro": "https://amigro.org/tos",
+            "sexsi": "https://sexsi.org/tos"
+        }
+        bu_name = business_unit.name.lower()
+        tos_url = tos_urls.get(bu_name, "https://huntred.com/tos")
+
+        # Definir botones de TOS con opción de ver el documento
+        tos_buttons = [
+            {'title': 'Sí', 'payload': 'tos_accept'},
+            {'title': 'No', 'payload': 'tos_reject'},
+            {'title': 'Ver TOS', 'url': tos_url}  # Botón que abre la URL de TOS
+        ]
+        
+        if text.strip().lower() in ['tos_accept', 'sí', 'si']:
             user.tos_accepted = True
             await sync_to_async(user.save)()
             confirmation_msg = "Gracias por aceptar nuestros TOS. Ahora, ¿qué te gustaría hacer? Aquí tienes el menú principal:"
@@ -124,10 +142,14 @@ class ChatBotHandler:
             await send_menu(platform, user_id, business_unit)
             await self.store_bot_message(event, confirmation_msg)
             logger.info(f"TOS aceptados para {user.phone}")
+        elif text.strip().lower() in ['tos_reject', 'no']:
+            rejection_msg = "No se puede continuar sin aceptar los TOS. Por favor, responde 'Sí' para aceptarlos."
+            await send_message(platform, user_id, rejection_msg, business_unit)
+            await self.store_bot_message(event, rejection_msg)
         else:
-            retry_msg = "Para continuar, por favor responde 'acepto' si estás de acuerdo con nuestros TOS."
-            await send_message(platform, user_id, retry_msg, business_unit)
-            await self.store_bot_message(event, retry_msg)
+            # Enviar prompt interactivo con botones para que el usuario seleccione
+            prompt = "¿Aceptas nuestros Términos de Servicio (TOS)?"
+            await send_options(platform, user_id, prompt, tos_buttons, business_unit)
 
     async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
         """
