@@ -8,6 +8,8 @@ from app.utilidades.signature.pdf_generator import generate_contract_pdf
 from app.utilidades.signature.digital_sign import request_digital_signature
 from app.chatbot.integrations.services import send_email
 
+
+
 @shared_task
 def process_amigro_candidate(candidate_id):
     """Genera la Carta Propuesta y la envía para firma digital en Amigro."""
