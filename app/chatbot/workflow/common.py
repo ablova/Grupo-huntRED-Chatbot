@@ -1,7 +1,9 @@
 # common.py - Funciones comunes para los workflows
 
 from django.core.files.storage import default_storage
-from app.utilidades.signature.pdf_generator import generate_candidate_summary, merge_signed_documents, generate_contract_pdf
+from app.utilidades.signature.pdf_generator import (
+    generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
+)
 from app.chatbot.integrations.services import send_email
 from app.utilidades.digital_sign import request_digital_signature
 
