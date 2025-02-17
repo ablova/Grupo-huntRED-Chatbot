@@ -81,3 +81,9 @@ drf-yasg
 django-environ
 itsdangerous
 PyPDF2
+python-docx 
+weasyprint 
+langdetect
+geopy
+prometheus_client
+tenacity

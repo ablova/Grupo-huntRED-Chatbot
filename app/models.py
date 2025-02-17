@@ -433,7 +433,7 @@ class Person(models.Model):
     linkedin_url = models.URLField(max_length=200, blank=True, null=True, help_text="URL del perfil de LinkedIn")
     preferred_language = models.CharField(max_length=5, default='es_MX', help_text="Ej: es_MX, en_US")
     fecha_creacion = models.DateTimeField(auto_now_add=True)  # Fecha de creación automática
-
+    tos_accepted = models.BooleanField(default=False)
     # Estado de búsqueda de empleo (ejemplo de opciones: activa, pasiva, local, remota, etc.)
     JOB_SEARCH_STATUS_CHOICES = [
         ('activa', 'Activa'),

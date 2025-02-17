@@ -7,6 +7,47 @@ from app.utilidades.signature.pdf_generator import (
 from app.chatbot.integrations.services import send_email
 from app.utilidades.signature.digital_sign import request_digital_signature
 
+
+from app.chatbot.integrations.services import send_message, send_image, send_menu
+from django.conf import settings
+
+def send_welcome_message(user_id, platform, business_unit):
+    """ Envía un mensaje de bienvenida, el logo de la unidad y el menú de servicios. """
+    # Obtener el nombre de la unidad de negocio
+    business_unit_name = business_unit.name.lower()
+
+    # Definir el mensaje de bienvenida
+    welcome_messages = {
+        "huntred": "Bienvenido a huntRED® 🚀\nSomos expertos en encontrar el mejor talento para empresas líderes.",
+        "huntred_executive": "Bienvenido a huntRED® Executive 🌟\nNos especializamos en colocación de altos ejecutivos.",
+        "huntu": "Bienvenido a huntU® 🏆\nConectamos talento joven con oportunidades de alto impacto.",
+        "amigro": "Bienvenido a Amigro® 🌍\nFacilitamos el acceso laboral a migrantes en Latinoamérica.",
+        "sexsi": "Bienvenido a SEXSI 🔐\nAquí puedes gestionar acuerdos de consentimiento seguros y firmarlos digitalmente.",
+    }
+
+    # Obtener el logo de la unidad de negocio
+    logo_urls = {
+        "huntred": settings.MEDIA_URL + "huntred.png",
+        "huntred_executive": settings.MEDIA_URL + "executive.png",
+        "huntu": settings.MEDIA_URL + "huntu.png",
+        "amigro": settings.MEDIA_URL + "amigro.png",
+        "sexsi": settings.MEDIA_URL + "sexsi.png",
+    }
+
+    welcome_message = welcome_messages.get(business_unit_name, "Bienvenido a nuestra plataforma 🎉")
+    logo_url = logo_urls.get(business_unit_name, settings.MEDIA_URL + "Grupo_huntRED.png")
+
+    # Enviar mensaje de bienvenida
+    send_message(platform, user_id, welcome_message, business_unit)
+
+    # Enviar logo de la unidad de negocio
+    send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit)
+
+    # Enviar menú de servicios
+    send_menu(platform, user_id, business_unit)
+
+    return "Mensaje de bienvenida enviado correctamente."
+
 def generate_and_send_contract(candidate, client, job_position, business_unit):
     """
     Genera la Carta Propuesta para el candidato y la envía para su firma digital.
