@@ -13,7 +13,7 @@ from app.utilidades.vacantes import VacanteManager
 logger = logging.getLogger(__name__)
 
 # Configuración de la cuenta IMAP (Se obtiene de la BD)
-EMAIL_ACCOUNT = None
+EMAIL_ACCOUNT = "pablo@huntred.com"
 EMAIL_PASSWORD = None
 IMAP_SERVER = "imap.huntred.com"
 IMAP_FOLDER = "INBOX"
@@ -26,6 +26,13 @@ VALID_SENDERS = [
     'noreply@glassdoor.com', 'TalentCommunity@talent.honeywell.com',
     'santander@myworkday.com'
 ]
+
+FOLDER_CONFIG = {
+    "inbox": "INBOX",
+    "jobs_folder": "INBOX.Jobs",  # Reemplaza por la ruta correcta
+    "parsed_folder": "INBOX.Parsed",
+    "error_folder": "INBOX.Error",
+}
 
 def connect_to_email():
     """ Conecta a la cuenta IMAP usando credenciales de la BD. """
@@ -43,13 +50,12 @@ def connect_to_email():
 
         mail = imaplib.IMAP4_SSL(IMAP_SERVER)
         mail.login(EMAIL_ACCOUNT, EMAIL_PASSWORD)
-        mail.select(IMAP_FOLDER)
+        mail.select(FOLDER_CONFIG["jobs_folder"])
         return mail
 
     except Exception as e:
         logger.error(f"❌ Error conectando al servidor IMAP: {e}")
         return None
-
 
 def extract_vacancies_from_html(html, sender):
     """Extrae vacantes de un correo HTML basado en el remitente."""
@@ -82,7 +88,6 @@ def extract_vacancies_from_html(html, sender):
 
     return job_listings
 
-
 def assign_business_unit(job_title):
     """ Determina la unidad de negocio en función del título de la vacante. """
     analysis_points = {
@@ -98,7 +103,6 @@ def assign_business_unit(job_title):
             return business_unit
 
     return None  # No se encontró una coincidencia clara
-
 
 def process_job_alert_email(mail, email_id, message):
     """ Procesa alertas de empleo y extrae vacantes. """
@@ -143,12 +147,12 @@ def process_job_alert_email(mail, email_id, message):
             vacante_manager = VacanteManager(job_data)
             vacante_manager.create_job_listing()
 
-        # Marcar el correo como eliminado después de procesarlo
+        # Mover el correo a la carpeta Parsed después de procesarlo
+        mail.copy(email_id, FOLDER_CONFIG["parsed_folder"])
         mail.store(email_id, "+FLAGS", "\\Deleted")
 
     except Exception as e:
         logger.error(f"❌ Error procesando alerta de empleo {email_id}: {e}")
-
 
 def email_scraper():
     """ Ejecuta la extracción de correos y procesa vacantes de empleo. """
