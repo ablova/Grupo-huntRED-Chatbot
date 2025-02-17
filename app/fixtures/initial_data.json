@@ -142,7 +142,8 @@
             "email": "pablo@huntred.com",
             "phone": "+525518490291",
             "cv_file": "",
-            "preferred_language": "es_MX"
+            "preferred_language": "es_MX",
+            "fecha_creacion": "2025-02-01T16:00:00Z"
         }
     },
     {
@@ -159,7 +160,8 @@
             "email": null,
             "phone": null,
             "cv_file": "",
-            "preferred_language": "es_MX"
+            "preferred_language": "es_MX",
+            "fecha_creacion": "2025-02-01T16:00:00Z"
         }
     },
     {
