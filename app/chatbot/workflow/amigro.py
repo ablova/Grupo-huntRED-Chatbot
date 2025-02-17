@@ -3,11 +3,11 @@
 import os
 import datetime
 from celery import shared_task
-from app.utilidades.report_generator import generate_candidate_summary
+
 from app.chatbot.integrations.services import send_email
 from app.models import Candidate, Process, Client, MigrationAgency, JobPosition
 from django.core.files.storage import default_storage
-from app.utilidades.signature.pdf_generator import generate_cv_pdf
+from app.utilidades.signature.pdf_generator import generate_cv_pdf, generate_candidate_summary
 
 @shared_task
 def generate_candidate_summary_task(candidate_id):
