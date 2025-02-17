@@ -5,7 +5,7 @@ from app.utilidades.signature.pdf_generator import (
     generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
 )
 from app.chatbot.integrations.services import send_email
-from app.utilidades.digital_sign import request_digital_signature
+from app.utilidades.signature.digital_sign import request_digital_signature
 
 def generate_and_send_contract(candidate, client, job_position, business_unit):
     """
