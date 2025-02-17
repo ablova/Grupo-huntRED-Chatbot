@@ -19,7 +19,7 @@ from app.chatbot.workflow.huntu import process_huntu_candidate
 from app.chatbot.workflow.huntred import process_huntred_candidate
 from app.chatbot.workflow.executive import process_executive_candidate
 
-from app.sexsi.sexsi_flow import iniciar_flujo_sexsi, confirmar_pago_sexsi
+from app.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 
 logger = logging.getLogger(__name__)
