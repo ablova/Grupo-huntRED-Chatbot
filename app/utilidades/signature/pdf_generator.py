@@ -2,6 +2,7 @@ import os
 import datetime
 from fpdf import FPDF
 from django.core.files.storage import default_storage
+from PyPDF2 import PdfMerger
 
 class PDF(FPDF):
     def __init__(self):
@@ -208,3 +209,36 @@ def generate_contract_pdf(candidate, client, job_position, business_unit):
         default_storage.save(full_path, f)
 
     return full_path
+
+def merge_signed_documents(contract_path, signed_path):
+    """
+    Combina los documentos firmados en un solo PDF final.
+    - `contract_path`: PDF original generado.
+    - `signed_path`: Ruta donde se guardará el documento firmado final.
+    """
+    merger = PdfMerger()
+
+    try:
+        if os.path.exists(contract_path):
+            merger.append(contract_path)
+        
+        signed_files = [
+            f"{contract_path}_signed_candidate.pdf",
+            f"{contract_path}_signed_client.pdf"
+        ]
+
+        for signed_file in signed_files:
+            if os.path.exists(signed_file):
+                merger.append(signed_file)
+
+        # Guardar el documento final firmado
+        merger.write(signed_path)
+        merger.close()
+
+        with open(signed_path, "rb") as f:
+            default_storage.save(signed_path, f)
+
+        return signed_path
+
+    except Exception as e:
+        return f"Error al combinar documentos firmados: {e}"
