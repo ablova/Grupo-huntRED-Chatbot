@@ -78,9 +78,102 @@ def generate_candidate_summary(candidate):
 
     return file_path
 
+def generate_cv_pdf(candidate, business_unit):
+    """
+    Genera un CV en PDF para el candidato, incluyendo su información profesional.
+    Si el candidato ha subido un CV en huntRED® o huntu, se adjunta al final.
+    """
+    pdf = PDF()
+    pdf.set_business_unit(business_unit)
+    pdf.title = f"CV - {candidate.full_name}"
+    pdf.add_page()
+    pdf.set_font("SFPRODISPLAY", "", 12)
+
+    # Datos personales
+    pdf.cell(200, 10, f"Nombre: {candidate.full_name}", ln=True)
+    pdf.cell(200, 10, f"Fecha de Nacimiento: {candidate.birth_date}", ln=True)
+    pdf.cell(200, 10, f"Nacionalidad: {candidate.nationality}", ln=True)
+    pdf.cell(200, 10, f"Teléfono: {candidate.phone}", ln=True)
+    pdf.cell(200, 10, f"Correo Electrónico: {candidate.email}", ln=True)
+    pdf.cell(200, 10, f"Dirección: {candidate.address}", ln=True)
+    pdf.ln(10)
+
+    # Resumen profesional (si existe)
+    if candidate.professional_summary:
+        pdf.set_font("SFPRODISPLAY", "B", 12)
+        pdf.cell(200, 10, "Resumen Profesional", ln=True)
+        pdf.set_font("SFPRODISPLAY", "", 12)
+        pdf.multi_cell(200, 10, candidate.professional_summary)
+        pdf.ln(10)
+
+    # Experiencia laboral
+    pdf.set_font("SFPRODISPLAY", "B", 12)
+    pdf.cell(200, 10, "Experiencia Laboral", ln=True)
+    pdf.set_font("SFPRODISPLAY", "", 12)
+
+    for job in candidate.work_experience:
+        pdf.cell(200, 10, f"{job.company} - {job.position}", ln=True)
+        pdf.cell(200, 10, f"Periodo: {job.start_date} - {job.end_date}", ln=True)
+        pdf.multi_cell(200, 10, f"Responsabilidades: {job.responsibilities}")
+        pdf.ln(5)
+
+    pdf.ln(10)
+
+    # Educación y certificaciones
+    pdf.set_font("SFPRODISPLAY", "B", 12)
+    pdf.cell(200, 10, "Educación y Certificaciones", ln=True)
+    pdf.set_font("SFPRODISPLAY", "", 12)
+
+    for edu in candidate.education:
+        pdf.cell(200, 10, f"{edu.institution} - {edu.degree} ({edu.year_completed})", ln=True)
+    
+    pdf.ln(10)
+
+    # Habilidades técnicas y blandas
+    pdf.set_font("SFPRODISPLAY", "B", 12)
+    pdf.cell(200, 10, "Habilidades Técnicas", ln=True)
+    pdf.set_font("SFPRODISPLAY", "", 12)
+    pdf.multi_cell(200, 10, ", ".join(candidate.hard_skills))
+    pdf.ln(5)
+
+    pdf.set_font("SFPRODISPLAY", "B", 12)
+    pdf.cell(200, 10, "Habilidades Blandas", ln=True)
+    pdf.set_font("SFPRODISPLAY", "", 12)
+    pdf.multi_cell(200, 10, ", ".join(candidate.soft_skills))
+    pdf.ln(10)
+
+    # Idiomas
+    if candidate.languages:
+        pdf.set_font("SFPRODISPLAY", "B", 12)
+        pdf.cell(200, 10, "Idiomas", ln=True)
+        pdf.set_font("SFPRODISPLAY", "", 12)
+        pdf.multi_cell(200, 10, ", ".join(candidate.languages))
+        pdf.ln(10)
+
+    # Integración del CV Original si existe en huntRED® o huntu
+    if business_unit in ["huntred", "huntu"] and candidate.cv_file:
+        original_cv_path = f"/home/pablo/app/media/cv/{candidate.cv_file}"
+        if os.path.exists(original_cv_path):
+            pdf.add_page()
+            pdf.set_font("SFPRODISPLAY", "B", 12)
+            pdf.cell(200, 10, "Anexo: CV Original del Candidato", ln=True)
+            pdf.image(original_cv_path, x=10, y=pdf.get_y() + 10, w=180)
+            pdf.ln(100)
+
+    # Guardar el archivo
+    file_path = f"cv/{candidate.id}.pdf"
+    full_path = os.path.join("/tmp", file_path)
+    pdf.output(full_path)
+
+    with open(full_path, "rb") as f:
+        default_storage.save(file_path, f)
+
+    return file_path
+
 def generate_contract_pdf(candidate, client, job_position, business_unit):
     """
     Genera la Carta Propuesta con información del candidato y la vacante.
+    Incluye validación legal de firma electrónica.
     """
     pdf = PDF()
     pdf.set_business_unit(business_unit)
