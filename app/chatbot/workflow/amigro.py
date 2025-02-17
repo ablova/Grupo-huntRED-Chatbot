@@ -4,9 +4,35 @@ import os
 import datetime
 from celery import shared_task
 from app.utilidades.report_generator import generate_candidate_summary
-from app.utilidades.email_sender import send_email
+from app.chatbot.integrations.services import send_email
 from app.models import Candidate, Process, Client, MigrationAgency, JobPosition
 from django.core.files.storage import default_storage
+from app.utilidades.signature.pdf_generator import generate_cv_pdf
+
+@shared_task
+def generate_candidate_summary_task(candidate_id):
+    """Genera un documento PDF con el CV del candidato y lo envía al cliente."""
+    candidate = Candidate.objects.get(id=candidate_id)
+    process = Process.objects.filter(candidate=candidate).first()
+    client = process.client if process else None
+
+    if not client:
+        return "No client assigned for candidate."
+
+    # Generar el documento con CV si está disponible
+    file_path = generate_cv_pdf(candidate, "amigro")
+    
+    send_email(
+        business_unit_name="amigro",
+        subject=f"CV del candidato {candidate.full_name}",
+        to_email=client.contact_email,
+        body="Adjunto encontrarás el CV del candidato.",
+        from_email="notificaciones@amigro.org",
+    )
+
+    default_storage.save(f"cv/{candidate.id}.pdf", open(file_path, "rb"))
+    
+    return f"CV de {candidate.full_name} enviado a {client.contact_email}"
 
 # Diccionario dinámico de despachos migratorios por país
 MIGRATION_AGENCIES = {

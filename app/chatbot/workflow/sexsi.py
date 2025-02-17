@@ -217,9 +217,7 @@ def solicitar_validacion_identidad(agreement):
         "6️⃣ Responde 'ACEPTO' si deseas continuar con la firma."
     )
 
-    business_unit = BusinessUnit.objects.get(name="sexsi")
-    async_to_sync(send_message)("whatsapp", agreement.invitee_contact, message, business_unit)
-
+    async_to_sync(send_message)("whatsapp", agreement.invitee_contact, message, agreement.business_unit)
 
 def validar_respuesta_identidad(agreement, name, birthdate, conscious, sober):
     """Valida la respuesta del usuario antes de permitir la firma."""
