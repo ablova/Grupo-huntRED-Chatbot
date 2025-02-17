@@ -3,36 +3,24 @@
 import os
 import datetime
 from celery import shared_task
-
+from app.models import Person, Vacante, BusinessUnit, Application
+from app.utilidades.signature.pdf_generator import generate_contract_pdf
+from app.utilidades.signature.digital_sign import request_digital_signature
 from app.chatbot.integrations.services import send_email
-from app.models import Candidate, Process, Client, MigrationAgency, JobPosition
-from django.core.files.storage import default_storage
-from app.utilidades.signature.pdf_generator import generate_cv_pdf, generate_candidate_summary
 
 @shared_task
-def generate_candidate_summary_task(candidate_id):
-    """Genera un documento PDF con el CV del candidato y lo envía al cliente."""
-    candidate = Candidate.objects.get(id=candidate_id)
-    process = Process.objects.filter(candidate=candidate).first()
-    client = process.client if process else None
+def process_amigro_candidate(candidate_id):
+    """Genera la Carta Propuesta y la envía para firma digital en Amigro."""
+    candidate = Person.objects.get(id=candidate_id)
+    application = Application.objects.filter(user=candidate).first()
 
-    if not client:
-        return "No client assigned for candidate."
+    if not application or not application.vacancy:
+        return "Candidato sin vacante asignada."
 
-    # Generar el documento con CV si está disponible
-    file_path = generate_cv_pdf(candidate, "amigro")
-    
-    send_email(
-        business_unit_name="amigro",
-        subject=f"CV del candidato {candidate.full_name}",
-        to_email=client.contact_email,
-        body="Adjunto encontrarás el CV del candidato.",
-        from_email="notificaciones@amigro.org",
-    )
+    # Generar y enviar contrato para firma digital
+    generate_and_send_contract(candidate, application.vacancy, application.vacancy.titulo, application.business_unit)
 
-    default_storage.save(f"cv/{candidate.id}.pdf", open(file_path, "rb"))
-    
-    return f"CV de {candidate.full_name} enviado a {client.contact_email}"
+    return f"Contrato generado y enviado a {candidate.nombre}"
 
 # Diccionario dinámico de despachos migratorios por país
 MIGRATION_AGENCIES = {
