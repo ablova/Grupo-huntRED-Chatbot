@@ -12,6 +12,13 @@ from app.models import (
 )
 from app.chatbot.integrations.services import send_message, send_email, reset_chat_state
 from app.chatbot.utils import analyze_text  # Encargado del NLP y patrones de intents
+# chatbot.py
+from app.chatbot.workflow.common import generate_and_send_contract
+from app.chatbot.workflow.amigro import process_amigro_candidate
+from app.chatbot.workflow.huntu import process_huntu_candidate
+from app.chatbot.workflow.huntred import process_huntred_candidate
+from app.chatbot.workflow.executive import process_executive_candidate
+
 from app.sexsi.sexsi_flow import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 
@@ -29,7 +36,6 @@ class ChatBotHandler:
         Procesa el mensaje entrante para un usuario en una plataforma específica dentro de una unidad de negocio.
         """
         try:
-            # Se utiliza get en lugar de get_or_create si se asume que el ChatState ya existe
             chat_state = await sync_to_async(lambda: ChatState.objects.get(user_id=user_id, business_unit=business_unit))()
             user = chat_state.person
 
@@ -38,7 +44,7 @@ class ChatBotHandler:
             # Almacenar mensaje del usuario en el historial
             await self.store_user_message(chat_state, text)
 
-            # Analizar el texto
+            # Analizar el texto con NLP
             analysis = analyze_text(text)  # { "intents": [...], "entities": [...], "sentiment": {...} }
             if not analysis or not isinstance(analysis, dict):
                 raise ValueError(f"Invalid analysis result: {analysis}")
@@ -55,6 +61,11 @@ class ChatBotHandler:
                 await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
                 return
 
+            # Si el usuario confirma su contratación, activar el flujo de contratación
+            if text.lower() in ["confirmar contratación", "he sido contratado", "contratado"]:
+                await self.handle_hiring_event(user, business_unit)
+                return
+
             # Manejo de intents conocidos
             if await self.handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
                 return
@@ -69,9 +80,18 @@ class ChatBotHandler:
                 await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
                 return
 
+            # Procesar el mensaje según la Business Unit
+            if business_unit.name.lower() == "amigro":
+                await sync_to_async(process_amigro_candidate.delay)(user.id)
+            elif business_unit.name.lower() == "huntu":
+                await sync_to_async(process_huntu_candidate.delay)(user.id)
+            elif business_unit.name.lower() == "huntred":
+                await sync_to_async(process_huntred_candidate.delay)(user.id)
+            elif business_unit.name.lower() == "huntred executive":
+                await sync_to_async(process_executive_candidate.delay)(user.id)
+
             # Si el Business Unit es SEXSI, ejecutar el flujo SEXSI
             if business_unit.name.lower() == "sexsi":
-                # Se puede refinar el flujo según el contexto
                 response = iniciar_flujo_sexsi(user_id, user, business_unit, chat_state.context)
                 await send_message(platform, user_id, response, business_unit)
                 await self.store_bot_message(chat_state, response)
@@ -384,6 +404,55 @@ class ChatBotHandler:
         gpt_response = await self.gpt_handler.generate_response(prompt)
         return gpt_response
 
+    async def handle_hiring_event(self, user: Person, business_unit: BusinessUnit):
+        """
+        Maneja la notificación de contratación dependiendo de la unidad de negocio.
+        """
+        if business_unit.name.lower() == "amigro":
+            from app.chatbot.workflow.amigro import notify_legal_on_hire
+            await sync_to_async(notify_legal_on_hire.delay)(user.id)
+
+        elif business_unit.name.lower() == "huntu":
+            from app.chatbot.workflow.huntu import process_huntu_candidate
+            await sync_to_async(process_huntu_candidate.delay)(user.id)
+
+        elif business_unit.name.lower() == "huntred":
+            from app.chatbot.workflow.huntred import process_huntred_candidate
+            await sync_to_async(process_huntred_candidate.delay)(user.id)
+
+        elif business_unit.name.lower() == "huntred executive":
+            from app.chatbot.workflow.executive import process_executive_candidate
+            await sync_to_async(process_executive_candidate.delay)(user.id)
+
+        await send_message(
+            platform="whatsapp",
+            user_id=user.phone,
+            message="Tu contratación ha sido registrada correctamente.",
+            business_unit=business_unit
+        )
+
+        logger.info(f"Contratación registrada para {user.full_name} en {business_unit.name}")
+
+    async def handle_client_selection(self, client_id: int, candidate_id: int, business_unit: BusinessUnit):
+        """
+        Cuando el cliente selecciona un candidato en el Kanban del administrador.
+        """
+        candidate = await sync_to_async(Candidate.objects.get)(id=candidate_id)
+        process = await sync_to_async(Process.objects.filter(candidate=candidate).first)()
+
+        if not process:
+            return "El candidato no está en un proceso activo."
+
+        file_path = generate_and_send_contract(candidate, process.client, process.job_position, business_unit)
+
+        await send_message(
+            platform="whatsapp",
+            user_id=candidate.phone,
+            message="Se ha generado tu Carta Propuesta. Por favor, revisa tu correo y firma el documento.",
+            business_unit=business_unit
+        )
+
+        return f"Carta Propuesta enviada para {candidate.full_name} en {business_unit.name}"
 
     def build_gpt_prompt(self, history, user_message, user: Person, entities, sentiment):
         """
