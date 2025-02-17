@@ -1,10 +1,33 @@
 # common.py - Funciones comunes para los workflows
 
-from app.utilidades.pdf_generator import generate_candidate_summary, merge_signed_documents
-from app.utilidades.digital_sign import request_digital_signature
 from django.core.files.storage import default_storage
-from app.utilidades.email_sender import send_email
-from app.utilidades.signature.signature_handler import generate_and_send_contract
+from app.utilidades.signature.pdf_generator import generate_candidate_summary, merge_signed_documents, generate_contract_pdf
+from app.chatbot.integrations.services import send_email
+from app.utilidades.digital_sign import request_digital_signature
+
+def generate_and_send_contract(candidate, client, job_position, business_unit):
+    """
+    Genera la Carta Propuesta para el candidato y la envía para su firma digital.
+    En Huntu y HuntRED®, también se envía al cliente para su firma.
+    """
+    contract_path = generate_contract_pdf(candidate, client, job_position, business_unit)
+
+    # Enviar contrato al candidato para firma digital
+    request_digital_signature(
+        user=candidate,
+        document_path=contract_path,
+        document_name=f"Carta Propuesta - {job_position.title}.pdf"
+    )
+
+    # Enviar al cliente en Huntu y HuntRED®
+    if business_unit.name.lower() in ["huntu", "huntred"]:
+        request_digital_signature(
+            user=client,
+            document_path=contract_path,
+            document_name=f"Carta Propuesta - {job_position.title}.pdf"
+        )
+
+    return contract_path
 
 def send_candidate_summary(candidate, client):
     """ Genera y envía el resumen del candidato al cliente """
