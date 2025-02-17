@@ -49,7 +49,7 @@
             "name": "huntU®",
             "description": "",
             "whatsapp_enabled": false,
-            "telegram_enabled": false,
+            "telegram_enabled": true,
             "messenger_enabled": false,
             "instagram_enabled": false,
             "scrapping_enabled": false,
@@ -67,6 +67,20 @@
             "messenger_enabled": true,
             "instagram_enabled": true,
             "scrapping_enabled": true,
+            "scraping_domains": []
+        }
+    },
+    {
+        "model": "app.businessunit",
+        "pk": 5,
+        "fields": {
+            "name": "SeXSI®",
+            "description": "",
+            "whatsapp_enabled": false,
+            "telegram_enabled": true,
+            "messenger_enabled": false,
+            "instagram_enabled": false,
+            "scrapping_enabled": false,
             "scraping_domains": []
         }
     },
