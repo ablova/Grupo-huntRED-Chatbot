@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from asgiref.sync import sync_to_async, async_to_sync
 from django.core.cache import cache
 from django.db import DatabaseError
+from django.conf import settings
 
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import TelegramAPI, BusinessUnit
@@ -175,11 +176,16 @@ async def send_telegram_buttons(chat_id: int, message: str, buttons: list, acces
             "inline_keyboard": buttons
         }
     }
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
-    logger.info(f"✅ Telegram: mensaje con botones enviado a chat_id {chat_id}")
-    return response.json()
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            logger.info(f"✅ Mensaje con botones enviado a {chat_id}. Respuesta: {response.text}")
+            return response.json()
+    except Exception as e:
+        logger.error(f"❌ Error enviando botones a Telegram: {e}", exc_info=True)
+        raise
+
 # -------------------------------
 # ✅ 4. MANEJO DE COMANDOS ESPECIALES
 # -------------------------------
