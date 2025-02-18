@@ -50,22 +50,23 @@ async def send_message(
 ):
     """
     Envía un mensaje al usuario en la plataforma especificada, delegando en la función
-    específica de cada canal.
+    específica de cada canal. Maneja WhatsApp, Telegram, Messenger e Instagram.
     """
     try:
         logger.info(f"[send_message] Plataforma: {platform}, User: {user_id}, BU: {business_unit.name}, Msg: {message[:30]}...")
+
         send_function_name = platform_send_functions.get(platform)
         if not send_function_name:
             logger.error(f"[send_message] Plataforma desconocida: {platform}")
             return
 
-        # Obtener instancia del API de forma asíncrona
+        # Obtener la instancia de API de forma asíncrona
         api_instance = await get_api_instance(platform, business_unit)
         if not api_instance:
             logger.error(f"[send_message] No se encontró configuración API para {platform} / BU {business_unit.name}. Abortando.")
             return
 
-        # Importar dinámicamente la función de envío del canal correspondiente
+        # Importar dinámicamente la función de envío
         send_module = __import__(f'app.chatbot.integrations.{platform}', fromlist=[send_function_name])
         send_function = getattr(send_module, send_function_name, None)
         if not send_function:
@@ -74,33 +75,52 @@ async def send_message(
 
         logger.debug(f"[send_message] Llamando a '{send_function_name}' con phone_id={getattr(api_instance, 'phoneID', None)}")
 
-        # Delegar la llamada según el canal
+        # 🟢 **Manejo especial para WhatsApp**
         if platform == 'whatsapp':
             from app.chatbot.integrations.whatsapp import send_whatsapp_message
+
+            # Si los botones incluyen una URL, enviarla antes del mensaje principal
+            url_buttons = [btn for btn in options if "url" in btn] if options else []
+            if url_buttons:
+                for btn in url_buttons:
+                    url_msg = f"Aquí tienes más información: {btn['url']}"
+                    await send_function(
+                        user_id=user_id,
+                        message=url_msg,
+                        phone_id=getattr(api_instance, 'phoneID', None),
+                        buttons=None,
+                        business_unit=business_unit
+                    )
+                    await asyncio.sleep(0.5)  # Evitar bloqueos de WhatsApp
+
+            # Enviar mensaje principal con botones (sin URL)
+            valid_buttons = [btn for btn in options if "url" not in btn] if options else None
             await send_function(
                 user_id=user_id,
                 message=message,
                 phone_id=getattr(api_instance, 'phoneID', None),
-                buttons=options,
+                buttons=valid_buttons,
                 business_unit=business_unit
             )
+
+        # 🟢 **Manejo especial para Telegram**
         elif platform == 'telegram':
             from app.chatbot.integrations.telegram import send_telegram_message
             await send_function(
                 chat_id=user_id,
-                message=message,
-                buttons=options,
-                access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
-            )
+                message=message
+            )  # Telegram no permite botones aquí, se deben enviar con send_options
+
+        # 🟢 **Manejo especial para Messenger e Instagram**
         elif platform in ['messenger', 'instagram']:
-            from app.chatbot.integrations.messenger import send_messenger_message
-            from app.chatbot.integrations.messenger import send_instagram_message
+            from app.chatbot.integrations.messenger import send_messenger_message, send_instagram_message
             await send_function(
                 user_id=user_id,
                 message=message,
                 buttons=options,
                 access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
             )
+
         else:
             logger.error(f"[send_message] Plataforma no soportada: {platform}")
 

@@ -99,38 +99,50 @@ class GPTHandler:
 
         return "general"  # Si no detectamos nada específico, usamos un prompt genérico
 
-    async def generate_response(self, prompt: str, business_unit: str = "General") -> str:
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
         """
-        Genera una respuesta usando GPT, incluyendo la unidad de negocio como contexto en formato optimizado.
+        Genera una respuesta utilizando OpenAI con la mejor intención detectada.
         """
         if not self.client:
             return "⚠ GPT no está inicializado."
 
+        # ✅ Si no se proporciona una unidad de negocio, intentar inferirla
+        if business_unit is None:
+            detected_unit = self.detectar_intencion(prompt)
+            business_unit_name = detected_unit if detected_unit else "General"
+        else:
+            business_unit_name = getattr(business_unit, "name", "General")
+
+        # ✅ Detectar la intención específica del mensaje
         prompt_type = self.detectar_intencion(prompt)  # 🔹 Identifica si es "ventas", "finanzas", etc.
-        context = self.gpt_api.get_prompt(prompt_type, default="Responde de forma clara y precisa.")
 
-        business_unit_name = getattr(business_unit, "name", "Grupo huntRED")  # Si no tiene nombre, usa "General"
+        # ✅ Obtener el contexto correcto del prompt, si no existe, dar un fallback más preciso
+        context = self.gpt_api.get_prompt(
+            prompt_type, 
+            default="Proporciona información clara y concisa sobre el tema solicitado."
+        )
 
+        # ✅ Construcción optimizada del prompt para reducir tokens y mejorar contexto
         full_prompt = f"[{business_unit_name} | {prompt_type}] {context}\n\nUsuario: {prompt}"
-
-        # 🔹 Optimización del prompt
-        full_prompt = f"[{business_unit}] {context}\nPregunta: {prompt}"
-
-        logger.debug(f"Generando respuesta para unidad '{business_unit}': {full_prompt[:100]}...")  # 🔹 Evitamos logs extensos
+        
+        logger.debug(f"Generando respuesta para unidad '{business_unit_name}': {full_prompt[:100]}...")
 
         try:
             response = await asyncio.to_thread(
                 self.client.chat.completions.create,
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": f"Responde con base en la unidad '{business_unit}'."},
+                    {"role": "system", "content": "Eres un experto en empleabilidad y desarrollo profesional."},
                     {"role": "user", "content": full_prompt}
                 ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p
             )
-            return response.choices[0].message.content.strip()
+
+            respuesta_texto = response.choices[0].message.content.strip()
+            logger.debug(f"📩 Respuesta generada: {respuesta_texto}")
+            return respuesta_texto
 
         except RateLimitError:
             logger.error("⚠ Se ha excedido la cuota de OpenAI.")
