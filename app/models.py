@@ -634,12 +634,20 @@ class GptApi(models.Model):
     organization = models.CharField(max_length=100, blank=True, null=True)
     project = models.CharField(max_length=100, blank=True, null=True)
     model = models.CharField(max_length=100)
-    form_pregunta = models.CharField(max_length=500)
-    work_pregunta = models.CharField(max_length=500)
-    max_tokens = models.IntegerField(default=150)  # Nuevo campo
-    temperature = models.FloatField(default=0.7)  # Nuevo campo
-    top_p = models.FloatField(default=1.0, blank=True, null=True)  # Otro parámetro común
     
+    # ✅ Almacenamos los prompts en un JSONField para mayor flexibilidad
+    prompts = models.JSONField(default=dict, blank=True, help_text="Diccionario con diferentes tipos de prompts")
+
+    max_tokens = models.IntegerField(default=150)
+    temperature = models.FloatField(default=0.7)
+    top_p = models.FloatField(default=1.0, blank=True, null=True)
+
+    def get_prompt(self, key: str, default: str = "Describe tu perfil profesional en pocas palabras.") -> str:
+        """
+        Obtiene un prompt específico del JSON almacenado. Si no existe, devuelve un valor por defecto.
+        """
+        return self.prompts.get(key, default)
+
     def __str__(self):
         return f"Model: {self.model} | Org: {self.organization} | Project: {self.project}"
 
