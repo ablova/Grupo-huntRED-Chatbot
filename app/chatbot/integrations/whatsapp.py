@@ -394,39 +394,33 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             logger.error(f"[send_whatsapp_decision_buttons] Botones inválidos: debe ser una lista de 1-3 elementos")
             return False, "Formato de botones inválido"
 
-        # Procesar botones con validación completa
-        formatted_buttons = []
-        for button in buttons:
-            if not isinstance(button, dict):
-                continue
-                
-            payload = str(button.get('payload', '')) if button.get('payload') is not None else ''
-            title = str(button.get('title', 'Opción'))
-            
-            # Validaciones según especificaciones de WhatsApp
-            if not payload or len(payload) > 256:
-                logger.warning(f"[send_whatsapp_decision_buttons] Payload inválido: {payload}")
-                continue
-                
-            if not title or len(title) > 20:
-                title = title[:20]  # Truncar si excede
-                
-            formatted_buttons.append({
+        # ✅ Filtrar botones válidos
+        valid_buttons = [
+            {
                 "type": "reply",
                 "reply": {
-                    "id": payload,
-                    "title": title
+                    "id": str(button.get('payload', 'default_id'))[:256],  # WhatsApp requiere un ID válido
+                    "title": str(button.get('title', 'Opción')[:20])  # Máximo 20 caracteres
                 }
-            })
-        
-        if not formatted_buttons:
+            }
+            for button in buttons
+            if isinstance(button, dict) and button.get('payload') and button.get('title')
+        ]
+
+        if not valid_buttons:
             logger.error("[send_whatsapp_decision_buttons] No hay botones válidos para enviar")
-            return False, "No hay botones válidos"
-        
-        # Validar longitud del mensaje (límite de WhatsApp: 1024 caracteres)
-        if len(message) > 1024:
-            message = message[:1021] + "..."
-            
+            logger.warning("[send_whatsapp_decision_buttons] Creando botón predeterminado porque los originales no eran válidos")
+            valid_buttons = [{
+                "type": "reply",
+                "reply": {
+                    "id": "fallback_button_id",
+                    "title": "Continuar"
+                }
+            }]
+
+        # ✅ Limitar mensaje a 1024 caracteres
+        message = message[:1021] + "..." if len(message) > 1024 else message
+
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -435,7 +429,7 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             "interactive": {
                 "type": "button",
                 "body": {"text": message},
-                "action": {"buttons": formatted_buttons}
+                "action": {"buttons": valid_buttons}
             }
         }
 
