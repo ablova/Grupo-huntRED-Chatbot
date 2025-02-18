@@ -1,7 +1,5 @@
 # Ubicación en servidor: /home/pablo/app/chatbot/chatbot.py
 
-# Ubicación en servidor: /home/pablo/app/chatbot/chatbot.py
-
 import logging
 import asyncio
 import re  # AGREGADO para manejo de expresiones regulares en handle_status_email
@@ -13,7 +11,7 @@ from django.core.cache import cache
 from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, Vacante, WhatsAppAPI, EnhancedNetworkGamificationProfile
 )
-from app.chatbot.integrations.services import send_message, send_image, send_menu, reset_chat_state
+from app.chatbot.integrations.services import send_message, send_image, send_menu, reset_chat_state, send_options
 from app.chatbot.utils import analyze_text  # Encargado del NLP y patrones de intents
 
 # Importaciones de workflows

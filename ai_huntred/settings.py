@@ -205,7 +205,7 @@ LOGGING = {
         'debug_file': {
             'level': 'CRITICAL',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/debug.log'),
+            'filename': os.path.join(LOG_DIR, 'debug.log'),
             'formatter': 'verbose',
             'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),  # 10 MB
             'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
@@ -213,7 +213,7 @@ LOGGING = {
         # Handler global (opcional)
         'global_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
+            'filename': os.path.join(LOG_DIR, 'app.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,  # 10 MB
             'backupCount': 3,
@@ -222,7 +222,7 @@ LOGGING = {
         # Handlers específicos por categoría
         'chatbot_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'chatbot.log'),
+            'filename': os.path.join(LOG_DIR, 'chatbot.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -230,7 +230,7 @@ LOGGING = {
         },
         'nlp_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'nlp.log'),
+            'filename': os.path.join(LOG_DIR, 'nlp.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -238,7 +238,7 @@ LOGGING = {
         },
         'gpt_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'gpt.log'),
+            'filename': os.path.join(LOG_DIR, 'gpt.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -246,7 +246,7 @@ LOGGING = {
         },
         'vacantes_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'vacantes.log'),
+            'filename': os.path.join(LOG_DIR, 'vacantes.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -254,7 +254,7 @@ LOGGING = {
         },
         'scraping_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'scraping.log'),
+            'filename': os.path.join(LOG_DIR, 'scraping.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -262,7 +262,7 @@ LOGGING = {
         },
         'parse_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'parse.log'),
+            'filename': os.path.join(LOG_DIR, 'parse.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -270,7 +270,7 @@ LOGGING = {
         },
         'ml_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'ml.log'),
+            'filename': os.path.join(LOG_DIR, 'ml.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -278,7 +278,7 @@ LOGGING = {
         },
         'signature_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'signature.log'),
+            'filename': os.path.join(LOG_DIR, 'signature.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -286,7 +286,7 @@ LOGGING = {
         },
         'config_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'config.log'),
+            'filename': os.path.join(LOG_DIR, 'config.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -294,7 +294,7 @@ LOGGING = {
         },
         'dashboard_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'dashboard.log'),
+            'filename': os.path.join(LOG_DIR, 'dashboard.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -302,7 +302,7 @@ LOGGING = {
         },
         'tasks_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'tasks.log'),
+            'filename': os.path.join(LOG_DIR, 'tasks.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -310,7 +310,7 @@ LOGGING = {
         },
         'tests_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'tests.log'),
+            'filename': os.path.join(LOG_DIR, 'tests.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -318,7 +318,7 @@ LOGGING = {
         },
         'views_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'views.log'),
+            'filename': os.path.join(LOG_DIR, 'views.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -327,7 +327,7 @@ LOGGING = {
                 'messenger_file': {
             'level': env('MESSENGER_LOG_LEVEL', default='ERROR'),
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/messenger.log'),
+            'filename': os.path.join(LOG_DIR, 'messenger.log'),
             'formatter': 'verbose',
             'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
             'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
@@ -335,7 +335,7 @@ LOGGING = {
         'whatsapp_file': {
             'level': env('WHATSAPP_LOG_LEVEL', default='ERROR'),
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/whatsapp.log'),
+            'filename': os.path.join(LOG_DIR, 'whatsapp.log'),
             'formatter': 'verbose',
             'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
             'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
@@ -343,7 +343,7 @@ LOGGING = {
         'instagram_file': {
             'level': env('INSTAGRAM_LOG_LEVEL', default='ERROR'),
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/instagram.log'),
+            'filename': os.path.join(LOG_DIR, 'instagram.log'),
             'formatter': 'verbose',
             'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
             'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
@@ -351,7 +351,7 @@ LOGGING = {
         'telegram_file': {
             'level': env('TELEGRAM_LOG_LEVEL', default='ERROR'),
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/telegram.log'),
+            'filename': os.path.join(LOG_DIR, 'telegram.log'),
             'formatter': 'verbose',
             'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
             'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
@@ -359,13 +359,13 @@ LOGGING = {
         'celery': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/celery.log'),
+            'filename': os.path.join(LOG_DIR, 'celery.log'),
             'formatter': 'verbose',
         },
         # Handlers para workflows de cada unidad de negocio
         'amigro_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'amigro.log'),
+            'filename': os.path.join(LOG_DIR, 'amigro.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -373,7 +373,7 @@ LOGGING = {
         },
         'executive_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'executive.log'),
+            'filename': os.path.join(LOG_DIR, 'executive.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -381,7 +381,7 @@ LOGGING = {
         },
         'huntred_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'huntred.log'),
+            'filename': os.path.join(LOG_DIR, 'huntred.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -389,7 +389,7 @@ LOGGING = {
         },
         'huntu_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'huntu.log'),
+            'filename': os.path.join(LOG_DIR, 'huntu.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -397,7 +397,7 @@ LOGGING = {
         },
         'sexsi_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'sexsi.log'),
+            'filename': os.path.join(LOG_DIR, 'sexsi.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -405,7 +405,7 @@ LOGGING = {
         },
         'milkyleak_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'milkyleak.log'),
+            'filename': os.path.join(LOG_DIR, 'milkyleak.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
@@ -413,7 +413,7 @@ LOGGING = {
         },
         'utilidades_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'utilidades.log'),
+            'filename': os.path.join(LOG_DIR, 'utilidades.log'),
             'formatter': 'verbose',
             'maxBytes': 10485760,
             'backupCount': 2,
