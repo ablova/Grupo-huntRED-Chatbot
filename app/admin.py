@@ -8,6 +8,8 @@ from django.shortcuts import render, redirect
 from django.template.loader import select_template
 from django.template.response import TemplateResponse
 from django import forms
+from django.core.mail import send_mail
+
 
 # Utility Imports
 from io import BytesIO
