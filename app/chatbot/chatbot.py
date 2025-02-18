@@ -24,7 +24,7 @@ from app.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 
 from app.utilidades.parser import CVParser
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.chatbot")
 CACHE_TIMEOUT = 600  # 10 minutes
 
 from app.chatbot.gpt import GPTHandler  # Asegúrese de que se importe correctamente

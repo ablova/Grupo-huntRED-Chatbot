@@ -46,7 +46,7 @@ logging.basicConfig(
     ]
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.utilidades.scraping")
 
 # Definición básica de user agents para ScrapingConfig (si hace falta):
 USER_AGENTS = [

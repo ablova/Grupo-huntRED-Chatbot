@@ -10,7 +10,7 @@ import json
 import httpx
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.views")
 
 @method_decorator(csrf_exempt, name='dispatch')
 class SendTestMessageView(View):

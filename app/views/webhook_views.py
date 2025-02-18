@@ -16,7 +16,7 @@ import json
 #from app.nlp import SkillExtractor  # Asegúrate de que la importación es correcta
 #from app.nlp import initialize_phrase_matcher  # Función para inicializar phraseMatcher
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.views")
 
 @method_decorator(csrf_exempt, name='dispatch')
 class WhatsAppWebhookView(View):

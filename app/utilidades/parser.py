@@ -24,7 +24,7 @@ from app.utilidades.vacantes import VacanteManager
 from app.chatbot.nlp import detect_and_load_nlp  # ✅ Usar función centralizada de NLP
 
 # ✅ Configuración de logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.utilidades.parse")
 
 # ✅ Importación segura del módulo NLP
 try:

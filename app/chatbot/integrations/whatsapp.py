@@ -14,7 +14,7 @@ from app.chatbot.chatbot import ChatBotHandler
 from app.models import Person, ChatState, BusinessUnit, WhatsAppAPI, Template
 from app.chatbot.integrations.services import send_message
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.chatbot.integrations.whatsapp")
 # Semáforo para controlar la concurrencia en WhatsApp (se utiliza en el envío de mensajes)
 whatsapp_semaphore = asyncio.Semaphore(10)
 ENABLE_ADVANCED_PROCESSING = False  # Cambiar a True cuando se resuelvan los problemas

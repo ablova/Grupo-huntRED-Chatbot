@@ -21,7 +21,7 @@ from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.chatbot.services")
 # Semáforo para controlar la concurrencia en WhatsApp (se usa en whatsapp.py)
 whatsapp_semaphore = asyncio.Semaphore(10)
 

@@ -48,7 +48,7 @@ from app.utilidades.catalogs import DIVISIONES
 import json
 import os
 
-logger = logging.getLogger('celery_tasks')
+logger = logging.getLogger("app.tasks")
 
 # =========================================================
 # Configuración de Celery Beat (programación de tareas)
