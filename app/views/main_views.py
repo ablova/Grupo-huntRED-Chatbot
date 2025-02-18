@@ -21,7 +21,7 @@ from app.chatbot.chatbot import ChatBotHandler
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.views")
 
 @staff_member_required
 def interacciones_por_unidad(request):

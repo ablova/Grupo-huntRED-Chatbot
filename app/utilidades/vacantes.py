@@ -20,6 +20,8 @@ from app.chatbot.utils import prioritize_interests, get_positions_by_skills
 #import chainlit as cl
 #from some_ml_model import match_candidate_to_job  # Tu modelo personalizado
 
+# Configuración del logger
+logger = logging.getLogger("app.utilidades.vacantes")
 #@cl.on_message
 #async def main(message):
 #    # Procesa el mensaje del usuario
@@ -71,8 +73,7 @@ def match_person_with_jobs(person, job_list):
 
     matches = sorted(matches, key=lambda x: x[1], reverse=True)
     return matches
-# Configuración del logger
-logger = logging.getLogger(__name__)
+
 
 # Sesión persistente de requests
 s = requests.session()

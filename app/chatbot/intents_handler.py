@@ -7,7 +7,7 @@ from app.models import ChatState, Person, BusinessUnit
 from app.chatbot.integrations.services import send_message
 from app.utilidades.vacantes import VacanteManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.chatbot.intents_handler")
 
 async def handle_known_intents(
     intents: List[str], platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit, user: Person

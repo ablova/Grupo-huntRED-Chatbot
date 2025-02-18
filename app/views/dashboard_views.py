@@ -4,6 +4,8 @@ from django.shortcuts import render
 #from ratelimit.decorators import ratelimit
 from app.models import Person, ChatState, WorkflowStage
 
+logger = logging.getLogger("app.views")
+
 def dashboard_view(request):
     """
     Vista para el dashboard principal.
