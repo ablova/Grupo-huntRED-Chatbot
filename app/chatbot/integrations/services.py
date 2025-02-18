@@ -305,18 +305,36 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
                 business_unit=business_unit
             )
         elif platform == 'telegram' and buttons:
-            from app.chatbot.integrations.telegram import send_telegram_buttons
-            # Formatear botones en el formato que Telegram espera:
+            from app.chatbot.integrations.telegram import send_telegram_buttons  # ✅ Importamos la función correcta
+
+            # ✅ Obtener la configuración de TelegramAPI
+            api_instance = await sync_to_async(lambda: TelegramAPI.objects.filter(
+                business_unit=business_unit, is_active=True
+            ).first())()
+
+            if not api_instance:
+                logger.error(f"[send_options] No se encontró configuración activa de TelegramAPI para {business_unit.name}")
+                return False, "No hay configuración de Telegram activa"
+
+            # ✅ Convertir user_id en número si es necesario
+            chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
+
+            # ✅ Validar botones antes de enviarlos
             telegram_buttons = [
-                [{"text": button['title'], "callback_data": button.get('payload', '')}]
-                for button in buttons
+                {"text": button.get('title', 'Opción'), "callback_data": button.get('payload', 'unknown_id')}
+                for button in buttons if isinstance(button, dict) and button.get('payload') and button.get('title')
             ]
-            # Convertir user_id a entero si es el chat_id
+
+            if not telegram_buttons:
+                logger.warning("[send_options] No hay botones válidos para enviar en Telegram")
+                telegram_buttons = [{"text": "Continuar", "callback_data": "fallback_option"}]
+
+            # ✅ Enviar mensaje con botones
             await send_telegram_buttons(
-                chat_id=int(user_id.split(":")[-1]),  # Si user_id viene en formato "token:chat_id"
+                chat_id=chat_id,
                 message=message,
                 buttons=telegram_buttons,
-                access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
+                access_token=api_instance.api_key  # ✅ Ahora api_instance está definido
             )
         elif platform == 'messenger' and buttons and business_unit:
             from app.chatbot.integrations.messenger import send_messenger_buttons
