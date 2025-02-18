@@ -12,11 +12,12 @@ from app.utilidades.vacantes import VacanteManager
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
-env = environ.Env()
-environ.Env.read_env()  # Read the .env file
+
 # Configuración de la cuenta IMAP (Se obtiene de la BD)
 EMAIL_ACCOUNT = "pablo@huntred.com"
-EMAIL_PASSWORD = env(EMAIL_HOST_PASSWORD)
+env = environ.Env()
+environ.Env.read_env()  # Lee el archivo .env
+EMAIL_PASSWORD = env("EMAIL_HOST_PASSWORD")
 IMAP_SERVER = "imap.huntred.com"
 IMAP_FOLDER = "INBOX"
 DAYS_TO_PROCESS = 15  # Últimos 3 días
