@@ -56,7 +56,6 @@ class ChatBotHandler:
             # Se pueden agregar mensajes específicos para otras unidades si se requiere.
         }
 
-    @staticmethod
     def get_tos_url(self, business_unit: BusinessUnit) -> str:
         """Obtiene la URL de TOS según la unidad de negocio."""
         tos_urls = {
