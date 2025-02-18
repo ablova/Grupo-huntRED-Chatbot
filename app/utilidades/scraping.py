@@ -41,7 +41,7 @@ logging.basicConfig(
     level=logging.INFO,  # Cambia a DEBUG para más detalles
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("scraping.log"),
+        logging.FileHandler("app.utilidades.scraping"),
         logging.StreamHandler()
     ]
 )
