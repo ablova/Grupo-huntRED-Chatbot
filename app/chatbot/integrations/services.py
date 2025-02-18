@@ -286,9 +286,18 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
     Envía opciones de respuesta al usuario.
     """
     try:
-        if platform == 'whatsapp' and buttons and business_unit:
-            formatted_buttons = [{"title": button['title']} for button in buttons]
+        if platform == 'whatsapp':
             from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
+            # Asegúrate de construir cada botón con la clave 'reply' que incluya 'id' y 'title'
+            formatted_buttons = []
+            for button in options or []:
+                formatted_buttons.append({
+                    "type": "reply",
+                    "reply": {
+                        "id": button.get('payload', ''),
+                        "title": button.get('title', '')
+                    }
+                })
             await send_whatsapp_decision_buttons(
                 user_id=user_id,
                 message=message,
@@ -297,12 +306,17 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
             )
         elif platform == 'telegram' and buttons:
             from app.chatbot.integrations.telegram import send_telegram_buttons
+            # Formatear botones en el formato que Telegram espera:
             telegram_buttons = [
-                [{"text": button['title'], "callback_data": button['payload']}]
+                [{"text": button['title'], "callback_data": button.get('payload', '')}]
                 for button in buttons
             ]
+            # Convertir user_id a entero si es el chat_id
             await send_telegram_buttons(
-                user_id, message, telegram_buttons, business_unit.telegram_api.api_key
+                chat_id=int(user_id.split(":")[-1]),  # Si user_id viene en formato "token:chat_id"
+                message=message,
+                buttons=telegram_buttons,
+                access_token=getattr(api_instance, 'page_access_token', None) or getattr(api_instance, 'api_key', None)
             )
         elif platform == 'messenger' and buttons and business_unit:
             from app.chatbot.integrations.messenger import send_messenger_buttons
