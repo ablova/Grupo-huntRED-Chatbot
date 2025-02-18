@@ -18,7 +18,7 @@ EMAIL_ACCOUNT = "pablo@huntred.com"
 env = environ.Env()
 environ.Env.read_env()  # Lee el archivo .env
 EMAIL_PASSWORD = env("EMAIL_HOST_PASSWORD")
-IMAP_SERVER = "imap.huntred.com"
+IMAP_SERVER = env("EMAIL_HOST", default="mail.huntred.com")
 IMAP_FOLDER = "INBOX"
 DAYS_TO_PROCESS = 15  # Últimos 3 días
 
