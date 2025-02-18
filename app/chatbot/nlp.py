@@ -109,7 +109,7 @@ class NLPProcessor:
         self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
         logger.info(f"🔄 Modelo NLP cambiado a: {language}")
 
-       def define_intent_patterns(self) -> None:
+    def define_intent_patterns(self) -> None:
         """Define patrones de intenciones con Matcher."""
         if not self.matcher:
             return
