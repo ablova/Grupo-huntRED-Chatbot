@@ -319,7 +319,7 @@ async def send_whatsapp_message(
 
         logger.debug(f"[send_whatsapp_message] Enviando mensaje a {user_id} con phone_id={phone_id} y botones: {bool(buttons)}")
 
-        url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
+        url = f"https://graph.facebook.com/{version_api}/{phone_id}/messages"
         headers = {
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json"
@@ -386,7 +386,7 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
         if not whatsapp_api:
             raise ValueError(f"No se encontró configuración activa de WhatsAppAPI para {business_unit.name}")
 
-        url = f"https://graph.facebook.com/v17.0/{whatsapp_api.phoneID}/messages"
+        url = f"https://graph.facebook.com/{version_api}/{whatsapp_api.phoneID}/messages"
         headers = {
             "Authorization": f"Bearer {whatsapp_api.api_token}",
             "Content-Type": "application/json"
