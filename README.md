@@ -2110,7 +2110,7 @@ async def get_media_url(media_id, api_token):
     """
     Obtiene la URL de descarga para un medio específico.
     """
-    url = f"https://graph.facebook.com/v17.0/{media_id}"
+    url = f"https://graph.facebook.com/{version_api}/{media_id}"
     headers = {
         "Authorization": f"Bearer {api_token}"
     }
