@@ -68,11 +68,14 @@ def login_view(request):
     if request.method == "POST":
         username = request.POST.get("username")
         password = request.POST.get("password")
-        login_status = login(username, password)
+        login_status = login(username, password)  # Asegúrate de que la función login esté importada o definida
         if login_status:
             return JsonResponse({"status": "success"})
         else:
             return JsonResponse({"status": "error", "message": "Login failed."})
+    else:
+        # Retornamos la plantilla de login para métodos GET
+        return render(request, "login.html")
 
 def submit_application(request, job_id):
     """

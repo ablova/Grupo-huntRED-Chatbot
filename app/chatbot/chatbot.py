@@ -81,9 +81,9 @@ class ChatBotHandler:
         logo_url = logo_urls.get(bu_name, "/home/pablo/app/media/Grupo_huntRED.png")
 
         # Enviar saludo, logo y menú
-        send_message(platform, user_id, welcome_message, business_unit)
-        send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit)
-        send_menu(platform, user_id, business_unit)
+        await send_message(platform, user_id, welcome_message, business_unit)
+        await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit)
+        await send_menu(platform, user_id, business_unit)
         return "Mensaje de bienvenida enviado correctamente."
     
     async def send_complete_initial_messages(self, platform: str, user_id: str, business_unit):
