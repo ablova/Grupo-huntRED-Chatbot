@@ -36,16 +36,6 @@ from app.models import (
 from app.utilidades.loader import DIVISION_SKILLS, DIVISIONES, BUSINESS_UNITS
 from app.chatbot.utils import clean_text
 
-
-logging.basicConfig(
-    level=logging.INFO,  # Cambia a DEBUG para más detalles
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("app.utilidades.scraping"),
-        logging.StreamHandler()
-    ]
-)
-
 logger = logging.getLogger("app.utilidades.scraping")
 
 # Definición básica de user agents para ScrapingConfig (si hace falta):
