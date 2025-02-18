@@ -50,73 +50,15 @@ class ChatBotHandler:
                 "¡Cuéntame, en qué puedo ayudarte hoy?"
             ],
             "amigro": [
-                "Bienvenido a Amigro® 🌍",
-                "Aquí facilitamos el acceso laboral a migrantes en Latinoamérica.",
-                "Al iniciar, confirmas la aceptación de nuestros TOS."
+                "Bienvenido a Amigro® 🌍 - amigro.org, somos una organización que facilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México, mediante Inteligencia Artificial Conversacional",
+                "Por lo que platicaremos un poco de tu trayectoria profesional, tus intereses, tu situación migratoria, etc. Es importante ser lo más preciso posible, ya que con eso podremos identificar las mejores oportunidades para tí, tu familia, y en caso de venir en grupo, favorecerlo. *Por cierto Al iniciar, confirmas la aceptación de nuestros TOS."
             ]
             # Se pueden agregar mensajes específicos para otras unidades si se requiere.
         }
 
     @staticmethod
-    async def handle_welcome_message(user_id, platform, business_unit):
-        """
-        Envía un saludo personalizado, el logo de la unidad de negocio y el menú de servicios.
-        """
-        bu_name = business_unit.name.lower()
-        welcome_messages = {
-            "huntred": "Bienvenido a huntRED® 🚀\nSomos expertos en encontrar el mejor talento para empresas líderes.",
-            "huntred_executive": "Bienvenido a huntRED® Executive 🌟\nNos especializamos en colocación de altos ejecutivos.",
-            "huntu": "Bienvenido a huntU® 🏆\nConectamos talento joven con oportunidades de alto impacto.",
-            "amigro": "Bienvenido a Amigro® 🌍\nFacilitamos el acceso laboral a migrantes en Latinoamérica.",
-            "sexsi": "Bienvenido a SEXSI 🔐\nAquí puedes gestionar acuerdos de consentimiento seguros y firmarlos digitalmente.",
-        }
-        logo_urls = {
-            "huntred": "/home/pablo/app/media/huntred.png",
-            "huntred_executive": "/home/pablo/app/media/executive.png",
-            "huntu": "/home/pablo/app/media/huntu.png",
-            "amigro": "/home/pablo/app/media/amigro.png",
-            "sexsi": "/home/pablo/app/media/sexsi.png",
-        }
-        welcome_message = welcome_messages.get(bu_name, "Bienvenido a nuestra plataforma 🎉")
-        logo_url = logo_urls.get(bu_name, "/home/pablo/app/media/Grupo_huntRED.png")
-
-        # Enviar saludo, logo y menú
-        await send_message(platform, user_id, welcome_message, business_unit)
-        await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit)
-        await send_menu(platform, user_id, business_unit)
-        return "Mensaje de bienvenida enviado correctamente."
-    
-    async def send_complete_initial_messages(self, platform: str, user_id: str, business_unit):
-        """
-        Envía el flujo completo inicial:
-          1. Mensaje de bienvenida (saludo, logo y menú)
-          2. Mensajes de introducción según la Business Unit
-          3. Prompt para aceptación de TOS
-        """
-        # 1. Enviar mensaje de bienvenida
-        welcome_result = ChatBotHandler.handle_welcome_message(user_id, platform, business_unit)
-        logger.info(welcome_result)
-        await asyncio.sleep(1)
-
-        # 2. Enviar mensajes de introducción
-        bu_name = business_unit.name.lower()
-        messages = self.initial_messages.get(bu_name, self.initial_messages["default"])
-        for msg in messages:
-            await send_message(platform, user_id, msg, business_unit)
-            await asyncio.sleep(1)
-
-        # 3. Enviar prompt para aceptación de TOS
-        tos_prompt = "Para continuar, por favor responde con 'acepto' si estás de acuerdo con nuestros Términos de Servicio (TOS)."
-        await send_message(platform, user_id, tos_prompt, business_unit)
-        logger.info(f"Flujo inicial completado para {user_id} en {business_unit.name}")
-
-    async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
-        """
-        Maneja la respuesta del usuario para la aceptación de los TOS.
-        Se envía un prompt interactivo con botones de 'Sí' y 'No', 
-        incluyendo un botón para ver los TOS según la unidad de negocio.
-        """
-        # Diccionario de URLs de TOS por unidad de negocio
+    def get_tos_url(self, business_unit: BusinessUnit) -> str:
+        """Obtiene la URL de TOS según la unidad de negocio."""
         tos_urls = {
             "huntred": "https://huntred.com/tos",
             "huntred executive": "https://huntred.com/executive/tos",
@@ -124,31 +66,96 @@ class ChatBotHandler:
             "amigro": "https://amigro.org/tos",
             "sexsi": "https://sexsi.org/tos"
         }
-        bu_name = business_unit.name.lower()
-        tos_url = tos_urls.get(bu_name, "https://huntred.com/tos")
+        return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
-        # Definir botones de TOS con opción de ver el documento
+    @staticmethod
+    async def handle_welcome_message(user_id, platform, business_unit):
+        """
+        Envía el mensaje de bienvenida, logo y menú.
+        Se centra únicamente en la presentación inicial.
+        """
+        bu_name = business_unit.name.lower()
+        welcome_messages = {
+            "huntred": "Bienvenido a huntRED® 🚀\nSomos expertos en encontrar el mejor talento para empresas líderes.",
+            "huntred executive": "Bienvenido a huntRED® Executive 🌟\nNos especializamos en colocación de altos ejecutivos.",
+            "huntu": "Bienvenido a huntU® 🏆\nConectamos talento joven con oportunidades de alto impacto.",
+            "amigro": "Bienvenido a Amigro® 🌍\nFacilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México.",
+            "sexsi": "Bienvenido a SEXSI 🔐\nAquí puedes gestionar acuerdos de consentimiento seguros y firmarlos digitalmente."
+        }
+        logo_urls = {
+            "huntred": "/home/pablo/app/media/huntred.png",
+            "huntred executive": "/home/pablo/app/media/executive.png",
+            "huntu": "/home/pablo/app/media/huntu.png",
+            "amigro": "/home/pablo/app/media/amigro.png",
+            "sexsi": "/home/pablo/app/media/sexsi.png",
+        }
+        welcome_msg = welcome_messages.get(bu_name, "Bienvenido a nuestra plataforma 🎉")
+        logo_url = logo_urls.get(bu_name, "/home/pablo/app/media/Grupo_huntRED.png")
+        
+        await send_message(platform, user_id, welcome_msg, business_unit)
+        await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit)
+        await send_menu(platform, user_id, business_unit)
+        return "Mensaje de bienvenida enviado correctamente."
+
+    async def send_complete_initial_messages(self, platform: str, user_id: str, business_unit):
+        """
+        Envía el flujo inicial:
+          1. Saludo, imagen y menú (handle_welcome_message)
+          2. Mensajes introductorios
+          3. Prompt interactivo para aceptación de TOS usando get_tos_url
+        """
+        # Paso 1: Enviar bienvenida
+        welcome_result = await ChatBotHandler.handle_welcome_message(user_id, platform, business_unit)
+        logger.info(welcome_result)
+        await asyncio.sleep(1)
+
+        # Paso 2: Enviar mensajes de introducción (sin instrucciones redundantes)
+        bu_key = business_unit.name.lower()
+        messages = self.initial_messages.get(bu_key, self.initial_messages["default"])
+        for msg in messages:
+            await send_message(platform, user_id, msg, business_unit)
+            await asyncio.sleep(1)
+
+        # Paso 3: Enviar prompt interactivo para aceptación de TOS
+        tos_prompt = "¿Aceptas nuestros Términos de Servicio (TOS)?"
+        tos_url = self.get_tos_url(business_unit)
         tos_buttons = [
             {'title': 'Sí', 'payload': 'tos_accept'},
             {'title': 'No', 'payload': 'tos_reject'},
-            {'title': 'Ver TOS', 'url': tos_url}  # Botón que abre la URL de TOS
+            {'title': 'Ver TOS', 'url': tos_url}
         ]
-        
-        if text.strip().lower() in ['tos_accept', 'sí', 'si']:
+        await send_options(platform, user_id, tos_prompt, tos_buttons, business_unit)
+        logger.info(f"Flujo inicial completado para {user_id} en {business_unit.name}")
+
+    async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
+        """
+        Procesa la respuesta del usuario para los TOS.
+        Si la respuesta es afirmativa, actualiza el estado y muestra el menú;
+        si es negativa, envía mensaje de rechazo;
+        en otro caso, reenvía el prompt interactivo usando get_tos_url.
+        """
+        tos_url = self.get_tos_url(business_unit)
+        tos_buttons = [
+            {'title': 'Sí', 'payload': 'tos_accept'},
+            {'title': 'No', 'payload': 'tos_reject'},
+            {'title': 'Ver TOS', 'url': tos_url}
+        ]
+        normalized = text.strip().lower()
+        if normalized in ['tos_accept', 'sí', 'si']:
             user.tos_accepted = True
             await sync_to_async(user.save)()
-            confirmation_msg = "Gracias por aceptar nuestros TOS. Ahora, ¿qué te gustaría hacer? Aquí tienes el menú principal:"
+            confirmation_msg = "Gracias por aceptar nuestros TOS. Aquí tienes el menú principal:"
             await send_message(platform, user_id, confirmation_msg, business_unit)
             await send_menu(platform, user_id, business_unit)
             await self.store_bot_message(event, confirmation_msg)
             logger.info(f"TOS aceptados para {user.phone}")
-        elif text.strip().lower() in ['tos_reject', 'no']:
+        elif normalized in ['tos_reject', 'no']:
             rejection_msg = "No se puede continuar sin aceptar los TOS. Por favor, responde 'Sí' para aceptarlos."
             await send_message(platform, user_id, rejection_msg, business_unit)
             await self.store_bot_message(event, rejection_msg)
         else:
-            # Enviar prompt interactivo con botones para que el usuario seleccione
-            prompt = "¿Aceptas nuestros Términos de Servicio (TOS)?"
+            # Reenviar prompt interactivo para aclarar la aceptación
+            prompt = "Por favor, selecciona una opción:"
             await send_options(platform, user_id, prompt, tos_buttons, business_unit)
 
     async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
