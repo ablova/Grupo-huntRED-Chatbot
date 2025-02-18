@@ -109,13 +109,48 @@ class NLPProcessor:
         self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
         logger.info(f"🔄 Modelo NLP cambiado a: {language}")
 
-    def define_intent_patterns(self) -> None:
-        """ Define patrones de intenciones con Matcher. """
+       def define_intent_patterns(self) -> None:
+        """Define patrones de intenciones con Matcher."""
         if not self.matcher:
             return
-        patterns = [[{"LOWER": {"IN": ["hola", "buenos días", "buenas tardes", "qué tal"]}}]]
-        self.matcher.add("saludo", patterns)
-        logger.debug("Patrones de saludo definidos en Matcher.")
+
+        # Intent "saludo": incluye variantes y expresiones comunes.
+        saludo_patterns = [
+            [{"LOWER": "hola"}],
+            [{"LOWER": "buenos"}, {"LOWER": "días"}],
+            [{"LOWER": "buenas"}, {"LOWER": "tardes"}],
+            [{"LOWER": "qué"}, {"LOWER": "tal"}]
+        ]
+        self.matcher.add("saludo", saludo_patterns)
+
+        # Intent "despedida": expresiones de adiós.
+        despedida_patterns = [
+            [{"LOWER": "adiós"}],
+            [{"LOWER": "chao"}],
+            [{"LOWER": "hasta"}, {"LOWER": "luego"}],
+            [{"LOWER": "nos vemos"}]
+        ]
+        self.matcher.add("despedida", despedida_patterns)
+
+        # Intent "informacion_servicios": para explicar los servicios de cada BU.
+        informacion_servicios_patterns = [
+            [{"LOWER": "servicios"}],
+            [{"LOWER": "ofrecen"}, {"LOWER": "servicios"}],
+            [{"LOWER": "información"}, {"LOWER": "servicios"}],
+            [{"LOWER": "qué"}, {"LOWER": "servicios"}]
+        ]
+        self.matcher.add("informacion_servicios", informacion_servicios_patterns)
+
+        # Intent "ayuda": para solicitudes de soporte o guía.
+        ayuda_patterns = [
+            [{"LOWER": "ayuda"}],
+            [{"LOWER": "soporte"}],
+            [{"LOWER": "necesito"}, {"LOWER": "ayuda"}]
+        ]
+        self.matcher.add("ayuda", ayuda_patterns)
+
+        # Puede agregar más intenciones según sus necesidades.
+        logger.debug("Patrones de intenciones definidos: saludo, despedida, informacion_servicios, ayuda.")
 
     def analyze(self, text: str) -> dict:
         from app.chatbot.utils import clean_text, validate_term_in_catalog, get_all_divisions
@@ -296,6 +331,7 @@ class NLPProcessor:
             "skills": skills,
             "suggested_roles": suggested_roles
         }
+
 
 # Instancia global del procesador
 nlp_processor = NLPProcessor()
