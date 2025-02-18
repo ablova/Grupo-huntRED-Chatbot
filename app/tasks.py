@@ -17,7 +17,7 @@ from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_message, send_email
 from app.chatbot.chatbot import ChatBotHandler
 from app.utilidades.parser import CVParser, IMAPCVProcessor
-from app.utilidades.email_scaper import email_scraper
+from app.utilidades.email_scraper import email_scraper
 from app.models import (
     Configuracion,
     ConfiguracionBU,
