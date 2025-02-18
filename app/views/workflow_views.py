@@ -12,7 +12,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 #from ratelimit.decorators import ratelimit
 
-logger = logging.getLogger("app.views")
+logger = logging.getLogger(__name__)
 
 @method_decorator(cache_page(60 * 15), name='dispatch')  # Cache por 15 minutos
 class WorkflowStageListView(LoginRequiredMixin, View):
