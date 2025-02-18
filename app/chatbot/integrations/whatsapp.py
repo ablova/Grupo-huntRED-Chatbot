@@ -289,10 +289,6 @@ async def send_whatsapp_message(
     phone_id: Optional[str] = None, 
     business_unit: Optional[BusinessUnit] = None
 ):
-    """
-    Envía un mensaje a WhatsApp con reintentos, manejo de errores y control de concurrencia.
-    Se aplican reintentos con backoff exponencial.
-    """
     try:
         if not phone_id and business_unit:
             whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
@@ -376,9 +372,6 @@ async def send_whatsapp_message(
         logger.error(f"[send_whatsapp_message] Error inesperado: {e}", exc_info=True)
 
 async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
-    """
-    Envía botones interactivos a través de WhatsApp utilizando la configuración de la unidad de negocio.
-    """
     try:
         whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
             business_unit=business_unit, is_active=True
