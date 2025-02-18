@@ -24,10 +24,8 @@ DAYS_TO_PROCESS = 15  # Últimos 3 días
 
 # Lista de remitentes válidos
 VALID_SENDERS = [
-    'jobs-noreply@linkedin.com', 'jobalerts-noreply@linkedin.com',
-    'jobs-listings@linkedin.com', 'alerts@glassdoor.com',
-    'noreply@glassdoor.com', 'TalentCommunity@talent.honeywell.com',
-    'santander@myworkday.com'
+    'jobs-noreply@linkedin.com', 'jobalerts-noreply@linkedin.com', 'jobs-listings@linkedin.com', 'alerts@glassdoor.com',
+    'noreply@glassdoor.com', 'TalentCommunity@talent.honeywell.com', 'santander@myworkday.com'
 ]
 
 FOLDER_CONFIG = {
