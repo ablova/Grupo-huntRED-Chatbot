@@ -28,10 +28,13 @@ file_formatter = logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(mess
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
 
+from app.chatbot.nlp import nlp_processor  # Importamos el NLP
+
+from app.chatbot.nlp import nlp_processor  # Importamos el NLP
+
 class GPTHandler:
     def __init__(self):
         logger.debug("Creando instancia de GPTHandler...")
-        # Inicialización diferida: estos atributos se cargarán en initialize()
         self.gpt_api = None
         self.client = None
         self.model = None
@@ -41,10 +44,9 @@ class GPTHandler:
 
     async def initialize(self):
         """
-        Inicializa la configuración de GPT cargando la instancia de GptApi de la base de datos.
+        Carga la configuración de GPT desde la base de datos.
         """
         try:
-            # Ejecutar la consulta en un hilo separado
             gpt_api = await sync_to_async(lambda: GptApi.objects.first())()
             if gpt_api:
                 self.gpt_api = gpt_api
@@ -61,38 +63,84 @@ class GPTHandler:
             logger.exception("Error al inicializar GPTHandler:", exc_info=True)
             raise e
 
-    async def generate_response(self, prompt: str, context: Optional[Dict] = None) -> str:
+    def detectar_intencion(self, mensaje: str) -> str:
         """
-        Genera una respuesta utilizando OpenAI de forma asíncrona.
-        Si se proporciona un contexto, se incorpora al prompt.
+        Analiza la intención del usuario usando NLP y devuelve un tipo de prompt.
         """
-        import json  # Asegúrese de importar json si aún no está
-        full_prompt = prompt
-        if context:
-            full_prompt += "\nContexto adicional:\n" + json.dumps(context)
-        logger.debug(f"Generando respuesta para el prompt: {full_prompt}")
+        analisis = nlp_processor.analyze(mensaje)
+        entidades_detectadas = [entidad[0].lower() for entidad in analisis.get("entities", [])]
+        intenciones = analisis.get("intents", [])
+
+        # 🔹 Identificar si el mensaje menciona una unidad de negocio
+        unidades_negocio = ["huntred", "huntred executive", "huntu", "amigro"]
+        for unidad in unidades_negocio:
+            if unidad.lower() in mensaje.lower() or unidad in entidades_detectadas:
+                return unidad
+
+        # 🔹 Identificar preguntas comunes según la intención detectada
+        if "perfil" in intenciones or "experiencia" in intenciones:
+            return "perfil"
+        if "habilidades" in intenciones:
+            return "habilidades"
+        if "migracion" in intenciones:
+            return "migracion"
+        if "recomendaciones" in intenciones:
+            return "recomendaciones"
+        if "idiomas" in intenciones:
+            return "idiomas"
+        if "soft_skills" in intenciones:
+            return "soft_skills"
+        if "hard_skills" in intenciones:
+            return "hard_skills"
+        if "negociacion" in intenciones:
+            return "negociacion"
+        if "gestion_proyectos" in intenciones:
+            return "gestion_proyectos"
+
+        return "general"  # Si no detectamos nada específico, usamos un prompt genérico
+
+    async def generate_response(self, prompt: str, business_unit: str = "General") -> str:
+        """
+        Genera una respuesta usando GPT, incluyendo la unidad de negocio como contexto en formato optimizado.
+        """
+        if not self.client:
+            return "⚠ GPT no está inicializado."
+
+        prompt_type = self.detectar_intencion(prompt)  # 🔹 Identifica si es "ventas", "finanzas", etc.
+        context = self.gpt_api.get_prompt(prompt_type, default="Responde de forma clara y precisa.")
+
+        business_unit_name = getattr(business_unit, "name", "Grupo huntRED")  # Si no tiene nombre, usa "General"
+
+        full_prompt = f"[{business_unit_name} | {prompt_type}] {context}\n\nUsuario: {prompt}"
+
+        # 🔹 Optimización del prompt
+        full_prompt = f"[{business_unit}] {context}\nPregunta: {prompt}"
+
+        logger.debug(f"Generando respuesta para unidad '{business_unit}': {full_prompt[:100]}...")  # 🔹 Evitamos logs extensos
+
         try:
             response = await asyncio.to_thread(
                 self.client.chat.completions.create,
                 model=self.model,
-                messages=[{"role": "user", "content": full_prompt}],
+                messages=[
+                    {"role": "system", "content": f"Responde con base en la unidad '{business_unit}'."},
+                    {"role": "user", "content": full_prompt}
+                ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p
             )
-            logger.debug("Respuesta recibida de OpenAI.")
-            respuesta_texto = response.choices[0].message.content.strip()
-            logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
-            return respuesta_texto
+            return response.choices[0].message.content.strip()
+
         except RateLimitError:
-            logger.error("Excediste tu cuota de OpenAI.")
-            return "Lo siento, se ha excedido la cuota actual de la API de OpenAI."
+            logger.error("⚠ Se ha excedido la cuota de OpenAI.")
+            return "Lo siento, hemos excedido la cuota de OpenAI."
         except OpenAIError as oe:
-            logger.error(f"Error de OpenAI: {oe}", exc_info=True)
-            return "Lo siento, hubo un problema al procesar tu solicitud con GPT."
+            logger.error(f"❌ Error de OpenAI: {oe}", exc_info=True)
+            return "Hubo un problema con GPT."
         except Exception as e:
-            logger.error(f"Error generando respuesta con GPT: {e}", exc_info=True)
-            return "Lo siento, ocurrió un error inesperado."
+            logger.error(f"❌ Error inesperado: {e}", exc_info=True)
+            return "Ocurrió un error inesperado."
 
     def generate_response_sync(self, prompt: str, context: Optional[Dict] = None) -> str:
         """

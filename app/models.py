@@ -642,10 +642,8 @@ class GptApi(models.Model):
     temperature = models.FloatField(default=0.7)
     top_p = models.FloatField(default=1.0, blank=True, null=True)
 
-    def get_prompt(self, key: str, default: str = "Describe tu perfil profesional en pocas palabras.") -> str:
-        """
-        Obtiene un prompt específico del JSON almacenado. Si no existe, devuelve un valor por defecto.
-        """
+    def get_prompt(self, key: str, default: str = "Responde de forma clara y concisa.") -> str:
+        """ Obtiene prompt optimizado, basado en contexto de Headhunter. """
         return self.prompts.get(key, default)
 
     def __str__(self):
