@@ -161,7 +161,25 @@ def send_telegram_message(chat_id, message, access_token, bot_name):
     else:
         return asyncio.run(send_telegram_message_async(chat_id, message, access_token, bot_name))
 
-
+async def send_telegram_buttons(chat_id: int, message: str, buttons: list, access_token: str):
+    """
+    Envía un mensaje con teclado inline a través de Telegram.
+    Los botones deben ser una lista de listas, donde cada botón es un diccionario con 'text' y 'callback_data'.
+    """
+    url = f"https://api.telegram.org/bot{access_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "HTML",
+        "reply_markup": {
+            "inline_keyboard": buttons
+        }
+    }
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+        response = await client.post(url, json=payload)
+        response.raise_for_status()
+    logger.info(f"✅ Telegram: mensaje con botones enviado a chat_id {chat_id}")
+    return response.json()
 # -------------------------------
 # ✅ 4. MANEJO DE COMANDOS ESPECIALES
 # -------------------------------
