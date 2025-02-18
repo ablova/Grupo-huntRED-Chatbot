@@ -58,7 +58,7 @@ class ChatBotHandler:
         }
 
     @staticmethod
-    def handle_welcome_message(user_id, platform, business_unit):
+    async def handle_welcome_message(user_id, platform, business_unit):
         """
         Envía un saludo personalizado, el logo de la unidad de negocio y el menú de servicios.
         """
