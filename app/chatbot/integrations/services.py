@@ -290,7 +290,7 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
             from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
             # Asegúrate de construir cada botón con la clave 'reply' que incluya 'id' y 'title'
             formatted_buttons = []
-            for button in options or []:
+            for button in buttons or []:
                 formatted_buttons.append({
                     "type": "reply",
                     "reply": {
