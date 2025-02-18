@@ -374,11 +374,14 @@ async def send_whatsapp_message(
 
 async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
     try:
+        # Obtener configuración de WhatsApp API
         whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
             business_unit=business_unit, is_active=True
         ).select_related('business_unit').first())()
+        
         if not whatsapp_api:
-            raise ValueError(f"No se encontró configuración activa de WhatsAppAPI para {business_unit.name}")
+            logger.error(f"[send_whatsapp_decision_buttons] No se encontró configuración activa para {business_unit.name}")
+            return False, "No hay configuración de WhatsApp activa"
 
         url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
         headers = {
@@ -386,17 +389,44 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             "Content-Type": "application/json"
         }
 
-        formatted_buttons = [
-            {
+        # Validar que tengamos al menos 1 botón y máximo 3 (límite de WhatsApp)
+        if not buttons or not isinstance(buttons, list) or len(buttons) > 3:
+            logger.error(f"[send_whatsapp_decision_buttons] Botones inválidos: debe ser una lista de 1-3 elementos")
+            return False, "Formato de botones inválido"
+
+        # Procesar botones con validación completa
+        formatted_buttons = []
+        for button in buttons:
+            if not isinstance(button, dict):
+                continue
+                
+            payload = str(button.get('payload', '')) if button.get('payload') is not None else ''
+            title = str(button.get('title', 'Opción'))
+            
+            # Validaciones según especificaciones de WhatsApp
+            if not payload or len(payload) > 256:
+                logger.warning(f"[send_whatsapp_decision_buttons] Payload inválido: {payload}")
+                continue
+                
+            if not title or len(title) > 20:
+                title = title[:20]  # Truncar si excede
+                
+            formatted_buttons.append({
                 "type": "reply",
                 "reply": {
-                    "id": button['payload'],
-                    "title": button['title'][:20]
+                    "id": payload,
+                    "title": title
                 }
-            }
-            for button in buttons
-        ]
-
+            })
+        
+        if not formatted_buttons:
+            logger.error("[send_whatsapp_decision_buttons] No hay botones válidos para enviar")
+            return False, "No hay botones válidos"
+        
+        # Validar longitud del mensaje (límite de WhatsApp: 1024 caracteres)
+        if len(message) > 1024:
+            message = message[:1021] + "..."
+            
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -409,13 +439,30 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             }
         }
 
-        async with httpx.AsyncClient() as client:
+        # Timeout para evitar bloqueos
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            logger.info(f"[send_whatsapp_decision_buttons] Botones enviados a {user_id}. Respuesta: {response.text}")
+            response_data = response.json()
+            
+            if response.status_code == 200:
+                message_id = response_data.get('messages', [{}])[0].get('id', 'unknown')
+                logger.info(f"[send_whatsapp_decision_buttons] Botones enviados a {user_id}. Message ID: {message_id}")
+                return True, message_id
+            else:
+                error_msg = response_data.get('error', {}).get('message', 'Error desconocido')
+                logger.error(f"[send_whatsapp_decision_buttons] Error de API: {error_msg}")
+                return False, error_msg
+
     except ValueError as e:
-        logger.error(f"[send_whatsapp_decision_buttons] Error en configuración: {e}")
+        logger.error(f"[send_whatsapp_decision_buttons] Error de validación: {str(e)}")
+        return False, f"Error de validación: {str(e)}"
     except httpx.HTTPStatusError as e:
-        logger.error(f"[send_whatsapp_decision_buttons] Error HTTP al enviar botones a {user_id}: {e.response.text}", exc_info=True)
+        error_msg = e.response.text if hasattr(e, 'response') else str(e)
+        logger.error(f"[send_whatsapp_decision_buttons] Error HTTP: {error_msg}", exc_info=True)
+        return False, f"Error HTTP: {error_msg}"
+    except httpx.RequestError as e:
+        logger.error(f"[send_whatsapp_decision_buttons] Error de conexión: {str(e)}", exc_info=True)
+        return False, f"Error de conexión: {str(e)}"
     except Exception as e:
-        logger.error(f"[send_whatsapp_decision_buttons] Error general al enviar botones a {user_id}: {e}", exc_info=True)
+        logger.error(f"[send_whatsapp_decision_buttons] Error inesperado: {str(e)}", exc_info=True)
+        return False, f"Error inesperado: {str(e)}"
