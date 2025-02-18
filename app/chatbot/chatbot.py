@@ -202,8 +202,10 @@ class ChatBotHandler:
                 return
 
             # Manejo de intents conocidos
-            if await self.handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
-                return
+            from app.chatbot.intents_handler import handle_known_intents
+            # Dentro de `process_message`
+            if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
+                return  # Si un intent fue manejado, no necesitamos seguir procesando
 
             # Manejar selección de vacante
             if chat_state.context.get('recommended_jobs') and text.isdigit():
@@ -264,107 +266,6 @@ class ChatBotHandler:
             await sync_to_async(user.save)()
         return user, created
 
-    async def handle_known_intents(self, intents: List[str], platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit, user: Person) -> bool:
-        for intent in intents:
-            logger.debug(f"Intent detectado: {intent}")
-            if intent == "saludo":
-                return await self.handle_greeting(platform, user_id, event, business_unit, user)
-            elif intent == "despedida":
-                response = "¡Hasta luego! Si necesitas más ayuda, contáctame de nuevo."
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                await reset_chat_state(user_id)
-                return True
-            elif intent == "iniciar_conversacion":
-                event.context = {}
-                await sync_to_async(event.save)()
-                response = "¡Claro! Empecemos de nuevo. ¿En qué puedo ayudarte?"
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "menu":
-                menu_options = [
-                    {'title': 'Ver Vacantes', 'payload': 'ver_vacantes'},
-                    {'title': 'Actualizar Perfil', 'payload': 'actualizar_perfil'},
-                    {'title': 'Ayuda Postulación', 'payload': 'ayuda_postulacion'},
-                    {'title': 'Consultar Estatus', 'payload': 'consultar_estatus'}
-                ]
-                await send_message(platform, user_id, "Aquí tienes el menú principal:", business_unit, options=menu_options)
-                await self.store_bot_message(event, "Aquí tienes el menú principal:")
-                return True
-            elif intent == "solicitar_ayuda_postulacion":
-                response = "Puedo guiarte en el proceso de postulación. ¿Qué necesitas saber?"
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "consultar_estatus":
-                response = "Por favor, proporciona tu correo electrónico asociado a la aplicación."
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                event.context['awaiting_status_email'] = True
-                await sync_to_async(event.save)()
-                return True
-            elif intent in ["travel_in_group", "travel_with_family"]:
-                response = (
-                    "Entiendo, ¿te gustaría invitar a tus acompañantes para que también obtengan oportunidades laborales? "
-                    "Envíame su nombre completo y teléfono en el formato: 'Nombre Apellido +52XXXXXXXXXX'."
-                )
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                event.context['awaiting_group_invitation'] = True
-                await sync_to_async(event.save)()
-                return True
-            elif intent == "ver_vacantes":
-                from app.utilidades.vacantes import VacanteManager
-                recommended_jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
-                if recommended_jobs:
-                    event.context['recommended_jobs'] = recommended_jobs
-                    await sync_to_async(event.save)()
-                    await self.present_job_listings(platform, user_id, recommended_jobs, business_unit, event)
-                else:
-                    resp = "No encontré vacantes para tu perfil por ahora."
-                    await send_message(platform, user_id, resp, business_unit)
-                    await self.store_bot_message(event, resp)
-                return True
-            elif intent == "agradecimiento":
-                response = "¡De nada! ¿En qué más puedo ayudarte?"
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "busqueda_impacto":
-                response = "Entiendo que buscas un trabajo con impacto social. Puedo mostrarte vacantes que destaquen proyectos con propósito. ¿Deseas verlas?"
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "solicitar_informacion_empresa":
-                response = "¿Sobre qué empresa necesitas información? Puedo contarte sobre sus valores, cultura o posiciones disponibles."
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "solicitar_tips_entrevista":
-                response = "Para entrevistas: investiga la empresa, sé puntual, muestra logros cuantificables y prepara ejemplos de situaciones pasadas."
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "consultar_sueldo_mercado":
-                response = "¿Para qué posición o nivel buscas el rango salarial de mercado? Puedo darte una estimación."
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "actualizar_perfil":
-                response = "Claro, ¿qué dato de tu perfil deseas actualizar? Ejemplo: nombre, email, experiencia, o expectativas salariales."
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-            elif intent == "notificaciones":
-                response = (
-                    "Puedo enviarte notificaciones automáticas sobre cambios en tus procesos. "
-                    "¿Quieres activarlas? Responde 'sí' para confirmar."
-                )
-                await send_message(platform, user_id, response, business_unit)
-                await self.store_bot_message(event, response)
-                return True
-        return False
 
     async def handle_status_email(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
         email_pattern = r"[^@]+@[^@]+\.[^@]+"
