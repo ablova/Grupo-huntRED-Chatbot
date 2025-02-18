@@ -179,12 +179,15 @@ REST_FRAMEWORK = {
 }
 
 # Logging Configuration
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'format': '{asctime} {levelname} {name} {message}',
             'style': '{',
         },
         'simple': {
@@ -198,15 +201,130 @@ LOGGING = {
             'formatter': 'verbose',
             'level': env('CONSOLE_LOG_LEVEL', default='INFO'),
         },
+        # en el debug file, quisiera los errores más criticos, hay alguna manera de implementar eso?
         'debug_file': {
-            'level': env('DEBUG_LOG_LEVEL', default='ERROR'),
+            'level': 'CRITICAL',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/debug.log'),
             'formatter': 'verbose',
             'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),  # 10 MB
             'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
         },
-        'messenger_file': {
+        # Handler global (opcional)
+        'global_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,  # 10 MB
+            'backupCount': 3,
+            'level': 'DEBUG',
+        },
+        # Handlers específicos por categoría
+        'chatbot_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'chatbot.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+        'nlp_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'nlp.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+        'gpt_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'gpt.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'vacantes_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'vacantes.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'scraping_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'scraping.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+        'parse_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'parse.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+        'ml_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'ml.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'signature_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'signature.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+        'config_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'config.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'dashboard_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'dashboard.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'tasks_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'tasks.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'tests_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'tests.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+        'views_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'views.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+                'messenger_file': {
             'level': env('MESSENGER_LOG_LEVEL', default='ERROR'),
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs/messenger.log'),
@@ -244,8 +362,72 @@ LOGGING = {
             'filename': os.path.join(BASE_DIR, 'logs/celery.log'),
             'formatter': 'verbose',
         },
+        # Handlers para workflows de cada unidad de negocio
+        'amigro_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'amigro.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'executive_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'executive.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'huntred_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'huntred.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'huntu_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'huntu.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'sexsi_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'sexsi.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'INFO',
+        },
+        'milkyleak_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'milkyleak.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
+        'utilidades_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'utilidades.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
     },
     'loggers': {
+        # Logger raíz (todos los módulos que no tienen configuración específica usarán el global)
+        '': {
+            'handlers': ['global_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        # EN el de DEBUG, habiamos comentado que los más criticos, si esto choca con lo expresado, solo informar y vemos como procedemos.
         'django': {
             'handlers': ['console', 'debug_file'],
             'level': env('DJANGO_LOG_LEVEL', default='INFO'),
@@ -254,6 +436,72 @@ LOGGING = {
         'django.db.backends': {
             'handlers': ['console'],
             'level': env('DB_LOG_LEVEL', default='INFO'),
+            'propagate': False,
+        },
+        # Categorías específicas
+        'app.chatbot': {
+            'handlers': ['chatbot_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'app.chatbot.nlp': {
+            'handlers': ['nlp_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'app.chatbot.gpt': {
+            'handlers': ['gpt_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.utilidades.vacantes': {
+            'handlers': ['vacantes_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.utilidades.scraping': {
+            'handlers': ['scraping_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'app.utilidades.parse': {
+            'handlers': ['parse_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'app.ml': {
+            'handlers': ['ml_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.utilidades.signature': {
+            'handlers': ['signature_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'app': {  # Para configuración (admin, apps, models, signals, etc.)
+            'handlers': ['config_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.dashboard': {
+            'handlers': ['dashboard_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.tasks': {
+            'handlers': ['tasks_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.tests': {
+            'handlers': ['tests_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'app.views': {
+            'handlers': ['views_file'],
+            'level': 'DEBUG',
             'propagate': False,
         },
         'messenger': {
@@ -279,6 +527,42 @@ LOGGING = {
         'celery': {
             'handlers': ['celery'],
             'level':  env('DJANGO_LOG_LEVEL', default='INFO'),
+            'propagate': False,
+        },
+        # Workflows por unidad
+        'app.chatbot.workflows.amigro': {
+            'handlers': ['amigro_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.chatbot.workflows.executive': {
+            'handlers': ['executive_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.chatbot.workflows.huntred': {
+            'handlers': ['huntred_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.chatbot.workflows.huntu': {
+            'handlers': ['huntu_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.chatbot.workflows.sexsi': {
+            'handlers': ['sexsi_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.milkyleak': {
+            'handlers': ['milkyleak_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'app.utilidades': {
+            'handlers': ['utilidades_file'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     },
