@@ -11,7 +11,7 @@ from skillNer.skill_extractor_class import SkillExtractor
 from app.models import BusinessUnit
 from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.chatbot.nlp")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',

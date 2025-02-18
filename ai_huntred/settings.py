@@ -228,6 +228,14 @@ LOGGING = {
             'backupCount': 2,
             'level': 'DEBUG',
         },
+        'intents_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'intents.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10485760,
+            'backupCount': 2,
+            'level': 'DEBUG',
+        },
         'nlp_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'nlp.log'),
@@ -443,6 +451,11 @@ LOGGING = {
             'handlers': ['chatbot_file'],
             'level': 'DEBUG',
             'propagate': False,
+        },
+        "app.chatbot.intents_handler": {
+            "handlers": ["intents_file", "console"],
+            "level": "DEBUG",
+            "propagate": False,
         },
         'app.chatbot.nlp': {
             'handlers': ['nlp_file'],

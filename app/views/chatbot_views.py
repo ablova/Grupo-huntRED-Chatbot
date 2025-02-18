@@ -17,7 +17,7 @@ from asgiref.sync import sync_to_async
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.chatbot.utils import format_template_response
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.views")
 
 @login_required
 def candidato_predictions(request, candidato_id):

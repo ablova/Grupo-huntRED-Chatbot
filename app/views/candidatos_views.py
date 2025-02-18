@@ -7,7 +7,7 @@ from app.models import Person, Application, Vacante, EnhancedNetworkGamification
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.views")
 
 @login_required
 def list_candidatos(request):

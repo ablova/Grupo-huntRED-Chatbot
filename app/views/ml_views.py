@@ -11,6 +11,8 @@ from app.ml.ml_model import MatchmakingLearningSystem
 from app.models import Person, BusinessUnit
 from django.shortcuts import get_object_or_404
 
+logger = logging.getLogger("app.views")
+
 @csrf_exempt
 def train_ml_api(request):
     """

@@ -11,7 +11,8 @@ from app.chatbot.integrations.services import send_message, get_api_instance
 from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 
-logger = logging.getLogger('instagram')
+logger = logging.getLogger("app.chatbot.integrations.instagram")
+
 REQUEST_TIMEOUT = 10.0  # segundos
 CACHE_TIMEOUT = 600  # 10 minutos
 

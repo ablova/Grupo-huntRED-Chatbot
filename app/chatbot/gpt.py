@@ -11,7 +11,7 @@ from asgiref.sync import sync_to_async
 import asyncio
 
 # Configuración del logger
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app.chatbot.gpt")
 logger.setLevel(logging.DEBUG)
 
 REQUEST_TIMEOUT = 10.0  # ya definido en services.py; se puede importar si se centraliza
