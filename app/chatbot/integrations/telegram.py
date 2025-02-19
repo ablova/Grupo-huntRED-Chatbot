@@ -239,21 +239,24 @@ async def send_telegram_message(
     logger.info(f"🔄 Intento {attempt + 1}/{MAX_RETRIES} de enviar botones a {chat_id}")
     return False
 
-async def send_telegram_buttons(
-    chat_id: int,
-    message: str,
-    buttons: List[Dict[str, str]],
-    telegram_api: TelegramAPI
-) -> Optional[Dict]:
-    """Envía un mensaje con botones inline a Telegram con manejo asíncrono adecuado."""
-    
+async def send_telegram_buttons(chat_id: int, message: str, buttons: List[Dict[str, str]], telegram_api: TelegramAPI) -> Optional[Dict]:
+    """Envía un mensaje con botones a Telegram, validando correctamente los datos."""
     url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"
 
-    # 🔹 Construir los botones correctamente
-    inline_keyboard = [[{"text": btn["title"], "callback_data": btn["payload"]}] for btn in buttons if "title" in btn and "payload" in btn]
+    # 🔹 Crear los botones de manera segura y validar que contengan datos correctos
+    inline_keyboard = []
+    for btn in buttons:
+        text = btn.get("title", btn.get("text", "Opción"))  # Prioriza "title" y luego "text"
+        callback_data = btn.get("payload", btn.get("callback_data", None))  # Prioriza "payload"
+        
+        # ✅ Asegurar que el botón tenga valores válidos
+        if text and callback_data:
+            inline_keyboard.append([{"text": text, "callback_data": callback_data}])
+        else:
+            logger.warning(f"⚠️ Botón inválido detectado y omitido: {btn}")
 
     if not inline_keyboard:
-        logger.error("❌ No se generaron botones válidos para Telegram.")
+        logger.error("❌ No se generaron botones válidos para Telegram. Verifica el formato de entrada.")
         return None
 
     payload = {
@@ -265,19 +268,29 @@ async def send_telegram_buttons(
         }
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            logger.info(f"✅ Botones enviados correctamente a {chat_id} en {telegram_api.business_unit.name}")
-            return response.json()
-    
-    except httpx.HTTPStatusError as e:
-        logger.error(f"⚠️ Error HTTP al enviar botones: {e.response.text}")
-        return None
-    except Exception as e:
-        logger.error(f"❌ Error inesperado enviando botones a Telegram: {str(e)}", exc_info=True)
-        return None
+    for attempt in range(1):  # Evitamos múltiples envíos innecesarios
+        try:
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                logger.info(f"✅ Botones enviados a {chat_id} en {telegram_api.business_unit.name}")
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"⚠️ Error HTTP en intento {attempt + 1}/{MAX_RETRIES}: {e.response.text}")
+            if e.response.status_code == 400:
+                logger.error(f"❌ Posible error en los botones. Revisar estructura de datos.")
+            if e.response.status_code == 404:
+                logger.error(f"❌ API key inválida para {telegram_api.business_unit.name}")
+                return None
+
+        except Exception as e:
+            logger.error(f"❌ Error enviando botones a Telegram: {str(e)}")
+
+        await asyncio.sleep(2 ** attempt)
+
+    logger.info(f"🔄 Intento {attempt + 1}/{MAX_RETRIES} de enviar botones a {chat_id}")
+    return None
 
 # -------------------------------
 # ✅ 5. FUNCIÓN ESPECIALES
