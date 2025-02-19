@@ -4,7 +4,7 @@ from celery import shared_task
 from django.utils.timezone import now, timedelta
 from app.sexsi.models import ConsentAgreement
 from app.chatbot.workflow.sexsi import send_signature_reminder
-from app.chatbot.integrations.services import MessageService, notify_employer, EnhancedNetworkGamificationProfile, EmailService
+from app.chatbot.integrations.services import send_message, notify_employer, EnhancedNetworkGamificationProfile, send_email
 from django.contrib.auth.models import User
 from app.sexsi.models import DiscountCoupon # Modelo de cupones
 

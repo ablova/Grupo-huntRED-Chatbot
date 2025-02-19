@@ -39,7 +39,7 @@ if sn is None:
     logging.warning("⚠ Warning: SkillExtractor (`sn`) no se pudo importar correctamente desde nlp.py")
 
 # ✅ Importación de servicios adicionales
-from app.chatbot.integrations.services import MessageService, EmailService
+from app.chatbot.integrations.services import send_email, send_message
 
 # ✅ Diccionario de carpetas por acción en IMAP
 FOLDER_CONFIG = {

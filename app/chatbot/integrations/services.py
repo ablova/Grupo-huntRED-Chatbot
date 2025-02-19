@@ -481,3 +481,73 @@ async def notify_employer(worker, message):
             logger.warning(f"[notify_employer] El empleador {worker.name} no tiene número de WhatsApp configurado.")
     except Exception as e:
         logger.error(f"[notify_employer] Error enviando notificación al empleador {worker.name}: {e}", exc_info=True)
+
+
+
+# ================================
+# WRAPPERS PARA COMPATIBILIDAD
+# ================================
+# ================================
+# WRAPPERS PARA COMPATIBILIDAD
+# ================================
+from app.models import BusinessUnit
+
+def send_message(platform: str, user_id: str, message: str, business_unit_name: str = "amigro", options=None):
+    """ Wrapper para `send_message`, usa `MessageService`. """
+    business_unit = BusinessUnit.objects.filter(name__iexact=business_unit_name).first()
+    if business_unit:
+        service = MessageService(business_unit)
+        return asyncio.run(service.send_message(platform, user_id, message, options))
+    else:
+        logger.error(f"[send_message] No se encontró la unidad de negocio: {business_unit_name}")
+        return False
+
+def send_email(subject: str, to_email: str, body: str, business_unit_name: str = "huntRED", from_email=None):
+    """ Wrapper para `send_email`, usa `EmailService`. """
+    business_unit = BusinessUnit.objects.filter(name__iexact=business_unit_name).first()
+    if business_unit:
+        service = EmailService(business_unit)
+        return asyncio.run(service.send_email(subject, to_email, body, from_email))
+    else:
+        logger.error(f"[send_email] No se encontró la unidad de negocio: {business_unit_name}")
+        return False
+
+def send_options(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = "amigro"):
+    """ Wrapper para `send_options`, usa `MessageService`. """
+    business_unit = BusinessUnit.objects.filter(name__iexact=business_unit_name).first()
+    if business_unit:
+        service = MessageService(business_unit)
+        return asyncio.run(service.send_options(platform, user_id, message, buttons))
+    else:
+        logger.error(f"[send_options] No se encontró la unidad de negocio: {business_unit_name}")
+        return False
+
+def send_menu(platform: str, user_id: str, business_unit_name: str = "amigro"):
+    """ Wrapper para `send_menu`, usa `MessageService`. """
+    business_unit = BusinessUnit.objects.filter(name__iexact=business_unit_name).first()
+    if business_unit:
+        service = MessageService(business_unit)
+        return asyncio.run(service.send_menu(platform, user_id))
+    else:
+        logger.error(f"[send_menu] No se encontró la unidad de negocio: {business_unit_name}")
+        return False
+
+def send_image(platform: str, user_id: str, message: str, image_url: str, business_unit_name: str = "amigro"):
+    """ Wrapper para `send_image`, usa `MessageService`. """
+    business_unit = BusinessUnit.objects.filter(name__iexact=business_unit_name).first()
+    if business_unit:
+        service = MessageService(business_unit)
+        return asyncio.run(service.send_image(platform, user_id, message, image_url))
+    else:
+        logger.error(f"[send_image] No se encontró la unidad de negocio: {business_unit_name}")
+        return False
+
+def send_url(platform: str, user_id: str, url: str, business_unit_name: str = "amigro"):
+    """ Wrapper para `send_url`, usa `MessageService`. """
+    business_unit = BusinessUnit.objects.filter(name__iexact=business_unit_name).first()
+    if business_unit:
+        service = MessageService(business_unit)
+        return asyncio.run(service.send_message(platform, user_id, f"Aquí tienes el enlace: {url}"))
+    else:
+        logger.error(f"[send_url] No se encontró la unidad de negocio: {business_unit_name}")
+        return False
