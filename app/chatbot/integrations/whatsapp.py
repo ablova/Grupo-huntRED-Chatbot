@@ -366,25 +366,28 @@ async def send_whatsapp_message(
         logger.error(f"[send_whatsapp_message] Error inesperado: {e}", exc_info=True)
 
 async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
+    """
+    Envía botones interactivos a WhatsApp.
+    """
     try:
         # Obtener configuración de WhatsApp API
         whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
             business_unit=business_unit, is_active=True
         ).select_related('business_unit').first())()
-        
+
         if not whatsapp_api:
             logger.error(f"[send_whatsapp_decision_buttons] No se encontró configuración activa para {business_unit.name}")
             return False, "No hay configuración de WhatsApp activa"
 
-        url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+        url = f"https://graph.facebook.com/v22.0/{whatsapp_api.phoneID}/messages"
         headers = {
             "Authorization": f"Bearer {whatsapp_api.api_token}",
             "Content-Type": "application/json"
         }
 
-        # Validar que tengamos al menos 1 botón y máximo 3 (límite de WhatsApp)
+        # Validar que tengamos entre 1 y 3 botones
         if not buttons or not isinstance(buttons, list) or len(buttons) > 3:
-            logger.error(f"[send_whatsapp_decision_buttons] Botones inválidos: debe ser una lista de 1-3 elementos")
+            logger.error("[send_whatsapp_decision_buttons] ❌ Botones inválidos: debe ser una lista de 1-3 elementos")
             return False, "Formato de botones inválido"
 
         # ✅ Filtrar botones válidos
@@ -400,9 +403,9 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             if isinstance(button, dict) and button.get('payload') and button.get('title')
         ]
 
+        # Si no hay botones válidos, crear un botón de fallback
         if not valid_buttons:
-            logger.error("[send_whatsapp_decision_buttons] No hay botones válidos para enviar")
-            logger.warning("[send_whatsapp_decision_buttons] Creando botón predeterminado porque los originales no eran válidos")
+            logger.warning("[send_whatsapp_decision_buttons] ⚠ No hay botones válidos. Se enviará botón predeterminado.")
             valid_buttons = [{
                 "type": "reply",
                 "reply": {
@@ -426,32 +429,38 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             }
         }
 
-        # Timeout para evitar bloqueos
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(url, headers=headers, json=payload)
-            response_data = response.json()
-            
-            if response.status_code == 200:
-                message_id = response_data.get('messages', [{}])[0].get('id', 'unknown')
-                logger.info(f"[send_whatsapp_decision_buttons] Botones enviados a {user_id}. Message ID: {message_id}")
-                return True, message_id
-            else:
-                error_msg = response_data.get('error', {}).get('message', 'Error desconocido')
-                logger.error(f"[send_whatsapp_decision_buttons] Error de API: {error_msg}")
-                return False, error_msg
+        # Enviar solicitud HTTP con reintentos
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.post(url, headers=headers, json=payload)
+                    response_data = response.json()
 
-    except ValueError as e:
-        logger.error(f"[send_whatsapp_decision_buttons] Error de validación: {str(e)}")
-        return False, f"Error de validación: {str(e)}"
-    except httpx.HTTPStatusError as e:
-        error_msg = e.response.text if hasattr(e, 'response') else str(e)
-        logger.error(f"[send_whatsapp_decision_buttons] Error HTTP: {error_msg}", exc_info=True)
-        return False, f"Error HTTP: {error_msg}"
-    except httpx.RequestError as e:
-        logger.error(f"[send_whatsapp_decision_buttons] Error de conexión: {str(e)}", exc_info=True)
-        return False, f"Error de conexión: {str(e)}"
+                    if response.status_code == 200:
+                        message_id = response_data.get('messages', [{}])[0].get('id', 'unknown')
+                        logger.info(f"[send_whatsapp_decision_buttons] ✅ Botones enviados a {user_id}. Message ID: {message_id}")
+                        return True, message_id
+                    else:
+                        error_msg = response_data.get('error', {}).get('message', 'Error desconocido')
+                        logger.error(f"[send_whatsapp_decision_buttons] ❌ Error de API: {error_msg}")
+                        return False, error_msg
+
+            except httpx.HTTPStatusError as e:
+                error_msg = e.response.text if hasattr(e, 'response') else str(e)
+                logger.error(f"[send_whatsapp_decision_buttons] ❌ Error HTTP en intento {attempt+1}: {error_msg}")
+            except httpx.RequestError as e:
+                logger.error(f"[send_whatsapp_decision_buttons] ❌ Error de conexión en intento {attempt+1}: {str(e)}")
+            except Exception as e:
+                logger.error(f"[send_whatsapp_decision_buttons] ❌ Error inesperado en intento {attempt+1}: {str(e)}", exc_info=True)
+
+            await asyncio.sleep(2 ** attempt)  # Espera exponencial en reintentos
+
+        logger.error("[send_whatsapp_decision_buttons] ❌ Falló el envío después de varios intentos.")
+        return False, "Error desconocido"
+
     except Exception as e:
-        logger.error(f"[send_whatsapp_decision_buttons] Error inesperado: {str(e)}", exc_info=True)
+        logger.error(f"[send_whatsapp_decision_buttons] ❌ Error inesperado: {str(e)}", exc_info=True)
         return False, f"Error inesperado: {str(e)}"
     
 async def send_whatsapp_image(user_id, message, image_url, phone_id, business_unit):
@@ -469,7 +478,7 @@ async def send_whatsapp_image(user_id, message, image_url, phone_id, business_un
     }
 
     headers = {
-        "Authorization": f"Bearer {business_unit.access_token}",
+        "Authorization": f"Bearer {business_unit.whatsapp_api.api_key}",  # Corregido
         "Content-Type": "application/json"
     }
 
