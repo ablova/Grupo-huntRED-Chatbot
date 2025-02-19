@@ -106,10 +106,18 @@ async def send_message(
         # 🟢 **Manejo especial para Telegram**
         elif platform == 'telegram':
             from app.chatbot.integrations.telegram import send_telegram_message
-            await send_function(
+
+            api_instance = await get_api_instance("telegram", business_unit)
+            if not api_instance:
+                logger.error(f"[send_message] No se encontró configuración de Telegram para {business_unit.name}")
+                return
+
+            await send_telegram_message(
                 chat_id=user_id,
-                message=message
-            )  # Telegram no permite botones aquí, se deben enviar con send_options
+                message=message,
+                telegram_api=api_instance,
+                business_unit_name=business_unit.name
+            )
 
         # 🟢 **Manejo especial para Messenger e Instagram**
         elif platform in ['messenger', 'instagram']:
@@ -262,7 +270,7 @@ async def send_menu(platform, user_id, business_unit):
     Envía el menú principal al usuario.
     """
     menu_message = """
-El Menú Principal de huntred.com
+El Menú Principal del Chat
 1 - Bienvenida
 2 - Registro
 3 - Ver Oportunidades
