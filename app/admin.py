@@ -39,7 +39,7 @@ from app.tasks import (
 )
 
 # Service Imports
-from app.chatbot.integrations.services import send_message, send_email
+from app.chatbot.integrations.services import MessageService, EmailService
 
 # Utility Imports for Specific Functionalities
 from app.utilidades.vacantes import VacanteManager
