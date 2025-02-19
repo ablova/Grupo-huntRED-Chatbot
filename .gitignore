@@ -16,6 +16,7 @@ shell.py
 staticfiles/
 media/
 token_dist.json
+skill_db_relax_20.json
 # Ignorar archivos temporales
 ~*
 
