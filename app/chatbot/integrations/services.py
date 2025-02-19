@@ -488,34 +488,34 @@ async def notify_employer(worker, message):
 # FUNCIONES PARA OBTENER BUSINESS UNIT DINÁMICO
 # ================================
 async def get_business_unit(name: str = None):
-    """ Obtiene la Business Unit de forma segura en entornos asíncronos o sincrónicos. """
+    """ Obtiene la Business Unit de forma segura. """
     if name:
-        return await sync_to_async(BusinessUnit.objects.filter(name__iexact=name).first)()
-    return await sync_to_async(BusinessUnit.objects.first)()  # Si no se pasa, obtiene la primera BU activa
+        return await sync_to_async(lambda: BusinessUnit.objects.filter(name__iexact=name).first())()
+    return await sync_to_async(lambda: BusinessUnit.objects.first())()
 
 def run_async(func, *args, **kwargs):
-    """ Ejecuta la función de forma asíncrona si es necesario. """
+    """ Ejecuta la función en modo síncrono o asíncrono según el contexto. """
     try:
-        loop = asyncio.get_running_loop()  # Detecta si estamos en un `async`
-        return func(*args, **kwargs)  # Ejecuta normal si ya estamos en `async`
+        loop = asyncio.get_running_loop()
+        return func(*args, **kwargs)
     except RuntimeError:
-        return asyncio.run(func(*args, **kwargs))  # Ejecuta con `asyncio.run()` en código normal
+        return asyncio.run(func(*args, **kwargs))
 
 # ================================
 # WRAPPERS PARA FUNCIONES ASÍNCRONAS Y SINCRÓNICAS
 # ================================
-async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: str = None, options=None):
-    """ Versión asíncrona de `send_message`. """
+async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: str = None):
+    """ Envío de mensaje asíncrono con validación de Business Unit. """
     business_unit = await get_business_unit(business_unit_name)
-    if business_unit:
-        service = MessageService(business_unit)
-        return await service.send_message(platform, user_id, message, options)
-    logger.error(f"❌ No se encontró la unidad de negocio")
-    return False
+    if not business_unit:
+        logger.error(f"❌ No se encontró la unidad de negocio: {business_unit_name}")
+        return False
+    service = MessageService(business_unit)
+    return await service.send_message(platform, user_id, message)
 
-def send_message(platform: str, user_id: str, message: str, business_unit_name: str = None, options=None):
-    """ Wrapper de `send_message`, compatible con entornos síncronos y asíncronos. """
-    return run_async(send_message_async, platform, user_id, message, business_unit_name, options)
+def send_message(platform: str, user_id: str, message: str, business_unit_name: str = None):
+    """ Envío de mensaje de forma segura en entornos síncronos y asíncronos. """
+    return run_async(send_message_async, platform, user_id, message, business_unit_name)
 
 async def send_email_async(subject: str, to_email: str, body: str, business_unit_name: str = None, from_email=None):
     """ Versión asíncrona de `send_email`. """
