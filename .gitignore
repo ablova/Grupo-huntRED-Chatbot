@@ -13,8 +13,9 @@ shell.py
 
 
 # Archivos estáticos generados
-# staticfiles/
+staticfiles/
 media/
+token_dist.json
 # Ignorar archivos temporales
 ~*
 
