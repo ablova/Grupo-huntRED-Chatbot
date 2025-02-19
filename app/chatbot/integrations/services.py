@@ -1,24 +1,23 @@
 # /home/pablo/app/chatbot/integrations/services.py
 import logging
 import smtplib
-import httpx
 import asyncio
 import ssl
 
 from app.models import BusinessUnit, ConfiguracionBU
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from django.core.cache import cache
-from asgiref.sync import sync_to_async
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.cache import cache # type: ignore
+from asgiref.sync import sync_to_async # type: ignore
+from django.core.exceptions import ObjectDoesNotExist # type: ignore
 from app.models import (
     WhatsAppAPI, TelegramAPI, InstagramAPI, MessengerAPI, MetaAPI, BusinessUnit, ConfiguracionBU,
     ChatState, Person, Vacante, Application, EnhancedNetworkGamificationProfile
 )
 from typing import Optional, List, Dict
-from django.conf import settings
-from django.template.loader import render_to_string
-from django.core.mail import EmailMultiAlternatives
+from django.conf import settings # type: ignore
+from django.template.loader import render_to_string # type: ignore
+from django.core.mail import EmailMultiAlternatives # type: ignore
 from pathlib import Path
 
 logger = logging.getLogger("app.chatbot.services")
@@ -309,69 +308,81 @@ async def process_text_message(platform, sender_id, message_text, business_unit)
     except Exception as e:
         logger.error(f"[process_text_message] Error procesando mensaje: {e}", exc_info=True)
 
-async def send_options(platform, user_id, message, buttons=None, business_unit: Optional[BusinessUnit] = None):
+import logging
+from asgiref.sync import sync_to_async
+from app.models import BusinessUnit, TelegramAPI
+
+logger = logging.getLogger("app.chatbot.services")
+
+async def send_options(platform, user_id, message, buttons=None, business_unit: BusinessUnit = None):
     """
     Envía opciones de respuesta al usuario en WhatsApp, Telegram, Messenger e Instagram.
     """
-    if not buttons or not isinstance(buttons, list) or len(buttons) == 0:
-        logger.error(f"[send_options] No hay botones válidos para enviar en {platform}")
-        buttons = [{"title": "Continuar", "payload": "fallback_option"}]  # Botón de seguridad
+    try:
+        # ✅ Validar y estructurar los botones
+        if not buttons or not isinstance(buttons, list) or len(buttons) == 0:
+            logger.warning(f"[send_options] No hay botones válidos para enviar en {platform}. Se enviará solo 'Continuar'.")
+            buttons = [{"title": "Continuar", "payload": "fallback_option"}]
 
+        # 🔹 **Manejo especial para WhatsApp**
         if platform == 'whatsapp':
             from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
-            
+
+            # Separar botones con URL y botones de opciones
+            url_buttons = [btn for btn in buttons if "url" in btn]
             formatted_buttons = [
                 {"type": "reply", "reply": {"id": btn["payload"], "title": btn["title"][:20]}}
                 for btn in buttons if "payload" in btn and "title" in btn
             ]
 
-            if not formatted_buttons:
-                logger.error(f"[send_whatsapp_decision_buttons] No hay botones válidos para enviar")
-                return
-
-            # Si hay botones con URL, enviar primero los enlaces por separado
-            url_buttons = [btn for btn in buttons if "url" in btn]
+            # Enviar enlaces primero
             for btn in url_buttons:
                 await send_message(platform, user_id, f"Aquí tienes más información: {btn['url']}", business_unit)
 
-            await send_whatsapp_decision_buttons(
-                user_id=user_id,
-                message=message,
-                buttons=formatted_buttons,
-                business_unit=business_unit
-            )
-        elif platform == 'telegram' and buttons:
-            from app.chatbot.integrations.telegram import send_telegram_buttons  # ✅ Importamos la función correcta
+            # Enviar botones de opciones
+            if formatted_buttons:
+                await send_whatsapp_decision_buttons(
+                    user_id=user_id,
+                    message=message,
+                    buttons=formatted_buttons,
+                    business_unit=business_unit
+                )
+            else:
+                logger.warning("[send_options] No hay botones interactivos válidos para WhatsApp.")
 
-            # ✅ Obtener la configuración de TelegramAPI
+        # 🔹 **Manejo especial para Telegram**
+        elif platform == 'telegram':
+            from app.chatbot.integrations.telegram import send_telegram_buttons
+
             api_instance = await sync_to_async(lambda: TelegramAPI.objects.filter(
                 business_unit=business_unit, is_active=True
             ).first())()
 
             if not api_instance:
-                logger.error(f"[send_options] No se encontró configuración activa de TelegramAPI para {business_unit.name}")
-                return False, "No hay configuración de Telegram activa"
+                logger.error(f"[send_options] No se encontró configuración de Telegram para {business_unit.name}")
+                return False, "No hay configuración activa de Telegram"
 
-            # ✅ Convertir user_id en número si es necesario
+            # Convertir user_id en número si es necesario
             chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
 
-            # ✅ Validar botones antes de enviarlos
+            # Validar y estructurar los botones de Telegram
             telegram_buttons = [
-                {"text": button.get('title', 'Opción'), "callback_data": button.get('payload', 'unknown_id')}
-                for button in buttons if isinstance(button, dict) and button.get('payload') and button.get('title')
+                {"text": button.get("title", "Opción"), "callback_data": button.get("payload", "unknown_id")}
+                for button in buttons if isinstance(button, dict) and button.get("payload") and button.get("title")
             ]
 
             if not telegram_buttons:
                 logger.warning("[send_options] No hay botones válidos para enviar en Telegram")
                 telegram_buttons = [{"text": "Continuar", "callback_data": "fallback_option"}]
 
-            # ✅ Enviar mensaje con botones
             await send_telegram_buttons(
                 chat_id=chat_id,
                 message=message,
                 buttons=telegram_buttons,
-                access_token=api_instance.api_key  # ✅ Ahora api_instance está definido
+                access_token=api_instance.api_key
             )
+
+        # 🔹 **Manejo especial para Messenger**
         elif platform == 'messenger' and buttons and business_unit:
             from app.chatbot.integrations.messenger import send_messenger_buttons
             quick_reply_options = [
@@ -384,15 +395,19 @@ async def send_options(platform, user_id, message, buttons=None, business_unit: 
                 quick_reply_options,
                 business_unit.messenger_api.page_access_token,
             )
+
+        # 🔹 **Manejo especial para Instagram**
         elif platform == 'instagram' and buttons and business_unit:
             from app.chatbot.integrations.instagram import send_instagram_buttons
             await send_instagram_buttons(
                 user_id, message, buttons, business_unit.instagram_api.access_token
             )
+
         else:
             logger.error(f"[send_options] Plataforma desconocida o botones faltantes: {platform}")
+
     except Exception as e:
-        logger.error(f"[send_options] Error enviando opciones a través de {platform}: {e}", exc_info=True)
+        logger.error(f"[send_options] Error enviando opciones en {platform}: {e}", exc_info=True)
 
 async def notify_employer(worker, message):
     """
