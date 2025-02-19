@@ -78,7 +78,7 @@ async def handle_known_intents(intents, platform, user_id, event, business_unit,
             if recommended_jobs:
                 event.context['recommended_jobs'] = recommended_jobs
                 await sync_to_async(event.save)()
-                await present_job_listings(platform, user_id, recommended_jobs, business_unit, event)
+                await present_job_listings(platform, user_id, recommended_jobs, business_unit, event) # type: ignore
             else:
                 await send_message(platform, user_id, "No encontré vacantes para tu perfil por ahora.", business_unit)
             return True
@@ -200,7 +200,7 @@ async def handle_known_intents(intents, platform, user_id, event, business_unit,
                 "¿Quieres activarlas? Responde 'sí' para confirmar."
             )
             await send_message(platform, user_id, response, business_unit)
-            await self.store_bot_message(event, response)
+            await self.store_bot_message(event, response) # type: ignore
             return True
 
     return False  # Si no se manejó ningún intent
