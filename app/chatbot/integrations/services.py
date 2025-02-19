@@ -19,12 +19,6 @@ from app.models import (
     InstagramAPI, MessengerAPI, ChatState, Person,
     EnhancedNetworkGamificationProfile
 )
-
-from app.chatbot.integrations.instagram import *
-from app.chatbot.integrations.messenger import *
-from app.chatbot.integrations.telegram import *
-from app.chatbot.integrations.whatsapp import *
-
 logger = logging.getLogger("app.chatbot.services")
 
 # Constantes globales
