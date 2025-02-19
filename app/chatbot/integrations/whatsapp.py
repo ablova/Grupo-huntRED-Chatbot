@@ -457,7 +457,7 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
 async def send_whatsapp_image(user_id, message, image_url, phone_id, business_unit):
     """Envía una imagen vía WhatsApp API."""
     logger.info(f"📷 Enviando imagen a {user_id} en WhatsApp.")
-    url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+    url = f"https://graph.facebook.com/v22.0/{phone_id}/messages"
 
     payload = {
         "messaging_product": "whatsapp",
