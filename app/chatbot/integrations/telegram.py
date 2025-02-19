@@ -96,7 +96,9 @@ async def validate_telegram_message(payload: Dict[str, Any]) -> Tuple[int, str]:
 
         if not chat_id or not text:
             raise ValueError("❌ Mensaje inválido: falta chat_id o text")
-            
+
+        # Convertir chat_id a int por seguridad
+        chat_id = int(chat_id)
         return chat_id, text
     except Exception as e:
         raise ValueError(f"❌ Error al procesar payload: {str(e)}")
@@ -120,12 +122,13 @@ async def confirm_telegram_callback(callback_query_id: str, telegram_api: Telegr
     except Exception as e:
         logger.error(f"❌ Error al confirmar callback de Telegram: {str(e)}", exc_info=True)
         return False
+
 # -------------------------------
 # ✅ 2. WEBHOOK Y PROCESAMIENTO DE MENSAJES
 # -------------------------------
 @csrf_exempt
 async def telegram_webhook(request):
-    """Webhook de Telegram para recibir y procesar mensajes y respuestas de botones."""
+    """Webhook de Telegram para recibir y procesar mensajes y callbacks de botones."""
     if request.method == "GET":
         return JsonResponse({"status": "success", "message": "Webhook activo"}, status=200)
 
@@ -152,20 +155,25 @@ async def telegram_webhook(request):
         # Procesar mensaje
         try:
             payload = json.loads(request.body.decode("utf-8"))
-            chat_id, text = None, None
 
-            # 🛠️ 🔹 Validar si el mensaje proviene de un botón (callback_query)
+            # 📌 Manejar Callbacks de Botones
             if "callback_query" in payload:
                 callback_query = payload["callback_query"]
-                callback_data = callback_query["data"]
-                callback_chat_id = callback_query["message"]["chat"]["id"]
+                callback_data = callback_query.get("data", "").strip()
+                chat_id = callback_query["message"]["chat"]["id"]
+                logger.info(f"📥 Callback recibido: {callback_data} de {chat_id}")
 
-                logger.info(f"📥 Callback recibido: {callback_data} de {callback_chat_id}")
+                # Convertir a int por seguridad
+                chat_id = int(chat_id)
 
-                # ✅ Confirmar el callback para que desaparezca la carga en Telegram
-                await confirm_telegram_callback(callback_query["id"], telegram_api)
+                # 🔹 Procesar callback como un mensaje normal
+                text = callback_data  
 
-                chat_id, text = callback_chat_id, callback_data  # Procesamos como mensaje normal
+                # Opcional: confirmar callback para quitar la animación
+                callback_query_id = callback_query.get("id", "")
+                if callback_query_id:
+                    await confirm_telegram_callback(callback_query_id, telegram_api)
+
             else:
                 chat_id, text = await validate_telegram_message(payload)
 
@@ -174,7 +182,7 @@ async def telegram_webhook(request):
         except ValueError as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
 
-        # Procesar con ChatBotHandler
+        # Procesar con ChatBotHandler (lógica de tu bot)
         chatbot = ChatBotHandler()
         response_text = await chatbot.process_message(
             platform="telegram",
@@ -198,7 +206,7 @@ async def telegram_webhook(request):
     except Exception as e:
         logger.error(f"❌ Error en webhook: {str(e)}", exc_info=True)
         return JsonResponse({"status": "error", "message": "Error interno del servidor"}, status=500)
-
+    
 # -------------------------------
 # ✅ 3. ENVÍO DE MENSAJES Y BOTONES
 # -------------------------------
@@ -209,7 +217,7 @@ async def send_telegram_message(
     telegram_api: TelegramAPI
 ) -> bool:
     """Envía un mensaje de Telegram usando la configuración del Business Unit."""
-    for attempt in range(1):  # Evitamos múltiples envíos innecesarios
+    for attempt in range(1):  # Ajustado para evitar reenvíos múltiples
         try:
             url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"
             payload = {
@@ -222,41 +230,45 @@ async def send_telegram_message(
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
                 
-                logger.info(f"✅ Mensaje enviado para {telegram_api.business_unit.name}")
-                return True
+            logger.info(f"✅ Mensaje enviado para {telegram_api.business_unit.name}")
+            return True
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"⚠️ Error HTTP en intento {attempt + 1}/{MAX_RETRIES}: {e.response.text}")
+            logger.error(f"⚠️ Error HTTP en intento {attempt + 1}: {e.response.text}")
             if e.response.status_code == 404:
                 logger.error(f"❌ API key inválida para {telegram_api.business_unit.name}")
-                return False
+            return False
 
         except Exception as e:
-            logger.error(f"❌ Error inesperado: {str(e)}")
+            logger.error(f"❌ Error inesperado en intento {attempt + 1}: {str(e)}", exc_info=True)
 
-        await asyncio.sleep(2 ** attempt)
+        # Si necesitas reintentos, descomenta esto y ajusta range(MAX_RETRIES)
+        # await asyncio.sleep(2 ** attempt)
 
-    logger.info(f"🔄 Intento {attempt + 1}/{MAX_RETRIES} de enviar botones a {chat_id}")
     return False
 
 async def send_telegram_buttons(chat_id: int, message: str, buttons: List[Dict[str, str]], telegram_api: TelegramAPI) -> Optional[Dict]:
     """Envía un mensaje con botones a Telegram, validando correctamente los datos."""
     url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"
 
-    # 🔹 Crear los botones de manera segura y validar que contengan datos correctos
+    # 🔹 Verificar y transformar los botones correctamente
     inline_keyboard = []
     for btn in buttons:
-        text = btn.get("title", btn.get("text", "Opción"))  # Prioriza "title" y luego "text"
-        callback_data = btn.get("payload", btn.get("callback_data", None))  # Prioriza "payload"
+        text = btn.get("text", btn.get("title", "Opción"))
         
-        # ✅ Asegurar que el botón tenga valores válidos
-        if text and callback_data:
-            inline_keyboard.append([{"text": text, "callback_data": callback_data}])
+        # Revisamos si se trata de un botón de URL o un callback
+        if "url" in btn and btn["url"]:
+            inline_keyboard.append([{
+                "text": text,
+                "url": btn["url"]  # botón con link externo
+            }])
         else:
-            logger.warning(f"⚠️ Botón inválido detectado y omitido: {btn}")
+            # Caso callback
+            callback_data = btn.get("callback_data", btn.get("payload", "no_data"))
+            inline_keyboard.append([{"text": text, "callback_data": callback_data}])
 
     if not inline_keyboard:
-        logger.error("❌ No se generaron botones válidos para Telegram. Verifica el formato de entrada.")
+        logger.error("❌ No se generaron botones válidos para Telegram.")
         return None
 
     payload = {
@@ -268,34 +280,67 @@ async def send_telegram_buttons(chat_id: int, message: str, buttons: List[Dict[s
         }
     }
 
-    for attempt in range(1):  # Evitamos múltiples envíos innecesarios
+    for attempt in range(1):  # Ajustado para evitar reenvíos múltiples
         try:
             async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
-                logger.info(f"✅ Botones enviados a {chat_id} en {telegram_api.business_unit.name}")
-                return response.json()
+
+            logger.info(f"✅ Botones enviados a {chat_id} en {telegram_api.business_unit.name}")
+            return response.json()
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"⚠️ Error HTTP en intento {attempt + 1}/{MAX_RETRIES}: {e.response.text}")
+            logger.error(f"⚠️ Error HTTP en intento {attempt + 1}: {e.response.text}")
             if e.response.status_code == 400:
-                logger.error(f"❌ Posible error en los botones. Revisar estructura de datos.")
-            if e.response.status_code == 404:
+                logger.error(f"❌ Posible error en la estructura de botones o parse_mode.")
+            elif e.response.status_code == 404:
                 logger.error(f"❌ API key inválida para {telegram_api.business_unit.name}")
-                return None
+            return None
 
         except Exception as e:
-            logger.error(f"❌ Error enviando botones a Telegram: {str(e)}")
+            logger.error(f"❌ Error enviando botones a Telegram en intento {attempt + 1}: {str(e)}", exc_info=True)
 
-        await asyncio.sleep(2 ** attempt)
+        # Si necesitas reintentos, descomenta esto y ajusta range(MAX_RETRIES)
+        # await asyncio.sleep(2 ** attempt)
 
-    logger.info(f"🔄 Intento {attempt + 1}/{MAX_RETRIES} de enviar botones a {chat_id}")
     return None
+
+async def send_telegram_photo(
+    chat_id: int,
+    photo_url: str,
+    caption: str,
+    telegram_api: TelegramAPI
+) -> bool:
+    """Envía una foto a Telegram."""
+    url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendPhoto"
+
+    payload = {
+        "chat_id": chat_id,
+        "photo": photo_url,   # URL directa a la imagen
+        "caption": caption,
+        "parse_mode": "HTML"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            
+        logger.info(f"✅ Foto enviada a {chat_id} en {telegram_api.business_unit.name}")
+        return True
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"⚠️ Error HTTP al enviar foto: {e.response.text}")
+        if e.response.status_code == 400:
+            logger.error("❌ Posible error en la URL de la imagen o en el payload.")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error inesperado al enviar foto: {str(e)}", exc_info=True)
+        return False
 
 # -------------------------------
 # ✅ 5. FUNCIÓN ESPECIALES
 # -------------------------------
-
 async def handle_special_command(chat_id: int, command: str, access_token: str) -> None:
     """Maneja comandos especiales con validación de API antes de procesar."""
     try:
@@ -314,28 +359,88 @@ async def handle_special_command(chat_id: int, command: str, access_token: str) 
         
     except Exception as e:
         logger.error(f"❌ Error en comando {command}: {str(e)}", exc_info=True)
-        raise
+
 
 # -------------------------------
-# ✅ 5. FUNCIÓN DE PRUEBA
+# ✅ 6. FUNCIONES DE PRUEBA
 # -------------------------------
+# Debes ejecutarlas manualmente con "asyncio.run(...)" dentro del shell.
 
-async def test_telegram_buttons():
-    """Prueba el envío de botones para un Business Unit específico."""
+async def test_telegram_text_message():
+    """Prueba de envío de mensaje de texto."""
     try:
-        # 1. Obtener Business Unit
-        business_unit = await sync_to_async(BusinessUnit.objects.get)(
-            name__iexact="amigro"
-        )
-        
-        # 2. Validar configuración de Telegram
+        business_unit = await sync_to_async(BusinessUnit.objects.get)(name__iexact="amigro")
         telegram_api, error_msg = await validate_telegram_config(business_unit)
         if error_msg:
             print(error_msg)
             return
         
-        # 3. Datos de prueba
-        chat_id = "871198362"
+        chat_id = 871198362  # tu chat ID en int
+        message = "🚀 ¡Hola! Esta es una prueba de mensaje en Telegram."
+
+        result = await send_telegram_message(chat_id, message, telegram_api)
+        if result:
+            print("✅ Mensaje de texto enviado con éxito.")
+        else:
+            print("❌ Error al enviar mensaje de texto.")
+    except Exception as e:
+        print(f"❌ Error en la prueba de mensaje: {str(e)}")
+
+async def test_telegram_link_message():
+    """Prueba de envío de mensaje con enlace (usando HTML o Markdown)."""
+    try:
+        business_unit = await sync_to_async(BusinessUnit.objects.get)(name__iexact="amigro")
+        telegram_api, error_msg = await validate_telegram_config(business_unit)
+        if error_msg:
+            print(error_msg)
+            return
+        
+        chat_id = 871198362
+        message = '🌐 Visita nuestra página web: <a href="https://amigro.org">Amigro</a>'
+
+        result = await send_telegram_message(chat_id, message, telegram_api)
+        if result:
+            print("✅ Mensaje con enlace enviado con éxito.")
+        else:
+            print("❌ Error al enviar mensaje con enlace.")
+    except Exception as e:
+        print(f"❌ Error en la prueba de mensaje con enlace: {str(e)}")
+
+async def test_telegram_image():
+    """Prueba el envío de una imagen en Telegram."""
+    try:
+        business_unit = await sync_to_async(BusinessUnit.objects.get)(name__iexact="amigro")
+        telegram_api, error_msg = await validate_telegram_config(business_unit)
+        if error_msg:
+            print(f"❌ Error: {error_msg}")
+            return
+
+        chat_id = 871198362
+        photo_url = "https://via.placeholder.com/800.png"  # nota el .png
+            # O prueba:
+            # photo_url = "https://placekitten.com/600/400"
+            # photo_url = "https://picsum.photos/600/400"
+        caption = "🖼️ Esta es una prueba de imagen en Telegram."
+
+        result = await send_telegram_photo(chat_id, photo_url, caption, telegram_api)
+        if result:
+            print("✅ Imagen enviada con éxito.")
+        else:
+            print("❌ Error al enviar imagen.")
+    except Exception as e:
+        print(f"❌ Error en la prueba de imagen: {str(e)}")
+
+async def test_telegram_buttons():
+    """Prueba el envío de botones para un Business Unit específico."""
+    try:
+        business_unit = await sync_to_async(BusinessUnit.objects.get)(name__iexact="amigro")
+        
+        telegram_api, error_msg = await validate_telegram_config(business_unit)
+        if error_msg:
+            print(error_msg)
+            return
+        
+        chat_id = 871198362  # int
         message = "Selecciona una opción:"
         buttons = [
             {
@@ -345,16 +450,14 @@ async def test_telegram_buttons():
             {
                 "text": "No, cancelar",
                 "callback_data": "tos_reject"
+            },
+            {
+                "text": "Ir a Amigro",
+                "url": "https://amigro.org"  # ejemplo de botón con link
             }
         ]
 
-        # 4. Enviar botones
-        result = await send_telegram_buttons(
-            chat_id=int(chat_id),
-            message=message,
-            buttons=buttons,
-            telegram_api=telegram_api
-        )
+        result = await send_telegram_buttons(chat_id, message, buttons, telegram_api)
         
         if result:
             print(f"✅ Botones enviados exitosamente para {business_unit.name}")
@@ -364,4 +467,4 @@ async def test_telegram_buttons():
     except BusinessUnit.DoesNotExist:
         print("❌ Business Unit no encontrado")
     except Exception as e:
-        print(f"❌ Error en la prueba: {str(e)}")
+        print(f"❌ Error en la prueba de botones: {str(e)}")
