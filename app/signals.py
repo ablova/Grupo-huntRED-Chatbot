@@ -6,7 +6,7 @@ from app.models import Person, Application, EnhancedNetworkGamificationProfile
 from app.utilidades.parser import CVParser
 from app.tasks import train_matchmaking_model_task
 import logging
-from app.chatbot.integrations.services import send_message
+from app.chatbot.integrations.services import MessageService
 
 logger = logging.getLogger(__name__)
 

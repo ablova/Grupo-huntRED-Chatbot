@@ -4,7 +4,7 @@
 import uuid
 import math
 from asgiref.sync import async_to_sync
-from app.chatbot.integrations.services import send_message
+from app.chatbot.integrations.services import MessageService
 from forex_python.converter import CurrencyRates
 from django.utils.timezone import now
 from app.sexsi.models import ConsentAgreement, SexsiConfig, DiscountCoupon

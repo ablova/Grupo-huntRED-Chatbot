@@ -12,7 +12,7 @@ import logging
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import GptApi, Person, BusinessUnit, ChatState, WhatsAppAPI, TelegramAPI, InstagramAPI, MessengerAPI
 from app.chatbot.gpt import GPTHandler
-from app.chatbot.integrations.services import send_message, send_image, send_menu, send_logo
+from app.chatbot.integrations.services import MessageService, EmailService, EnhancedNetworkGamificationProfile, GamificationService
 from asgiref.sync import sync_to_async
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.chatbot.utils import format_template_response
