@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from asgiref.sync import sync_to_async
 from app.models import InstagramAPI, MetaAPI, BusinessUnit, ChatState, Person
-from app.chatbot.integrations.services import send_message, get_api_instance
+from app.chatbot.integrations.services import MessageService, EmailService
 from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 

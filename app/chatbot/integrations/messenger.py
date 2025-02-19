@@ -9,7 +9,7 @@ from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 from asgiref.sync import sync_to_async
 from app.models import MessengerAPI, MetaAPI, BusinessUnit, ChatState, Person
-from app.chatbot.integrations.services import send_message, get_api_instance
+from app.chatbot.integrations.services import MessageService
 from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 

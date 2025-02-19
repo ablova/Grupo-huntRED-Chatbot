@@ -15,7 +15,7 @@ from django.core.files.base import ContentFile
 
 from app.sexsi.models import ConsentAgreement, PaymentTransaction
 from app.sexsi.forms import ConsentAgreementForm
-from app.chatbot.integrations.services import send_message
+from app.chatbot.integrations.services import MessageService, EmailService
 from asgiref.sync import async_to_sync
 import json
 import os

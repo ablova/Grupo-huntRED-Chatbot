@@ -6,7 +6,7 @@ from celery import shared_task
 from app.models import Person, Vacante, BusinessUnit, Application
 from app.utilidades.signature.pdf_generator import generate_contract_pdf
 from app.utilidades.signature.digital_sign import request_digital_signature
-from app.chatbot.integrations.services import send_email
+from app.chatbot.integrations.services import EmailService
 
 
 

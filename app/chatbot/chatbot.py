@@ -11,7 +11,7 @@ from django.core.cache import cache
 from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, Vacante, WhatsAppAPI, EnhancedNetworkGamificationProfile
 )
-from app.chatbot.integrations.services import send_message, send_image, send_menu, reset_chat_state, send_options
+from app.chatbot.integrations.services import EmailService, MessageService, GamificationService
 # from app.chatbot.intents_handler import handle_known_intents Ya se esta importando donde se necesita.
 from app.chatbot.utils import analyze_text  # Encargado del NLP y patrones de intents
 

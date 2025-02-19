@@ -5,7 +5,7 @@ import backoff
 from openai import OpenAI, OpenAIError, RateLimitError
 from typing import Dict, Optional
 from app.models import GptApi
-from app.chatbot.integrations.services import send_email
+from app.chatbot.integrations.services import EmailService
 from django.conf import settings
 from asgiref.sync import sync_to_async
 import asyncio
