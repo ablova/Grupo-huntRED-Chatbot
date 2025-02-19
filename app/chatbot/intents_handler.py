@@ -9,13 +9,14 @@ from app.utilidades.vacantes import VacanteManager
 
 logger = logging.getLogger("app.chatbot.intents_handler")
 
-async def handle_known_intents(
-    intents: List[str], platform: str, user_id: str, event: ChatState, business_unit: BusinessUnit, user: Person
-) -> bool:
+
+async def handle_known_intents(intents, platform, user_id, event, business_unit, user):
     """
-    Maneja los intents conocidos del usuario y ejecuta la acción correspondiente.
-    Retorna `True` si se procesó un intent, `False` si no se encontró ninguno relevante.
+    Maneja los intents conocidos del usuario.
     """
+    chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(user_id=user_id, business_unit=business_unit)
+    
+    # Resto de la lógica para manejar los intents
 
     # 🔹 **Intentos con respuestas directas**
     INTENT_RESPONSES = {
