@@ -20,6 +20,11 @@ from app.models import (
     EnhancedNetworkGamificationProfile
 )
 
+from app.chatbot.integrations.instagram import *
+from app.chatbot.integrations.messenger import *
+from app.chatbot.integrations.telegram import *
+from app.chatbot.integrations.whatsapp import *
+
 logger = logging.getLogger("app.chatbot.services")
 
 # Constantes globales
@@ -104,6 +109,73 @@ class MessageService:
         except Exception as e:
             logger.error(f"[send_message] Error: {e}", exc_info=True)
             return False
+
+    async def send_image(
+        self,
+        platform: str,
+        user_id: str,
+        message: str,
+        image_url: str
+    ) -> bool:
+        """Envía una imagen al usuario."""
+        try:
+            api_instance = await self.get_api_instance(platform)
+            if not api_instance:
+                logger.error(f"[send_image] No se encontró configuración API para {platform}")
+                return False
+
+            if platform == "whatsapp":
+                from app.chatbot.integrations.whatsapp import send_whatsapp_image
+                await send_whatsapp_image(
+                    user_id=user_id,
+                    message=message,
+                    image_url=image_url,
+                    phone_id=api_instance.phoneID,
+                    business_unit=self.business_unit
+                )
+            elif platform == "telegram":
+                from app.chatbot.integrations.telegram import send_telegram_image
+                await send_telegram_image(
+                    chat_id=user_id,
+                    image_url=image_url,
+                    caption=message,
+                    access_token=api_instance.api_key
+                )
+            elif platform in ["messenger", "instagram"]:
+                from app.chatbot.integrations.messenger import send_messenger_image
+                await send_messenger_image(
+                    user_id=user_id,
+                    image_url=image_url,
+                    caption=message,
+                    access_token=api_instance.page_access_token
+                )
+            else:
+                logger.error(f"[send_image] Plataforma no soportada: {platform}")
+                return False
+
+            logger.info(f"✅ Imagen enviada a {user_id} en {platform}.")
+            return True
+
+        except Exception as e:
+            logger.error(f"[send_image] Error enviando imagen en {platform}: {e}", exc_info=True)
+            return False
+
+    async def send_menu(self, platform: str, user_id: str) -> bool:
+        menu_message = """
+El Menú Principal del Chat
+1 - Bienvenida
+2 - Registro
+3 - Ver Oportunidades
+4 - Actualizar Perfil
+5 - Invitar Amigos
+6 - Términos y Condiciones
+7 - Contacto
+8 - Solicitar Ayuda
+"""
+        return await self.send_message(platform, user_id, menu_message)
+
+    async def send_url(self, platform: str, user_id: str, url: str) -> bool:
+        return await self.send_message(platform, user_id, f"Aquí tienes el enlace: {url}")
 
     async def send_options(
         self,
@@ -220,11 +292,14 @@ class MessageService:
                 from app.chatbot.integrations.instagram import send_instagram_message
                 send_func = send_instagram_message
 
-            await send_func(
-                user_id=user_id,
-                message=message,
-                buttons=options,
-                access_token=api_instance.page_access_token or api_instance.api_key
+            if options:
+                await send_messenger_buttons(user_id, message, options, api_instance.page_access_token)
+            else:
+                await send_func(
+                    user_id=user_id,
+                    message=message,
+                    quick_replies=options,  # ✅ CORREGIDO
+                    access_token=api_instance.page_access_token or api_instance.api_key
             )
             return True
 
@@ -502,7 +577,7 @@ def run_async(func, *args, **kwargs):
         return asyncio.run(func(*args, **kwargs))
 
 # ================================
-# WRAPPERS PARA FUNCIONES ASÍNCRONAS Y SINCRÓNICAS
+# WRAPPERS PARA FUNCIONES ASÍNCRONAS Y SINCRÓNICAS -----  NO MODIFICAR POR FAVOR
 # ================================
 async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: str = None):
     """ Envío de mensaje asíncrono con validación de Business Unit. """
@@ -531,11 +606,30 @@ def send_email(subject: str, to_email: str, body: str, business_unit_name: str =
     return run_async(send_email_async, subject, to_email, body, business_unit_name, from_email)
 
 async def send_options_async(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
-    """ Versión asíncrona de `send_options`. """
+    """Versión asíncrona de `send_options`."""
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = MessageService(business_unit)
-        return await service.send_options(platform, user_id, message, buttons)
+        if platform == "whatsapp":
+            formatted_buttons = [
+                {"type": "reply", "reply": {"id": btn["payload"], "title": btn["title"][:20]}}
+                for btn in buttons if "payload" in btn and "title" in btn
+            ][:3]  # WhatsApp solo permite 3 botones
+
+            if not formatted_buttons:
+                logger.error(f"[send_options] No hay botones válidos para WhatsApp")
+                return False
+
+            from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
+            return await send_whatsapp_decision_buttons(
+                user_id=user_id,
+                message=message,
+                buttons=formatted_buttons,
+                business_unit=business_unit
+            )
+        else:
+            return await service.send_options(platform, user_id, message, buttons)
+
     logger.error(f"❌ No se encontró la unidad de negocio")
     return False
 
@@ -544,7 +638,6 @@ def send_options(platform: str, user_id: str, message: str, buttons=None, busine
     return run_async(send_options_async, platform, user_id, message, buttons, business_unit_name)
 
 async def send_menu_async(platform: str, user_id: str, business_unit_name: str = None):
-    """ Versión asíncrona de `send_menu`. """
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = MessageService(business_unit)
@@ -553,11 +646,9 @@ async def send_menu_async(platform: str, user_id: str, business_unit_name: str =
     return False
 
 def send_menu(platform: str, user_id: str, business_unit_name: str = None):
-    """ Wrapper de `send_menu`, compatible con entornos síncronos y asíncronos. """
     return run_async(send_menu_async, platform, user_id, business_unit_name)
 
 async def send_image_async(platform: str, user_id: str, message: str, image_url: str, business_unit_name: str = None):
-    """ Versión asíncrona de `send_image`. """
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = MessageService(business_unit)
@@ -566,18 +657,15 @@ async def send_image_async(platform: str, user_id: str, message: str, image_url:
     return False
 
 def send_image(platform: str, user_id: str, message: str, image_url: str, business_unit_name: str = None):
-    """ Wrapper de `send_image`, compatible con entornos síncronos y asíncronos. """
     return run_async(send_image_async, platform, user_id, message, image_url, business_unit_name)
 
 async def send_url_async(platform: str, user_id: str, url: str, business_unit_name: str = None):
-    """ Versión asíncrona de `send_url`. """
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = MessageService(business_unit)
-        return await service.send_message(platform, user_id, f"Aquí tienes el enlace: {url}")
+        return await service.send_url(platform, user_id, url)
     logger.error(f"❌ No se encontró la unidad de negocio")
     return False
 
 def send_url(platform: str, user_id: str, url: str, business_unit_name: str = None):
-    """ Wrapper de `send_url`, compatible con entornos síncronos y asíncronos. """
     return run_async(send_url_async, platform, user_id, url, business_unit_name)

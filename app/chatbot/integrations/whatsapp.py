@@ -453,3 +453,28 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
     except Exception as e:
         logger.error(f"[send_whatsapp_decision_buttons] Error inesperado: {str(e)}", exc_info=True)
         return False, f"Error inesperado: {str(e)}"
+    
+async def send_whatsapp_image(user_id, message, image_url, phone_id, business_unit):
+    """Envía una imagen vía WhatsApp API."""
+    logger.info(f"📷 Enviando imagen a {user_id} en WhatsApp.")
+    url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": user_id,
+        "type": "image",
+        "image": {
+            "link": image_url
+        }
+    }
+
+    headers = {
+        "Authorization": f"Bearer {business_unit.access_token}",
+        "Content-Type": "application/json"
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+
+    logger.info(f"✅ Imagen enviada a {user_id} en WhatsApp.")
