@@ -4,7 +4,7 @@ from typing import List
 from asgiref.sync import sync_to_async
 
 from app.models import ChatState, Person, BusinessUnit
-from app.chatbot.integrations.services import  MessageService
+from app.chatbot.integrations.services import  send_message, send_email, send_options
 from app.utilidades.vacantes import VacanteManager
 
 logger = logging.getLogger("app.chatbot.intents_handler")

@@ -264,7 +264,7 @@ class VacanteManager:
         Crea una nueva vacante en WordPress y envía notificación por WhatsApp y correo electrónico.
         :return: Diccionario con el estado del proceso de creación.
         """
-        from app.chatbot.integrations.services import MessageService # Importación para envío de correos
+        from app.chatbot.integrations.services import send_message # Importación para envío de correos
 
         business_unit_name = self.job_data.get("business_unit_name", "Grupo huntRED")
 
