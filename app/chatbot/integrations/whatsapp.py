@@ -12,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt # type: ignore
 
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import Person, ChatState, BusinessUnit, WhatsAppAPI, Template
-from app.chatbot.integrations.services import MessageService
+from app.chatbot.integrations.services import send_message
 
 logger = logging.getLogger("app.chatbot.integrations.whatsapp")
 # Semáforo para controlar la concurrencia en WhatsApp (se utiliza en el envío de mensajes)
