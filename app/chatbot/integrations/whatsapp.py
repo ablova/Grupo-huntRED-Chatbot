@@ -34,27 +34,19 @@ async def whatsapp_webhook(request):
         if request.method != "POST":
             return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
 
-        payload = json.loads(request.body.decode('utf-8'))
-        logger.info(f"Payload recibido: {json.dumps(payload, indent=2)}")
+        payload = json.loads(request.body.decode("utf-8"))
+        logger.info(f"[whatsapp_webhook] Payload recibido: {json.dumps(payload, indent=2)}")
 
-        entry = payload.get("entry", [])
-        if not entry:
-            return JsonResponse({"status": "error", "message": "Payload inválido: falta 'entry'"}, status=400)
+        if "entry" not in payload:
+            logger.error("[whatsapp_webhook] Error: 'entry' no encontrado en el payload.")
+            return JsonResponse({"status": "error", "message": "Formato de payload inválido"}, status=400)
 
-        changes = entry[0].get("changes", [])
-        for change in changes:
-            messages = change.get("value", {}).get("messages", [])
-            for message in messages:
-                body = message.get("text", {}).get("body", "")
-                if body:
-                    logger.info(f"Mensaje recibido: {body}")
-                    return JsonResponse({"status": "success", "message": f"Procesado: {body}"})
+        return JsonResponse({"status": "success"}, status=200)
 
-        return JsonResponse({"status": "error", "message": "No se encontraron mensajes"}, status=400)
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
 
-    except Exception as e:
-        logger.error(f"Error en el webhook: {e}", exc_info=True)
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    
 
 # ------------------------------------------------------------------------------
 # Procesamiento del Mensaje Entrante
