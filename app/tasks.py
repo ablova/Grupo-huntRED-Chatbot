@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from asgiref.sync import sync_to_async
-from app.chatbot.integrations.services import send_message, send_email
+from app.chatbot.integrations.services import MessageService, EmailServices
 from app.chatbot.chatbot import ChatBotHandler
 from app.utilidades.parser import CVParser, IMAPCVProcessor
 from app.utilidades.email_scraper import email_scraper
