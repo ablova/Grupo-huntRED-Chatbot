@@ -1,8 +1,10 @@
 # /home/pablo/app/chatbot/integrations/whatsapp.py
+import re
 import json
 import logging
 import asyncio
 import httpx
+import time
 from typing import Optional, List
 from asgiref.sync import sync_to_async
 from datetime import datetime
@@ -52,6 +54,7 @@ async def whatsapp_webhook(request):
 # ------------------------------------------------------------------------------
 # Procesamiento del Mensaje Entrante
 # ------------------------------------------------------------------------------
+
 @csrf_exempt
 async def handle_incoming_message(request):
     """
@@ -364,105 +367,7 @@ async def send_whatsapp_message(
         logger.error(f"[send_whatsapp_message] Falló el envío a {user_id} tras {attempt} intentos.")
     except Exception as e:
         logger.error(f"[send_whatsapp_message] Error inesperado: {e}", exc_info=True)
-
-async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
-    """
-    Envía botones interactivos a WhatsApp.
-    """
-    try:
-        # Obtener configuración de WhatsApp API
-        whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
-            business_unit=business_unit, is_active=True
-        ).select_related('business_unit').first())()
-
-        if not whatsapp_api:
-            logger.error(f"[send_whatsapp_decision_buttons] No se encontró configuración activa para {business_unit.name}")
-            return False, "No hay configuración de WhatsApp activa"
-
-        url = f"https://graph.facebook.com/v22.0/{whatsapp_api.phoneID}/messages"
-        headers = {
-            "Authorization": f"Bearer {whatsapp_api.api_token}",
-            "Content-Type": "application/json"
-        }
-
-        # Validar que tengamos entre 1 y 3 botones
-        if not buttons or not isinstance(buttons, list) or len(buttons) > 3:
-            logger.error("[send_whatsapp_decision_buttons] ❌ Botones inválidos: debe ser una lista de 1-3 elementos")
-            return False, "Formato de botones inválido"
-
-        # ✅ Filtrar botones válidos
-        valid_buttons = [
-            {
-                "type": "reply",
-                "reply": {
-                    "id": str(button.get('payload', 'default_id'))[:256],  # WhatsApp requiere un ID válido
-                    "title": str(button.get('title', 'Opción')[:20])  # Máximo 20 caracteres
-                }
-            }
-            for button in buttons
-            if isinstance(button, dict) and button.get('payload') and button.get('title')
-        ]
-
-        # Si no hay botones válidos, crear un botón de fallback
-        if not valid_buttons:
-            logger.warning("[send_whatsapp_decision_buttons] ⚠ No hay botones válidos. Se enviará botón predeterminado.")
-            valid_buttons = [{
-                "type": "reply",
-                "reply": {
-                    "id": "fallback_button_id",
-                    "title": "Continuar"
-                }
-            }]
-
-        # ✅ Limitar mensaje a 1024 caracteres
-        message = message[:1021] + "..." if len(message) > 1024 else message
-
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": user_id,
-            "type": "interactive",
-            "interactive": {
-                "type": "button",
-                "body": {"text": message},
-                "action": {"buttons": valid_buttons}
-            }
-        }
-
-        # Enviar solicitud HTTP con reintentos
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.post(url, headers=headers, json=payload)
-                    response_data = response.json()
-
-                    if response.status_code == 200:
-                        message_id = response_data.get('messages', [{}])[0].get('id', 'unknown')
-                        logger.info(f"[send_whatsapp_decision_buttons] ✅ Botones enviados a {user_id}. Message ID: {message_id}")
-                        return True, message_id
-                    else:
-                        error_msg = response_data.get('error', {}).get('message', 'Error desconocido')
-                        logger.error(f"[send_whatsapp_decision_buttons] ❌ Error de API: {error_msg}")
-                        return False, error_msg
-
-            except httpx.HTTPStatusError as e:
-                error_msg = e.response.text if hasattr(e, 'response') else str(e)
-                logger.error(f"[send_whatsapp_decision_buttons] ❌ Error HTTP en intento {attempt+1}: {error_msg}")
-            except httpx.RequestError as e:
-                logger.error(f"[send_whatsapp_decision_buttons] ❌ Error de conexión en intento {attempt+1}: {str(e)}")
-            except Exception as e:
-                logger.error(f"[send_whatsapp_decision_buttons] ❌ Error inesperado en intento {attempt+1}: {str(e)}", exc_info=True)
-
-            await asyncio.sleep(2 ** attempt)  # Espera exponencial en reintentos
-
-        logger.error("[send_whatsapp_decision_buttons] ❌ Falló el envío después de varios intentos.")
-        return False, "Error desconocido"
-
-    except Exception as e:
-        logger.error(f"[send_whatsapp_decision_buttons] ❌ Error inesperado: {str(e)}", exc_info=True)
-        return False, f"Error inesperado: {str(e)}"
-    
+  
 async def send_whatsapp_image(user_id, message, image_url, phone_id, business_unit):
     """Envía una imagen vía WhatsApp API."""
     logger.info(f"📷 Enviando imagen a {user_id} en WhatsApp.")
@@ -487,3 +392,88 @@ async def send_whatsapp_image(user_id, message, image_url, phone_id, business_un
         response.raise_for_status()
 
     logger.info(f"✅ Imagen enviada a {user_id} en WhatsApp.")
+
+async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
+    """Envía botones interactivos a WhatsApp asegurando el formato correcto."""
+    try:
+        # 🔥 Obtener configuración de WhatsApp API
+        whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
+            business_unit=business_unit, is_active=True
+        ).select_related('business_unit').first())()
+
+        if not whatsapp_api:
+            logger.error(f"[send_whatsapp_decision_buttons] ❌ No se encontró configuración activa para {business_unit.name}")
+            return False, "No hay configuración de WhatsApp activa"
+
+        # 🔥 FIX: Usar `api_token` en lugar de `api_key`
+        auth_token = whatsapp_api.api_token
+        if not auth_token:
+            logger.error(f"[send_whatsapp_decision_buttons] ❌ No se encontró un token de autenticación en WhatsAppAPI")
+            return False, "No hay token de autenticación"
+
+        url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+        headers = {
+            "Authorization": f"Bearer {auth_token}",
+            "Content-Type": "application/json"
+        }
+
+        # ✅ Validar botones (mínimo 1, máximo 3)
+        if not buttons or not isinstance(buttons, list) or not (1 <= len(buttons) <= 3):
+            logger.error("[send_whatsapp_decision_buttons] ❌ Formato de botones inválido. Se enviará botón 'Continuar'.")
+            buttons = [{"title": "Continuar", "payload": "continue"}]
+
+        # ✅ Formatear botones correctamente
+        valid_buttons = []
+        for idx, button in enumerate(buttons[:3]):  # WhatsApp permite máximo 3 botones
+            title = str(button.get('title', 'Opción'))[:20]  # **Máximo 20 caracteres**
+            payload = str(button.get('payload', f'btn_{idx}'))[:256]  # **Máx. 256 caracteres**
+            
+            # **Asegurar que el payload solo contiene caracteres válidos**
+            payload = re.sub(r'[^a-zA-Z0-9_]', '_', payload)
+
+            valid_buttons.append({
+                "type": "reply",
+                "reply": {
+                    "id": payload,
+                    "title": title
+                }
+            })
+
+        # **Si por alguna razón no hay botones válidos, forzar 'Continuar'**
+        if not valid_buttons:
+            valid_buttons = [{"type": "reply", "reply": {"id": "fallback", "title": "Continuar"}}]
+
+        # ✅ Limitar mensaje a **1024 caracteres** (para evitar rechazos de WhatsApp)
+        message = message[:1021] + "..." if len(message) > 1024 else message
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": user_id,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {"text": message},
+                "action": {"buttons": valid_buttons}
+            }
+        }
+
+        # ✅ Log para depuración
+        logger.info(f"[send_whatsapp_decision_buttons] 📤 Enviando payload a WhatsApp: {json.dumps(payload, indent=2)}")
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response_data = response.json()
+
+            if response.status_code == 200:
+                message_id = response_data.get('messages', [{}])[0].get('id', 'unknown')
+                logger.info(f"[send_whatsapp_decision_buttons] ✅ Botones enviados correctamente. Message ID: {message_id}")
+                return True, message_id
+            else:
+                error_msg = response_data.get('error', {}).get('message', 'Error desconocido')
+                logger.error(f"[send_whatsapp_decision_buttons] ❌ WhatsApp rechazó los botones: {error_msg}")
+                return False, error_msg
+
+    except Exception as e:
+        logger.error(f"[send_whatsapp_decision_buttons] ❌ Error inesperado: {str(e)}", exc_info=True)
+        return False, f"Error inesperado: {str(e)}"
