@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from datetime import datetime
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt # type: ignore
 
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import Person, ChatState, BusinessUnit, WhatsAppAPI, Template
@@ -24,11 +24,12 @@ REQUEST_TIMEOUT = 10.0  # Tiempo de espera para las solicitudes HTTP
 # ------------------------------------------------------------------------------
 # Webhook Principal para WhatsApp
 # ------------------------------------------------------------------------------
+
+
 @csrf_exempt
 async def whatsapp_webhook(request):
     """
-    Webhook principal que recibe mensajes de WhatsApp.
-    Valida el método y el payload, y retorna una respuesta adecuada.
+    Webhook de WhatsApp para recibir mensajes entrantes.
     """
     try:
         if request.method != "POST":
