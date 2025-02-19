@@ -243,7 +243,7 @@ async def send_telegram_buttons(
     business_unit_name: str
 ) -> Optional[Dict]:
     """Envía un mensaje con botones a Telegram, validando correctamente los datos."""
-    url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"
+    url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"  # Proponemos https://api.telegram.org/bot{access_token}/sendMessage
 
     inline_keyboard = []
     for btn in buttons:
@@ -295,7 +295,7 @@ async def send_telegram_buttons(
 
 async def send_telegram_image(
     chat_id: int,
-    photo_url: str,
+    image_url: str,  # Antes era photo_url
     caption: str,
     telegram_api: TelegramAPI,
     business_unit_name: str
@@ -305,7 +305,7 @@ async def send_telegram_image(
 
     payload = {
         "chat_id": chat_id,
-        "photo": photo_url,   # URL directa a la imagen
+        "photo": image_url,  # Ahora coincide con la llamada en services.py
         "caption": caption,
         "parse_mode": "HTML"
     }
@@ -320,8 +320,6 @@ async def send_telegram_image(
 
     except httpx.HTTPStatusError as e:
         logger.error(f"⚠️ Error HTTP al enviar foto: {e.response.text}")
-        if e.response.status_code == 400:
-            logger.error("❌ Posible error en la URL de la imagen o en el payload.")
         return False
     except Exception as e:
         logger.error(f"❌ Error inesperado al enviar foto: {str(e)}", exc_info=True)
