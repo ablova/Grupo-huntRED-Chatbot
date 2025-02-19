@@ -311,21 +311,29 @@ async def process_text_message(platform, sender_id, message_text, business_unit)
 
 async def send_options(platform, user_id, message, buttons=None, business_unit: Optional[BusinessUnit] = None):
     """
-    Envía opciones de respuesta al usuario.
+    Envía opciones de respuesta al usuario en WhatsApp, Telegram, Messenger e Instagram.
     """
-    try:
+    if not buttons or not isinstance(buttons, list) or len(buttons) == 0:
+        logger.error(f"[send_options] No hay botones válidos para enviar en {platform}")
+        buttons = [{"title": "Continuar", "payload": "fallback_option"}]  # Botón de seguridad
+
         if platform == 'whatsapp':
             from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
-            # Asegúrate de construir cada botón con la clave 'reply' que incluya 'id' y 'title'
-            formatted_buttons = []
-            for button in buttons or []:
-                formatted_buttons.append({
-                    "type": "reply",
-                    "reply": {
-                        "id": button.get('payload', ''),
-                        "title": button.get('title', '')
-                    }
-                })
+            
+            formatted_buttons = [
+                {"type": "reply", "reply": {"id": btn["payload"], "title": btn["title"][:20]}}
+                for btn in buttons if "payload" in btn and "title" in btn
+            ]
+
+            if not formatted_buttons:
+                logger.error(f"[send_whatsapp_decision_buttons] No hay botones válidos para enviar")
+                return
+
+            # Si hay botones con URL, enviar primero los enlaces por separado
+            url_buttons = [btn for btn in buttons if "url" in btn]
+            for btn in url_buttons:
+                await send_message(platform, user_id, f"Aquí tienes más información: {btn['url']}", business_unit)
+
             await send_whatsapp_decision_buttons(
                 user_id=user_id,
                 message=message,
