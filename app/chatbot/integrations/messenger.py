@@ -160,3 +160,28 @@ async def send_messenger_buttons(user_id, message, buttons, access_token):
         attempt += 1
         await asyncio.sleep(2 ** attempt)
     logger.error(f"[send_messenger_buttons] Falló el envío a {user_id} tras {attempt} intentos.")
+
+async def send_messenger_image(user_id: str, image_url: str, caption: str, access_token: str):
+    """Envía una imagen por Messenger."""
+    url = "https://graph.facebook.com/v22.0/me/messages"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "recipient": {"id": user_id},
+        "message": {
+            "attachment": {
+                "type": "image",
+                "payload": {"url": image_url, "is_reusable": True}
+            },
+            "text": caption
+        }
+    }
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+
+    logger.info(f"✅ Imagen enviada a {user_id} en Messenger.")
+    

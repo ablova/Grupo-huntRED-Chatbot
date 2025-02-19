@@ -293,8 +293,7 @@ async def send_telegram_buttons(
 
     return None
 
-
-async def send_telegram_photo(
+async def send_telegram_image(
     chat_id: int,
     photo_url: str,
     caption: str,
@@ -414,7 +413,7 @@ async def test_telegram_image():
         caption = "🖼️ Esta es una prueba de imagen en Telegram."
         business_unit_name = business_unit.name
 
-        result = await send_telegram_photo(chat_id, photo_url, caption, telegram_api, business_unit_name)
+        result = await send_telegram_image(chat_id, photo_url, caption, telegram_api, business_unit_name)
         if result:
             print("✅ Imagen enviada con éxito.")
         else:
