@@ -7,7 +7,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from asgiref.sync import sync_to_async
 from app.models import InstagramAPI, MetaAPI, BusinessUnit, ChatState, Person
-from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 
@@ -127,14 +126,25 @@ async def get_or_create_chat_state(user_id: str, platform: str) -> ChatState:
         logger.error(f"Error obteniendo o creando ChatState para {user_id}: {e}", exc_info=True)
         raise
 
-async def send_instagram_message(user_id: str, message: str, options: Optional[List[Dict]], business_unit: BusinessUnit):
-    """
-    Envía una respuesta a Instagram, incluyendo botones si están disponibles.
-    """
-    if options:
-        await send_instagram_buttons(user_id, message, options, business_unit.instagram_api.access_token)
-    else:
-        await send_message('instagram', user_id, message, business_unit)
+async def send_instagram_message(user_id, message, access_token):
+    """Envía un mensaje a Instagram."""
+    from app.chatbot.integrations.services import send_message  # 🔄 Import dentro de la función
+
+    url = "https://graph.facebook.com/v22.0/me/messages"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "recipient": {"id": user_id},
+        "message": {"text": message}
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+
+    logger.info(f"✅ Mensaje enviado a {user_id} en Instagram.")
 
 async def send_instagram_buttons(user_id, message, buttons, access_token):
     """

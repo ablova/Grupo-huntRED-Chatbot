@@ -9,7 +9,7 @@ from django.utils.timezone import now
 from django.core.cache import cache
 
 from app.models import (
-    ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, Vacante, WhatsAppAPI, EnhancedNetworkGamificationProfile
+    ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, Vacante, WhatsAppAPI, EnhancedNetworkGamificationProfile, ConfiguracionBU
 )
 from app.chatbot.integrations.services import (
     send_email, send_message, send_options, send_menu, send_url, send_image, GamificationService
