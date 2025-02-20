@@ -11,11 +11,10 @@ class AppConfig(DjangoAppConfig):
     name = 'app'
 
     def ready(self):
-        # Cargar señales
         import app.signals
 
-        # Ejecutar código de arranque solo en el proceso principal
-        if os.environ.get('RUN_MAIN', None) != 'true':
+        # Solo bloquear ejecución en runserver, pero permitir en Celery
+        if "runserver" in os.environ.get("DJANGO_RUN_MODE", ""):
             return
 
         self.register_startup_handlers()
