@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import os
 import logging
 from celery import Celery
-from celery.schedules import crontab  # Importación necesaria para usar crontab
+from celery.schedules import crontab  # Importación necesaria
 
 logger = logging.getLogger("app.tasks")
 
@@ -12,10 +12,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 
 app = Celery('ai_huntred')
 
-# Configuración de broker y backend (Redis en este caso)
+# Configuración de broker y backend (Redis)
 app.conf.update(
-    broker_url='redis://127.0.0.1:6379/0',        # Broker
-    result_backend='redis://127.0.0.1:6379/0',      # Backend de resultados
+    broker_url='redis://127.0.0.1:6379/0',
+    result_backend='redis://127.0.0.1:6379/0',
     accept_content=['json'],
     task_serializer='json',
     result_serializer='json',
@@ -23,12 +23,14 @@ app.conf.update(
     enable_utc=True,
 )
 
-# Ejemplo de task de debug
 @app.task(bind=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')
 
-# Configuración de tareas periódicas con Celery Beat
+# =========================================================
+# Configuración de Celery Beat (programación de tareas)
+# =========================================================
+
 app.conf.beat_schedule.update({
     'execute_ml_and_scraping_daily': {
         'task': 'app.tasks.execute_ml_and_scraping',
@@ -40,11 +42,11 @@ app.conf.beat_schedule.update({
     },
     'send_daily_notification': {
         'task': 'app.tasks.send_daily_notification',
-        'schedule': crontab(minute=0, hour='*'),  # Cada hora
+        'schedule': crontab(minute=0, hour='*'),
     },
     'send_consolidated_reports': {
         'task': 'app.tasks.generate_and_send_reports',
-        'schedule': crontab(hour=8, minute=40),  # 8:40 AM diario
+        'schedule': crontab(hour=8, minute=40),
     },
     'send_anniversary_reports': {
         'task': 'app.tasks.generate_and_send_anniversary_reports',
@@ -68,7 +70,7 @@ app.conf.beat_schedule.update({
     },
     'train_ml_models_daily': {
         'task': 'app.tasks.train_ml_task',
-        'schedule': crontab(hour=3, minute=0),  # 3:00 AM
+        'schedule': crontab(hour=3, minute=0),
     },
     'check-emails-every-hour': {
         'task': 'app.tasks.check_emails_and_parse_cvs',
@@ -101,13 +103,14 @@ app.conf.task_routes = {
     'app.tasks.send_messenger_message': {'queue': 'notifications'},
 }
 
-# Autodiscover tasks en las apps instaladas
+# Autodiscover tasks
 app.autodiscover_tasks()
 
 def register_periodic_tasks():
     """
-    Registra tareas periódicas en Celery Beat usando el modelo PeriodicTask de django-celery-beat.
+    Registra tareas periódicas usando django-celery-beat.
     """
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
     logger.info("🔄 Registrando tareas periódicas...")
     tasks = [
         {"name": "Execute ML and Scraping Daily", "task": "app.tasks.execute_ml_and_scraping", "crontab": {"hour": 7, "minute": 30}},
@@ -122,9 +125,9 @@ def register_periodic_tasks():
     ]
     for task_info in tasks:
         try:
-            crontab_schedule, _ = CrontabSchedule.objects.get_or_create(**task_info["crontab"])
+            schedule, _ = CrontabSchedule.objects.get_or_create(**task_info["crontab"])
             PeriodicTask.objects.get_or_create(
-                crontab=crontab_schedule,
+                crontab=schedule,
                 name=task_info["name"],
                 task=task_info["task"],
                 defaults={'enabled': True}
@@ -133,5 +136,5 @@ def register_periodic_tasks():
         except Exception as e:
             logger.error(f"❌ Error registrando tarea {task_info['name']}: {e}")
 
-# Registrar tareas periódicas
-register_periodic_tasks()
+# Comentamos la llamada directa para evitar problemas al iniciar migraciones
+# register_periodic_tasks()
