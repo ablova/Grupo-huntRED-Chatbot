@@ -10,9 +10,6 @@ from ai_huntred.celery import app
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
-from django.shortcuts import get_object_or_404
-from django.template.loader import render_to_string
-from django.core.mail import EmailMultiAlternatives
 from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
@@ -29,7 +26,8 @@ from app.utilidades.linkedin import (
     fetch_member_profile,
     process_csv,
     slow_scrape_from_csv,
-    scrape_linkedin_profile
+    scrape_linkedin_profile,
+    deduplicate_candidates,
 )
 from app.chatbot.workflow.amigro import (
     generate_candidate_summary_task,
@@ -40,10 +38,13 @@ from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
 from app.ml.ml_model import GrupohuntREDMLPipeline
 from celery.exceptions import MaxRetriesExceededError
 from app.utilidades.catalogs import DIVISIONES
-import json
-import os
+import json, os
 
 logger = logging.getLogger("app.tasks")
+
+@shared_task
+def add(x, y):
+    return x + y
 
 
 @shared_task
@@ -451,30 +452,32 @@ def scrape_single_profile_task(profile_url: str):
     logger.info(f"Datos obtenidos: {data}")
     return data
 
-@shared_task(bind=True, queue='scraping')
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def process_csv_and_scrape_task(self, csv_path: str = "/home/pablo/connections.csv"):
     """
     Procesa el archivo CSV y ejecuta scraping de los perfiles.
+    Al finalizar, se ejecuta la función de deduplicación para eliminar candidatos duplicados.
     """
     try:
-        # Identifica la unidad de negocio
         bu = BusinessUnit.objects.filter(name='huntRED').first()
         if not bu:
             raise Exception("No se encontró la BU huntRED.")
 
         logger.info("🚀 Iniciando procesamiento del CSV.")
-        # Procesar el CSV
-        process_csv(csv_path, bu)  # Reutilizando `process_csv` de `linkedin.py`
+        process_csv(csv_path, bu)  # Procesa el CSV utilizando update_or_create
+
+        # Opcional: Ejecutar deduplicación luego de procesar el CSV
+        duplicates = deduplicate_candidates()
+        logger.info(f"🧹 Deduplicación completada. Total duplicados eliminados: {len(duplicates)}")
 
         logger.info("🔍 Iniciando scraping de perfiles.")
-        # Scraping de perfiles pendientes
-        scrape_linkedin_profiles()  # Reutilizando `scrape_linkedin_profiles` de `linkedin.py`
+        scrape_linkedin_profile()  # Suponiendo que esta función se encarga de scraping de perfiles pendientes
 
         logger.info("✅ Proceso completo de CSV y scraping finalizado.")
     except Exception as e:
         logger.error(f"❌ Error en el flujo combinado: {e}")
         self.retry(exc=e)
-
+        
 # =========================================================
 # Tareas para reportes, limpieza y otros
 # =========================================================
