@@ -7,6 +7,7 @@ import json
 import random
 import backoff
 import requests
+import itertools
 from typing import Optional, List, Dict
 from datetime import datetime
 from django.conf import settings
@@ -205,15 +206,36 @@ def normalize_skills(raw_skills, business_unit=None, division=None, position=Non
                         normalized.append(skill)
     return list(set(normalized))
 
+def normalize_candidate_key(person):
+    return (
+        person.nombre.strip().lower() if person.nombre else "",
+        person.apellido_paterno.strip().lower() if person.apellido_paterno else "",
+        person.email.strip().lower() if person.email else "",
+        person.phone.strip() if person.phone else ""
+    )
+
+def deduplicate_candidates():
+    """
+    Agrupa candidatos según nombre, apellido, email y teléfono;
+    conserva el de ID menor y elimina los duplicados.
+    """
+    all_candidates = Person.objects.all().order_by('nombre', 'apellido_paterno', 'email', 'phone', 'id')
+    duplicates = []
+    for key, group in itertools.groupby(all_candidates, key=normalize_candidate_key):
+        group_list = list(group)
+        if len(group_list) > 1:
+            to_keep = min(group_list, key=lambda p: p.id)
+            for candidate in group_list:
+                if candidate.id != to_keep.id:
+                    duplicates.append(candidate.id)
+                    candidate.delete()
+    return duplicates
 
 # =========================================================
 # Manejo de CSV
 # =========================================================
 def process_csv(csv_path: str, business_unit):
-    batch_size = 200  # Tamaño del lote
-    batch_to_create = []
     count = 0
-
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -225,32 +247,30 @@ def process_csv(csv_path: str, business_unit):
             phone_number = row.get('Phone', '').strip() or None
 
             try:
-                person, created = Person.objects.get_or_create(
+                # Usar update_or_create para evitar duplicados
+                person, created = Person.objects.update_or_create(
                     email=email,
                     defaults={
                         'nombre': fn,
                         'apellido_paterno': ln,
                         'linkedin_url': linkedin_url,
                         'phone': phone_number,
-                    },
+                    }
                 )
+                # Asignar ref_num y manejar interacciones
                 if created or not person.ref_num:
                     person.ref_num = f"LI-{int(time.time())}-{random.randint(100, 999)}"
                     person.number_interaction = 1
-                    person.save()
-                    logger.info(f"Referencia asignada a {person}: {person.ref_num}")
                 else:
                     person.number_interaction += 1
-                    person.save()
-
-                logger.info(f"Procesado: {person.nombre} ({person.email}) - interacciones: {person.number_interaction}")
-
+                person.save()
+                logger.info(f"Procesado: {person.nombre} ({person.email}) - Interacciones: {person.number_interaction}")
             except Exception as e:
                 logger.error(f"Error procesando registro: {fn} {ln} ({email}): {e}", exc_info=True)
 
             if count % 100 == 0:
-                logger.info(f"Avance: {count} registros procesados.")
-    logger.info(f"Proceso CSV completado. Total: {count} registros.")
+                logger.info(f"Avance: Se han procesado {count} registros.")
+    logger.info(f"Proceso CSV completado. Total registros: {count}")
 
 def update_phone_number(person: Person, new_phone: str):
     """
