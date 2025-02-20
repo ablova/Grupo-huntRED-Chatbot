@@ -19,15 +19,10 @@ from app.chatbot.chatbot import ChatBotHandler
 from app.utilidades.parser import CVParser, IMAPCVProcessor
 from app.utilidades.email_scraper import email_scraper
 from app.models import (
-    Configuracion,
-    ConfiguracionBU,
-    Vacante,
-    DominioScraping,
-    Interview,
-    Person,
-    BusinessUnit,
-    Application,
-    RegistroScraping
+    Configuracion, ConfiguracionBU,
+    Vacante, Person, BusinessUnit,
+    DominioScraping, RegistroScraping,
+    Interview, Application,
 )
 from app.utilidades.linkedin import (
     process_api_data,
