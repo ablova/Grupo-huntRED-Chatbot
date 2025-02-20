@@ -96,6 +96,8 @@ INSTALLED_APPS = [
     'app.utilidades',
     'app.sexsi',
     'app.milkyleak',
+    # Manejo de Diseño - WoWDash
+    'app.wowdash',
     # Librerías externas
     'rest_framework',
     'django_filters',
