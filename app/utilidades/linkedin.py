@@ -231,6 +231,36 @@ def deduplicate_candidates():
                     candidate.delete()
     return duplicates
 
+def merge_candidate_data(existing: Person, new_data: Dict) -> Person:
+    """
+    Fusiona los datos del candidato 'new_data' en el registro 'existing'.
+    Para cada campo, si en el registro existente no hay información o está vacía,
+    se actualiza con la información de new_data.
+    """
+    # Por ejemplo, para campos básicos:
+    if not existing.nombre and new_data.get('nombre'):
+        existing.nombre = new_data['nombre']
+    if not existing.apellido_paterno and new_data.get('apellido_paterno'):
+        existing.apellido_paterno = new_data['apellido_paterno']
+    if not existing.email and new_data.get('email'):
+        existing.email = new_data['email']
+    if not existing.phone and new_data.get('phone'):
+        existing.phone = new_data['phone']
+    
+    # Para metadata, se puede fusionar de forma similar:
+    metadata = existing.metadata or {}
+    new_metadata = new_data.get('metadata', {})
+    for key, value in new_metadata.items():
+        if key not in metadata or not metadata[key]:
+            metadata[key] = value
+        # Si ambos tienen datos, podrías definir reglas específicas (por ejemplo, unir listas, etc.)
+        elif isinstance(metadata[key], list) and isinstance(value, list):
+            # Unir sin duplicados
+            metadata[key] = list(set(metadata[key] + value))
+    existing.metadata = metadata
+
+    return existing
+
 def procesar_cumpleaños(fecha_str):
     """
     Recibe un string de cumpleaños que incluye el año y retorna una fecha con el año predeterminado (por ejemplo, el año actual),
@@ -254,7 +284,7 @@ def procesar_cumpleaños(fecha_str):
 # =========================================================
 # Manejo de CSV
 # =========================================================
-def process_csv(csv_path: str, business_unit):
+def process_csv(csv_path: str, business_unit: BusinessUnit):
     count = 0
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
@@ -266,25 +296,37 @@ def process_csv(csv_path: str, business_unit):
             email = row.get('Email Address', '').strip() or None
             phone_number = row.get('Phone', '').strip() or None
 
+            candidate_data = {
+                'nombre': fn,
+                'apellido_paterno': ln,
+                'linkedin_url': linkedin_url,
+                'email': email,
+                'phone': phone_number,
+                'metadata': {}
+            }
+
             try:
-                # Usar update_or_create para evitar duplicados
-                person, created = Person.objects.update_or_create(
-                    email=email,
-                    defaults={
-                        'nombre': fn,
-                        'apellido_paterno': ln,
-                        'linkedin_url': linkedin_url,
-                        'phone': phone_number,
-                    }
-                )
-                # Asignar ref_num y manejar interacciones
-                if created or not person.ref_num:
-                    person.ref_num = f"LI-{int(time.time())}-{random.randint(100, 999)}"
-                    person.number_interaction = 1
+                candidate = deduplicate_persons(fn, ln, email, None, None)
+                if candidate:
+                    candidate = merge_candidate_data(candidate, candidate_data)
+                    candidate.number_interaction += 1
+                    candidate.save()
+                    logger.info(f"Actualizado candidato: {candidate.nombre} (ID {candidate.id})")
                 else:
-                    person.number_interaction += 1
-                person.save()
-                logger.info(f"Procesado: {person.nombre} ({person.email}) - Interacciones: {person.number_interaction}")
+                    candidate = Person.objects.create(
+                        ref_num=f"LI-{int(time.time())}-{random.randint(100, 999)}",
+                        **candidate_data
+                    )
+                    candidate.number_interaction = 1
+                    candidate.save()
+                    logger.info(f"Creado nuevo candidato: {candidate.nombre} (ID {candidate.id})")
+
+                # Si existe linkedin_url y se quiere enriquecer, realizar scraping:
+                if linkedin_url:
+                    scraped_data = scrape_linkedin_profile(linkedin_url, business_unit.name.lower())
+                    if scraped_data:
+                        update_person_from_scrape(candidate, scraped_data)
+                        logger.info(f"Enriquecido candidato {candidate.nombre} con datos de LinkedIn")
             except Exception as e:
                 logger.error(f"Error procesando registro: {fn} {ln} ({email}): {e}", exc_info=True)
 

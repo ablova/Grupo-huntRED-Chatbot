@@ -375,7 +375,7 @@ LOGGING = {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'amigro.log'),
             'formatter': 'verbose',
-            'maxBytes': 10485760,
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 2,
             'level': 'INFO',
         },

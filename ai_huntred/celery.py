@@ -84,6 +84,10 @@ app.conf.beat_schedule.update({
         'task': 'tasks.execute_email_scraper',
         'schedule': crontab(hour=22, minute=30),
     },
+    'enviar_invitaciones_completar_perfil': {
+        'task': 'app.tasks.enviar_invitaciones_completar_perfil',
+        'schedule': crontab(minute=0, hour='*/4'),  # Cada 4 horas
+    },
 })
 
 # Definición de colas
