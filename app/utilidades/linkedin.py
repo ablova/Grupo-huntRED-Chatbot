@@ -231,6 +231,26 @@ def deduplicate_candidates():
                     candidate.delete()
     return duplicates
 
+def procesar_cumpleaños(fecha_str):
+    """
+    Recibe un string de cumpleaños que incluye el año y retorna una fecha con el año predeterminado (por ejemplo, el año actual),
+    manteniendo el día y el mes.
+    Ejemplo: '1985-06-15' -> '2025-06-15' (siendo 2025 el año actual o el que desees)
+    """
+    try:
+        # Parseamos la fecha original (asumiendo el formato 'YYYY-MM-DD')
+        fecha_original = datetime.strptime(fecha_str, '%Y-%m-%d')
+        # Asignamos el año deseado, por ejemplo, el año actual:
+        año_predeterminado = datetime.now().year
+        # Reconstruimos la fecha con el nuevo año
+        fecha_nueva = fecha_original.replace(year=año_predeterminado)
+        return fecha_nueva
+    except Exception as e:
+        # Si ocurre un error, se puede loguear y retornar None
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error procesando cumpleaños {fecha_str}: {e}")
+        return None
 # =========================================================
 # Manejo de CSV
 # =========================================================
