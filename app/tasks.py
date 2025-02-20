@@ -13,6 +13,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
+from app.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
 from app.utilidades.parser import CVParser, IMAPCVProcessor
 from app.utilidades.email_scraper import email_scraper
 from app.models import (
@@ -478,6 +479,35 @@ def process_csv_and_scrape_task(self, csv_path: str = "/home/pablo/connections.c
         logger.error(f"❌ Error en el flujo combinado: {e}")
         self.retry(exc=e)
         
+@shared_task(bind=True, max_retries=3, default_retry_delay=300, queue='notifications')
+def enviar_invitaciones_completar_perfil(self):
+    """
+    Task que consulta candidatos con información incompleta y envía la invitación para completar el perfil.
+    En este ejemplo, se filtra a los candidatos sin número de celular.
+    """
+    try:
+        # Ajusta el criterio según lo que consideres “incompleto”
+        candidatos = Person.objects.filter(phone__isnull=True)
+        if not candidatos.exists():
+            logger.info("No se encontraron candidatos con perfiles incompletos para invitar.")
+            return "No candidates to invite."
+
+        # Aquí puedes definir la lógica para obtener la BusinessUnit; por ejemplo, el primer registro
+        business_unit = BusinessUnit.objects.first()
+        if not business_unit:
+            logger.error("No se encontró ninguna BusinessUnit.")
+            return "No BusinessUnit found."
+
+        invitaciones_enviadas = 0
+        for candidate in candidatos:
+            enviar_invitacion_completar_perfil(candidate, business_unit)
+            invitaciones_enviadas += 1
+
+        logger.info(f"Invitaciones enviadas: {invitaciones_enviadas}")
+        return f"Invitaciones enviadas: {invitaciones_enviadas}"
+    except Exception as e:
+        logger.error(f"Error en el task enviar_invitaciones_completar_perfil: {e}", exc_info=True)
+        self.retry(exc=e)
 # =========================================================
 # Tareas para reportes, limpieza y otros
 # =========================================================
