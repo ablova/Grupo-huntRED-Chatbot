@@ -6,6 +6,7 @@ venv/
 __pycache__/
 .DS_Store
 setup_server.sh
+update_git.sh
 shell.py
 
 # Archivos de respaldo
