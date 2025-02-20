@@ -9,12 +9,7 @@ logger = logging.getLogger("app.tasks")
 
 # Establece el entorno predeterminado para Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
-
-# Configurar Celery en horario local
-app.conf.timezone = 'America/Mexico_City'
-
 app = Celery('ai_huntred')
-
 # Configuración base de broker y backend (Redis)
 app.conf.update(
     broker_url='redis://127.0.0.1:6379/0',
@@ -25,10 +20,13 @@ app.conf.update(
     timezone='America/Mexico_City',
     enable_utc=True,
 )
+# Configurar Celery en horario local
+app.conf.timezone = 'America/Mexico_City'
 
 @app.task(bind=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')
+
 
 # =========================================================
 # Definiciones de colas y rutas de tareas
