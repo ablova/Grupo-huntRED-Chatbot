@@ -11,15 +11,19 @@ class AppConfig(AppConfig):
     name = 'app'
 
     def ready(self):
-        """
-        Configura la señal para cargar configuraciones dinámicas después de que la aplicación esté completamente inicializada.
-        """
-        import app.signals
-        if not settings.DEBUG:
-            return
-
-        # Conectar la señal para cargar configuraciones dinámicas
-        request_started.connect(self.load_dynamic_settings_on_request)
+        import app.signals  # Cargar tus señales
+        # Cargar configuraciones dinámicas (según DEBUG)
+        if settings.DEBUG:
+            from django.core.signals import request_started
+            request_started.connect(self.load_dynamic_settings_on_request)
+        
+        # Registrar tareas periódicas si es necesario
+        try:
+            from ai_huntred.celery import register_periodic_tasks
+            register_periodic_tasks()
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error registrando tareas periódicas: {e}")
 
     def load_dynamic_settings_on_request(self, **kwargs):
         """
