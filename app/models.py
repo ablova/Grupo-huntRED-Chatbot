@@ -941,6 +941,7 @@ class VerificationCode(models.Model):
     def __str__(self):
         return f"{self.person.first_name} {self.person.last_name} - {self.purpose} - {'Usado' if self.is_used else 'No usado'}"
 
+
 class Interaction(models.Model):
     """
     Modelo para registrar las interacciones de los candidatos.
