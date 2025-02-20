@@ -806,15 +806,6 @@ def check_emails_and_parse_cvs(self):
         self.retry(exc=e)
 
 @shared_task
-def execute_email_scraper():
-    """ Ejecuta la extracción de vacantes desde correos electrónicos """
-    try:
-        email_scraper()
-        logger.info("Email scraper ejecutado correctamente.")
-    except Exception as e:
-        logger.error(f"Error en email scraper: {e}")
-
-@shared_task
 def send_signature_reminders():
     """Envía recordatorios de firma a los candidatos y clientes cada 24 horas"""
     pending_signatures = Person.objects.filter(signature_status="pending")
@@ -823,3 +814,17 @@ def send_signature_reminders():
         send_message("whatsapp", person.phone, "⚠️ Tienes un documento pendiente de firma. Revísalo y firma lo antes posible.", person.business_unit)
 
     return f"Recordatorios enviados a {pending_signatures.count()} personas."
+
+# =========================================================
+# Tareas para obtención de oportunidades, scraping, 
+# =========================================================
+@shared_task(name="tasks.execute_email_scraper")
+def execute_email_scraper():
+    """ Ejecuta la extracción de vacantes desde correos electrónicos """
+    try:
+        logger.info("🚀 Ejecutando email scraper desde Celery...")
+        email_scraper()
+        return "✅ Email scraper ejecutado con éxito."
+    except Exception as e:
+        logger.error(f"❌ Error en email_scraper: {e}")
+        return f"❌ Error en ejecución: {e}"
