@@ -393,6 +393,15 @@ async def send_whatsapp_image(user_id, message, image_url, phone_id, business_un
 
     logger.info(f"✅ Imagen enviada a {user_id} en WhatsApp.")
 
+import json
+import httpx
+import logging
+import re
+from asgiref.sync import sync_to_async
+from app.models import WhatsAppAPI
+
+logger = logging.getLogger("app.chatbot.integrations.whatsapp")
+
 async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
     """Envía botones interactivos a WhatsApp asegurando el formato correcto."""
     try:
@@ -423,13 +432,19 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
             buttons = [{"title": "Continuar", "payload": "continue"}]
 
         # ✅ Formatear botones correctamente
+        seen_titles = set()
         valid_buttons = []
         for idx, button in enumerate(buttons[:3]):  # WhatsApp permite máximo 3 botones
             title = str(button.get('title', 'Opción'))[:20]  # **Máximo 20 caracteres**
             payload = str(button.get('payload', f'btn_{idx}'))[:256]  # **Máx. 256 caracteres**
             
-            # **Asegurar que el payload solo contiene caracteres válidos**
+            # **Sanitizar payload y asegurar que no haya caracteres inválidos**
             payload = re.sub(r'[^a-zA-Z0-9_]', '_', payload)
+
+            # **Evitar títulos duplicados**
+            if title in seen_titles:
+                title = f"{title[:17]}_{idx}"  # Agregar sufijo para evitar duplicados
+            seen_titles.add(title)
 
             valid_buttons.append({
                 "type": "reply",

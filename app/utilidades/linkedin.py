@@ -209,11 +209,15 @@ def normalize_skills(raw_skills, business_unit=None, division=None, position=Non
 # =========================================================
 # Manejo de CSV
 # =========================================================
+def process_csv(csv_path: str, business_unit):
+    batch_size = 200  # Tamaño del lote
+    batch_to_create = []
+    count = 0
 
-def process_csv(csv_path: str, business_unit: BusinessUnit):
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
+            count += 1
             fn = normalize_name(row.get('First Name', ''))
             ln = normalize_name(row.get('Last Name', ''))
             linkedin_url = row.get('URL', '').strip() or None
@@ -221,7 +225,6 @@ def process_csv(csv_path: str, business_unit: BusinessUnit):
             phone_number = row.get('Phone', '').strip() or None
 
             try:
-                # Crear o actualizar Person
                 person, created = Person.objects.get_or_create(
                     email=email,
                     defaults={
@@ -231,23 +234,23 @@ def process_csv(csv_path: str, business_unit: BusinessUnit):
                         'phone': phone_number,
                     },
                 )
-
                 if created or not person.ref_num:
-                    # Asignar un número de referencia si no existe
                     person.ref_num = f"LI-{int(time.time())}-{random.randint(100, 999)}"
-                    person.number_interaction = 1  # Reiniciar interacciones para nuevos registros
+                    person.number_interaction = 1
                     person.save()
                     logger.info(f"Referencia asignada a {person}: {person.ref_num}")
-
-                # Incrementar interacciones para registros existentes
                 else:
                     person.number_interaction += 1
                     person.save()
 
-                logger.info(f"Procesado: {person.nombre} ({person.email}) con interacciones: {person.number_interaction}")
+                logger.info(f"Procesado: {person.nombre} ({person.email}) - interacciones: {person.number_interaction}")
 
             except Exception as e:
                 logger.error(f"Error procesando registro: {fn} {ln} ({email}): {e}", exc_info=True)
+
+            if count % 100 == 0:
+                logger.info(f"Avance: {count} registros procesados.")
+    logger.info(f"Proceso CSV completado. Total: {count} registros.")
 
 def update_phone_number(person: Person, new_phone: str):
     """
