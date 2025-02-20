@@ -7,12 +7,12 @@ from celery.schedules import crontab
 
 logger = logging.getLogger("app.tasks")
 
-# Set default Django settings
+# Establece el entorno predeterminado para Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 
 app = Celery('ai_huntred')
 
-# Base configuration
+# Configuración base de broker y backend (Redis)
 app.conf.update(
     broker_url='redis://127.0.0.1:6379/0',
     result_backend='redis://127.0.0.1:6379/0',
@@ -23,7 +23,14 @@ app.conf.update(
     enable_utc=True,
 )
 
-# Queue definitions
+@app.task(bind=True)
+def debug_task(self):
+    print(f'Request: {self.request!r}')
+
+# =========================================================
+# Definiciones de colas y rutas de tareas
+# =========================================================
+
 task_queues = {
     'default': {'exchange': 'default', 'routing_key': 'default'},
     'ml': {'exchange': 'ml', 'routing_key': 'ml.#'},
@@ -31,7 +38,6 @@ task_queues = {
     'notifications': {'exchange': 'notifications', 'routing_key': 'notifications.#'},
 }
 
-# Task routing
 task_routes = {
     'app.tasks.execute_ml_and_scraping': {'queue': 'ml'},
     'app.tasks.ejecutar_scraping': {'queue': 'scraping'},
@@ -40,11 +46,13 @@ task_routes = {
     'app.tasks.send_messenger_message': {'queue': 'notifications'},
 }
 
+app.conf.task_queues = task_queues
+app.conf.task_routes = task_routes
+
 # =========================================================
-# Configuración de Celery Beat (programación de tareas)
+# Definición de la programación (beat schedule)
 # =========================================================
 
-# Schedule definitions
 SCHEDULE_DICT = {
     'execute_ml_and_scraping_daily': {
         'task': 'app.tasks.execute_ml_and_scraping',
@@ -104,20 +112,23 @@ SCHEDULE_DICT = {
     },
 }
 
+# =========================================================
+# Registro de tareas periódicas en django-celery-beat
+# =========================================================
 
 def setup_periodic_tasks(sender, **kwargs):
     """
-    Single source of truth for periodic task registration.
-    Used by both beat_schedule and django-celery-beat.
+    Función central para registrar las tareas periódicas.
+    Esta función se conecta a la señal on_after_configure de Celery para actualizar
+    la programación interna y, a la vez, registrar en django-celery-beat.
     """
-    # Update Celery beat schedule
+    # Actualiza el beat_schedule interno de Celery
     sender.conf.beat_schedule = SCHEDULE_DICT
-    
+
     try:
         from django_celery_beat.models import CrontabSchedule, PeriodicTask
-        
-        # Register tasks in django-celery-beat
         for name, config in SCHEDULE_DICT.items():
+            # Extraer parámetros del objeto crontab
             crontab_kwargs = {
                 'minute': config['schedule'].minute,
                 'hour': config['schedule'].hour,
@@ -125,25 +136,20 @@ def setup_periodic_tasks(sender, **kwargs):
                 'day_of_month': config['schedule'].day_of_month,
                 'month_of_year': config['schedule'].month_of_year,
             }
-            
             schedule, _ = CrontabSchedule.objects.get_or_create(**crontab_kwargs)
+            # Se registra la tarea en PeriodicTask (si no existe)
             PeriodicTask.objects.get_or_create(
                 name=name,
                 task=config['task'],
                 crontab=schedule,
                 defaults={'enabled': True}
             )
-            logger.info(f"✅ Task registered: {name}")
-            
+            logger.info(f"✅ Tarea registrada: {name}")
     except Exception as e:
         logger.error(f"❌ Error registering periodic tasks: {e}")
 
-# Connect the setup function
+# Conectar la función de setup a la señal de configuración de Celery
 app.on_after_configure.connect(setup_periodic_tasks)
-
-# Set configuration
-app.conf.task_queues = task_queues
-app.conf.task_routes = task_routes
 
 # Autodiscover tasks
 app.autodiscover_tasks()
