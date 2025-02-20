@@ -21,7 +21,8 @@ app.conf.update(
     enable_utc=True,
 )
 # Configurar Celery en horario local
-app.conf.timezone = 'America/Mexico_City'
+app.conf.enable_utc = False  # 🔹 Desactiva UTC en Celery
+app.conf.timezone = 'America/Mexico_City'  # 🔹 Forzar horario local
 
 @app.task(bind=True)
 def debug_task(self):
