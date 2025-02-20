@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Tus enlaces a CSS y JS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Pruebas del Chatbot de Amigro</title>
+    <style>
+        /* Tus estilos CSS */
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 50px;
+            margin-bottom: 50px;
+        }
+        .form-section {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-section h2 {
+            margin-bottom: 20px;
+        }
+        .send-button {
+            margin-top: 20px;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .alert {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sección de Pruebas -->
+        <div class="form-section">
+            <h2>Ejecutor de Pruebas del Chatbot</h2>
+            <form id="test-form" method="POST">
+                {% csrf_token %}
+                <!-- Selección de Funciones -->
+                <div class="form-group">
+                    <label for="functions"><strong>Selecciona Funciones:</strong></label>
+                    <select multiple class="form-control" id="functions" required>
+                        <option value="send_message">Enviar Mensaje</option>
+                        <option value="send_image">Enviar Imagen</option>
+                        <option value="send_menu">Enviar Menú</option>
+                        <option value="enviar_logo">Enviar Logo</option>
+                        <option value="mostrar_vacantes">Mostrar Vacantes</option>
+                        <option value="enviar_whatsapp_plantilla">Enviar Plantilla WhatsApp</option>
+                        <option value="send_question">Enviar Pregunta</option>
+                        <option value="send_buttons">Enviar Botones</option>
+                        <option value="send_template_message">Enviar Mensaje de Plantilla</option>
+                        <option value="send_media_message">Enviar Mensaje Multimedia</option>
+                        <option value="execute_scraping">Ejecutar Scraping</option>
+                        <option value="send_notification">Enviar Notificación</option>
+                        <option value="follow_up_interview">Seguimiento de Entrevista</option>
+                        <option value="get_location">Obtener Ubicación</option>
+                        <!-- etc. -->
+                    </select>
+                    <small class="form-text text-muted">Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples.</small>
+                </div>
+                <!-- Selección de Plataforma -->
+                <div class="form-group">
+                    <label for="platform"><strong>Selecciona Plataforma:</strong></label>
+                    <select class="form-control" id="platform" required>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="telegram">Telegram</option>
+                        <option value="messenger">Messenger</option>
+                        <option value="instagram">Instagram</option>
+                    </select>
+                </div>
+                <!-- Selección de BusinessUnit -->
+                <div class="form-group">
+                    <label for="business_unit_id"><strong>Selecciona Unidad de Negocio:</strong></label>
+                    <select class="form-control" id="business_unit_id" required>
+                        {% for bu in business_units %}
+                            <option value="{{ bu.id }}">{{ bu.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Campo para Número de Teléfono -->
+                <div class="form-group">
+                    <label for="phone_number"><strong>Número de Teléfono:</strong></label>
+                    <input type="text" class="form-control" id="phone_number" placeholder="Ej. 525518490291">
+                </div>
+                <!-- ID de Pregunta -->
+                <div class="form-group">
+                    <label for="question_id"><strong>ID de la Pregunta:</strong></label>
+                    <input type="text" class="form-control" id="question_id" placeholder="Opcional">
+                </div>
+                <!-- Mensaje / Acción -->
+                <div class="form-group">
+                    <label for="action"><strong>Mensaje/Acción:</strong></label>
+                    <textarea class="form-control" id="action"></textarea>
+                </div>
+                <!-- Botón de Envío -->
+                <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Enviar</button>
+                <!-- Spinner -->
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Cargando...</span>
+                    </div>
+                </div>
+                <!-- Alertas -->
+                <div class="alert alert-success" id="successAlert">Prueba enviada exitosamente.</div>
+                <div class="alert alert-danger" id="errorAlert">Error al enviar la prueba.</div>
+            </form>
+        </div>
+        <!-- Configuración Actual -->
+        <div class="form-section">
+            <h2>Configuración de Pruebas</h2>
+            <div class="form-group">
+                <label><strong>Usuario:</strong></label>
+                <input type="text" class="form-control" value="{{ config.test_user }}" readonly>
+            </div>
+            <div class="form-group">
+                <label><strong>Teléfono:</strong></label>
+                <input type="text" class="form-control" value="{{ config.test_phone_number }}" readonly>
+            </div>
+            <div class="form-group">
+                <label><strong>Email:</strong></label>
+                <input type="text" class="form-control" value="{{ config.test_email }}" readonly>
+            </div>
+        </div>
+        <!-- Historial de Mensajes -->
+        <div class="form-section">
+            <h2>Historial de Mensajes</h2>
+            <div id="messageHistory"></div>
+        </div>
+    </div>
+    <!-- Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const testForm = document.getElementById('test-form');
+            const successAlert = document.getElementById('successAlert');
+            const errorAlert = document.getElementById('errorAlert');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+
+            testForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                successAlert.style.display = 'none';
+                errorAlert.style.display = 'none';
+                loadingSpinner.style.display = 'block';
+
+                const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const data = {
+                    functions: Array.from(document.getElementById('functions').selectedOptions).map(option => option.value),
+                    platform: document.getElementById('platform').value,
+                    business_unit_id: document.getElementById('business_unit_id').value,
+                    phone_number: document.getElementById('phone_number').value.trim(),
+                    question_id: document.getElementById('question_id').value.trim(),
+                    action: document.getElementById('action').value.trim()
+                };
+
+                try {
+                    const response = await fetch('/send-test-message/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        const messageHistory = document.getElementById('messageHistory');
+                        result.responses.forEach(resp => {
+                            const messageDiv = document.createElement('div');
+                            messageDiv.innerHTML = `<strong>Función:</strong> ${resp.function}<br><strong>Respuesta:</strong><pre>${JSON.stringify(resp.response, null, 2)}</pre>`;
+                            messageHistory.appendChild(messageDiv);
+                        });
+                        successAlert.style.display = 'block';
+                    } else {
+                        errorAlert.textContent = `Error: ${result.error}`;
+                        errorAlert.style.display = 'block';
+                    }
+                } catch (error) {
+                    errorAlert.textContent = `Error: ${error.message}`;
+                    errorAlert.style.display = 'block';
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
