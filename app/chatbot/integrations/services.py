@@ -556,11 +556,34 @@ async def notify_employer(worker, message):
 # ================================
 # FUNCIONES PARA OBTENER BUSINESS UNIT DINÁMICO
 # ================================
-async def get_business_unit(name: str = None):
-    """ Obtiene la Business Unit de forma segura. """
-    if name:
-        return await sync_to_async(lambda: BusinessUnit.objects.filter(name__iexact=name).first())()
-    return await sync_to_async(lambda: BusinessUnit.objects.first())()
+async def get_business_unit(name: Optional[str] = None) -> Optional[BusinessUnit]:
+    """
+    Obtiene la Business Unit de forma segura.
+
+    Args:
+        name (Optional[str]): Nombre de la unidad de negocio (opcional).
+
+    Returns:
+        Optional[BusinessUnit]: Objeto BusinessUnit si se encuentra, None si no.
+    """
+    try:
+        if name:
+            logger.debug(f"[get_business_unit] Buscando BusinessUnit con nombre: {name}")
+            business_unit = await sync_to_async(lambda: BusinessUnit.objects.filter(name__iexact=name).first())()
+        else:
+            logger.debug("[get_business_unit] Buscando primera BusinessUnit disponible")
+            business_unit = await sync_to_async(lambda: BusinessUnit.objects.first())()
+
+        if business_unit:
+            logger.info(f"[get_business_unit] BusinessUnit encontrada: {business_unit.name}")
+            return business_unit
+        else:
+            logger.warning(f"[get_business_unit] No se encontró BusinessUnit para nombre: {name}")
+            return None
+
+    except Exception as e:
+        logger.error(f"[get_business_unit] Error obteniendo BusinessUnit ({name}): {e}", exc_info=True)
+        return None
 
 def run_async(func, *args, **kwargs):
     """ Ejecuta la función en modo síncrono o asíncrono según el contexto. """
@@ -573,18 +596,42 @@ def run_async(func, *args, **kwargs):
 # ================================
 # WRAPPERS PARA FUNCIONES ASÍNCRONAS Y SINCRÓNICAS -----  NO MODIFICAR POR FAVOR
 # ================================
-async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: str = None):
-    """ Envío de mensaje asíncrono con validación de Business Unit. """
-    business_unit = await get_business_unit(business_unit_name)
-    if not business_unit:
-        logger.error(f"❌ No se encontró la unidad de negocio: {business_unit_name}")
+async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: Optional[str] = None):
+    """
+    Envío de mensaje asíncrono con validación de Business Unit.
+
+    Args:
+        platform (str): Plataforma donde se enviará el mensaje (WhatsApp, Telegram, Messenger, Instagram).
+        user_id (str): ID del usuario al que se enviará el mensaje.
+        message (str): Contenido del mensaje a enviar.
+        business_unit_name (Optional[str]): Nombre de la unidad de negocio (opcional).
+
+    Returns:
+        bool: True si el mensaje se envió correctamente, False en caso contrario.
+    """
+    try:
+        business_unit = await get_business_unit(business_unit_name)
+        if not business_unit:
+            logger.error(f"[send_message_async] ❌ No se encontró BusinessUnit para {business_unit}")
+            return False
+
+        service = MessageService(business_unit)
+        success = await service.send_message(platform, user_id, message)
+
+        if success:
+            logger.info(f"[send_message_async] ✅ Mensaje enviado a {user_id} en {platform}: {message}")
+        else:
+            logger.warning(f"[send_message_async] ⚠️ Fallo en el envío de mensaje a {user_id} en {platform}")
+
+        return success
+
+    except Exception as e:
+        logger.error(f"[send_message_async] ❌ Error enviando mensaje a {user_id} en {platform}: {e}", exc_info=True)
         return False
-    service = MessageService(business_unit)
-    return await service.send_message(platform, user_id, message)
 
 def send_message(platform: str, user_id: str, message: str, business_unit: str = None):
     """ Envío de mensaje de forma segura en entornos síncronos y asíncronos. """
-    return run_async(send_message_async, platform, user_id, message, business_unit_name)
+    return run_async(send_message_async, platform, user_id, message, business_unit)
 
 async def send_email_async(subject: str, to_email: str, body: str, business_unit_name: str = None, from_email=None):
     """ Versión asíncrona de `send_email`. """
@@ -597,69 +644,126 @@ async def send_email_async(subject: str, to_email: str, body: str, business_unit
 
 def send_email(subject: str, to_email: str, body: str, business_unit_name: str = None, from_email=None):
     """ Wrapper de `send_email`, compatible con entornos síncronos y asíncronos. """
-    return run_async(send_email_async, subject, to_email, body, business_unit_name, from_email)
+    return run_async(send_email_async, subject, to_email, body, business_unit, from_email)
 
 async def send_options_async(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
-    """Versión asíncrona de `send_options`."""
-    business_unit = await get_business_unit(business_unit_name)
-    if business_unit:
+    """
+    Envío de mensaje con botones interactivos de forma asíncrona.
+
+    Args:
+        platform (str): Plataforma donde se enviará el mensaje (WhatsApp, Telegram, Messenger, Instagram).
+        user_id (str): ID del usuario al que se enviará el mensaje.
+        message (str): Contenido del mensaje.
+        buttons (Optional[List[Dict]]): Lista de botones interactivos.
+        business_unit_name (Optional[str]): Nombre de la unidad de negocio.
+
+    Returns:
+        bool: True si se envió correctamente, False en caso contrario.
+    """
+    try:
+        business_unit = await get_business_unit(business_unit_name)
+        if not business_unit:
+            logger.error(f"[send_options_async] ❌ No se encontró BusinessUnit para {business_unit_name}")
+            return False
+
         service = MessageService(business_unit)
+
         if platform == "whatsapp":
-            formatted_buttons = [
-                {"type": "reply", "reply": {"id": btn["payload"], "title": btn["title"][:20]}}
-                for btn in buttons if "payload" in btn and "title" in btn
-            ][:3]  # WhatsApp solo permite 3 botones
+            if not buttons:
+                logger.error(f"[send_options_async] ⚠️ No hay botones válidos para enviar a WhatsApp.")
+                return False
+            
+            # ✅ Asegurar que los títulos no se corten arbitrariamente
+            formatted_buttons = []
+                for i, btn in enumerate(buttons[:3]):  # WhatsApp permite máximo 3 botones
+                    if "title" in btn and "payload" in btn:
+                        formatted_buttons.append({
+                            "type": "reply",
+                            "reply": {
+                                "id": btn["payload"],  # ID debe ser el payload correcto
+                                "title": btn["title"][:20]  # Máximo 20 caracteres
+                            }
+                        })
+                    else:
+                        logger.warning(f"[send_options_async] ⚠️ Botón inválido: {btn}")
+
+                logger.info(f"[send_options_async] 🚀 Botones generados para WhatsApp: {formatted_buttons}")
+
+            # ✅ WhatsApp permite un máximo de 3 botones
+            formatted_buttons = formatted_buttons[:3]
 
             if not formatted_buttons:
-                logger.error(f"[send_options] No hay botones válidos para WhatsApp")
+                logger.error(f"[send_options_async] ⚠️ No se generaron botones válidos para WhatsApp.")
                 return False
 
             from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
-            return await send_whatsapp_decision_buttons(
+            success = await send_whatsapp_decision_buttons(
                 user_id=user_id,
                 message=message,
                 buttons=formatted_buttons,
                 business_unit=business_unit
             )
-        else:
-            return await service.send_options(platform, user_id, message, buttons)
 
-    logger.error(f"❌ No se encontró la unidad de negocio")
-    return False
+        else:
+            success = await service.send_options(platform, user_id, message, buttons)
+
+        if success:
+            logger.info(f"[send_options_async] ✅ Opciones enviadas a {user_id} en {platform}")
+        else:
+            logger.warning(f"[send_options_async] ⚠️ Fallo en el envío de opciones a {user_id} en {platform}")
+
+        return success
+
+    except Exception as e:
+        logger.error(f"[send_options_async] ❌ Error enviando opciones a {user_id} en {platform}: {e}", exc_info=True)
+        return False
 
 def send_options(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
-    """ Wrapper de `send_options`, compatible con entornos síncronos y asíncronos. """
+    """ Wrapper de `send_options_async`, compatible con entornos síncronos y asíncronos. """
     return run_async(send_options_async, platform, user_id, message, buttons, business_unit_name)
 
-async def send_menu_async(platform: str, user_id: str, business_unit: str = None):
-    business_unit = await get_business_unit(business_unit_name)
-    if business_unit:
-        service = MessageService(business_unit)
-        return await service.send_menu(platform, user_id)
-    logger.error(f"❌ No se encontró la unidad de negocio")
-    return False
+
+async def send_menu_async(platform: str, user_id: str, business_unit: Optional[str] = None):
+    """ Envía el menú principal al usuario en la plataforma especificada. """
+    business_unit = await get_business_unit(business_unit)
+    
+    if not business_unit:
+        logger.error(f"❌ No se encontró la unidad de negocio para {platform} - Usuario: {user_id}")
+        return False
+    
+    logger.info(f"📩 Enviando menú a {user_id} en {platform} para {business_unit.name}")
+    service = MessageService(business_unit)
+    return await service.send_menu(platform, user_id)
 
 def send_menu(platform: str, user_id: str, business_unit_name: str = None):
     return run_async(send_menu_async, platform, user_id, business_unit_name)
 
-async def send_image_async(platform: str, user_id: str, message: str, image_url: str, business_unit: str = None):
-    business_unit = await get_business_unit(business_unit_name)
-    if business_unit:
-        service = MessageService(business_unit)
-        return await service.send_image(platform, user_id, message, image_url)
-    logger.error(f"❌ No se encontró la unidad de negocio")
-    return False
+async def send_image_async(platform: str, user_id: str, message: str, image_url: str, business_unit: Optional[str] = None):
+    """ Envía una imagen con un mensaje al usuario en la plataforma especificada. """
+    business_unit = await get_business_unit(business_unit)
+    
+    if not business_unit:
+        logger.error(f"❌ No se encontró la unidad de negocio para {platform} - Usuario: {user_id}")
+        return False
+    
+    logger.info(f"📷 Enviando imagen a {user_id} en {platform} - Mensaje: {message} - URL: {image_url}")
+    service = MessageService(business_unit)
+    return await service.send_image(platform, user_id, message, image_url)
 
 def send_image(platform: str, user_id: str, message: str, image_url: str, business_unit_name: str = None):
     return run_async(send_image_async, platform, user_id, message, image_url, business_unit_name)
 
-async def send_url_async(platform: str, user_id: str, url: str, business_unit: str = None):
-    business_unit = await get_business_unit(business_unit_name)
-    if business_unit:
-        service = MessageService(business_unit)
-        return await service.send_url(platform, user_id, url)
-    logger.error(f"❌ No se encontró la unidad de negocio")
-    return False
+async def send_url_async(platform: str, user_id: str, url: str, business_unit: Optional[str] = None):
+    """ Envía un enlace al usuario en la plataforma especificada. """
+    business_unit = await get_business_unit(business_unit)
+    
+    if not business_unit:
+        logger.error(f"❌ No se encontró la unidad de negocio para {platform} - Usuario: {user_id}")
+        return False
+    
+    logger.info(f"🔗 Enviando enlace a {user_id} en {platform} - URL: {url}")
+    service = MessageService(business_unit)
+    return await service.send_url(platform, user_id, url)
 
 def send_url(platform: str, user_id: str, url: str, business_unit_name: str = None):
     return run_async(send_url_async, platform, user_id, url, business_unit_name)

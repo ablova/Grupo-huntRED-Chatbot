@@ -68,23 +68,31 @@ nlp = load_nlp_model("es")  # Modelo por defecto en español
 # ✅ Creación de PhraseMatcher dinámico
 def phrase_matcher_factory(nlp_model):
     """Crea una instancia de PhraseMatcher según el modelo NLP disponible."""
-    return PhraseMatcher(nlp_model.vocab, attr="LOWER") if nlp_model else None
+    return PhraseMatcher(nlp_model.vocab) if nlp_model else None  #quitamos , attr="LOWER"
 
 # ✅ Inicialización de SkillExtractor con idioma dinámico
 try:
     skill_db_path = "/home/pablo/skill_db_relax_20.json"
+    logger.info(f"📂 Cargando base de datos de habilidades desde: {skill_db_path}")
+
     with open(skill_db_path, 'r', encoding='utf-8') as f:
         skills_db = json.load(f)
+    
+    logger.info(f"✅ Base de datos cargada con {len(skills_db)} registros")
 
-    nlp_default = load_nlp_model("es")  # Usamos español por defecto
+    nlp_default = load_nlp_model("es")  
     phrase_matcher = phrase_matcher_factory(nlp_default)
 
     if nlp_default and phrase_matcher:
-        sn = SkillExtractor(nlp=nlp_default, skills_db=skills_db, phraseMatcher=phrase_matcher)
-        logger.info("✅ SkillExtractor inicializado con modelo en español.")
+        try:
+            sn = SkillExtractor(nlp=nlp_default, skills_db=skills_db, phraseMatcher=phrase_matcher)
+            logger.info("✅ SkillExtractor inicializado correctamente.")
+        except Exception as e:
+            sn = None
+            logger.error(f"❌ Error en SkillExtractor: {e}", exc_info=True)
     else:
         sn = None
-        logger.warning("⚠ No se pudo inicializar SkillExtractor correctamente.")
+        logger.warning("⚠ No se pudo inicializar SkillExtractor: `nlp_default` o `phrase_matcher` es None.")
 
 except Exception as e:
     logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
