@@ -172,100 +172,99 @@ class ChatBotHandler:
             prompt = "Por favor, selecciona una opción:"
             await send_options(platform, user_id, prompt, tos_buttons, business_unit.name.lower())
 
-    async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
-        """
-        Procesa el mensaje entrante y dirige la respuesta según el contexto e intención.
+async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
+    """
+    Procesa el mensaje entrante y dirige la respuesta según el contexto e intención.
 
-        Args:
-            platform (str): Plataforma donde se ejecuta (WhatsApp, Telegram, Messenger, Instagram).
-            user_id (str): Identificador del usuario.
-            text (str): Mensaje recibido.
-            business_unit (BusinessUnit): Objeto BusinessUnit correspondiente.
+    Args:
+        platform (str): Plataforma donde se ejecuta (WhatsApp, Telegram, Messenger, Instagram).
+        user_id (str): Identificador del usuario.
+        text (str): Mensaje recibido.
+        business_unit (BusinessUnit): Objeto BusinessUnit correspondiente.
 
-        Returns:
-            None
-        """
-        try:
-            logger.info(f"[process_message] Procesando mensaje de {user_id} en {platform} para BU: {business_unit.name}")
+    Returns:
+        None
+    """
+    try:
+        logger.info(f"[process_message] Procesando mensaje de {user_id} en {platform} para BU: {business_unit.name}")
 
-            chat_state = await sync_to_async(lambda: ChatState.objects.get(user_id=user_id, business_unit=business_unit))()
-            user = chat_state.person
+        chat_state = await sync_to_async(lambda: ChatState.objects.get(user_id=user_id, business_unit=business_unit))()
+        user = chat_state.person
 
-            # Si es el primer mensaje, iniciar flujo inicial
-            if not chat_state.conversation_history:
-                await self.send_complete_initial_messages(platform, user_id, business_unit)
-                return
+        # Si es el primer mensaje, iniciar flujo inicial
+        if not chat_state.conversation_history:
+            await self.send_complete_initial_messages(platform, user_id, business_unit)
+            return
 
-            # Verificar aceptación de TOS
-            if not user.tos_accepted:
-                await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
-                return
-            
-            # Continuar con el procesamiento normal (análisis NLP, intents, etc.)
-            await self.store_user_message(chat_state, text)
-            # ... Resto del procesamiento del mensaje ...  AQUI INICIA REALMENTE EL CHATBOT
+        # Verificar aceptación de TOS
+        if not user.tos_accepted:
+            await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
+            return
+        
+        # Guardar el mensaje del usuario antes del procesamiento
+        await self.store_user_message(chat_state, text)
 
-            # Procesar el mensaje según la unidad de negocio mediante el diccionario de workflows.
-            bu_key = business_unit.name.lower()
-            if bu_key in self.workflow_mapping:
-                workflow_func = self.workflow_mapping[bu_key]
-                # Para SEXSI, la función se ejecuta de forma sincrónica y su respuesta se envía directamente.
-                if bu_key == "sexsi":
-                    response = workflow_func(user_id, user, business_unit, chat_state.context)
-                    await send_message(platform, user_id, response, business_unit.name.lower())
-                    await self.store_bot_message(chat_state, response)
-                else:
-                    # Para las demás unidades se utiliza Celery (delay) de forma asíncrona.
-                    await sync_to_async(workflow_func.delay)(user.id)
+        # Procesar el mensaje según la unidad de negocio mediante el diccionario de workflows.
+        bu_key = business_unit.name.lower()
+        if bu_key in self.workflow_mapping:
+            workflow_func = self.workflow_mapping[bu_key]
 
-            # Manejo de intents conocidos - Dandole prioridad sobre los otros casos particulares
-            from app.chatbot.intents_handler import handle_known_intents
-            if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
-                return  # Si un intent fue manejado, no necesitamos seguir procesando
-
-            # Manejar contextos especiales
-            if chat_state.context.get('awaiting_status_email'):
-                await self.handle_status_email(platform, user_id, text, chat_state, business_unit, user)
-                return
-
-            if chat_state.context.get('awaiting_group_invitation'):
-                await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
-                return
-
-            # Si el usuario confirma su contratación, activar el flujo de contratación
-            if text.lower() in ["confirmar contratación", "he sido contratado", "contratado"]:
-                await self.handle_hiring_event(user, business_unit)
-                return
-            # Manejar selección de vacante
-            if chat_state.context.get('recommended_jobs') and text.isdigit():
-                await self.handle_job_selection(platform, user_id, text, chat_state, business_unit, user)
-                return
-
-            # Manejar acciones sobre vacantes
-            if any(text.startswith(prefix) for prefix in ["apply_", "details_", "schedule_", "tips_", "book_slot_"]):
-                await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
-                return
-            
-            # Analizar el texto con NLP
-            analysis = analyze_text(text)  # { "intents": [...], "entities": [...], "sentiment": {...} }
-            if not analysis or not isinstance(analysis, dict):
-                raise ValueError(f"Invalid analysis result: {analysis}")
-            intents = analysis.get("intents", [])
-            entities = analysis.get("entities", [])
-            sentiment = analysis.get("sentiment", {})
-
-            else:
-            # Respuesta de fallback usando GPT
-                response = await self.generate_dynamic_response(user, chat_state, text, entities, sentiment)
+            if bu_key == "sexsi":
+                response = workflow_func(user_id, user, business_unit, chat_state.context)
                 await send_message(platform, user_id, response, business_unit.name.lower())
                 await self.store_bot_message(chat_state, response)
+            else:
+                workflow_func.delay(user.id)  # No necesita sync_to_async
 
-        except ChatState.DoesNotExist:
-            logger.error(f"[process_message] No se encontró ChatState para {user_id} y BU: {business_unit.name}")
-            await send_message(platform, user_id, "No se encontró tu estado de chat. Por favor, reinicia la conversación.", business_unit.name.lower())
-        except Exception as e:
-            logger.error(f"[process_message] Error procesando mensaje: {e}", exc_info=True)
-            await send_message(platform, user_id, "Ha ocurrido un error. Inténtalo más tarde.", business_unit.name.lower())
+        # Analizar el texto con NLP
+        analysis = analyze_text(text)  # { "intents": [...], "entities": [...], "sentiment": {...} }
+        if not analysis or not isinstance(analysis, dict):
+            raise ValueError(f"Invalid analysis result: {analysis}")
+
+        intents = analysis.get("intents", [])
+        entities = analysis.get("entities", [])
+        sentiment = analysis.get("sentiment", {})
+
+        # Manejo de intents conocidos (se ejecuta después de NLP)
+        from app.chatbot.intents_handler import handle_known_intents
+        if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
+            return  # Si un intent fue manejado, no seguimos procesando
+
+        # Manejar contextos especiales
+        if chat_state.context.get('awaiting_status_email'):
+            await self.handle_status_email(platform, user_id, text, chat_state, business_unit, user)
+            return
+
+        if chat_state.context.get('awaiting_group_invitation'):
+            await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
+            return
+
+        # Si el usuario confirma su contratación, activar el flujo de contratación
+        if text.lower() in ["confirmar contratación", "he sido contratado", "contratado"]:
+            await self.handle_hiring_event(user, business_unit)
+            return
+
+        # Manejar selección de vacante
+        if chat_state.context.get('recommended_jobs') and text.isdigit():
+            await self.handle_job_selection(platform, user_id, text, chat_state, business_unit, user)
+            return
+
+        # Manejar acciones sobre vacantes
+        if any(text.startswith(prefix) for prefix in ["apply_", "details_", "schedule_", "tips_", "book_slot_"]):
+            await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
+            return
+
+        # Respuesta de fallback usando GPT
+        response = await self.generate_dynamic_response(user, chat_state, text, entities, sentiment)
+        await send_message(platform, user_id, response, business_unit.name.lower())
+        await self.store_bot_message(chat_state, response)
+
+    except ChatState.DoesNotExist:
+        logger.error(f"[process_message] No se encontró ChatState para {user_id} y BU: {business_unit.name}")
+        await send_message(platform, user_id, "No se encontró tu estado de chat. Por favor, reinicia la conversación.", business_unit.name.lower())
+    except Exception as e:
+        logger.error(f"[process_message] Error procesando mensaje: {e}", exc_info=True)
+        await send_message(platform, user_id, "Ha ocurrido un error. Inténtalo más tarde.", business_unit.name.lower())
 
     async def get_or_create_event(self, user_id: str, platform: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
