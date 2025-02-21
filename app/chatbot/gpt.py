@@ -101,55 +101,44 @@ class GPTHandler:
 
     async def generate_response(self, prompt: str, business_unit=None) -> str:
         """
-        Genera una respuesta utilizando OpenAI con la mejor intención detectada.
+        Genera una respuesta utilizando OpenAI con timeout.
         """
         if not self.client:
             return "⚠ GPT no está inicializado."
 
-        # ✅ Si no se proporciona una unidad de negocio, intentar inferirla
-        if business_unit is None:
-            detected_unit = self.detectar_intencion(prompt)
-            business_unit_name = detected_unit if detected_unit else "General"
-        else:
-            business_unit_name = getattr(business_unit, "name", "General")
-
-        # ✅ Detectar la intención específica del mensaje
-        prompt_type = self.detectar_intencion(prompt)  # 🔹 Identifica si es "ventas", "finanzas", etc.
-
-        # ✅ Obtener el contexto correcto del prompt, si no existe, dar un fallback más preciso
-        context = self.gpt_api.get_prompt(
-            prompt_type, 
-            default="Proporciona información clara y concisa sobre el tema solicitado."
-        )
-
-        # ✅ Construcción optimizada del prompt para reducir tokens y mejorar contexto
+        business_unit_name = business_unit.name if business_unit else "General"
+        prompt_type = self.detectar_intencion(prompt)
+        context = self.gpt_api.get_prompt(prompt_type, default="Proporciona información clara y concisa.")
         full_prompt = f"[{business_unit_name} | {prompt_type}] {context}\n\nUsuario: {prompt}"
-        
-        logger.debug(f"Generando respuesta para unidad '{business_unit_name}': {full_prompt[:100]}...")
+
+        logger.debug(f"Generando respuesta con timeout para: {full_prompt[:100]}...")
 
         try:
-            response = await asyncio.to_thread(
-                self.client.chat.completions.create,
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "Eres un experto en empleabilidad y desarrollo profesional."},
-                    {"role": "user", "content": full_prompt}
-                ],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                top_p=self.top_p
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.client.chat.completions.create,
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "Eres un experto en empleabilidad y desarrollo profesional."},
+                        {"role": "user", "content": full_prompt}
+                    ],
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    top_p=self.top_p
+                ),
+                timeout=10.0  # ⏳ Timeout de 10 segundos
             )
 
             respuesta_texto = response.choices[0].message.content.strip()
             logger.debug(f"📩 Respuesta generada: {respuesta_texto}")
             return respuesta_texto
 
-        except RateLimitError:
-            logger.error("⚠ Se ha excedido la cuota de OpenAI.")
-            return "Lo siento, hemos excedido la cuota de OpenAI."
+        except asyncio.TimeoutError:
+            logger.warning("[GPT] ⏳ Tiempo de espera agotado en la consulta.")
+            return "Lo siento, estoy teniendo problemas para responder en este momento."
         except OpenAIError as oe:
             logger.error(f"❌ Error de OpenAI: {oe}", exc_info=True)
-            return "Hubo un problema con GPT."
+            return "Hubo un problema con OpenAI."
         except Exception as e:
             logger.error(f"❌ Error inesperado: {e}", exc_info=True)
             return "Ocurrió un error inesperado."
@@ -194,52 +183,74 @@ class GPTHandler:
 
     @staticmethod
     async def gpt_message(api_token: str, text: str, model: str = "gpt-4") -> Optional[str]:
-        logger.debug(f"Generando respuesta con gpt_message para el texto: {text}")
+        """
+        Genera respuesta con OpenAI usando timeout.
+        """
+        logger.debug(f"Generando respuesta con timeout en gpt_message para: {text}")
+
         try:
             client = OpenAI(api_key=api_token)
-            response = await asyncio.to_thread(
-                client.chat.completions.create,
-                model=model,
-                messages=[{"role": "user", "content": text}],
-                max_tokens=150,
-                temperature=0.7,
-                top_p=1.0
+
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    client.chat.completions.create,
+                    model=model,
+                    messages=[{"role": "user", "content": text}],
+                    max_tokens=150,
+                    temperature=0.7,
+                    top_p=1.0
+                ),
+                timeout=10.0  # ⏳ Timeout de 10 segundos
             )
+
             respuesta_texto = response.choices[0].message.content.strip()
-            logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
+            logger.debug(f"📩 Respuesta generada: {respuesta_texto}")
             return respuesta_texto
-        except RateLimitError:
-            logger.error("Excediste tu cuota actual de OpenAI en gpt_message.")
-            return "Excediste tu cuota actual de OpenAI."
+
+        except asyncio.TimeoutError:
+            logger.warning("[GPT] ⏳ Timeout en gpt_message.")
+            return "Lo siento, no pude procesar tu solicitud a tiempo."
         except OpenAIError as oe:
-            logger.error(f"Error de OpenAI en gpt_message: {oe}", exc_info=True)
-            return "No se pudo procesar tu solicitud a OpenAI."
+            logger.error(f"❌ Error de OpenAI en gpt_message: {oe}", exc_info=True)
+            return "No se pudo procesar tu solicitud con OpenAI."
         except Exception as e:
-            logger.error(f"Error generando respuesta con GPT en gpt_message: {e}", exc_info=True)
-            return "Error inesperado."
+            logger.error(f"❌ Error inesperado en gpt_message: {e}", exc_info=True)
+            return "Hubo un problema al generar la respuesta."
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
     async def generate_response_with_retries(self, prompt: str, context: Optional[Dict] = None) -> str:
+        """
+        Genera respuesta con OpenAI y reintentos, agregando timeout.
+        """
         import json
         full_prompt = prompt
         if context:
             full_prompt += "\nContexto adicional:\n" + json.dumps(context)
-        logger.debug(f"Generando respuesta con reintentos para el prompt: {full_prompt}")
+        logger.debug(f"Generando respuesta con reintentos y timeout para: {full_prompt[:100]}...")
+
         try:
-            response = await asyncio.to_thread(
-                self.client.chat.completions.create,
-                model=self.model,
-                messages=[{"role": "user", "content": full_prompt}],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                top_p=self.top_p
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.client.chat.completions.create,
+                    model=self.model,
+                    messages=[{"role": "user", "content": full_prompt}],
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    top_p=self.top_p
+                ),
+                timeout=10.0  # ⏳ Timeout de 10 segundos
             )
+
             respuesta_texto = response.choices[0].message.content.strip()
-            logger.debug(f"Contenido de la respuesta: {respuesta_texto}")
+            logger.debug(f"📩 Respuesta generada: {respuesta_texto}")
             return respuesta_texto
+
+        except asyncio.TimeoutError:
+            logger.warning("[GPT] ⏳ Timeout en generate_response_with_retries.")
+            return "Lo siento, no pude procesar tu solicitud a tiempo."
         except OpenAIError as oe:
-            logger.error(f"Error de OpenAI durante reintentos: {oe}", exc_info=True)
+            logger.error(f"❌ Error de OpenAI en generate_response_with_retries: {oe}", exc_info=True)
             raise oe
         except Exception as e:
-            logger.error(f"Error generando respuesta con GPT en generate_response_with_retries: {e}", exc_info=True)
+            logger.error(f"❌ Error inesperado en generate_response_with_retries: {e}", exc_info=True)
             raise e
