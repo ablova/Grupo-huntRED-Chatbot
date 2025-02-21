@@ -730,11 +730,13 @@ async def send_smart_options(platform, user_id, message, options, business_unit)
         option_batches = [options[i:i+3] for i in range(0, len(options), 3)]  # ✅ Compatible con Python 3.10+
 
         for batch in option_batches:
-            success, msg_id = await send_options(platform, user_id, message, batch, business_unit)
+            success = await send_options(platform, user_id, message, batch, business_unit)
+            
             if not success:
                 logger.error(f"[send_smart_options] ❌ Falló el envío de opciones en {platform}.")
                 return False, None  # ❌ Devuelve False si falló
-            last_msg_id = msg_id  # Guarda el último message ID enviado
+            
+            last_msg_id = "msg_id_placeholder"  # ✅ Se debe obtener de `send_options` cuando esté disponible
 
             try:
                 await asyncio.sleep(0.5)  # Pequeña pausa para evitar ser bloqueado por spam
