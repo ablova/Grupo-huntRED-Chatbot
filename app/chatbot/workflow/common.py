@@ -7,7 +7,7 @@ from app.utilidades.signature.pdf_generator import (
 from app.utilidades.signature.digital_sign import request_digital_signature
 
 
-from app.chatbot.integrations.services import send_email, send_message
+from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
 from django.conf import settings
 
 
