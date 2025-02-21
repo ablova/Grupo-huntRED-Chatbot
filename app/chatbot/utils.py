@@ -6,8 +6,10 @@ import json
 import logging
 import re
 import requests
+import time
 from datetime import datetime
 from app.models import GptApi
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
@@ -299,3 +301,80 @@ def parse_cv_file(filepath: str) -> dict:
         logger.error(f"Error al leer CV: {filepath}, {e}")
         return {}
   
+
+####---------------------------------------------------------
+###   SPAM CONTROL
+####--------------------------------------------------------
+# Tiempo en segundos para considerar mensajes duplicados como SPAM
+SPAM_DETECTION_WINDOW = 30  # 30 segundos
+MAX_MESSAGE_REPEATS = 3  # Cuántas veces puede repetir el mismo mensaje antes de ser SPAM
+MAX_MESSAGES_PER_MINUTE = 10  # Límite de mensajes por usuario por minuto
+
+def is_spam_message(user_id: str, text: str) -> bool:
+    """
+    Verifica si un mensaje es considerado SPAM basándose en su frecuencia y repetición.
+    
+    Args:
+        user_id (str): ID del usuario.
+        text (str): Texto del mensaje.
+
+    Returns:
+        bool: True si el mensaje es considerado SPAM, False en caso contrario.
+    """
+    if not text:
+        return False
+
+    text_cleaned = re.sub(r'\W+', '', text.lower().strip())  # Limpiar caracteres especiales
+    cache_key = f"spam_check:{user_id}"
+    user_messages = cache.get(cache_key, [])
+
+    # Registrar el nuevo mensaje
+    current_time = time.time()
+    user_messages.append((text_cleaned, current_time))
+    
+    # Filtrar mensajes dentro de la ventana de tiempo
+    user_messages = [(msg, ts) for msg, ts in user_messages if current_time - ts < SPAM_DETECTION_WINDOW]
+
+    # Contar repeticiones
+    message_count = sum(1 for msg, _ in user_messages if msg == text_cleaned)
+    if message_count >= MAX_MESSAGE_REPEATS:
+        return True  # SPAM detectado por mensajes repetidos
+
+    # Guardar historial actualizado
+    cache.set(cache_key, user_messages, timeout=SPAM_DETECTION_WINDOW)
+    return False
+
+def update_user_message_history(user_id: str):
+    """
+    Registra la cantidad de mensajes enviados por un usuario en un minuto.
+    
+    Args:
+        user_id (str): ID del usuario.
+    """
+    cache_key = f"msg_count:{user_id}"
+    timestamps = cache.get(cache_key, [])
+    current_time = time.time()
+
+    # Limpiar mensajes fuera del período de 1 minuto
+    timestamps = [ts for ts in timestamps if current_time - ts < 60]
+    
+    # Agregar el nuevo mensaje
+    timestamps.append(current_time)
+    
+    # Guardar en cache
+    cache.set(cache_key, timestamps, timeout=60)
+
+def is_user_spamming(user_id: str) -> bool:
+    """
+    Verifica si un usuario ha enviado demasiados mensajes en un corto periodo.
+    
+    Args:
+        user_id (str): ID del usuario.
+
+    Returns:
+        bool: True si el usuario está enviando demasiados mensajes, False en caso contrario.
+    """
+    cache_key = f"msg_count:{user_id}"
+    timestamps = cache.get(cache_key, [])
+
+    return len(timestamps) > MAX_MESSAGES_PER_MINUTE
