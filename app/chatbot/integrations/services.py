@@ -582,7 +582,7 @@ async def send_message_async(platform: str, user_id: str, message: str, business
     service = MessageService(business_unit)
     return await service.send_message(platform, user_id, message)
 
-def send_message(platform: str, user_id: str, message: str, business_unit_name: str = None):
+def send_message(platform: str, user_id: str, message: str, business_unit: str = None):
     """ Envío de mensaje de forma segura en entornos síncronos y asíncronos. """
     return run_async(send_message_async, platform, user_id, message, business_unit_name)
 
@@ -631,7 +631,7 @@ def send_options(platform: str, user_id: str, message: str, buttons=None, busine
     """ Wrapper de `send_options`, compatible con entornos síncronos y asíncronos. """
     return run_async(send_options_async, platform, user_id, message, buttons, business_unit_name)
 
-async def send_menu_async(platform: str, user_id: str, business_unit_name: str = None):
+async def send_menu_async(platform: str, user_id: str, business_unit: str = None):
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = MessageService(business_unit)
@@ -642,7 +642,7 @@ async def send_menu_async(platform: str, user_id: str, business_unit_name: str =
 def send_menu(platform: str, user_id: str, business_unit_name: str = None):
     return run_async(send_menu_async, platform, user_id, business_unit_name)
 
-async def send_image_async(platform: str, user_id: str, message: str, image_url: str, business_unit_name: str = None):
+async def send_image_async(platform: str, user_id: str, message: str, image_url: str, business_unit: str = None):
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = MessageService(business_unit)
@@ -653,7 +653,7 @@ async def send_image_async(platform: str, user_id: str, message: str, image_url:
 def send_image(platform: str, user_id: str, message: str, image_url: str, business_unit_name: str = None):
     return run_async(send_image_async, platform, user_id, message, image_url, business_unit_name)
 
-async def send_url_async(platform: str, user_id: str, url: str, business_unit_name: str = None):
+async def send_url_async(platform: str, user_id: str, url: str, business_unit: str = None):
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = MessageService(business_unit)
