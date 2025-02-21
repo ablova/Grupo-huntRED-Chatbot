@@ -68,63 +68,78 @@ class ChatBotHandler:
         return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
     @staticmethod
-    async def handle_welcome_message(user_id, platform, business_unit_name: str):
+    async def handle_welcome_message(user_id, platform, business_unit: BusinessUnit):
         """
         Envía el mensaje de bienvenida, logo y menú.
-        Se centra únicamente en la presentación inicial.
         """
-        bu_name = business_unit_name.lower()
-        welcome_messages = {
-            "huntred": "Bienvenido a huntRED® 🚀\nSomos expertos en encontrar el mejor talento para empresas líderes.",
-            "huntred executive": "Bienvenido a huntRED® Executive 🌟\nNos especializamos en colocación de altos ejecutivos.",
-            "huntu": "Bienvenido a huntU® 🏆\nConectamos talento joven con oportunidades de alto impacto.",
-            "amigro": "Bienvenido a Amigro® 🌍\nFacilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México.",
-            "sexsi": "Bienvenido a SEXSI 🔐\nAquí puedes gestionar acuerdos de consentimiento seguros y firmarlos digitalmente."
-        }
-        logo_urls = {
-            "huntred": "/home/pablo/app/media/huntred.png",
-            "huntred executive": "/home/pablo/app/media/executive.png",
-            "huntu": "/home/pablo/app/media/huntu.png",
-            "amigro": "/home/pablo/app/media/amigro.png",
-            "sexsi": "/home/pablo/app/media/sexsi.png",
-        }
-        welcome_msg = welcome_messages.get(bu_name, "Bienvenido a nuestra plataforma 🎉")
-        logo_url = logo_urls.get(bu_name, "/home/pablo/app/media/Grupo_huntRED.png")
-        
-        await send_message(platform, user_id, welcome_msg, business_unit.name)
-        await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit.name)
-        await send_menu(platform, user_id, business_unit.name)
-        return "Mensaje de bienvenida enviado correctamente."
+        try:
+            logger.info(f"[handle_welcome_message] Enviando bienvenida a {user_id} en {platform} para BU: {business_unit.name}")
+            
+            welcome_messages = {
+                "huntred": "Bienvenido a huntRED® 🚀\nSomos expertos en encontrar el mejor talento para empresas líderes.",
+                "huntred executive": "Bienvenido a huntRED® Executive 🌟\nNos especializamos en colocación de altos ejecutivos.",
+                "huntu": "Bienvenido a huntU® 🏆\nConectamos talento joven con oportunidades de alto impacto.",
+                "amigro": "Bienvenido a Amigro® 🌍\nFacilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México.",
+                "sexsi": "Bienvenido a SEXSI 🔐\nAquí puedes gestionar acuerdos de consentimiento seguros y firmarlos digitalmente."
+            }
+            logo_urls = {
+                "huntred": "/home/pablo/app/media/huntred.png",
+                "huntred executive": "/home/pablo/app/media/executive.png",
+                "huntu": "/home/pablo/app/media/huntu.png",
+                "amigro": "/home/pablo/app/media/amigro.png",
+                "sexsi": "/home/pablo/app/media/sexsi.png",
+            }
 
-    async def send_complete_initial_messages(self, platform: str, user_id: str, business_unit: str):
+            welcome_msg = welcome_messages.get(business_unit.name.lower(), "Bienvenido a nuestra plataforma 🎉")
+            logo_url = logo_urls.get(business_unit.name.lower(), "/home/pablo/app/media/Grupo_huntRED.png")
+
+            # Enviar mensaje de bienvenida
+            await send_message(platform, user_id, welcome_msg, business_unit.name)
+            await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit.name)
+            await send_menu(platform, user_id, business_unit.name)
+
+            return "Mensaje de bienvenida enviado correctamente."
+
+        except Exception as e:
+            logger.error(f"[handle_welcome_message] Error enviando bienvenida a {user_id}: {e}", exc_info=True)
+            return "Error enviando mensaje de bienvenida."
+        
+    async def send_complete_initial_messages(self, platform: str, user_id: str, business_unit: BusinessUnit):
         """
         Envía el flujo inicial:
-          1. Saludo, imagen y menú (handle_welcome_message)
-          2. Mensajes introductorios
-          3. Prompt interactivo para aceptación de TOS usando get_tos_url
+        1. Saludo, imagen y menú (handle_welcome_message)
+        2. Mensajes introductorios
+        3. Prompt interactivo para aceptación de TOS
         """
-        # Paso 1: Enviar bienvenida
-        welcome_result = await ChatBotHandler.handle_welcome_message(user_id, platform, business_unit.name)
-        logger.info(welcome_result)
-        await asyncio.sleep(1)
-
-        # Paso 2: Enviar mensajes de introducción (sin instrucciones redundantes)
-        bu_key = business_unit.name.lower()
-        messages = self.initial_messages.get(bu_key, self.initial_messages["default"])
-        for msg in messages:
-            await send_message(platform, user_id, msg, business_unit.name)
+        try:
+            logger.info(f"[send_complete_initial_messages] Iniciando flujo inicial  para {user_id} en {platform}, BU: {business_unit.name}")
+            
+            # Paso 1: Enviar bienvenida
+            welcome_result = await ChatBotHandler.handle_welcome_message(user_id, platform, business_unit)
+            logger.info(f"[send_complete_initial_messages] {welcome_result}")
             await asyncio.sleep(1)
 
-        # Paso 3: Enviar prompt interactivo para aceptación de TOS
-        tos_prompt = "¿Aceptas nuestros Términos de Servicio (TOS)?"
-        tos_url = self.get_tos_url(business_unit)
-        tos_buttons = [
-            {'title': 'Sí', 'payload': 'tos_accept'},
-            {'title': 'No', 'payload': 'tos_reject'},
-            {'title': 'Ver TOS', 'url': tos_url}
-        ]
-        await send_options(platform, user_id, tos_prompt, tos_buttons, business_unit.name)
-        logger.info(f"Flujo inicial completado para {user_id} en {business_unit.name}")
+            # Paso 2: Enviar mensajes de introducción
+            bu_key = business_unit.name.lower()
+            messages = self.initial_messages.get(bu_key, self.initial_messages["default"])
+            for msg in messages:
+                await send_message(platform, user_id, msg, business_unit.name.lower())
+                await asyncio.sleep(1)
+
+            # Paso 3: Enviar prompt interactivo para aceptación de TOS
+            tos_prompt = "¿Aceptas nuestros Términos de Servicio (TOS)?"
+            tos_url = self.get_tos_url(business_unit)
+            tos_buttons = [
+                {'title': 'Sí', 'payload': 'tos_accept'},
+                {'title': 'No', 'payload': 'tos_reject'},
+                {'title': 'Ver TOS', 'url': tos_url}
+            ]
+            logger.info(f"[handle_tos_acceptance] Botones enviados: {tos_buttons}")
+            await send_options(platform, user_id, tos_prompt, tos_buttons, business_unit.name)
+            logger.info(f"[send_complete_initial_messages] Flujo inicial completado para {user_id} en {business_unit.name}")
+
+        except Exception as e:
+            logger.error(f"[send_complete_initial_messages] Error en flujo inicial para {user_id}: {e}", exc_info=True)
 
     async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
         """
@@ -144,35 +159,44 @@ class ChatBotHandler:
             user.tos_accepted = True
             await sync_to_async(user.save)()
             confirmation_msg = "Gracias por aceptar nuestros TOS. Aquí tienes el menú principal:"
-            await send_message(platform, user_id, confirmation_msg, business_unit.name)
-            await send_menu(platform, user_id, business_unit.name)
+            await send_message(platform, user_id, confirmation_msg, business_unit.name.lower())
+            await send_menu(platform, user_id, business_unit.name.lower())
             await self.store_bot_message(event, confirmation_msg)
             logger.info(f"TOS aceptados para {user.phone}")
         elif normalized in ['tos_reject', 'no']:
             rejection_msg = "No se puede continuar sin aceptar los TOS. Por favor, responde 'Sí' para aceptarlos."
-            await send_message(platform, user_id, rejection_msg, business_unit.name)
+            await send_message(platform, user_id, rejection_msg, business_unit.name.lower())
             await self.store_bot_message(event, rejection_msg)
         else:
             # Reenviar prompt interactivo para aclarar la aceptación
             prompt = "Por favor, selecciona una opción:"
-            await send_options(platform, user_id, prompt, tos_buttons, business_unit.name)
+            await send_options(platform, user_id, prompt, tos_buttons, business_unit.name.lower())
 
     async def process_message(self, platform: str, user_id: str, text: str, business_unit: BusinessUnit):
         """
-        Procesa el mensaje entrante para un usuario en una plataforma específica dentro de una unidad de negocio.
+        Procesa el mensaje entrante y dirige la respuesta según el contexto e intención.
+
+        Args:
+            platform (str): Plataforma donde se ejecuta (WhatsApp, Telegram, Messenger, Instagram).
+            user_id (str): Identificador del usuario.
+            text (str): Mensaje recibido.
+            business_unit (BusinessUnit): Objeto BusinessUnit correspondiente.
+
+        Returns:
+            None
         """
         try:
+            logger.info(f"[process_message] Procesando mensaje de {user_id} en {platform} para BU: {business_unit.name}")
+
             chat_state = await sync_to_async(lambda: ChatState.objects.get(user_id=user_id, business_unit=business_unit))()
             user = chat_state.person
-            logger.info(f"Processing message for {user_id} on {platform} for BU {business_unit.name}")
 
-            ## Si es el primer mensaje, enviar flujo inicial
+            # Si es el primer mensaje, iniciar flujo inicial
             if not chat_state.conversation_history:
                 await self.send_complete_initial_messages(platform, user_id, business_unit)
-                # Terminar aquí para esperar la respuesta del usuario al prompt de TOS
                 return
 
-            # Si el usuario aún no ha aceptado los TOS, manejar la respuesta
+            # Verificar aceptación de TOS
             if not user.tos_accepted:
                 await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
                 return
@@ -189,6 +213,24 @@ class ChatBotHandler:
             entities = analysis.get("entities", [])
             sentiment = analysis.get("sentiment", {})
 
+            # Procesar el mensaje según la unidad de negocio mediante el diccionario de workflows.
+            bu_key = business_unit.name.lower()
+            if bu_key in self.workflow_mapping:
+                workflow_func = self.workflow_mapping[bu_key]
+                # Para SEXSI, la función se ejecuta de forma sincrónica y su respuesta se envía directamente.
+                if bu_key == "sexsi":
+                    response = workflow_func(user_id, user, business_unit, chat_state.context)
+                    await send_message(platform, user_id, response, business_unit.name.lower())
+                    await self.store_bot_message(chat_state, response)
+                else:
+                    # Para las demás unidades se utiliza Celery (delay) de forma asíncrona.
+                    await sync_to_async(workflow_func.delay)(user.id)
+
+            # Manejo de intents conocidos - Dandole prioridad sobre los otros casos particulares
+            from app.chatbot.intents_handler import handle_known_intents
+            if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
+                return  # Si un intent fue manejado, no necesitamos seguir procesando
+
             # Manejar contextos especiales
             if chat_state.context.get('awaiting_status_email'):
                 await self.handle_status_email(platform, user_id, text, chat_state, business_unit, user)
@@ -202,13 +244,6 @@ class ChatBotHandler:
             if text.lower() in ["confirmar contratación", "he sido contratado", "contratado"]:
                 await self.handle_hiring_event(user, business_unit)
                 return
-
-            # Manejo de intents conocidos
-            from app.chatbot.intents_handler import handle_known_intents
-            # Dentro de `process_message`
-            if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
-                return  # Si un intent fue manejado, no necesitamos seguir procesando
-
             # Manejar selección de vacante
             if chat_state.context.get('recommended_jobs') and text.isdigit():
                 await self.handle_job_selection(platform, user_id, text, chat_state, business_unit, user)
@@ -218,31 +253,19 @@ class ChatBotHandler:
             if any(text.startswith(prefix) for prefix in ["apply_", "details_", "schedule_", "tips_", "book_slot_"]):
                 await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
                 return
-
-            # Procesar el mensaje según la unidad de negocio mediante el diccionario de workflows.
-            bu_key = business_unit.name.lower()
-            if bu_key in self.workflow_mapping:
-                workflow_func = self.workflow_mapping[bu_key]
-                # Para SEXSI, la función se ejecuta de forma sincrónica y su respuesta se envía directamente.
-                if bu_key == "sexsi":
-                    response = workflow_func(user_id, user, business_unit, chat_state.context)
-                    await send_message(platform, user_id, response, business_unit.name)
-                    await self.store_bot_message(chat_state, response)
-                else:
-                    # Para las demás unidades se utiliza Celery (delay) de forma asíncrona.
-                    await sync_to_async(workflow_func.delay)(user.id)
+            
             else:
                 # Respuesta de fallback usando GPT
                 response = await self.generate_dynamic_response(user, chat_state, text, entities, sentiment)
-                await send_message(platform, user_id, response, business_unit.name)
+                await send_message(platform, user_id, response, business_unit.name.lower())
                 await self.store_bot_message(chat_state, response)
 
         except ChatState.DoesNotExist:
-            logger.error(f"No se encontró ChatState para user_id: {user_id} y BU: {business_unit.name}")
-            await send_message(platform, user_id, "No se encontró tu estado de chat. Por favor, reinicia la conversación.", business_unit.name)
+            logger.error(f"[process_message] No se encontró ChatState para {user_id} y BU: {business_unit.name}")
+            await send_message(platform, user_id, "No se encontró tu estado de chat. Por favor, reinicia la conversación.", business_unit.name.lower())
         except Exception as e:
-            logger.error(f"Error processing message: {e}", exc_info=True)
-            await send_message(platform, user_id, "Ha ocurrido un error. Inténtalo más tarde.", business_unit.name)
+            logger.error(f"[process_message] Error procesando mensaje: {e}", exc_info=True)
+            await send_message(platform, user_id, "Ha ocurrido un error. Inténtalo más tarde.", business_unit.name.lower())
 
     async def get_or_create_event(self, user_id: str, platform: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
@@ -278,13 +301,13 @@ class ChatBotHandler:
                 msg = f"El estatus de tu aplicación es: {application.status}."
             else:
                 msg = "No encuentro una aplicación con ese correo."
-            await send_message(platform, user_id, msg, business_unit.name)
+            await send_message(platform, user_id, msg, business_unit.name.lower())
             await self.store_bot_message(event, msg)
             event.context['awaiting_status_email'] = False
             await sync_to_async(event.save)()
         else:
             msg = "Ese no parece un correo válido. Intenta nuevamente."
-            await send_message(platform, user_id, msg, business_unit.name)
+            await send_message(platform, user_id, msg, business_unit.name.lower())
             await self.store_bot_message(event, msg)
 
     async def handle_group_invitation_input(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
@@ -296,11 +319,11 @@ class ChatBotHandler:
             await self.invite_known_person(user, name, apellido, phone_number)
 
             resp = f"He invitado a {name} {apellido}. ¿Deseas invitar a alguien más? Responde 'sí' o 'no'."
-            await send_message(platform, user_id, resp, business_unit.name)
+            await send_message(platform, user_id, resp, business_unit.name.lower())
             await self.store_bot_message(event, resp)
         else:
             resp = "Formato no válido. Envía: 'Nombre Apellido +521234567890'"
-            await send_message(platform, user_id, resp, business_unit.name)
+            await send_message(platform, user_id, resp, business_unit.name.lower())
             await self.store_bot_message(event, resp)
 
     async def invite_known_person(self, referrer: Person, name: str, apellido: str, phone_number: str):
@@ -316,7 +339,7 @@ class ChatBotHandler:
             job_index = int(text.strip()) - 1
         except ValueError:
             resp = "Por favor, ingresa un número válido."
-            await send_message(platform, user_id, resp, business_unit.name)
+            await send_message(platform, user_id, resp, business_unit.name.lower())
             await self.store_bot_message(event, resp)
             return
 
@@ -335,7 +358,7 @@ class ChatBotHandler:
             await sync_to_async(event.save)()
         else:
             resp = "Selección inválida."
-            await send_message(platform, user_id, resp, business_unit.name)
+            await send_message(platform, user_id, resp, business_unit.name.lower())
             await self.store_bot_message(event, resp)
 
     async def handle_job_action(self, platform: str, user_id: str, text: str, event: ChatState, business_unit: BusinessUnit, user: Person):
@@ -347,11 +370,11 @@ class ChatBotHandler:
                 job = recommended_jobs[job_index]
                 await sync_to_async(Application.objects.create)(user=user, vacancy_id=job['id'], status='applied')
                 resp = "¡Has aplicado a la vacante con éxito!"
-                await send_message(platform, user_id, resp, business_unit.name)
+                await send_message(platform, user_id, resp, business_unit.name.lower())
                 await self.store_bot_message(event, resp)
             else:
                 resp = "No encuentro esa vacante."
-                await send_message(platform, user_id, resp, business_unit.name)
+                await send_message(platform, user_id, resp, business_unit.name.lower())
                 await self.store_bot_message(event, resp)
 
         elif text.startswith("details_"):
@@ -360,11 +383,11 @@ class ChatBotHandler:
                 job = recommended_jobs[job_index]
                 details = job.get('description', 'No hay descripción disponible.')
                 resp = f"Detalles de la posición:\n{details}"
-                await send_message(platform, user_id, resp, business_unit.name)
+                await send_message(platform, user_id, resp, business_unit.name.lower())
                 await self.store_bot_message(event, resp)
             else:
                 resp = "No encuentro esa vacante."
-                await send_message(platform, user_id, resp, business_unit.name)
+                await send_message(platform, user_id, resp, business_unit.name.lower())
                 await self.store_bot_message(event, resp)
 
         elif text.startswith("schedule_"):
@@ -374,7 +397,7 @@ class ChatBotHandler:
                 slots = await self.get_interview_slots(selected_job)
                 if not slots:
                     resp = "No hay horarios disponibles por el momento."
-                    await send_message(platform, user_id, resp, business_unit.name)
+                    await send_message(platform, user_id, resp, business_unit.name.lower())
                     await self.store_bot_message(event, resp)
                     return
                 buttons = [{'title': slot['label'], 'payload': f"book_slot_{idx}"} for idx, slot in enumerate(slots)]
@@ -386,7 +409,7 @@ class ChatBotHandler:
                 await self.store_bot_message(event, resp)
             else:
                 resp = "No encuentro esa vacante."
-                await send_message(platform, user_id, resp, business_unit.name)
+                await send_message(platform, user_id, resp, business_unit.name.lower())
                 await self.store_bot_message(event, resp)
 
         elif text.startswith("tips_"):
@@ -395,7 +418,7 @@ class ChatBotHandler:
             response = await self.generate_dynamic_response(user, event, prompt, {}, {})
             if not response:
                 response = "Prepárate, investiga la empresa, sé puntual y comunica tus logros con seguridad."
-            await send_message(platform, user_id, response, business_unit.name)
+            await send_message(platform, user_id, response, business_unit.name.lower())
             await self.store_bot_message(event, response)
 
         elif text.startswith("book_slot_"):
@@ -404,11 +427,11 @@ class ChatBotHandler:
             if 0 <= slot_index < len(available_slots):
                 selected_slot = available_slots[slot_index]
                 resp = f"Entrevista agendada para {selected_slot['label']} ¡Éxito!"
-                await send_message(platform, user_id, resp, business_unit.name)
+                await send_message(platform, user_id, resp, business_unit.name.lower())
                 await self.store_bot_message(event, resp)
             else:
                 resp = "No encuentro ese horario."
-                await send_message(platform, user_id, resp, business_unit.name)
+                await send_message(platform, user_id, resp, business_unit.name.lower())
                 await self.store_bot_message(event, resp)
 
     async def get_interview_slots(self, job: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -549,7 +572,7 @@ class ChatBotHandler:
         for idx, job in enumerate(jobs[:5]):
             response += f"{idx+1}. {job['title']} en {job['company']}\n"
         response += "Responde con el número de la vacante que te interesa."
-        await send_message(platform, user_id, response, business_unit.name)
+        await send_message(platform, user_id, response, business_unit.name.lower())
         await self.store_bot_message(event, response)
 
     async def send_profile_completion_email(self, user_id: str, context: dict):

@@ -1,4 +1,4 @@
-# Ubicación /home/pablo/app/utilidades/email_scaper.py
+# Ubicación /home/pablo/app/utilidades/email_scraper.py
 
 import imaplib
 import email
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Configuración de la cuenta IMAP (Se obtiene de la BD)
 EMAIL_ACCOUNT = "pablo@huntred.com"
 env = environ.Env()
-environ.Env.read_env()  # Lee el archivo .env
+environ.Env.read_env(env_file='/home/pablo/.env')  # Cambia la ruta aquí
 EMAIL_PASSWORD = env("EMAIL_HOST_PASSWORD")
 IMAP_SERVER = env("EMAIL_HOST", default="mail.huntred.com")
 IMAP_FOLDER = "INBOX"
