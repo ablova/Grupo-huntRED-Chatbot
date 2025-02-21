@@ -4,6 +4,7 @@ import logging
 import smtplib
 import asyncio
 import ssl
+import itertools
 from asgiref.sync import sync_to_async
 from typing import Optional, List, Dict, Union, Any
 from asgiref.sync import sync_to_async
@@ -300,8 +301,7 @@ El Menú Principal del Chat
         except Exception as e:
             logger.error(f"Error enviando mensaje {platform}: {e}", exc_info=True)
             return False
-
-    # Implementaciones específicas de send_options para cada plataforma
+   # Implementaciones específicas de send_options para cada plataforma
     async def _send_whatsapp_options(self, user_id, message, buttons, api_instance):
         from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
         
@@ -646,6 +646,52 @@ def send_email(subject: str, to_email: str, body: str, business_unit_name: str =
     """ Wrapper de `send_email`, compatible con entornos síncronos y asíncronos. """
     return run_async(send_email_async, subject, to_email, body, business_unit, from_email)
 
+async def send_list_options(platform: str, user_id: str, message: str, buttons: List[Dict], business_unit_name: str):
+    """
+    Envía una lista interactiva en WhatsApp si hay más de 3 opciones.
+    """
+    from app.chatbot.integrations.whatsapp import send_whatsapp_list
+
+    if platform != "whatsapp":
+        return await send_options(platform, user_id, message, buttons, business_unit_name)
+
+    sections = [{"title": "Opciones", "rows": [{"id": btn["payload"], "title": btn["title"]} for btn in buttons]}]
+
+    return await send_whatsapp_list(user_id, message, sections, business_unit_name)
+#Envio de Lista Interactiva para cuando hay más de 3 botones
+import itertools
+from app.chatbot.integrations.services import send_options, send_list_options
+
+async def send_smart_options(platform, user_id, message, options, business_unit):
+    """
+    Envía opciones interactivas de manera inteligente:
+    - Usa listas interactivas en WhatsApp si hay más de 3 opciones.
+    - Si falla, divide en lotes de 3 y usa botones interactivos.
+    - Si hay 3 o menos, usa botones directamente.
+    """
+    import asyncio
+
+    try:
+        if platform == "whatsapp" and len(options) > 3:
+            # Intentamos enviar lista interactiva si hay más de 3 opciones
+            success = await send_list_options(platform, user_id, message, options, business_unit)
+            if success:
+                return
+            else:
+                logger.warning(f"[send_smart_options] ❌ Listas interactivas fallaron en {platform}, usando fallback.")
+
+        # **FALLBACK**: Si WhatsApp no soporta listas, dividir en grupos de 3 y enviar botones
+        for batch in itertools.batched(options, 3):
+            await send_options(platform, user_id, message, list(batch), business_unit)
+            try:
+                await asyncio.sleep(0.5)  # Pequeña pausa para evitar ser bloqueado por spam
+            except asyncio.CancelledError:
+                logger.warning("[send_smart_options] ⚠️ Tarea de espera cancelada.")
+                break  # Salimos en caso de cancelación
+
+    except Exception as e:
+        logger.error(f"[send_smart_options] ❌ Error enviando opciones a {user_id}: {e}", exc_info=True)
+        
 async def send_options_async(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
     """
     Envío de mensaje con botones interactivos de forma asíncrona.
@@ -721,7 +767,6 @@ async def send_options_async(platform: str, user_id: str, message: str, buttons=
 def send_options(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
     """ Wrapper de `send_options_async`, compatible con entornos síncronos y asíncronos. """
     return run_async(send_options_async, platform, user_id, message, buttons, business_unit_name)
-
 
 async def send_menu_async(platform: str, user_id: str, business_unit: Optional[str] = None):
     """ Envía el menú principal al usuario en la plataforma especificada. """

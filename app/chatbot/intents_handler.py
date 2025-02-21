@@ -50,7 +50,7 @@ async def handle_known_intents(intents, platform, user_id, event, business_unit,
                 {"title": "📖 Ayuda Postulación", "payload": "ayuda_postulacion"},
                 {"title": "📊 Consultar Estatus", "payload": "consultar_estatus"}
             ]
-            await send_message(platform, user_id, "Aquí tienes el menú principal:", business_unit, options=menu_options)
+            await send_options(platform, user_id, "Aquí tienes el menú principal:", menu_options, business_unit)
             return True
 
         # 🚀 **Estatus de Aplicación**

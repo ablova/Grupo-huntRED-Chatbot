@@ -205,14 +205,6 @@ class ChatBotHandler:
             await self.store_user_message(chat_state, text)
             # ... Resto del procesamiento del mensaje ...  AQUI INICIA REALMENTE EL CHATBOT
 
-            # Analizar el texto con NLP
-            analysis = analyze_text(text)  # { "intents": [...], "entities": [...], "sentiment": {...} }
-            if not analysis or not isinstance(analysis, dict):
-                raise ValueError(f"Invalid analysis result: {analysis}")
-            intents = analysis.get("intents", [])
-            entities = analysis.get("entities", [])
-            sentiment = analysis.get("sentiment", {})
-
             # Procesar el mensaje según la unidad de negocio mediante el diccionario de workflows.
             bu_key = business_unit.name.lower()
             if bu_key in self.workflow_mapping:
@@ -254,8 +246,16 @@ class ChatBotHandler:
                 await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
                 return
             
+            # Analizar el texto con NLP
+            analysis = analyze_text(text)  # { "intents": [...], "entities": [...], "sentiment": {...} }
+            if not analysis or not isinstance(analysis, dict):
+                raise ValueError(f"Invalid analysis result: {analysis}")
+            intents = analysis.get("intents", [])
+            entities = analysis.get("entities", [])
+            sentiment = analysis.get("sentiment", {})
+
             else:
-                # Respuesta de fallback usando GPT
+            # Respuesta de fallback usando GPT
                 response = await self.generate_dynamic_response(user, chat_state, text, entities, sentiment)
                 await send_message(platform, user_id, response, business_unit.name.lower())
                 await self.store_bot_message(chat_state, response)
