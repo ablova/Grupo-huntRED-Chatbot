@@ -108,10 +108,11 @@ class ChatBotHandler:
         Envía el flujo inicial:
         1. Saludo, imagen y menú (handle_welcome_message)
         2. Mensajes introductorios
-        3. Prompt interactivo para aceptación de TOS
+        3. URL de los TOS como mensaje de texto
+        4. Prompt interactivo con botones para aceptar o rechazar TOS
         """
         try:
-            logger.info(f"[send_complete_initial_messages] Iniciando flujo inicial  para {user_id} en {platform}, BU: {business_unit.name}")
+            logger.info(f"[send_complete_initial_messages] Iniciando flujo inicial para {user_id} en {platform}, BU: {business_unit.name}")
             
             # Paso 1: Enviar bienvenida
             welcome_result = await ChatBotHandler.handle_welcome_message(user_id, platform, business_unit)
@@ -125,13 +126,17 @@ class ChatBotHandler:
                 await send_message(platform, user_id, msg, business_unit.name.lower())
                 await asyncio.sleep(1)
 
-            # Paso 3: Enviar prompt interactivo para aceptación de TOS
-            tos_prompt = "¿Aceptas nuestros Términos de Servicio (TOS)?"
+            # Paso 3: Enviar URL de los TOS como mensaje separado
             tos_url = self.get_tos_url(business_unit)
+            url_message = f"📜 Puedes revisar nuestros Términos de Servicio aquí: {tos_url}"
+            await send_message(platform, user_id, url_message, business_unit.name)
+            await asyncio.sleep(1)
+
+            # Paso 4: Enviar prompt interactivo para aceptación de TOS (sin URL)
+            tos_prompt = "¿Aceptas nuestros Términos de Servicio (TOS)?"
             tos_buttons = [
                 {'title': 'Sí', 'payload': 'tos_accept'},
-                {'title': 'No', 'payload': 'tos_reject'},
-                {'title': 'Ver TOS', 'url': tos_url}
+                {'title': 'No', 'payload': 'tos_reject'}
             ]
             logger.info(f"[handle_tos_acceptance] Botones enviados: {tos_buttons}")
             await send_options(platform, user_id, tos_prompt, tos_buttons, business_unit.name)

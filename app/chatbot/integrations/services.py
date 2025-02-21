@@ -82,27 +82,32 @@ class MessageService:
         message: str,
         options: Optional[List[Dict]] = None
     ) -> bool:
-        """Envía un mensaje al usuario en la plataforma especificada"""
+        """Envía un mensaje al usuario en la plataforma especificada."""
         try:
             logger.info(f"[send_message] Plataforma: {platform}, User: {user_id}, BU: {self.business_unit.name}")
-            
+
             api_instance = await self.get_api_instance(platform)
             if not api_instance:
-                logger.error(f"[send_message] No se encontró configuración API para {platform}")
+                logger.error(f"[send_message] ❌ No se encontró configuración API para {platform}")
                 return False
 
-            if platform == 'whatsapp':
-                return await self._send_whatsapp_message(user_id, message, options, api_instance)
-            elif platform == 'telegram':
-                return await self._send_telegram_message(user_id, message, api_instance)
-            elif platform in ['messenger', 'instagram']:
-                return await self._send_meta_message(platform, user_id, message, options, api_instance)
+            # Envío específico por plataforma
+            platform_handlers = {
+                'whatsapp': self._send_whatsapp_message,
+                'telegram': self._send_telegram_message,
+                'messenger': self._send_meta_message,
+                'instagram': self._send_meta_message
+            }
+
+            handler = platform_handlers.get(platform)
+            if handler:
+                return await handler(user_id, message, options, api_instance)
             else:
-                logger.error(f"[send_message] Plataforma no soportada: {platform}")
+                logger.error(f"[send_message] ❌ Plataforma no soportada: {platform}")
                 return False
 
         except Exception as e:
-            logger.error(f"[send_message] Error: {e}", exc_info=True)
+            logger.error(f"[send_message] ❌ Error: {e}", exc_info=True)
             return False
 
     async def send_image(
@@ -155,19 +160,49 @@ class MessageService:
             logger.error(f"[send_image] Error enviando imagen en {platform}: {e}", exc_info=True)
             return False
 
-    async def send_menu(self, platform: str, user_id: str) -> bool:
-        menu_message = """
-El Menú Principal del Chat
-1 - Bienvenida
-2 - Registro
-3 - Ver Oportunidades
-4 - Actualizar Perfil
-5 - Invitar Amigos
-6 - Términos y Condiciones
-7 - Contacto
-8 - Solicitar Ayuda
-"""
-        return await self.send_message(platform, user_id, menu_message)
+    async def send_menu(platform: str, user_id: str, business_unit: str):
+        """
+        Envía el menú principal utilizando `send_smart_options`, para que funcione en múltiples plataformas.
+        """
+        try:
+            logger.info(f"[send_menu] 📩 Enviando menú a {user_id} en {platform} para {business_unit}")
+
+            menu_options = {
+                "huntred": [
+                    {"title": "Buscar Empleo", "payload": "buscar_empleo"},
+                    {"title": "Mi Perfil", "payload": "mi_perfil"},
+                    {"title": "Ver Vacantes", "payload": "ver_vacantes"},
+                    {"title": "Agendar Entrevista", "payload": "agendar_entrevista"},
+                    {"title": "Ayuda", "payload": "ayuda"}
+                ],
+                "huntu": [
+                    {"title": "Explorar Vacantes", "payload": "explorar_vacantes"},
+                    {"title": "Mi Perfil", "payload": "mi_perfil"},
+                    {"title": "Asesoría Profesional", "payload": "asesoria_profesional"},
+                    {"title": "Programa de Mentores", "payload": "mentores"},
+                    {"title": "Ayuda", "payload": "ayuda"}
+                ],
+                "default": [
+                    {"title": "Ver Vacantes", "payload": "ver_vacantes"},
+                    {"title": "Mi Perfil", "payload": "mi_perfil"},
+                    {"title": "Configuración", "payload": "configuracion"},
+                    {"title": "Contacto", "payload": "contacto"},
+                    {"title": "Ayuda", "payload": "ayuda"}
+                ]
+            }
+
+            options = menu_options.get(business_unit.lower(), menu_options["default"])
+            message = "📍 *Menú Principal*\nSelecciona una opción:"
+
+            success, msg_id = await send_smart_options(platform, user_id, message, options, business_unit)
+
+            if success:
+                logger.info(f"[send_menu] ✅ Menú enviado correctamente. Message ID: {msg_id}")
+            else:
+                logger.error(f"[send_menu] ❌ Falló el envío del menú.")
+
+        except Exception as e:
+            logger.error(f"[send_menu] ❌ Error enviando menú: {e}", exc_info=True)
 
     async def send_url(self, platform: str, user_id: str, url: str) -> bool:
         return await self.send_message(platform, user_id, f"Aquí tienes el enlace: {url}")
@@ -342,30 +377,45 @@ El Menú Principal del Chat
             return False
 
     async def _send_telegram_options(self, user_id, message, buttons, api_instance):
+        """Envía botones interactivos en Telegram."""
         from app.chatbot.integrations.telegram import send_telegram_buttons
-        
-        try:
-            chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
-            telegram_buttons = [
-                {
-                    "text": btn.title,
-                    "callback_data": btn.payload if btn.payload else "no_payload"
-                }
-                for btn in buttons
-            ]
 
-            await send_telegram_buttons(
+        try:
+            # Extraer `chat_id` desde el `user_id`
+            chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
+            
+            # Construcción correcta de botones
+            telegram_buttons = []
+            for btn in buttons:
+                button_data = {
+                    "text": btn.title
+                }
+                if btn.url:
+                    button_data["url"] = btn.url
+                else:
+                    button_data["callback_data"] = btn.payload if btn.payload else "no_payload"
+                telegram_buttons.append(button_data)
+
+            # Validar que TelegramAPI tenga la API Key
+            if not api_instance.api_key:
+                logger.error(f"[send_telegram_buttons] ❌ API Key de Telegram no configurada para {api_instance.business_unit.name}")
+                return False
+
+            # Enviar botones a Telegram
+            success = await send_telegram_buttons(
                 chat_id=chat_id,
                 message=message,
                 buttons=telegram_buttons,
-                access_token=api_instance.api_key
+                telegram_api=api_instance,
+                business_unit_name=api_instance.business_unit.name
             )
-            return True
+
+            return success is not None  # Retorna True si se envió correctamente
 
         except Exception as e:
-            logger.error(f"Error enviando opciones Telegram: {e}", exc_info=True)
+            logger.error(f"❌ Error enviando opciones a Telegram: {e}", exc_info=True)
             return False
-
+        
     async def _send_messenger_options(self, user_id, message, buttons, api_instance):
         from app.chatbot.integrations.messenger import send_messenger_buttons
         
@@ -666,28 +716,37 @@ async def send_smart_options(platform, user_id, message, options, business_unit)
     - Si falla, divide en lotes de 3 y usa botones interactivos.
     - Si hay 3 o menos, usa botones directamente.
     """
-    import asyncio
-
     try:
         if platform == "whatsapp" and len(options) > 3:
             # Intentamos enviar lista interactiva si hay más de 3 opciones
-            success = await send_list_options(platform, user_id, message, options, business_unit)
+            success, msg_id = await send_list_options(platform, user_id, message, options, business_unit)
             if success:
-                return
+                return True, msg_id  # ✅ Devuelve True si se envió correctamente
             else:
                 logger.warning(f"[send_smart_options] ❌ Listas interactivas fallaron en {platform}, usando fallback.")
 
         # **FALLBACK**: Si WhatsApp no soporta listas, dividir en grupos de 3 y enviar botones
-        for batch in itertools.batched(options, 3):
-            await send_options(platform, user_id, message, list(batch), business_unit)
+        last_msg_id = None
+        option_batches = [options[i:i+3] for i in range(0, len(options), 3)]  # ✅ Compatible con Python 3.10+
+
+        for batch in option_batches:
+            success, msg_id = await send_options(platform, user_id, message, batch, business_unit)
+            if not success:
+                logger.error(f"[send_smart_options] ❌ Falló el envío de opciones en {platform}.")
+                return False, None  # ❌ Devuelve False si falló
+            last_msg_id = msg_id  # Guarda el último message ID enviado
+
             try:
                 await asyncio.sleep(0.5)  # Pequeña pausa para evitar ser bloqueado por spam
             except asyncio.CancelledError:
                 logger.warning("[send_smart_options] ⚠️ Tarea de espera cancelada.")
                 break  # Salimos en caso de cancelación
 
+        return True, last_msg_id  # ✅ Devuelve el último `msg_id` exitoso
+
     except Exception as e:
         logger.error(f"[send_smart_options] ❌ Error enviando opciones a {user_id}: {e}", exc_info=True)
+        return False, None  # ❌ Retorna False en caso de error
         
 async def send_options_async(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
     """
