@@ -659,9 +659,6 @@ async def send_list_options(platform: str, user_id: str, message: str, buttons: 
 
     return await send_whatsapp_list(user_id, message, sections, business_unit_name)
 #Envio de Lista Interactiva para cuando hay más de 3 botones
-import itertools
-from app.chatbot.integrations.services import send_options, send_list_options
-
 async def send_smart_options(platform, user_id, message, options, business_unit):
     """
     Envía opciones interactivas de manera inteligente:
@@ -721,22 +718,19 @@ async def send_options_async(platform: str, user_id: str, message: str, buttons=
             
             # ✅ Asegurar que los títulos no se corten arbitrariamente
             formatted_buttons = []
-                for i, btn in enumerate(buttons[:3]):  # WhatsApp permite máximo 3 botones
-                    if "title" in btn and "payload" in btn:
-                        formatted_buttons.append({
-                            "type": "reply",
-                            "reply": {
-                                "id": btn["payload"],  # ID debe ser el payload correcto
-                                "title": btn["title"][:20]  # Máximo 20 caracteres
-                            }
-                        })
-                    else:
-                        logger.warning(f"[send_options_async] ⚠️ Botón inválido: {btn}")
+            for i, btn in enumerate(buttons[:3]):  # WhatsApp permite máximo 3 botones
+                if "title" in btn and "payload" in btn:
+                    formatted_buttons.append({
+                        "type": "reply",
+                        "reply": {
+                            "id": btn["payload"],  # ID debe ser el payload correcto
+                            "title": btn["title"][:20]  # Máximo 20 caracteres
+                        }
+                    })
+                else:
+                    logger.warning(f"[send_options_async] ⚠️ Botón inválido: {btn}")
 
-                logger.info(f"[send_options_async] 🚀 Botones generados para WhatsApp: {formatted_buttons}")
-
-            # ✅ WhatsApp permite un máximo de 3 botones
-            formatted_buttons = formatted_buttons[:3]
+            logger.info(f"[send_options_async] 🚀 Botones generados para WhatsApp: {formatted_buttons}")
 
             if not formatted_buttons:
                 logger.error(f"[send_options_async] ⚠️ No se generaron botones válidos para WhatsApp.")
