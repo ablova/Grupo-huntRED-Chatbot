@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
-from ratelimit.decorators import ratelimit
+#from ratelimit.decorators import ratelimit
 import json
 import logging
 from app.chatbot.chatbot import ChatBotHandler
@@ -46,7 +46,7 @@ async def candidato_recommendations(request, candidato_id):
         logger.error(f"Error obteniendo recomendaciones para el candidato {candidato_id}: {e}")
         return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
 
-@method_decorator([csrf_exempt, ratelimit(key='ip', rate='10/m', method='POST')], name='dispatch')
+@method_decorator([csrf_exempt], name='dispatch') # se quito #, ratelimit(key='ip', rate='10/m', method='POST')
 class ProcessMessageView(View):
     """Vista para procesar mensajes del chatbot."""
     async def post(self, request, *args, **kwargs):
