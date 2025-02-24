@@ -11,7 +11,7 @@ from app.chatbot.nlp import NLPProcessor
 from app.chatbot.utils import fetch_data_from_url, validate_request_data
 from app.utilidades.vacantes import VacanteManager, procesar_vacante
 from django.db import connections
-
+from app.tasks import send_whatsapp_message_task, train_ml_task, ejecutar_scraping
 
 @override_settings(DEBUG=True)
 class ChatbotTests(TestCase):
@@ -190,3 +190,120 @@ def test_create_job_listing(mock_job_data):
     manager = VacanteManager(job_data=mock_job_data)
     result = manager.create_job_listing()
     assert result["status"] == "success"
+
+
+@override_settings(DEBUG=True)
+class ChatbotTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.clean_test_database()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.clean_test_database()
+        for conn in connections.all():
+            conn.close()
+        super().tearDownClass()
+
+    @staticmethod
+    def clean_test_database():
+        """Limpia todas las tablas de la base de datos de pruebas."""
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SET CONSTRAINTS ALL DEFERRED;")
+            cursor.execute(
+                """
+                DO $$
+                DECLARE
+                    r RECORD;
+                BEGIN
+                    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                        EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE;';
+                    END LOOP;
+                END $$;
+                """
+            )
+
+    def setUp(self):
+        """Configuración inicial"""
+        self.client = Client()
+
+        # Configuración de Business Unit y usuario
+        self.business_unit = BusinessUnit.objects.create(
+            name="amigro",
+            admin_phone="525518490291"
+        )
+        self.person = Person.objects.create(
+            nombre="Test User",
+            phone="525518490291",
+            email="test@huntred.com"
+        )
+        self.chat_state = ChatState.objects.create(
+            user_id=self.person.phone,
+            platform="whatsapp",
+            business_unit=self.business_unit,
+            person=self.person
+        )
+
+        self.handler = ChatBotHandler()
+
+    # Prueba para fetch_data_from_url con REST API
+    @patch("app.chatbot.utils.requests.get")
+    def test_fetch_data_from_rest_api(self, mock_get):
+        """Prueba la obtención de vacantes desde el REST API de WordPress con JWT"""
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = [
+            {"id": 1, "title": {"rendered": "Vacante Test 1"}},
+            {"id": 2, "title": {"rendered": "Vacante Test 2"}}
+        ]
+        url = "https://amigro.org/wp-json/wp/v2/vacantes"
+        headers = {"Authorization": f"Bearer test_jwt_token"}
+        data = fetch_data_from_url(url, headers=headers)
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["title"]["rendered"], "Vacante Test 1")
+
+    # Prueba para verificar la ejecución de una tarea de Celery
+    @patch("app.tasks.send_message")
+    def test_send_whatsapp_message_task(self, mock_send_message):
+        """Prueba la ejecución de la tarea Celery para enviar mensajes de WhatsApp."""
+        mock_send_message.return_value = True
+        result = send_whatsapp_message_task("525518490291", "Hola")
+        self.assertIsNone(result)
+
+    @patch("app.tasks.GrupohuntREDMLPipeline.train")
+    def test_train_ml_task(self, mock_train):
+        """Prueba la ejecución de la tarea Celery para entrenar modelos de Machine Learning."""
+        mock_train.return_value = None
+        result = train_ml_task()
+        self.assertIsNone(result)
+
+    @patch("app.tasks.run_scraper")
+    def test_ejecutar_scraping(self, mock_scraper):
+        """Prueba la ejecución del scraper desde Celery."""
+        mock_scraper.return_value = []
+        result = ejecutar_scraping()
+        self.assertIsNone(result)
+
+    # Prueba para chatbot
+    def test_handle_known_intents(self):
+        """Prueba el manejo de intenciones conocidas"""
+        response = self.handler.handle_known_intents(
+            intents=["saludo"],
+            platform="whatsapp",
+            user_id=self.person.phone,
+            chat_state=self.chat_state,
+            business_unit=self.business_unit
+        )
+        self.assertIsNotNone(response)
+
+    def test_chatbot_response_flow(self):
+        """Prueba el flujo completo de respuestas del chatbot"""
+        response = self.client.post(
+            "/test_interaction/",
+            data={"user_id": self.person.phone, "message": "Hola"},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("success", response.json())
