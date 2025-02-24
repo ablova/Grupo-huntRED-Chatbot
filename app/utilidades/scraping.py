@@ -24,6 +24,7 @@ from app.models import (
 from app.utilidades.loader import DIVISION_SKILLS
 from app.models import USER_AGENTS
 from app.chatbot.utils import clean_text
+from app.utilidades.vacantes import get_session, login, login_to_wordpress, register, solicitud, exportar_vacantes_a_wordpress
 
 logger = logging.getLogger("app.utilidades.scraping")
 
@@ -248,144 +249,7 @@ class BaseScraper:
         """Método abstracto para scraping."""
         raise NotImplementedError("Subclasses must implement scrape method.")
 
-# ========================
-# Sección de Conexiones WordPress / JWT (Conservada para Parte 3)
-# ========================
-# Nota: Estas funciones se integrarán en la Parte 3 para publicación al sistema interno.
 
-async def get_session():
-    """Obtiene un token de sesión desde el perfil de usuario en HuntRED de manera asíncrona."""
-    headers = {'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N)'}
-    url = "https://huntred.com/my-profile/"
-    try:
-        async with ClientSession() as session:
-            async with session.get(url, headers=headers, timeout=10) as response:
-                response.raise_for_status()
-                text = await response.text()
-                soup = BeautifulSoup(text, "html.parser")
-                input_tag = soup.find("input", {"id": "login_security"})
-                if input_tag and input_tag.get("value"):
-                    return input_tag.get("value")
-                logger.error("No 'login_security' input found in response.")
-                return None
-    except Exception as e:
-        logger.error(f"Error getting session: {e}")
-        return None
-
-async def register(username: str, email: str, password: str, name: str, lastname: str) -> Optional[str]:
-    """Registra un usuario en WordPress."""
-    data_session = await get_session()
-    if not data_session:
-        return "Error obteniendo la sesión para registro."
-    url = "https://huntred.com/wp-admin/admin-ajax.php"
-    payload = {
-        "action": "workscoutajaxregister",
-        "role": "candidate",
-        "username": username,
-        "email": email,
-        "password": password,
-        "first-name": name,
-        "last-name": lastname,
-        "privacy_policy": "on",
-        "register_security": data_session
-    }
-    headers = {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0"}
-    async with ClientSession() as session:
-        try:
-            async with session.post(url, data=payload, headers=headers) as response:
-                response.raise_for_status()
-                return await response.text()
-        except Exception as e:
-            logger.error(f"Error registering user: {e}")
-            return None
-
-async def login(username: str, password: str) -> Optional[str]:
-    """Inicia sesión en WordPress."""
-    data_session = await get_session()
-    if not data_session:
-        return "Error obteniendo la sesión para login."
-    url = "https://huntred.com/wp-login.php"
-    payload = {
-        "_wp_http_referer": "/my-profile/",
-        "log": username,
-        "pwd": password,
-        "login_security": data_session
-    }
-    headers = {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0"}
-    async with ClientSession() as session:
-        try:
-            async with session.post(url, data=payload, headers=headers) as response:
-                response.raise_for_status()
-                soup = BeautifulSoup(await response.text(), "html.parser")
-                return soup.find("div", {"class": "user-avatar-title"})
-        except Exception as e:
-            logger.error(f"Error logging in: {e}")
-            return None
-
-async def solicitud(vacante_url: str, name: str, email: str, message: str, job_id: str) -> Optional[str]:
-    """Envía una solicitud para una vacante en WordPress."""
-    payload = {
-        "candidate_email": email,
-        "application_message": message,
-        "job_id": job_id,
-        "candidate_name": name
-    }
-    headers = {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0"}
-    async with ClientSession() as session:
-        try:
-            async with session.post(vacante_url, data=payload, headers=headers, allow_redirects=True) as response:
-                response.raise_for_status()
-                soup = BeautifulSoup(await response.text(), "html.parser")
-                return soup.find("p", class_="job-manager-message").text
-        except Exception as e:
-            logger.error(f"Error submitting application: {e}")
-            return None
-
-async def login_to_wordpress(username: str, password: str) -> bool:
-    """Realiza login en WordPress para administración de vacantes."""
-    url = "https://huntred.com/wp-login.php"
-    payload = {"log": username, "pwd": password, "wp-submit": "Log In"}
-    headers = {"User-Agent": "Mozilla/5.0"}
-    async with ClientSession() as session:
-        try:
-            async with session.post(url, data=payload, headers=headers) as response:
-                response.raise_for_status()
-                if "dashboard" in str(response.url):
-                    logger.info("WordPress login successful")
-                    return True
-                logger.error("WordPress login failed")
-                return False
-        except Exception as e:
-            logger.error(f"Error logging into WordPress: {e}")
-            return False
-
-async def exportar_vacantes_a_wordpress(business_unit: BusinessUnit, vacantes: List[Vacante]) -> bool:
-    """Exporta vacantes a WordPress."""
-    try:
-        configuracion = await sync_to_async(ConfiguracionBU.objects.get)(business_unit=business_unit)
-    except ConfiguracionBU.DoesNotExist:
-        logger.error(f"No configuration found for Business Unit {business_unit}")
-        return False
-
-    if not await login_to_wordpress(configuracion.usuario_wp, configuracion.password_wp):
-        logger.error("WordPress login failed")
-        return False
-
-    for vacante in vacantes:
-        logger.debug(f"Processing vacante: {vacante}")
-        payload = {
-            "job_title": vacante.titulo,
-            "company": vacante.empresa,
-            "description": vacante.descripcion,
-            "location": vacante.ubicacion,
-        }
-        try:
-            result = await solicitud(configuracion.api_url, configuracion.usuario_wp, payload["company"], payload["description"], vacante.id)
-            logger.info(f"Vacante publicada: {vacante.titulo}")
-        except Exception as e:
-            logger.error(f"Error publishing vacante {vacante.titulo}: {e}")
-
-    return True
 
 # ========================
 # Scrapers Específicos
