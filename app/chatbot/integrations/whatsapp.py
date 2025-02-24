@@ -278,6 +278,8 @@ async def get_media_url(whatsapp_api: WhatsAppAPI, media_id: str) -> Optional[st
 # ------------------------------------------------------------------------------
 # Envío de Mensajes a WhatsApp
 # ------------------------------------------------------------------------------
+from tenacity import retry, stop_after_attempt
+@retry(stop=stop_after_attempt(3))
 async def send_whatsapp_message(
     user_id: str, 
     message: str, 
