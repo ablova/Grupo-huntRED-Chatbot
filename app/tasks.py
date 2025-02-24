@@ -101,41 +101,32 @@ def send_messenger_message_task(self, recipient_id, message, business_unit_id=No
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def train_ml_task(self, business_unit_id=None):
     """
-    Tarea para entrenar el modelo de ML para una Business Unit específica o todas.
+    Tarea para entrenar el modelo de ML para una Business Unit específica o todas, con manejo de errores por unidad.
+    
+    Args:
+        business_unit_id (int, optional): ID de la unidad de negocio. Si es None, entrena para todas.
     """
     logger.info("🧠 Iniciando tarea de entrenamiento de Machine Learning.")
     try:
-        # Si se proporciona una unidad de negocio específica
         if business_unit_id:
             business_units = BusinessUnit.objects.filter(id=business_unit_id)
         else:
-            # Si no, entrenar para todas las unidades
             business_units = BusinessUnit.objects.all()
 
         for bu in business_units:
             logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
             pipeline = GrupohuntREDMLPipeline(business_unit=bu.name)
-
             try:
-                # Cargar datos
                 data = pipeline.load_data('/home/pablo/app/model/training_data.csv')
-                
-                # Preprocesar datos
                 X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
-                
-                # Construir y entrenar modelo
                 pipeline.build_model()
                 pipeline.train(X_train, y_train, X_test, y_test)
-                
-                # Guardar el modelo
                 pipeline.save_model()
                 logger.info(f"✅ Modelo entrenado y guardado para {bu.name}")
             except Exception as e:
                 logger.error(f"❌ Error entrenando modelo para BU {bu.name}: {e}")
-                continue
-
+                continue  # Continúa con la siguiente unidad en caso de error
         logger.info("🚀 Tarea de entrenamiento completada para todas las Business Units.")
-
     except Exception as e:
         logger.error(f"❌ Error en la tarea de entrenamiento de ML: {e}")
         self.retry(exc=e)
@@ -380,7 +371,7 @@ def execute_ml_and_scraping(self):
     except Exception as e:
         logger.error(f"❌ Error en el proceso ML + scraping: {str(e)}")
         self.retry(exc=e)
-        
+
 # =========================================================
 # Tareas de Notificaciones
 # =========================================================
@@ -490,29 +481,35 @@ def process_csv_and_scrape_task(self, csv_path: str = "/home/pablo/connections.c
         self.retry(exc=e)
         
 @shared_task(bind=True, max_retries=3, default_retry_delay=300, queue='notifications')
-def enviar_invitaciones_completar_perfil(self):
+def enviar_invitaciones_completar_perfil(self, fields=None):
     """
-    Task que consulta candidatos con información incompleta y envía la invitación para completar el perfil.
-    En este ejemplo, se filtra a los candidatos sin número de celular.
+    Envía invitaciones a candidatos con perfiles incompletos, filtrando por campos específicos.
+    
+    Args:
+        fields (list, optional): Lista de campos a considerar como incompletos (e.g., ['phone', 'email']).
+                                 Por defecto, solo 'phone'.
     """
+    if fields is None:
+        fields = ['phone']
     try:
-        # Ajusta el criterio según lo que consideres “incompleto”
-        candidatos = Person.objects.filter(phone__isnull=True)
+        query = Q()
+        for field in fields:
+            query |= Q(**{f"{field}__isnull": True})
+        candidatos = Person.objects.filter(query)
         if not candidatos.exists():
             logger.info("No se encontraron candidatos con perfiles incompletos para invitar.")
             return "No candidates to invite."
-
-        # Aquí puedes definir la lógica para obtener la BusinessUnit; por ejemplo, el primer registro
+        
         business_unit = BusinessUnit.objects.first()
         if not business_unit:
             logger.error("No se encontró ninguna BusinessUnit.")
             return "No BusinessUnit found."
-
+        
         invitaciones_enviadas = 0
         for candidate in candidatos:
             enviar_invitacion_completar_perfil(candidate, business_unit)
             invitaciones_enviadas += 1
-
+        
         logger.info(f"Invitaciones enviadas: {invitaciones_enviadas}")
         return f"Invitaciones enviadas: {invitaciones_enviadas}"
     except Exception as e:
