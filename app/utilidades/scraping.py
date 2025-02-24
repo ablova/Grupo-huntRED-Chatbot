@@ -24,7 +24,7 @@ from app.models import (
 from app.utilidades.loader import DIVISION_SKILLS
 from app.models import USER_AGENTS
 from app.chatbot.utils import clean_text
-from app.utilidades.vacantes import get_session, login, login_to_wordpress, register, solicitud, exportar_vacantes_a_wordpress
+#from app.utilidades.vacantes import get_session, login, login_to_wordpress, register, solicitud, exportar_vacantes_a_wordpress
 
 logger = logging.getLogger("app.utilidades.scraping")
 
