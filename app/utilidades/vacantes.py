@@ -18,7 +18,6 @@ from app.models import Worker, Person, GptApi, ConfiguracionBU
 #from app.chatbot.integrations.whatsapp import registro_amigro, nueva_posicion_amigro #Importaciones locales
 from app.chatbot.integrations.services import send_email, send_message
 from app.ml.ml_model import MatchmakingLearningSystem
-from app.utilidades.scraping import get_session, consult, register, login, solicitud
 from app.chatbot.utils import prioritize_interests, get_positions_by_skills
 #import chainlit as cl
 #from some_ml_model import match_candidate_to_job  # Tu modelo personalizado
