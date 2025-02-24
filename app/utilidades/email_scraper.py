@@ -3,6 +3,7 @@
 import imaplib
 import email
 import logging
+import aiohttp
 from datetime import datetime, timedelta
 import environ
 from email.header import decode_header
