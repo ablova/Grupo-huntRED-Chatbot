@@ -18,7 +18,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_l
 from prometheus_client import Counter, Histogram, start_http_server
 import spacy
 from skillNer.skill_extractor_class import SkillExtractor
-from app.utilidades.vacantes import VacanteManager
 from app.models import (
     DominioScraping, Vacante, RegistroScraping, ConfiguracionBU, BusinessUnit, Worker
 )
@@ -1305,6 +1304,7 @@ class ScrapingPipeline:
 
 async def publish_to_internal_system(jobs: List[Dict], business_unit: BusinessUnit) -> bool:
     """Publica trabajos al sistema interno usando VacanteManager."""
+    from app.utilidades.vacantes import VacanteManager
     try:
         for job in jobs:
             job_data = {
