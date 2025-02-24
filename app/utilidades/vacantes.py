@@ -2,8 +2,10 @@
 
 import requests
 import logging
+import aiohttp
 import numpy as np
 import openai
+from openai import OpenAI
 from typing import List, Dict
 from functools import lru_cache
 from datetime import datetime, timedelta
@@ -14,6 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
 from app.models import Worker, Person, GptApi, ConfiguracionBU
 #from app.chatbot.integrations.whatsapp import registro_amigro, nueva_posicion_amigro #Importaciones locales
+from app.chatbot.integrations.services import send_email, send_message
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.utilidades.scraping import get_session, consult, register, login, solicitud
 from app.chatbot.utils import prioritize_interests, get_positions_by_skills
@@ -33,47 +36,6 @@ def main(message: str) -> None:
     candidate_profile = extract_candidate_profile(message)
     job_matches = match_candidate_to_job(candidate_profile)
     print(f"Encontré estas vacantes para ti: {job_matches}") 
-
-def match_person_with_jobs(person, job_list):
-    """
-    Coincide un usuario con una lista de vacantes.
-    """
-    if not person:
-        logger.warning("No hay candidatos registrados para hacer matching con vacantes.")
-        return []
-    
-    person_location = (person.lat, person.lon) if person.lat and person.lon else None
-    person_skills = set(person.skills.split(",")) if person.skills else set()
-
-    matches = []
-    for job in job_list:
-        try:
-            score = 0
-            job_skills = set(job.requisitos.split(",")) if job.requisitos else set()
-            skill_match = len(person_skills & job_skills)
-            score += skill_match * 2
-
-            if person_location and job.lat and job.lon:
-                job_location = (job.lat, job.lon)
-                distance = geodesic(person_location, job_location).km
-                if distance <= 10:
-                    score += 3
-                elif distance <= 50:
-                    score += 1
-
-            if person.nivel_salarial and job.salario:
-                if job.salario >= person.nivel_salarial:
-                    score += 2
-
-            if job.fecha_scraping and (datetime.now() - job.fecha_scraping).days <= 7:
-                score += 1
-
-            matches.append((job, score))
-        except Exception as e:
-            logger.error(f"Error al procesar coincidencia para el trabajo {job.id}: {e}")
-
-    matches = sorted(matches, key=lambda x: x[1], reverse=True)
-    return matches
 
 def extract_candidate_profile(message: str) -> Dict:
     """
@@ -331,7 +293,7 @@ class VacanteManager:
         Returns:
             Dict[str, str]: Estado y mensaje del resultado.
         """
-        from app.chatbot.integrations.services import send_email  # Importación local
+        
 
         # Generar etiquetas
         job_tags = self.job_data.get("job_tags", await self.ensure_tags_exist(self.generate_tags(self.job_data["job_description"])))
@@ -418,43 +380,64 @@ class VacanteManager:
     @staticmethod
     def match_person_with_jobs(person, job_list):
         """
-        Coincide un usuario con una lista de vacantes.
-        """
-        from app.chatbot.utils import get_positions_by_skills  # Importación dentro de la función
+        Coincide un usuario con una lista de vacantes considerando habilidades, distancia y salario.
 
-        matches = []
+        Args:
+            person (Person): Objeto del candidato.
+            job_list (List[Job]): Lista de vacantes disponibles.
+
+        Returns:
+            List[Tuple[Job, int]]: Lista de trabajos con su puntaje de coincidencia ordenada de mayor a menor.
+        """
+        if not person:
+            logger.warning("No hay candidato para hacer matching.")
+            return []
+        
+        if not job_list:
+            logger.warning("No hay vacantes disponibles para hacer matching.")
+            return []
+
         person_location = (person.lat, person.lon) if person.lat and person.lon else None
         person_skills = set(person.skills.split(",")) if person.skills else set()
 
+        matches = []
         for job in job_list:
             try:
                 score = 0
                 job_skills = set(job.requisitos.split(",")) if job.requisitos else set()
+
+                # 🔹 Match de habilidades (cada coincidencia suma 2 puntos)
                 skill_match = len(person_skills & job_skills)
                 score += skill_match * 2
 
+                # 🔹 Distancia geográfica (mayor cercanía = más puntos)
                 if person_location and job.lat and job.lon:
                     job_location = (job.lat, job.lon)
                     distance = geodesic(person_location, job_location).km
                     if distance <= 10:
-                        score += 3
+                        score += 3  # Cercano
                     elif distance <= 50:
-                        score += 1
+                        score += 1  # Moderadamente lejos
 
+                # 🔹 Comparación de salario (si el puesto paga igual o más, suma puntos)
                 if person.nivel_salarial and job.salario:
                     if job.salario >= person.nivel_salarial:
                         score += 2
 
+                # 🔹 Antigüedad del puesto (vacantes recientes tienen mayor peso)
                 if job.fecha_scraping and (datetime.now() - job.fecha_scraping).days <= 7:
                     score += 1
 
                 matches.append((job, score))
-            except Exception as e:
-                logger.error(f"Error al procesar coincidencia para el trabajo {job.id}: {e}")
 
-        matches = sorted(matches, key=lambda x: x[1], reverse=True)
+            except Exception as e:
+                logger.error(f"Error al procesar coincidencia para el trabajo {job.id}: {e}", exc_info=True)
+
+        # 🔹 Ordenar por puntaje de coincidencia (descendente)
+        matches.sort(key=lambda x: x[1], reverse=True)
+        
         return matches
-    
+
     def calculate_match_score(person, vacante, weights):
         """
         Calcula el puntaje de coincidencia dinámicamente según los pesos proporcionados.
