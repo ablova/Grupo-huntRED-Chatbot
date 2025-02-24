@@ -22,16 +22,17 @@ from app.chatbot.utils import prioritize_interests, get_positions_by_skills
 
 # Configuración del logger
 logger = logging.getLogger("app.utilidades.vacantes")
-#@cl.on_message
-#async def main(message):
-#    # Procesa el mensaje del usuario
-#    candidate_profile = extract_candidate_profile(message)
-#    job_matches = match_candidate_to_job(candidate_profile)
-#    await cl.Message(content=f"Encontré estas vacantes para ti: {job_matches}").send()
-def main(message):
+
+def main(message: str) -> None:
+    """
+    Función principal para procesar mensajes y sugerir vacantes.
+
+    Args:
+        message (str): Mensaje recibido del usuario.
+    """
     candidate_profile = extract_candidate_profile(message)
     job_matches = match_candidate_to_job(candidate_profile)
-    print(f"Encontré estas vacantes para ti: {job_matches}")   
+    print(f"Encontré estas vacantes para ti: {job_matches}") 
 
 def match_person_with_jobs(person, job_list):
     """
@@ -74,28 +75,66 @@ def match_person_with_jobs(person, job_list):
     matches = sorted(matches, key=lambda x: x[1], reverse=True)
     return matches
 
+def extract_candidate_profile(message: str) -> Dict:
+    """
+    Extrae el perfil del candidato desde un mensaje (placeholder).
+
+    Args:
+        message (str): Mensaje recibido del candidato.
+    Returns:
+        Dict: Perfil básico del candidato (simulado).
+    """
+    # Placeholder: Implementar lógica real según tu sistema
+    return {"skills": ["python", "sql"], "location": "CDMX"}
+
+def match_candidate_to_job(profile: Dict) -> List[str]:
+    """
+    Coincide un perfil de candidato con trabajos (placeholder).
+
+    Args:
+        profile (Dict): Perfil del candidato.
+    Returns:
+        List[str]: Lista de vacantes coincidentes (simulada).
+    """
+    # Placeholder: Implementar con ML real
+    return ["Developer Job 1", "Developer Job 2"]
+
 
 # Sesión persistente de requests
 s = requests.session()
 
 class VacanteManager:
-    def __init__(self, job_data):
+    def __init__(self, job_data: Dict):
+        """
+        Inicializa el gestor de vacantes con datos de la vacante.
+
+        Args:
+            job_data (Dict): Datos de la vacante (business_unit, job_title, etc.).
+        Raises:
+            ValueError: Si faltan campos requeridos.
+        """
         required_fields = ["business_unit", "job_title", "job_description", "company_name"]
         missing_fields = [field for field in required_fields if field not in job_data]
         if missing_fields:
-            raise ValueError(f"Faltan los siguientes campos requeridos en job_data: {', '.join(missing_fields)}")
-
+            raise ValueError(f"Faltan campos requeridos: {', '.join(missing_fields)}")
+        
         self.job_data = job_data
         self.configuracion = ConfiguracionBU.objects.get(business_unit=self.job_data['business_unit'])
-        self.api_url = self.configuracion.dominio_rest_api
+        self.api_url = self.configuracion.dominio_rest_api or "https://amigro.org/wp-json/wp/v2/job-listings"
         self.headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.configuracion.jwt_token}'
+            'Authorization': f'Bearer {self.configuracion.jwt_token}',
+            'User-Agent': 'VacanteManager/1.0'
         }
-        self.wp_url = self.configuracion.dominio_bu
+        self.client = None  # Cliente OpenAI
 
-    def _init_openai_client(self):
-        """Inicializa el cliente de OpenAI si no está inicializado."""
+    def _init_openai_client(self) -> bool:
+        """
+        Inicializa el cliente de OpenAI si no está configurado.
+
+        Returns:
+            bool: True si el cliente se inicializó, False si no.
+        """
         if self.client is None:
             gpt_api = self.get_gpt_api_config()
             if gpt_api:
@@ -104,51 +143,56 @@ class VacanteManager:
     
     @staticmethod
     @lru_cache(maxsize=1000)
-    def get_gpt_api_config():
+    def get_gpt_api_config() -> Optional[GptApi]:
+        """
+        Obtiene la configuración de la API de OpenAI desde la base de datos con caché.
+
+        Returns:
+            Optional[GptApi]: Configuración de GptApi o None si falla.
+        """
         try:
             gpt_api = GptApi.objects.first()
-            if gpt_api:
-                return gpt_api
-            else:
-                logger.warning("No se encontró la configuración de GptApi en la base de datos.")
-                return None
+            if not gpt_api:
+                logger.warning("No se encontró configuración de GptApi.")
+            return gpt_api
         except Exception as e:
-            logger.error(f"Error obteniendo configuración de GptApi: {e}")
+            logger.error(f"Error al obtener GptApi: {e}")
             return None
 
-    def fetch_latest_jobs(self, limit=5):
+    async def fetch_latest_jobs(self, limit: int = 5) -> List[Dict]:
         """
-        Obtiene las últimas vacantes publicadas con campos específicos.
+        Obtiene las últimas vacantes publicadas desde WordPress.
+
+        Args:
+            limit (int): Número máximo de vacantes a retornar (default: 5).
+        Returns:
+            List[Dict]: Lista de vacantes con id y título.
         """
         try:
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.configuracion.jwt_token}",
-                "Accept": "application/json",
-                "User-Agent": "VacanteManager/1.0"
-            }
-            params = {"_fields": "id,title", "per_page": limit}
-            response = requests.get(self.api_url, headers=headers, params=params)
-            response.raise_for_status()
-            jobs = response.json()
-            logger.info(f"Se obtuvieron {len(jobs)} vacantes.")
-            return jobs
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"Error HTTP {e.response.status_code}: {e.response.text}")
-        except requests.exceptions.ConnectionError:
-            logger.error("Error de conexión al API de WordPress")
-        except requests.exceptions.Timeout:
-            logger.error("Tiempo de espera agotado al conectar con el API")
-        except Exception as e:
-            logger.error(f"Error desconocido: {e}")
-        return []
-
-    def generate_bookings(start_date, session_duration):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    self.api_url,
+                    headers=self.headers,
+                    params={"_fields": "id,title", "per_page": limit}
+                ) as response:
+                    response.raise_for_status()
+                    jobs = await response.json()
+                    logger.info(f"Se obtuvieron {len(jobs)} vacantes.")
+                    return jobs
+        except aiohttp.ClientError as e:
+            logger.error(f"Error al obtener vacantes: {e}")
+            return []
+        
+    @staticmethod
+    def generate_bookings(start_date: datetime, session_duration: int) -> List[str]:
         """
-        Genera horarios de entrevistas desde una fecha inicial, con una duración específica por sesión.
-        :param start_date: Fecha inicial (datetime) para comenzar los horarios.
-        :param session_duration: Duración de cada sesión en minutos.
-        :return: Lista de horarios en formato '%Y-%m-%d %H:%M'.
+        Genera horarios de entrevistas desde una fecha inicial.
+
+        Args:
+            start_date (datetime): Fecha inicial para los horarios.
+            session_duration (int): Duración de cada sesión en minutos.
+        Returns:
+            List[str]: Horarios en formato 'YYYY-MM-DD HH:MM'.
         """
         horarios = []
         hora_actual = datetime.combine(start_date.date(), datetime.min.time()).replace(hour=9)
@@ -157,99 +201,120 @@ class VacanteManager:
             hora_actual += timedelta(minutes=session_duration)
         return horarios
 
-    def estimate_salary(self):
+    async def estimate_salary(self) -> tuple[str, str]:
         """
-        Estima el rango salarial usando el nuevo cliente de OpenAI.
+        Estima el rango salarial usando OpenAI.
+
+        Returns:
+            tuple[str, str]: Salario mínimo y máximo en MXN.
         """
         if not self._init_openai_client():
-            logger.warning("No se pudo inicializar el cliente de OpenAI.")
+            logger.warning("No se inicializó OpenAI, usando valores por defecto.")
             return "12000", "15000"
 
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "Eres un experto en compensaciones y salarios en México."},
-                    {"role": "user", "content": f"Calcula el rango salarial para el puesto '{self.job_data['job_title']}' "
-                                                f"en México.\nDescripción: {self.job_data['job_description']}\n"
-                                                f"Proporciona el salario mínimo y máximo estimados en pesos mexicanos."}
+                    {"role": "system", "content": "Eres experto en salarios en México."},
+                    {"role": "user", "content": f"Calcula el rango salarial para '{self.job_data['job_title']}' en México.\n"
+                                                f"Descripción: {self.job_data['job_description']}\n"
+                                                f"Formato: min: $XXXX, max: $YYYY"}
                 ],
                 max_tokens=50,
                 temperature=0.5
             )
-            salario_min, salario_max = self.parse_salary_text(response.choices[0].message.content.strip())
-            return salario_min, salario_max
+            text = response.choices[0].message.content.strip()
+            return self.parse_salary_text(text)
         except Exception as e:
-            logger.error(f"Error al estimar salario con OpenAI: {e}")
+            logger.error(f"Error al estimar salario: {e}")
+            return "12000", "15000"
+        
+    def parse_salary_text(self, text: str) -> tuple[str, str]:
+        """
+        Parsea el texto de salario devuelto por OpenAI.
+
+        Args:
+            text (str): Texto en formato "min: $XXXX, max: $YYYY".
+        Returns:
+            tuple[str, str]: Salario mínimos y máximo.
+        """
+        try:
+            parts = text.split(", ")
+            min_salary = parts[0].split("$")[1]
+            max_salary = parts[1].split("$")[1]
+            return min_salary, max_salary
+        except Exception:
+            logger.warning("Error al parsear salario, usando valores por defecto.")
             return "12000", "15000"
 
-    def parse_salary_text(self, text):
-        try:
-            # Asumiendo que el texto tiene el formato "Salario mínimo: $XXXX, Salario máximo: $YYYY"
-            salarios = [s for s in text.split() if s.startswith('$')]
-            return salarios[0].replace("$", ""), salarios[1].replace("$", "")
-        except Exception:
-            logger.warning("Error al parsear salario, valores predeterminados utilizados.")
-            return "10000", "15000"
-
-    def ensure_tags_exist(self, tags):
-        tag_ids = []
-        for tag in tags:
-            try:
-                response = requests.get(f"{self.api_url}/tags", headers=self.headers, params={"search": tag})
-                if response.status_code == 200 and response.json():
-                    tag_ids.append(response.json()[0]["id"])
-                else:
-                    create_tag_response = requests.post(
-                        f"{self.api_url}/tags", headers=self.headers, json={"name": tag}
-                    )
-                    if create_tag_response.status_code == 201:
-                        tag_ids.append(create_tag_response.json()["id"])
-                    else:
-                        logger.error(f"Error creando tag '{tag}': {create_tag_response.text}")
-            except Exception as e:
-                logger.error(f"Error al asegurar existencia de tag '{tag}': {e}")
-        return tag_ids
-
-    @staticmethod
-    def generate_tags(job_description):
+    async def ensure_tags_exist(self, tags: List[str]) -> List[int]:
         """
-        Genera etiquetas usando el nuevo cliente de OpenAI.
+        Asegura que las etiquetas existan en WordPress, creando las faltantes.
+
+        Args:
+            tags (List[str]): Lista de etiquetas a verificar/crear.
+        Returns:
+            List[int]: IDs de las etiquetas en WordPress.
+        """
+        tag_ids = []
+        async with aiohttp.ClientSession() as session:
+            for tag in tags:
+                try:
+                    async with session.get(f"{self.api_url}/tags", headers=self.headers, params={"search": tag}) as resp:
+                        if resp.status == 200 and (data := await resp.json()):
+                            tag_ids.append(data[0]["id"])
+                        else:
+                            async with session.post(f"{self.api_url}/tags", headers=self.headers, json={"name": tag}) as create_resp:
+                                if create_resp.status == 201:
+                                    tag_ids.append((await create_resp.json())["id"])
+                                else:
+                                    logger.error(f"Error creando tag '{tag}': {await create_resp.text()}")
+                except Exception as e:
+                    logger.error(f"Error con tag '{tag}': {e}")
+        return tag_ids
+    
+    def generate_tags(self, job_description: str) -> List[str]:
+        """
+        Genera etiquetas para la vacante usando OpenAI o respaldo.
+
+        Args:
+            job_description (str): Descripción del trabajo.
+        Returns:
+            List[str]: Etiquetas generadas.
         """
         if not job_description:
-            logger.warning("La descripción del trabajo está vacía.")
+            logger.warning("Descripción vacía, no se generan etiquetas.")
             return []
 
+        if not self._init_openai_client():
+            return self.generate_tags_backup(job_description)
+
         try:
-            gpt_api = VacanteManager.get_gpt_api_config()
-            if not gpt_api:
-                return VacanteManager.generate_tags_backup(job_description)
-
-            client = OpenAI(
-                api_key=gpt_api.api_token,
-                organization=gpt_api.organization
-            )
-
-            response = client.chat.completions.create(
+            response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "Genera etiquetas relevantes para trabajos, separadas por comas."},
-                    {"role": "user", "content": f"Genera etiquetas para esta descripción:\n{job_description}"}
+                    {"role": "system", "content": "Genera etiquetas relevantes separadas por comas."},
+                    {"role": "user", "content": f"Genera etiquetas para:\n{job_description}"}
                 ],
                 max_tokens=50,
                 temperature=0.5
             )
-            
             tags = response.choices[0].message.content.strip().split(",")
             return [tag.strip() for tag in tags if tag.strip()]
         except Exception as e:
-            logger.warning(f"Error al generar etiquetas con OpenAI: {e}")
-            return VacanteManager.generate_tags_backup(job_description)
+            logger.warning(f"Error generando etiquetas con OpenAI: {e}")
+            return self.generate_tags_backup(job_description)
 
     @staticmethod
-    def generate_tags_backup(job_description):
+    def generate_tags_backup(job_description: str) -> List[str]:
         """
-        Método de respaldo para generar etiquetas usando TF-IDF.
+        Genera etiquetas usando TF-IDF como respaldo.
+
+        Args:
+            job_description (str): Descripción del trabajo.
+        Returns:
+            List[str]: Etiquetas generadas.
         """
         vectorizer = TfidfVectorizer(max_features=5, stop_words='english')
         try:
@@ -258,121 +323,97 @@ class VacanteManager:
         except Exception as e:
             logger.error(f"Error en generate_tags_backup: {e}")
             return ["general"]
-
-    def create_job_listing(self):
+        
+    async def create_job_listing(self) -> Dict[str, str]:
         """
-        Crea una nueva vacante en WordPress y envía notificación por WhatsApp y correo electrónico.
-        :return: Diccionario con el estado del proceso de creación.
+        Crea una vacante en WordPress y envía notificaciones.
+
+        Returns:
+            Dict[str, str]: Estado y mensaje del resultado.
         """
-        from app.chatbot.integrations.services import send_message # Importación para envío de correos
+        from app.chatbot.integrations.services import send_email  # Importación local
 
-        business_unit_name = self.job_data.get("business_unit_name", "Grupo huntRED")
+        # Generar etiquetas
+        job_tags = self.job_data.get("job_tags", await self.ensure_tags_exist(self.generate_tags(self.job_data["job_description"])))
+        self.job_data["job_tags"] = job_tags
 
-        # Generar etiquetas si no existen
-        job_tags = self.job_data.get("job_tags", [])
-        if not job_tags:
-            job_tags = self.generate_tags(self.job_data["job_description"])
-        self.job_data["job_tags"] = self.ensure_tags_exist(job_tags)
-
-        # Estimar el salario mínimo y máximo
-        salario_min, salario_max = self.estimate_salary()
+        # Estimar salario
+        salario_min, salario_max = await self.estimate_salary()
         self.job_data["_salary_min"] = salario_min
         self.job_data["_salary_max"] = salario_max
 
-        # Generar horarios si no existen
+        # Generar horarios
         unidad_trabajo = self.configuracion.business_unit.name.lower()
         duracion_sesion = 45 if unidad_trabajo in ["huntred", "huntu"] else 30
         fecha_inicio = datetime.now() + timedelta(days=15)
-        horarios = generate_bookings(fecha_inicio, duracion_sesion)
+        horarios = self.generate_bookings(fecha_inicio, duracion_sesion)
         for i in range(1, 7):
             key = f"job_booking_{i}"
-            if key not in self.job_data or not self.job_data[key]:
-                self.job_data[key] = horarios[i - 1] if len(horarios) > i - 1 else ""
+            self.job_data[key] = self.job_data.get(key) or (horarios[i - 1] if len(horarios) > i - 1 else "")
 
-        # Crear el payload
+        # Payload para WordPress
         payload = {
             "title": self.job_data["job_title"],
             "content": self.job_data["job_description"],
             "meta": {
-                "_salary_min": self.job_data.get("_salary_min", "12000"),
-                "_salary_max": self.job_data.get("_salary_max", "15000"),
-                "_job_expires": self.job_data.get("_job_expires", ""),
+                "_salary_min": self.job_data["_salary_min"],
+                "_salary_max": self.job_data["_salary_max"],
+                "_job_expires": self.job_data.get("_job_expires", (datetime.now() + timedelta(days=40)).strftime('%Y-%m-%d')),
                 "_apply_link": self.job_data.get("_apply_link", ""),
                 "_job_whatsapp": self.job_data.get("celular_responsable", ""),
-                "_company_name": self.job_data.get("company_name", ""),
-                **{f"_job_booking_{i}": self.job_data.get(f"job_booking_{i}", "") for i in range(1, 7)}
+                "_company_name": self.job_data["company_name"],
+                **{f"_job_booking_{i}": self.job_data[f"job_booking_{i}"] for i in range(1, 7)}
             },
             "status": "publish",
-            "job_region": self.job_data.get("job_listing_region", ""),
-            "job_type": self.job_data.get("job_listing_type", ""),
+            "job_region": self.job_data.get("job_listing_region", "México"),
+            "job_type": self.job_data.get("job_listing_type", "Remoto"),
             "remote_position": self.job_data.get("remote_position", "0"),
-            "tags": self.job_data.get("job_tags", ["Python", "Backend"]),
+            "tags": self.job_data["job_tags"],
         }
 
+        # Publicar
         try:
-            response = requests.post(self.api_url, json=payload, headers=self.headers)
-            response.raise_for_status()
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.api_url, json=payload, headers=self.headers) as response:
+                    response.raise_for_status()
+                    logger.info(f"Vacante creada: {self.job_data['job_title']}")
 
-            if response.status_code == 201:
-                logger.info(f"Vacante creada exitosamente: {response.json()}")
-                # Notificar al responsable por correo electrónico
-                correo_responsable = self.job_data.get("job_employee-email")
-                if correo_responsable:
-                    subject = f"Vacante Creada: {self.job_data['job_title']}"
-                    body = (
-                        f"<h1>Vacante Creada Exitosamente</h1>"
-                        f"<p>Hola {self.job_data.get('job_employee')},</p>"
-                        f"<p>Tu vacante '<strong>{self.job_data['job_title']}</strong>' para la empresa '<strong>{self.job_data['company_name']}</strong>' "
-                        f"ha sido creada exitosamente en el sistema de huntred.com.</p>"
-                        f"<ul>"
-                        f"<li><strong>Salario Estimado:</strong> ${salario_min} - ${salario_max} MXN</li>"
-                        f"<li><strong>Tipo de Trabajo:</strong> {self.job_data.get('job_listing_type')}</li>"
-                        f"<li><strong>Región:</strong> {self.job_data.get('job_listing_region')}</li>"
-                        f"</ul>"
-                        f"<p>Te mantendremos informado sobre los recordatorios de entrevistas y aplicaciones recibidas.</p>"
-                    )
-                    send_email(self.job_data.get("business_unit"), subject, correo_responsable, body)
-                return {"status": "success", "message": "Vacante creada exitosamente"}
+                    # Notificar por email
+                    correo_responsable = self.job_data.get("job_employee-email")
+                    if correo_responsable:
+                        subject = f"Vacante Creada: {self.job_data['job_title']}"
+                        body = (
+                            f"<h1>Vacante Creada</h1>"
+                            f"<p>Hola {self.job_data.get('job_employee', 'Responsable')},</p>"
+                            f"<p>La vacante '{self.job_data['job_title']}' para '{self.job_data['company_name']}' "
+                            f"ha sido creada.</p>"
+                            f"<ul>"
+                            f"<li>Salario: ${salario_min} - ${salario_max} MXN</li>"
+                            f"</ul>"
+                        )
+                        await send_email(self.configuracion.business_unit, subject, correo_responsable, body)
 
-            else:
-                logger.error(f"Error al crear vacante: {response.status_code}, {response.text}")
-                return {"status": "error", "message": f"Error al crear vacante: {response.status_code}"}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error en la solicitud al API: {str(e)}")
-            return {"status": "error", "message": "Error en la solicitud al API"}
+                    # Notificar por WhatsApp
+                    await self.send_recap_position()
+                    return {"status": "success", "message": "Vacante creada"}
+        except aiohttp.ClientError as e:
+            logger.error(f"Error al crear vacante: {e}")
+            return {"status": "error", "message": str(e)}
 
-    def send_recap_position(self):
+    async def send_recap_position(self) -> None:
         """
-        Envía un resumen de la posición creada al responsable de la vacante.
+        Envía un resumen de la vacante al responsable por WhatsApp.
         """
-        # Importación dentro de la función para evitar importación circular con whatsapp.py
-        from app.integrations.whatsapp import nueva_posicion_amigro
         mensaje = (
-            f"Resumen de la posición creada:\n"
+            f"Resumen:\n"
             f"Posición: {self.job_data['job_title']}\n"
             f"Empresa: {self.job_data['company_name']}\n"
             f"Descripción: {self.job_data['job_description']}\n"
-            f"Salario estimado: ${self.job_data['_salary_min']} - ${self.job_data['_salary_max']} MXN\n\n"
-            f"Este salario se generó con base en indicadores nacionales y recomendaciones "
-            f"internacionales usando algoritmos de IA procesados específicamente para este proceso."
+            f"Salario: ${self.job_data['_salary_min']} - ${self.job_data['_salary_max']} MXN\n"
         )
         celular_responsable = self.job_data.get("celular_responsable")
         if celular_responsable:
-            nueva_posicion_amigro(celular_responsable, mensaje)
-
-    def generate_tags(job_description):
-        """
-        Genera etiquetas utilizando GPT de OpenAI para una descripción de trabajo específica.
-        """
-        response = openai.Completion.create(
-            engine="gpt-4.0-mini",
-            prompt=f"Genera etiquetas para esta descripción de trabajo:\n\n{job_description}\n\nEtiquetas:",
-            max_tokens=50,
-            n=1,
-            temperature=0.5,
-        )
-        tags = response.choices[0].text.strip().split(", ")
-        return tags
+            await send_message("whatsapp", celular_responsable, mensaje, self.configuracion.business_unit.name)
 
     @staticmethod
     def match_person_with_jobs(person, job_list):
@@ -589,87 +630,40 @@ def fit_personality(personality_data, desired_personality):
 
     return match_score / len(desired_personality)  # Normalizado
 
-def procesar_vacante(data):
-        """
-        Procesa los datos recibidos desde el chatbot y los prepara para enviarlos al API de WordPress,
-        incluyendo la opción de generar horarios automáticamente y notificaciones vía WhatsApp.
-        """
-        from app.chatbot.integrations.whatsapp import registro_amigro
+async def procesar_vacante(data: Dict) -> Dict[str, str]:
+    """
+    Procesa datos del chatbot para crear una vacante en WordPress.
 
-        # Validar campos requeridos
-        campos_requeridos = [
-            "TextInput_5315eb",  # Nombre de la empresa
-            "TextInput_de5bdf",  # Responsable del proceso
-            "TextInput_e1c9ad",  # Correo del responsable
-            "TextInput_4136cd",  # Celular del responsable
-            "TextInput_10ecd4",  # Nombre de la posición
-            "TextArea_5df661",   # Descripción del puesto
-        ]
-        faltantes = [campo for campo in campos_requeridos if not data.get(campo)]
-        if faltantes:
-            return {
-                "status": "error",
-                "message": f"Faltan los siguientes campos obligatorios: {', '.join(faltantes)}"
-            }
+    Args:
+        data (Dict): Datos recibidos del chatbot.
+    Returns:
+        Dict[str, str]: Estado y mensaje del resultado.
+    """
+    from app.chatbot.integrations.whatsapp import registro_amigro
 
-        # Configurar datos de la vacante
-        fecha_expiracion = (datetime.now() + timedelta(days=40)).strftime('%Y-%m-%d')
-        job_data = {
-            "company_name": data.get("TextInput_5315eb"),
-            "job_listing_category": data.get("Dropdown_612e94", "General"),
-            "job_employee": data.get("TextInput_de5bdf"),
-            "job_employee-email": data.get("TextInput_e1c9ad"),
-            "celular_responsable": data.get("TextInput_4136cd"),
-            "job_title": data.get("TextInput_10ecd4"),
-            "job_description": data.get("TextArea_5df661"),
-            "job_listing_type": data.get("Dropdown_d27f07", "Remoto"),
-            "job_listing_region": "México",
-            "job_location": data.get("TextInput_efcea3", "Remoto"),
-            "job_cond_migratorias": data.get("CheckboxGroup_be4dff", ""),
-            "job_booking_1": data.get("DatePicker_478238", ""),
-            "job_booking_2": data.get("DatePicker_0c62c5", ""),
-            "job_booking_3": data.get("DatePicker_d6d6a6", ""),
-            "job_booking_4": data.get("DatePicker_e2b1a8", ""),
-            "job_booking_5": data.get("DatePicker_7ed362", ""),
-            "job_booking_6": data.get("DatePicker_ca0813", ""),
-            "status": "publish",
-            "remote_position": data.get("remote_position", "1"),
-            "job_tags": data.get("job_tags", ["Python", "Backend"]),
-            "_job_expires": fecha_expiracion,
-            "_salary_min": "12000",
-            "_salary_max": "15000",
-            "_company_tagline": "Hacemos posible el trabajo de tus sueños",
-            "_hide_expiration": "0",
-        }
+    required_fields = ["TextInput_5315eb", "TextInput_de5bdf", "TextInput_e1c9ad", "TextInput_4136cd", "TextInput_10ecd4", "TextArea_5df661"]
+    missing = [field for field in required_fields if not data.get(field)]
+    if missing:
+        return {"status": "error", "message": f"Faltan campos: {', '.join(missing)}"}
 
-        # Generar horarios automáticamente si no están definidos
-        unidad_trabajo = data.get("business_unit", "").lower()
-        duracion_sesion = 45 if unidad_trabajo in ["huntred", "huntu"] else 30
-        fecha_inicio = datetime.now() + timedelta(days=15)
-        horarios = generate_bookings(fecha_inicio, duracion_sesion)
+    job_data = {
+        "business_unit": data.get("business_unit", 4),
+        "company_name": data.get("TextInput_5315eb"),
+        "job_employee": data.get("TextInput_de5bdf"),
+        "job_employee-email": data.get("TextInput_e1c9ad"),
+        "celular_responsable": data.get("TextInput_4136cd"),
+        "job_title": data.get("TextInput_10ecd4"),
+        "job_description": data.get("TextArea_5df661"),
+        "job_listing_type": data.get("Dropdown_d27f07", "Remoto"),
+        "job_listing_region": "México",
+    }
 
-        for i in range(1, 7):
-            key = f"job_booking_{i}"
-            if not job_data.get(key):
-                job_data[key] = horarios[i - 1] if len(horarios) > i - 1 else ""
-
-        # Enviar notificación por WhatsApp si se requiere
-        recibir_wa = data.get("RadioButtonsGroup_7b5b91") == "0_Si"
-        if recibir_wa and job_data["celular_responsable"]:
-            mensaje_wa = (
-                f"Hola, {job_data['job_employee']}, se han activado las notificaciones WA para el proceso de selección "
-                f"de la vacante '{job_data['job_title']}' en la empresa {job_data['company_name']}."
-            )
-            registro_amigro(job_data["celular_responsable"], mensaje_wa)
-
-        # Crear la vacante mediante el gestor VacanteManager
-        try:
-            vacante_manager = VacanteManager(job_data)
-            resultado = vacante_manager.create_job_listing()
-            return resultado
-        except Exception as e:
-            logger.error(f"Error al procesar la vacante: {e}")
-            return {"status": "error", "message": str(e)}
+    try:
+        manager = VacanteManager(job_data)
+        return await manager.create_job_listing()
+    except Exception as e:
+        logger.error(f"Error procesando vacante: {e}")
+        return {"status": "error", "message": str(e)}
 
 async def process_vacante_matching(vacante):
     """
