@@ -33,8 +33,11 @@ from app.utilidades.linkedin import (
 from app.chatbot.workflow.amigro import (
     generate_candidate_summary_task,
     send_migration_docs_task,
-    follow_up_migration_task)
-from app.utilidades.scraping import validar_url, extraer_detalles_sublink, run_scraper, ScrapingCoordinator
+    follow_up_migration_task
+)
+from app.utilidades.scraping import (
+    validar_url, ScrapingPipeline, scrape_and_publish, process_domain
+)
 from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
 from app.ml.ml_model import GrupohuntREDMLPipeline
 from celery.exceptions import MaxRetriesExceededError
@@ -251,22 +254,19 @@ def ejecutar_scraping(self, dominio_id=None):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def verificar_dominios_scraping(self):
     """
-    Verifica los dominios de scraping.
+    Verifica que los dominios de scraping sean accesibles.
     """
     logger.info("🔄 Verificando dominios de scraping.")
     dominios = DominioScraping.objects.all()
+
     for dominio in dominios:
         try:
-            # Verificar si el dominio responde
             is_valid = asyncio.run(validar_url(dominio.dominio))
-            
-            # Actualizar estado del dominio
             dominio.verificado = is_valid
             dominio.ultimo_chequeo = timezone.now()
             dominio.mensaje_error = "" if is_valid else "El dominio no responde correctamente"
             dominio.save()
 
-            # Registrar resultado
             RegistroScraping.objects.create(
                 dominio=dominio,
                 estado="exitoso" if is_valid else "fallido",
@@ -283,6 +283,29 @@ def verificar_dominios_scraping(self):
         except Exception as e:
             logger.error(f"❌ Error al verificar dominio {dominio.dominio}: {str(e)}")
             self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def procesar_scraping_dominio(self, dominio_id):
+    """
+    Ejecuta el scraping para un dominio específico.
+    """
+    try:
+        dominio = DominioScraping.objects.get(id=dominio_id)
+        registro = RegistroScraping.objects.create(dominio=dominio, estado='pendiente')
+
+        scraper = asyncio.run(process_domain(dominio, registro))
+
+        registro.estado = "exitoso" if scraper else "fallido"
+        registro.save()
+
+        logger.info(f"✅ Scraping completado para {dominio.dominio}")
+
+    except DominioScraping.DoesNotExist:
+        logger.error(f"❌ Dominio no encontrado: ID {dominio_id}")
+        self.retry(exc=Exception("Dominio no encontrado."))
+    except Exception as e:
+        logger.error(f"❌ Error en scraping de dominio {dominio_id}: {e}")
+        self.retry(exc=e)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def procesar_sublinks_task(self, vacante_id, sublink):
@@ -317,60 +340,47 @@ def procesar_sublinks_task(self, vacante_id, sublink):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='ml')
 def execute_ml_and_scraping(self):
     """
-    Ejecuta el proceso completo de ML y scraping.
+    Ejecuta el proceso de Machine Learning y scraping en cadena.
     """
-    logger.info("🚀 Iniciando proceso de ML y scraping")
+    logger.info("🚀 Iniciando proceso de ML y scraping.")
+
     try:
-        # 1. Ejecutar ML inicial
-        logger.info("🧠 Iniciando proceso ML inicial")
+        # 1. Ejecutar modelo ML inicial
+        logger.info("🧠 Entrenando modelo ML inicial...")
         business_units = BusinessUnit.objects.all()
         for bu in business_units:
             try:
                 pipeline = GrupohuntREDMLPipeline(bu.name)
-                pipeline.load_model()  # Esto intentará cargar o construir el modelo si no existe
+                pipeline.load_model()
                 pipeline.predict_pending()
                 logger.info(f"✅ ML inicial completado para {bu.name}")
             except Exception as e:
                 logger.error(f"❌ Error en ML inicial para {bu.name}: {str(e)}")
-                continue  # Evita que el fallo en una unidad de negocio detenga todo el proceso
+                continue
 
-        # 2. Ejecutar scraping para cada dominio verificado
-        logger.info("🔍 Iniciando proceso de scraping")
-        dominios = DominioScraping.objects.filter(verificado=True)
-        for dominio in dominios:
-            try:
-                vacantes = asyncio.run(run_scraper(dominio))  # Ejecuta el scraping de manera asincrónica
-                
-                RegistroScraping.objects.create(
-                    dominio=dominio,
-                    estado="exitoso",
-                    fecha_inicio=timezone.now(),
-                    fecha_fin=timezone.now(),
-                    mensaje=f"Scraping completado. Vacantes encontradas: {len(vacantes)}"
-                )
-                logger.info(f"✅ Scraping completado para {dominio.empresa}: {len(vacantes)} vacantes")
-            except Exception as e:
-                logger.error(f"❌ Error en scraping para {dominio.empresa}: {str(e)}")
-                continue  # No detener la ejecución si un dominio falla
+        # 2. Ejecutar scraping
+        logger.info("🔍 Iniciando proceso de scraping...")
+        dominios = DominioScraping.objects.filter(activo=True)
+        asyncio.run(scrape_and_publish(dominios))
 
-        # 3. Ejecutar ML final
-        logger.info("🧠 Iniciando proceso ML final")
+        # 3. Ejecutar modelo ML final
+        logger.info("🧠 Entrenando modelo ML final...")
         for bu in business_units:
             try:
                 pipeline = GrupohuntREDMLPipeline(bu.name)
-                pipeline.load_model()  # Esto intentará cargar o construir el modelo si no existe
+                pipeline.load_model()
                 pipeline.predict_pending()
                 logger.info(f"✅ ML final completado para {bu.name}")
             except Exception as e:
                 logger.error(f"❌ Error en ML final para {bu.name}: {str(e)}")
-                continue  # Evita que un error en una BU detenga las demás
+                continue
 
-        logger.info("✨ Proceso completo de ML y scraping finalizado exitosamente")
+        logger.info("✨ Proceso de ML y scraping finalizado con éxito.")
 
     except Exception as e:
-        logger.error(f"❌ Error en el proceso de ML y scraping: {str(e)}")
+        logger.error(f"❌ Error en el proceso ML + scraping: {str(e)}")
         self.retry(exc=e)
-
+        
 # =========================================================
 # Tareas de Notificaciones
 # =========================================================

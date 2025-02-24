@@ -6,7 +6,7 @@ import aiohttp
 import numpy as np
 import openai
 from openai import OpenAI
-from typing import List, Dict
+from typing import List, Dict, Optional
 from functools import lru_cache
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
@@ -14,7 +14,7 @@ from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
-from app.models import Worker, Person, GptApi, ConfiguracionBU
+from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
 #from app.chatbot.integrations.whatsapp import registro_amigro, nueva_posicion_amigro #Importaciones locales
 from app.chatbot.integrations.services import send_email, send_message
 from app.ml.ml_model import MatchmakingLearningSystem
