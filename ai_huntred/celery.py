@@ -4,6 +4,8 @@ import os
 import logging
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import after_setup_task_logger, worker_ready
+from django.db.utils import OperationalError
 
 logger = logging.getLogger("app.tasks")
 
@@ -118,37 +120,37 @@ SCHEDULE_DICT = {
 # Registro de tareas periódicas en django-celery-beat
 # =========================================================
 
+# 🚀 Cargar tareas periódicas después de iniciar Celery
+@worker_ready.connect
 def setup_periodic_tasks(sender, **kwargs):
     """
-    Función central para registrar las tareas periódicas.
-    Esta función se conecta a la señal on_after_configure de Celery para actualizar
-    la programación interna y, a la vez, registrar en django-celery-beat.
+    Registra tareas periódicas SOLO cuando Celery está listo y Django ha cargado las apps.
     """
-    # Actualiza el beat_schedule interno de Celery
-    sender.conf.beat_schedule = SCHEDULE_DICT
+    sender.conf.beat_schedule = SCHEDULE_DICT  # Carga el schedule en Celery
 
     try:
         from django_celery_beat.models import CrontabSchedule, PeriodicTask
-        for name, config in SCHEDULE_DICT.items():
-            # Extraer parámetros del objeto crontab
-            crontab_kwargs = {
-                'minute': config['schedule'].minute,
-                'hour': config['schedule'].hour,
-                'day_of_week': config['schedule'].day_of_week,
-                'day_of_month': config['schedule'].day_of_month,
-                'month_of_year': config['schedule'].month_of_year,
-            }
-            schedule, _ = CrontabSchedule.objects.get_or_create(**crontab_kwargs)
-            # Se registra la tarea en PeriodicTask (si no existe)
-            PeriodicTask.objects.get_or_create(
-                name=name,
-                task=config['task'],
-                crontab=schedule,
-                defaults={'enabled': True}
-            )
-            logger.info(f"✅ Tarea registrada: {name}")
+        from django.db import transaction
+
+        with transaction.atomic():
+            for name, config in SCHEDULE_DICT.items():
+                schedule, _ = CrontabSchedule.objects.get_or_create(
+                    minute=config["schedule"].minute,
+                    hour=config["schedule"].hour,
+                    day_of_week=config["schedule"].day_of_week,
+                    day_of_month=config["schedule"].day_of_month,
+                    month_of_year=config["schedule"].month_of_year,
+                )
+                PeriodicTask.objects.update_or_create(
+                    name=name,
+                    task=config["task"],
+                    defaults={"crontab": schedule, "enabled": True},
+                )
+                logger.info(f"✅ Tarea periódica registrada: {name}")
+    except OperationalError:
+        logger.error("❌ No se pudo registrar tareas periódicas: Base de datos no disponible.")
     except Exception as e:
-        logger.error(f"❌ Error registering periodic tasks: {e}")
+        logger.error(f"❌ Error registrando tareas periódicas: {e}")
 
 # Conectar la función de setup a la señal de configuración de Celery
 app.on_after_configure.connect(setup_periodic_tasks)
