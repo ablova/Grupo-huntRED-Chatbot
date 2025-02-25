@@ -7,6 +7,7 @@ import logging
 import re
 import requests
 import time
+import pandas as pd
 from datetime import datetime
 from app.models import GptApi
 from django.core.cache import cache
@@ -40,11 +41,13 @@ def clean_text(text: str) -> str:
     text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)  
     return text
 
-def get_all_skills_for_unit(unit_name: str) -> list:
-    """ Obtiene todas las habilidades de una unidad de negocio desde catalogs.json """
+def get_all_skills_for_unit(unit_name: str = "huntRED®") -> list:
+    """ Obtiene todas las habilidades de una unidad de negocio desde catalogs.json y añade habilidades de ESCO. """
     skills = []
+    
     try:
-        catalog = load_catalog()  
+        # Cargar catálogo interno
+        catalog = load_catalog()
         unit_data = catalog.get(unit_name, {})
 
         for division, roles in unit_data.items():
@@ -52,9 +55,20 @@ def get_all_skills_for_unit(unit_name: str) -> list:
                 for key in ["Habilidades Técnicas", "Habilidades Blandas", "Herramientas"]:
                     skills.extend(attributes.get(key, []))
 
+        # Cargar habilidades de ESCO
+        try:
+            esco_df = pd.read_csv("/home/pablo/tabiya-open-dataset/datasets/esco_skills.csv")
+            esco_skills = esco_df["skill"].dropna().tolist()
+            skills.extend(esco_skills)
+        except Exception as e:
+            logger.error(f"Error cargando habilidades de ESCO: {e}")
+
+        # Eliminar duplicados
         skills = list(set(skills))
-        logger.info(f"🔍 Habilidades cargadas para {unit_name}: {skills}")  
+
+        logger.info(f"🔍 Habilidades cargadas para {unit_name}: {len(skills)} habilidades encontradas.")
         return skills
+
     except Exception as e:
         logger.error(f"Error obteniendo habilidades de {unit_name}: {e}")
         return []

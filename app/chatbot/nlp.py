@@ -6,6 +6,8 @@ import spacy
 import json
 import re
 import unidecode
+import asyncio
+import pandas as pd
 from spacy.matcher import Matcher, PhraseMatcher
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from skillNer.skill_extractor_class import SkillExtractor
@@ -13,9 +15,9 @@ from app.models import BusinessUnit, GptApi
 from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests, map_skill_to_database
 from app.chatbot.gpt import GPTHandler
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-import tabiya_livelihoods_classifier
-#from tabiya_livelihoods_classifier import EntityLinker
+from tabiya_livelihoods_classifier.inference.linker import EntityLinker
 from transformers import pipeline
+from taxonomy_model_application import SkillCategorizer
 
 logger = logging.getLogger("app.chatbot.nlp")
 logging.basicConfig(
@@ -177,20 +179,18 @@ class NLPProcessor:
         }
 
     async def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
-        """Extrae habilidades usando skillNer, TabiyaJobClassifier y GPTHandler, con análisis de sentimientos unificado."""
-        from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests, map_skill_to_database
+        """Extrae habilidades usando skillNer, TabiyaJobClassifier y GPTHandler, con análisis de sentimientos unificado y categorización."""
 
-        text_normalized = unidecode.unidecode(text.lower())
-        skills_from_skillner = set()
-        skills_from_tabiya = set()
-        skills_from_gpt = set()
+        text_normalized = unidecode(text.lower())
+        skills_from_skillner, skills_from_tabiya, skills_from_gpt = set(), set(), set()
         all_skills = get_all_skills_for_unit(business_unit)
 
         # 1️⃣ Extracción con skillNer
         for skill in all_skills:
-            skill_normalized = unidecode.unidecode(skill.lower())
+            skill_normalized = unidecode(skill.lower())
             if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
                 skills_from_skillner.add(skill)
+        
         if sn and self.nlp and self.nlp.vocab.vectors_length > 0:
             try:
                 results = await asyncio.to_thread(sn.annotate, text)  # Hacer skillNer asíncrono
@@ -211,12 +211,14 @@ class NLPProcessor:
         # 3️⃣ Extracción con GPTHandler
         if not self.gpt_handler.client:
             await self.gpt_handler.initialize()
+        
         prompt = (
             f"Extrae habilidades técnicas, blandas o herramientas del texto según el marco ESCO "
             f"y devuélvelas en un JSON usando nombres estándar y sin duplicados.\n\n"
             f"Texto: {text}\n\nSalida: "
         )
         response = await self.gpt_handler.generate_response(prompt, business_unit=None)
+        
         try:
             gpt_output = json.loads(response.split("Salida: ")[-1].strip() if "Salida: " in response else response)
             skills_from_gpt = {map_skill_to_database(skill, all_skills) for skill in gpt_output.get("skills", []) if map_skill_to_database(skill, all_skills)}
@@ -225,24 +227,31 @@ class NLPProcessor:
             logger.warning("Error al parsear respuesta de GPTHandler")
 
         # 4️⃣ Análisis de sentimiento con RoBERTa (ya calculado en analyze)
-        analysis = await self.analyze(text)  # Reutilizar el análisis unificado
+        analysis = await self.analyze(text)
         sentiment = analysis["sentiment"]
         sentiment_score = 1.0 if sentiment == "positive" else 0.7 if sentiment == "neutral" else 0.5
 
-        # 5️⃣ Combinación final
-        all_skills_combined = skills_from_skillner.union(skills_from_tabiya).union(skills_from_gpt)
+        # 5️⃣ Combinación final de habilidades
+        all_skills_combined = skills_from_skillner.union(skills_from_tabiya, skills_from_gpt)
 
-        # 6️⃣ Priorizar intereses y sugerir posiciones
+        # 6️⃣ Categorización con SkillCategorizer
+        categorizer = SkillCategorizer()
+        categorized_skills = categorizer.categorize(list(all_skills_combined))
+
+        # 7️⃣ Priorizar intereses y sugerir posiciones
         prioritized_interests = prioritize_interests(list(all_skills_combined))
         suggested_positions = get_positions_by_skills(list(all_skills_combined))
 
+        # 8️⃣ Construcción del resultado
         result = {
             "skills": list(all_skills_combined),
+            "categorized_skills": categorized_skills,
             "prioritized_interests": prioritized_interests,
             "suggested_positions": suggested_positions,
             "sentiment": sentiment,
             "sentiment_score": sentiment_score
         }
+        
         logger.info(f"Análisis final: {result}")
         return result
     
@@ -343,6 +352,7 @@ class NLPProcessor:
             "suggested_roles": suggested_roles
         }
 
+    
 class TabiyaJobClassifier:
     def __init__(self):
         self.linker = EntityLinker()
