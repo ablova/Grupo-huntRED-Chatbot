@@ -645,6 +645,9 @@ class GptApi(models.Model):
         default="gpt-4",
         help_text="Selecciona el modelo de generación de texto."
     )
+    tabiya_enabled = models.BooleanField(
+        default=False,
+        help_text="Habilita/deshabilita el uso de tabiya-livelihoods-classifier."
     # ✅ Almacenamos los prompts en un JSONField para mayor flexibilidad
     prompts = models.JSONField(default=dict, blank=True, help_text="Diccionario con diferentes tipos de prompts")
 

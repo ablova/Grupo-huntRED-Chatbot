@@ -15,7 +15,6 @@ from app.models import BusinessUnit, GptApi
 from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests, map_skill_to_database
 from app.chatbot.gpt import GPTHandler
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-from tabiya_livelihoods_classifier.inference.linker import EntityLinker
 from transformers import pipeline
 from taxonomy_model_application import SkillCategorizer
 
@@ -116,6 +115,8 @@ class NLPProcessor:
         self.gpt_handler = GPTHandler()
         self.sentiment_analyzer = RoBertASentimentAnalyzer()  # Inicializar RoBERTa aquí
         self.model_type = None
+        self.tabiya_enabled = False  # Por defecto deshabilitado
+        self.tabiya_classifier = None
         self._load_model_config()
         self.stop_words = set(stopwords.words("spanish") + stopwords.words("english"))
 
@@ -125,16 +126,27 @@ class NLPProcessor:
             gpt_api = GptApi.objects.first()
             if gpt_api:
                 self.model_type = gpt_api.model_type
+                self.tabiya_enabled = gpt_api.tabiya_enabled
                 if not self.gpt_handler.client:
                     asyncio.run(self.gpt_handler.initialize())
-                logger.info(f"Modelo configurado: {self.model_type}")
+                if self.tabiya_enabled:
+                    try:
+                        from tabiya_livelihoods_classifier.inference.linker import EntityLinker
+                        from taxonomy_model_application import SkillCategorizer
+                        self.tabiya_classifier = TabiyaJobClassifier()
+                        self.categorizer = SkillCategorizer()
+                        logger.info("TabiyaJobClassifier y SkillCategorizer cargados correctamente.")
+                    except ImportError as e:
+                        logger.error(f"Error cargando Tabiya: {e}. Deshabilitando Tabiya.")
+                        self.tabiya_enabled = False
+                logger.info(f"Modelo configurado: {self.model_type}, Tabiya: {self.tabiya_enabled}")
             else:
                 self.model_type = "gpt-4"
                 logger.warning("No se encontró configuración de GptApi, usando GPT-4 por defecto.")
         except Exception as e:
             logger.error(f"Error cargando configuración de modelo: {e}", exc_info=True)
             self.model_type = "gpt-4"
-
+            
     def set_language(self, language: str):
         """Permite cambiar dinámicamente el idioma del modelo NLP."""
         self.language = language
@@ -179,46 +191,44 @@ class NLPProcessor:
         }
 
     async def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
-        """Extrae habilidades usando skillNer, TabiyaJobClassifier y GPTHandler, con análisis de sentimientos unificado y categorización."""
-
-        text_normalized = unidecode(text.lower())
-        skills_from_skillner, skills_from_tabiya, skills_from_gpt = set(), set(), set()
+        """Extrae habilidades con skillNer, TabiyaJobClassifier (si habilitado) y GPTHandler."""
+        text_normalized = unidecode.unidecode(text.lower())
+        skills_from_skillner = set()
+        skills_from_tabiya = set() if self.tabiya_enabled else set()
+        skills_from_gpt = set()
         all_skills = get_all_skills_for_unit(business_unit)
 
         # 1️⃣ Extracción con skillNer
         for skill in all_skills:
-            skill_normalized = unidecode(skill.lower())
+            skill_normalized = unidecode.unidecode(skill.lower())
             if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
                 skills_from_skillner.add(skill)
-        
         if sn and self.nlp and self.nlp.vocab.vectors_length > 0:
             try:
-                results = await asyncio.to_thread(sn.annotate, text)  # Hacer skillNer asíncrono
+                results = await asyncio.to_thread(sn.annotate, text)
                 if isinstance(results, dict) and "results" in results:
                     extracted_skills = {item["skill"] for item in results["results"] if isinstance(item, dict)}
                     skills_from_skillner.update(extracted_skills)
             except Exception as e:
                 logger.error(f"Error en SkillExtractor: {e}", exc_info=True)
 
-        # 2️⃣ Extracción con TabiyaJobClassifier
-        tabiya_classifier = TabiyaJobClassifier()
-        try:
-            tabiya_results = await asyncio.to_thread(tabiya_classifier.classify, text)  # Hacer Tabiya asíncrono
-            skills_from_tabiya = {item['skill'] for item in tabiya_results if 'skill' in item}
-        except Exception as e:
-            logger.error(f"Error con TabiyaJobClassifier: {e}", exc_info=True)
+        # 2️⃣ Extracción con TabiyaJobClassifier (solo si habilitado)
+        if self.tabiya_enabled and self.tabiya_classifier:
+            try:
+                tabiya_results = await asyncio.to_thread(self.tabiya_classifier.classify, text)
+                skills_from_tabiya = {item['skill'] for item in tabiya_results if 'skill' in item}
+            except Exception as e:
+                logger.error(f"Error con TabiyaJobClassifier: {e}", exc_info=True)
 
         # 3️⃣ Extracción con GPTHandler
         if not self.gpt_handler.client:
             await self.gpt_handler.initialize()
-        
         prompt = (
             f"Extrae habilidades técnicas, blandas o herramientas del texto según el marco ESCO "
             f"y devuélvelas en un JSON usando nombres estándar y sin duplicados.\n\n"
             f"Texto: {text}\n\nSalida: "
         )
         response = await self.gpt_handler.generate_response(prompt, business_unit=None)
-        
         try:
             gpt_output = json.loads(response.split("Salida: ")[-1].strip() if "Salida: " in response else response)
             skills_from_gpt = {map_skill_to_database(skill, all_skills) for skill in gpt_output.get("skills", []) if map_skill_to_database(skill, all_skills)}
@@ -226,32 +236,35 @@ class NLPProcessor:
             skills_from_gpt = set()
             logger.warning("Error al parsear respuesta de GPTHandler")
 
-        # 4️⃣ Análisis de sentimiento con RoBERTa (ya calculado en analyze)
+        # 4️⃣ Análisis de sentimiento con RoBERTa
         analysis = await self.analyze(text)
         sentiment = analysis["sentiment"]
         sentiment_score = 1.0 if sentiment == "positive" else 0.7 if sentiment == "neutral" else 0.5
 
-        # 5️⃣ Combinación final de habilidades
+        # 5️⃣ Combinación final
         all_skills_combined = skills_from_skillner.union(skills_from_tabiya, skills_from_gpt)
 
-        # 6️⃣ Categorización con SkillCategorizer
-        categorizer = SkillCategorizer()
-        categorized_skills = categorizer.categorize(list(all_skills_combined))
+        # 6️⃣ Categorización (solo si Tabiya está habilitado)
+        categorized_skills = {}
+        if self.tabiya_enabled and self.categorizer:
+            try:
+                categorized_skills = self.categorizer.categorize(list(all_skills_combined))
+            except Exception as e:
+                logger.error(f"Error en SkillCategorizer: {e}", exc_info=True)
 
         # 7️⃣ Priorizar intereses y sugerir posiciones
         prioritized_interests = prioritize_interests(list(all_skills_combined))
         suggested_positions = get_positions_by_skills(list(all_skills_combined))
 
-        # 8️⃣ Construcción del resultado
         result = {
             "skills": list(all_skills_combined),
-            "categorized_skills": categorized_skills,
+            "categorized_skills": categorized_skills if self.tabiya_enabled else {},
             "prioritized_interests": prioritized_interests,
             "suggested_positions": suggested_positions,
             "sentiment": sentiment,
-            "sentiment_score": sentiment_score
+            "sentiment_score": sentiment_score,
+            "tabiya_enabled": self.tabiya_enabled
         }
-        
         logger.info(f"Análisis final: {result}")
         return result
     
@@ -355,6 +368,7 @@ class NLPProcessor:
     
 class TabiyaJobClassifier:
     def __init__(self):
+        from tabiya_livelihoods_classifier.inference.linker import EntityLinker
         self.linker = EntityLinker()
 
     def classify(self, text):
