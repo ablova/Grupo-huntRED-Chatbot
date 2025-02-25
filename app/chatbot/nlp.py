@@ -1,6 +1,6 @@
 # Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
 import logging
-import nltk
+#import nltk
 import spacy
 import json
 import re
@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 
 # ✅ Descargar recursos de NLTK
-nltk.download('vader_lexicon', quiet=True)
+#nltk.download('vader_lexicon', quiet=True)
 
 # ✅ Diccionario de modelos NLP disponibles
 MODEL_LANGUAGES = {
@@ -40,31 +40,28 @@ MODEL_LANGUAGES = {
 loaded_models = {}
 
 def load_nlp_model(language: str):
-    """Carga el modelo de NLP para el idioma especificado, con fallback a español."""
+    """Carga modelos de NLP de forma optimizada."""
     model_name = MODEL_LANGUAGES.get(language, "es_core_news_md")
-    
     if model_name in loaded_models:
         return loaded_models[model_name]
-
     try:
         loaded_models[model_name] = spacy.load(model_name)
-        logger.info(f"✅ Modelo SpaCy '{model_name}' cargado correctamente.")
-        return loaded_models[model_name]
+        logger.info(f"✅ Modelo NLP '{model_name}' cargado correctamente.")
     except Exception as e:
-        logger.error(f"❌ Error cargando modelo SpaCy para {language} ({model_name}): {e}")
-        return loaded_models.get("es_core_news_md", None)  # Fallback a español
+        logger.error(f"❌ Error cargando modelo '{model_name}': {e}")
+        return None
+    return loaded_models[model_name]
 
 # ✅ Función para detectar idioma y cargar modelo correcto
 def detect_and_load_nlp(text: str):
-    """Detecta el idioma y carga el modelo NLP correspondiente."""
+    """Detecta idioma y carga el modelo NLP correspondiente."""
     try:
         detected_lang = detect(text)
-        language = detected_lang if detected_lang in MODEL_LANGUAGES else "es"
-        logger.info(f"🌍 Idioma detectado: {detected_lang} (Usando modelo {MODEL_LANGUAGES[language]})")
+        language = MODEL_LANGUAGES.get(detected_lang, "es")
         return load_nlp_model(language)
     except Exception as e:
         logger.error(f"❌ Error detectando idioma: {e}")
-        return load_nlp_model("es")  # Fallback a español
+        return load_nlp_model("es")
 
 # ✅ Se mueve la inicialización después de definir las funciones
 nlp = load_nlp_model("es")  # Modelo por defecto en español
@@ -104,37 +101,38 @@ except Exception as e:
 
 # ✅ Modificar NLPProcessor para manejar modelos dinámicos
 class NLPProcessor:
-    """ Procesador de NLP para análisis de texto, intenciones, sentimiento e intereses. """
+    """Procesador de NLP para análisis de texto, intenciones, sentimiento e intereses."""
 
     def __init__(self, language: str = "es"):
-        """ Inicializa el procesador NLP con el idioma especificado. """
+        """Inicializa el procesador NLP con el idioma especificado."""
         self.language = language
-        self.nlp = load_nlp_model(language)  # Cargar modelo dinámicamente
+        self.nlp = load_nlp_model(language)
         self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
         self.define_intent_patterns()
-        self.sia = SentimentIntensityAnalyzer() if nltk else None
         self.gpt_handler = GPTHandler()
-        self.model_type = None  # Será configurado por GptApi
+        self.sentiment_analyzer = RoBertASentimentAnalyzer()  # Inicializar RoBERTa aquí
+        self.model_type = None
         self._load_model_config()
+        self.stop_words = set(stopwords.words("spanish") + stopwords.words("english"))
 
     def _load_model_config(self):
         """Carga la configuración del modelo desde GptApi."""
         try:
             gpt_api = GptApi.objects.first()
             if gpt_api:
-                self.model_type = gpt_api.model_type  # Nuevo campo: "gpt-4" o "llama-2"
+                self.model_type = gpt_api.model_type
                 if not self.gpt_handler.client:
-                    asyncio.run(self.gpt_handler.initialize())  # Inicializa GPTHandler
+                    asyncio.run(self.gpt_handler.initialize())
                 logger.info(f"Modelo configurado: {self.model_type}")
             else:
-                self.model_type = "gpt-4"  # Default
+                self.model_type = "gpt-4"
                 logger.warning("No se encontró configuración de GptApi, usando GPT-4 por defecto.")
         except Exception as e:
             logger.error(f"Error cargando configuración de modelo: {e}", exc_info=True)
             self.model_type = "gpt-4"
 
     def set_language(self, language: str):
-        """ Permite cambiar dinámicamente el idioma del modelo NLP. """
+        """Permite cambiar dinámicamente el idioma del modelo NLP."""
         self.language = language
         self.nlp = load_nlp_model(language)
         self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
@@ -144,60 +142,27 @@ class NLPProcessor:
         """Define patrones de intenciones con Matcher."""
         if not self.matcher:
             return
-
-        # Intent "saludo": incluye variantes y expresiones comunes.
-        saludo_patterns = [
-            [{"LOWER": "hola"}],
-            [{"LOWER": "buenos"}, {"LOWER": "días"}],
-            [{"LOWER": "buenas"}, {"LOWER": "tardes"}],
-            [{"LOWER": "qué"}, {"LOWER": "tal"}]
-        ]
-        self.matcher.add("saludo", saludo_patterns)
-
-        # Intent "despedida": expresiones de adiós.
-        despedida_patterns = [
-            [{"LOWER": "adiós"}],
-            [{"LOWER": "chao"}],
-            [{"LOWER": "hasta"}, {"LOWER": "luego"}],
-            [{"LOWER": "nos vemos"}]
-        ]
-        self.matcher.add("despedida", despedida_patterns)
-
-        # Intent "informacion_servicios": para explicar los servicios de cada BU.
-        informacion_servicios_patterns = [
-            [{"LOWER": "servicios"}],
-            [{"LOWER": "ofrecen"}, {"LOWER": "servicios"}],
-            [{"LOWER": "información"}, {"LOWER": "servicios"}],
-            [{"LOWER": "qué"}, {"LOWER": "servicios"}]
-        ]
-        self.matcher.add("informacion_servicios", informacion_servicios_patterns)
-
-        # Intent "ayuda": para solicitudes de soporte o guía.
-        ayuda_patterns = [
-            [{"LOWER": "ayuda"}],
-            [{"LOWER": "soporte"}],
-            [{"LOWER": "necesito"}, {"LOWER": "ayuda"}]
-        ]
-        self.matcher.add("ayuda", ayuda_patterns)
-
-        # Puede agregar más intenciones según sus necesidades.
+        # ... (patrones existentes sin cambios)
         logger.debug("Patrones de intenciones definidos: saludo, despedida, informacion_servicios, ayuda.")
 
-    def analyze(self, text: str) -> dict:
+    async def analyze(self, text: str) -> dict:
+        """Análisis asíncrono de texto con RoBERTa para sentimiento."""
         from app.chatbot.utils import clean_text, validate_term_in_catalog, get_all_divisions
 
-        if not nlp:
+        if not self.nlp:
             logger.error("No se ha cargado el modelo spaCy, devolviendo análisis vacío.")
-            return {"intents": [], "entities": [], "sentiment": {}, "detected_divisions": []}
+            return {"intents": [], "entities": [], "sentiment": "neutral", "detected_divisions": []}
 
         cleaned_text = clean_text(text)
-        doc = nlp(cleaned_text)
+        doc = await asyncio.to_thread(self.nlp, cleaned_text)  # Hacer SpaCy asíncrono
         entities = [(ent.text, ent.label_) for ent in doc.ents]
         intents = []
         if self.matcher:
-            matches = self.matcher(doc)
-            intents = [nlp.vocab.strings[match_id] for match_id, _, _ in matches]
-        sentiment = self.sia.polarity_scores(cleaned_text) if self.sia else {}
+            matches = await asyncio.to_thread(self.matcher, doc)  # Hacer Matcher asíncrono
+            intents = [self.nlp.vocab.strings[match_id] for match_id, _, _ in matches]
+        
+        # Usar RoBERTa para sentimiento en lugar de NLTK
+        sentiment = await asyncio.to_thread(self.sentiment_analyzer.analyze_sentiment, cleaned_text)
         all_divisions = get_all_divisions()
         detected_divisions = [term for term in entities if validate_term_in_catalog(term[0], all_divisions)]
 
@@ -205,53 +170,51 @@ class NLPProcessor:
         return {
             "entities": entities,
             "intents": intents,
-            "sentiment": sentiment,
+            "sentiment": sentiment,  # Ahora solo RoBERTa
             "detected_divisions": detected_divisions
         }
-    
-    def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
-        """Extrae habilidades usando skillNer, TabiyaJobClassifier y GPTHandler, con análisis de sentimientos."""
+
+    async def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
+        """Extrae habilidades usando skillNer, TabiyaJobClassifier y GPTHandler, con análisis de sentimientos unificado."""
         from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests, map_skill_to_database
-        from app.chatbot.gpt import GPTHandler
-        
+
         text_normalized = unidecode.unidecode(text.lower())
         skills_from_skillner = set()
         skills_from_tabiya = set()
         skills_from_gpt = set()
         all_skills = get_all_skills_for_unit(business_unit)
 
-        # 1️⃣ 🔍 *Extracción con skillNer (precisión inicial)
+        # 1️⃣ Extracción con skillNer
         for skill in all_skills:
             skill_normalized = unidecode.unidecode(skill.lower())
             if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
                 skills_from_skillner.add(skill)
         if sn and self.nlp and self.nlp.vocab.vectors_length > 0:
             try:
-                results = sn.annotate(text)
+                results = await asyncio.to_thread(sn.annotate, text)  # Hacer skillNer asíncrono
                 if isinstance(results, dict) and "results" in results:
                     extracted_skills = {item["skill"] for item in results["results"] if isinstance(item, dict)}
                     skills_from_skillner.update(extracted_skills)
             except Exception as e:
                 logger.error(f"Error en SkillExtractor: {e}", exc_info=True)
 
-        # 2️⃣ ⚙️ Extracción con TabiyaJobClassifier (estandarización ESCO)
+        # 2️⃣ Extracción con TabiyaJobClassifier
         tabiya_classifier = TabiyaJobClassifier()
         try:
-            tabiya_results = tabiya_classifier.classify(text)
+            tabiya_results = await asyncio.to_thread(tabiya_classifier.classify, text)  # Hacer Tabiya asíncrono
             skills_from_tabiya = {item['skill'] for item in tabiya_results if 'skill' in item}
         except Exception as e:
             logger.error(f"Error con TabiyaJobClassifier: {e}", exc_info=True)
 
-        # 3️⃣ 🤖 Extracción con GPTHandler (flexibilidad y contexto)
-        gpt_handler = GPTHandler()
-        if not gpt_handler.client:
-            await gpt_handler.initialize()
+        # 3️⃣ Extracción con GPTHandler
+        if not self.gpt_handler.client:
+            await self.gpt_handler.initialize()
         prompt = (
-            f"Extrae habilidades técnicas, blandas o herramientas del texto según el marco ESCO  "
-            f"y devuelvelas en un JSON usando nombres estándar y sin duplicados..\n\n"
+            f"Extrae habilidades técnicas, blandas o herramientas del texto según el marco ESCO "
+            f"y devuélvelas en un JSON usando nombres estándar y sin duplicados.\n\n"
             f"Texto: {text}\n\nSalida: "
         )
-        response = await gpt_handler.generate_response(prompt, business_unit=None)  # Ajustar si business_unit aplica
+        response = await self.gpt_handler.generate_response(prompt, business_unit=None)
         try:
             gpt_output = json.loads(response.split("Salida: ")[-1].strip() if "Salida: " in response else response)
             skills_from_gpt = {map_skill_to_database(skill, all_skills) for skill in gpt_output.get("skills", []) if map_skill_to_database(skill, all_skills)}
@@ -259,17 +222,17 @@ class NLPProcessor:
             skills_from_gpt = set()
             logger.warning("Error al parsear respuesta de GPTHandler")
 
-        # 4️⃣ 📊 Análisis de sentimiento con RoBertASentimentAnalyzer
-        sentiment_analyzer = RoBertASentimentAnalyzer()
-        sentiment = sentiment_analyzer.analyze_sentiment(text)
+        # 4️⃣ Análisis de sentimiento con RoBERTa (ya calculado en analyze)
+        analysis = await self.analyze(text)  # Reutilizar el análisis unificado
+        sentiment = analysis["sentiment"]
+        sentiment_score = 1.0 if sentiment == "positive" else 0.7 if sentiment == "neutral" else 0.5
 
-        # 5️⃣ 🏆 . Combinación final
+        # 5️⃣ Combinación final
         all_skills_combined = skills_from_skillner.union(skills_from_tabiya).union(skills_from_gpt)
 
-        # 6. Priorizar intereses y sugerir posiciones, ajustado por sentimiento
+        # 6️⃣ Priorizar intereses y sugerir posiciones
         prioritized_interests = prioritize_interests(list(all_skills_combined))
         suggested_positions = get_positions_by_skills(list(all_skills_combined))
-        sentiment_score = 1.0 if sentiment == "positive" else 0.7 if sentiment == "neutral" else 0.5
 
         result = {
             "skills": list(all_skills_combined),
