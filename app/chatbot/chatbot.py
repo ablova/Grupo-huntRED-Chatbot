@@ -93,10 +93,13 @@ class ChatBotHandler:
             if user and user.number_interaction > 0:
                 welcome_msg += f" ¡Qué bueno verte de nuevo, {user.nombre}!"
 
-            await send_message(platform, user_id, welcome_msg, business_unit.name)
-            await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit.name)
-            await send_menu(platform, user_id, business_unit.name)  # Use the standalone function
-
+            try:
+                await send_message(platform, user_id, welcome_msg, business_unit.name)
+                await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit.name)
+                await send_menu(platform, user_id, business_unit.name)  # Use the standalone function
+            except Exception as e:
+                logger.error(f"Error enviando mensaje de bienvenida: {e}")
+                return "Error enviando mensaje."            
             return "Mensaje de bienvenida enviado correctamente."
         except Exception as e:
             logger.error(f"[handle_welcome_message] Error enviando bienvenida a {user_id}: {e}", exc_info=True)

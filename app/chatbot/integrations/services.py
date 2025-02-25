@@ -75,6 +75,8 @@ class MessageService:
 
         return self._api_instances[platform]
 
+    from tenacity import retry, stop_after_attempt
+    @retry(stop=stop_after_attempt(3))
     async def send_message(
         self,
         platform: str,
@@ -509,7 +511,7 @@ class EmailService:
             server.login(smtp_username, smtp_password)
             server.send_message(msg)
             
-            logger.info(f"[send_email] Correo enviado exitosamente a {to_email}")
+            logger.info(f"Correo enviado a {to_email} con asunto: {subject}")
             return {"status": "success", "message": "Correo enviado correctamente."}
 
         except Exception as e:
