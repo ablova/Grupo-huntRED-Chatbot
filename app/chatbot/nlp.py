@@ -1,6 +1,7 @@
 # Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
 import logging
 #import nltk
+import torch
 import spacy
 import json
 import re
