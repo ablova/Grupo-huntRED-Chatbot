@@ -22,19 +22,20 @@ logger = logging.getLogger(__name__)
 
 # Cargar catálogo desde el JSON centralizado
 CATALOG_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs', 'catalogs.json')
-if not os.path.exists(CATALOG_PATH):
-    logger.error(f"Archivo de catálogo no encontrado: {CATALOG_PATH}")
-    return []
 
 def load_catalog() -> dict:
-    """ Carga el catálogo de habilidades desde JSON. """
+    """Carga el catálogo de habilidades desde JSON."""
+    if not os.path.exists(CATALOG_PATH):
+        logger.error(f"Archivo de catálogo no encontrado: {CATALOG_PATH}")
+        return {}  # Devuelve un diccionario vacío si el archivo no existe
+
     try:
         with open(CATALOG_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return data if data else {}
-    except Exception as e:
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, IOError) as e:
         logger.error(f"Error al cargar catálogo desde {CATALOG_PATH}: {e}", exc_info=True)
-        return {}
+        return {}  # Devuelve un diccionario vacío si hay un error de lectura o formato
 
 def clean_text(text: str) -> str:
     """ Limpia texto eliminando caracteres especiales y espacios adicionales. """
