@@ -307,3 +307,9 @@ class ChatbotTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("success", response.json())
+
+async def process_amigro_candidate(user_id, user, business_unit, context):
+    skills_data = await nlp_processor.extract_skills(user.metadata.get("last_message", ""), business_unit.name)
+    if "establishment_score" in skills_data and skills_data["establishment_score"] < 0.5:
+        test_prompt = "Realiza una evaluación simple: ¿Tienes experiencia formal en trabajos técnicos? (Sí/No)"
+        await send_message("whatsapp", user_id, test_prompt, business_unit.name.lower())
