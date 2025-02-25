@@ -1,6 +1,7 @@
 # /home/pablo/app/ml/ml_utils.py
 
 from typing import List, Dict
+from app.chatbot.nlp import TabiyaJobClassifier
 
 def calculate_match_percentage(candidate_skills: List[str], required_skills: List[str]) -> float:
     """
@@ -21,3 +22,22 @@ def calculate_alignment_percentage(candidate_salary: float, job_salary: float) -
         return 0.0
     alignment = 100 - abs(candidate_salary - job_salary) / job_salary * 100
     return max(round(alignment, 2), 0)
+
+def calculate_match_percentage(candidate_skills: List[str], required_skills: List[str], classifier=None) -> float:
+    """
+    Calcula el porcentaje de coincidencia entre habilidades, opcionalmente usando el clasificador de Tabiya.
+    """
+    if not required_skills:
+        return 0.0
+    if classifier:
+        candidate_skills_text = " ".join(candidate_skills)
+        required_skills_text = " ".join(required_skills)
+        classified_candidate = classifier.classify(candidate_skills_text)
+        classified_required = classifier.classify(required_skills_text)
+        candidate_set = {item['skill'].lower() for item in classified_candidate if 'skill' in item}
+        required_set = {item['skill'].lower() for item in classified_required if 'skill' in item}
+    else:
+        candidate_set = {skill.lower() for skill in candidate_skills}
+        required_set = {skill.lower() for skill in required_skills}
+    match_percentage = len(candidate_set.intersection(required_set)) / len(required_set) * 100
+    return round(match_percentage, 2)

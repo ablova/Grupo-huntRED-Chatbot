@@ -149,14 +149,17 @@ class MatchmakingLearningSystem:
         return accuracy
 
     def predict_candidate_success(self, person, vacante):
-        """
-        Predice la probabilidad de éxito de un candidato.
-        """
+        """Predice la probabilidad de éxito de un candidato, incorporando sentimiento."""
         if not Path(self.model_file).exists():
             logger.error(f"Modelo no encontrado: {self.model_file}")
             raise FileNotFoundError("Modelo no entrenado. Entrena el modelo antes de predecir.")
 
         self.pipeline = load(self.model_file)
+
+        # Extraer habilidades y sentimiento desde el último mensaje del candidato
+        from app.chatbot.nlp import nlp_processor
+        last_message = person.metadata.get("last_message", "")  # Suponiendo que guardamos esto
+        skills_data = nlp_processor.extract_skills(last_message, self.business_unit)
 
         # Crear características
         features = {
@@ -164,7 +167,8 @@ class MatchmakingLearningSystem:
             'hard_skills_match': self._calculate_hard_skills_match(MockApplication(person, vacante)),
             'soft_skills_match': self._calculate_soft_skills_match(MockApplication(person, vacante)),
             'salary_alignment': self._calculate_salary_alignment(MockApplication(person, vacante)),
-            'age': self._calculate_age(person)
+            'age': self._calculate_age(person),
+            'sentiment_score': skills_data.get("sentiment_score", 0.7)  # Default neutral
         }
 
         feature_array = np.array(list(features.values())).reshape(1, -1)
@@ -227,11 +231,13 @@ class MatchmakingLearningSystem:
 
     def _calculate_hard_skills_match(self, application):
         """
-        Calcula el porcentaje de coincidencia de habilidades técnicas.
+        Calcula el porcentaje de coincidencia de habilidades técnicas usando habilidades estandarizadas.
         """
+        from app.chatbot.nlp import TabiyaJobClassifier
+        classifier = TabiyaJobClassifier()
         person_skills = application.person.skills.split(',') if application.person.skills else []
         job_skills = application.vacante.skills_required if application.vacante.skills_required else []
-        match_percentage = calculate_match_percentage(person_skills, job_skills)
+        match_percentage = calculate_match_percentage(person_skills, job_skills, classifier)
         logger.debug(f"Habilidades técnicas coincididas: {match_percentage:.2f}%")
         return match_percentage
 
@@ -408,6 +414,26 @@ class MatchmakingLearningSystem:
                 tf.config.experimental.set_memory_growth(gpu, True)
         else:
             logger.warning("No se encontraron GPUs. Usando CPU.")
+
+    async def predict_top_candidates(self, vacancy, top_n=10):
+        """
+        Predice los mejores candidatos conocidos para una vacante, usando habilidades estandarizadas.
+        """
+        from app.chatbot.nlp import TabiyaJobClassifier
+        from asgiref.sync import sync_to_async
+        
+        classifier = TabiyaJobClassifier()
+        candidates = await sync_to_async(Person.objects.filter)(status='active')
+        scores = []
+        for candidate in candidates:
+            mock_app = MockApplication(candidate, vacancy)
+            match_score = self._calculate_hard_skills_match(mock_app)
+            success_proba = self.predict_candidate_success(candidate, vacancy)
+            combined_score = 0.7 * success_proba + 0.3 * (match_score / 100)  # Ponderación ajustable
+            scores.append((candidate, combined_score))
+        top_candidates = sorted(scores, key=lambda x: x[1], reverse=True)[:top_n]
+        logger.info(f"Top {top_n} candidatos para vacante {vacancy.titulo}: {[c[0].nombre for c in top_candidates]}")
+        return top_candidates
 
 class GrupohuntREDMLPipeline:
     def __init__(self, business_unit='huntRED®', log_dir='./ml_logs'):
