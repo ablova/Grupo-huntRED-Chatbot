@@ -478,13 +478,13 @@ class MatchmakingLearningSystem:
             return False
         
     def prepare_tabiya_training_data(self):
-    from app.models import Person
-    persons = Person.objects.filter(business_unit__name=self.business_unit)
-    training_data = [
-        {"text": p.metadata.get("last_message", ""), "skills": p.skills.split(",") if p.skills else []}
-        for p in persons if p.metadata.get("last_message")
-    ]
-    return training_data
+        from app.models import Person
+        persons = Person.objects.filter(business_unit__name=self.business_unit)
+        training_data = [
+            {"text": p.metadata.get("last_message", ""), "skills": p.skills.split(",") if p.skills else []}
+            for p in persons if p.metadata.get("last_message")
+        ]
+        return training_data
 
 class GrupohuntREDMLPipeline:
     def __init__(self, business_unit='huntRED®', log_dir='./ml_logs'):
