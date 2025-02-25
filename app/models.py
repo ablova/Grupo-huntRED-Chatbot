@@ -644,7 +644,7 @@ class GptApi(models.Model):
         choices=[("gpt-4", "GPT-4 (OpenAI)"), ("llama-2", "Llama 2 (Vertex AI)")],
         default="gpt-4",
         help_text="Selecciona el modelo de generación de texto."
-    
+    )
     # ✅ Almacenamos los prompts en un JSONField para mayor flexibilidad
     prompts = models.JSONField(default=dict, blank=True, help_text="Diccionario con diferentes tipos de prompts")
 
