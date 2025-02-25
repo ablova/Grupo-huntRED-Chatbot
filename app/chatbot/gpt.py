@@ -28,9 +28,9 @@ file_formatter = logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(mess
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
 
-from app.chatbot.nlp import nlp_processor  # Importamos el NLP
 
-from app.chatbot.nlp import nlp_processor  # Importamos el NLP
+
+
 
 class GPTHandler:
     def __init__(self):
@@ -67,6 +67,7 @@ class GPTHandler:
         """
         Analiza la intención del usuario usando NLP y devuelve un tipo de prompt.
         """
+        from app.chatbot.nlp import nlp_processor  # Importamos el NLP
         analisis = nlp_processor.analyze(mensaje)
         entidades_detectadas = [entidad[0].lower() for entidad in analisis.get("entities", [])]
         intenciones = analisis.get("intents", [])
