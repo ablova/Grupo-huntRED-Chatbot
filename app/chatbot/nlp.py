@@ -1,5 +1,4 @@
 # Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
-# Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
 import logging
 import nltk
 import torch
@@ -22,7 +21,6 @@ from app.chatbot.utils import (
 )
 from app.chatbot.gpt import GPTHandler
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-from transformers import pipeline
 from logging.handlers import RotatingFileHandler
 
 # ✅ Configuración de Logging con rotación
@@ -42,7 +40,7 @@ try:
 except LookupError:
     nltk.download('stopwords', quiet=True)
 
-# ✅ Modelos NLP con caché y concurrencia
+# ✅ Modelos NLP con caché y Lazy Load
 MODEL_LANGUAGES = {
     "es": "es_core_news_md",
     "en": "en_core_web_md",
@@ -53,7 +51,7 @@ MODEL_LANGUAGES = {
     "pt": "pt_core_news_md"
 }
 loaded_models = {}
-model_locks = {lang: threading.Lock() for lang in MODEL_LANGUAGES.keys()}  # Control de concurrencia
+model_locks = {lang: threading.Lock() for lang in MODEL_LANGUAGES.keys()}  # Protección en multi-hilo
 
 def load_nlp_model(language: str):
     """Carga modelos de NLP con caché y protección de concurrencia."""
@@ -71,77 +69,84 @@ def load_nlp_model(language: str):
                 return None
     return loaded_models[model_name]
 
-nlp_global = load_nlp_model("es")  # Cargar modelo español por defecto
+# ✅ Lazy Load: SkillExtractor
+class LazySkillExtractor:
+    """Carga SkillExtractor solo cuando se necesita."""
+    def __init__(self):
+        self.instance = None
+        self.lock = threading.Lock()
 
-# ✅ Inicialización de SkillExtractor
-try:
-    skill_db_path = "/home/pablo/skill_db_relax_20.json"
-    with open(skill_db_path, 'r', encoding='utf-8') as f:
-        skills_db = json.load(f)
+    def get(self):
+        if self.instance is None:
+            with self.lock:
+                if self.instance is None:
+                    try:
+                        skill_db_path = "/home/pablo/skill_db_relax_20.json"
+                        with open(skill_db_path, 'r', encoding='utf-8') as f:
+                            skills_db = json.load(f)
 
-    phrase_matcher = PhraseMatcher(nlp_global.vocab)
-    sn = SkillExtractor(nlp=nlp_global, skills_db=skills_db, phraseMatcher=phrase_matcher)
-    logger.info("✅ SkillExtractor inicializado correctamente.")
-except Exception as e:
-    logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
-    sn = None
+                        nlp_model = load_nlp_model("es")
+                        phrase_matcher = PhraseMatcher(nlp_model.vocab)
+                        self.instance = SkillExtractor(nlp=nlp_model, skills_db=skills_db, phraseMatcher=phrase_matcher)
+                        logger.info("✅ SkillExtractor inicializado correctamente.")
+                    except Exception as e:
+                        logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
+                        self.instance = None
+        return self.instance
 
-# Pool de clientes para GPTHandler
+lazy_skill_extractor = LazySkillExtractor()
+
+# ✅ Pool de clientes para GPTHandler (Lazy Load)
 GPT_CLIENT_POOL_SIZE = 5
-gpt_client_pool = [GPTHandler() for _ in range(GPT_CLIENT_POOL_SIZE)]
+gpt_client_pool = [None] * GPT_CLIENT_POOL_SIZE
 gpt_client_locks = [asyncio.Lock() for _ in range(GPT_CLIENT_POOL_SIZE)]
 
 async def get_gpt_client():
     """Devuelve un cliente GPT disponible del pool."""
     for i in range(GPT_CLIENT_POOL_SIZE):
-        async with gpt_client_locks[i]:  # Usar el lock correcto para evitar bloqueos
+        async with gpt_client_locks[i]:
+            if gpt_client_pool[i] is None:
+                gpt_client_pool[i] = GPTHandler()
+                await gpt_client_pool[i].initialize()
             return gpt_client_pool[i]
-    return GPTHandler()  # Si todos están ocupados, crear un nuevo cliente
-    
-    
-# ✅ Modificar NLPProcessor para manejar modelos dinámicos
+    return GPTHandler()  # Si todos están ocupados, crea uno nuevo.
+
+# ✅ Lazy Load NLPProcessor
 class NLPProcessor:
     """Procesador de NLP para análisis de texto, intenciones, sentimiento e intereses."""
     def __init__(self, language: str = "es"):
         self.language = language
-        self.nlp = load_nlp_model(language)
-        self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
+        self._nlp = None  # Lazy Load
+        self._matcher = None  # Lazy Load
+        self._gpt_handler = None  # Lazy Load
+        self._sentiment_analyzer = None  # Lazy Load
         self.gpt_cache = TTLCache(maxsize=1000, ttl=3600)  # Caché eficiente
-        self.model_type = "gpt-4"
-        self.stop_words = set(stopwords.words("spanish") + stopwords.words("english"))
-        self.sentiment_analyzer = RoBertASentimentAnalyzer()
-        self.gpt_handler = None  # Ahora se inicializa solo cuando se necesita
+
+    @property
+    def nlp(self):
+        """Carga el modelo NLP solo cuando se necesita."""
+        if self._nlp is None:
+            self._nlp = load_nlp_model(self.language)
+        return self._nlp
+
+    @property
+    def matcher(self):
+        """Carga el Matcher solo cuando se necesita."""
+        if self._matcher is None:
+            self._matcher = Matcher(self.nlp.vocab)
+        return self._matcher
+
+    @property
+    def sentiment_analyzer(self):
+        """Carga el analizador de sentimientos solo cuando se necesita."""
+        if self._sentiment_analyzer is None:
+            self._sentiment_analyzer = RoBertASentimentAnalyzer()
+        return self._sentiment_analyzer
 
     async def initialize_gpt_handler(self):
         """Inicializa GPTHandler de manera diferida."""
-        if self.gpt_handler is None:
-            self.gpt_handler = await get_gpt_client()
-
-    def _load_model_config(self):
-        try:
-            gpt_api = GptApi.objects.first()
-            if gpt_api:
-                self.model_type = gpt_api.model_type
-                self.tabiya_enabled = gpt_api.tabiya_enabled
-                if not self.gpt_handler.client:
-                    asyncio.run(self.gpt_handler.initialize())
-                if self.tabiya_enabled:
-                    try:
-                        from tabiya_livelihoods_classifier.inference.linker import EntityLinker
-                        from taxonomy_model_application import SkillCategorizer
-                        self.tabiya_classifier = TabiyaJobClassifier()
-                        self.categorizer = SkillCategorizer()
-                        logger.info("TabiyaJobClassifier y SkillCategorizer cargados correctamente.")
-                    except ImportError as e:
-                        logger.error(f"Error cargando Tabiya: {e}. Deshabilitando Tabiya.")
-                        self.tabiya_enabled = False
-                logger.info(f"Modelo configurado: {self.model_type}, Tabiya: {self.tabiya_enabled}")
-            else:
-                self.model_type = "gpt-4"
-                logger.warning("No se encontró configuración de GptApi, usando GPT-4 por defecto.")
-        except Exception as e:
-            logger.error(f"Error cargando configuración de modelo: {e}", exc_info=True)
-            self.model_type = "gpt-4"
+        if self._gpt_handler is None:
+            self._gpt_handler = await get_gpt_client()
             
     def set_language(self, language: str):
         """Permite cambiar dinámicamente el idioma del modelo NLP."""
@@ -193,35 +198,32 @@ class NLPProcessor:
         skills_from_gpt = set()
         all_skills = get_all_skills_for_unit(business_unit)
 
-        # ✅ Extracción con skillNer
-        for skill in all_skills:
-            if re.search(r'\b' + re.escape(unidecode.unidecode(skill.lower())) + r'\b', text):
-                skills_from_skillner.add(skill)
-        if sn and self.nlp:
+        # ✅ Lazy Load SkillExtractor
+        sn = lazy_skill_extractor.get()
+        if sn:
             try:
                 results = await asyncio.to_thread(sn.annotate, text)
-                if isinstance(results, dict) and "results" in results:
-                    skills_from_skillner.update({item["skill"] for item in results["results"]})
+                if "results" in results:
+                    extracted_skills = {item["skill"] for item in results["results"]}
+                    skills_from_skillner.update(extracted_skills)
             except Exception as e:
                 logger.error(f"Error en SkillExtractor: {e}")
 
-        # ✅ Extracción con GPTHandler
-        if not self.gpt_handler:
-            await self.initialize_gpt_handler()
-
-        prompt = f"Extrae habilidades del siguiente texto:\n\n{text}\n\nSalida en JSON:"
-        response = await self.gpt_handler.generate_response(prompt)
+        # ✅ GPTHandler con Lazy Load
+        await self.initialize_gpt_handler()
+        gpt_prompt = f"Extrae habilidades del siguiente texto:\n\n{text}"
+        response = await self._gpt_handler.generate_response(gpt_prompt)
 
         try:
             gpt_output = json.loads(response)
-            skills_from_gpt = {map_skill_to_database(skill, all_skills) for skill in gpt_output.get("skills", [])}
+            skills_from_gpt = {map_skill_to_database(skill) for skill in gpt_output.get("skills", [])}
         except json.JSONDecodeError:
-            logger.warning("Error al parsear respuesta de GPTHandler")
+            logger.warning("Error al parsear respuesta de GPTHandler.")
 
         return {
             "skills": list(skills_from_skillner.union(skills_from_gpt))
         }
-
+    
     def extract_interests_and_skills(self, text: str) -> dict:
         """
         Extrae intereses explícitos, habilidades y sugiere roles priorizando lo mencionado por el usuario.
