@@ -17,8 +17,6 @@ from bs4 import BeautifulSoup
 from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
 from app.utilidades.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
-from app.chatbot.nlp import sn  # SkillNer instance
-
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
 
@@ -37,7 +35,8 @@ CATALOGS_BASE_PATH = "/home/pablo/app/utilidades/catalogs"
 # =========================================================
 # Clase para manejar habilidades y divisiones
 # =========================================================
-
+from app.chatbot.nlp import lazy_skill_extractor
+sn = lazy_skill_extractor.get()  # Se obtiene solo cuando se necesita
 class SkillsProcessor:
     def __init__(self, unit_name: str):
         self.unit_name = unit_name

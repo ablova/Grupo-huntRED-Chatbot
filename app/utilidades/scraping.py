@@ -29,7 +29,8 @@ from app.chatbot.utils import clean_text
 logger = logging.getLogger("app.utilidades.scraping")
 
 nlp = spacy.load("en_core_web_md")
-from app.chatbot.nlp import sn  # Usa la instancia global correctamente configurada en nlp.py
+from app.chatbot.nlp import lazy_skill_extractor
+sn = lazy_skill_extractor.get()  # Se obtiene solo cuando se necesita
 if not sn:
     logger.warning("⚠ SkillExtractor no está disponible. Se usarán métodos alternativos de extracción.")
 
