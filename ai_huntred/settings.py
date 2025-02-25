@@ -75,6 +75,8 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 100000  # 100MB por proceso
 CELERYD_MAX_TASKS_PER_CHILD = 10  # 🔹 Reinicia workers después de X tareas
 CELERYD_MAX_MEMORY_PER_CHILD = 150000  # 🔹 Evita uso excesivo de memoria
+# Habilitar reintentos de conexión en startup
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
