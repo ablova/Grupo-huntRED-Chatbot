@@ -101,6 +101,9 @@ class MessageService:
 
             handler = platform_handlers.get(platform)
             if handler:
+                if "personalized message" in message.lower():  # Marcador simple
+                    logger.info(f"Enviando mensaje personalizado optimizado a {user_id}")
+                    return await handler(user_id, message, options, api_instance, priority=True)  # Suponiendo prioridad en integraciones
                 return await handler(user_id, message, options, api_instance)
             else:
                 logger.error(f"[send_message] ❌ Plataforma no soportada: {platform}")

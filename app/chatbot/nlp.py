@@ -8,8 +8,12 @@ import unidecode
 from spacy.matcher import Matcher, PhraseMatcher
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from skillNer.skill_extractor_class import SkillExtractor
-from app.models import BusinessUnit
-from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests
+from app.models import BusinessUnit, GptApi
+from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests, map_skill_to_database
+from app.chatbot.gpt import GPTHandler
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from tabiya_livelihoods_classifer import EntityLinker
+from transformers import pipeline
 
 logger = logging.getLogger("app.chatbot.nlp")
 logging.basicConfig(
@@ -109,6 +113,25 @@ class NLPProcessor:
         self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
         self.define_intent_patterns()
         self.sia = SentimentIntensityAnalyzer() if nltk else None
+        self.gpt_handler = GPTHandler()
+        self.model_type = None  # Será configurado por GptApi
+        self._load_model_config()
+
+    def _load_model_config(self):
+        """Carga la configuración del modelo desde GptApi."""
+        try:
+            gpt_api = GptApi.objects.first()
+            if gpt_api:
+                self.model_type = gpt_api.model_type  # Nuevo campo: "gpt-4" o "llama-2"
+                if not self.gpt_handler.client:
+                    asyncio.run(self.gpt_handler.initialize())  # Inicializa GPTHandler
+                logger.info(f"Modelo configurado: {self.model_type}")
+            else:
+                self.model_type = "gpt-4"  # Default
+                logger.warning("No se encontró configuración de GptApi, usando GPT-4 por defecto.")
+        except Exception as e:
+            logger.error(f"Error cargando configuración de modelo: {e}", exc_info=True)
+            self.model_type = "gpt-4"
 
     def set_language(self, language: str):
         """ Permite cambiar dinámicamente el idioma del modelo NLP. """
@@ -187,60 +210,75 @@ class NLPProcessor:
         }
     
     def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
-        """ Extrae habilidades, prioriza intereses y sugiere posiciones. """
-        from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests
-
-        text_normalized = unidecode.unidecode(text.lower())
-        skills = set()  # Evita duplicados
+        """Extrae habilidades usando skillNer, TabiyaJobClassifier y GPTHandler, con análisis de sentimientos."""
+        from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests, map_skill_to_database
+        from app.chatbot.gpt import GPTHandler
         
-        # 1️⃣ Cargar habilidades desde catálogos y vacantes
-        try:
-            all_skills = get_all_skills_for_unit(business_unit)
-            logger.info(f"📌 Habilidades cargadas para {business_unit}: {all_skills}")  
+        text_normalized = unidecode.unidecode(text.lower())
+        skills_from_skillner = set()
+        skills_from_tabiya = set()
+        skills_from_gpt = set()
+        all_skills = get_all_skills_for_unit(business_unit)
 
-        except Exception as e:
-            logger.error(f"Error obteniendo habilidades para {business_unit}: {e}")
-            all_skills = []
-
-        # 2️⃣ Coincidencias manuales con regex optimizado
+        # 1️⃣ 🔍 *Extracción con skillNer (precisión inicial)
         for skill in all_skills:
             skill_normalized = unidecode.unidecode(skill.lower())
             if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
-                skills.add(skill)
-                logger.info(f"✅ Coincidencia manual encontrada: {skill}")
-
-        # 3️⃣ Extraer habilidades con SkillExtractor
-        if sn and nlp and nlp.vocab.vectors_length > 0:
+                skills_from_skillner.add(skill)
+        if sn and self.nlp and self.nlp.vocab.vectors_length > 0:
             try:
                 results = sn.annotate(text)
-                logger.info(f"🧠 SkillExtractor resultados: {results}")
                 if isinstance(results, dict) and "results" in results:
                     extracted_skills = {item["skill"] for item in results["results"] if isinstance(item, dict)}
-                    skills.update(extracted_skills)
-                    logger.info(f"🧠 Habilidades extraídas por SkillExtractor: {extracted_skills}")
+                    skills_from_skillner.update(extracted_skills)
             except Exception as e:
-                logger.error(f"❌ Error en SkillExtractor: {e}", exc_info=True)
+                logger.error(f"Error en SkillExtractor: {e}", exc_info=True)
 
-        # 4️⃣ Priorizar intereses detectados
-        prioritized_interests = prioritize_interests(list(skills))
-        
-        # 5️⃣ Buscar posiciones adecuadas con las habilidades encontradas
-        suggested_positions = []
-        if skills:
-            try:
-                suggested_positions = get_positions_by_skills(list(skills))
-                logger.info(f"💼 Posiciones sugeridas: {suggested_positions}")
-            except Exception as e:
-                logger.error(f"Error obteniendo posiciones sugeridas: {e}", exc_info=True)
+        # 2️⃣ ⚙️ Extracción con TabiyaJobClassifier (estandarización ESCO)
+        tabiya_classifier = TabiyaJobClassifier()
+        try:
+            tabiya_results = tabiya_classifier.classify(text)
+            skills_from_tabiya = {item['skill'] for item in tabiya_results if 'skill' in item}
+        except Exception as e:
+            logger.error(f"Error con TabiyaJobClassifier: {e}", exc_info=True)
 
-        # 6️⃣ Retornar en formato estructurado
+        # 3️⃣ 🤖 Extracción con GPTHandler (flexibilidad y contexto)
+        gpt_handler = GPTHandler()
+        if not gpt_handler.client:
+            await gpt_handler.initialize()
+        prompt = (
+            f"Extrae habilidades técnicas, blandas o herramientas del texto según el marco ESCO  "
+            f"y devuelvelas en un JSON usando nombres estándar y sin duplicados..\n\n"
+            f"Texto: {text}\n\nSalida: "
+        )
+        response = await gpt_handler.generate_response(prompt, business_unit=None)  # Ajustar si business_unit aplica
+        try:
+            gpt_output = json.loads(response.split("Salida: ")[-1].strip() if "Salida: " in response else response)
+            skills_from_gpt = {map_skill_to_database(skill, all_skills) for skill in gpt_output.get("skills", []) if map_skill_to_database(skill, all_skills)}
+        except json.JSONDecodeError:
+            skills_from_gpt = set()
+            logger.warning("Error al parsear respuesta de GPTHandler")
+
+        # 4️⃣ 📊 Análisis de sentimiento con RoBertASentimentAnalyzer
+        sentiment_analyzer = RoBertASentimentAnalyzer()
+        sentiment = sentiment_analyzer.analyze_sentiment(text)
+
+        # 5️⃣ 🏆 . Combinación final
+        all_skills_combined = skills_from_skillner.union(skills_from_tabiya).union(skills_from_gpt)
+
+        # 6. Priorizar intereses y sugerir posiciones, ajustado por sentimiento
+        prioritized_interests = prioritize_interests(list(all_skills_combined))
+        suggested_positions = get_positions_by_skills(list(all_skills_combined))
+        sentiment_score = 1.0 if sentiment == "positive" else 0.7 if sentiment == "neutral" else 0.5
+
         result = {
-            "skills": list(skills),
+            "skills": list(all_skills_combined),
             "prioritized_interests": prioritized_interests,
-            "suggested_positions": suggested_positions
+            "suggested_positions": suggested_positions,
+            "sentiment": sentiment,
+            "sentiment_score": sentiment_score
         }
-
-        logger.info(f"🔎 Análisis final: {result}")
+        logger.info(f"Análisis final: {result}")
         return result
     
     def extract_interests_and_skills(self, text: str) -> dict:
@@ -339,6 +377,27 @@ class NLPProcessor:
             "skills": skills,
             "suggested_roles": suggested_roles
         }
+
+class TabiyaJobClassifier:
+    def __init__(self):
+        self.linker = EntityLinker()
+
+    def classify(self, text):
+        return self.linker.link_text(text)
+
+class RoBertASentimentAnalyzer:
+    def __init__(self, model_name="cardiffnlpsentiment-robertabassentiment"):
+        self.tokenizer = AutoTokenizer.from_pretrain(model_name)
+        self.model = AutoModelForSequenceClassification.from_pretrain(model_name)
+
+    def analyze_sentiment(self, text):
+        inputs = self.tokenizer(text, return_tens=True)
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            logits = outputs.logits
+            predicted_class = torch.arginmax(logits, dim=1).item()
+        labels = ["negative", "neutral", "positive"]
+        return labels[predicted_class]
 
 
 # Instancia global del procesador

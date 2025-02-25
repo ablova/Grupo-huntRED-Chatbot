@@ -254,3 +254,30 @@ class GPTHandler:
         except Exception as e:
             logger.error(f"❌ Error inesperado en generate_response_with_retries: {e}", exc_info=True)
             raise e
+        
+    def generate_personalized_message(self, candidate, vacancy, classifier, llm_generator):
+        """
+        Genera un mensaje personalizado usando habilidades estandarizadas.
+        """
+        candidate_skills = " ".join(candidate.skills.split(',') if candidate.skills else [])
+        job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
+        prompt = f"Context: Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. Genera un mensaje personalizado invitando al candidato a aplicar."
+        return llm_generator.generate_response(prompt)
+
+class LLMChatGenerator:
+    def __init__(self, model_name="huggyllama/llama-2-7b-chat-hf"):
+        self.generator = pipeline("text-generation", model=model_name)
+
+    def generate_response(self, prompt, max_length=100, temperature=0.7):
+        response = self.generator(prompt, max_length=max_length, temperature=temperature)
+        return response[0]["generated_text"]
+    
+    def generate_personalized_message(self, candidate, vacancy, classifier, llm_generator):
+        """
+        Genera un mensaje personalizado usando habilidades estandarizadas.
+        """
+        candidate_skills = " ".join(candidate.skills.split(',') if candidate.skills else [])
+        job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
+        prompt = f"Context: Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. Genera un mensaje personalizado invitando al candidato a aplicar."
+        return llm_generator.generate_response(prompt)
+    

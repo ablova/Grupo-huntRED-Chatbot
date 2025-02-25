@@ -378,3 +378,23 @@ def is_user_spamming(user_id: str) -> bool:
     timestamps = cache.get(cache_key, [])
 
     return len(timestamps) > MAX_MESSAGES_PER_MINUTE
+
+from transformers import AutoTokenizer
+
+def tokenize_text(text, model_name="cardiffnlpsentiment-robertabassentiment"):
+    tokenizer = AutoTokenizer.from_pretrain(model_name)
+    return tokenizer(text, return_tens=True)
+
+def prepare_llm_prompt(user_input, context):
+    return f"Context: {context}\nUser: {user_input}\nAssistant: "
+
+from difflib import get_close_matches
+
+def map_skill_to_database(llm_skill: str, database_skills: List[str], cutoff: float = 0.6) -> str:
+    """
+    Mapea una habilidad extraída por LLM a la base de datos usando similitud.
+    """
+    if llm_skill in database_skills:
+        return llm_skill
+    closest_match = get_close_matches(llm_skill, database_skills, n=1, cutoff=cutoff)
+    return closest_match[0] if closest_match else None

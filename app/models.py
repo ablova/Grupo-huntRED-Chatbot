@@ -639,6 +639,11 @@ class GptApi(models.Model):
     organization = models.CharField(max_length=100, blank=True, null=True)
     project = models.CharField(max_length=100, blank=True, null=True)
     model = models.CharField(max_length=100)
+    model_type = models.CharField(
+        max_length=50,
+        choices=[("gpt-4", "GPT-4 (OpenAI)"), ("llama-2", "Llama 2 (Vertex AI)")],
+        default="gpt-4",
+        help_text="Selecciona el modelo de generación de texto."
     
     # ✅ Almacenamos los prompts en un JSONField para mayor flexibilidad
     prompts = models.JSONField(default=dict, blank=True, help_text="Diccionario con diferentes tipos de prompts")
