@@ -212,7 +212,11 @@ class NLPProcessor:
         # ✅ GPTHandler con Lazy Load
         await self.initialize_gpt_handler()
         gpt_prompt = f"Extrae habilidades del siguiente texto:\n\n{text}"
-        response = await self._gpt_handler.generate_response(gpt_prompt)
+        try:
+            response = await self._gpt_handler.generate_response(gpt_prompt)
+        except Exception as e:
+            logger.error(f"Error con GPTHandler: {e}")
+            return {"skills": list(skills_from_skillner)}
 
         try:
             gpt_output = json.loads(response)
