@@ -197,6 +197,28 @@ class ChatBotHandler:
             intents = analysis.get("intents", [])
             if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
                 return
+            
+            # Usar predicción y mensaje personalizado con GPTHandler
+            ml_system = MatchmakingLearningSystem(business_unit=business_unit.name)
+            top_candidates = await ml_system.predict_top_candidates(vacancy=None)
+            if user in [c[0] for c in top_candidates]:
+                gpt_handler = GPTHandler()
+                if not gpt_handler.client:
+                    await gpt_handler.initialize()
+                vacancy = await sync_to_async(Vacante.objects.filter)(activa=True, business_unit=business_unit).first()
+                if vacancy:
+                    candidate_skills = " ".join(user.skills.split(',') if user.skills else [])
+                    job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
+                    prompt = (
+                        f"Context: Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. "
+                        f"Genera un mensaje personalizado invitando al candidato a aplicar, usando un tono profesional y motivador."
+                    )
+                    personalized_msg = await gpt_handler.generate_response(prompt, business_unit)
+                    await send_message(platform, user_id, personalized_msg, business_unit.name.lower())
+                    await self.store_bot_message(chat_state, personalized_msg)
+                    if skills_data["sentiment"] == "negative":
+                        await send_message(platform, user_id, "¿Hay algo en lo que pueda ayudarte para mejorar tu experiencia?", business_unit.name.lower())
+                    return
 
             bu_key = business_unit.name.lower()
             if bu_key in self.workflow_mapping:
