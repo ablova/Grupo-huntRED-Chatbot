@@ -21,7 +21,7 @@ from django.utils.timezone import now
 # ✅ Importaciones del proyecto
 from app.models import ConfiguracionBU, Person, Vacante, Division, Skill, BusinessUnit
 from app.utilidades.vacantes import VacanteManager
-from app.chatbot.nlp import detect_and_load_nlp  # ✅ Usar función centralizada de NLP
+from app.chatbot.nlp import load_nlp_model  # ✅ Usar función centralizada de NLP
 
 # ✅ Configuración de logging
 logger = logging.getLogger("app.utilidades.parse")
@@ -66,7 +66,7 @@ def load_spacy_model(language: str = "es"):
     """
     Carga el modelo NLP adecuado desde `nlp.py` para evitar inconsistencias.
     """
-    return detect_and_load_nlp(language)
+    return load_nlp_model(language)
 
 def normalize_text(text: str) -> str:
     """
@@ -328,7 +328,7 @@ class CVParser:
         """
         self.business_unit = business_unit.strip()  # ✅ Evita espacios extra
         self.detected_language = self.detect_language(text_sample) if text_sample else "es"
-        self.nlp = detect_and_load_nlp(text_sample)  # ✅ Carga el modelo NLP correcto
+        self.nlp = load_nlp_model(text_sample)  # ✅ Carga el modelo NLP correcto
         self.analysis_points = self.get_analysis_points()  # ✅ Corrección aplicada
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
@@ -353,14 +353,14 @@ class CVParser:
         """
         Carga dinámicamente el modelo de NLP según el idioma detectado.
         """
-        return detect_and_load_nlp(language)  # ✅ Usa la función centralizada de NLP
+        return load_nlp_model(language)  # ✅ Usa la función centralizada de NLP
 
     def prepare_nlp_model(self, text: str):
         """
         Detecta el idioma del texto y prepara el modelo NLP correspondiente.
         """
         self.detected_language = self.detect_language(text)
-        self.nlp = detect_and_load_nlp(self.detected_language)
+        self.nlp = load_nlp_model(self.detected_language)
         logger.info(f"✅ Modelo NLP cargado para idioma: {self.detected_language}")
 
     def get_analysis_points(self) -> Dict:
