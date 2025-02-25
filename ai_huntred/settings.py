@@ -88,7 +88,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    #'django_ratelimit',
+    #'django_ratelimit',  eliminado para no generar problemas
     'django_celery_beat',
     # Apps internas
     'app',
