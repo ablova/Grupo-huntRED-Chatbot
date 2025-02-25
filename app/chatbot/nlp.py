@@ -13,7 +13,7 @@ from app.models import BusinessUnit, GptApi
 from app.chatbot.utils import get_all_skills_for_unit, get_positions_by_skills, prioritize_interests, map_skill_to_database
 from app.chatbot.gpt import GPTHandler
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-from tabiya_livelihoods_classifer import EntityLinker
+from tabiya_livelihoods_classifier import EntityLinker
 from transformers import pipeline
 
 logger = logging.getLogger("app.chatbot.nlp")
