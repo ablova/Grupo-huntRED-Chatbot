@@ -597,6 +597,28 @@ class GrupohuntREDMLPipeline:
         self.model.save(self.model_path)
         logger.info(f"Modelo guardado en {self.model_path}")
 
+    def predict_pending(self):
+        """
+        Predice las mejores coincidencias para todas las vacantes pendientes.
+        """
+        from app.models import Person, Vacante
+
+        persons = Person.objects.filter(status='active')
+        vacantes = Vacante.objects.filter(activa=True)
+
+        resultados = []
+        for person in persons:
+            for vacante in vacantes:
+                score = self.predict_candidate_success(person, vacante)
+                resultados.append({
+                    "persona": person.nombre,
+                    "vacante": vacante.titulo,
+                    "score": score
+                })
+
+        logger.info(f"Predicciones completadas: {len(resultados)} coincidencias calculadas.")
+        return resultados
+
     def predict(self, X):
         """
         Realiza una predicción con el modelo cargado.

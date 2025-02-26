@@ -224,3 +224,7 @@ def generate_pdf_response(agreement):
 def validate_token(agreement, token):
     """Valida que el token de firma sea válido y no haya expirado."""
     return agreement.token == token and agreement.token_expiry > now()
+
+async def process_incoming_message(message, user_id):
+    # Implementa la lógica de procesamiento aquí
+    pass

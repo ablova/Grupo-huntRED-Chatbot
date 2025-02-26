@@ -71,6 +71,7 @@ class ChatBotHandler:
         """Envía el mensaje de bienvenida, logo y menú."""
         try:
             logger.info(f"[handle_welcome_message] Enviando bienvenida a {user_id} en {platform} para BU: {business_unit.name}")
+
             welcome_messages = {
                 "huntred": "Bienvenido a huntRED® 🚀\nSomos expertos en encontrar el mejor talento para empresas líderes.",
                 "huntred executive": "Bienvenido a huntRED® Executive 🌟\nNos especializamos en colocación de altos ejecutivos.",
@@ -93,18 +94,32 @@ class ChatBotHandler:
             if user and user.number_interaction > 0:
                 welcome_msg += f" ¡Qué bueno verte de nuevo, {user.nombre}!"
 
+            # Envío de mensajes con manejo de errores por separado
             try:
                 await send_message(platform, user_id, welcome_msg, business_unit.name)
-                await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit.name)
-                await send_menu(platform, user_id, business_unit.name)  # Use the standalone function
             except Exception as e:
-                logger.error(f"Error enviando mensaje de bienvenida: {e}")
-                return "Error enviando mensaje."            
+                logger.error(f"❌ Error enviando mensaje de bienvenida: {e}")
+
+            await asyncio.sleep(1)  # Pequeño delay antes de enviar la imagen
+
+            try:
+                await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit.name)
+            except Exception as e:
+                logger.error(f"❌ Error enviando imagen de bienvenida: {e}")
+
+            await asyncio.sleep(1)
+
+            try:
+                await send_menu(platform, user_id, business_unit.name)
+            except Exception as e:
+                logger.error(f"❌ Error enviando menú: {e}")
+
             return "Mensaje de bienvenida enviado correctamente."
+
         except Exception as e:
-            logger.error(f"[handle_welcome_message] Error enviando bienvenida a {user_id}: {e}", exc_info=True)
+            logger.error(f"[handle_welcome_message] ❌ Error enviando bienvenida a {user_id}: {e}", exc_info=True)
             return "Error enviando mensaje de bienvenida."
-   
+
     async def send_complete_initial_messages(self, platform: str, user_id: str, business_unit: BusinessUnit):
         """Envía el flujo inicial: saludo, intro, TOS URL, y prompt interactivo."""
         try:
