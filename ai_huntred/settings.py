@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     #'django_ratelimit',  eliminado para no generar problemas
     'django_celery_beat',
+    'django_celery_results',
     # Apps internas
     'app',
     'app.chatbot',
