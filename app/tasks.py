@@ -6,7 +6,9 @@ import random
 from celery import shared_task, chain, group
 from celery.schedules import crontab
 from django_celery_beat.models import PeriodicTask, CrontabSchedule, IntervalSchedule
-from ai_huntred.celery import app
+from celery.exceptions import MaxRetriesExceededError
+import celery
+app = celery.current_app
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
@@ -40,7 +42,7 @@ from app.utilidades.scraping import (
 )
 from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
 from app.ml.ml_model import GrupohuntREDMLPipeline
-from celery.exceptions import MaxRetriesExceededError
+from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
 from app.utilidades.catalogs import DIVISIONES
 import json, os
 
@@ -50,10 +52,6 @@ logger = logging.getLogger("app.tasks")
 def add(x, y):
     return x + y
 
-
-@shared_task
-def add(x, y):
-    return x + y
 # =========================================================
 # Tareas relacionadas con notificaciones
 # =========================================================
@@ -101,13 +99,18 @@ def send_messenger_message_task(self, recipient_id, message, business_unit_id=No
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def train_ml_task(self, business_unit_id=None):
     """
-    Tarea para entrenar el modelo de ML para una Business Unit específica o todas, con manejo de errores por unidad.
-    
-    Args:
-        business_unit_id (int, optional): ID de la unidad de negocio. Si es None, entrena para todas.
+    Tarea para entrenar el modelo de ML para una Business Unit específica o todas.
     """
-    logger.info("🧠 Iniciando tarea de entrenamiento de Machine Learning.")
     try:
+        # Verificar la carga del sistema
+        if not check_system_load(threshold=70):
+            logger.info("Carga del sistema alta. Reintentando en 10 minutos.")
+            raise self.retry(countdown=600)  # Reintentar en 30 minutos
+
+        # Configurar TensorFlow según la carga
+        configure_tensorflow_based_on_load()
+
+        logger.info("🧠 Iniciando tarea de entrenamiento de Machine Learning.")
         if business_unit_id:
             business_units = BusinessUnit.objects.filter(id=business_unit_id)
         else:
@@ -125,12 +128,14 @@ def train_ml_task(self, business_unit_id=None):
                 logger.info(f"✅ Modelo entrenado y guardado para {bu.name}")
             except Exception as e:
                 logger.error(f"❌ Error entrenando modelo para BU {bu.name}: {e}")
-                continue  # Continúa con la siguiente unidad en caso de error
+                continue
         logger.info("🚀 Tarea de entrenamiento completada para todas las Business Units.")
+    except Retry:
+        raise  # Permitir que Celery maneje el reintento
     except Exception as e:
         logger.error(f"❌ Error en la tarea de entrenamiento de ML: {e}")
         self.retry(exc=e)
-
+        
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def ejecutar_ml(self):
     """

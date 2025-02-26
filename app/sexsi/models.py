@@ -117,3 +117,8 @@ class DiscountCoupon(models.Model):
     
     def __str__(self):
         return f"Cupon {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
+
+class ConsentmentAgreement(models.Model):
+    user_id = models.CharField(max_length=255)
+    agreed_at = models.DateTimeField(auto_now_add=True)
+    # Agrega otros campos según necesites
