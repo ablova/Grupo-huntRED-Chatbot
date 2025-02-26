@@ -691,46 +691,64 @@ async def send_list_options(platform: str, user_id: str, message: str, buttons: 
 
     return await send_whatsapp_list(user_id, message, sections, business_unit_name)
 #Envio de Lista Interactiva para cuando hay más de 3 botones
+import asyncio
+import logging
+
+logger = logging.getLogger("app.chatbot")
+
 async def send_smart_options(platform, user_id, message, options, business_unit):
     """
-    Envía opciones interactivas de manera inteligente:
-    - Usa listas interactivas en WhatsApp si hay más de 3 opciones.
-    - Si falla, divide en lotes de 3 y usa botones interactivos.
-    - Si hay 3 o menos, usa botones directamente.
+    Envía opciones interactivas de manera optimizada:
+    - Si hay solo botones con URL, los envía como mensajes separados.
+    - Si hay 1 botón con URL y otros sin URL, primero envía la URL, luego los botones tras 2 segundos.
+    - Si hay más de 3 opciones en WhatsApp, usa listas interactivas.
+    - Si la lista interactiva falla, divide en lotes de 3 botones.
+    - Si hay 3 o menos opciones, usa botones directamente.
     """
     try:
-        if platform == "whatsapp" and len(options) > 3:
-            # Intentamos enviar lista interactiva si hay más de 3 opciones
-            success, msg_id = await send_list_options(platform, user_id, message, options, business_unit)
-            if success:
-                return True, msg_id  # ✅ Devuelve True si se envió correctamente
-            else:
-                logger.warning(f"[send_smart_options] ❌ Listas interactivas fallaron en {platform}, usando fallback.")
+        if platform == "whatsapp":
+            url_buttons = [opt for opt in options if "url" in opt]
+            normal_buttons = [opt for opt in options if "url" not in opt]
 
-        # **FALLBACK**: Si WhatsApp no soporta listas, dividir en grupos de 3 y enviar botones
-        last_msg_id = None
-        option_batches = [options[i:i+3] for i in range(0, len(options), 3)]  # ✅ Compatible con Python 3.10+
+            # ✅ Caso: Solo botones con URL → Enviar como mensajes separados
+            if url_buttons and not normal_buttons:
+                logger.info("[send_smart_options] 📤 Enviando botones URL como mensajes separados.")
+                for opt in url_buttons:
+                    await send_message(platform, user_id, f"🔗 {opt['title']}: {opt['url']}")
+                return True, None
 
-        for batch in option_batches:
-            success = await send_options(platform, user_id, message, batch, business_unit)
-            
-            if not success:
-                logger.error(f"[send_smart_options] ❌ Falló el envío de opciones en {platform}.")
-                return False, None  # ❌ Devuelve False si falló
-            
-            last_msg_id = "msg_id_placeholder"  # ✅ Se debe obtener de `send_options` cuando esté disponible
+            # ✅ Caso: 1 botón con URL + otros sin URL → Enviar URL primero, luego los botones
+            if len(url_buttons) == 1 and normal_buttons:
+                logger.info(f"[send_smart_options] 📤 Enviando primero el enlace: {url_buttons[0]['url']}")
+                await send_message(platform, user_id, f"🔗 {url_buttons[0]['title']}: {url_buttons[0]['url']}")
+                await asyncio.sleep(2)  # Espera de 2 segundos antes de enviar los botones
 
-            try:
-                await asyncio.sleep(0.5)  # Pequeña pausa para evitar ser bloqueado por spam
-            except asyncio.CancelledError:
-                logger.warning("[send_smart_options] ⚠️ Tarea de espera cancelada.")
-                break  # Salimos en caso de cancelación
+            # ✅ Caso: Más de 3 opciones → Intentar lista interactiva
+            if len(normal_buttons) > 3:
+                success, msg_id = await send_list_options(platform, user_id, message, normal_buttons, business_unit)
+                if success:
+                    return True, msg_id
+                logger.warning("[send_smart_options] ❌ Listas interactivas fallaron, usando fallback.")
 
-        return True, last_msg_id  # ✅ Devuelve el último `msg_id` exitoso
+            # ✅ Caso: 3 opciones o menos → Usar botones directamente
+            last_msg_id = None
+            option_batches = [normal_buttons[i:i+3] for i in range(0, len(normal_buttons), 3)]
+            for batch in option_batches:
+                success = await send_options(platform, user_id, message, batch, business_unit)
+                if not success:
+                    logger.error("[send_smart_options] ❌ Falló el envío de opciones.")
+                    return False, None
+                last_msg_id = "msg_id_placeholder"  # Debe reemplazarse con el ID real del mensaje
+                await asyncio.sleep(0.5)  # Pequeña pausa para evitar bloqueos por spam
+
+            return True, last_msg_id
+
+        # ✅ Caso: Otra plataforma → Enviar con `send_options`
+        return await send_options(platform, user_id, message, options, business_unit)
 
     except Exception as e:
         logger.error(f"[send_smart_options] ❌ Error enviando opciones a {user_id}: {e}", exc_info=True)
-        return False, None  # ❌ Retorna False en caso de error
+        return False, None
         
 async def send_options_async(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
     """
