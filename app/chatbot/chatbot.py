@@ -171,12 +171,15 @@ class ChatBotHandler:
         try:
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {business_unit.name}")
 
+            # Obtener o crear ChatState de forma asíncrona
             chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
                 user_id=user_id, business_unit=business_unit, defaults={'platform': platform}
             )
             user, _ = await self.get_or_create_user(user_id, platform)
 
-            if chat_state.person != user:
+            # Usar sync_to_async para acceder a relaciones síncronas
+            chat_state_person = await sync_to_async(lambda: chat_state.person)()
+            if chat_state_person != user:
                 chat_state.person = user
                 await sync_to_async(chat_state.save)()
 
