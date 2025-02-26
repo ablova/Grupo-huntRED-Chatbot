@@ -1,13 +1,19 @@
 # /home/pablo/app/ml/ml_model.py
 
+
 import os
+import shap
+import gc
+import json
 import logging
 from pathlib import Path
 
+from functools import lru_cache
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Prefetch
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
@@ -15,12 +21,16 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, f1_score
 
-from joblib import dump, load
+from joblib import dump, load, Parallel, delayed
+from keras_tuner import RandomSearch
 
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-import shap
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint, TensorBoard
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.optimizers import Adam
 
 from app.models import Person, Application, WeightingModel   # Asegúrate de que Application está correctamente definido en models.py
 from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
@@ -33,752 +43,666 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+# Carga condicional de TensorFlow (solo si es necesario)
+try:
+    import tensorflow as tf
+    tf.config.set_visible_devices([], 'GPU')  # Evita que TensorFlow busque GPUs si no hay
+    logger.info("✅ TensorFlow cargado correctamente.")
+except ImportError:
+    logger.warning("⚠ TensorFlow no está instalado. Se usará solo scikit-learn.")
+
+
 class MatchmakingLearningSystem:
+    """
+    Sistema de aprendizaje automático para matchmaking de candidatos y vacantes.
+    Usa principalmente RandomForest de scikit-learn.
+    """
+
     def __init__(self, business_unit=None):
-        """
-        Sistema de aprendizaje de matchmaking con soporte para
-        configuraciones globales o específicas por unidad de negocio.
-        """
         self.business_unit = business_unit
         self.model = RandomForestClassifier(n_estimators=100, random_state=42)
         self.scaler = StandardScaler()
-        self.pipeline = self._create_pipeline()
+        # Se combina todo en un Pipeline (escalado + modelo)
+        self.pipeline = Pipeline([
+            ('scaler', self.scaler),
+            ('classifier', self.model)
+        ])
+        # Ruta donde se guardará/cargará el modelo
         self.model_file = os.path.join(
-            settings.ML_MODELS_DIR, 
+            settings.ML_MODELS_DIR,
             f"matchmaking_model_{business_unit or 'global'}.pkl"
         )
-
-    def _select_model_pipeline(self):
-        """
-        Selecciona el pipeline según la unidad de negocio.
-        """
-        if self.business_unit == "huntRED®":
-            model = RandomForestClassifier(n_estimators=100, random_state=42)
-            scaler = StandardScaler()
-        elif self.business_unit == "Amigro":
-            model = tf.keras.Sequential([
-                tf.keras.layers.Dense(64, activation="relu"),
-                tf.keras.layers.Dense(32, activation="relu"),
-                tf.keras.layers.Dense(1, activation="sigmoid")
-            ])
-            scaler = None  # Redes neuronales no necesitan escalado en todos los casos
-        else:
-            model = RandomForestClassifier(n_estimators=50, random_state=42)
-            scaler = StandardScaler()
-        
-        return model, scaler
-    
-    def _create_pipeline(self):
-        """
-        Crea un pipeline de preprocesamiento y modelo.
-        """
-        return Pipeline([
-            ('scaler', self.scaler),
-            ('model', self.model)
-        ])
-
-    def prepare_training_data(self):
-        """
-        Prepara los datos históricos para entrenamiento del modelo.
-        """
-        applications = self._get_applications()
-        data = []
-        for app in applications:
-            # Verifica que vacante esté presente
-            if not app.vacancy:
-                logger.warning(f"Aplicación sin vacante: {app.id}")
-                continue
-
-            features = {
-                'experience_years': app.person.experience_years or 0,
-                'hard_skills_match': self._calculate_hard_skills_match(app),
-                'soft_skills_match': self._calculate_soft_skills_match(app),
-                'salary_alignment': self._calculate_salary_alignment(app),
-                'age': self._calculate_age(app.person),
-                'is_successful': 1 if app.status == 'contratado' else 0
-            }
-            data.append(features)
-        df = pd.DataFrame(data)
-        logger.info(f"Datos de entrenamiento preparados con {len(df)} registros.")
-        return df
+        self._loaded_model = None
 
     def _get_applications(self):
         """
-        Recupera aplicaciones históricas, filtrando por unidad de negocio si aplica.
+        Recupera aplicaciones históricas con estado 'contratado' o 'rechazado'.
+        Filtra por unidad de negocio si corresponde.
         """
         if self.business_unit:
-            applications = Application.objects.filter(
+            apps = Application.objects.filter(
                 vacancy__business_unit=self.business_unit,
                 status__in=['contratado', 'rechazado']
             )
         else:
-            applications = Application.objects.filter(status__in=['contratado', 'rechazado'])
-        logger.info(f"Aplicaciones recuperadas: {applications.count()}")
-        return applications
+            apps = Application.objects.filter(status__in=['contratado', 'rechazado'])
+        logger.info(f"Aplicaciones recuperadas: {apps.count()}")
+        return apps
 
-    def train_model(self):
+    def prepare_training_data(self):
         """
-        Entrena el modelo y registra métricas detalladas.
+        Prepara datos de entrenamiento a partir de las aplicaciones recuperadas,
+        extrayendo características relevantes con manejo de errores.
         """
-        df = self.prepare_training_data()
+        applications = self._get_applications()
+        data = []
+        for app in applications:
+            if not app.vacancy:
+                logger.warning(f"Aplicación sin vacante: {app.id}")
+                continue
+            try:
+                features = {
+                    'experience_years': app.person.experience_years or 0,
+                    'hard_skills_match': self._calculate_hard_skills_match(app),
+                    'soft_skills_match': self._calculate_soft_skills_match(app),
+                    'salary_alignment': self._calculate_salary_alignment(app),
+                    'age': self._calculate_age(app.person),
+                    'is_successful': 1 if app.status == 'contratado' else 0
+                }
+                data.append(features)
+            except Exception as e:
+                logger.error(f"Error procesando aplicación {app.id}: {e}")
+                continue
+
+        df = pd.DataFrame(data)
         if df.empty:
-            logger.error("No hay datos para entrenar el modelo.")
-            return None
+            raise ValueError("No hay datos válidos para entrenar el modelo.")
+        logger.info(f"Datos preparados para entrenamiento: {len(df)} registros.")
+        return df
 
-        X = df.drop('is_successful', axis=1)
-        y = df['is_successful']
+    def train_model(self, df, test_size=0.2):
+        """
+        Entrena el RandomForest sobre los datos proporcionados.
+        Se realiza un split en train y test para evaluar métricas.
+        """
+        X = df.drop(columns=["is_successful"])
+        y = df["is_successful"]
 
-        X_scaled = self.scaler.fit_transform(X) if self.scaler else X
         X_train, X_test, y_train, y_test = train_test_split(
-            X_scaled, y, test_size=0.2, random_state=42
+            X, y, test_size=test_size, random_state=42
         )
 
-        self.model.fit(X_train, y_train)
-        y_pred = self.model.predict(X_test)
-        
-        # Calcular métricas
-        accuracy = self.model.score(X_test, y_test)
-        precision = precision_score(y_test, y_pred)
-        recall = recall_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
-        
-        logger.info(f"Modelo entrenado con precisión: {accuracy:.2f}")
-        logger.info(f"Métricas: Precisión={precision:.2f}, Recall={recall:.2f}, F1={f1:.2f}")
-        
+        self.pipeline.fit(X_train, y_train)
         dump(self.pipeline, self.model_file)
-        return accuracy
+        logger.info(f"✅ Modelo RandomForest entrenado y guardado en {self.model_file}")
 
-    def predict_candidate_success(self, person, vacante):
-        """Predice la probabilidad de éxito de un candidato, incorporando sentimiento."""
+        # Métricas de evaluación
+        y_pred = self.pipeline.predict(X_test)
+        report = classification_report(y_test, y_pred)
+        logger.info(f"Reporte de clasificación:\n{report}")
+        logger.info(f"Precisión: {precision_score(y_test, y_pred, zero_division=0):.2f}")
+        logger.info(f"Recall: {recall_score(y_test, y_pred, zero_division=0):.2f}")
+        logger.info(f"F1-Score: {f1_score(y_test, y_pred, zero_division=0):.2f}")
+
+        gc.collect()
+
+    def predict_candidate_success(self, person, vacancy):
+        """
+        Predice la probabilidad de éxito de un candidato en una vacante
+        usando el modelo entrenado (RandomForest).
+        """
         if not Path(self.model_file).exists():
             logger.error(f"Modelo no encontrado: {self.model_file}")
-            raise FileNotFoundError("Modelo no entrenado. Entrena el modelo antes de predecir.")
+            raise FileNotFoundError("El modelo no está entrenado.")
 
-        self.pipeline = load(self.model_file)
+        if not self._loaded_model:
+            self._loaded_model = load(self.model_file)
 
-        # Extraer habilidades y sentimiento desde el último mensaje del candidato
-        from app.chatbot.nlp import nlp_processor
-        last_message = person.metadata.get("last_message", "")  # Suponiendo que guardamos esto
-        skills_data = nlp_processor.extract_skills(last_message, self.business_unit)
-
-        # Crear características
         features = {
             'experience_years': person.experience_years or 0,
-            'hard_skills_match': self._calculate_hard_skills_match(MockApplication(person, vacante)),
-            'soft_skills_match': self._calculate_soft_skills_match(MockApplication(person, vacante)),
-            'salary_alignment': self._calculate_salary_alignment(MockApplication(person, vacante)),
-            'age': self._calculate_age(person),
-            'sentiment_score': skills_data.get("sentiment_score", 0.7)  # Default neutral
+            'hard_skills_match': self._calculate_hard_skills_match_mock(person, vacancy),
+            'soft_skills_match': self._calculate_soft_skills_match_mock(person, vacancy),
+            'salary_alignment': self._calculate_salary_alignment_mock(person, vacancy),
+            'age': self._calculate_age(person)
         }
+        array = np.array(list(features.values())).reshape(1, -1)
+        proba = self._loaded_model.predict_proba(array)[0][1]
+        logger.info(f"Predicción de éxito para {person}: {proba:.2f}")
+        return proba
 
-        feature_array = np.array(list(features.values())).reshape(1, -1)
-        prediction_proba = self.pipeline.predict_proba(feature_array)[0][1]
-        logger.info(f"Predicción de éxito para {person}: {prediction_proba:.2f}")
-        return prediction_proba
-
-    def predict_all_active_matches(person):
+    def predict_all_active_matches(self, person):
         """
-        Genera predicciones para todas las vacantes activas, adaptadas por unidad de negocio.
+        Predice en lote la probabilidad de éxito para todas las vacantes activas
+        de la BU del candidato con manejo de errores.
         """
-        if not person.current_stage or not person.current_stage.business_unit:
+        self.load_model()
+        bu = person.current_stage.business_unit if person.current_stage else None
+        if not bu:
             return []
 
-        # Cargar pesos según la unidad de negocio
-        business_unit = person.current_stage.business_unit
-        weights_model = WeightingModel(business_unit)
-        weights = weights_model.get_weights(position_level="gerencia_media")  # Ajustar el nivel según contexto
+        active_vacancies = Vacante.objects.filter(activa=True, business_unit=bu)
+        if not active_vacancies.exists():
+            return []
 
-        active_vacancies = Vacante.objects.filter(activa=True, business_unit=business_unit)
-        matches = []
-        
+        features_list = []
         for vacante in active_vacancies:
-            score = calculate_match_score(person, vacante, weights)
-            if score > 70:
-                matches.append({"vacante": vacante.titulo, "empresa": vacante.empresa, "score": score})
-        
-        # Ordenar por puntaje
-        matches = sorted(matches, key=lambda x: x["score"], reverse=True)
-        return matches
+            try:
+                features = {
+                    'experience_years': person.experience_years or 0,
+                    'hard_skills_match': calculate_match_percentage(person.skills, vacante.skills_required),
+                    'soft_skills_match': calculate_match_percentage(
+                        person.metadata.get('soft_skills', []),
+                        vacante.metadata.get('soft_skills', [])
+                    ),
+                    'salary_alignment': calculate_alignment_percentage(
+                        person.salary_data.get('current_salary', 0),
+                        vacante.salario or 0
+                    ),
+                    'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
+                        if person.fecha_nacimiento else 0
+                }
+                features_list.append(features)
+            except Exception as e:
+                logger.error(f"Error procesando vacante {vacante.id}: {e}")
+                continue
+
+        if not features_list:
+            return []
+
+        X = pd.DataFrame(features_list)
+        X_scaled = self.scaler.transform(X)
+        predictions = (self.model.predict(X_scaled).flatten() * 100).tolist()
+        results = [
+            {"vacante": v.titulo, "empresa": v.empresa, "score": round(p, 2)}
+            for v, p in zip(active_vacancies, predictions)
+        ]
+        return sorted(results, key=lambda x: x["score"], reverse=True)
 
     def recommend_skill_improvements(self, person):
         """
-        Recomienda mejoras de habilidades basadas en análisis histórico.
+        Genera recomendaciones de habilidades basadas en brechas detectadas.
+        (Versión simple o heurística).
         """
         skill_gaps = self._identify_skill_gaps()
-        recommendations = []
-        person_skills = set([skill.strip().lower() for skill in person.skills.split(',')]) if person.skills else set()
+        person_skills = set(skill.strip().lower() for skill in (person.skills or "").split(','))
 
+        recommendations = []
         for skill, importance in skill_gaps.items():
             if skill.lower() not in person_skills:
                 recommendations.append({
                     'skill': skill,
                     'importance': importance,
-                    'recommendation': f"Considere desarrollar la habilidad: {skill}"
+                    'recommendation': f"Deberías desarrollar más la habilidad '{skill}'"
                 })
-        logger.info(f"Recomendaciones de habilidades para {person}: {recommendations}")
+        logger.info(f"Recomendaciones para {person}: {recommendations}")
         return recommendations
-
-    def _identify_skill_gaps(self):
-        """
-        Identifica las brechas de habilidades más comunes.
-        """
-        # Este método podría mejorarse extrayendo datos de un análisis histórico
-        return {
-            'Python': 0.9,
-            'Gestión de proyectos': 0.8,
-            'Análisis de datos': 0.7
-        }
-
-    def _calculate_hard_skills_match(self, application):
-        """
-        Calcula el porcentaje de coincidencia de habilidades técnicas usando habilidades estandarizadas.
-        """
-        from app.chatbot.nlp import TabiyaJobClassifier
-        classifier = TabiyaJobClassifier()
-        person_skills = application.person.skills.split(',') if application.person.skills else []
-        job_skills = application.vacante.skills_required if application.vacante.skills_required else []
-        match_percentage = calculate_match_percentage(person_skills, job_skills, classifier)
-        logger.debug(f"Habilidades técnicas coincididas: {match_percentage:.2f}%")
-        return match_percentage
-
-    def _calculate_soft_skills_match(self, application):
-        """
-        Calcula coincidencia de habilidades blandas.
-        """
-        person_soft_skills = set([skill.strip().lower() for skill in application.person.metadata.get('soft_skills', [])])
-        job_soft_skills = set([skill.strip().lower() for skill in application.vacante.metadata.get('soft_skills', [])])
-        if not job_soft_skills:
-            logger.warning(f"Vacante sin habilidades blandas requeridas: {application.vacante}")
-            return 0.0
-        match_percentage = len(person_soft_skills.intersection(job_soft_skills)) / len(job_soft_skills) * 100
-        logger.debug(f"Habilidades blandas coincididas: {match_percentage:.2f}%")
-        return match_percentage
-
-    def _calculate_salary_alignment(self, application):
-        """
-        Calcula la alineación salarial.
-        """
-        current_salary = application.person.salary_data.get('current_salary', 0)
-        offered_salary = application.vacante.salario or 0
-        alignment = calculate_alignment_percentage(current_salary, offered_salary)
-        logger.debug(f"Alineación salarial: {alignment:.2f}%")
-        return alignment
-
-    def _calculate_age(self, person):
-        """
-        Calcula la edad del candidato.
-        """
-        if not person.fecha_nacimiento:
-            logger.warning(f"Persona sin fecha de nacimiento: {person}")
-            return 0.0
-        age = (timezone.now().date() - person.fecha_nacimiento).days / 365
-        logger.debug(f"Edad calculada para {person}: {age:.2f} años")
-        return age
 
     def generate_quarterly_insights(self):
         """
-        Genera insights trimestrales sobre el proceso de matchmaking.
+        Genera estadísticas e insights trimestrales del proceso de selección.
         """
         insights = {
             'top_performing_skills': self._analyze_top_skills(),
             'success_rate_by_experience': self._analyze_experience_impact(),
             'salary_correlation': self._analyze_salary_impact()
         }
-        logger.info(f"Insights trimestrales generados: {insights}")
+        logger.info(f"Insights trimestrales: {insights}")
         return insights
+
+    def explain_prediction(self, person, vacancy):
+        """
+        Usa SHAP para explicar la predicción de un candidato en una vacante.
+        """
+        if not Path(self.model_file).exists():
+            logger.error("Modelo no encontrado para explicar la predicción.")
+            raise FileNotFoundError("Modelo no entrenado.")
+
+        if not self._loaded_model:
+            self._loaded_model = load(self.model_file)
+
+        explainer = shap.TreeExplainer(self._loaded_model['classifier'])
+        features = [
+            person.experience_years or 0,
+            self._calculate_hard_skills_match_mock(person, vacancy),
+            self._calculate_soft_skills_match_mock(person, vacancy),
+            self._calculate_salary_alignment_mock(person, vacancy),
+            self._calculate_age(person)
+        ]
+        shap_values = explainer.shap_values([features])
+        logger.info(f"SHAP Values: {shap_values}")
+        return shap_values
+
+    # ----------------------------------------
+    # Métodos internos para cálculo de features
+    # ----------------------------------------
+
+    def _calculate_hard_skills_match(self, application):
+        """Porcentaje de coincidencia de habilidades técnicas para una aplicación real."""
+        person_skills = (application.person.skills or "").split(',')
+        job_skills = application.vacancy.skills_required or []
+        return calculate_match_percentage(person_skills, job_skills)
+
+    def _calculate_soft_skills_match(self, application):
+        """Porcentaje de coincidencia de habilidades blandas para una aplicación real."""
+        person_soft_skills = set(application.person.metadata.get('soft_skills', []))
+        job_soft_skills = set(application.vacancy.metadata.get('soft_skills', []))
+        if not job_soft_skills:
+            return 0.0
+        return (len(person_soft_skills.intersection(job_soft_skills)) / len(job_soft_skills)) * 100
+
+    def _calculate_salary_alignment(self, application):
+        """Alineación salarial entre candidato y vacante."""
+        current_salary = application.person.salary_data.get('current_salary', 0)
+        offered_salary = application.vacancy.salario or 0
+        return calculate_alignment_percentage(current_salary, offered_salary)
+
+    def _calculate_age(self, person):
+        """Calcula la edad (en años) de la persona a partir de la fecha de nacimiento."""
+        if not person.fecha_nacimiento:
+            return 0
+        return (timezone.now().date() - person.fecha_nacimiento).days / 365
+
+    def _calculate_hard_skills_match_mock(self, person, vacancy):
+        """Versión mock para calcular 'hard_skills_match' sin un objeto Application."""
+        person_skills = (person.skills or "").split(',')
+        job_skills = vacancy.skills_required or []
+        return calculate_match_percentage(person_skills, job_skills)
+
+    def _calculate_soft_skills_match_mock(self, person, vacancy):
+        """Versión mock para 'soft_skills_match' sin Application."""
+        p_soft = set(person.metadata.get("soft_skills", []))
+        v_soft = set(vacancy.metadata.get("soft_skills", []))
+        if not v_soft:
+            return 0.0
+        return (len(p_soft.intersection(v_soft)) / len(v_soft)) * 100
+
+    def _calculate_salary_alignment_mock(self, person, vacancy):
+        """Versión mock para 'salary_alignment' sin Application."""
+        cur_sal = person.salary_data.get('current_salary', 0)
+        off_sal = vacancy.salario or 0
+        return calculate_alignment_percentage(cur_sal, off_sal)
+
+    # ----------------------------------------
+    # Métodos para generar insights
+    # ----------------------------------------
+
+    def _identify_skill_gaps(self):
+        """
+        Identifica brechas de habilidades más comunes en los datos.
+        Ejemplo simplificado.
+        """
+        return {
+            'Python': 0.9,
+            'Gestión de proyectos': 0.8,
+            'Análisis de datos': 0.7
+        }
 
     def _analyze_top_skills(self):
         """
         Analiza las habilidades más frecuentes en candidatos contratados.
         """
-        successful_applications = Application.objects.filter(status='contratado')
+        successful_apps = Application.objects.filter(status='contratado')
         skill_counts = {}
-        for app in successful_applications:
+        for app in successful_apps:
             if not app.person.skills:
                 continue
-            skills = [skill.strip().lower() for skill in app.person.skills.split(',')]
+            skills = [s.strip().lower() for s in app.person.skills.split(',')]
             for skill in skills:
                 skill_counts[skill] = skill_counts.get(skill, 0) + 1
         sorted_skills = sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)
-        top_skills = sorted_skills[:10]
-        logger.debug(f"Top habilidades: {top_skills}")
-        return top_skills
+        return sorted_skills[:10]
 
     def _analyze_experience_impact(self):
         """
-        Analiza el impacto de la experiencia laboral en el éxito.
+        Analiza el impacto de la experiencia laboral en la probabilidad de ser contratado.
         """
-        successful_apps = Application.objects.filter(status='contratado')
-        rejected_apps = Application.objects.filter(status='rechazado')
+        s_apps = Application.objects.filter(status='contratado')
+        r_apps = Application.objects.filter(status='rechazado')
 
-        experience_successful = [app.person.experience_years or 0 for app in successful_apps]
-        experience_rejected = [app.person.experience_years or 0 for app in rejected_apps]
+        exp_success = [app.person.experience_years or 0 for app in s_apps]
+        exp_reject = [app.person.experience_years or 0 for app in r_apps]
 
-        avg_successful = sum(experience_successful) / len(experience_successful) if experience_successful else 0
-        avg_rejected = sum(experience_rejected) / len(experience_rejected) if experience_rejected else 0
+        avg_succ = sum(exp_success) / len(exp_success) if exp_success else 0
+        avg_reje = sum(exp_reject) / len(exp_reject) if exp_reject else 0
 
-        difference = avg_successful - avg_rejected
-
-        impact = {
-            "avg_experience_successful": round(avg_successful, 2),
-            "avg_experience_rejected": round(avg_rejected, 2),
-            "difference": round(difference, 2)
+        return {
+            "avg_experience_contratados": round(avg_succ, 2),
+            "avg_experience_rechazados": round(avg_reje, 2),
+            "difference": round(avg_succ - avg_reje, 2)
         }
-        logger.debug(f"Impacto de experiencia: {impact}")
-        return impact
 
     def _analyze_salary_impact(self):
         """
-        Analiza la correlación entre expectativas salariales y éxito laboral.
+        Analiza la correlación entre expectativas salariales y éxito (contratación).
         """
-        successful_apps = Application.objects.filter(status='contratado')
-        salary_differences = []
-        for app in successful_apps:
+        from app.models import Vacante
+        s_apps = Application.objects.filter(status='contratado')
+        salary_diffs = []
+        for app in s_apps:
             expected_salary = app.person.salary_data.get('expected_salary', 0)
-            offered_salary = app.vacante.salario
-            if not offered_salary:
-                continue
-            difference = abs(expected_salary - offered_salary) / offered_salary * 100
-            salary_differences.append(difference)
+            offered_salary = app.vacancy.salario if app.vacancy else 0
+            if offered_salary:
+                diff = abs(expected_salary - offered_salary) / offered_salary * 100
+                salary_diffs.append(diff)
 
-        avg_difference = sum(salary_differences) / len(salary_differences) if salary_differences else 0
-        aligned_candidates = len([diff for diff in salary_differences if diff < 10])
-        total_candidates = len(salary_differences)
+        avg_diff = sum(salary_diffs) / len(salary_diffs) if salary_diffs else 0
+        aligned_count = sum(1 for d in salary_diffs if d < 10)
 
-        salary_impact = {
-            "avg_salary_difference": round(avg_difference, 2),
-            "aligned_candidates": aligned_candidates,
-            "total_candidates": total_candidates
+        return {
+            "avg_salary_difference": round(avg_diff, 2),
+            "aligned_candidates": aligned_count,
+            "total_candidates": len(salary_diffs)
         }
-        logger.debug(f"Impacto salarial: {salary_impact}")
-        return salary_impact
-
-    # Skill and Adaptation Metrics
-    skill_adaptability_index = models.FloatField(default=0.5)
-
-    def calculate_match_score(person, vacante, weights):
-        score = 0
-
-        # Hard Skills
-        person_skills = person.skills.split(",") if person.skills else []
-        job_skills = vacante.skills_required or []
-        skill_match = calculate_match_percentage(person_skills, job_skills)
-        score += skill_match * weights["hard_skills"]
-
-        # Soft Skills
-        soft_skills = person.metadata.get("soft_skills", [])
-        job_soft_skills = vacante.metadata.get("soft_skills", [])
-        if soft_skills and job_soft_skills:
-            match_soft_skills = calculate_match_percentage(soft_skills, job_soft_skills)
-            score += match_soft_skills * weights["soft_skills"]
-
-        # Ubicación
-        if person.metadata.get("desired_locations") and vacante.ubicacion in person.metadata["desired_locations"]:
-            score += weights["ubicacion"]
-
-        # Salario
-        current_salary = person.salary_data.get("current_salary", 0)
-        offered_salary = vacante.salario or 0
-        salary_match = calculate_alignment_percentage(current_salary, offered_salary)
-        score += salary_match * weights["salario"]
-
-        return round(score, 2)
-    
-    def explain_prediction(self, person, vacante):
-        """
-        Genera explicaciones para la predicción de un candidato.
-        """
-        if not Path(self.model_file).exists():
-            logger.error(f"Modelo no encontrado: {self.model_file}")
-            raise FileNotFoundError("Modelo no entrenado. Entrena el modelo antes de predecir.")
-
-        self.pipeline = load(self.model_file)
-        explainer = shap.TreeExplainer(self.model)
-        
-        # Crear características
-        features = self._prepare_features(person, vacante)
-        shap_values = explainer.shap_values([features])
-        
-        # Log de interpretabilidad
-        logger.info(f"SHAP Values: {shap_values}")
-        return shap_values
-    
-    def check_gpu_availability():
-        """
-        Verifica y registra si hay GPUs disponibles.
-        """
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        if gpus:
-            logger.info(f"GPUs disponibles: {[gpu.name for gpu in gpus]}")
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-        else:
-            logger.warning("No se encontraron GPUs. Usando CPU.")
-
-    async def predict_top_candidates(self, vacancy, top_n=10):
-        """
-        Predice los mejores candidatos conocidos para una vacante, usando habilidades estandarizadas.
-        """
-        from app.chatbot.nlp import TabiyaJobClassifier
-        from asgiref.sync import sync_to_async
-        
-        classifier = TabiyaJobClassifier()
-        candidates = await sync_to_async(Person.objects.filter)(status='active')
-        scores = []
-        for candidate in candidates:
-            mock_app = MockApplication(candidate, vacancy)
-            match_score = self._calculate_hard_skills_match(mock_app)
-            success_proba = self.predict_candidate_success(candidate, vacancy)
-            combined_score = 0.7 * success_proba + 0.3 * (match_score / 100)  # Ponderación ajustable
-            scores.append((candidate, combined_score))
-        top_candidates = sorted(scores, key=lambda x: x[1], reverse=True)[:top_n]
-        logger.info(f"Top {top_n} candidatos para vacante {vacancy.titulo}: {[c[0].nombre for c in top_candidates]}")
-        return top_candidates
-    
-    def train_tabiya_classifier(self, training_data: list, business_unit: str = None):
-        """Entrena el TabiyaJobClassifier con datos locales para mejorar la clasificación de habilidades."""
-        from app.chatbot.nlp import TabiyaJobClassifier
-        import logging
-
-        logger = logging.getLogger(__name__)
-        tabiya_classifier = TabiyaJobClassifier()
-
-        try:
-            # Suponiendo que training_data es una lista de dicts: [{"text": "texto", "skills": ["skill1", "skill2"]}]
-            # Convertimos los datos en un formato compatible con el clasificador
-            texts = [item["text"] for item in training_data if "text" in item]
-            labels = [item["skills"] for item in training_data if "skills" in item]
-
-            if not texts or not labels:
-                logger.error("Datos de entrenamiento vacíos o inválidos.")
-                return False
-
-            # Simulación de entrenamiento (fine-tuning) si el clasificador lo permite
-            try:
-                # Nota: Esto es hipotético; necesitamos verificar si EntityLinker tiene un método train
-                tabiya_classifier.linker.train(texts, labels)  # Método hipotético
-                logger.info(f"TabiyaJobClassifier entrenado con {len(texts)} ejemplos para {business_unit or 'general'}.")
-            except AttributeError:
-                # Si no hay método train, usamos un enfoque heurístico
-                logger.warning("El clasificador no soporta entrenamiento directo. Usando ajuste heurístico.")
-                for text, skills in zip(texts, labels):
-                    # Simulamos entrenamiento ajustando pesos internos (ejemplo simple)
-                    predicted = tabiya_classifier.classify(text)
-                    if set(skills) != {item['skill'] for item in predicted if 'skill' in item}:
-                        logger.debug(f"Ajustando predicción para '{text}' con etiquetas {skills}")
-                        # Aquí podrías guardar un modelo ajustado o reglas manuales
-                logger.info("Ajuste heurístico completado.")
-
-            # Guardar el modelo entrenado (si Tabiya lo permite)
-            # tabiya_classifier.save_model("/home/pablo/models/tuned_tabiya_model")  # Método hipotético
-            return True
-
-        except Exception as e:
-            logger.error(f"Error entrenando TabiyaJobClassifier: {e}", exc_info=True)
-            return False
-        
-    def prepare_tabiya_training_data(self):
-        from app.models import Person
-        persons = Person.objects.filter(business_unit__name=self.business_unit)
-        training_data = [
-            {"text": p.metadata.get("last_message", ""), "skills": p.skills.split(",") if p.skills else []}
-            for p in persons if p.metadata.get("last_message")
-        ]
-        return training_data
 
 class GrupohuntREDMLPipeline:
-    def __init__(self, business_unit='huntRED®', log_dir='./ml_logs'):
-        """
-        Inicializa el pipeline de ML para una Business Unit específica.
-        """
-        os.makedirs(log_dir, exist_ok=True)
-        logging.basicConfig(
-            filename=os.path.join(log_dir, f'{business_unit}_ml.log'),
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s: %(message)s'
-        )
-        logger.info(f"GrupohuntREDMLPipeline inicializado para {business_unit}")
+    """
+    Pipeline de Machine Learning con TensorFlow/Keras para la Business Unit 'huntRED®',
+    aunque se puede generalizar a otras.
+    """
 
+    # Configuraciones por unidad de negocio
+    model_config = {
+        'huntRED®': {
+            'layers': [256, 128, 64],
+            'learning_rate': 0.001,
+            'dropout_rate': 0.3
+        },
+        'huntU': {
+            'layers': [128, 64],
+            'learning_rate': 0.0005,
+            'dropout_rate': 0.2
+        },
+        'Amigro': {
+            'layers': [128, 64, 32],
+            'learning_rate': 0.0008,
+            'dropout_rate': 0.25
+        }
+    }
+    _loaded_models = {}
+
+    def __init__(self, business_unit='huntRED®', log_dir='./ml_logs'):
+        os.makedirs(log_dir, exist_ok=True)
         self.business_unit = business_unit
         self.model_path = os.path.join(settings.ML_MODELS_DIR, f'{business_unit}_model.h5')
         self.scaler_path = os.path.join(settings.ML_MODELS_DIR, f'{business_unit}_scaler.pkl')
-
         self.model = None
         self.scaler = StandardScaler()
 
-        # Configuración de modelos por unidad de negocio
-        self.model_config = {
-            'huntRED®': {'layers': [128, 64, 32], 'learning_rate': 0.001, 'dropout_rate': 0.3},
-            'huntU': {'layers': [256, 128, 64], 'learning_rate': 0.0005, 'dropout_rate': 0.2},
-            'Amigro': {'layers': [128, 128, 64], 'activation': 'sigmoid', 'learning_rate': 0.0008, 'dropout_rate': 0.25}
-        }
-
-    def build_model(self, input_shape=10):
+    def build_model(self, input_dim):
         """
-        Construye el modelo de red neuronal basado en la configuración de la unidad de negocio.
+        Construye una red neuronal (Sequential) personalizada según la unidad de negocio.
         """
         config = self.model_config.get(self.business_unit, self.model_config['huntRED®'])
-
-        model = tf.keras.Sequential()
+        model = Sequential()
         for units in config['layers']:
-            model.add(tf.keras.layers.Dense(units, activation=config.get('activation', 'relu')))
-            model.add(tf.keras.layers.Dropout(config['dropout_rate']))
-
-        model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
+            model.add(Dense(units, activation='relu'))
+            model.add(Dropout(config['dropout_rate']))
+        model.add(Dense(1, activation='sigmoid'))
 
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=config['learning_rate']),
+            optimizer=Adam(learning_rate=config['learning_rate']),
             loss='binary_crossentropy',
-            metrics=['accuracy', 'AUC']
+            metrics=['accuracy']
         )
-
         self.model = model
-        logger.info(f"Modelo de red neuronal construido para {self.business_unit}")
-    
-    _loaded_models = {}
+        logger.info(f"Modelo Keras construido para {self.business_unit} con capas {config['layers']}.")
 
-    def load_model(self):
+    def prepare_training_data(self):
         """
-        Carga el modelo en memoria solo si no ha sido cargado previamente.
+        Recupera datos históricos de Applications (status: contratado, rechazado),
+        extrae features y retorna un DataFrame.
         """
-        if self.business_unit in self._loaded_models:
-            self.model = self._loaded_models[self.business_unit]
-            logger.info(f"Usando modelo en memoria para {self.business_unit}")
-            return
+        apps = Application.objects.filter(
+            vacancy__business_unit=self.business_unit,
+            status__in=['contratado', 'rechazado']
+        ).select_related('person', 'vacancy')
 
-        if os.path.exists(self.model_path):
-            self.model = tf.keras.models.load_model(self.model_path)
-            self._loaded_models[self.business_unit] = self.model
-            logger.info(f"Modelo cargado desde {self.model_path}")
-        else:
-            logger.warning("No se encontró un modelo entrenado. Construyendo uno nuevo.")
-            self.build_model()
+        data = []
+        for app in apps:
+            if not app.vacancy:
+                continue
+            data.append({
+                'experience_years': app.person.experience_years or 0,
+                'hard_skills_match': calculate_match_percentage(app.person.skills, app.vacancy.skills_required),
+                'soft_skills_match': calculate_match_percentage(
+                    app.person.metadata.get('soft_skills', []),
+                    app.vacancy.metadata.get('soft_skills', [])
+                ),
+                'salary_alignment': calculate_alignment_percentage(
+                    app.person.salary_data.get('current_salary', 0),
+                    app.vacancy.salario or 0
+                ),
+                'age': (timezone.now().date() - app.person.fecha_nacimiento).days / 365
+                       if app.person.fecha_nacimiento else 0,
+                'success_label': 1 if app.status == 'contratado' else 0
+            })
 
-    def preprocess_data(self, data, target_column='success_label'):
-        """
-        Preprocesa los datos de entrenamiento y los divide en conjuntos de entrenamiento y prueba.
-        """
-        if target_column not in data.columns:
-            logger.error(f"Columna objetivo '{target_column}' no encontrada en los datos.")
-            raise ValueError(f"Columna objetivo '{target_column}' no encontrada en los datos.")
-        
-        X = data.drop(columns=[target_column])
-        y = data[target_column]
+        df = pd.DataFrame(data)
+        logger.info(f"Datos preparados para {self.business_unit}: {len(df)} registros.")
+        return df
 
-        X = pd.get_dummies(X)
+    def preprocess_data(self, df):
+        """
+        Aplica dummy encoding (si fuera necesario), escalado y luego
+        separa en train/test.
+        """
+        if 'success_label' not in df.columns:
+            raise ValueError("Falta la columna 'success_label' en los datos.")
+
+        X = df.drop(columns=['success_label'])
+        y = df['success_label']
+
+        # Escalado
         X_scaled = self.scaler.fit_transform(X)
+        dump(self.scaler, self.scaler_path)
 
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled, y, test_size=0.2, random_state=42
         )
-
-        dump(self.scaler, self.scaler_path)  # Guardar el scaler
-        logger.info("Preprocesamiento de datos completado.")
         return X_train, X_test, y_train, y_test
 
     def train_model(self, X_train, y_train, X_test, y_test):
         """
-        Entrena el modelo y lo guarda.
+        Entrena la red neuronal construida con callbacks de regularización.
+        Guarda el modelo en self.model_path.
         """
-        self.build_model(input_shape=X_train.shape[1])
+        # Si el modelo no está creado todavía
+        if self.model is None:
+            self.build_model(input_dim=X_train.shape[1])
 
-        early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss', patience=10, restore_best_weights=True
-        )
+        callbacks = [
+            EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True, verbose=1),
+            ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=5, min_lr=1e-5, verbose=1),
+            ModelCheckpoint(self.model_path, save_best_only=True, monitor='val_loss', verbose=1),
+            TensorBoard(log_dir='./logs')
+        ]
 
         self.model.fit(
             X_train, y_train,
             validation_data=(X_test, y_test),
-            epochs=50,
+            epochs=100,
             batch_size=32,
-            callbacks=[early_stopping]
+            callbacks=callbacks,
+            verbose=1
         )
 
         self.model.save(self.model_path)
-        logger.info(f"Modelo guardado en {self.model_path}")
+        logger.info(f"✅ Modelo entrenado y guardado en {self.model_path}")
+        gc.collect()
 
-    def predict_pending(self):
+    @lru_cache(maxsize=1)
+    def load_model(self):
         """
-        Predice las mejores coincidencias para todas las vacantes pendientes.
+        Carga el modelo y el scaler en memoria de forma eficiente con caching.
         """
-        from app.models import Person, Vacante
+        if os.path.exists(self.model_path):
+            self.model = load_model(self.model_path)
+            logger.info(f"Modelo Keras cargado desde {self.model_path}.")
+        else:
+            logger.warning("No se encontró un modelo entrenado. Se construirá uno nuevo.")
+            self.build_model(input_dim=5)  # Asumiendo 5 características; ajustar según datos reales
 
-        persons = Person.objects.filter(status='active')
-        vacantes = Vacante.objects.filter(activa=True)
+        if os.path.exists(self.scaler_path):
+            self.scaler = load(self.scaler_path)
+        else:
+            logger.warning("Scaler no encontrado. Se usará un scaler no entrenado.")
 
-        resultados = []
-        for person in persons:
-            for vacante in vacantes:
-                score = self.predict_candidate_success(person, vacante)
-                resultados.append({
-                    "persona": person.nombre,
-                    "vacante": vacante.titulo,
-                    "score": score
-                })
-
-        logger.info(f"Predicciones completadas: {len(resultados)} coincidencias calculadas.")
-        return resultados
-
-    def predict(self, X):
+    def predict_candidate_success(self, person, vacancy):
         """
-        Realiza una predicción con el modelo cargado.
+        Predice la probabilidad de éxito con el modelo Keras para un candidato y una vacante.
         """
-        if self.model is None:
-            self.load_model()
+        self.load_model()
 
+        features = [{
+            'experience_years': person.experience_years or 0,
+            'hard_skills_match': calculate_match_percentage(person.skills, vacancy.skills_required),
+            'soft_skills_match': calculate_match_percentage(
+                person.metadata.get("soft_skills", []),
+                vacancy.metadata.get("soft_skills", [])
+            ),
+            'salary_alignment': calculate_alignment_percentage(
+                person.salary_data.get("current_salary", 0),
+                vacancy.salario or 0
+            ),
+            'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
+                   if person.fecha_nacimiento else 0
+        }]
+
+        X = pd.DataFrame(features)
         X_scaled = self.scaler.transform(X)
-        return self.model.predict(X_scaled)
+        proba = self.model.predict(X_scaled)[0][0]
+        logger.info(f"Probabilidad de éxito para {person} en '{vacancy.titulo}': {proba:.2f}")
+        return proba
 
-# Uso Ejemplo
-def main():
-    ml_pipeline = HuntMLPipeline(business_unit='huntRED®')
-    
-    # Load data
-    data = ml_pipeline.load_data('training_data.csv')
-    
-    # Preprocess
-    X_train, X_test, y_train, y_test = ml_pipeline.preprocess_data(data)
-    
-    # Build model
-    ml_pipeline.build_model()
-    
-    # Train
-    ml_pipeline.train(X_train, y_train, X_test, y_test)
-    
-    # Evaluate
-    report, cm = ml_pipeline.evaluate_model(X_test, y_test)
-    
-    # Save
-    ml_pipeline.save_model()
+    def predict_all_active_matches(self, person):
+        """
+        Predice en lote la probabilidad de éxito para todas las vacantes activas
+        de la BU del candidato.
+        """
+        self.load_model()
+        bu = person.current_stage.business_unit if person.current_stage else None
+        if not bu:
+            return []
 
-if __name__ == "__main__":
-    main()
+        active_vacancies = Vacante.objects.filter(activa=True, business_unit=bu)
+        if not active_vacancies.exists():
+            return []
 
-class AdaptiveMLFramework:
+        # Construir features en lote
+        features_list = []
+        for vacante in active_vacancies:
+            features_list.append({
+                'experience_years': person.experience_years or 0,
+                'hard_skills_match': calculate_match_percentage(person.skills, vacante.skills_required),
+                'soft_skills_match': calculate_match_percentage(
+                    person.metadata.get("soft_skills", []),
+                    vacante.metadata.get("soft_skills", [])
+                ),
+                'salary_alignment': calculate_alignment_percentage(
+                    person.salary_data.get("current_salary", 0),
+                    vacante.salario or 0
+                ),
+                'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
+                       if person.fecha_nacimiento else 0
+            })
+
+        X = pd.DataFrame(features_list)
+        X_scaled = self.scaler.transform(X)
+
+        predictions = (self.model.predict(X_scaled).flatten() * 100).tolist()
+        results = [
+            {"vacante": v.titulo, "empresa": v.empresa, "score": round(p, 2)}
+            for v, p in zip(active_vacancies, predictions)
+        ]
+        return sorted(results, key=lambda x: x["score"], reverse=True)
+    
+
+class AdaptiveMLFramework(GrupohuntREDMLPipeline):
+    """
+    Variante adaptativa que hereda del GrupohuntREDMLPipeline,
+    permitiendo ajustes y explicaciones extra (via SHAP).
+    """
+
     def __init__(self, business_unit):
-        """
-        Sistema de aprendizaje adaptable basado en la estructura de `GrupohuntREDMLPipeline`.
-        """
         super().__init__(business_unit)
         self.model_path = os.path.join(settings.ML_MODELS_DIR, f'{business_unit}_adaptive_model.h5')
 
-    def build_model(self, input_shape):
+    def build_model(self, input_dim):
         """
-        Construye un modelo de red neuronal adaptable según la Business Unit.
+        Construye la red neuronal adaptativa con base en la config del padre.
         """
-        config = self.model_config.get(self.business_unit, self.model_config['huntRED®'])
+        super().build_model(input_dim)
+        logger.info(f"Modelo adaptativo para {self.business_unit} listo.")
 
-        model = tf.keras.Sequential()
-        for units in config['layers']:
-            model.add(tf.keras.layers.Dense(units, activation=config.get('activation', 'relu')))
-            model.add(tf.keras.layers.Dropout(config['dropout_rate']))
-
-        model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
-
-        model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=config['learning_rate']),
-            loss='binary_crossentropy',
-            metrics=['accuracy', 'AUC']
-        )
-
-        self.model = model
-        logger.info(f"Modelo adaptativo construido para {self.business_unit}")
-
-    def train_model(self, X_train, y_train, X_test, y_test):
-        """
-        Entrena el modelo y lo guarda.
-        """
-        self.build_model(input_shape=X_train.shape[1])
-
-        early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss', patience=10, restore_best_weights=True
-        )
-
-        self.model.fit(
-            X_train, y_train,
-            validation_data=(X_test, y_test),
-            epochs=50,
-            batch_size=32,
-            callbacks=[early_stopping]
-        )
-
-        self.model.save(self.model_path)
-        logger.info(f"Modelo adaptativo guardado en {self.model_path}")
-
-    def predict(self, X):
-        """
-        Realiza predicciones con el modelo adaptativo cargado.
-        """
-        if self.model is None:
-            self.load_model()
-
-        X_scaled = self.scaler.transform(X)
-        return self.model.predict(X_scaled)
-    
     def train_and_optimize(self, X, y, validation_split=0.2):
         """
-        Comprehensive training with:
-        - Auto scaling
-        - Smart splitting
-        - Early stopping
-        - Model checkpointing
+        Entrena y optimiza el modelo adaptativo con evaluación post-entrenamiento.
         """
-        # Preprocess data
         X_scaled = self.scaler.fit_transform(X)
-        
-        # Split data
+        dump(self.scaler, self.scaler_path)
+
         X_train, X_val, y_train, y_val = train_test_split(
-            X_scaled, y, 
-            test_size=validation_split, 
-            random_state=42
+            X_scaled, y, test_size=validation_split, random_state=42
         )
-        
-        # Callbacks for optimization
-        early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss', 
-            patience=10,
-            restore_best_weights=True
-        )
-        
-        model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-            os.path.join(settings.ML_MODELS_DIR, f'{self.business_unit}_best_model.h5'),
-            save_best_only=True
-        )
-        
-        # Train model
+
+        self.build_model(input_dim=X_train.shape[1])
+
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        model_checkpoint = ModelCheckpoint(self.model_path, save_best_only=True, monitor='val_loss')
+
         history = self.model.fit(
             X_train, y_train,
             validation_data=(X_val, y_val),
             epochs=100,
             batch_size=32,
-            callbacks=[early_stopping, model_checkpoint]
+            callbacks=[early_stopping, model_checkpoint],
+            verbose=1
         )
-        
-        logger.info("AdaptiveMLFramework: Entrenamiento completado exitosamente.")
-        return history
+
+        # Evaluación post-entrenamiento
+        val_loss, val_acc = self.model.evaluate(X_val, y_val, verbose=0)
+        logger.info(f"Entrenamiento completado - Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.4f}")
+        logger.info(f"Modelo guardado en {self.model_path}")
 
     def predict_and_explain(self, X_new):
         """
-        Advanced prediction with interpretability
+        Realiza predicciones con el modelo adaptativo y genera explicaciones SHAP.
         """
-        # Preprocess new data
+        if self.model is None:
+            self.model = load_model(self.model_path)
+
+        # Asegurarnos de cargar el scaler
+        self.scaler = load(self.scaler_path)
         X_scaled = self.scaler.transform(X_new)
-        
-        # Predict
+
         predictions = self.model.predict(X_scaled)
-        
-        # Placeholder for feature importance or interpretability
-        gradients = self._compute_gradients(X_scaled)
-        
-        logger.info("AdaptiveMLFramework: Predicciones realizadas exitosamente.")
+        # SHAP para redes neuronales: KernelExplainer como aproximación
+        explainer = shap.KernelExplainer(self.model.predict, X_scaled[:50])  # Muestra de referencia
+        shap_values = explainer.shap_values(X_scaled)
         return {
             'predictions': predictions,
-            'feature_importance': gradients
+            'shap_values': shap_values
         }
+    
 
-    def _compute_gradients(self, X):
-        """Compute feature importances"""
-        # Implement gradient computation or use other interpretability methods
-        # Por ejemplo, utilizando integraciones como SHAP o LIME
-        logger.debug("AdaptiveMLFramework: Computando gradientes para interpretabilidad.")
-        pass  # Implementar según necesidades
+def main():
+    pipeline = GrupohuntREDMLPipeline(business_unit='huntRED®')
+
+    # 1) Preparar datos
+    data = pipeline.prepare_training_data()
+    
+    # 2) Preprocesar
+    X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
+    
+    # 3) Entrenar
+    pipeline.train_model(X_train, y_train, X_test, y_test)
+
+    # 4) Predecir matches para una persona de ejemplo
+    from app.models import Person
+    person = Person.objects.first()  # Ejemplo
+    if person:
+        matches = pipeline.predict_all_active_matches(person)
+        logger.info(f"Coincidencias para {person.nombre}: {matches}")
+
+if __name__ == "__main__":
+    main()

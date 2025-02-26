@@ -41,7 +41,7 @@ from app.utilidades.scraping import (
     validar_url, ScrapingPipeline, scrape_and_publish, process_domain
 )
 from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
-from app.ml.ml_model import GrupohuntREDMLPipeline
+from app.ml.ml_model import GrupohuntREDMLPipeline, MatchmakingLearningSystem
 from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
 from app.utilidades.catalogs import DIVISIONES
 import json, os
@@ -120,11 +120,19 @@ def train_ml_task(self, business_unit_id=None):
             logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
             pipeline = GrupohuntREDMLPipeline(business_unit=bu.name)
             try:
-                data = pipeline.load_data('/home/pablo/app/model/training_data.csv')
-                X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
-                pipeline.build_model()
-                pipeline.train(X_train, y_train, X_test, y_test)
-                pipeline.save_model()
+                # 1) Cargar CSV con pandas, ya que 'pipeline.load_data()' no existe
+                df = pd.read_csv('/home/pablo/app/model/training_data.csv')
+                # 2) Preprocesar
+                X_train, X_test, y_train, y_test = pipeline.preprocess_data(df)
+                # 3) build_model con el input_dim necesario
+                pipeline.build_model(input_dim=X_train.shape[1])
+                # 4) Entrenar (dentro de train_model se guarda el .h5)
+                pipeline.train_model(X_train, y_train, X_test, y_test)
+                # No existe 'save_model', porque el guardado ocurre dentro de train_model().
+                # Si realmente quisieras otro guardado manual, podrías crear un nuevo método:
+                #
+                # pipeline.save_model()   <-- no existe, deberías implementarlo o quitar la llamada.
+                # Pero por ahora se te guarda automáticamente en train_model().
                 logger.info(f"✅ Modelo entrenado y guardado para {bu.name}")
             except Exception as e:
                 logger.error(f"❌ Error entrenando modelo para BU {bu.name}: {e}")
@@ -147,11 +155,19 @@ def ejecutar_ml(self):
         for bu in business_units:
             logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
             pipeline = GrupohuntREDMLPipeline(bu.name)
-            data = pipeline.load_data('/home/pablo/app/model/training_data.csv')
-            X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
-            pipeline.build_model()
-            pipeline.train(X_train, y_train, X_test, y_test)
-            pipeline.save_model()
+            # 1) Cargar CSV con pandas, ya que 'pipeline.load_data()' no existe
+            df = pd.read_csv('/home/pablo/app/model/training_data.csv')
+            # 2) Preprocesar
+            X_train, X_test, y_train, y_test = pipeline.preprocess_data(df)
+            # 3) build_model con el input_dim necesario
+            pipeline.build_model(input_dim=X_train.shape[1])
+            # 4) Entrenar (dentro de train_model se guarda el .h5)
+            pipeline.train_model(X_train, y_train, X_test, y_test)
+            # No existe 'save_model', porque el guardado ocurre dentro de train_model().
+            # Si realmente quisieras otro guardado manual, podrías crear un nuevo método:
+            #
+            # pipeline.save_model()   <-- no existe, deberías implementarlo o quitar la llamada.
+            # Pero por ahora se te guarda automáticamente en train_model().
             logger.info(f"✅ Modelo ML entrenado para {bu.name}")
     except Exception as e:
         logger.error(f"❌ Error en tarea ML: {e}")
@@ -174,11 +190,18 @@ def train_matchmaking_model_task(self, business_unit_id=None):
             return
 
         pipeline = GrupohuntREDMLPipeline(bu.name)
-        data = pipeline.load_data('/home/pablo/app/model/training_data.csv')
-        X_train, X_test, y_train, y_test = pipeline.preprocess_data(data)
-        pipeline.build_model()
-        pipeline.train(X_train, y_train, X_test, y_test)
-        pipeline.save_model()
+        # Si quieres leer un CSV arbitrario
+        df = pd.read_csv('/home/pablo/app/model/training_data.csv') 
+        # Y luego:
+        X_train, X_test, y_train, y_test = pipeline.preprocess_data(df)
+        pipeline.build_model(input_dim=X_train.shape[1])  
+        pipeline.train_model(X_train, y_train, X_test, y_test)
+        # No existe 'save_model', porque el guardado ocurre dentro de train_model().
+        # Si realmente quisieras otro guardado manual, podrías crear un nuevo método:
+        #
+        # pipeline.save_model()   <-- no existe, deberías implementarlo o quitar la llamada.
+        #
+        # Pero por ahora se te guarda automáticamente en train_model().
         logger.info(f"✅ Modelo matchmaking entrenado para BU: {bu.name}")
     except BusinessUnit.DoesNotExist:
         logger.error(f"BU con ID {business_unit_id} no encontrada.")
@@ -186,6 +209,11 @@ def train_matchmaking_model_task(self, business_unit_id=None):
         logger.error(f"❌ Error entrenando matchmaking para BU {business_unit_id}: {e}")
         self.retry(exc=e)
 
+@shared_task
+def predict_top_candidates_task(vacancy_id, top_n=10):
+    vacancy = Vacante.objects.get(id=vacancy_id)
+    ml_system = MatchmakingLearningSystem(vacancy.business_unit)
+    return ml_system.predict_top_candidates(vacancy, top_n)
 # =========================================================
 # Tareas relacionadas con el scraping programado
 # =========================================================
