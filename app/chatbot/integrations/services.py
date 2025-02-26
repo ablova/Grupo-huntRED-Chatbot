@@ -287,25 +287,20 @@ class MessageService:
             logger.error(f"Error enviando mensaje WhatsApp: {e}", exc_info=True)
             return False
 
-    async def _send_telegram_message(
-        self,
-        user_id: str,
-        message: str,
-        api_instance: TelegramAPI
-    ) -> bool:
-        """Envía mensaje por Telegram"""
+    async def _send_telegram_message(self, user_id: str, message: str, options: Optional[List[Dict]], api_instance: TelegramAPI) -> bool:
         from app.chatbot.integrations.telegram import send_telegram_message
-        
         try:
             chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
-            await send_telegram_message(
-                chat_id=chat_id,
-                message=message,
-                telegram_api=api_instance,
-                business_unit_name=self.business_unit.name
-            )
+            if options:
+                await self._send_telegram_options(user_id, message, options, api_instance)
+            else:
+                await send_telegram_message(
+                    chat_id=chat_id,
+                    message=message,
+                    telegram_api=api_instance,
+                    business_unit_name=self.business_unit.name
+                )
             return True
-
         except Exception as e:
             logger.error(f"Error enviando mensaje Telegram: {e}", exc_info=True)
             return False
@@ -382,41 +377,23 @@ class MessageService:
             return False
 
     async def _send_telegram_options(self, user_id, message, buttons, api_instance):
-        """Envía botones interactivos en Telegram."""
         from app.chatbot.integrations.telegram import send_telegram_buttons
-
         try:
-            # Extraer `chat_id` desde el `user_id`
             chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
-            
-            # Construcción correcta de botones
-            telegram_buttons = []
-            for btn in buttons:
-                button_data = {
-                    "text": btn.title
-                }
-                if btn.url:
-                    button_data["url"] = btn.url
-                else:
-                    button_data["callback_data"] = btn.payload if btn.payload else "no_payload"
-                telegram_buttons.append(button_data)
-
-            # Validar que TelegramAPI tenga la API Key
-            if not api_instance.api_key:
-                logger.error(f"[send_telegram_buttons] ❌ API Key de Telegram no configurada para {api_instance.business_unit.name}")
-                return False
-
-            # Enviar botones a Telegram
+            telegram_buttons = [
+                {"text": btn.title, "callback_data": btn.payload or "default"} if btn.payload
+                else {"text": btn.title, "url": btn.url} if btn.url
+                else {"text": btn.title, "callback_data": "no_action"}
+                for btn in buttons
+            ]
             success = await send_telegram_buttons(
                 chat_id=chat_id,
                 message=message,
                 buttons=telegram_buttons,
                 telegram_api=api_instance,
-                business_unit_name=api_instance.business_unit.name
+                business_unit_name=self.business_unit.name
             )
-
-            return success is not None  # Retorna True si se envió correctamente
-
+            return success is not None
         except Exception as e:
             logger.error(f"❌ Error enviando opciones a Telegram: {e}", exc_info=True)
             return False
