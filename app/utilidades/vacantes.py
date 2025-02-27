@@ -80,8 +80,6 @@ class VacanteManager:
             raise ValueError(f"Faltan campos requeridos: {', '.join(missing_fields)}")
         
         self.job_data = job_data
-            if not isinstance(job_data, dict):
-                raise ValueError("job_data debe ser un diccionario")
         self.configuracion = None  # Se inicializará en un método asíncrono
         self.api_url = None
         self.headers = None
