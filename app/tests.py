@@ -313,3 +313,39 @@ async def process_amigro_candidate(user_id, user, business_unit, context):
     if "establishment_score" in skills_data and skills_data["establishment_score"] < 0.5:
         test_prompt = "Realiza una evaluación simple: ¿Tienes experiencia formal en trabajos técnicos? (Sí/No)"
         await send_message("whatsapp", user_id, test_prompt, business_unit.name.lower())
+
+
+class TestVacanteManager(unittest.TestCase):
+    def setUp(self):
+        self.job_data = {
+            "job_title": "Desarrollador Python",
+            "job_description": "Descripción de prueba",
+            "company_name": "Empresa XYZ",
+            "job_employee-email": "test@empresa.com",
+            "celular_responsable": "+123456789"
+        }
+        self.configuracion = type("Config", (), {"business_unit": type("Unit", (), {"name": "huntred"})})()
+        self.manager = VacanteManager(self.job_data, self.configuracion)
+
+    @patch('your_module.sync_to_async', new_callable=AsyncMock)
+    @patch('your_module.aiohttp.ClientSession.post', new_callable=AsyncMock)
+    async def test_create_job_listing_success(self, mock_post, mock_sync_to_async):
+        mock_sync_to_async.return_value = None  # No existe vacante previa
+        mock_post.return_value.status = 201  # Éxito en WordPress
+        await self.manager.initialize()
+        result = await self.manager.create_job_listing()
+        self.assertEqual(result["status"], "success")
+        self.assertIn("Vacante creada y notificaciones enviadas", result["message"])
+
+    @patch('your_module.sync_to_async', new_callable=AsyncMock)
+    @patch('your_module.aiohttp.ClientSession.post', new_callable=AsyncMock)
+    async def testwordpress_failure(self, mock_post, mock_sync_to_async):
+        mock_sync_to_async.return_value = None
+        mock_post.side_effect = Exception("Error en WordPress")  # Simula fallo en WordPress
+        await self.manager.initialize()
+        result = await self.manager.create_job_listing()
+        self.assertEqual(result["status"], "success")  # Debe continuar a pesar del fallo en WP
+        self.assertIn("Vacante publicada localmente", result["message"])
+
+if __name__ == "__main__":
+    unittest.main()
