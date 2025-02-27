@@ -9,10 +9,17 @@ from datetime import datetime, timedelta
 from email.header import decode_header
 from email.utils import parseaddr
 from bs4 import BeautifulSoup
-from app.models import ConfiguracionBU, Vacante, BusinessUnit
+from app.models import BusinessUnit, Vacante, Person, Configuracion, ConfiguracionBU
 from app.utilidades.vacantes import VacanteManager
 from asgiref.sync import sync_to_async
 import time
+import os
+import django
+from typing import List
+from app.utilidades.scraping import validate_job_data, JobListing
+
+#os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ai_huntred.settings")
+#django.setup()
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
@@ -27,7 +34,7 @@ IMAP_SERVER = env("EMAIL_HOST", default="mail.huntred.com")
 IMAP_FOLDER = "INBOX"
 
 # Variables de configuración
-DAYS_TO_PROCESS = 3  # Últimos días a procesar
+DAYS_TO_PROCESS = 10  # Últimos días a procesar
 BATCH_SIZE = 10      # Tamaño del lote para procesar correos
 SLEEP_TIME = 2       # Tiempo de espera entre lotes (segundos)
 
@@ -125,56 +132,263 @@ def connect_to_email():
         return None
 
 async def fetch_job_details(url: str, retries=3) -> dict:
-    from urllib.parse import urlparse
-    domain = urlparse(url).netloc
-    if domain not in ALLOWED_DOMAINS:
-        logger.warning(f"🚫 Solicitud bloqueada a dominio no permitido: {domain}")
-        return {}
-    timeout = aiohttp.ClientTimeout(total=10)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    """Obtiene detalles completos de la vacante desde la URL."""
+    timeout = aiohttp.ClientTimeout(total=30)  # Aumentado para sitios más lentos
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
         for attempt in range(retries):
             try:
                 async with session.get(url) as response:
                     if response.status == 200:
                         html = await response.text()
                         soup = BeautifulSoup(html, "html.parser")
-                        title = soup.find("h1") or soup.find("title")
-                        description = soup.find("div", class_=["job-description", "description", "content"])
-                        location = soup.find(lambda tag: tag.name in ["span", "div"] and "location" in tag.get("class", []) or "location" in tag.text.lower())
+                        
+                        # Mejora en extracción de detalles
                         details = {
-                            "title": title.text.strip() if title else "Unknown",
-                            "description": description.text.strip() if description else "No description",
-                            "location": location.text.strip() if location else "Unknown"
+                            "title": extract_title(soup),
+                            "description": extract_description(soup),
+                            "location": extract_location(soup),
+                            "salary_range": extract_salary(soup),
+                            "requirements": extract_requirements(soup),
+                            "company_info": extract_company_info(soup),
+                            "employment_type": extract_employment_type(soup),
+                            "experience_level": extract_experience_level(soup),
+                            "posting_date": extract_posting_date(soup),
+                            "benefits": extract_benefits(soup),
+                            "skills": extract_skills(soup),
+                            "original_url": url
                         }
-                        logger.info(f"✅ Detalles obtenidos de {url}")
-                        return details
-                    else:
-                        logger.warning(f"Intento {attempt + 1}/{retries} falló para {url}. Estado: {response.status}")
+                        
+                        logger.info(f"✅ Detalles completos obtenidos de {url}")
+                        return {k: v for k, v in details.items() if v}  # Elimina campos vacíos
+                    
             except Exception as e:
-                logger.error(f"Intento {attempt + 1}/{retries} falló para {url}: {e}")
-            if attempt < retries - 1:
-                await asyncio.sleep(SLEEP_TIME)
-    logger.error(f"❌ Fallaron todos los intentos para {url}")
+                logger.error(f"❌ Error en intento {attempt + 1}/{retries} para {url}: {e}")
+                if attempt < retries - 1:
+                    await asyncio.sleep(2)
+    
     return {}
 
-def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) -> list:
-    """Extrae vacantes desde HTML o texto plano."""
+def extract_title(soup):
+    """Extrae el título del puesto con mayor precisión."""
+    title_candidates = [
+        soup.find("h1"),
+        soup.find("h1", class_=lambda x: x and any(word in x.lower() for word in ['job', 'title', 'position'])),
+        soup.find(class_=lambda x: x and any(word in x.lower() for word in ['job-title', 'position-title'])),
+    ]
+    
+    for candidate in title_candidates:
+        if candidate and candidate.text.strip():
+            return clean_text(candidate.text)
+    return None
+
+def extract_description(soup):
+    """Extrae la descripción completa del puesto."""
+    description_selectors = [
+        ("div", {"class_": ["job-description", "description", "details"]}),
+        ("section", {"class_": ["job-description", "description"]}),
+        ("div", {"id": lambda x: x and "description" in x.lower()}),
+    ]
+    
+    for tag, attrs in description_selectors:
+        element = soup.find(tag, **attrs)
+        if element:
+            return clean_text(element.text)
+    return None
+
+def extract_location(soup):
+    """Extrae la ubicación del puesto."""
+    location_selectors = [
+        ("span", {"class_": ["location", "job-location", "posting-location"]}),
+        ("div", {"class_": ["location", "job-location"]}),
+        ("meta", {"property": "jobLocation"}),
+        ("div", {"data-automation-id": "location"}),
+    ]
+    
+    for tag, attrs in location_selectors:
+        element = soup.find(tag, **attrs)
+        if element:
+            return clean_text(element.text)
+    return None
+
+def extract_salary(soup):
+    """Extrae el rango salarial si está disponible."""
+    salary_selectors = [
+        ("span", {"class_": ["salary", "compensation"]}),
+        ("div", {"class_": ["salary-range", "compensation-info"]}),
+        ("div", {"data-automation-id": "salary"}),
+    ]
+    
+    for tag, attrs in salary_selectors:
+        element = soup.find(tag, **attrs)
+        if element:
+            return clean_text(element.text)
+    return None
+
+def extract_requirements(soup):
+    """Extrae requisitos del puesto."""
+    req_selectors = [
+        ("div", {"class_": ["requirements", "qualifications"]}),
+        ("ul", {"class_": ["requirements-list", "qualifications-list"]}),
+        ("div", {"id": lambda x: x and "requirements" in x.lower()}),
+    ]
+    
+    requirements = []
+    for tag, attrs in req_selectors:
+        elements = soup.find_all(tag, **attrs)
+        for element in elements:
+            if element.find_all('li'):
+                requirements.extend([clean_text(li.text) for li in element.find_all('li')])
+            else:
+                requirements.append(clean_text(element.text))
+    
+    return requirements if requirements else None
+
+def extract_company_info(soup):
+    """Extrae información de la empresa."""
+    company_selectors = [
+        ("div", {"class_": ["company-info", "employer-info"]}),
+        ("span", {"class_": ["company-name", "employer"]}),
+        ("div", {"data-automation-id": "company"}),
+    ]
+    
+    for tag, attrs in company_selectors:
+        element = soup.find(tag, **attrs)
+        if element:
+            return clean_text(element.text)
+    return None
+
+def extract_employment_type(soup):
+    """Extrae el tipo de empleo."""
+    type_selectors = [
+        ("span", {"class_": ["employment-type", "job-type"]}),
+        ("div", {"class_": ["employment-info", "job-type"]}),
+        ("div", {"data-automation-id": "employmentType"}),
+    ]
+    
+    for tag, attrs in type_selectors:
+        element = soup.find(tag, **attrs)
+        if element:
+            return clean_text(element.text)
+    return None
+
+def extract_experience_level(soup):
+    """Extrae el nivel de experiencia requerido."""
+    exp_selectors = [
+        ("span", {"class_": ["experience-level", "seniority"]}),
+        ("div", {"class_": ["experience", "seniority-level"]}),
+    ]
+    
+    for tag, attrs in exp_selectors:
+        element = soup.find(tag, **attrs)
+        if element:
+            return clean_text(element.text)
+    return None
+
+def extract_posting_date(soup):
+    """Extrae la fecha de publicación."""
+    date_selectors = [
+        ("span", {"class_": ["posting-date", "job-date"]}),
+        ("time", {}),
+        ("meta", {"property": "datePosted"}),
+    ]
+    
+    for tag, attrs in date_selectors:
+        element = soup.find(tag, **attrs)
+        if element:
+            return clean_text(element.get("datetime", element.text))
+    return None
+
+def extract_benefits(soup):
+    """Extrae los beneficios ofrecidos."""
+    benefits_selectors = [
+        ("div", {"class_": ["benefits", "perks"]}),
+        ("ul", {"class_": ["benefits-list", "perks-list"]}),
+    ]
+    
+    benefits = []
+    for tag, attrs in benefits_selectors:
+        elements = soup.find_all(tag, **attrs)
+        for element in elements:
+            if element.find_all('li'):
+                benefits.extend([clean_text(li.text) for li in element.find_all('li')])
+            else:
+                benefits.append(clean_text(element.text))
+    
+    return benefits if benefits else None
+
+def extract_skills(description: str) -> List[str]:
+    """Extrae habilidades del texto usando SkillExtractor."""
+    if not description:
+        return []
+        
+    try:
+        # Usar el extractor de habilidades existente
+        from app.chatbot.nlp import lazy_skill_extractor
+        sn = lazy_skill_extractor.get()
+        if sn:
+            annotations = sn.annotate(description)
+            return list(set(skill['doc_node_value'] for skill in annotations['results']))
+    except Exception as e:
+        logger.error(f"Error extrayendo habilidades: {e}")
+        
+    return []
+
+async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) -> list:
+    """Extrae vacantes desde HTML o texto plano de manera asíncrona."""
+    from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
     job_listings = []
 
-    # Extracción estructurada desde HTML
+    # Lista de términos no deseados en enlaces
+    excluded_texts = ["sign in", "ayuda", "darse de baja", "help", "unsubscribe", "feed", "profile", "premium"]
+    excluded_domains = ["linkedin.com/help", "linkedin.com/comm/feed", "linkedin.com/comm/in/"]
+
+    # Buscar todos los enlaces <a> con href
     job_containers = soup.find_all("a", href=True)
+    seen_urls = set()  # Para evitar duplicados
+
     for link in job_containers:
         link_text = link.get_text(strip=True).lower()
         href = link["href"].lower()
-        if any(keyword in link_text or keyword in href for keyword in JOB_KEYWORDS):
-            job_title = link_text or "Unknown Job"
+
+        # Excluir enlaces no deseados
+        if any(excluded in link_text for excluded in excluded_texts) or \
+           any(domain in href for domain in excluded_domains):
+            continue
+
+        # Normalizar URL para evitar duplicados
+        base_url = href.split("?")[0] if "?" in href else href
+        if base_url in seen_urls:
+            continue
+        seen_urls.add(base_url)
+
+        # Filtrar por patrones de vacantes
+        if "linkedin.com" in sender and "/jobs/view/" in href:
+            job_title = link_text if link_text and not any(excluded in link_text for excluded in excluded_texts) else "Unknown Job"
             job_link = href if href.startswith("http") else f"https://{sender.split('@')[1]}{href}"
             company_name = sender.split('@')[1].split('.')[0].capitalize()
 
-            logger.info(f"🔍 Encontrado enlace de vacante: {job_link}")
             print(f"🔍 Encontrado enlace de vacante: {job_link}")
-            details = asyncio.run(fetch_job_details(job_link))
+            details = await fetch_job_details(job_link)
+            job_listings.append({
+                "job_title": details.get("title", job_title),
+                "job_link": job_link,
+                "company_name": company_name,
+                "job_description": details.get("description", job_title),
+                "location": details.get("location", "Unknown"),
+                "business_unit": None
+            })
+        elif "glassdoor.com" in sender and "joblistingid" in href:
+            job_title = link_text if link_text and not any(excluded in link_text for excluded in excluded_texts) else "Unknown Job"
+            job_link = href if href.startswith("http") else f"https://{sender.split('@')[1]}{href}"
+            company_name = sender.split('@')[1].split('.')[0].capitalize()
+
+            print(f"🔍 Encontrado enlace de vacante: {job_link}")
+            details = await fetch_job_details(job_link)
             job_listings.append({
                 "job_title": details.get("title", job_title),
                 "job_link": job_link,
@@ -197,7 +411,7 @@ def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) 
                 apply_link = soup.find("a", string=lambda text: text and "apply now" in text.lower())
                 current_job["job_link"] = apply_link["href"] if apply_link else ""
                 if current_job["job_link"]:
-                    details = asyncio.run(fetch_job_details(current_job["job_link"]))
+                    details = await fetch_job_details(current_job["job_link"])
                     current_job.update({
                         "job_title": details.get("title", current_job["job_title"]),
                         "job_description": details.get("description", current_job["job_title"]),
@@ -343,13 +557,13 @@ async def assign_business_unit(job_title, job_description=None, salary_range=Non
         return None
 
 async def process_job_alert_email(mail, email_id, message, stats):
+    """Procesa un correo de alerta de trabajo."""
     try:
         sender = message["From"]
         subject = message["Subject"]
 
         if not sender or not subject:
-            logger.warning(f"⚠️ Correo {email_id} sin remitente o asunto, saltando")
-            print(f"⚠️ Correo {email_id} sin remitente o asunto, saltando")
+            logger.warning(f"⚠️ Correo {email_id} sin remitente o asunto")
             stats["errors"] += 1
             return
 
@@ -359,8 +573,7 @@ async def process_job_alert_email(mail, email_id, message, stats):
         sender_email = sender_email.lower().strip()
 
         if sender_email in VALID_SENDERS or any(keyword in subject for keyword in JOB_KEYWORDS):
-            logger.info(f"📧 Procesando correo {email_id} de {sender_email} con asunto '{subject}'")
-            print(f"📧 Procesando correo {email_id} de {sender_email} con asunto '{subject}'")
+            logger.info(f"📧 Procesando correo {email_id} de {sender_email}")
             stats["emails_processed"] += 1
 
             body = None
@@ -377,54 +590,81 @@ async def process_job_alert_email(mail, email_id, message, stats):
 
             if not body and not plain_text:
                 logger.warning(f"⚠️ Correo {email_id} sin contenido procesable")
-                print(f"⚠️ Correo {email_id} sin contenido procesable")
                 stats["errors"] += 1
                 return
 
-            job_listings = extract_vacancies_from_html(body or "", sender_email, plain_text)
-            logger.info(f"📑 Vacantes encontradas en correo {email_id}: {len(job_listings)}")
-            print(f"📑 Vacantes encontradas en correo {email_id}: {len(job_listings)}")
+            job_listings = await extract_vacancies_from_html(body or "", sender_email, plain_text)
+            logger.info(f"📑 Vacantes encontradas: {len(job_listings)}")
             stats["total_vacancies"] += len(job_listings)
 
-            if not job_listings:
-                logger.warning(f"⚠️ No se detectaron vacantes en el correo {email_id}")
-                print(f"⚠️ No se detectaron vacantes en el correo {email_id}")
-                return
-
             for job_data in job_listings:
-                business_unit_id = await assign_business_unit(job_data["job_title"], job_data["job_description"])
+                business_unit_id = await assign_business_unit(
+                    job_data["job_title"], 
+                    job_data["job_description"],
+                    job_data.get("salary_range"),
+                    job_data.get("experience_level"),
+                    job_data.get("location")
+                )
+                
                 if business_unit_id:
-                    job_data["business_unit"] = business_unit_id
+                    success = await create_vacancy_from_email(job_data, business_unit_id)
+                    if success:
+                        stats["vacancies_created"] += 1
+                    else:
+                        stats["errors"] += 1
                 else:
                     logger.warning(f"⚠️ No se asignó unidad de negocio para '{job_data['job_title']}'")
-                    print(f"⚠️ No se asignó unidad de negocio para '{job_data['job_title']}'")
-                    stats["errors"] += 1
-                    continue
-
-                vacante_manager = VacanteManager(job_data)
-                try:
-                    result = await vacante_manager.create_job_listing()
-                    logger.info(f"✅ Vacante '{job_data['job_title']}' creada con éxito. Resultado: {result}")
-                    print(f"✅ Vacante '{job_data['job_title']}' creada con éxito. Resultado: {result}")
-                    stats["vacancies_created"] += 1
-                except Exception as e:
-                    logger.error(f"❌ Error al crear vacante '{job_data['job_title']}': {e}")
-                    print(f"❌ Error al crear vacante '{job_data['job_title']}': {e}")
                     stats["errors"] += 1
 
+            # Mover correo procesado
             mail.copy(email_id, FOLDER_CONFIG["parsed_folder"])
             mail.store(email_id, "+FLAGS", "\\Deleted")
             logger.info(f"📩 Correo {email_id} movido a {FOLDER_CONFIG['parsed_folder']}")
-            print(f"📩 Correo {email_id} movido a {FOLDER_CONFIG['parsed_folder']}")
-        else:
-            logger.info(f"📧 Correo {email_id} de {sender_email} con asunto '{subject}' no coincide con criterios, saltando")
-            print(f"📧 Correo {email_id} de {sender_email} con asunto '{subject}' no coincide con criterios, saltando")
+
     except Exception as e:
         logger.error(f"❌ Error procesando correo {email_id}: {e}")
-        print(f"❌ Error procesando correo {email_id}: {e}")
         mail.copy(email_id, FOLDER_CONFIG["error_folder"])
         mail.store(email_id, "+FLAGS", "\\Deleted")
         stats["errors"] += 1
+
+async def create_vacancy_from_email(job_data: dict, business_unit_id: int) -> bool:
+    """Crea una nueva vacante desde datos de email."""
+    try:
+        # Convertir datos a JobListing para validación
+        job_listing = JobListing(
+            title=job_data["job_title"],
+            location=job_data["location"],
+            company=job_data["company_name"],
+            description=job_data["job_description"],
+            url=job_data["job_link"],
+            skills=extract_skills(job_data["job_description"]),
+            posted_date=job_data.get("posting_date"),
+            salary=job_data.get("salary_range"),
+            responsible=job_data.get("responsible"),
+            contract_type=job_data.get("employment_type"),
+            job_type=job_data.get("job_type"),
+            benefits=job_data.get("benefits", [])
+        )
+        
+        # Validar datos
+        validated_data = validate_job_data(job_listing)
+        if not validated_data:
+            logger.error(f"❌ Datos inválidos para vacante: {job_data['job_title']}")
+            return False
+            
+        # Crear vacante usando el manager existente
+        vacante_manager = VacanteManager(validated_data)
+        result = await vacante_manager.create_job_listing()
+        
+        if result:
+            logger.info(f"✅ Vacante creada exitosamente: {job_data['job_title']}")
+            return True
+            
+        return False
+        
+    except Exception as e:
+        logger.error(f"❌ Error creando vacante: {e}")
+        return False
 
 async def email_scraper():
     mail = await connect_to_email()
@@ -461,9 +701,10 @@ async def email_scraper():
                 message = email.message_from_bytes(data[0][1])
                 await process_job_alert_email(mail, email_id, message, stats)
 
-            mail.expunge()
-            print(f"🗑️ Correos eliminados del inbox después del lote")
             await asyncio.sleep(SLEEP_TIME)
+
+        mail.expunge()
+        print("🗑️ Correos eliminados del inbox después de procesar todos los lotes")
 
         print(f"📊 Estadísticas finales: Correos procesados: {stats['emails_processed']}, "
               f"Vacantes encontradas: {stats['total_vacancies']}, Vacantes creadas: {stats['vacancies_created']}, "
