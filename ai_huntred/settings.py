@@ -13,6 +13,7 @@ env = environ.Env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+ML_MODELS_DIR = os.path.join(BASE_DIR, 'ml_models')
 
 # Asegurar que existe el directorio de logs
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
