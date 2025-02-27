@@ -80,14 +80,24 @@ class VacanteManager:
             raise ValueError(f"Faltan campos requeridos: {', '.join(missing_fields)}")
         
         self.job_data = job_data
-        self.configuracion = ConfiguracionBU.objects.get(business_unit=self.job_data['business_unit'])
+            if not isinstance(job_data, dict):
+                raise ValueError("job_data debe ser un diccionario")
+        self.configuracion = None  # Se inicializará en un método asíncrono
+        self.api_url = None
+        self.headers = None
+        self.client = None
+
+    async def initialize(self):
+        """Método asíncrono para inicializar configuraciones."""
+        self.configuracion = await sync_to_async(ConfiguracionBU.objects.get)(business_unit=self.job_data['business_unit'])
         self.api_url = self.configuracion.dominio_rest_api or "https://amigro.org/wp-json/wp/v2/job-listings"
         self.headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {self.configuracion.jwt_token}',
             'User-Agent': 'VacanteManager/1.0'
         }
-        self.client = None  # Cliente OpenAI
+        logger.info("Inicializando VacanteManager")
+        print("🚀 Inicializando VacanteManager...")
 
     def _init_openai_client(self) -> bool:
         """
@@ -102,6 +112,199 @@ class VacanteManager:
                 self.client = OpenAI(api_key=gpt_api.api_token, organization=gpt_api.organization)
         return self.client is not None
     
+    async def create_job_listing(self) -> Dict[str, str]:
+        """
+        Crea una vacante en el sistema, dividiendo el proceso en preparación, publicación y notificación.
+        """
+        logger.info("Iniciando creación de vacante")
+        print("📝 Iniciando creación de vacante...")
+
+        try:
+            # 1. Verificación y generación de datos
+            prepared_data = await self._prepare_job_data()
+            if not prepared_data:
+                logger.warning("No se pudieron preparar los datos de la vacante")
+                print("⚠️ No se pudieron preparar los datos de la vacante")
+                return {"status": "error", "message": "Falló la preparación de datos"}
+
+            # 2. Publicación (local y WordPress)
+            publish_result = await self._publish_job(prepared_data)
+            if publish_result["status"] != "success":
+                logger.warning(f"Problema en la publicación: {publish_result['message']}")
+                print(f"⚠️ Problema en la publicación: {publish_result['message']}")
+            else:
+                logger.info("Publicación completada con éxito")
+                print("✅ Publicación completada con éxito")
+
+            # 3. Notificaciones
+            await self._send_notifications(prepared_data)
+            logger.info("Proceso de creación de vacante finalizado")
+            print("🎉 Proceso de creación de vacante finalizado")
+
+            return {"status": "success", "message": "Vacante creada y notificaciones enviadas"}
+        except Exception as e:
+            logger.error(f"Error general en create_job_listing: {e}")
+            print(f"❌ Error general en create_job_listing: {e}")
+            return {"status": "error", "message": f"Error inesperado: {str(e)}"}
+
+    async def _prepare_job_data(self) -> Optional[Dict]:
+        """
+        Verifica los datos de entrada, genera etiquetas y prepara el payload para la vacante.
+        """
+        logger.info("Preparando datos de la vacante")
+        print("🔧 Preparando datos de la vacante...")
+
+        try:
+            # Verificación inicial: ¿existe la vacante?
+            job_link = self.job_data.get("job_link")
+            if job_link:
+                from .models import Vacante  # Asegúrate de importar tu modelo
+                existing_vacante = await sync_to_async(Vacante.objects.filter(url_original=job_link).first)()
+                if existing_vacante:
+                    logger.info(f"Vacante ya existe: {existing_vacante.titulo}")
+                    print(f"ℹ️ Vacante ya existe: {existing_vacante.titulo}")
+                    return None
+
+            # Generación de etiquetas
+            logger.debug("Generando etiquetas para la vacante")
+            print("🏷️ Generando etiquetas...")
+            job_tags = self.job_data.get("job_tags") or await self.ensure_tags_exist(
+                self.generate_tags(self.job_data["job_description"])
+            )
+            self.job_data["job_tags"] = job_tags
+            logger.debug(f"Etiquetas generadas: {job_tags}")
+            print(f"✅ Etiquetas generadas: {job_tags}")
+
+            # Estimación de salario
+            logger.debug("Estimando salario")
+            print("💰 Estimando salario...")
+            salario_min, salario_max = await self.estimate_salary()
+            self.job_data["_salary_min"] = salario_min
+            self.job_data["_salary_max"] = salario_max
+            logger.debug(f"Salario estimado: {salario_min} - {salario_max}")
+            print(f"✅ Salario estimado: {salario_min} - {salario_max}")
+
+            # Generación de horarios
+            logger.debug("Generando horarios")
+            print("⏰ Generando horarios...")
+            unidad_trabajo = self.configuracion.business_unit.name.lower()
+            duracion_sesion = 45 if unidad_trabajo in ["huntred", "huntu"] else 30
+            fecha_inicio = datetime.now() + timedelta(days=15)
+            horarios = self.generate_bookings(fecha_inicio, duracion_sesion)
+            for i in range(1, 7):
+                key = f"job_booking_{i}"
+                self.job_data[key] = self.job_data.get(key) or (horarios[i - 1] if len(horarios) > i - 1 else "")
+            logger.debug(f"Horarios generados: {horarios}")
+            print(f"✅ Horarios generados")
+
+            # Preparar payload
+            payload = {
+                "title": self.job_data["job_title"],
+                "content": self.job_data["job_description"],
+                "meta": {
+                    "_salary_min": self.job_data["_salary_min"],
+                    "_salary_max": self.job_data["_salary_max"],
+                    "_job_expires": self.job_data.get("_job_expires", (datetime.now() + timedelta(days=40)).strftime('%Y-%m-%d')),
+                    "_apply_link": self.job_data.get("_apply_link", ""),
+                    "_job_whatsapp": self.job_data.get("celular_responsable", ""),
+                    "_company_name": self.job_data["company_name"],
+                    **{f"_job_booking_{i}": self.job_data[f"job_booking_{i}"] for i in range(1, 7)}
+                },
+                "status": "publish",
+                "job_region": self.job_data.get("job_listing_region", "México"),
+                "job_type": self.job_data.get("job_listing_type", "Remoto"),
+                "remote_position": self.job_data.get("remote_position", "0"),
+                "tags": self.job_data["job_tags"],
+            }
+
+            logger.info("Datos de la vacante preparados exitosamente")
+            print("✅ Datos de la vacante preparados")
+            return payload
+        except Exception as e:
+            logger.error(f"Error preparando datos: {e}")
+            print(f"❌ Error preparando datos: {e}")
+            return None
+
+    async def _publish_job(self, payload: Dict) -> Dict[str, str]:
+        """
+        Publica la vacante localmente y en WordPress. Si WordPress falla, sigue con la creación local.
+        """
+        logger.info("Iniciando publicación de la vacante")
+        print("📤 Iniciando publicación de la vacante...")
+
+        try:
+            # Publicación local
+            logger.debug("Creando vacante en la base de datos local")
+            print("💾 Creando vacante localmente...")
+            from .models import Vacante  # Asegúrate de importar tu modelo
+            vacante = await sync_to_async(Vacante.objects.create)(
+                titulo=payload["title"],
+                empresa=payload["meta"]["_company_name"],
+                descripcion=payload["content"],
+                # Otros campos según tu modelo
+            )
+            logger.info(f"Vacante creada localmente: {vacante.titulo}")
+            print(f"✅ Vacante creada localmente: {vacante.titulo}")
+
+            # Publicación en WordPress (no interrumpe si falla)
+            logger.debug("Publicando en WordPress")
+            print("🌐 Publicando en WordPress...")
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(self.api_url, json=payload, headers=self.headers) as response:
+                        if response.status == 201:
+                            logger.info(f"Vacante publicada en WordPress: {payload['title']}")
+                            print(f"✅ Vacante publicada en WordPress: {payload['title']}")
+                        else:
+                            logger.warning(f"Fallo al publicar en WordPress: {response.status} - {await response.text()}")
+                            print(f"⚠️ Fallo al publicar en WordPress: {response.status}")
+            except Exception as e:
+                logger.error(f"Error publicando en WordPress: {e}")
+                print(f"❌ Error publicando en WordPress: {e} (continúa proceso local)")
+
+            return {"status": "success", "message": "Vacante publicada localmente"}
+        except Exception as e:
+            logger.error(f"Error publicando la vacante localmente: {e}")
+            print(f"❌ Error publicando la vacante localmente: {e}")
+            return {"status": "error", "message": f"Error en publicación local: {str(e)}"}
+
+    async def _send_notifications(self, payload: Dict):
+        """
+        Envía notificaciones por email y WhatsApp a los responsables.
+        """
+        logger.info("Enviando notificaciones")
+        print("📢 Enviando notificaciones...")
+
+        try:
+            # Notificación por email
+            correo_responsable = self.job_data.get("job_employee-email")
+            if correo_responsable:
+                logger.debug(f"Preparando email para {correo_responsable}")
+                print(f"📧 Preparando email para {correo_responsable}...")
+                subject = f"Vacante Creada: {payload['title']}"
+                body = (
+                    f"<h1>Vacante Creada</h1>"
+                    f"<p>Hola {self.job_data.get('job_employee', 'Responsable')},</p>"
+                    f"<p>La vacante '{payload['title']}' para '{payload['meta']['_company_name']}' "
+                    f"ha sido creada.</p>"
+                    f"<ul>"
+                    f"<li>Salario: ${payload['meta']['_salary_min']} - ${payload['meta']['_salary_max']} MXN</li>"
+                    f"</ul>"
+                )
+                await self.send_email(self.configuracion.business_unit, subject, correo_responsable, body)
+                logger.info(f"Email enviado a {correo_responsable}")
+                print(f"✅ Email enviado a {correo_responsable}")
+
+            # Notificación por WhatsApp
+            logger.debug("Enviando notificación por WhatsApp")
+            print("📱 Enviando notificación por WhatsApp...")
+            await self.send_recap_position()
+            logger.info("Notificación por WhatsApp enviada")
+            print("✅ Notificación por WhatsApp enviada")
+        except Exception as e:
+            logger.error(f"Error enviando notificaciones: {e}")
+            print(f"❌ Error enviando notificaciones: {e}")
+
     @staticmethod
     @lru_cache(maxsize=1000)
     def get_gpt_api_config() -> Optional[GptApi]:
@@ -160,6 +363,7 @@ class VacanteManager:
         while hora_actual.time() <= datetime.min.time().replace(hour=14):
             horarios.append(hora_actual.strftime('%Y-%m-%d %H:%M'))
             hora_actual += timedelta(minutes=session_duration)
+        logger.debug("Generando horarios de reserva")
         return horarios
 
     async def estimate_salary(self) -> tuple[str, str]:
@@ -233,6 +437,7 @@ class VacanteManager:
                                     logger.error(f"Error creando tag '{tag}': {await create_resp.text()}")
                 except Exception as e:
                     logger.error(f"Error con tag '{tag}': {e}")
+        logger.debug("Asegurando existencia de etiquetas")
         return tag_ids
     
     def generate_tags(self, job_description: str) -> List[str]:
@@ -262,6 +467,7 @@ class VacanteManager:
                 temperature=0.5
             )
             tags = response.choices[0].message.content.strip().split(",")
+            logger.debug("Generando etiquetas a partir de la descripción")
             return [tag.strip() for tag in tags if tag.strip()]
         except Exception as e:
             logger.warning(f"Error generando etiquetas con OpenAI: {e}")
@@ -285,86 +491,12 @@ class VacanteManager:
             logger.error(f"Error en generate_tags_backup: {e}")
             return ["general"]
         
-    async def create_job_listing(self) -> Dict[str, str]:
-        """
-        Crea una vacante en WordPress y envía notificaciones.
-
-        Returns:
-            Dict[str, str]: Estado y mensaje del resultado.
-        """
-        
-
-        # Generar etiquetas
-        job_tags = self.job_data.get("job_tags", await self.ensure_tags_exist(self.generate_tags(self.job_data["job_description"])))
-        self.job_data["job_tags"] = job_tags
-
-        # Estimar salario
-        salario_min, salario_max = await self.estimate_salary()
-        self.job_data["_salary_min"] = salario_min
-        self.job_data["_salary_max"] = salario_max
-
-        # Generar horarios
-        unidad_trabajo = self.configuracion.business_unit.name.lower()
-        duracion_sesion = 45 if unidad_trabajo in ["huntred", "huntu"] else 30
-        fecha_inicio = datetime.now() + timedelta(days=15)
-        horarios = self.generate_bookings(fecha_inicio, duracion_sesion)
-        for i in range(1, 7):
-            key = f"job_booking_{i}"
-            self.job_data[key] = self.job_data.get(key) or (horarios[i - 1] if len(horarios) > i - 1 else "")
-
-        # Payload para WordPress
-        payload = {
-            "title": self.job_data["job_title"],
-            "content": self.job_data["job_description"],
-            "meta": {
-                "_salary_min": self.job_data["_salary_min"],
-                "_salary_max": self.job_data["_salary_max"],
-                "_job_expires": self.job_data.get("_job_expires", (datetime.now() + timedelta(days=40)).strftime('%Y-%m-%d')),
-                "_apply_link": self.job_data.get("_apply_link", ""),
-                "_job_whatsapp": self.job_data.get("celular_responsable", ""),
-                "_company_name": self.job_data["company_name"],
-                **{f"_job_booking_{i}": self.job_data[f"job_booking_{i}"] for i in range(1, 7)}
-            },
-            "status": "publish",
-            "job_region": self.job_data.get("job_listing_region", "México"),
-            "job_type": self.job_data.get("job_listing_type", "Remoto"),
-            "remote_position": self.job_data.get("remote_position", "0"),
-            "tags": self.job_data["job_tags"],
-        }
-
-        # Publicar
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.api_url, json=payload, headers=self.headers) as response:
-                    response.raise_for_status()
-                    logger.info(f"Vacante creada: {self.job_data['job_title']}")
-
-                    # Notificar por email
-                    correo_responsable = self.job_data.get("job_employee-email")
-                    if correo_responsable:
-                        subject = f"Vacante Creada: {self.job_data['job_title']}"
-                        body = (
-                            f"<h1>Vacante Creada</h1>"
-                            f"<p>Hola {self.job_data.get('job_employee', 'Responsable')},</p>"
-                            f"<p>La vacante '{self.job_data['job_title']}' para '{self.job_data['company_name']}' "
-                            f"ha sido creada.</p>"
-                            f"<ul>"
-                            f"<li>Salario: ${salario_min} - ${salario_max} MXN</li>"
-                            f"</ul>"
-                        )
-                        await send_email(self.configuracion.business_unit, subject, correo_responsable, body)
-
-                    # Notificar por WhatsApp
-                    await self.send_recap_position()
-                    return {"status": "success", "message": "Vacante creada"}
-        except aiohttp.ClientError as e:
-            logger.error(f"Error al crear vacante: {e}")
-            return {"status": "error", "message": str(e)}
-
     async def send_recap_position(self) -> None:
         """
         Envía un resumen de la vacante al responsable por WhatsApp.
         """
+        logger.debug("Enviando recap por WhatsApp")
+        print("Simulando envío por WhatsApp")
         mensaje = (
             f"Resumen:\n"
             f"Posición: {self.job_data['job_title']}\n"
@@ -510,7 +642,7 @@ class VacanteManager:
         ranked_jobs = ml_system.rank_candidates(vacancies)
         return ranked_jobs
 
-    def fetch_latest_jobs(self, limit=5):
+    def fetch_latest_jobs_sync(self, limit=5):
         """ Obtiene las últimas vacantes publicadas. """
         try:
             response = requests.get(self.api_url, headers=self.headers, params={"_fields": "id,title", "per_page": limit})
