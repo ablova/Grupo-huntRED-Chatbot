@@ -21,7 +21,7 @@ from app.models import (
     EnhancedNetworkGamificationProfile
 )
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 # Constantes globales
 MAX_RETRIES = 3

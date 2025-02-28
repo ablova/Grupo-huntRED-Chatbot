@@ -22,7 +22,7 @@ from app.utilidades.scraping import validate_job_data, JobListing
 #django.setup()
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 # Configuración de la cuenta IMAP
 EMAIL_ACCOUNT = "pablo@huntred.com"

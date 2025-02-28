@@ -4,7 +4,7 @@ from typing import List, Dict
 from app.chatbot.nlp import TabiyaJobClassifier
 import logging
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 def calculate_match_percentage(candidate_skills: List[str], required_skills: List[str]) -> float:
     """

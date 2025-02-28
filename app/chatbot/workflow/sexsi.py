@@ -10,7 +10,7 @@ from django.utils.timezone import now
 from app.sexsi.models import ConsentAgreement, SexsiConfig, DiscountCoupon
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 # -------------------------
 # CONFIGURACIÓN DE REDONDEO
 # -------------------------

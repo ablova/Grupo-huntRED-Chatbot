@@ -47,7 +47,7 @@ from app.utilidades.catalogs import DIVISIONES
 import json, os
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 @shared_task
 def add(x, y):

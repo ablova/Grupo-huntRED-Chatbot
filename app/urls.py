@@ -41,7 +41,7 @@ from app.sexsi.views import (
 )
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 # -------------------------------
 # 📌 RUTAS PRINCIPALES Y DASHBOARD
 # -------------------------------
