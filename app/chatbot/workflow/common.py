@@ -11,7 +11,7 @@ from app.chatbot.integrations.services import send_email, send_message, send_men
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 def send_welcome_message(user_id, platform, business_unit):
     """ Envía un mensaje de bienvenida, el logo de la unidad y el menú de servicios. """

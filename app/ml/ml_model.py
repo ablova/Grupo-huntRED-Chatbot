@@ -38,7 +38,7 @@ from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_perc
 from app.ml.ml_opt import configure_tensorflow_based_on_load
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 
 # Carga condicional de TensorFlow (solo si es necesario)

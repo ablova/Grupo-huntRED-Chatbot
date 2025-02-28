@@ -196,6 +196,14 @@ import os
 LOG_DIR = os.path.join(BASE_DIR, 'logs')  # BASE_DIR debe estar definido en tu settings.py
 os.makedirs(LOG_DIR, exist_ok=True)  # Crea el directorio si no existe
 
+import os
+from pathlib import Path
+
+# Asegúrate de que BASE_DIR esté definido (esto suele estar en settings.py por defecto en Django)
+BASE_DIR = Path(__file__).resolve().parent.parent
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)  # Crea el directorio si no existe
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -211,65 +219,23 @@ LOGGING = {
             'formatter': 'verbose',
             'level': 'INFO',
         },
-        'app_file': {
+        'app_file': {  # Añadimos este handler que faltaba
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'app.log'),
             'formatter': 'verbose',
-            'maxBytes': 10 * 1024 * 1024,  # 10 MB por archivo
-            'backupCount': 3,              # 3 archivos de respaldo
-            'level': 'INFO',
-        },
-        'chatbot_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'chatbot.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10 * 1024 * 1024,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'ml_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'ml.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10 * 1024 * 1024,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'utilidades_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'utilidades.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10 * 1024 * 1024,
-            'backupCount': 2,
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
+            'backupCount': 3,  # Mantiene hasta 3 archivos de respaldo
             'level': 'INFO',
         },
     },
     'loggers': {
-        # Logger general para la aplicación (Django u otros)
+        # Logger para Django
         'django': {
             'handlers': ['console', 'app_file'],
             'level': 'INFO',
             'propagate': True,
         },
-        # Logger específico para el módulo chatbot
-        'app.chatbot': {
-            'handlers': ['chatbot_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Logger específico para el módulo ML
-        'app.ml': {
-            'handlers': ['ml_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Logger específico para el módulo utilidades
-        'app.utilidades': {
-            'handlers': ['utilidades_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Logger raíz para capturar logs no específicos
+        # Logger raíz para capturar logs de todos los módulos
         '': {
             'handlers': ['app_file'],
             'level': 'INFO',

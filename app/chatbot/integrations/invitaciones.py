@@ -7,7 +7,7 @@ from app.chatbot.integrations.services import send_email  # Asegúrate de que es
 import logging
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 def generar_codigo_verificacion(person):
     """

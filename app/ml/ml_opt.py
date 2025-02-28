@@ -5,7 +5,7 @@ import tensorflow as tf
 import logging
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 
 def check_system_load(threshold=70):

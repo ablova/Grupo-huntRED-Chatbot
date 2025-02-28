@@ -12,7 +12,7 @@ import asyncio
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 REQUEST_TIMEOUT = 10.0  # ya definido en services.py; se puede importar si se centraliza
 
