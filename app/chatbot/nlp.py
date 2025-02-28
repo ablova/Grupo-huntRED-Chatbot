@@ -24,15 +24,8 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from logging.handlers import RotatingFileHandler
 
 # ✅ Configuración de Logging con rotación
-logger = logging.getLogger("app.chatbot.nlp")
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        RotatingFileHandler("nlp.log", maxBytes=5 * 1024 * 1024, backupCount=3),
-        logging.StreamHandler()
-    ]
-)
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 # ✅ Descarga eficiente de NLTK
 try:

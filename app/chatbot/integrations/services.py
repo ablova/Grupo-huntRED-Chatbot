@@ -20,7 +20,8 @@ from app.models import (
     InstagramAPI, MessengerAPI, ChatState, Person,
     EnhancedNetworkGamificationProfile
 )
-logger = logging.getLogger("app.chatbot.services")
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 # Constantes globales
 MAX_RETRIES = 3
@@ -691,10 +692,6 @@ async def send_list_options(platform: str, user_id: str, message: str, buttons: 
 
     return await send_whatsapp_list(user_id, message, sections, business_unit_name)
 #Envio de Lista Interactiva para cuando hay más de 3 botones
-import asyncio
-import logging
-
-logger = logging.getLogger("app.chatbot")
 
 async def send_smart_options(platform, user_id, message, options, business_unit):
     """

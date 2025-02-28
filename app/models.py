@@ -15,7 +15,7 @@ import re
 import uuid
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.info("Inicio de la aplicación.")
 
 PLATFORM_CHOICES = [
     ("workday", "Workday"),

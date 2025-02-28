@@ -35,7 +35,7 @@ psql -U grupo_huntred_ai_user -h localhost -d postgres
 df -h &&
 free -h &&
 sudo du -h / | sort -h | tail -n 20 &&
-sudo du -sh /home/pablollh/* &&
+sudo du -sh /home/pablo/* &&
 swapon --show &&
 iotop &&
 sudo find /var/log -type f -size +10M &&
@@ -154,7 +154,7 @@ alias shell='python /home/pablo/manage.py shell'
 alias restart_celery='sudo systemctl restart celery'
 alias restart_gunicorn='sudo systemctl restart gunicorn'
 alias restart_nginx='sudo systemctl restart nginx'
-alias restart_all='sudo systemctl restart gunicorn nginx celery'
+alias restart_all='sudo systemctl restart gunicorn nginx celery-worker celery-beat celery-ml celery-scraping'
 
 # Then in the Python shell, you can import and profile specific tasks
 from memory_profiler import profile

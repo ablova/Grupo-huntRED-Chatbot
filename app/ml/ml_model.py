@@ -13,6 +13,7 @@ from django.db import models
 from django.utils import timezone
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.cache import cache
 from django.db.models import Prefetch
 
 from sklearn.ensemble import RandomForestClassifier
@@ -34,14 +35,11 @@ from tensorflow.keras.optimizers import Adam
 
 from app.models import Person, Application, WeightingModel   # Asegúrate de que Application está correctamente definido en models.py
 from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+from app.ml.ml_opt import configure_tensorflow_based_on_load
 
-# Configuración de logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.FileHandler(os.path.join(settings.BASE_DIR, 'logs', 'ml_model.log'))
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger.info("Inicio de la aplicación.")
+
 
 # Carga condicional de TensorFlow (solo si es necesario)
 try:
@@ -125,6 +123,10 @@ class MatchmakingLearningSystem:
         Entrena el RandomForest sobre los datos proporcionados.
         Se realiza un split en train y test para evaluar métricas.
         """
+        configure_tensorflow_based_on_load()
+        if os.path.exists(self.model_file):
+            logger.info("Modelo ya entrenado, omitiendo entrenamiento.")
+            return
         X = df.drop(columns=["is_successful"])
         y = df["is_successful"]
 
@@ -170,53 +172,91 @@ class MatchmakingLearningSystem:
         logger.info(f"Predicción de éxito para {person}: {proba:.2f}")
         return proba
 
-    def predict_all_active_matches(self, person):
+    def predict_all_active_matches(self, person, batch_size=50):
         """
         Predice en lote la probabilidad de éxito para todas las vacantes activas
-        de la BU del candidato con manejo de errores.
+        de la BU del candidato, optimizando CPU y memoria con batching y caching.
+        
+        Args:
+            person: Objeto Person con los datos del candidato.
+            batch_size: Tamaño del lote para procesar vacantes (default: 50).
+        
+        Returns:
+            Lista de diccionarios con vacante, empresa y score ordenados por score.
         """
         self.load_model()
         bu = person.current_stage.business_unit if person.current_stage else None
         if not bu:
+            logger.info(f"No se encontró BU para la persona {person.id}")
             return []
 
-        active_vacancies = Vacante.objects.filter(activa=True, business_unit=bu)
+        # Optimización de consulta con select_related para business_unit
+        active_vacancies = Vacante.objects.select_related('business_unit').filter(
+            activa=True, business_unit=bu
+        )
         if not active_vacancies.exists():
+            logger.info(f"No hay vacantes activas para BU {bu.id}")
             return []
 
-        features_list = []
-        for vacante in active_vacancies:
-            try:
-                features = {
-                    'experience_years': person.experience_years or 0,
-                    'hard_skills_match': calculate_match_percentage(person.skills, vacante.skills_required),
-                    'soft_skills_match': calculate_match_percentage(
-                        person.metadata.get('soft_skills', []),
-                        vacante.metadata.get('soft_skills', [])
-                    ),
-                    'salary_alignment': calculate_alignment_percentage(
-                        person.salary_data.get('current_salary', 0),
-                        vacante.salario or 0
-                    ),
-                    'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
-                        if person.fecha_nacimiento else 0
-                }
-                features_list.append(features)
-            except Exception as e:
-                logger.error(f"Error procesando vacante {vacante.id}: {e}")
-                continue
+        results = []
+        total_vacancies = active_vacancies.count()
+        logger.info(f"Procesando {total_vacancies} vacantes para persona {person.id}")
 
-        if not features_list:
-            return []
+        # Procesamiento por lotes
+        for i in range(0, total_vacancies, batch_size):
+            batch = active_vacancies[i:i + batch_size]
+            batch_results = []
 
-        X = pd.DataFrame(features_list)
-        X_scaled = self.scaler.transform(X)
-        predictions = (self.model.predict(X_scaled).flatten() * 100).tolist()
-        results = [
-            {"vacante": v.titulo, "empresa": v.empresa, "score": round(p, 2)}
-            for v, p in zip(active_vacancies, predictions)
-        ]
+            for vacante in batch:
+                # Generar clave única para el cache
+                cache_key = f"match_{person.id}_{vacante.id}"
+                cached_result = cache.get(cache_key)
+                
+                if cached_result is not None:
+                    # Usar resultado cacheado si existe
+                    batch_results.append(cached_result)
+                    continue
+
+                try:
+                    features = {
+                        'experience_years': person.experience_years or 0,
+                        'hard_skills_match': calculate_match_percentage(person.skills, vacante.skills_required),
+                        'soft_skills_match': calculate_match_percentage(
+                            person.metadata.get('soft_skills', []),
+                            vacante.metadata.get('soft_skills', [])
+                        ),
+                        'salary_alignment': calculate_alignment_percentage(
+                            person.salary_data.get('current_salary', 0),
+                            vacante.salario or 0
+                        ),
+                        'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
+                            if person.fecha_nacimiento else 0
+                    }
+                    
+                    # Convertir features a DataFrame para predicción
+                    X = pd.DataFrame([features])
+                    X_scaled = self.scaler.transform(X)
+                    prediction = (self.model.predict(X_scaled).flatten() * 100)[0]
+                    result = {
+                        "vacante": vacante.titulo,
+                        "empresa": vacante.empresa,
+                        "score": round(prediction, 2)
+                    }
+                    
+                    # Almacenar en cache por 1 hora (3600 segundos)
+                    cache.set(cache_key, result, timeout=3600)
+                    batch_results.append(result)
+
+                except Exception as e:
+                    logger.warning(f"Error procesando vacante {vacante.id}: {str(e)}")
+                    continue
+
+            results.extend(batch_results)
+
+        # Ordenar resultados por score
         return sorted(results, key=lambda x: x["score"], reverse=True)
+
+
 
     def recommend_skill_improvements(self, person):
         """

@@ -5,6 +5,7 @@ import logging
 from app.utilidades.loader import BUSINESS_UNITS, DIVISIONES, load_unit_skills
 
 logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 # Caché simple para skills
 _skills_cache = {}

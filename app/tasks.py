@@ -46,7 +46,8 @@ from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
 from app.utilidades.catalogs import DIVISIONES
 import json, os
 
-logger = logging.getLogger("app.tasks")
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 @shared_task
 def add(x, y):

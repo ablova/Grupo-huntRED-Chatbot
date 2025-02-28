@@ -3,6 +3,7 @@ import os
 import logging
 from django.apps import AppConfig as DjangoAppConfig
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,17 @@ class AppConfig(DjangoAppConfig):
             return
 
         self.register_startup_handlers()
+
+    def _load_dynamic_settings(self, **kwargs):
+        cache_key = 'dynamic_settings'
+        settings_data = cache.get(cache_key)
+        if not settings_data:
+            try:
+                self._load_settings_from_db()
+                cache.set(cache_key, settings_data, timeout=3600)  # 1 hora
+            except Exception as e:
+                logger.error(f"Error loading dynamic settings: {e}")
+                self._set_default_settings()
 
     def register_startup_handlers(self):
         """

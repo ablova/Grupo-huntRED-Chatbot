@@ -1,6 +1,6 @@
 # Ubicacion SEXSI -- /home/pablo/app/chatbot/workflow/sexsi.py
 
-
+import logging
 import uuid
 import math
 from asgiref.sync import async_to_sync
@@ -9,6 +9,8 @@ from forex_python.converter import CurrencyRates
 from django.utils.timezone import now
 from app.sexsi.models import ConsentAgreement, SexsiConfig, DiscountCoupon
 
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 # -------------------------
 # CONFIGURACIÓN DE REDONDEO
 # -------------------------

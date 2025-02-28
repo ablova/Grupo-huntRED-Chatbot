@@ -1,6 +1,6 @@
 # Ubicación: /home/pablo/app/urls.py
 # Descripción: Archivo principal de rutas centralizadas para toda la aplicación.
-
+import logging
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
@@ -40,6 +40,8 @@ from app.sexsi.views import (
     request_revision, revoke_agreement, paypal_webhook
 )
 
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 # -------------------------------
 # 📌 RUTAS PRINCIPALES Y DASHBOARD
 # -------------------------------

@@ -3,6 +3,8 @@
 from django.shortcuts import render
 #from ratelimit.decorators import ratelimit
 from app.models import Person, ChatState, WorkflowStage
+import logging
+logger = logging.getLogger(__name__)
 
 
 

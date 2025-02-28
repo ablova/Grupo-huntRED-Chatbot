@@ -1,3 +1,4 @@
+# /home/pablo/ai_huntred/celery.py
 from __future__ import absolute_import, unicode_literals
 import os
 import django
@@ -17,25 +18,27 @@ if not os.environ.get('DJANGO_SETTINGS_MODULE'):
 
 app = Celery('ai_huntred')
 
-
-#Evitar que Tensorflow truene el sistema - CPU
 # Evitar que TensorFlow intente usar GPUs si no hay
-tf.config.set_visible_devices([], 'GPU')
+if hasattr(tf, "config") and hasattr(tf.config, "set_visible_devices"):
+    tf.config.set_visible_devices([], 'GPU')
 
-# Verifica si hay GPUs y configura sus límites si están presentes
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        tf.config.experimental.set_memory_growth(gpus[0], True)
-        tf.config.set_logical_device_configuration(
-            gpus[0],
-            [tf.config.LogicalDeviceConfiguration(memory_limit=1000)]  # Limitar GPU a 1GB
-        )
-        logger.info(f"✅ GPU detectada. Limitada a 1GB RAM.")
-    except Exception as e:
-        logger.warning(f"⚠️ No se pudo configurar la memoria de la GPU: {str(e)}")
+# Verifica si `config.experimental` está presente antes de usarlo
+if hasattr(tf, "config") and hasattr(tf.config, "experimental"):
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            tf.config.experimental.set_memory_growth(gpus[0], True)
+            tf.config.set_logical_device_configuration(
+                gpus[0],
+                [tf.config.LogicalDeviceConfiguration(memory_limit=1000)]  # Limitar GPU a 1GB
+            )
+            logger.info(f"✅ GPU detectada. Limitada a 1GB RAM.")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo configurar la memoria de la GPU: {str(e)}")
+    else:
+        logger.warning("⚠️ No GPU detectada. TensorFlow correrá en CPU.")
 else:
-    logger.warning("⚠️ No GPU detectada. TensorFlow correrá en CPU.")
+    logger.warning("⚠️ TensorFlow no tiene el módulo 'config'. Se ejecutará en CPU.")
 
 # La configuración de hilos se manejará dinámicamente en ml_opt.py
 
@@ -78,7 +81,7 @@ app.conf.update(
     # Memory optimization
     worker_max_memory_per_child=80000,  # Reduced from 200MB to 80MB
     worker_max_tasks_per_child=2,  # Reduced from 5 to 3 tasks before worker restart
-    worker_concurrency=1,
+    worker_concurrency=3,
     worker_prefetch_multiplier=1,
     
     # Task time constraints

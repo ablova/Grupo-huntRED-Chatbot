@@ -5,6 +5,7 @@ from googleapiclient.discovery import build
 import logging
 
 logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 async def get_available_slots(job_title: str, start_time: str, end_time: str, calendar_id: str) -> list:
     """

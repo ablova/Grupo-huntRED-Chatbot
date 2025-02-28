@@ -102,7 +102,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def dashboard_view(self, request):
+    def generate_dashboard_graph():
         total_dominios = DominioScraping.objects.count()
         total_vacantes = Vacante.objects.count()
         scraping_activo = DominioScraping.objects.filter(estado="definido").count()
@@ -133,7 +133,11 @@ class DominioScrapingAdmin(admin.ModelAdmin):
             'scraping_activo': scraping_activo,
             'grafico_vacantes': grafico_base64,
         }
-        return TemplateResponse(request, "admin/dashboard.html", context)
+        return grafico_base64
+    
+    def dashboard_view(self, request):
+        result = generate_dashboard_graph.delay()
+        grafico_base64 = result.get(timeout=10)  # Espera con límite
 
     def ejecutar_scraping_view(self, request, dominio_id):
         try:
