@@ -2,7 +2,10 @@
 
 from django.db.models import Count
 from app.models import ChatState, Vacante
-
+import logging
+# En el módulo utilidades
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 def generate_dashboard_data():
     """

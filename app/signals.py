@@ -9,6 +9,7 @@ import logging
 from app.chatbot.integrations.services import send_message
 
 logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 @receiver(post_save, sender=Person)
 def analyze_cv(sender, instance, created, **kwargs):

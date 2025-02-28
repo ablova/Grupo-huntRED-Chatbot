@@ -8,7 +8,8 @@ from app.singleton import singleton
 import logging
 
 # Configuración del logger
-logger = logging.getLogger('event')
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 @singleton
 class PersonData:

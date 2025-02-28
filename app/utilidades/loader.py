@@ -6,6 +6,7 @@ import logging
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 # Ruta base para los archivos JSON
 BASE_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs')

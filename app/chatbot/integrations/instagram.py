@@ -10,7 +10,8 @@ from app.models import InstagramAPI, MetaAPI, BusinessUnit, ChatState, Person
 from app.chatbot.chatbot import ChatBotHandler
 from typing import Optional, List, Dict
 
-logger = logging.getLogger("app.chatbot.integrations.instagram")
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 REQUEST_TIMEOUT = 10.0  # segundos
 CACHE_TIMEOUT = 600  # 10 minutos

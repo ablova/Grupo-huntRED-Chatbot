@@ -1,7 +1,11 @@
 # /home/pablo/app/chatbot/workflow/huntred.py
+import logging
 from celery import shared_task
 from app.models import Person, Vacante, BusinessUnit, Application
 from app.chatbot.workflow.common import generate_and_send_contract
+
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 @shared_task
 def process_huntred_candidate(candidate_id):

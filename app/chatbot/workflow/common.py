@@ -1,5 +1,5 @@
 # common.py - Funciones comunes para los workflows
-
+import logging
 from django.core.files.storage import default_storage
 from app.utilidades.signature.pdf_generator import (
     generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
@@ -10,7 +10,8 @@ from app.utilidades.signature.digital_sign import request_digital_signature
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
 from django.conf import settings
 
-
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 def send_welcome_message(user_id, platform, business_unit):
     """ Envía un mensaje de bienvenida, el logo de la unidad y el menú de servicios. """

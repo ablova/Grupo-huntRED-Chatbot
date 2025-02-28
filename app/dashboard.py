@@ -2,6 +2,9 @@
 from admin_tools.dashboard import modules, Dashboard
 from django.utils.timezone import now
 from app.models import Application, Vacante
+import logging
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 class CustomIndexDashboard(Dashboard):
     title = 'Panel de Control de Grupo huntRED®'
