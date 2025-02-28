@@ -19,6 +19,7 @@ from app.utilidades.catalogs import get_divisiones
 
 
 logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 # Cargar catálogo desde el JSON centralizado
 CATALOG_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs', 'catalogs.json')

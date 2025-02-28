@@ -9,7 +9,8 @@ from app.utilidades.signature.pdf_generator import generate_contract_pdf
 from app.utilidades.signature.digital_sign import request_digital_signature
 from app.chatbot.integrations.services import send_email, send_message, send_options
 
-logger = logging.getLogger("app.chatbot.workflows.amigro")
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 @shared_task
 def process_amigro_candidate(candidate_id):

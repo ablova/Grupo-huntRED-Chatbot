@@ -31,6 +31,7 @@ sentry_sdk.init(
     },
     send_default_pii=env.bool('SENTRY_SEND_PII', default=True),
     debug=env.bool('SENTRY_DEBUG', default=False),
+    traces_sample_rate=0.2,
 )
 
 # Paths
@@ -70,7 +71,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = env('TIMEZONE', default='America/Mexico_City')
 CELERY_ENABLE_UTC = True
-CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
+CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=3)
 CELERYD_PREFETCH_MULTIPLIER = 1  # Para evitar que un worker tome demasiadas tareas
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 100000  # 100MB por proceso
@@ -189,6 +190,12 @@ REST_FRAMEWORK = {
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
 
+import os
+
+# Asegúrate de definir LOG_DIR como el directorio donde se guardarán los logs
+LOG_DIR = os.path.join(BASE_DIR, 'logs')  # BASE_DIR debe estar definido en tu settings.py
+os.makedirs(LOG_DIR, exist_ok=True)  # Crea el directorio si no existe
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -197,393 +204,76 @@ LOGGING = {
             'format': '{asctime} {levelname} {name} {message}',
             'style': '{',
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
-            'level': env('CONSOLE_LOG_LEVEL', default='INFO'),
+            'level': 'INFO',
         },
-        # en el debug file, quisiera los errores más criticos, hay alguna manera de implementar eso?
-        'debug_file': {
-            'level': 'CRITICAL',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'debug.log'),
-            'formatter': 'verbose',
-            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),  # 10 MB
-            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
-        },
-        # Handler global (opcional)
-        'global_file': {
+        'app_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'app.log'),
             'formatter': 'verbose',
-            'maxBytes': 10485760,  # 10 MB
-            'backupCount': 3,
-            'level': 'DEBUG',
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB por archivo
+            'backupCount': 3,              # 3 archivos de respaldo
+            'level': 'INFO',
         },
-        # Handlers específicos por categoría
         'chatbot_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'chatbot.log'),
             'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
-        },
-        'intents_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'intents.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
-        },
-        'nlp_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'nlp.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
-        },
-        'gpt_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'gpt.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
+            'maxBytes': 10 * 1024 * 1024,
             'backupCount': 2,
             'level': 'INFO',
-        },
-        'vacantes_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'vacantes.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'scraping_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'scraping.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
-        },
-        'parse_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'parse.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
         },
         'ml_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'ml.log'),
             'formatter': 'verbose',
-            'maxBytes': 10485760,
+            'maxBytes': 10 * 1024 * 1024,
             'backupCount': 2,
             'level': 'INFO',
-        },
-        'signature_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'signature.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
-        },
-        'config_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'config.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'dashboard_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'dashboard.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'tasks_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'tasks.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'tests_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'tests.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
-        },
-        'views_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'views.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
-        },
-                'messenger_file': {
-            'level': env('MESSENGER_LOG_LEVEL', default='ERROR'),
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'messenger.log'),
-            'formatter': 'verbose',
-            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
-            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
-        },
-        'whatsapp_file': {
-            'level': env('WHATSAPP_LOG_LEVEL', default='ERROR'),
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'whatsapp.log'),
-            'formatter': 'verbose',
-            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
-            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
-        },
-        'instagram_file': {
-            'level': env('INSTAGRAM_LOG_LEVEL', default='ERROR'),
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'instagram.log'),
-            'formatter': 'verbose',
-            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
-            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
-        },
-        'telegram_file': {
-            'level': env('TELEGRAM_LOG_LEVEL', default='ERROR'),
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'telegram.log'),
-            'formatter': 'verbose',
-            'maxBytes': env.int('LOG_MAX_BYTES', default=10485760),
-            'backupCount': env.int('LOG_BACKUP_COUNT', default=3),
-        },
-        'celery': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(LOG_DIR, 'celery.log'),
-            'formatter': 'verbose',
-        },
-        # Handlers para workflows de cada unidad de negocio
-        'amigro_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'amigro.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10 * 1024 * 1024,  # 10 MB
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'executive_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'executive.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'huntred_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'huntred.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'huntu_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'huntu.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'sexsi_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'sexsi.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'INFO',
-        },
-        'milkyleak_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'milkyleak.log'),
-            'formatter': 'verbose',
-            'maxBytes': 10485760,
-            'backupCount': 2,
-            'level': 'DEBUG',
         },
         'utilidades_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'utilidades.log'),
             'formatter': 'verbose',
-            'maxBytes': 10485760,
+            'maxBytes': 10 * 1024 * 1024,
             'backupCount': 2,
-            'level': 'DEBUG',
+            'level': 'INFO',
         },
     },
     'loggers': {
-        # Logger raíz (todos los módulos que no tienen configuración específica usarán el global)
-        '': {
-            'handlers': ['global_file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        # EN el de DEBUG, habiamos comentado que los más criticos, si esto choca con lo expresado, solo informar y vemos como procedemos.
+        # Logger general para la aplicación (Django u otros)
         'django': {
-            'handlers': ['console', 'debug_file'],
-            'level': env('DJANGO_LOG_LEVEL', default='INFO'),
+            'handlers': ['console', 'app_file'],
+            'level': 'INFO',
             'propagate': True,
         },
-        'django.db.backends': {
-            'handlers': ['console'],
-            'level': env('DB_LOG_LEVEL', default='INFO'),
-            'propagate': False,
-        },
-        # Categorías específicas
+        # Logger específico para el módulo chatbot
         'app.chatbot': {
             'handlers': ['chatbot_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        "app.chatbot.intents_handler": {
-            "handlers": ["intents_file", "console"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
-        'app.chatbot.nlp': {
-            'handlers': ['nlp_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'app.chatbot.gpt': {
-            'handlers': ['gpt_file'],
             'level': 'INFO',
             'propagate': False,
         },
-        'app.utilidades.vacantes': {
-            'handlers': ['vacantes_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.utilidades.scraping': {
-            'handlers': ['scraping_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'app.utilidades.parse': {
-            'handlers': ['parse_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
+        # Logger específico para el módulo ML
         'app.ml': {
             'handlers': ['ml_file'],
             'level': 'INFO',
             'propagate': False,
         },
-        'app.utilidades.signature': {
-            'handlers': ['signature_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'app': {  # Para configuración (admin, apps, models, signals, etc.)
-            'handlers': ['config_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.dashboard': {
-            'handlers': ['dashboard_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.tasks': {
-            'handlers': ['tasks_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.tests': {
-            'handlers': ['tests_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'app.views': {
-            'handlers': ['views_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'messenger': {
-            'handlers': ['messenger_file', 'console'],
-            'level': env('MESSENGER_LOG_LEVEL', default='ERROR'),
-            'propagate': False,
-        },
-        'whatsapp': {
-            'handlers': ['whatsapp_file', 'console'],
-            'level': env('WHATSAPP_LOG_LEVEL', default='ERROR'),
-            'propagate': False,
-        },
-        'instagram': {
-            'handlers': ['instagram_file', 'console'],
-            'level': env('INSTAGRAM_LOG_LEVEL', default='ERROR'),
-            'propagate': False,
-        },
-        'telegram': {
-            'handlers': ['telegram_file', 'console'],
-            'level': env('TELEGRAM_LOG_LEVEL', default='ERROR'),
-            'propagate': False,
-        },
-        'celery': {
-            'handlers': ['celery'],
-            'level':  env('DJANGO_LOG_LEVEL', default='INFO'),
-            'propagate': False,
-        },
-        # Workflows por unidad
-        'app.chatbot.workflows.amigro': {
-            'handlers': ['amigro_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.chatbot.workflows.executive': {
-            'handlers': ['executive_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.chatbot.workflows.huntred': {
-            'handlers': ['huntred_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.chatbot.workflows.huntu': {
-            'handlers': ['huntu_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.chatbot.workflows.sexsi': {
-            'handlers': ['sexsi_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app.milkyleak': {
-            'handlers': ['milkyleak_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
+        # Logger específico para el módulo utilidades
         'app.utilidades': {
             'handlers': ['utilidades_file'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': False,
+        },
+        # Logger raíz para capturar logs no específicos
+        '': {
+            'handlers': ['app_file'],
+            'level': 'INFO',
+            'propagate': True,
         },
     },
 }

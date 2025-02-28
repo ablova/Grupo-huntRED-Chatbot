@@ -21,9 +21,8 @@ from app.utilidades.scraping import validate_job_data, JobListing
 #os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ai_huntred.settings")
 #django.setup()
 
-# Configuración del logger
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logger.info("Inicio de la aplicación.")
 
 # Configuración de la cuenta IMAP
 EMAIL_ACCOUNT = "pablo@huntred.com"

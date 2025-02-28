@@ -26,7 +26,9 @@ from app.models import USER_AGENTS
 from app.chatbot.utils import clean_text
 #from app.utilidades.vacantes import get_session, login, login_to_wordpress, register, solicitud, exportar_vacantes_a_wordpress
 
-logger = logging.getLogger("app.utilidades.scraping")
+# En el módulo utilidades
+logger = logging.getLogger(__name__)
+logger.info("Inicio de la aplicación.")
 
 nlp = spacy.load("en_core_web_md")
 from app.chatbot.nlp import lazy_skill_extractor
