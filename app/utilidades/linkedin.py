@@ -21,7 +21,7 @@ from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "781zbztzovea6a")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "WPL_AP1.MKozNnsrqofMSjN4.ua0UOQ==")

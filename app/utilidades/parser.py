@@ -25,7 +25,7 @@ from app.chatbot.nlp import load_nlp_model  # ✅ Usar función centralizada de 
 
 # ✅ Configuración de logging
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 # ✅ Importación segura del módulo NLP
 try:

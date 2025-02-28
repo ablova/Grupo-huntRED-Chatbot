@@ -28,7 +28,7 @@ from app.chatbot.utils import clean_text
 
 # En el módulo utilidades
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 nlp = spacy.load("en_core_web_md")
 from app.chatbot.nlp import lazy_skill_extractor

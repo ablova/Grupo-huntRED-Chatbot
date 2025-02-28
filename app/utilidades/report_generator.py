@@ -15,7 +15,7 @@ import logging
 
 # En el módulo utilidades
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 def generate_analysis_page(group_logo_url, division_logo_url, analysis_data, output_path):
     """

@@ -25,7 +25,7 @@ from logging.handlers import RotatingFileHandler
 
 # ✅ Configuración de Logging con rotación
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 # ✅ Descarga eficiente de NLTK
 try:

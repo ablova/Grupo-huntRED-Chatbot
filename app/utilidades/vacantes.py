@@ -24,7 +24,7 @@ from app.chatbot.utils import prioritize_interests, get_positions_by_skills
 
 # Configuración del logger En el módulo utilidades
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 def main(message: str) -> None:
     """

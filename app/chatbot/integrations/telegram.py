@@ -15,7 +15,7 @@ from app.chatbot.chatbot import ChatBotHandler
 from app.models import TelegramAPI, BusinessUnit
 
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 CACHE_TIMEOUT = 600  # 10 minutos
 MAX_RETRIES = 3
 REQUEST_TIMEOUT = 10.0  # segundos

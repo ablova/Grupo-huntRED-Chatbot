@@ -5,7 +5,7 @@ from app.models import Person, Vacante, BusinessUnit, Application
 from app.chatbot.workflow.common import send_candidate_summary
 from app.utilidades.signature.pdf_generator import generate_contract_pdf
 logger = logging.getLogger(__name__)
-logger.info("Inicio de la aplicación.")
+
 
 @shared_task
 def process_huntu_candidate(candidate_id):
