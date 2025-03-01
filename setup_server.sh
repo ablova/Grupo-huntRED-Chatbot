@@ -1,394 +1,334 @@
 #!/bin/bash
-# setup_server.sh
-# Script unificado para configurar la instancia, desplegar la aplicación y optimizar Celery.
-# Asegúrate de tener configuradas las variables de entorno necesarias y de que las dependencias estén instaladas.
-
-set -euo pipefail  # Modo estricto para detectar errores
-
-# -------------------- VARIABLES --------------------
-APP_USER="pablo"  # Usuario con el que se ejecutará la app
-PROJECT_ID="Grupo-huntRED"
-ZONE="us-central1-a"
-INSTANCE_NAME="grupo-huntred"
-MACHINE_TYPE="e2-medium"
-DISK_SIZE="20GB"
-IMAGE_FAMILY="ubuntu-2204-lts"
-IMAGE_PROJECT="ubuntu-os-cloud"
-EXTERNAL_IP="34.57.227.244"
-
-# Definimos el directorio del proyecto de forma coherente (se usará para clonar el repo y alojar la app)
-PROJECT_DIR="/home/$APP_USER"
-VENV_DIR="$PROJECT_DIR/venv"
-
-DB_NAME="grupo_huntred_ai_db"
-DB_USER="grupo_huntred_user"
-DB_PASSWORD="Natalia&Patricio1113!"
-ALLOWED_HOSTS="ai.huntred.com,localhost,$EXTERNAL_IP"
-APP_NAME="ai_huntred"
-DOMAIN="ai.huntred.com"
-EMAIL="hola@huntred.com"
-GITHUB_PAT="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"
-GITHUB_REPO="https://${GITHUB_PAT}@github.com/ablova/Grupo-huntRED-Chatbot.git"
-SWAP_SIZE="4G"
-LOG_DIR="/var/log/$APP_NAME"
-
-CELERY_WORKER_SERVICE="celery-worker"
-CELERY_SCRAPING_SERVICE="celery-scraping"
-CELERY_ML_SERVICE="celery-ml"
-CELERY_BEAT_SERVICE="celery-beat"
-CELERY_MONITOR_SERVICE="celery-monitor"
-
+############################################################################################
+# Nombre: setup_full_server.sh
+# Descripción:
+#   Despliega en una VM Ubuntu limpia:
+#   - Creación de grupo 'ai_huntred' y añade {pablo, pablollh, www-data, root}
+#   - Django + Gunicorn + PostgreSQL + Redis + Nginx + Certbot + Python3
+#   - Purga y reinstala PostgreSQL/Redis; crea DB, corre migrations
+#   - Ajusta Redis "supervised no" si systemd falla, daemonize
+#   - Arregla Git "dubious ownership"
+#   - Instala requirements en venv
+#   - Configura Gunicorn + Nginx + (opcional) Certbot SSL
+#
+# *** ADVERTENCIA: Este script asume que se puede PURGAR y REINSTALAR todo en la VM ***
+# Úsalo para levantar la infraestructura desde cero.
+#
+# Uso:
+#   1) Subirlo a la VM
+#   2) sudo chmod +x setup_full_server.sh
+#   3) sudo ./setup_full_server.sh
+############################################################################################
 
 set -euo pipefail
 
-echo '=== Actualizando el sistema ==='
-sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y
+################################
+##        CONFIGURACIONES     ##
+################################
 
-echo '=== Instalando dependencias necesarias ==='
-sudo apt-get install -y python3 python3-pip python3-venv python3-dev build-essential \
-    libpq-dev nginx certbot python3-certbot-nginx postgresql postgresql-contrib git curl \
-    htop ncdu fail2ban logrotate redis-server mailutils
+# == Grupo y usuarios ==
+MAIN_GROUP="ai_huntred"
+ALL_USERS=("pablo" "pablollh" "www-data" "root")
 
-echo '=== Configurando SWAP ($SWAP_SIZE) ==='
-if [ ! -f /swapfile ]; then
-    sudo fallocate -l $SWAP_SIZE /swapfile
-    sudo chmod 600 /swapfile
-    sudo mkswap /swapfile
-    sudo swapon /swapfile
-    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-fi
+# == Nombre de tu Django app / repositorio ==
+APP_USER="pablo"               # Dueño principal del /home/pablo
+PROJECT_DIR="/home/$APP_USER"  # Directorio donde clonar
+APP_NAME="ai_huntred"          # Nombre (carpeta django principal)
+REPO_URL="https://github.com/ablova/Grupo-huntRED-Chatbot.git"
 
-echo '=== Configurando PostgreSQL ==='
-# Corregido el manejo de comillas para que la consulta se interprete correctamente
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME';\" | grep -q 1 || \
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;\"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER';\" | grep -q 1 || \
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';\"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;\"
+# == Variables para Gunicorn/Nginx ==
+DOMAIN="ai.huntred.com"        # Dominio
+EMAIL="hola@huntred.com"       # Certbot
+SECRET_KEY="hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48"
 
-echo '=== Configurando clonación de GitHub ==='
-if [ ! -d \"$PROJECT_DIR\" ]; then
-    sudo mkdir -p \"$PROJECT_DIR\"
-    sudo chown $APP_USER:www-data \"$PROJECT_DIR\"
-fi
-cd \"$PROJECT_DIR\"
-if [ ! -d .git ]; then
-    git clone \"$GITHUB_REPO\" .
+# == PostgreSQL ==
+DB_NAME="g_huntred_ai_db"
+DB_USER="g_huntred_pablo"
+DB_PASSWORD="Natalia&Patricio1113!"
+DB_HOST="localhost"
+DB_PORT="5432"
+
+# == Python ==
+PY_VERSION="python3"
+VENV_DIR="$PROJECT_DIR/venv"
+
+# == SWAP ==
+SWAP_SIZE="4G"
+
+# == Archivos de config gunicorn/nginx ==
+GUNICORN_SOCKET="$PROJECT_DIR/gunicorn.sock"
+GUNICORN_SERVICE="/etc/systemd/system/gunicorn.service"
+NGINX_SITE="/etc/nginx/sites-available/$APP_NAME"
+NGINX_LINK="/etc/nginx/sites-enabled/$APP_NAME"
+
+################################
+echo "==========================================================="
+echo " [1/10] ACTUALIZANDO Y PREPARANDO LA VM "
+echo "==========================================================="
+sleep 2
+
+apt-get update -y
+apt-get upgrade -y
+apt-get autoremove -y
+
+# Herramientas base
+apt-get install -y software-properties-common curl git htop ncdu fail2ban logrotate build-essential
+
+################################
+echo "==========================================================="
+echo " [2/10] CREANDO Y CONFIGURANDO GRUPO '$MAIN_GROUP' "
+echo "==========================================================="
+sleep 2
+
+# Crea el grupo si no existe
+if ! getent group "$MAIN_GROUP" >/dev/null; then
+    groupadd "$MAIN_GROUP"
+    echo "Grupo '$MAIN_GROUP' creado."
 else
-    echo 'Repositorio ya clonado. Haciendo pull...'
-    git reset --hard && git pull
+    echo "Grupo '$MAIN_GROUP' ya existe."
 fi
 
-echo '=== Creando entorno virtual ==='
-if [ ! -d \"$VENV_DIR\" ]; then
-    python3 -m venv \"$VENV_DIR\"
+# Añade usuarios al grupo (si existen)
+for usr in "${ALL_USERS[@]}"; do
+    usermod -aG "$MAIN_GROUP" "$usr" 2>/dev/null || true
+done
+
+################################
+echo "==========================================================="
+echo " [3/10] CONFIGURANDO SWAP "
+echo "==========================================================="
+sleep 2
+
+if [ ! -f /swapfile ]; then
+    echo "Creando SWAP de $SWAP_SIZE"
+    fallocate -l $SWAP_SIZE /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+else
+    echo "SWAP ya existe, omitiendo."
 fi
-source \"$VENV_DIR/bin/activate\"
 
-echo '=== Instalando dependencias del proyecto ==='
-pip install --upgrade pip
-pip install -r \"$PROJECT_DIR/requirements.txt\"
+################################
+echo "==========================================================="
+echo " [4/10] INSTALANDO POSTGRESQL, REDIS, NGINX, CERTBOT, PYTHON"
+echo "==========================================================="
+sleep 2
 
-echo '=== Configurando Gunicorn ==='
-cat <<EOF | sudo tee /etc/systemd/system/gunicorn.service
+# PURGAR POSTGRES Y REDIS
+echo "Eliminando instalaciones previas de PostgreSQL & Redis..."
+apt purge --auto-remove -y postgresql* redis-server* || true
+
+echo "Instalando base packages..."
+DEBIAN_FRONTEND=noninteractive apt update -y
+DEBIAN_FRONTEND=noninteractive apt install -y \
+    postgresql postgresql-contrib redis-server nginx certbot python3-certbot-nginx \
+    $PY_VERSION $PY_VERSION-dev python3-pip python3-venv libpq-dev
+
+################################
+echo "==========================================================="
+echo " [5/10] CONFIGURANDO POSTGRESQL Y REDIS "
+echo "==========================================================="
+sleep 2
+
+# POSTGRES
+systemctl enable postgresql
+systemctl start postgresql
+
+echo "Recreando DB '$DB_NAME' y usuario '$DB_USER' (ADVERTENCIA: se borran si existen)."
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME"
+sudo -u postgres psql -c "DROP ROLE IF EXISTS $DB_USER"
+sudo -u postgres psql -c "CREATE DATABASE $DB_NAME"
+sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD'"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER"
+
+# REDIS: Forzar 'supervised no' y si systemd falla, se lanza manual daemon
+echo "Forcing supervised no in /etc/redis/redis.conf..."
+sed -i 's/^supervised .*/supervised no/' /etc/redis/redis.conf || true
+
+echo "Disabling redis-server from systemd..."
+systemctl disable redis-server || true
+systemctl stop redis-server || true
+
+echo "Attempting to start Redis with systemd anyway..."
+systemctl enable redis-server || true
+if ! systemctl start redis-server; then
+    echo "systemd start redis-server failed. Using manual daemonize..."
+    redis-server --daemonize yes
+fi
+
+################################
+echo "==========================================================="
+echo " [6/10] CLONANDO REPO GITHUB EN $PROJECT_DIR "
+echo "==========================================================="
+sleep 2
+
+mkdir -p "$PROJECT_DIR"
+chgrp -R "$MAIN_GROUP" "$PROJECT_DIR"
+chmod -R g+rwX "$PROJECT_DIR"
+
+if [ ! -d "$PROJECT_DIR/.git" ]; then
+  echo "Clonando repo: $REPO_URL"
+  git clone "$REPO_URL" "$PROJECT_DIR"
+else
+  echo "Repositorio ya existe, haciendo reset/pull..."
+  cd "$PROJECT_DIR"
+  git reset --hard || true
+  git pull || true
+fi
+
+echo "Configuring git safe.directory for $PROJECT_DIR"
+# Make sure we set safe.directory so “dubious ownership” is resolved
+sudo -u "$APP_USER" git config --global --add safe.directory "$PROJECT_DIR" || true
+
+chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
+chmod -R g+rwX "$PROJECT_DIR"
+
+echo "Done. Redis should be running, and Git safe.directory set."
+
+################################
+echo "==========================================================="
+echo " [7/10] CREANDO ENTORNO VIRTUAL E INSTALANDO REQUIREMENTS "
+echo "==========================================================="
+sleep 2
+
+if [ ! -d "$VENV_DIR" ]; then
+    su - "$APP_USER" -c "$PY_VERSION -m venv $VENV_DIR"
+fi
+
+# Instalar requirements
+sudo -i -u "$APP_USER" bash <<EOF
+cd "$PROJECT_DIR"
+source "$VENV_DIR/bin/activate"
+
+python -m pip install --upgrade pip
+pip install wheel
+
+# IMPORTANTE: si en tu requirements.txt hay dependencias imposibles (ej: torch==2.5.1+cpu),
+# quítalas o coméntalas. De lo contrario fallará.
+if [ -f requirements.txt ]; then
+    pip install -r requirements.txt || true
+fi
+EOF
+
+################################
+echo "==========================================================="
+echo " [8/10] CONFIGURANDO GUNICORN SYSTEMD "
+echo "==========================================================="
+sleep 2
+
+cat > "$GUNICORN_SERVICE" <<EOF
 [Unit]
-Description=Gunicorn daemon for $APP_NAME
+Description=Gunicorn for $APP_NAME
 After=network.target
 
 [Service]
 User=$APP_USER
-Group=www-data
+Group=$MAIN_GROUP
 WorkingDirectory=$PROJECT_DIR
-ExecStart=$VENV_DIR/bin/gunicorn --workers 4 --threads 2 --bind unix:$PROJECT_DIR/gunicorn.sock $APP_NAME.wsgi:application
+ExecStart=$VENV_DIR/bin/gunicorn --workers 3 --bind unix:$GUNICORN_SOCKET $APP_NAME.wsgi:application
 Restart=always
-# Opcional: preload-app para reducir uso de memoria (ajusta según pruebas)
-# ExecStartPre=$VENV_DIR/bin/python -c 'import multiprocessing; print(multiprocessing.cpu_count())'
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-echo '=== Configurando Nginx ==='
-cat <<EOF | sudo tee /etc/nginx/sites-available/$APP_NAME
+systemctl daemon-reload
+systemctl enable gunicorn
+systemctl restart gunicorn
+
+################################
+echo "==========================================================="
+echo " [9/10] CONFIGURANDO NGINX + CERTBOT "
+echo "==========================================================="
+sleep 2
+
+rm -f "$NGINX_LINK" || true
+
+cat > "$NGINX_SITE" <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
-    return 301 https://\$server_name\$request_uri;
 
-    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /favicon.ico {
+        access_log off;
+        log_not_found off;
+    }
+
     location /static/ {
         root $PROJECT_DIR;
-        # Habilitar caching estático para mayor eficiencia
-        expires max;
-        add_header Cache-Control public;
+        expires 30d;
+        access_log off;
     }
 
     location / {
         include proxy_params;
-        proxy_pass http://unix:$PROJECT_DIR/gunicorn.sock;
+        proxy_pass http://unix:$GUNICORN_SOCKET;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 
     client_max_body_size 10M;
-
-    # Habilitar gzip para mejorar la eficiencia en la transferencia
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
 }
 EOF
-sudo ln -sf /etc/nginx/sites-available/$APP_NAME /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl restart nginx
 
-echo '=== Generando certificado SSL con Certbot ==='
-sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL || echo 'Certbot falló. Revisa las configuraciones DNS.'
+ln -sf "$NGINX_SITE" "$NGINX_LINK"
+nginx -t && systemctl restart nginx
 
-echo '=== Aplicando migraciones de Django y colectando estáticos ==='
-python \"$PROJECT_DIR/manage.py\" makemigrations
-python \"$PROJECT_DIR/manage.py\" migrate
-python \"$PROJECT_DIR/manage.py\" collectstatic --noinput
+# Certbot SSL (opcional)
+if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "localhost" ]; then
+  certbot --nginx -d "$DOMAIN" -m "$EMAIL" --agree-tos --non-interactive || echo "Certbot falló o dominio no apunta."
+fi
 
-echo '=== Configurando y habilitando Gunicorn ==='
-sudo systemctl daemon-reload
-sudo systemctl enable gunicorn
-sudo systemctl start gunicorn
+################################
+echo "==========================================================="
+echo " [10/10] MIGRACIONES DJANGO, COLLECTSTATIC, ETC. "
+echo "==========================================================="
+sleep 2
 
-# -------------------- CONFIGURACIÓN DE CELERY Y OPTIMIZACIONES --------------------
-echo '=== Configurando servicios de Celery y optimizaciones ==='
+# .env + Migrate
+sudo -i -u "$APP_USER" bash <<EOF
+cd "$PROJECT_DIR"
+source "$VENV_DIR/bin/activate"
 
-# 1. celery-worker.service
-sudo bash -c 'cat > /etc/systemd/system/celery-worker.service' << "EOF"
-[Unit]
-Description=Celery Worker for $APP_NAME (Default and Notifications)
-After=network.target redis.service postgresql.service
-Wants=redis.service postgresql.service
+# Generamos .env con DB/SECRET/REDIS info
+cat > .env <<ENDENV
+# Django / Python
+DJANGO_SECRET_KEY=$SECRET_KEY
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=$DOMAIN,127.0.0.1,localhost
 
-[Service]
-Type=simple
-User=$APP_USER
-Group=www-data
-WorkingDirectory=$PROJECT_DIR
-Environment="PYTHONPATH=$PROJECT_DIR"
-Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
-ExecStart=$VENV_DIR/bin/celery -A $APP_NAME worker -Q notifications,default --loglevel=INFO --concurrency=2 --max-tasks-per-child=3 --pool=prefork --without-gossip --without-mingle -n worker@%h
-ExecStop=/bin/sh -c \"pkill -TERM -P \$MAINPID\"
-TimeoutStopSec=300
-Restart=on-failure
-RestartSec=30
-LimitNOFILE=65536
-MemoryLimit=600M
-CPUQuota=80%
-[Install]
-WantedBy=multi-user.target
+# PostgreSQL
+DB_NAME=$DB_NAME
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+DB_HOST=$DB_HOST
+DB_PORT=$DB_PORT
+
+# Redis
+CELERY_BROKER_URL=redis://127.0.0.1:6379/0
+CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
+ENDENV
+
+python manage.py migrate --noinput || true
+python manage.py collectstatic --noinput || true
 EOF
 
-# 2. celery-scraping.service
-sudo bash -c 'cat > /etc/systemd/system/celery-scraping.service' << "EOF"
-[Unit]
-Description=Celery Worker Scraping for $APP_NAME
-After=network.target redis.service postgresql.service
-Wants=redis.service postgresql.service
+systemctl restart gunicorn
+systemctl restart nginx
 
-[Service]
-Type=simple
-User=$APP_USER
-Group=www-data
-WorkingDirectory=$PROJECT_DIR
-Environment="PYTHONPATH=$PROJECT_DIR"
-Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
-ExecStart=$VENV_DIR/bin/celery -A $APP_NAME worker -Q scraping --loglevel=INFO --concurrency=1 --max-tasks-per-child=1 --pool=prefork --without-gossip --without-mingle -n worker_scraping@%h
-ExecStop=/bin/sh -c \"pkill -TERM -P \$MAINPID\"
-TimeoutStopSec=300
-Restart=on-failure
-RestartSec=60
-LimitNOFILE=65536
-MemoryLimit=800M
-CPUQuota=90%
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 3. celery-ml.service
-sudo bash -c 'cat > /etc/systemd/system/celery-ml.service' << "EOF"
-[Unit]
-Description=Celery Worker ML for $APP_NAME
-After=network.target redis.service postgresql.service
-Wants=redis.service postgresql.service
-
-[Service]
-Type=simple
-User=$APP_USER
-Group=www-data
-WorkingDirectory=$PROJECT_DIR
-Environment="PYTHONPATH=$PROJECT_DIR"
-Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
-ExecStart=$VENV_DIR/bin/celery -A $APP_NAME worker -Q ml --loglevel=INFO --concurrency=1 --max-tasks-per-child=1 --pool=prefork --without-gossip --without-mingle -n worker_ml@%h
-ExecStop=/bin/sh -c \"pkill -TERM -P \$MAINPID\"
-TimeoutStopSec=600
-Restart=on-failure
-RestartSec=120
-LimitNOFILE=65536
-MemoryLimit=1G
-CPUQuota=90%
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 4. celery-beat.service
-sudo bash -c 'cat > /etc/systemd/system/celery-beat.service' << "EOF"
-[Unit]
-Description=Celery Beat Service for $APP_NAME
-After=network.target redis.service postgresql.service
-Wants=redis.service postgresql.service
-
-[Service]
-Type=simple
-User=$APP_USER
-Group=www-data
-WorkingDirectory=$PROJECT_DIR
-Environment="PYTHONPATH=$PROJECT_DIR"
-Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
-ExecStartPre=/bin/sleep 10
-ExecStart=$VENV_DIR/bin/celery -A $APP_NAME beat --loglevel=INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler --max-interval=300
-ExecStop=/bin/kill -s TERM \$MAINPID
-TimeoutStopSec=180
-Restart=on-failure
-RestartSec=60
-LimitNOFILE=65536
-MemoryLimit=200M
-CPUQuota=30%
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 5. Crear script de monitoreo para Celery y servicio systemd asociado
-echo '=== Creando script de monitoreo para Celery ==='
-sudo mkdir -p /home/$APP_USER/scripts
-cat > /home/$APP_USER/scripts/monitor_celery.sh << "EOF"
-#!/bin/bash
-# Script para monitorear y reiniciar servicios de Celery si es necesario
-
-LOG_FILE="/var/log/celery_monitor.log"
-SERVICES=("celery-worker" "celery-scraping" "celery-ml" "celery-beat")
-EMAIL="pablo@example.com"  # Cambia este correo por el tuyo
-
-touch \$LOG_FILE
-chmod 644 \$LOG_FILE
-
-log() {
-    echo "\$(date '+%Y-%m-%d %H:%M:%S') - \$1" >> \$LOG_FILE
-    echo "\$(date '+%Y-%m-%d %H:%M:%S') - \$1"
-}
-
-check_redis() {
-    if ! redis-cli ping > /dev/null 2>&1; then
-        log 'ERROR: Redis no responde. Reiniciando...'
-        sudo systemctl restart redis
-        sleep 5
-        if ! redis-cli ping > /dev/null 2>&1; then
-            log 'CRÍTICO: Reinicio de Redis fallido.'
-            echo \"Redis falló en \$(hostname)\" | mail -s 'CRÍTICO: Redis Down' \$EMAIL
-            return 1
-        else
-            log 'Redis reiniciado correctamente.'
-            return 0
-        fi
-    fi
-    return 0
-}
-
-check_celery_services() {
-    local restart_count=0
-    for service in \"\${SERVICES[@]}\"; do
-        if ! systemctl is-active --quiet \$service; then
-            log \"ADVERTENCIA: \$service no está activo. Reiniciando...\"
-            sudo systemctl restart \$service
-            sleep 10
-            restart_count=\$((restart_count + 1))
-            if ! systemctl is-active --quiet \$service; then
-                log \"ERROR: Falló reinicio de \$service\"
-            else
-                log \"\$service reiniciado correctamente.\"
-            fi
-        fi
-        pid=\$(pgrep -f \"celery.*\$service\" | head -n1)
-        if [ ! -z \"\$pid\" ]; then
-            mem_usage=\$(ps -o rss= -p \$pid | awk '{print \$1/1024}')
-            if (( \$(echo \"\$mem_usage > 900\" | bc -l) )); then
-                log \"ADVERTENCIA: \$service usando \${mem_usage}MB. Reiniciando...\"
-                sudo systemctl restart \$service
-                sleep 10
-                restart_count=\$((restart_count + 1))
-            fi
-        fi
-    done
-    if [ \$restart_count -gt 2 ]; then
-        log 'Múltiples servicios reiniciados. Posible problema en el sistema.'
-        echo \"Varios servicios Celery reiniciados en \$(hostname)\" | mail -s 'ADVERTENCIA: Reinicios de Celery' \$EMAIL
-    fi
-}
-
-# Usar PROJECT_DIR para mayor consistencia
-rm -f \"$PROJECT_DIR\"/*.pid 2>/dev/null
-
-log 'Iniciando monitoreo de servicios Celery'
-
-while true; do
-    check_redis
-    check_celery_services
-    free_mem=\$(free -m | awk 'NR==2{print \$4}')
-    if [ \$free_mem -lt 200 ]; then
-        log \"ADVERTENCIA: Memoria baja (\$free_mem MB libres). Limpiando caché...\"
-        sudo sync && sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-    fi
-    sleep 300
-done
-EOF
-sudo chmod +x /home/$APP_USER/scripts/monitor_celery.sh
-
-# Crear servicio systemd para el monitoreo de Celery
-sudo bash -c 'cat > /etc/systemd/system/celery-monitor.service' << "EOF"
-[Unit]
-Description=Monitoreo y recuperación automática de servicios Celery
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=/home/$APP_USER/scripts/monitor_celery.sh
-Restart=always
-RestartSec=60
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo chmod 644 /etc/systemd/system/celery-monitor.service
-
-echo '=== Recargando systemd y arrancando servicios de Celery ==='
-sudo systemctl daemon-reload
-
-# Detener servicios existentes (si los hay)
-for service in celery-worker celery-scraping celery-ml celery-beat; do
-    sudo systemctl stop \$service || true
-done
-
-rm -f \"$PROJECT_DIR\"/*.pid 2>/dev/null || true
-
-# Iniciar servicios en orden
-sudo systemctl start celery-beat
-sleep 5
-sudo systemctl start celery-worker
-sleep 5
-sudo systemctl start celery-scraping
-sleep 5
-sudo systemctl start celery-ml
-sleep 5
-
-# Habilitar servicios en arranque
-for service in celery-worker celery-scraping celery-ml celery-beat celery-monitor; do
-    sudo systemctl enable \$service
-done
-
-sudo systemctl start celery-monitor
-
-echo '===== Configuración completa de servidor y Celery finalizada ====='
-echo 'Logs de monitoreo en: /var/log/celery_monitor.log'
+echo "==========================================================="
+echo "DEPLOY FINALIZADO."
+echo "==========================================================="
+echo "Verifica con: "
+echo "  systemctl status gunicorn"
+echo "  systemctl status nginx"
+echo "  systemctl status redis-server"
+echo "  curl -I http://\$DOMAIN"
+echo
+echo "Si todo está bien, tu Django está en http://$DOMAIN/ (HTTP)."
+echo "Si Certbot funcionó, deberías poder usar HTTPS."
+echo "==========================================================="

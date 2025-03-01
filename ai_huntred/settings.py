@@ -31,7 +31,6 @@ sentry_sdk.init(
     },
     send_default_pii=env.bool('SENTRY_SEND_PII', default=True),
     debug=env.bool('SENTRY_DEBUG', default=False),
-    traces_sample_rate=0.2,
 )
 
 # Paths
@@ -103,7 +102,7 @@ INSTALLED_APPS = [
     'app.sexsi',
     'app.milkyleak',
     # Manejo de Diseño - WoWDash
-    'app.wowdash',
+    #'app.wowdash',
     # Librerías externas
     'rest_framework',
     'django_filters',
@@ -186,23 +185,10 @@ REST_FRAMEWORK = {
     }
 }
 
-# Logging Configuration
+
+# Define el directorio de logs y créalo si no existe
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
-
-import os
-
-# Asegúrate de definir LOG_DIR como el directorio donde se guardarán los logs
-LOG_DIR = os.path.join(BASE_DIR, 'logs')  # BASE_DIR debe estar definido en tu settings.py
-os.makedirs(LOG_DIR, exist_ok=True)  # Crea el directorio si no existe
-
-import os
-from pathlib import Path
-
-# Asegúrate de que BASE_DIR esté definido (esto suele estar en settings.py por defecto en Django)
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
-os.makedirs(LOG_DIR, exist_ok=True)  # Crea el directorio si no existe
 
 LOGGING = {
     'version': 1,
@@ -219,24 +205,22 @@ LOGGING = {
             'formatter': 'verbose',
             'level': 'INFO',
         },
-        'app_file': {  # Añadimos este handler que faltaba
+        'app_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'app.log'),
             'formatter': 'verbose',
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
-            'backupCount': 3,  # Mantiene hasta 3 archivos de respaldo
+            'backupCount': 3,  # Hasta 3 archivos de respaldo
             'level': 'INFO',
         },
     },
     'loggers': {
-        # Logger para Django
         'django': {
             'handlers': ['console', 'app_file'],
             'level': 'INFO',
             'propagate': True,
         },
-        # Logger raíz para capturar logs de todos los módulos
-        '': {
+        '': {  # Logger raíz
             'handlers': ['app_file'],
             'level': 'INFO',
             'propagate': True,
