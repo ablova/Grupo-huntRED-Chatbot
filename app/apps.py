@@ -83,7 +83,7 @@ class AppConfig(DjangoAppConfig):
         Configura las tareas periódicas llamando a la función de Celery.
         """
         try:
-            from ai_huntred.celery_app import setup_periodic_tasks
+            from ai_huntred.celery import setup_periodic_tasks
             setup_periodic_tasks(None)
             logger.info("Periodic tasks registered successfully")
         except Exception as e:
