@@ -14,22 +14,13 @@ class AppConfig(DjangoAppConfig):
     def ready(self):
         import app.signals
 
-        # Solo bloquear ejecución en runserver, pero permitir en Celery
-        if "runserver" in os.environ.get("DJANGO_RUN_MODE", ""):
+        # Solo ejecutar lógica pesada en el servidor web o Celery, no en comandos admin
+        if any(arg in os.sys.argv for arg in ['runserver', 'migrate', 'collectstatic', 'makemigrations']):
             return
 
-        self.register_startup_handlers()
-
-    def _load_dynamic_settings(self, **kwargs):
-        cache_key = 'dynamic_settings'
-        settings_data = cache.get(cache_key)
-        if not settings_data:
-            try:
-                self._load_settings_from_db()
-                cache.set(cache_key, settings_data, timeout=3600)  # 1 hora
-            except Exception as e:
-                logger.error(f"Error loading dynamic settings: {e}")
-                self._set_default_settings()
+        # Ejecutar solo si es necesario (por ejemplo, en Gunicorn o Celery)
+        if 'gunicorn' in os.environ.get('SERVER_SOFTWARE', '') or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
+            self.register_startup_handlers()
 
     def register_startup_handlers(self):
         """
