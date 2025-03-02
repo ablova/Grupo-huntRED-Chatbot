@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import os
 import django
 import logging
-from ai_huntred.celery_app import Celery
+from ai_huntred.celery import Celery
 from celery.schedules import crontab
 from celery.signals import after_setup_task_logger, worker_ready
 from django.db.utils import OperationalError
