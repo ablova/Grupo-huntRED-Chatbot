@@ -13,34 +13,19 @@ class AppConfig(DjangoAppConfig):
 
     def ready(self):
         import app.signals
-
-        # Solo ejecutar lógica pesada en el servidor web o Celery, no en comandos admin
         if any(arg in os.sys.argv for arg in ['runserver', 'migrate', 'collectstatic', 'makemigrations']):
             return
-
-        # Ejecutar solo si es necesario (por ejemplo, en Gunicorn o Celery)
         if 'gunicorn' in os.environ.get('SERVER_SOFTWARE', '') or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
             self.register_startup_handlers()
 
     def register_startup_handlers(self):
-        """
-        Registra manejadores de arranque para cargar configuraciones dinámicas
-        y tareas periódicas después de aplicar migraciones.
-        """
         from django.core.signals import request_started
         from django.db.models.signals import post_migrate
-
         if settings.DEBUG:
-            # Cargar configuraciones dinámicas en la primera solicitud
             request_started.connect(self._load_dynamic_settings, weak=False)
-
-        # Registrar periodic tasks después de las migraciones
         post_migrate.connect(self._setup_periodic_tasks, weak=False)
 
     def _load_dynamic_settings(self, **kwargs):
-        """
-        Carga configuraciones dinámicas desde la base de datos en la primera solicitud.
-        """
         from django.core.signals import request_started
         request_started.disconnect(self._load_dynamic_settings)
         try:
@@ -50,9 +35,6 @@ class AppConfig(DjangoAppConfig):
             self._set_default_settings()
 
     def _load_settings_from_db(self):
-        """
-        Carga la configuración desde el modelo Configuracion.
-        """
         from django.apps import apps
         Configuracion = apps.get_model('app', 'Configuracion')
         config = Configuracion.objects.first()
@@ -66,9 +48,6 @@ class AppConfig(DjangoAppConfig):
             self._set_default_settings()
 
     def _set_default_settings(self):
-        """
-        Asigna valores predeterminados a las configuraciones.
-        """
         DEFAULT_SETTINGS = {
             'SECRET_KEY': 'hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48',
             'DEBUG': False,
@@ -79,12 +58,9 @@ class AppConfig(DjangoAppConfig):
                 setattr(settings, key, value)
 
     def _setup_periodic_tasks(self, **kwargs):
-        """
-        Configura las tareas periódicas llamando a la función de Celery.
-        """
+        from ai_huntred.celery import app  # Importa app en lugar de la función directamente
         try:
-            from ai_huntred.celery import setup_periodic_tasks
-            setup_periodic_tasks(None)
+            app.on_after_configure.connect(setup_periodic_tasks)  # Usa la función definida en celery.py
             logger.info("Periodic tasks registered successfully")
         except Exception as e:
             logger.error(f"Error registering periodic tasks: {e}")
