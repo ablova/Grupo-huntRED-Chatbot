@@ -25,7 +25,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 sentry_sdk.init(
     dsn=env('SENTRY_DSN'),
     integrations=[DjangoIntegration()],
-    traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=1.0),
+    traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=0.2),
     _experiments={
         "continuous_profiling_auto_start": True,
     },
@@ -35,7 +35,16 @@ sentry_sdk.init(
 
 # Paths
 ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
+# utils.py
+import tensorflow as tf
+def load_tensorflow():
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    return tf
 
+# Donde lo necesites
+from .utils import load_tensorflow
+tf = load_tensorflow()
 # Security Settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 DEBUG = env.bool('DJANGO_DEBUG', default=False)
@@ -70,7 +79,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = env('TIMEZONE', default='America/Mexico_City')
 CELERY_ENABLE_UTC = True
-CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=3)
+CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=1)
 CELERYD_PREFETCH_MULTIPLIER = 1  # Para evitar que un worker tome demasiadas tareas
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_MAX_MEMORY_PER_CHILD = 100000  # 100MB por proceso
@@ -162,6 +171,15 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Media
 MEDIA_URL = env('MEDIA_URL', default='/media/')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Por ahora, usa el predeterminado
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 
 # REST Framework
 REST_FRAMEWORK = {

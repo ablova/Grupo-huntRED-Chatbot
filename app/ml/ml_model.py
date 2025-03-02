@@ -56,21 +56,41 @@ class MatchmakingLearningSystem:
     Usa principalmente RandomForest de scikit-learn.
     """
 
-    def __init__(self, business_unit=None):
+    def __init__(self, business_unit=None):        
         self.business_unit = business_unit
-        self.model = RandomForestClassifier(n_estimators=100, random_state=42)
+        self.model = None  # No inicializar el modelo aquí
         self.scaler = StandardScaler()
-        # Se combina todo en un Pipeline (escalado + modelo)
-        self.pipeline = Pipeline([
-            ('scaler', self.scaler),
-            ('classifier', self.model)
-        ])
-        # Ruta donde se guardará/cargará el modelo
         self.model_file = os.path.join(
             settings.ML_MODELS_DIR,
             f"matchmaking_model_{business_unit or 'global'}.pkl"
         )
         self._loaded_model = None
+
+    def load_tensorflow(self):
+        """Carga TensorFlow solo cuando sea necesario."""
+        try:
+            import tensorflow as tf
+            tf.config.set_visible_devices([], 'GPU')  # Desactiva GPU por defecto
+            tf.config.threading.set_intra_op_parallelism_threads(1)
+            tf.config.threading.set_inter_op_parallelism_threads(1)
+            logger.info("✅ TensorFlow cargado bajo demanda.")
+            return tf
+        except ImportError:
+            logger.warning("⚠ TensorFlow no está instalado. Usando solo scikit-learn.")
+            return None
+
+    def load_model(self):
+        """Carga el modelo RandomForest bajo demanda."""
+        if not self._loaded_model and os.path.exists(self.model_file):
+            self._loaded_model = load(self.model_file)
+            logger.info(f"Modelo cargado desde {self.model_file}")
+        elif not os.path.exists(self.model_file):
+            self.model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.pipeline = Pipeline([
+                ('scaler', self.scaler),
+                ('classifier', self.model)
+            ])
+            logger.info("Modelo RandomForest inicializado (no entrenado).")
 
     def _get_applications(self):
         """
@@ -123,10 +143,12 @@ class MatchmakingLearningSystem:
         Entrena el RandomForest sobre los datos proporcionados.
         Se realiza un split en train y test para evaluar métricas.
         """
+        from app.ml.ml_opt import configure_tensorflow_based_on_load
         configure_tensorflow_based_on_load()
         if os.path.exists(self.model_file):
             logger.info("Modelo ya entrenado, omitiendo entrenamiento.")
             return
+        self.load_model()  # Asegura que el modelo esté inicializado
         X = df.drop(columns=["is_successful"])
         y = df["is_successful"]
 
@@ -153,8 +175,8 @@ class MatchmakingLearningSystem:
         Predice la probabilidad de éxito de un candidato en una vacante
         usando el modelo entrenado (RandomForest).
         """
-        if not Path(self.model_file).exists():
-            logger.error(f"Modelo no encontrado: {self.model_file}")
+        self.load_model()
+        if not self._loaded_model:
             raise FileNotFoundError("El modelo no está entrenado.")
 
         if not self._loaded_model:
@@ -468,10 +490,26 @@ class GrupohuntREDMLPipeline:
         self.model = None
         self.scaler = StandardScaler()
 
+    def load_tensorflow(self):
+        """Carga TensorFlow solo cuando sea necesario."""
+        try:
+            import tensorflow as tf
+            tf.config.threading.set_intra_op_parallelism_threads(1)
+            tf.config.threading.set_inter_op_parallelism_threads(1)
+            logger.info("✅ TensorFlow cargado bajo demanda para Keras.")
+            return tf
+        except ImportError:
+            logger.error("⚠ TensorFlow no está disponible para Keras.")
+            return None
+
     def build_model(self, input_dim):
-        """
-        Construye una red neuronal (Sequential) personalizada según la unidad de negocio.
-        """
+        """Construye el modelo Keras."""
+        tf = self.load_tensorflow()
+        if not tf:
+            raise ImportError("TensorFlow es requerido para construir el modelo Keras.")
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense, Dropout
+        from tensorflow.keras.optimizers import Adam
         config = self.model_config.get(self.business_unit, self.model_config['huntRED®'])
         model = Sequential()
         for units in config['layers']:
