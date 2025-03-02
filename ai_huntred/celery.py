@@ -3,11 +3,10 @@ from __future__ import absolute_import, unicode_literals
 import os
 import django
 import logging
-from ai_huntred.celery import Celery
+from celery import Celery
 from celery.schedules import crontab
 from celery.signals import after_setup_task_logger, worker_ready
 from django.db.utils import OperationalError
-import tensorflow as tf
 
 logger = logging.getLogger("app.tasks")
 
@@ -16,46 +15,37 @@ if not os.environ.get('DJANGO_SETTINGS_MODULE'):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
     django.setup()
 
+# Crear la instancia de Celery
 app = Celery('ai_huntred')
 
-# Evitar que TensorFlow intente usar GPUs si no hay
-if hasattr(tf, "config") and hasattr(tf.config, "set_visible_devices"):
-    tf.config.set_visible_devices([], 'GPU')
+# Configuración de TensorFlow (movida a función para lazy loading)
+def configure_tensorflow():
+    try:
+        import tensorflow as tf
+        tf.config.set_visible_devices([], 'GPU')
+        if hasattr(tf.config, "experimental"):
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            if gpus:
+                try:
+                    tf.config.experimental.set_memory_growth(gpus[0], True)
+                    tf.config.set_logical_device_configuration(
+                        gpus[0],
+                        [tf.config.LogicalDeviceConfiguration(memory_limit=1000)]
+                    )
+                    logger.info("✅ GPU detectada. Limitada a 1GB RAM.")
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo configurar la memoria de la GPU: {str(e)}")
+            else:
+                logger.warning("⚠️ No GPU detectada. TensorFlow correrá en CPU.")
+        else:
+            logger.warning("⚠️ TensorFlow no tiene el módulo 'config'. Se ejecutará en CPU.")
+    except ImportError:
+        logger.warning("⚠️ TensorFlow no está instalado.")
 
-# Verifica si `config.experimental` está presente antes de usarlo
-if hasattr(tf, "config") and hasattr(tf.config, "experimental"):
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-        try:
-            tf.config.experimental.set_memory_growth(gpus[0], True)
-            tf.config.set_logical_device_configuration(
-                gpus[0],
-                [tf.config.LogicalDeviceConfiguration(memory_limit=1000)]  # Limitar GPU a 1GB
-            )
-            logger.info(f"✅ GPU detectada. Limitada a 1GB RAM.")
-        except Exception as e:
-            logger.warning(f"⚠️ No se pudo configurar la memoria de la GPU: {str(e)}")
-    else:
-        logger.warning("⚠️ No GPU detectada. TensorFlow correrá en CPU.")
-else:
-    logger.warning("⚠️ TensorFlow no tiene el módulo 'config'. Se ejecutará en CPU.")
+# Llama a la configuración de TensorFlow solo cuando sea necesario
+# (puedes llamarla en worker_ready si lo necesitas)
 
-# La configuración de hilos se manejará dinámicamente en ml_opt.py
-
-# Configuración segura para CPUs LO DEJO PERO NO JALA
-#cpus = tf.config.experimental.list_physical_devices('CPU')
-#if cpus:
-#    tf.config.set_logical_device_configuration(
-#        cpus[0],
-#        [tf.config.LogicalDeviceConfiguration(memory_limit=500)]  # Limita a 500MB RAM
-#    )
-#    logger.info(f"✅ TensorFlow configurado en CPU con 500MB de RAM.")
-
-
-# Initialize task annotations dictionary
-app.conf.task_annotations = {}
-
-# Improved broker and backend configuration with connection pool settings
+# Configuración de Celery
 app.conf.update(
     broker_url='redis://127.0.0.1:6379/0',
     result_backend='redis://127.0.0.1:6379/0',
@@ -63,45 +53,31 @@ app.conf.update(
     task_serializer='json',
     result_serializer='json',
     timezone='America/Mexico_City',
-    enable_utc=False,  # Use local timezone
-    
-    # Connection management - prevent connection issues
+    enable_utc=False,
     broker_connection_retry=True,
     broker_connection_retry_on_startup=True,
     broker_connection_max_retries=10,
-    broker_pool_limit=10,  # Increased from 1 to allow more connections
-    broker_heartbeat=10,  # Add heartbeat to detect connection issues
-    
-    # Task execution settings
+    broker_pool_limit=10,
+    broker_heartbeat=10,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    task_remote_tracebacks=True,  # Enable detailed error tracing
-    result_expires=3600,  # 1 hour
-    
-    # Memory optimization
-    worker_max_memory_per_child=80000,  # Reduced from 200MB to 80MB
-    worker_max_tasks_per_child=2,  # Reduced from 5 to 3 tasks before worker restart
+    task_remote_tracebacks=True,
+    result_expires=3600,
+    worker_max_memory_per_child=80000,
+    worker_max_tasks_per_child=2,
     worker_concurrency=3,
     worker_prefetch_multiplier=1,
-    
-    # Task time constraints
-    task_time_limit=600,  # Increased to 10 minutes
-    task_soft_time_limit=540,  # 9 minutes - gives workers time to clean up
-    
-    # Add visibility settings for tasks
+    task_time_limit=600,
+    task_soft_time_limit=540,
     task_track_started=True,
     task_send_sent_event=True,
 )
-
 
 @app.task(bind=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')
 
-# =========================================================
-# Queue and routing definitions
-# =========================================================
-
+# Definición de colas y rutas
 task_queues = {
     'default': {'exchange': 'default', 'routing_key': 'default'},
     'ml': {'exchange': 'ml', 'routing_key': 'ml.#'},
@@ -115,23 +91,14 @@ task_routes = {
     'app.tasks.send_whatsapp_message': {'queue': 'notifications'},
     'app.tasks.send_telegram_message': {'queue': 'notifications'},
     'app.tasks.send_messenger_message': {'queue': 'notifications'},
-    # Add explicit routing for all other tasks
     'app.tasks.*': {'queue': 'default'},
 }
 
 app.conf.task_queues = task_queues
 app.conf.task_routes = task_routes
 
-# =========================================================
-# Beat schedule definition with better distribution
-# =========================================================
-
-# =========================================================
-# Beat schedule definition with better distribution and more descriptive names
-# =========================================================
-
+# Definición del schedule
 SCHEDULE_DICT = {
-    # Staggered the execution times to avoid concurrent resource usage
     'Ejecutar ML y Scraping (mañana)': {
         'task': 'app.tasks.execute_ml_and_scraping',
         'schedule': crontab(hour=7, minute=30),
@@ -190,24 +157,14 @@ SCHEDULE_DICT = {
     },
 }
 
-# =========================================================
-# Improved periodic task registration with better error handling
-# =========================================================
-
+# Registro de tareas periódicas
 @worker_ready.connect
 def setup_periodic_tasks(sender, **kwargs):
-    """
-    Register periodic tasks only when Celery is ready and Django apps are loaded.
-    Includes better error handling and retry logic.
-    """
     from django.apps import apps
     import time
-    
-    # Check Django readiness up to 3 times with a delay
     for attempt in range(2):
         if apps.ready:
             break
-            
         logger.warning(f"⏳ Django not ready on attempt {attempt+1}. Waiting...")
         time.sleep(8)
     
@@ -217,13 +174,11 @@ def setup_periodic_tasks(sender, **kwargs):
     
     sender.conf.beat_schedule = SCHEDULE_DICT
     
-    # Register tasks in django_celery_beat with better error handling
     max_attempts = 3
     for attempt in range(max_attempts):
         try:
             from django_celery_beat.models import CrontabSchedule, PeriodicTask
             from django.db import transaction
-            
             with transaction.atomic():
                 for name, config in SCHEDULE_DICT.items():
                     schedule, _ = CrontabSchedule.objects.get_or_create(
@@ -233,44 +188,35 @@ def setup_periodic_tasks(sender, **kwargs):
                         day_of_month=config["schedule"].day_of_month,
                         month_of_year=config["schedule"].month_of_year,
                     )
-                    
                     task_defaults = {"crontab": schedule, "enabled": True}
-                    
-                    # Add task arguments if present
                     if "args" in config:
                         task_defaults["args"] = config["args"]
                     if "kwargs" in config:
                         task_defaults["kwargs"] = config["kwargs"]
-                        
                     PeriodicTask.objects.update_or_create(
                         name=name,
                         task=config["task"],
                         defaults=task_defaults,
                     )
-                
                 logger.info(f"✅ Successfully registered {len(SCHEDULE_DICT)} periodic tasks")
                 break
-                
         except OperationalError:
             logger.warning(f"⚠️ Database not available on attempt {attempt+1}/{max_attempts}")
             if attempt < max_attempts - 1:
-                time.sleep(10)  # Wait 10 seconds before retrying
+                time.sleep(10)
         except Exception as e:
             logger.error(f"❌ Error registering periodic tasks: {str(e)}")
             break
 
-# Connect setup function to Celery configuration signal
 app.on_after_configure.connect(setup_periodic_tasks)
-
-# Autodiscover tasks
 app.autodiscover_tasks()
 
-# Task-specific rate limits and resource constraints with better limits
+# Anotaciones de tareas
 app.conf.task_annotations.update({
     'app.tasks.generate_and_send_reports': {
         'rate_limit': '3/m',
-        'time_limit': 300,  # 5 minutes
-        'soft_time_limit': 270,  # 4.5 minutes
+        'time_limit': 300,
+        'soft_time_limit': 270,
     },
     'app.tasks.send_daily_notification': {
         'rate_limit': '3/m',
@@ -278,8 +224,8 @@ app.conf.task_annotations.update({
     },
     'app.tasks.execute_ml_and_scraping': {
         'rate_limit': '1/h',
-        'time_limit': 2700,  # 45 minutes
-        'soft_time_limit': 2400,  # 40 minutes
+        'time_limit': 2700,
+        'soft_time_limit': 2400,
     },
     'app.tasks.ejecutar_scraping': {
         'rate_limit': '6/h',
@@ -288,7 +234,7 @@ app.conf.task_annotations.update({
     },
     'app.tasks.train_ml_task': {
         'rate_limit': '8/h',
-        'time_limit': 5400,  # 1.5 hours
-        'soft_time_limit': 4800,  # 1.3 hours
+        'time_limit': 5400,
+        'soft_time_limit': 4800,
     },
 })
