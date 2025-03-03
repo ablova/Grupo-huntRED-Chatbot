@@ -20,9 +20,6 @@ MODEL_LANGUAGES = {
     "ru": "ru_core_news_md",
     "pt": "pt_core_news_md"
 }
-loaded_models = {}
-model_locks = {lang: threading.Lock() for lang in MODEL_LANGUAGES.keys()}
-
 def load_nlp_model(language: str):
     import spacy
     model_name = MODEL_LANGUAGES.get(language, "es_core_news_md")
@@ -63,11 +60,11 @@ class LazySkillExtractor:
                         else:
                             logger.error("❌ No se pudo cargar el modelo NLP para SkillExtractor.")
                     except Exception as e:
-                        logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
+                        logger.warning(f"⚠ Warning: SkillExtractor (`sn`) no se pudo importar correctamente desde nlp.py: {e}")
                         self.instance = None
         return self.instance
 
-lazy_skill_extractor = LazySkillExtractor()
+lazy_skill_extractor = LazySkillExtractor()  # Esto está bien, no llama a .get()
 
 # ✅ Pool de clientes para GPTHandler (Lazy Load)
 GPT_CLIENT_POOL_SIZE = 5
