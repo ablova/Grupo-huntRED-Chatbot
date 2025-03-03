@@ -96,47 +96,48 @@ class DominioScrapingAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def generate_dashboard_graph():
-        total_dominios = DominioScraping.objects.count()
-        total_vacantes = Vacante.objects.count()
-        scraping_activo = DominioScraping.objects.filter(estado="definido").count()
+    def dashboard_view(self, request):
+        from app.models import DominioScraping, Vacante, RegistroScraping
+        def generate_dashboard_graph():
+            total_dominios = DominioScraping.objects.count()
+            total_vacantes = Vacante.objects.count()
+            scraping_activo = DominioScraping.objects.filter(estado="definido").count()
+            exitosos = RegistroScraping.objects.filter(estado='exitoso').count()
+            fallidos = RegistroScraping.objects.filter(estado='fallido').count()
+            parciales = RegistroScraping.objects.filter(estado='parcial').count()
 
-        # Estadísticas de Scraping
-        exitosos = RegistroScraping.objects.filter(estado='exitoso').count()
-        fallidos = RegistroScraping.objects.filter(estado='fallido').count()
-        parciales = RegistroScraping.objects.filter(estado='parcial').count()
+            plt.figure(figsize=(6, 4))
+            estados = ['Exitoso', 'Fallido', 'Parcial']
+            cantidades = [exitosos, fallidos, parciales]
+            plt.bar(estados, cantidades, color=['green', 'red', 'orange'])
+            plt.title("Registros de Scraping por Estado")
+            plt.xlabel("Estado")
+            plt.ylabel("Cantidad")
+            plt.tight_layout()
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+            grafico_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            buffer.close()
+            return grafico_base64
 
-        # Gráfico de barras
-        plt.figure(figsize=(6, 4))
-        estados = ['Exitoso', 'Fallido', 'Parcial']
-        cantidades = [exitosos, fallidos, parciales]
-        plt.bar(estados, cantidades, color=['green', 'red', 'orange'])
-        plt.title("Registros de Scraping por Estado")
-        plt.xlabel("Estado")
-        plt.ylabel("Cantidad")
-        plt.tight_layout()
-        buffer = BytesIO()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
-        grafico_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        buffer.close()
-
+        from app.tasks import generate_dashboard_graph
+        result = generate_dashboard_graph.delay()
+        grafico_base64 = result.get(timeout=10)
         context = {
-            'total_dominios': total_dominios,
-            'total_vacantes': total_vacantes,
-            'scraping_activo': scraping_activo,
+            'total_dominios': DominioScraping.objects.count(),
+            'total_vacantes': Vacante.objects.count(),
+            'scraping_activo': DominioScraping.objects.filter(estado="definido").count(),
             'grafico_vacantes': grafico_base64,
         }
-        return grafico_base64
-    
-    def dashboard_view(self, request):
-        result = generate_dashboard_graph.delay()
-        grafico_base64 = result.get(timeout=10)  # Espera con límite
+        return render(request, 'admin/scraping_dashboard.html', context)
 
     def ejecutar_scraping_view(self, request, dominio_id):
+        from app.models import DominioScraping
+        from app.tasks import ejecutar_scraping
         try:
             dominio = DominioScraping.objects.get(pk=dominio_id)
-            ejecutar_scraping.delay()
+            ejecutar_scraping.delay(dominio.id)
             self.message_user(request, f"Scraping iniciado para: {dominio.empresa} ({dominio.dominio}).", level=messages.SUCCESS)
         except DominioScraping.DoesNotExist:
             self.message_user(request, "El dominio especificado no existe.", level=messages.ERROR)
@@ -144,10 +145,12 @@ class DominioScrapingAdmin(admin.ModelAdmin):
             self.message_user(request, f"Error al iniciar el scraping: {str(e)}.", level=messages.ERROR)
         return redirect("admin:app_dominioscraping_changelist")
 
+
     @admin.action(description="Ejecutar scraping para dominios seleccionados")
     def ejecutar_scraping_action(self, request, queryset):
+        from app.tasks import ejecutar_scraping
         for dominio in queryset:
-            ejecutar_scraping.delay(dominio.id)  # Pasa el dominio_id como argumento
+            ejecutar_scraping.delay(dominio.id)
         self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
     
     @admin.action(description="Marcar seleccionados como 'definidos'")
@@ -157,13 +160,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
 
     @admin.action(description="Desactivar dominios no válidos")
     def desactivar_dominios_invalidos(self, request, queryset):
-        desactivados = 0
-        for dominio in queryset:
-            # Aquí podrías validar si el dominio es válido
-            # Suponiendo que no lo es, lo marcamos como libre
-            dominio.estado = "libre"
-            dominio.save()
-            desactivados += 1
+        desactivados = queryset.update(estado="libre")
         self.message_user(request, f"{desactivados} dominios desactivados.")
 
 @admin.register(Vacante)
@@ -639,11 +636,10 @@ class TaskExecutionAdmin(admin.ModelAdmin):
 
     @user_passes_test(lambda u: u.is_superuser)
     def execute_task(self, request, task_name):
-        # Task Imports
         from app.tasks import (
-            execute_ml_and_scraping, ejecutar_scraping, verificar_dominios_scraping,
-            train_ml_task, process_linkedin_csv_task
-        )
+        execute_ml_and_scraping, ejecutar_scraping, verificar_dominios_scraping,
+        train_ml_task, process_linkedin_csv_task
+    )
         try:
             if task_name == 'ml_scraping':
                 execute_ml_and_scraping.delay()

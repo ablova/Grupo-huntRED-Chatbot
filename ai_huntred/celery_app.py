@@ -58,7 +58,7 @@ app.conf.update(
     result_expires=3600,
     worker_max_memory_per_child=80000,
     worker_max_tasks_per_child=2,
-    worker_concurrency=1,  # Reducido para menos carga
+    worker_concurrency=1,
     worker_prefetch_multiplier=1,
     task_time_limit=600,
     task_soft_time_limit=540,
@@ -167,7 +167,8 @@ def setup_periodic_tasks(sender, **kwargs):
         logger.error("❌ Django still not ready after retries. Scheduling will be handled by beat service.")
         return
     
-    sender.conf.beat_schedule = SCHEDULE_DICT
+    # Usa app directamente en lugar de sender
+    app.conf.beat_schedule = SCHEDULE_DICT
     
     max_attempts = 3
     for attempt in range(max_attempts):
