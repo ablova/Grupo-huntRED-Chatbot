@@ -2,7 +2,7 @@
 import logging
 import threading
 import asyncio
-from cachetools import TTLCache
+from cachetools import TTLCache, cachedmethod
 
 # ✅ Configuración de Logging con rotación
 logger = logging.getLogger(__name__)
@@ -24,12 +24,10 @@ loaded_models = {}
 model_locks = {lang: threading.Lock() for lang in MODEL_LANGUAGES.keys()}
 
 def load_nlp_model(language: str):
-    """Carga modelos de NLP con caché y protección de concurrencia."""
     import spacy
     model_name = MODEL_LANGUAGES.get(language, "es_core_news_md")
     if model_name in loaded_models:
         return loaded_models[model_name]
-
     with model_locks[language]:
         if model_name not in loaded_models:
             try:
@@ -40,7 +38,6 @@ def load_nlp_model(language: str):
                 return None
     return loaded_models[model_name]
 
-# ✅ Lazy Load SkillExtractor
 class LazySkillExtractor:
     def __init__(self):
         self.instance = None
@@ -59,6 +56,7 @@ class LazySkillExtractor:
                             skills_db = json.load(f)
                         nlp_model = load_nlp_model("es")
                         if nlp_model:
+                            logger.info("loading full_matcher ...")
                             phrase_matcher = PhraseMatcher(nlp_model.vocab)
                             self.instance = SkillExtractor(nlp=nlp_model, skills_db=skills_db, phraseMatcher=phrase_matcher)
                             logger.info("✅ SkillExtractor inicializado correctamente.")
