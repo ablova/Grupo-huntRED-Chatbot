@@ -63,6 +63,9 @@ def get_business_unit(business_unit_id=None, default_name="amigro"):
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
 def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
+    from app.models import BusinessUnit
+    from app.chatbot.integrations.services import send_message
+    import asyncio
     try:
         bu = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('whatsapp', recipient, message, bu))
@@ -74,8 +77,11 @@ def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
 def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
+    from app.models import BusinessUnit
+    from app.chatbot.integrations.services import send_message
+    import asyncio
     try:
-        business_unit = get_business_unit(business_unit_id)
+        business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('telegram', chat_id, message, business_unit))
         logger.info(f"✅ Mensaje de Telegram enviado a {chat_id}")
     except Exception as e:
@@ -84,14 +90,16 @@ def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
 def send_messenger_message_task(self, recipient_id, message, business_unit_id=None):
+    from app.models import BusinessUnit
+    from app.chatbot.integrations.services import send_message
+    import asyncio
     try:
-        business_unit = get_business_unit(business_unit_id)
+        business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('messenger', recipient_id, message, business_unit))
         logger.info(f"✅ Mensaje de Messenger enviado a {recipient_id}")
     except Exception as e:
         logger.error(f"❌ Error enviando mensaje a Messenger: {e}")
         self.retry(exc=e)
-
 
 # =========================================================
 # Tareas relacionadas con el ML (Machine Learning)
@@ -99,48 +107,33 @@ def send_messenger_message_task(self, recipient_id, message, business_unit_id=No
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def train_ml_task(self, business_unit_id=None):
-    """
-    Tarea para entrenar el modelo de ML para una Business Unit específica o todas.
-    """
+    from app.models import BusinessUnit
+    from app.ml.ml_model import GrupohuntREDMLPipeline
+    from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
+    import pandas as pd
     try:
-        # Verificar la carga del sistema
         if not check_system_load(threshold=70):
             logger.info("Carga del sistema alta. Reintentando en 10 minutos.")
-            raise self.retry(countdown=600)  # Reintentar en 30 minutos
-
-        # Configurar TensorFlow según la carga
+            raise self.retry(countdown=600)
         configure_tensorflow_based_on_load()
-
         logger.info("🧠 Iniciando tarea de entrenamiento de Machine Learning.")
         if business_unit_id:
             business_units = BusinessUnit.objects.filter(id=business_unit_id)
         else:
             business_units = BusinessUnit.objects.all()
-
         for bu in business_units:
             logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
             pipeline = GrupohuntREDMLPipeline(business_unit=bu.name)
             try:
-                # 1) Cargar CSV con pandas, ya que 'pipeline.load_data()' no existe
                 df = pd.read_csv('/home/pablo/app/model/training_data.csv')
-                # 2) Preprocesar
                 X_train, X_test, y_train, y_test = pipeline.preprocess_data(df)
-                # 3) build_model con el input_dim necesario
                 pipeline.build_model(input_dim=X_train.shape[1])
-                # 4) Entrenar (dentro de train_model se guarda el .h5)
                 pipeline.train_model(X_train, y_train, X_test, y_test)
-                # No existe 'save_model', porque el guardado ocurre dentro de train_model().
-                # Si realmente quisieras otro guardado manual, podrías crear un nuevo método:
-                #
-                # pipeline.save_model()   <-- no existe, deberías implementarlo o quitar la llamada.
-                # Pero por ahora se te guarda automáticamente en train_model().
                 logger.info(f"✅ Modelo entrenado y guardado para {bu.name}")
             except Exception as e:
                 logger.error(f"❌ Error entrenando modelo para BU {bu.name}: {e}")
                 continue
         logger.info("🚀 Tarea de entrenamiento completada para todas las Business Units.")
-    except Retry:
-        raise  # Permitir que Celery maneje el reintento
     except Exception as e:
         logger.error(f"❌ Error en la tarea de entrenamiento de ML: {e}")
         self.retry(exc=e)
@@ -150,6 +143,9 @@ def ejecutar_ml(self):
     """
     Tarea para entrenar y evaluar el modelo de Machine Learning para cada Business Unit.
     """
+    from app.ml.ml_model import GrupohuntREDMLPipeline
+    from app.models import BusinessUnit
+    import pandas as pd
     logger.info("🧠 Iniciando tarea de ML.")
     try:
         business_units = BusinessUnit.objects.all()
@@ -220,30 +216,18 @@ def predict_top_candidates_task(vacancy_id, top_n=10):
 # =========================================================
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def ejecutar_scraping(self, dominio_id=None):
-    """
-    Ejecuta el scraping para un dominio específico o todos los dominios verificados.
-    
-    Args:
-        dominio_id (int, optional): ID del dominio a scrapear. Si no se proporciona, 
-                                  se ejecutará para todos los dominios verificados.
-    """
+    from app.models import DominioScraping, RegistroScraping
+    import asyncio
     try:
         if dominio_id:
-            # Ejecutar para un dominio específico
             dominio = DominioScraping.objects.get(pk=dominio_id)
             dominios = [dominio]
         else:
-            # Ejecutar para todos los dominios verificados
             dominios = DominioScraping.objects.filter(verificado=True)
-
         for dominio in dominios:
             logger.info(f"🚀 Iniciando scraping para {dominio.empresa} ({dominio.dominio})")
-            
             try:
-                # Ejecutar el scraping y obtener las vacantes
                 vacantes = asyncio.run(run_scraper(dominio))
-                
-                # Registrar el resultado del scraping
                 RegistroScraping.objects.create(
                     dominio=dominio,
                     estado="exitoso",
@@ -251,13 +235,7 @@ def ejecutar_scraping(self, dominio_id=None):
                     fecha_fin=timezone.now(),
                     mensaje=f"Scraping completado. Vacantes encontradas: {len(vacantes)}"
                 )
-                
                 logger.info(f"✅ Scraping completado para {dominio.empresa}: {len(vacantes)} vacantes")
-                
-                # Mostrar las primeras 5 vacantes extraídas (para debugging)
-                for vacante in vacantes[:5]:
-                    logger.info(f"   - {vacante.get('title', 'Sin título')}")
-                    
             except Exception as e:
                 logger.error(f"❌ Error en scraping para {dominio.empresa}: {str(e)}")
                 RegistroScraping.objects.create(
@@ -268,10 +246,6 @@ def ejecutar_scraping(self, dominio_id=None):
                     mensaje=f"Error: {str(e)}"
                 )
                 continue
-
-    except DominioScraping.DoesNotExist:
-        logger.error(f"Dominio con ID {dominio_id} no encontrado.")
-        self.retry(exc=Exception("Dominio no encontrado."))
     except Exception as e:
         logger.error(f"Error al ejecutar scraping: {str(e)}")
         self.retry(exc=e)
