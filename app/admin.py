@@ -32,12 +32,6 @@ from app.models import (
     Worker
 )
 
-# Task Imports
-from app.tasks import (
-    execute_ml_and_scraping, ejecutar_scraping, verificar_dominios_scraping,
-    train_ml_task, process_linkedin_csv_task
-)
-
 # Service Imports
 from app.chatbot.integrations.services import send_email, send_message
 
@@ -645,6 +639,11 @@ class TaskExecutionAdmin(admin.ModelAdmin):
 
     @user_passes_test(lambda u: u.is_superuser)
     def execute_task(self, request, task_name):
+        # Task Imports
+        from app.tasks import (
+            execute_ml_and_scraping, ejecutar_scraping, verificar_dominios_scraping,
+            train_ml_task, process_linkedin_csv_task
+        )
         try:
             if task_name == 'ml_scraping':
                 execute_ml_and_scraping.delay()
