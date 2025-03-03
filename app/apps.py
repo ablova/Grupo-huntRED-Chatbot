@@ -58,7 +58,7 @@ class AppConfig(DjangoAppConfig):
                 setattr(settings, key, value)
 
     def _setup_periodic_tasks(self, **kwargs):
-        from ai_huntred.celery import app  # Importa app en lugar de la función directamente
+        from ai_huntred.celery_app import app  # Importa app en lugar de la función directamente
         try:
             app.on_after_configure.connect(setup_periodic_tasks)  # Usa la función definida en celery.py
             logger.info("Periodic tasks registered successfully")
