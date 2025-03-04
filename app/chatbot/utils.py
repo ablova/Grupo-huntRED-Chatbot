@@ -16,7 +16,8 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
 from typing import Dict, List
-from app.utilidades.catalogs import get_divisiones
+from app.utilidades.catalogs import get_divisiones, map_skill_to_database
+from app.chatbot.nlp import NLPProcessor
 
 
 logger = logging.getLogger(__name__)

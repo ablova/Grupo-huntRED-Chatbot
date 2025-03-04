@@ -1,12 +1,14 @@
 # Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
 import logging
-import threading
 import asyncio
 import json
 import asyncio
-from cachetools import TTLCache, cachedmethod
+import threading
+import spacy
+from skillNer.skill_extractor_class import SkillExtractor
+from skillNer.general_params import SKILL_DB
 from spacy.matcher import PhraseMatcher
-from app.chatbot.utils import map_skill_to_database, get_database_skills
+from cachetools import TTLCache, cachedmethod
 
 # ✅ Configuración de Logging con rotación
 logger = logging.getLogger(__name__)
@@ -43,6 +45,7 @@ def load_nlp_model(language: str):
                 return None
     return loaded_models[model_name]
 
+
 class LazySkillExtractor:
     def __init__(self):
         self.instance = None
@@ -52,21 +55,9 @@ class LazySkillExtractor:
         if self.instance is None:
             with self.lock:
                 if self.instance is None:
-                    try:
-                        from skillNer.skill_extractor_class import SkillExtractor
-                        from skillNer.general_params import SKILL_DB
-                        nlp_model = load_nlp_model("es")
-                        if nlp_model:
-                            if not isinstance(SKILL_DB, dict):
-                                raise ValueError("SKILL_DB is not a dictionary")
-                            phrase_matcher = PhraseMatcher(nlp_model.vocab)
-                            self.instance = SkillExtractor(nlp_model, SKILL_DB, phrase_matcher)
-                            logger.info("✅ SkillExtractor initialized correctly.")
-                        else:
-                            logger.error("❌ Failed to load NLP model for SkillExtractor.")
-                    except Exception as e:
-                        logger.warning(f"⚠ SkillExtractor failed: {e}")
-                        self.instance = None
+                    nlp_model = spacy.load("es_core_news_md")
+                    phrase_matcher = PhraseMatcher(nlp_model.vocab)
+                    self.instance = SkillExtractor(nlp_model, SKILL_DB, phrase_matcher)
         return self.instance
 
 lazy_skill_extractor = LazySkillExtractor()
@@ -159,35 +150,37 @@ class NLPProcessor:
             "sentiment": sentiment,
             "detected_divisions": detected_divisions
         }
-
+    
     @cachedmethod(lambda self: self.gpt_cache)
     async def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
-        skills_from_skillner = set()
-        skills_from_gpt = set()
-        sn = lazy_skill_extractor.get()
-        if sn:
+        skills = set()
+
+        # Extraer con SkillExtractor
+        skill_extractor = lazy_skill_extractor.get()
+        if skill_extractor:
             try:
-                results = await asyncio.to_thread(sn.annotate, text)
-                if isinstance(results, dict) and "results" in results:
-                    extracted_skills = {item["doc_node_value"] for item in results["results"]["ngram_scored"]}
-                    skills_from_skillner.update(extracted_skills)
-                else:
-                    logger.warning("SkillExtractor no devolvió la estructura esperada.")
+                results = await asyncio.to_thread(skill_extractor.annotate, text)
+                if "results" in results:
+                    for item in results["results"]:
+                        skills.add(item["skill"])
             except Exception as e:
-                logger.error(f"Error en SkillExtractor: {e}")
+                print(f"Error con SkillExtractor: {e}")
 
-        gpt_handler = await self.load_gpt_handler()
-        gpt_prompt = f"Extrae habilidades del siguiente texto y devuelve solo una lista JSON de habilidades:\n\n{text}"
-        try:
-            response = await gpt_handler.generate_response(gpt_prompt)
-            gpt_output = json.loads(response)
-            skills_from_gpt = {map_skill_to_database(skill) for skill in gpt_output}
-        except json.JSONDecodeError as e:
-            logger.error(f"Error decodificando respuesta GPT: {e}")
-        except Exception as e:
-            logger.error(f"Error con GPTHandler: {e}")
+        # Extraer con GPTHandler (si lo tienes configurado)
+        if hasattr(self, 'gpt_handler'):
+            gpt_prompt = f"Extrae habilidades del siguiente texto y devuelve solo una lista JSON:\n\n{text}"
+            try:
+                response = await self.gpt_handler.generate_response(gpt_prompt)
+                gpt_skills = json.loads(response)
+                skills.update(gpt_skills)
+            except Exception as e:
+                print(f"Error con GPTHandler: {e}")
 
-        return {"skills": list(skills_from_skillner.union(skills_from_gpt))}
+        return {"skills": list(skills)}
+        database_skills = ["Python", "machine learning", "Django"]  # Carga desde catalogs.json
+        mapped_skills = [map_skill_to_database(skill, database_skills) for skill in skills]
+        mapped_skills = [skill for skill in mapped_skills if skill is not None]
+        return {"skills": mapped_skills}
 
     def extract_interests_and_skills(self, text: str) -> dict:
         text_normalized = unidecode.unidecode(text.lower())

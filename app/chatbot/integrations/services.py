@@ -16,7 +16,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.models import (
-    BusinessUnit, ConfiguracionBU, WhatsAppAPI, TelegramAPI, 
+    BusinessUnit, ConfiguracionBU, WhatsAppAPI, TelegramAPI, SlackAPI,
     InstagramAPI, MessengerAPI, ChatState, Person,
     EnhancedNetworkGamificationProfile
 )

@@ -88,3 +88,7 @@ def get_all_skills_for_unit(unit_name: str) -> list:
             all_skills.extend(attributes.get("Habilidades Técnicas", []))
             all_skills.extend(attributes.get("Habilidades Blandas", []))
     return list(set(all_skills))
+
+def map_skill_to_database(skill, database_skills):
+    return skill if skill in database_skills else None
+
