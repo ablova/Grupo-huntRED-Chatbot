@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 nlp = spacy.load("en_core_web_md")
-from app.chatbot.nlp import lazy_skill_extractor
-sn = lazy_skill_extractor.get()  # Se obtiene solo cuando se necesita
+from app.chatbot.nlp import get_skill_extractor
+sn = get_skill_extractor.get()  # Se obtiene solo cuando se necesita
 if not sn:
     logger.warning("⚠ SkillExtractor no está disponible. Se usarán métodos alternativos de extracción.")
 
