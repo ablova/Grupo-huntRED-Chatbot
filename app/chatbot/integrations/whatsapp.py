@@ -5,7 +5,7 @@ import logging
 import asyncio
 import httpx
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict
 from asgiref.sync import sync_to_async
 from datetime import datetime
 
