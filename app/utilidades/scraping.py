@@ -17,7 +17,7 @@ from django.utils.timezone import now
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from prometheus_client import Counter, Histogram, start_http_server
 import spacy
-from skillNer.skill_extractor_class import SkillExtractor
+from app.chatbot.nlp import get_skill_extractor
 from app.models import (
     DominioScraping, Vacante, RegistroScraping, ConfiguracionBU, BusinessUnit, Worker
 )
