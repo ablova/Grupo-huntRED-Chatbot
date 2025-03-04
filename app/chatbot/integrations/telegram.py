@@ -209,26 +209,20 @@ async def telegram_webhook(request):
 # -------------------------------
 # ✅ 3. ENVÍO DE MENSAJES Y BOTONES
 # -------------------------------
-async def send_telegram_message(chat_id, message, telegram_api, business_unit_name):
-    """
-    Envía un mensaje de texto a un usuario en Telegram.
-    """
+async def send_telegram_message(chat_id: int, message: str, telegram_api: TelegramAPI, business_unit_name: str) -> bool:
+    """Envía un mensaje de texto a un usuario en Telegram."""
     url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"
-
     payload = {
         "chat_id": chat_id,
         "text": message,
         "parse_mode": "HTML"
     }
-
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
-        
         logger.info(f"[send_telegram_message] Mensaje enviado a {chat_id} en {business_unit_name}")
         return True
-
     except httpx.HTTPStatusError as e:
         logger.error(f"[send_telegram_message] Error HTTP: {e.response.text}")
         return False
@@ -236,13 +230,7 @@ async def send_telegram_message(chat_id, message, telegram_api, business_unit_na
         logger.error(f"[send_telegram_message] Error inesperado: {str(e)}")
         return False
     
-async def send_telegram_buttons(
-    chat_id: int,
-    message: str,
-    buttons: List[Dict[str, str]],
-    telegram_api: TelegramAPI,
-    business_unit_name: str
-) -> Optional[Dict]:
+async def send_telegram_buttons(chat_id: int, message: str, buttons: List[Dict], telegram_api: TelegramAPI, business_unit_name: str) -> bool:
     """Envía un mensaje con botones a Telegram, validando correctamente los datos."""
     url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"  # Proponemos https://api.telegram.org/bot{access_token}/sendMessage
 
@@ -292,7 +280,8 @@ async def send_telegram_buttons(
         except Exception as e:
             logger.error(f"❌ Error enviando botones a Telegram en intento {attempt + 1}: {str(e)}", exc_info=True)
 
-    return None
+    logger.info(f"✅ Botones enviados a {chat_id} en Telegram")
+    return True
 
 async def send_telegram_image(
     chat_id: int,

@@ -4,7 +4,7 @@ from typing import List
 from asgiref.sync import sync_to_async
 
 from app.models import ChatState, Person, BusinessUnit
-from app.chatbot.integrations.services import  send_message, send_email, send_options
+from app.chatbot.integrations.services import  send_message, send_email, send_options, reset_chat_state
 from app.utilidades.vacantes import VacanteManager
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,12 @@ async def handle_known_intents(intents, platform, user_id, event, business_unit,
                 {"title": "📊 Consultar Estatus", "payload": "consultar_estatus"}
             ]
             await send_options(platform, user_id, "Aquí tienes el menú principal:", menu_options, business_unit)
+            return True
+        
+        # 🚀 **RESET CHAT STATE**
+        elif intent == "reset_chat_state":
+            await reset_chat_state(user_id, business_unit, platform)
+            await send_message(platform, user_id, "🧹 ¡Listo, {nombre}! Tu conversación en {plataforma} ha sido reiniciada. ¿En qué puedo ayudarte ahora?", business_unit)
             return True
 
         # 🚀 **Estatus de Aplicación**

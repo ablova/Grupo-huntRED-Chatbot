@@ -63,12 +63,13 @@ class GPTHandler:
             logger.exception("Error al inicializar GPTHandler:", exc_info=True)
             raise e
 
-    def detectar_intencion(self, mensaje: str) -> str:
+    async def detectar_intencion(self, mensaje: str) -> str:
         """
         Analiza la intención del usuario usando NLP y devuelve un tipo de prompt.
         """
-        from app.chatbot.nlp import nlp_processor  # Importamos el NLP
-        analisis = nlp_processor.analyze(mensaje)
+        from app.chatbot.nlp import NLPProcessor
+        nlp = NLPProcessor()  # Create an instance instead of relying on a global
+        analisis = await nlp.analyze(mensaje)  # Await the async method
         entidades_detectadas = [entidad[0].lower() for entidad in analisis.get("entities", [])]
         intenciones = analisis.get("intents", [])
 
@@ -98,21 +99,16 @@ class GPTHandler:
         if "gestion_proyectos" in intenciones:
             return "gestion_proyectos"
 
-        return "general"  # Si no detectamos nada específico, usamos un prompt genérico
+        return "general"  # Default prompt type
 
     async def generate_response(self, prompt: str, business_unit=None) -> str:
-        """
-        Genera una respuesta utilizando OpenAI con timeout.
-        """
         if not self.client:
             return "⚠ GPT no está inicializado."
 
         business_unit_name = business_unit.name if business_unit else "General"
-        prompt_type = self.detectar_intencion(prompt)
+        prompt_type = await self.detectar_intencion(prompt)
         context = self.gpt_api.get_prompt(prompt_type, default="Proporciona información clara y concisa.")
-        full_prompt = f"[{business_unit_name} | {prompt_type}] {context}\n\nUsuario: {prompt}"
-
-        logger.debug(f"Generando respuesta con timeout para: {full_prompt[:100]}...")
+        full_prompt = f"[{business_unit_name} | {prompt_type}] {context}\n\nUsuario: {prompt}\n\nPor favor, devuelve solo una lista JSON de habilidades extraídas (ejemplo: [\"Python\", \"Django\"])."
 
         try:
             response = await asyncio.wait_for(
@@ -127,22 +123,20 @@ class GPTHandler:
                     temperature=self.temperature,
                     top_p=self.top_p
                 ),
-                timeout=10.0  # ⏳ Timeout de 10 segundos
+                timeout=10.0
             )
-
             respuesta_texto = response.choices[0].message.content.strip()
-            logger.debug(f"📩 Respuesta generada: {respuesta_texto}")
             return respuesta_texto
-
-        except asyncio.TimeoutError:
-            logger.warning("[GPT] ⏳ Tiempo de espera agotado en la consulta.")
-            return "Lo siento, estoy teniendo problemas para responder en este momento."
-        except OpenAIError as oe:
-            logger.error(f"❌ Error de OpenAI: {oe}", exc_info=True)
-            return "Hubo un problema con OpenAI."
+        except RateLimitError:
+            logger.warning("⚠ Cuota de solicitudes excedida.")
+            self._notify_quota_exceeded()
+            raise Exception("Cuota de OpenAI excedida")
+        except OpenAIError as e:
+            logger.error(f"Error de OpenAI: {str(e)}")
+            raise
         except Exception as e:
-            logger.error(f"❌ Error inesperado: {e}", exc_info=True)
-            return "Ocurrió un error inesperado."
+            logger.error(f"Error inesperado en GPTHandler: {str(e)}")
+            raise
 
     def generate_response_sync(self, prompt: str, context: Optional[Dict] = None) -> str:
         """

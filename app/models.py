@@ -52,6 +52,7 @@ COMUNICATION_CHOICES =[
     ("telegram", "Telegram"),
     ("messenger", "Messenger"),
     ("instagram", "Instagram"),
+    ("slack", "Slack"),
     ("sms", "SMS"),
 ]
 
@@ -634,6 +635,11 @@ class TelegramAPI(models.Model):
     def __str__(self):
         return f"{self.business_unit.name if self.business_unit else ''} - Telegram Bot"
 
+class SlackAPI(models.Model):
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    bot_token = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+
 class GptApi(models.Model):
     api_token = models.CharField(max_length=500)
     organization = models.CharField(max_length=100, blank=True, null=True)
@@ -827,7 +833,8 @@ class ReporteScraping(models.Model):
 class EnhancedMLProfile(models.Model):
     # Core User Relationship
     user = models.OneToOneField('Person', on_delete=models.CASCADE, related_name='ml_profile')
-    
+    points = models.IntegerField(default=0)  # Añade este campo si falta
+    level = models.IntegerField(default=1)
     # Performance Tracking
     performance_score = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Semáforo para controlar la concurrencia en WhatsApp (se utiliza en el envío de mensajes)
 whatsapp_semaphore = asyncio.Semaphore(10)
-ENABLE_ADVANCED_PROCESSING = False  # Cambiar a True cuando se resuelvan los problemas
+ENABLE_ADVANCED_PROCESSING = True  # Cambiar a True cuando se resuelvan los problemas
 MAX_RETRIES = 3  # Número máximo de reintentos para envío
 REQUEST_TIMEOUT = 10.0  # Tiempo de espera para las solicitudes HTTP
 
@@ -31,9 +31,6 @@ REQUEST_TIMEOUT = 10.0  # Tiempo de espera para las solicitudes HTTP
 
 @csrf_exempt
 async def whatsapp_webhook(request):
-    """
-    Webhook de WhatsApp para recibir mensajes entrantes.
-    """
     try:
         if request.method != "POST":
             return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
@@ -45,10 +42,15 @@ async def whatsapp_webhook(request):
             logger.error("[whatsapp_webhook] Error: 'entry' no encontrado en el payload.")
             return JsonResponse({"status": "error", "message": "Formato de payload inválido"}, status=400)
 
-        return JsonResponse({"status": "success"}, status=200)
+        # Llamar a handle_incoming_message para procesar el mensaje
+        await handle_incoming_message(request)
 
+        return JsonResponse({"status": "success"}, status=200)
     except json.JSONDecodeError:
         return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
+    except Exception as e:
+        logger.error(f"[whatsapp_webhook] Error inesperado: {e}", exc_info=True)
+        return JsonResponse({"status": "error", "message": "Error interno"}, status=500)
 
     
 
@@ -58,11 +60,6 @@ async def whatsapp_webhook(request):
 
 @csrf_exempt
 async def handle_incoming_message(request):
-    """
-    Procesa mensajes entrantes complejos de WhatsApp.
-    Extrae la información necesaria, obtiene la configuración y estado del usuario,
-    y delega el procesamiento al handler correspondiente según el tipo de mensaje.
-    """
     try:
         payload = json.loads(request.body)
         logger.info(f"Payload recibido: {json.dumps(payload, indent=4)}")
@@ -90,7 +87,7 @@ async def handle_incoming_message(request):
             logger.error("phone_number_id no está presente en el payload.")
             return JsonResponse({'error': 'Missing phone_number_id'}, status=400)
 
-        # Obtener configuración de WhatsAppAPI y la Business Unit
+        # Obtener configuración de WhatsAppAPI de forma asíncrona
         whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
             phoneID=phone_number_id, is_active=True
         ).select_related('business_unit').first())()
@@ -102,7 +99,7 @@ async def handle_incoming_message(request):
         business_unit = whatsapp_api.business_unit
         chatbot = ChatBotHandler()
 
-        # Estado del chat y perfil del usuario
+        # Obtener o crear ChatState y Person de forma asíncrona
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
             user_id=user_id,
             business_unit=business_unit,
@@ -113,7 +110,9 @@ async def handle_incoming_message(request):
             defaults={'nombre': 'Nuevo Usuario'}
         )
 
-        if chat_state.person != person:
+        # Comparar chat_state.person con person de forma asíncrona
+        current_person = await sync_to_async(lambda: chat_state.person)()
+        if current_person != person:
             chat_state.person = person
             await sync_to_async(chat_state.save)()
 
@@ -133,7 +132,7 @@ async def handle_incoming_message(request):
 
     except Exception as e:
         logger.error(f"Error procesando el mensaje: {e}", exc_info=True)
-        return JsonResponse({'error': 'Internal Server Error'}, status=500)
+        return JsonResponse({'error': str(e)}, status=500)
 
 # ------------------------------------------------------------------------------
 # Utilidades para Construcción de Mensajes
@@ -148,17 +147,17 @@ def build_whatsapp_url(whatsapp_api: WhatsAppAPI, endpoint: str = "messages") ->
 # ------------------------------------------------------------------------------
 # Handlers de Tipos de Mensajes
 # ------------------------------------------------------------------------------
-async def handle_text_message(message, sender_id, business_unit):
+async def handle_text_message(message, sender_id, chatbot, business_unit, person, chat_state):
     """
     Procesa mensajes de texto simples.
     """
+    from app.chatbot.chatbot import ChatBotHandler
     text = message['text']['body']
     logger.info(f"Texto recibido: {text} de {sender_id}")
 
     if ENABLE_ADVANCED_PROCESSING:
         logger.info("Procesamiento avanzado habilitado. Usando ChatBotHandler.")
-        chatbot_handler = ChatBotHandler()
-        response = await chatbot_handler.process_message(
+        await chatbot.process_message(
             platform='whatsapp',
             user_id=sender_id,
             text=text,
@@ -167,10 +166,15 @@ async def handle_text_message(message, sender_id, business_unit):
     else:
         logger.info("Procesamiento avanzado deshabilitado. Solo captura básica.")
         response = f"Recibí tu mensaje: {text} @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        await send_whatsapp_message(
+            user_id=sender_id,
+            message=response,
+            phone_id=business_unit.whatsapp_api.phoneID,
+            business_unit=business_unit
+        )
 
-    await send_whatsapp_message(user_id=sender_id, message=response, phone_id=business_unit.whatsapp_api.phoneID)
 
-async def handle_interactive_message(message, sender_id, business_unit):
+async def handle_interactive_message(message, sender_id, chatbot, business_unit, person, chat_state):
     """
     Procesa mensajes interactivos (botones o listas) y extrae la selección.
     """
@@ -185,12 +189,14 @@ async def handle_interactive_message(message, sender_id, business_unit):
 
     if interactive_type == 'button_reply':
         selection = interactive.get('button_reply', {})
+        selected_id = selection.get('id', 'Sin ID')
         selected_text = selection.get('title', 'Sin texto')
-        logger.info(f"Botón seleccionado: {selected_text}")
+        logger.info(f"Botón seleccionado: {selected_text} (ID: {selected_id})")
     elif interactive_type == 'list_reply':
         selection = interactive.get('list_reply', {})
+        selected_id = selection.get('id', 'Sin ID')
         selected_text = selection.get('title', 'Sin texto')
-        logger.info(f"Lista seleccionada: {selected_text}")
+        logger.info(f"Lista seleccionada: {selected_text} (ID: {selected_id})")
     else:
         logger.warning(f"Tipo interactivo no soportado: {interactive_type}")
         await send_message('whatsapp', sender_id, "Interacción no soportada.", business_unit)
@@ -198,18 +204,16 @@ async def handle_interactive_message(message, sender_id, business_unit):
 
     if ENABLE_ADVANCED_PROCESSING:
         logger.info("Procesamiento avanzado habilitado para mensajes interactivos.")
-        chatbot_handler = ChatBotHandler()
-        response = await chatbot_handler.process_message(
+        await chatbot.process_message(
             platform='whatsapp',
             user_id=sender_id,
-            text=selected_text,
+            text=selected_id,  # Usamos el ID del botón como texto para procesar (ej. 'tos_accept')
             business_unit=business_unit
         )
     else:
         logger.info("Procesamiento avanzado deshabilitado. Solo captura básica.")
         response = f"Procesaste la opción: {selected_text}"
-
-    await send_message('whatsapp', sender_id, response, business_unit)
+        await send_message('whatsapp', sender_id, response, business_unit)
 
 async def handle_media_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
     """
@@ -419,19 +423,42 @@ async def send_whatsapp_list(user_id, message, sections, business_unit_name):
         return False
     import json
 
-async def send_whatsapp_decision_buttons(user_id, message, buttons, business_unit):
+async def send_whatsapp_decision_buttons(user_id: str, message: str, buttons: List[Dict], business_unit: BusinessUnit) -> bool:
+    from app.chatbot.integrations.services import MessageService
+    service = MessageService(business_unit)
+    api_instance = await service.get_api_instance("whatsapp")
+    if not api_instance:
+        return False
     """
     Envía botones interactivos a WhatsApp asegurando que los botones válidos no sean eliminados.
     """
     try:
         logger.debug(f"[send_whatsapp_decision_buttons] Procesando botones: {buttons}")
 
-        # 🔹 Filtrar solo botones de tipo 'payload' (evitando eliminar botones válidos)
-        valid_buttons = [btn for btn in buttons if "payload" in btn]
+        # Filtrar botones válidos (solo tipo 'reply' con 'id' y 'title')
+        valid_buttons = [
+            btn for btn in buttons 
+            if isinstance(btn, dict) and 'type' in btn and btn['type'] == 'reply' 
+            and 'reply' in btn and 'id' in btn['reply'] and 'title' in btn['reply']
+        ]
 
         if not valid_buttons:
-            logger.warning("⚠️ No hay botones válidos tras filtrar. Verifica la estructura de los botones.")
-            return False, None  # No enviamos nada si no hay botones
+            logger.error("❌ No se encontraron botones válidos. Verifica la estructura: {buttons}")
+            return False, None
+
+        whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
+            business_unit=business_unit, is_active=True
+        ).first())()
+
+        if not whatsapp_api:
+            logger.error(f"[send_whatsapp_decision_buttons] ❌ No se encontró WhatsAppAPI para {business_unit.name}")
+            return False, None
+
+        url = f"https://graph.facebook.com/{whatsapp_api.v_api}/{whatsapp_api.phoneID}/messages"
+        headers = {
+            "Authorization": f"Bearer {whatsapp_api.api_token}",
+            "Content-Type": "application/json"
+        }
 
         payload = {
             "messaging_product": "whatsapp",
@@ -443,23 +470,25 @@ async def send_whatsapp_decision_buttons(user_id, message, buttons, business_uni
                 "body": {"text": message},
                 "action": {
                     "buttons": [
-                        {"type": "reply", "reply": {"id": btn["payload"], "title": btn["title"]}}
+                        {"type": "reply", "reply": {"id": btn["reply"]["id"], "title": btn["reply"]["title"]}}
                         for btn in valid_buttons
                     ]
                 }
             }
         }
 
-        logger.info(f"[send_whatsapp_decision_buttons] 📤 Enviando payload: {payload}")
+        logger.info(f"[send_whatsapp_decision_buttons] 📤 Enviando payload: {json.dumps(payload, indent=2)}")
         
-        response = await send_whatsapp_request(payload, business_unit)  # Ajusta esta función según tu código
-        msg_id = response.get("messages", [{}])[0].get("id", "")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            msg_id = response.json().get("messages", [{}])[0].get("id", "")
 
         if msg_id:
             logger.info(f"✅ Botones enviados correctamente. Message ID: {msg_id}")
             return True, msg_id
         else:
-            logger.error("❌ Error enviando botones interactivos a WhatsApp.")
+            logger.error("❌ Respuesta de WhatsApp no contiene message ID.")
             return False, None
     except Exception as e:
         logger.error(f"❌ Error en send_whatsapp_decision_buttons: {e}", exc_info=True)

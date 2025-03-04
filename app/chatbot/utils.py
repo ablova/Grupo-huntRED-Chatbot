@@ -7,6 +7,7 @@ import logging
 import re
 import requests
 import time
+import asyncio
 import pandas as pd
 from datetime import datetime
 from app.models import GptApi
@@ -23,67 +24,59 @@ logger = logging.getLogger(__name__)
 
 # Cargar catálogo desde el JSON centralizado
 CATALOG_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs', 'catalogs.json')
-
 def load_catalog() -> dict:
-    """Carga el catálogo de habilidades desde JSON."""
+    """Carga el catálogo de habilidades desde catalogs.json."""
     if not os.path.exists(CATALOG_PATH):
         logger.error(f"Archivo de catálogo no encontrado: {CATALOG_PATH}")
-        return {}  # Devuelve un diccionario vacío si el archivo no existe
-
+        return {}
     try:
         with open(CATALOG_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, dict) else {}
+            return json.load(f)
     except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Error al cargar catálogo desde {CATALOG_PATH}: {e}", exc_info=True)
-        return {}  # Devuelve un diccionario vacío si hay un error de lectura o formato
+        logger.error(f"Error al cargar catálogo desde {CATALOG_PATH}: {e}")
+        return {}
 
-def clean_text(text: str) -> str:
-    """ Limpia texto eliminando caracteres especiales y espacios adicionales. """
-    if not text:
-        return ""
-    text = re.sub(r'\s+', ' ', text).strip()  
-    text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)  
-    return text
-
-def get_all_skills_for_unit(unit_name: str = "huntRED®") -> list:
-    """ Obtiene todas las habilidades de una unidad de negocio desde catalogs.json y añade habilidades de ESCO. """
+def get_all_skills_for_unit(unit_name: str = "huntRED®") -> List[str]:
+    """Devuelve todas las habilidades de una unidad de negocio desde catalogs.json."""
     skills = []
-    
     try:
-        # Cargar catálogo interno
         catalog = load_catalog()
         unit_data = catalog.get(unit_name, {})
-
         for division, roles in unit_data.items():
             for role, attributes in roles.items():
-                for key in ["Habilidades Técnicas", "Habilidades Blandas", "Herramientas"]:
-                    skills.extend(attributes.get(key, []))
-
-        # Cargar habilidades de ESCO
-        try:
-            esco_df = pd.read_csv("/home/pablo/tabiya-open-dataset/datasets/esco_skills.csv")
-            esco_skills = esco_df["skill"].dropna().tolist()
-            skills.extend(esco_skills)
-        except Exception as e:
-            logger.error(f"Error cargando habilidades de ESCO: {e}")
-
-        # Eliminar duplicados
-        skills = list(set(skills))
-
-        logger.info(f"🔍 Habilidades cargadas para {unit_name}: {len(skills)} habilidades encontradas.")
-        return skills
-
+                skills.extend(attributes.get("Habilidades Técnicas", []))
+                skills.extend(attributes.get("Habilidades Blandas", []))
+                skills.extend(attributes.get("Herramientas", []))
+        return list(set(skills))  # Eliminar duplicados
     except Exception as e:
         logger.error(f"Error obteniendo habilidades de {unit_name}: {e}")
         return []
+    
+def map_skill_to_database(llm_skill: str, database_skills: List[str], cutoff: float = 0.6) -> str:
+    """Mapea una habilidad extraída por GPT a la base de datos usando similitud."""
+    if llm_skill in database_skills:
+        return llm_skill
+    closest_match = get_close_matches(llm_skill, database_skills, n=1, cutoff=cutoff)
+    return closest_match[0] if closest_match else None
+
+def clean_text(text: str) -> str:
+    """Limpia texto eliminando caracteres especiales y espacios adicionales."""
+    if not text:
+        return ""
+    import re
+    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)
+    return text
 
 def analyze_text(text: str) -> dict:
-    """ Analiza el texto del usuario y extrae intenciones, entidades y sentimiento. """
+    """Analiza el texto del usuario y extrae intenciones, entidades y sentimiento."""
     try:
-        from app.chatbot.nlp import nlp_processor
         cleaned = text.strip()
-        return nlp_processor.analyze(cleaned)
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            return asyncio.run_coroutine_threadsafe(nlp_processor.analyze(cleaned), loop).result()
+        else:
+            return asyncio.run(nlp_processor.analyze(cleaned))
     except Exception as e:
         logger.error(f"Error analizando texto: {e}", exc_info=True)
         return {"intents": [], "entities": [], "sentiment": {}}
@@ -417,3 +410,7 @@ def map_skill_to_database(llm_skill: str, database_skills: List[str], cutoff: fl
         return llm_skill
     closest_match = get_close_matches(llm_skill, database_skills, n=1, cutoff=cutoff)
     return closest_match[0] if closest_match else None
+
+
+from app.chatbot.nlp import NLPProcessor
+nlp_processor = NLPProcessor(language="es")  # Instancia global para español

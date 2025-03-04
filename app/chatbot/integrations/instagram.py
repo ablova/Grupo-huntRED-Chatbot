@@ -147,7 +147,7 @@ async def send_instagram_message(user_id, message, access_token):
 
     logger.info(f"✅ Mensaje enviado a {user_id} en Instagram.")
 
-async def send_instagram_buttons(user_id, message, buttons, access_token):
+async def send_instagram_buttons(user_id: str, message: str, buttons: List[Dict], access_token: str) -> bool:
     """
     Envía un mensaje con botones a través de Instagram usando respuestas rápidas.
     """
@@ -179,3 +179,5 @@ async def send_instagram_buttons(user_id, message, buttons, access_token):
         attempt += 1
         await asyncio.sleep(2 ** attempt)
     logger.error(f"[send_instagram_buttons] Falló el envío a {user_id} tras {attempt} intentos.")
+    logger.info(f"✅ Botones enviados a {user_id} en Instagram")
+    return True
