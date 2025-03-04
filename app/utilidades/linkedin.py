@@ -36,8 +36,12 @@ CATALOGS_BASE_PATH = "/home/pablo/app/utilidades/catalogs"
 # =========================================================
 # Clase para manejar habilidades y divisiones
 # =========================================================
-from app.chatbot.nlp import lazy_skill_extractor
-sn = lazy_skill_extractor.get()  # Se obtiene solo cuando se necesita
+from app.chatbot.nlp import get_skill_extractor
+
+
+sn = get_skill_extractor
+
+.get()  # Se obtiene solo cuando se necesita
 class SkillsProcessor:
     def __init__(self, unit_name: str):
         self.unit_name = unit_name

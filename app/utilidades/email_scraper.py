@@ -326,8 +326,12 @@ def extract_skills(description: str) -> List[str]:
         
     try:
         # Usar el extractor de habilidades existente
-        from app.chatbot.nlp import lazy_skill_extractor
-        sn = lazy_skill_extractor.get()
+        from app.chatbot.nlp import get_skill_extractor
+
+
+        sn = get_skill_extractor
+
+.get()
         if sn:
             annotations = sn.annotate(description)
             return list(set(skill['doc_node_value'] for skill in annotations['results']))
