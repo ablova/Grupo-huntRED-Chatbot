@@ -329,9 +329,7 @@ def extract_skills(description: str) -> List[str]:
         from app.chatbot.nlp import get_skill_extractor
 
 
-        sn = get_skill_extractor
-
-.get()
+        sn = get_skill_extractor.get()
         if sn:
             annotations = sn.annotate(description)
             return list(set(skill['doc_node_value'] for skill in annotations['results']))
