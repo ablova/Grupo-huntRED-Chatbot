@@ -39,9 +39,7 @@ CATALOGS_BASE_PATH = "/home/pablo/app/utilidades/catalogs"
 from app.chatbot.nlp import get_skill_extractor
 
 
-sn = get_skill_extractor
-
-.get()  # Se obtiene solo cuando se necesita
+sn = get_skill_extractor.get()  # Se obtiene solo cuando se necesita
 class SkillsProcessor:
     def __init__(self, unit_name: str):
         self.unit_name = unit_name
