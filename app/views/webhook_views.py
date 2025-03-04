@@ -13,8 +13,8 @@ from app.chatbot.integrations.whatsapp import whatsapp_webhook
 import logging
 import json
 
-#from app.nlp import SkillExtractor  # Asegúrate de que la importación es correcta
-#from app.nlp import initialize_phrase_matcher  # Función para inicializar phraseMatcher
+#from app.chatbot.nlp import get_skill_extractor # Asegúrate de que la importación es correcta
+
 
 logger = logging.getLogger(__name__)
 
