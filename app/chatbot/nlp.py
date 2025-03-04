@@ -2,7 +2,11 @@
 import logging
 import threading
 import asyncio
+import json
+import asyncio
 from cachetools import TTLCache, cachedmethod
+from spacy.matcher import PhraseMatcher
+from app.chatbot.utils import map_skill_to_database, get_database_skills
 
 # ✅ Configuración de Logging con rotación
 logger = logging.getLogger(__name__)
@@ -20,6 +24,10 @@ MODEL_LANGUAGES = {
     "ru": "ru_core_news_md",
     "pt": "pt_core_news_md"
 }
+
+loaded_models = {}  # Diccionario para almacenar modelos cargados
+model_locks = {lang: threading.Lock() for lang in MODEL_LANGUAGES}  # Cerraduras para cada idioma
+
 def load_nlp_model(language: str):
     import spacy
     model_name = MODEL_LANGUAGES.get(language, "es_core_news_md")
@@ -46,25 +54,22 @@ class LazySkillExtractor:
                 if self.instance is None:
                     try:
                         from skillNer.skill_extractor_class import SkillExtractor
-                        import json
-                        from spacy.matcher import PhraseMatcher
-                        skill_db_path = "/home/pablo/skill_db_relax_20.json"
-                        with open(skill_db_path, 'r', encoding='utf-8') as f:
-                            skills_db = json.load(f)
+                        from skillNer.general_params import SKILL_DB
                         nlp_model = load_nlp_model("es")
                         if nlp_model:
-                            logger.info("loading full_matcher ...")
+                            if not isinstance(SKILL_DB, dict):
+                                raise ValueError("SKILL_DB is not a dictionary")
                             phrase_matcher = PhraseMatcher(nlp_model.vocab)
-                            self.instance = SkillExtractor(nlp=nlp_model, skills_db=skills_db, phraseMatcher=phrase_matcher)
-                            logger.info("✅ SkillExtractor inicializado correctamente.")
+                            self.instance = SkillExtractor(nlp_model, SKILL_DB, phrase_matcher)
+                            logger.info("✅ SkillExtractor initialized correctly.")
                         else:
-                            logger.error("❌ No se pudo cargar el modelo NLP para SkillExtractor.")
+                            logger.error("❌ Failed to load NLP model for SkillExtractor.")
                     except Exception as e:
-                        logger.warning(f"⚠ Warning: SkillExtractor (`sn`) no se pudo importar correctamente desde nlp.py: {e}")
+                        logger.warning(f"⚠ SkillExtractor failed: {e}")
                         self.instance = None
         return self.instance
 
-lazy_skill_extractor = LazySkillExtractor()  # Esto está bien, no llama a .get()
+lazy_skill_extractor = LazySkillExtractor()
 
 # ✅ Pool de clientes para GPTHandler (Lazy Load)
 GPT_CLIENT_POOL_SIZE = 5
@@ -129,6 +134,10 @@ class NLPProcessor:
             return {"intents": [], "entities": [], "sentiment": "neutral", "detected_divisions": []}
 
         cleaned_text = clean_text(text)
+        intents = []
+        # Verificar si el texto es el comando de reinicio
+        if cleaned_text.strip().lower() == "/reset_chat_state":
+            intents.append("reset_chat_state")
         doc = await asyncio.to_thread(nlp, cleaned_text)
         entities = [(ent.text, ent.label_) for ent in doc.ents]
 
@@ -153,71 +162,65 @@ class NLPProcessor:
 
     @cachedmethod(lambda self: self.gpt_cache)
     async def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
-        """Extrae habilidades con caché."""
         skills_from_skillner = set()
         skills_from_gpt = set()
-
         sn = lazy_skill_extractor.get()
         if sn:
             try:
                 results = await asyncio.to_thread(sn.annotate, text)
-                if "results" in results:
-                    extracted_skills = {item["skill"] for item in results["results"]}
+                if isinstance(results, dict) and "results" in results:
+                    extracted_skills = {item["doc_node_value"] for item in results["results"]["ngram_scored"]}
                     skills_from_skillner.update(extracted_skills)
+                else:
+                    logger.warning("SkillExtractor no devolvió la estructura esperada.")
             except Exception as e:
                 logger.error(f"Error en SkillExtractor: {e}")
 
         gpt_handler = await self.load_gpt_handler()
-        gpt_prompt = f"Extrae habilidades del siguiente texto:\n\n{text}"
+        gpt_prompt = f"Extrae habilidades del siguiente texto y devuelve solo una lista JSON de habilidades:\n\n{text}"
         try:
             response = await gpt_handler.generate_response(gpt_prompt)
             gpt_output = json.loads(response)
-            from app.chatbot.utils import map_skill_to_database
-            skills_from_gpt = {map_skill_to_database(skill) for skill in gpt_output.get("skills", [])}
+            skills_from_gpt = {map_skill_to_database(skill) for skill in gpt_output}
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decodificando respuesta GPT: {e}")
         except Exception as e:
             logger.error(f"Error con GPTHandler: {e}")
 
         return {"skills": list(skills_from_skillner.union(skills_from_gpt))}
 
     def extract_interests_and_skills(self, text: str) -> dict:
-        """
-        Extrae intereses explícitos, habilidades y sugiere roles priorizando lo mencionado por el usuario.
-        """
         text_normalized = unidecode.unidecode(text.lower())
         skills = set()
         priorities = {}
 
-        # Cargar habilidades desde catálogos
         try:
             all_skills = get_all_skills_for_unit()
-            logger.info(f"📌 Habilidades cargadas: {all_skills}")  
+            logger.info(f"📌 Habilidades cargadas: {all_skills}")
         except Exception as e:
             logger.error(f"Error obteniendo habilidades: {e}")
             all_skills = []
 
-        # Coincidencias manuales
         for skill in all_skills:
             skill_normalized = unidecode.unidecode(skill.lower())
             if re.search(r'\b' + re.escape(skill_normalized) + r'\b', text_normalized):
                 skills.add(skill)
-                priorities[skill] = 2  # Mayor peso a lo mencionado directamente
+                priorities[skill] = 2
 
-        # Extraer habilidades con SkillExtractor
-        if sn and nlp and nlp.vocab.vectors_length > 0:
+        sn = lazy_skill_extractor.get()
+        if sn:
             try:
                 results = sn.annotate(text)
                 if isinstance(results, dict) and "results" in results:
-                    extracted_skills = {item["skill"] for item in results["results"] if isinstance(item, dict)}
+                    extracted_skills = {item["doc_node_value"] for item in results["results"]["ngram_scored"]}
                     skills.update(extracted_skills)
                     for skill in extracted_skills:
-                        priorities[skill] = priorities.get(skill, 1)  # Menor peso a lo detectado automáticamente
+                        priorities[skill] = priorities.get(skill, 1)
                     logger.info(f"🧠 Habilidades extraídas por SkillExtractor: {extracted_skills}")
             except Exception as e:
                 logger.error(f"❌ Error en SkillExtractor: {e}", exc_info=True)
 
-        # Aplicar ponderación a intereses
-        prioritized_interests = prioritize_interests(list(skills))  # Se pasa solo la lista de skills
-        
+        prioritized_interests = prioritize_interests(list(skills))
         return {
             "skills": list(skills),
             "prioritized_skills": prioritized_interests

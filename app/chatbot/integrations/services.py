@@ -29,6 +29,12 @@ REQUEST_TIMEOUT = 10.0
 CACHE_TIMEOUT = 600  # 10 minutos
 whatsapp_semaphore = asyncio.Semaphore(10)
 
+# Constantes globales
+MAX_RETRIES = 3
+REQUEST_TIMEOUT = 10.0
+CACHE_TIMEOUT = 600  # 10 minutos
+whatsapp_semaphore = asyncio.Semaphore(10)
+
 class Button:
     def __init__(self, title: str, payload: Optional[str] = None, url: Optional[str] = None):
         self.title = title
@@ -60,11 +66,13 @@ class MessageService:
                     'whatsapp': WhatsAppAPI,
                     'telegram': TelegramAPI,
                     'messenger': MessengerAPI,
-                    'instagram': InstagramAPI
+                    'instagram': InstagramAPI,
+                    'slack': SlackAPI  # Corregido: '=' por ':'
                 }
                 model_class = model_mapping.get(platform)
                 if not model_class:
-                    raise ValueError(f"Plataforma no soportada: {platform}")
+                    logger.error(f"Plataforma no soportada: {platform}")
+                    return None
 
                 self._api_instances[platform] = await sync_to_async(model_class.objects.filter(
                     business_unit=self.business_unit,
@@ -72,12 +80,58 @@ class MessageService:
                 ).select_related('business_unit').first)()
                 
                 if self._api_instances[platform]:
-                    cache.set(cache_key, self._api_instances[platform], timeout=CACHE_TIMEOUT)
+                    api = self._api_instances[platform]
+                    required_attrs = {
+                        'whatsapp': ['phoneID', 'access_token'],
+                        'telegram': ['api_key'],
+                        'messenger': ['page_access_token'],
+                        'instagram': ['access_token'],
+                        'slack': ['bot_token']
+                    }
+                    for attr in required_attrs.get(platform, []):
+                        if not hasattr(api, attr) or not getattr(api, attr):
+                            logger.error(f"Configuración incompleta para {platform} en BU {self.business_unit.name}: {attr} faltante")
+                            self._api_instances[platform] = None
+                            break
+                    else:
+                        cache.set(cache_key, api, timeout=CACHE_TIMEOUT)
+                else:
+                    logger.warning(f"No se encontró configuración activa para {platform} en BU {self.business_unit.name}")
 
         return self._api_instances[platform]
 
+    async def send_platform_message(
+        self,
+        platform: str,
+        user_id: str,
+        message: str,
+        api_instance: Optional[object] = None,
+        options: Optional[List[Dict]] = None
+    ) -> bool:
+        """Envía mensajes a cualquier plataforma de manera dinámica"""
+        if api_instance is None:
+            api_instance = await self.get_api_instance(platform)
+            if not api_instance:
+                logger.error(f"No se encontró configuración para {platform}")
+                return False
+
+        send_funcs = {
+            'whatsapp': self._send_whatsapp,
+            'telegram': self._send_telegram,
+            'messenger': self._send_messenger,
+            'instagram': self._send_instagram,
+            'slack': self._send_slack  # Corregido: Añadido Slack
+        }
+
+        send_func = send_funcs.get(platform)
+        if not send_func:
+            logger.error(f"Plataforma no soportada: {platform}")
+            return False
+
+        return await send_func(user_id, message, api_instance, options)
+
     from tenacity import retry, stop_after_attempt
-    @retry(stop=stop_after_attempt(3))
+    @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_message(
         self,
         platform: str,
@@ -85,35 +139,12 @@ class MessageService:
         message: str,
         options: Optional[List[Dict]] = None
     ) -> bool:
-        """Envía un mensaje al usuario en la plataforma especificada."""
+        """Envía un mensaje al usuario en la plataforma especificada"""
         try:
-            logger.info(f"[send_message] Plataforma: {platform}, User: {user_id}, BU: {self.business_unit.name}")
-
-            api_instance = await self.get_api_instance(platform)
-            if not api_instance:
-                logger.error(f"[send_message] ❌ No se encontró configuración API para {platform}")
-                return False
-
-            # Envío específico por plataforma
-            platform_handlers = {
-                'whatsapp': self._send_whatsapp_message,
-                'telegram': self._send_telegram_message,
-                'messenger': self._send_meta_message,
-                'instagram': self._send_meta_message
-            }
-
-            handler = platform_handlers.get(platform)
-            if handler:
-                if "personalized message" in message.lower():  # Marcador simple
-                    logger.info(f"Enviando mensaje personalizado optimizado a {user_id}")
-                    return await handler(user_id, message, options, api_instance, priority=True)  # Suponiendo prioridad en integraciones
-                return await handler(user_id, message, options, api_instance)
-            else:
-                logger.error(f"[send_message] ❌ Plataforma no soportada: {platform}")
-                return False
-
+            logger.info(f"[send_message] Enviando a {user_id} en {platform}, BU: {self.business_unit.name}")
+            return await self.send_platform_message(platform, user_id, message, options=options)
         except Exception as e:
-            logger.error(f"[send_message] ❌ Error: {e}", exc_info=True)
+            logger.error(f"[send_message] Error: {e}", exc_info=True)
             return False
 
     async def send_image(
@@ -153,7 +184,14 @@ class MessageService:
                     user_id=user_id,
                     image_url=image_url,
                     caption=message,
-                    access_token=api_instance.page_access_token
+                    access_token=api_instance.page_access_token if platform == "messenger" else api_instance.access_token
+                )
+            elif platform == "slack":
+                from app.chatbot.integrations.slack import send_slack_message
+                await send_slack_message(
+                    channel_id=user_id,
+                    message=f"{message}\n{image_url}",
+                    bot_token=api_instance.bot_token
                 )
             else:
                 logger.error(f"[send_image] Plataforma no soportada: {platform}")
@@ -161,17 +199,14 @@ class MessageService:
 
             logger.info(f"✅ Imagen enviada a {user_id} en {platform}.")
             return True
-
         except Exception as e:
             logger.error(f"[send_image] Error enviando imagen en {platform}: {e}", exc_info=True)
             return False
 
-    async def send_menu(platform: str, user_id: str, business_unit: str):
-        """
-        Envía el menú principal utilizando `send_smart_options`, para que funcione en múltiples plataformas.
-        """
+    async def send_menu(self, platform: str, user_id: str):
+        """Envía el menú principal utilizando `send_options`"""
         try:
-            logger.info(f"[send_menu] 📩 Enviando menú a {user_id} en {platform} para {business_unit}")
+            logger.info(f"[send_menu] 📩 Enviando menú a {user_id} en {platform} para {self.business_unit.name}")
 
             menu_options = {
                 "huntred": [
@@ -197,18 +232,24 @@ class MessageService:
                 ]
             }
 
-            options = menu_options.get(business_unit.lower(), menu_options["default"])
+            options = menu_options.get(self.business_unit.name.lower(), menu_options["default"])
             message = "📍 *Menú Principal*\nSelecciona una opción:"
 
-            success, msg_id = await send_smart_options(platform, user_id, message, options, business_unit)
-
-            if success:
-                logger.info(f"[send_menu] ✅ Menú enviado correctamente. Message ID: {msg_id}")
+            if platform == "slack":
+                slack_buttons = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
+                await self.send_options(platform, user_id, message, slack_buttons)
             else:
-                logger.error(f"[send_menu] ❌ Falló el envío del menú.")
-
+                success, msg_id = await send_smart_options(platform, user_id, message, options, self.business_unit.name)
+                if success:
+                    logger.info(f"[send_menu] ✅ Menú enviado correctamente. Message ID: {msg_id}")
+                    return True
+                else:
+                    logger.error(f"[send_menu] ❌ Falló el envío del menú.")
+                    return False
+            return True
         except Exception as e:
             logger.error(f"[send_menu] ❌ Error enviando menú: {e}", exc_info=True)
+            return False
 
     async def send_url(self, platform: str, user_id: str, url: str) -> bool:
         return await self.send_message(platform, user_id, f"Aquí tienes el enlace: {url}")
@@ -236,7 +277,8 @@ class MessageService:
                 'whatsapp': self._send_whatsapp_options,
                 'telegram': self._send_telegram_options,
                 'messenger': self._send_messenger_options,
-                'instagram': self._send_instagram_options
+                'instagram': self._send_instagram_options,
+                'slack': self._send_slack_options  # Añadido soporte para Slack
             }
 
             handler = platform_handlers.get(platform)
@@ -245,126 +287,73 @@ class MessageService:
             else:
                 logger.error(f"Plataforma no soportada: {platform}")
                 return False
-
         except Exception as e:
             logger.error(f"Error enviando opciones en {platform}: {e}", exc_info=True)
             return False
 
-    async def _send_whatsapp_message(
-        self,
-        user_id: str,
-        message: str,
-        options: Optional[List[Dict]],
-        api_instance: WhatsAppAPI
-    ) -> bool:
-        """Envía mensaje por WhatsApp"""
+    # Funciones específicas por canal
+    async def _send_whatsapp(self, user_id: str, message: str, api_instance: WhatsAppAPI, options: Optional[List[Dict]]) -> bool:
         from app.chatbot.integrations.whatsapp import send_whatsapp_message
-        
-        try:
-            async with whatsapp_semaphore:
-                # Manejar URLs primero si hay opciones con URLs
-                if options:
-                    url_options = [opt for opt in options if 'url' in opt]
-                    for opt in url_options:
-                        await send_whatsapp_message(
-                            user_id=user_id,
-                            message=f"Más información: {opt['url']}",
-                            phone_id=api_instance.phoneID,
-                            business_unit=self.business_unit
-                        )
-                        await asyncio.sleep(0.5)
-
-                # Enviar mensaje principal
+        async with whatsapp_semaphore:
+            if options:
+                await self._send_whatsapp_options(user_id, message, [Button.from_dict(opt) for opt in options], api_instance)
+            else:
                 await send_whatsapp_message(
                     user_id=user_id,
                     message=message,
                     phone_id=api_instance.phoneID,
-                    buttons=[opt for opt in (options or []) if 'url' not in opt],
+                    access_token=api_instance.access_token,
                     business_unit=self.business_unit
                 )
-                return True
+            return True
 
-        except Exception as e:
-            logger.error(f"Error enviando mensaje WhatsApp: {e}", exc_info=True)
-            return False
-
-    async def _send_telegram_message(self, user_id: str, message: str, options: Optional[List[Dict]], api_instance: TelegramAPI) -> bool:
+    async def _send_telegram(self, user_id: str, message: str, api_instance: TelegramAPI, options: Optional[List[Dict]]) -> bool:
         from app.chatbot.integrations.telegram import send_telegram_message
-        try:
-            chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
-            if options:
-                await self._send_telegram_options(user_id, message, options, api_instance)
-            else:
-                await send_telegram_message(
-                    chat_id=chat_id,
-                    message=message,
-                    telegram_api=api_instance,
-                    business_unit_name=self.business_unit.name
-                )
-            return True
-        except Exception as e:
-            logger.error(f"Error enviando mensaje Telegram: {e}", exc_info=True)
-            return False
+        chat_id = int(user_id.split(":")[-1]) if ":" in user_id else int(user_id)
+        if options:
+            await self._send_telegram_options(chat_id, message, [Button.from_dict(opt) for opt in options], api_instance)
+        else:
+            await send_telegram_message(chat_id, message, api_instance, self.business_unit.name)
+        return True
 
-    async def _send_meta_message(
-        self,
-        platform: str,
-        user_id: str,
-        message: str,
-        options: Optional[List[Dict]],
-        api_instance: Union[MessengerAPI, InstagramAPI]
-    ) -> bool:
-        """Envía mensaje por plataformas Meta (Messenger/Instagram)"""
-        try:
-            if platform == 'messenger':
-                from app.chatbot.integrations.messenger import send_messenger_message
-                send_func = send_messenger_message
-            else:
-                from app.chatbot.integrations.instagram import send_instagram_message
-                send_func = send_instagram_message
+    async def _send_messenger(self, user_id: str, message: str, api_instance: MessengerAPI, options: Optional[List[Dict]]) -> bool:
+        from app.chatbot.integrations.messenger import send_messenger_message
+        if options:
+            await self._send_messenger_options(user_id, message, [Button.from_dict(opt) for opt in options], api_instance)
+        else:
+            await send_messenger_message(user_id, message, None, api_instance.page_access_token)
+        return True
 
-            if options:
-                await send_messenger_buttons(user_id, message, options, api_instance.page_access_token)
-            else:
-                await send_func(
-                    user_id=user_id,
-                    message=message,
-                    quick_replies=options,  # ✅ CORREGIDO
-                    access_token=api_instance.page_access_token or api_instance.api_key
-            )
-            return True
+    async def _send_instagram(self, user_id: str, message: str, api_instance: InstagramAPI, options: Optional[List[Dict]]) -> bool:
+        from app.chatbot.integrations.instagram import send_instagram_message
+        if options:
+            await self._send_instagram_options(user_id, message, [Button.from_dict(opt) for opt in options], api_instance)
+        else:
+            await send_instagram_message(user_id, message, None, api_instance.access_token)
+        return True
 
-        except Exception as e:
-            logger.error(f"Error enviando mensaje {platform}: {e}", exc_info=True)
-            return False
-   # Implementaciones específicas de send_options para cada plataforma
+    async def _send_slack(self, user_id: str, message: str, api_instance: SlackAPI, options: Optional[List[Dict]]) -> bool:
+        from app.chatbot.integrations.slack import send_slack_message
+        if options:
+            await self._send_slack_options(user_id, message, [Button.from_dict(opt) for opt in options], api_instance)
+        else:
+            await send_slack_message(user_id, message, api_instance.bot_token)
+        return True
+
+    # Implementaciones específicas de send_options
     async def _send_whatsapp_options(self, user_id, message, buttons, api_instance):
         from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
-        
         url_buttons = [btn for btn in buttons if btn.url]
         option_buttons = [btn for btn in buttons if btn.payload][:3]
         
         try:
             for btn in url_buttons:
-                await self.send_message(
-                    'whatsapp',
-                    user_id,
-                    f"Más información: {btn.url}",
-                    None
-                )
-
+                await self.send_message('whatsapp', user_id, f"Más información: {btn.url}")
             if option_buttons:
                 formatted_buttons = [
-                    {
-                        "type": "reply",
-                        "reply": {
-                            "id": btn.payload,
-                            "title": btn.title[:20]
-                        }
-                    }
+                    {"type": "reply", "reply": {"id": btn.payload, "title": btn.title[:20]}}
                     for btn in option_buttons
                 ]
-                
                 await send_whatsapp_decision_buttons(
                     user_id=user_id,
                     message=message,
@@ -372,7 +361,6 @@ class MessageService:
                     business_unit=self.business_unit
                 )
             return True
-
         except Exception as e:
             logger.error(f"Error enviando opciones WhatsApp: {e}", exc_info=True)
             return False
@@ -396,22 +384,16 @@ class MessageService:
             )
             return success is not None
         except Exception as e:
-            logger.error(f"❌ Error enviando opciones a Telegram: {e}", exc_info=True)
+            logger.error(f"Error enviando opciones Telegram: {e}", exc_info=True)
             return False
-        
+
     async def _send_messenger_options(self, user_id, message, buttons, api_instance):
         from app.chatbot.integrations.messenger import send_messenger_buttons
-        
         try:
             quick_replies = [
-                {
-                    'content_type': 'text',
-                    'title': btn.title,
-                    'payload': btn.payload or 'no_payload'
-                }
+                {"content_type": "text", "title": btn.title, "payload": btn.payload or "no_payload"}
                 for btn in buttons
             ]
-
             await send_messenger_buttons(
                 user_id=user_id,
                 message=message,
@@ -419,23 +401,17 @@ class MessageService:
                 access_token=api_instance.page_access_token
             )
             return True
-
         except Exception as e:
             logger.error(f"Error enviando opciones Messenger: {e}", exc_info=True)
             return False
 
     async def _send_instagram_options(self, user_id, message, buttons, api_instance):
         from app.chatbot.integrations.instagram import send_instagram_buttons
-        
         try:
             instagram_buttons = [
-                {
-                    'title': btn.title,
-                    'payload': btn.payload or 'no_payload'
-                }
+                {"title": btn.title, "payload": btn.payload or "no_payload"}
                 for btn in buttons
             ]
-
             await send_instagram_buttons(
                 user_id=user_id,
                 message=message,
@@ -443,11 +419,32 @@ class MessageService:
                 access_token=api_instance.access_token
             )
             return True
-
         except Exception as e:
             logger.error(f"Error enviando opciones Instagram: {e}", exc_info=True)
             return False
 
+    async def _send_slack_options(self, user_id, message, buttons, api_instance):
+        from app.chatbot.integrations.slack import send_slack_message_with_buttons
+        try:
+            slack_buttons = [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": btn.title},
+                    "value": btn.payload or "default"
+                }
+                for btn in buttons
+            ]
+            await send_slack_message_with_buttons(
+                channel_id=user_id,
+                message=message,
+                buttons=slack_buttons,
+                bot_token=api_instance.bot_token
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error enviando opciones Slack: {e}", exc_info=True)
+            return False
+        
 class EmailService:
     def __init__(self, business_unit: BusinessUnit):
         self.business_unit = business_unit
@@ -626,6 +623,29 @@ def run_async(func, *args, **kwargs):
     except RuntimeError:
         return asyncio.run(func(*args, **kwargs))
 
+async def reset_chat_state(user_id: str, business_unit: BusinessUnit, platform: Optional[str] = None):
+        """
+        Reinicia el estado de la conversación (ChatState) para un usuario en una unidad de negocio específica.
+        
+        Args:
+            user_id (str): Identificador del usuario.
+            business_unit (BusinessUnit): Unidad de negocio asociada al chat.
+            platform (Optional[str]): Nombre del canal (e.g., 'whatsapp', 'telegram') para enviar mensaje de confirmación.
+        """
+        try:
+            # Busca y elimina el ChatState existente
+            chat_state = await sync_to_async(ChatState.objects.get)(user_id=user_id, business_unit=business_unit)
+            await sync_to_async(chat_state.delete)()
+            logger.info(f"🧹 ChatState reiniciado para {user_id} en {business_unit.name}")
+            
+            # Si se especifica una plataforma, envía un mensaje de confirmación
+            if platform:
+                await send_message(platform, user_id, "🧹 Conversación reiniciada. Envía un mensaje para comenzar de nuevo.", business_unit)
+        except ChatState.DoesNotExist:
+            # Si no existe un ChatState, no hay nada que reiniciar
+            logger.info(f"🧹 No se encontró ChatState para {user_id} en {business_unit.name}, no hay nada que reiniciar.")
+            if platform:
+                await send_message(platform, user_id, "🧹 No había conversación activa, pero estás listo para comenzar de nuevo.", business_unit)
 # ================================
 # WRAPPERS PARA FUNCIONES ASÍNCRONAS Y SINCRÓNICAS -----  NO MODIFICAR POR FAVOR
 # ================================
