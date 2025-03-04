@@ -3,6 +3,7 @@
 import logging
 import asyncio
 import re  # AGREGADO para manejo de expresiones regulares en handle_status_email
+from django.utils import timezone
 from typing import Optional, List, Dict, Any, Tuple
 from asgiref.sync import sync_to_async
 from django.utils.timezone import now
@@ -15,6 +16,7 @@ from app.chatbot.integrations.services import (
     send_email, send_message, send_options, send_menu, send_url, send_image, GamificationService
     )
 from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming  # Encargado del NLP y patrones de intents
+
 # Importaciones de workflows
 from app.chatbot.workflow.common import generate_and_send_contract
 from app.chatbot.workflow.amigro import process_amigro_candidate
@@ -164,9 +166,9 @@ class ChatBotHandler:
             await sync_to_async(user.save)()
             confirmation_msg = "Gracias por aceptar nuestros TOS. Aquí tienes el menú principal:"
             await send_message(platform, user_id, confirmation_msg, business_unit.name.lower())
-            await send_menu(platform, user_id, business_unit.name.lower())
+            await send_menu(platform, user_id, business_unit.name.lower())  # Pasar business_unit.name
             await self.store_bot_message(event, confirmation_msg)
-            await self.award_gamification_points(user, "tos_accepted")  # Gamification
+            await self.award_gamification_points(user, "tos_accepted")
             logger.info(f"TOS aceptados para {user.phone}")
         elif normalized in ['tos_reject', 'no']:
             rejection_msg = "No se puede continuar sin aceptar los TOS. Responde 'Sí' o 'Salir'."
@@ -179,6 +181,9 @@ class ChatBotHandler:
                 return
             await sync_to_async(event.save)()
         else:
+            # Enviar URL como mensaje separado
+            await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", business_unit.name.lower())
+            await asyncio.sleep(1)  # Pequeña pausa para evitar spam
             prompt = "Por favor, selecciona una opción:"
             await send_options(platform, user_id, prompt, tos_buttons, business_unit.name.lower())
    
@@ -221,6 +226,7 @@ class ChatBotHandler:
                 return
             
             # Usar predicción y mensaje personalizado con GPTHandler
+            from app.ml.ml_model import MatchmakingLearningSystem
             ml_system = MatchmakingLearningSystem(business_unit=business_unit.name)
             top_candidates = await ml_system.predict_top_candidates(vacancy=None)
             if user in [c[0] for c in top_candidates]:
