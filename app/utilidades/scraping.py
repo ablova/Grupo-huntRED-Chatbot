@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 nlp = spacy.load("en_core_web_md")
 from app.chatbot.nlp import get_skill_extractor
-sn = get_skill_extractor.get()  # Se obtiene solo cuando se necesita
+sn = get_skill_extractor() # Se obtiene solo cuando se necesita
 if not sn:
     logger.warning("⚠ SkillExtractor no está disponible. Se usarán métodos alternativos de extracción.")
 
@@ -202,7 +202,7 @@ async def validar_url(url: str, check_content: bool = False) -> bool:
 def extract_skills(text: str) -> List[str]:
     """Extrae habilidades del texto usando SkillNer."""
     try:
-        results = sn.annotate(text)
+        results = sn.extract_skills(text)
         return [skill["skill"] for skill in results.get("results", [])]
     except Exception as e:
         logger.error(f"Error extracting skills: {e}")
