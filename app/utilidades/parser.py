@@ -21,7 +21,7 @@ from django.utils.timezone import now
 # ✅ Importaciones del proyecto
 from app.models import ConfiguracionBU, Person, Vacante, Division, Skill, BusinessUnit
 from app.utilidades.vacantes import VacanteManager
-from app.chatbot.nlp import load_nlp_model  # ✅ Usar función centralizada de NLP
+from app.chatbot.nlp import SkillExtractorManager.load_nlp_model  # ✅ Usar función centralizada de NLP
 
 # ✅ Configuración de logging
 logger = logging.getLogger(__name__)

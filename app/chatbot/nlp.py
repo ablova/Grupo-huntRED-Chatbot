@@ -41,7 +41,7 @@ from typing import Dict, Any, List, Optional, Set, Tuple
 from cachetools import TTLCache, cachedmethod
 from logging.handlers import RotatingFileHandler
 
-from app.chatbot.utils import clean_text, load_catalog
+
 from app.chatbot.extractors import ESCOExtractor, NICEExtractor, ONETExtractor, CareerOneStopExtractor, unify_data, parse_esco_rdf_to_json
 
 # ============== CONFIGURACIÓN LOGGING ==============
@@ -641,7 +641,7 @@ class NLPProcessor:
         if not self.nlp:
             logger.error("No se ha cargado el modelo spaCy, devolviendo análisis vacío.")
             return {"intents": [], "entities": [], "sentiment": "neutral", "detected_divisions": []}
-
+        from app.chatbot.utils import clean_text
         cleaned_text = clean_text(text)
         doc = await asyncio.to_thread(self.nlp, cleaned_text)
         entities = [(ent.text, ent.label_) for ent in doc.ents]
@@ -663,6 +663,7 @@ class NLPProcessor:
             logger.warning("⚠️ SkillExtractor no está inicializado")
             return {"skills": []}
         try:
+            from app.chatbot.utils import clean_text
             cleaned_text = clean_text(text)
             skills_result = extractor.extract_skills(cleaned_text)
             logger.info(f"📊 Habilidades extraídas: {skills_result['skills']}")
