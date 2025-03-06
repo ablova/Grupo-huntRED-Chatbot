@@ -21,23 +21,12 @@ from django.utils.timezone import now
 # ✅ Importaciones del proyecto
 from app.models import ConfiguracionBU, Person, Vacante, Division, Skill, BusinessUnit
 from app.utilidades.vacantes import VacanteManager
-from app.chatbot.nlp import load_nlp_model  # ✅ Usar función centralizada de NLP
+from app.chatbot.nlp import load_nlp_model, SkillExtractorManager
 
 # ✅ Configuración de logging
 logger = logging.getLogger(__name__)
 
 
-# ✅ Importación segura del módulo NLP
-try:
-    import app.chatbot.nlp as nlp_module  # Importación del módulo
-    sn = nlp_module.sn if hasattr(nlp_module, "sn") else None
-except ImportError as e:
-    logging.error(f"Error importando NLP: {e}", exc_info=True)
-    sn = None
-
-# ✅ Si `sn` no está disponible, lanzar advertencia
-if sn is None:
-    logging.warning("⚠ Warning: SkillExtractor (`sn`) no se pudo importar correctamente desde nlp.py")
 
 # ✅ Importación de servicios adicionales
 from app.chatbot.integrations.services import send_email, send_message
@@ -324,13 +313,13 @@ class IMAPCVProcessor:
 # Ajuste en la inicialización de CVParser
 class CVParser:
     def __init__(self, business_unit: str, text_sample: Optional[str] = None):
-        """
-        Inicializa el parser con un modelo NLP adecuado según el idioma detectado.
-        """
-        self.business_unit = business_unit.strip()  # ✅ Evita espacios extra
+        self.business_unit = business_unit.strip()
         self.detected_language = self.detect_language(text_sample) if text_sample else "es"
-        self.nlp = load_nlp_model(text_sample)  # ✅ Carga el modelo NLP correcto
-        self.analysis_points = self.get_analysis_points()  # ✅ Corrección aplicada
+        self.nlp = load_nlp_model(self.detected_language)
+        if not self.nlp:
+            logger.error(f"❌ No se pudo cargar modelo NLP para idioma '{self.detected_language}'")
+        self.skill_extractor = SkillExtractorManager.get_instance(self.detected_language)
+        self.analysis_points = self.get_analysis_points()
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
 
@@ -521,13 +510,22 @@ class CVParser:
             return f"Analysis point '{point}' is not defined."
     # Métodos específicos mejorados
     def extract_skills(self, doc):
-        """
-        Extrae habilidades del texto utilizando SkillNer.
-        """
-        skills = sn.extract_skills(doc.text)
-        extracted_skills = [skill['skill'] for skill in skills]
-        logger.debug(f"Habilidades extraídas: {extracted_skills}")
-        return extracted_skills
+        skills = []
+        try:
+            if self.skill_extractor:
+                skills_result = self.skill_extractor.extract_skills(doc.text)
+                skills = skills_result["skills"]
+                logger.debug(f"Habilidades extraídas con SkillExtractorManager: {skills}")
+            else:
+                # Fallback básico
+                skill_keywords = ["python", "java", "machine learning", "project management"]
+                for token in doc:
+                    if token.text.lower() in skill_keywords:
+                        skills.append(token.text.lower())
+                logger.debug(f"Habilidades extraídas con fallback: {skills}")
+        except Exception as e:
+            logger.error(f"❌ Error extrayendo habilidades: {e}", exc_info=True)
+        return skills
 
     def extract_experience(self, doc):
         """

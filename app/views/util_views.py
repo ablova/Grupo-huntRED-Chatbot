@@ -4,7 +4,7 @@ from django.views import View
 from django.http import JsonResponse
 from app.tasks import send_notification_task
 from django.shortcuts import render
-from app.utilidades.salario import calcular_neto, calcular_bruto,
+from app.utilidades.salario import calcular_neto, calcular_bruto, obtener_tipo_cambio
 from app.chatbot.integrations.services import send_message
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator

@@ -1,4 +1,4 @@
-# /home/app/utilidades/salario.py
+# /home/pablo/app/utilidades/salario.py
 
 import requests
 
@@ -114,3 +114,56 @@ def calcular_neto(
         salario_neto_mxn /= tipo_cambio
 
     return salario_neto_mxn
+
+def calcular_bruto(
+    salario_neto: float,
+    tipo_trabajador: str = 'asalariado',
+    incluye_prestaciones: bool = False,
+    monto_vales: float = 0.0,
+    fondo_ahorro: bool = False,
+    porcentaje_fondo: float = 0.13,
+    credito_infonavit: float = 0.0,
+    pension_alimenticia: float = 0.0,
+    aplicar_subsidio: bool = True,
+    moneda: str = 'MXN',
+    tipo_cambio: float = 1.0
+) -> float:
+    """
+    Calcula el salario bruto requerido para obtener un salario neto deseado.
+    Se utiliza una búsqueda iterativa (bisección) debido a la relación no lineal entre bruto y neto.
+    Todos los cálculos se realizan en MXN y luego se convierten a la moneda requerida.
+    """
+    objetivo = salario_neto
+    # Inicialmente, el bruto debe ser al menos el neto; usamos un rango inicial
+    bruto_min = salario_neto
+    bruto_max = salario_neto * 2  # Estimación inicial, se puede ajustar según la experiencia
+    bruto_calculado = None
+
+    for _ in range(50):  # Iterar suficientes veces para converger
+        guess = (bruto_min + bruto_max) / 2.0
+        # Calcular el neto para este guess
+        neto_calculado = calcular_neto(
+            guess,
+            tipo_trabajador=tipo_trabajador,
+            incluye_prestaciones=incluye_prestaciones,
+            monto_vales=monto_vales,
+            fondo_ahorro=fondo_ahorro,
+            porcentaje_fondo=porcentaje_fondo,
+            credito_infonavit=credito_infonavit,
+            pension_alimenticia=pension_alimenticia,
+            aplicar_subsidio=aplicar_subsidio,
+            moneda=moneda,
+            tipo_cambio=tipo_cambio
+        )
+        diferencia = neto_calculado - objetivo
+        if abs(diferencia) < 1.0:  # Convergencia con precisión de 1 MXN
+            bruto_calculado = guess
+            break
+        elif diferencia < 0:
+            # El neto calculado es menor que el deseado, se necesita mayor bruto
+            bruto_min = guess
+        else:
+            # El neto calculado es mayor, se reduce el rango
+            bruto_max = guess
+
+    return bruto_calculado if bruto_calculado is not None else guess
