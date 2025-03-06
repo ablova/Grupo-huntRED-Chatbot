@@ -1,21 +1,5 @@
 # 📌 Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
-"""
-nlp.py - Integración completa:
-1) Parse RDF de ESCO y genera esco_from_rdf.json
-2) ExternalSkillDataLoader y ESCOApiLoader para CSV/API
-3) SkillDBMerger para fusionar bases en combined_skills.json
-4) SkillExtractionPipeline (básica) y SkillExtractorManager (avanzada)
-5) NLPProcessor con la misma interfaz, usando skillNer + heurísticas
 
-Al final, en __main__, lo orquestamos:
-- Parse RDF (opcional)
-- run_all() para CSV,
-- Merger,
-- Pipeline para prueba.
-- O la versión con SkillExtractorManager y NLPProcessor.
-
-Algunas rutas y funciones son ejemplos; ajusta a tu estructura de proyecto.
-"""
 
 import os
 import csv
@@ -54,7 +38,23 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+"""
+nlp.py - Integración completa:
+1) Parse RDF de ESCO y genera esco_from_rdf.json
+2) ExternalSkillDataLoader y ESCOApiLoader para CSV/API
+3) SkillDBMerger para fusionar bases en combined_skills.json
+4) SkillExtractionPipeline (básica) y SkillExtractorManager (avanzada)
+5) NLPProcessor con la misma interfaz, usando skillNer + heurísticas
 
+Al final, en __main__, lo orquestamos:
+- Parse RDF (opcional)
+- run_all() para CSV,
+- Merger,
+- Pipeline para prueba.
+- O la versión con SkillExtractorManager y NLPProcessor.
+
+Algunas rutas y funciones son ejemplos; ajusta a tu estructura de proyecto.
+"""
 
 CONFIG = {
     "OUTPUT_DIR": "/home/pablo/skills_data",
@@ -95,6 +95,68 @@ def load_nlp_model(language: str = "es") -> Optional[spacy.language.Language]:
         except Exception as e:
             logger.error(f"❌ Error cargando modelo fallback '{fallback_model}': {e}")
             return None
+        
+def load_skill_dbs() -> dict:
+    """
+    Carga la base de datos de habilidades desde un archivo JSON o devuelve un diccionario vacío si no existe.
+    """
+    db_path = CONFIG.get("COMBINED_DB_PATH", "/home/pablo/skills_data/combined_skills.json")
+
+    if not os.path.exists(db_path):
+        logger.warning(f"⚠️ {db_path} no existe. Devolviendo base de datos vacía.")
+        return {}
+
+    try:
+        with open(db_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                logger.info(f"✅ {len(data)} habilidades cargadas desde {db_path}.")
+                return data
+            else:
+                logger.error(f"❌ Formato inválido en {db_path}, devolviendo base vacía.")
+                return {}
+    except Exception as e:
+        logger.error(f"❌ Error al cargar {db_path}: {e}")
+        return {}
+
+def load_common_terms():
+    """
+    Carga términos comunes de habilidades técnicas y generales que pueden ser utilizadas 
+    en la detección de habilidades dentro de textos.
+    
+    Returns:
+        Dict[str, List[str]]: Un diccionario con categorías de términos comunes.
+    """
+    return {
+        "programming_languages": [
+            "python", "java", "c++", "c#", "javascript", "typescript", "ruby", "go", "swift", "kotlin", "php",
+            "rust", "scala", "r", "matlab", "perl", "lua", "haskell", "objective-c", "dart", "elixir"
+        ],
+        "frameworks": [
+            "django", "flask", "spring", "react", "angular", "vue", "express", "ruby on rails", "laravel",
+            "symfony", "next.js", "nuxt.js", "fastapi", "quarkus", "svelte", "ember.js"
+        ],
+        "databases": [
+            "mysql", "postgresql", "mongodb", "sqlite", "redis", "cassandra", "mariadb", "oracle", "mssql",
+            "dynamodb", "couchdb", "neo4j", "elasticsearch", "bigquery"
+        ],
+        "cloud_services": [
+            "aws", "azure", "gcp", "google cloud", "amazon web services", "ibm cloud", "oracle cloud", "digitalocean",
+            "linode", "heroku", "firebase"
+        ],
+        "tools": [
+            "docker", "kubernetes", "terraform", "ansible", "jenkins", "git", "github actions", "gitlab ci/cd",
+            "circleci", "travisci", "helm", "vagrant", "puppet", "chef", "nomad"
+        ],
+        "machine_learning": [
+            "tensorflow", "pytorch", "scikit-learn", "keras", "xgboost", "huggingface", "openai", "spacy",
+            "nltk", "fastai", "mlflow", "onnx", "gensim", "pandas", "numpy"
+        ],
+        "soft_skills": [
+            "liderazgo", "comunicación", "negociación", "resolución de problemas", "trabajo en equipo",
+            "pensamiento crítico", "adaptabilidad", "gestión del tiempo", "creatividad", "inteligencia emocional"
+        ]
+    }
 # ============== CONFIGURACIÓN NLTK ==============
 try:
     nltk.data.find('tokenizers/punkt')
@@ -631,6 +693,7 @@ class SkillExtractorManager:
     def __del__(self):
         if hasattr(self, 'skill_cache'):
             self.skill_cache.close()
+
 # ✅ Lazy Load NLPProcessor
 class NLPProcessor:
     def __init__(self, language: str = "es"):
@@ -806,6 +869,13 @@ class RoBertASentimentAnalyzer:
             predicted_class = torch.argmax(outputs.logits, dim=1).item()
         return ["negative", "neutral", "positive"][predicted_class]
     
+# AQUÍ agregamos la función:
+def get_skill_extractor(language: str = "es"):
+    """
+    Devuelve una instancia única de SkillExtractorManager
+    para el idioma especificado (por defecto 'es').
+    """
+    return SkillExtractorManager.get_instance(language)
 # Instancia global del procesador
 nlp_processor = NLPProcessor(language="es")
 

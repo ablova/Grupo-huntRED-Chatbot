@@ -1,11 +1,13 @@
 # common.py - Funciones comunes para los workflows
 import logging
+import re    
+
 from django.core.files.storage import default_storage
 from app.utilidades.signature.pdf_generator import (
     generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
 )
 from app.utilidades.signature.digital_sign import request_digital_signature
-
+from app.utilidades.salario import calcular_neto, calcular_bruto, obtener_tipo_cambio
 
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
 from django.conf import settings
@@ -104,3 +106,118 @@ def generate_final_signed_contract(candidate, business_unit):
         return signed_path
     except Exception as e:
         return f"Error al generar documento firmado: {e}"
+
+
+CURRENCY_MAP = {
+    'usd': 'USD',
+    'dólar': 'USD',
+    'dolar': 'USD',
+    'us dollars': 'USD',
+    'mxn': 'MXN',
+    'peso': 'MXN',
+    'pesos': 'MXN',
+    'pesos mexicanos': 'MXN',
+    'eur': 'EUR',
+    'euro': 'EUR',
+    'cop': 'COP',
+    'colombiano': 'COP',
+    'pen': 'PEN',
+    'sol': 'PEN',
+    'brl': 'BRL',
+    'real': 'BRL',
+    'clp': 'CLP',
+    'peso chileno': 'CLP'
+}
+
+def extraer_moneda(mensaje):
+    """
+    Extrae la divisa a partir del mensaje usando sinónimos comunes.
+    """
+    mensaje = mensaje.lower()
+    for key, value in CURRENCY_MAP.items():
+        if key in mensaje:
+            return value
+    return 'MXN'  # Valor por defecto
+
+def parsear_mensaje(mensaje):
+    data = {}
+
+    # Buscar salario-bruto
+    match_bruto = re.search(r'salario[-\s]?bruto\s*=\s*([\d,\.]+k?)', mensaje, re.IGNORECASE)
+    if match_bruto:
+        data['salario_bruto'] = normalizar_numero(match_bruto.group(1))
+    
+    # Buscar salario-neto
+    match_neto = re.search(r'salario[-\s]?neto\s*=\s*([\d,\.]+k?)', mensaje, re.IGNORECASE)
+    if match_neto:
+        data['salario_neto'] = normalizar_numero(match_neto.group(1))
+    
+    # Extraer moneda usando el diccionario
+    data['moneda'] = extraer_moneda(mensaje)
+    
+    # Buscar periodo: anual o mensual
+    match_periodo = re.search(r'\b(anual|mensual)\b', mensaje, re.IGNORECASE)
+    if match_periodo:
+        data['periodo'] = match_periodo.group(1).lower()
+    else:
+        data['periodo'] = 'mensual'
+    
+    # Buscar bono
+    match_bono = re.search(r'(\d+)\s*mes(?:es)?\s*de\s*bono', mensaje, re.IGNORECASE)
+    if match_bono:
+        data['bono'] = int(match_bono.group(1))
+    
+    # Detectar si se indica "sin prestaciones adicionales"
+    if re.search(r'sin prestaciones adicionales', mensaje, re.IGNORECASE):
+        data['prestaciones_adicionales'] = False
+    else:
+        data['prestaciones_adicionales'] = True
+
+    return data
+
+def calcular_salario_chatbot(mensaje):
+    """
+    Calcula el salario basado en la información extraída del mensaje del chatbot, 
+    incluyendo salario bruto/neto, periodo, moneda, bono y prestaciones adicionales.
+    """
+    data = parsear_mensaje(mensaje)
+    
+    # Si tenemos salario-bruto
+    if 'salario_bruto' in data:
+        salario_bruto = data['salario_bruto']
+        if data.get('periodo') == 'anual':
+            salario_bruto /= 12  # Convertir a mensual
+
+        # Si hay bono, lo sumamos
+        if 'bono' in data:
+            salario_bruto += (salario_bruto * data['bono']) / 12
+        
+        # Obtener tipo de cambio actualizado para la moneda de destino
+        tipo_cambio = obtener_tipo_cambio(data.get('moneda', 'USD'))
+
+        # Calcular el salario neto
+        resultado = calcular_neto(
+            salario_bruto,
+            tipo_trabajador='asalariado',
+            incluye_prestaciones=data.get('prestaciones_adicionales', False),
+            moneda=data.get('moneda', 'MXN'),
+            tipo_cambio=tipo_cambio
+        )
+    elif 'salario_neto' in data:
+        salario_neto = data['salario_neto']
+        if data.get('periodo') == 'anual':
+            salario_neto /= 12  # Convertir a mensual
+        
+        # Obtener tipo de cambio actualizado para la moneda de destino
+        tipo_cambio = obtener_tipo_cambio(data.get('moneda', 'USD'))
+
+        # Calcular el salario bruto
+        resultado = calcular_bruto(
+            salario_neto,
+            tipo_trabajador='asalariado',
+            incluye_prestaciones=data.get('prestaciones_adicionales', False),
+            moneda=data.get('moneda', 'MXN'),
+            tipo_cambio=tipo_cambio
+        )
+
+    return f"El resultado del cálculo es: {resultado}"
