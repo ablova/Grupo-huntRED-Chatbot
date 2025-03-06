@@ -37,11 +37,17 @@ free -h &&
 sudo du -h / | sort -h | tail -n 20 &&
 sudo du -sh /home/pablo/* &&
 swapon --show &&
+sudo swapoff -a &&
 iotop &&
+# Eliminar procesos Zombie
+sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | sort -u)
 sudo find /var/log -type f -size +10M &&
 sudo sysctl vm.drop_caches=3 &&
 sudo rm -rf /tmp/* &&
-sudo journalctl --vacuum-time=10m
+sudo journalctl --vacuum-time=10m &&
+sleep 60 &&
+swapon --show &&
+sudo swapon -a
 
 # Eliminar procesos Zombie
 sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | sort -u)

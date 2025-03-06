@@ -69,7 +69,8 @@ def load_unit_skills(unit_name: str) -> dict:
 # Cargar los datos desde los archivos JSON
 BUSINESS_UNITS = load_json_file('business_units.json')
 DIVISIONES = load_json_file('divisiones.json')
-DIVISION_SKILLS = load_unit_skills('skills.json')
+#DIVISION_SKILLS = load_unit_skills('skills.json')
+DIVISION_SKILLS = load_json_file('skills.json')
 
 # Verificar la carga
 logger.info(f"BUSINESS_UNITS: {len(BUSINESS_UNITS)} elementos cargados.")

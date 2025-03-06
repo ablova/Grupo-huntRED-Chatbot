@@ -27,8 +27,6 @@ REQUEST_TIMEOUT = 10.0  # Tiempo de espera para las solicitudes HTTP
 # ------------------------------------------------------------------------------
 # Webhook Principal para WhatsApp
 # ------------------------------------------------------------------------------
-
-
 @csrf_exempt
 async def whatsapp_webhook(request):
     try:
@@ -36,33 +34,27 @@ async def whatsapp_webhook(request):
             return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
 
         payload = json.loads(request.body.decode("utf-8"))
-        logger.info(f"[whatsapp_webhook] Payload recibido: {json.dumps(payload, indent=2)}")
-
+        # Eliminar logging aquí para evitar duplicados
         if "entry" not in payload:
             logger.error("[whatsapp_webhook] Error: 'entry' no encontrado en el payload.")
             return JsonResponse({"status": "error", "message": "Formato de payload inválido"}, status=400)
 
-        # Llamar a handle_incoming_message para procesar el mensaje
         await handle_incoming_message(request)
-
         return JsonResponse({"status": "success"}, status=200)
     except json.JSONDecodeError:
         return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
     except Exception as e:
         logger.error(f"[whatsapp_webhook] Error inesperado: {e}", exc_info=True)
         return JsonResponse({"status": "error", "message": "Error interno"}, status=500)
-
     
-
 # ------------------------------------------------------------------------------
 # Procesamiento del Mensaje Entrante
 # ------------------------------------------------------------------------------
-
 @csrf_exempt
 async def handle_incoming_message(request):
     try:
         payload = json.loads(request.body)
-        logger.info(f"Payload recibido: {json.dumps(payload, indent=4)}")
+        logger.info(f"[handle_incoming_message] Payload recibido de {payload.get('entry', [{}])[0].get('id', 'unknown')}: {json.dumps(payload, indent=4)}")
 
         entry = payload.get('entry', [])[0]
         changes = entry.get('changes', [])[0]
@@ -76,7 +68,6 @@ async def handle_incoming_message(request):
 
         message = messages[0]
         contact = contacts[0]
-
         user_id = contact.get('wa_id')
         text = message.get('text', {}).get('body', '').strip()
         phone_number_id = value.get('metadata', {}).get('phone_number_id')
@@ -87,7 +78,6 @@ async def handle_incoming_message(request):
             logger.error("phone_number_id no está presente en el payload.")
             return JsonResponse({'error': 'Missing phone_number_id'}, status=400)
 
-        # Obtener configuración de WhatsAppAPI de forma asíncrona
         whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
             phoneID=phone_number_id, is_active=True
         ).select_related('business_unit').first())()
@@ -99,7 +89,6 @@ async def handle_incoming_message(request):
         business_unit = whatsapp_api.business_unit
         chatbot = ChatBotHandler()
 
-        # Obtener o crear ChatState y Person de forma asíncrona
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
             user_id=user_id,
             business_unit=business_unit,
@@ -110,13 +99,11 @@ async def handle_incoming_message(request):
             defaults={'nombre': 'Nuevo Usuario'}
         )
 
-        # Comparar chat_state.person con person de forma asíncrona
         current_person = await sync_to_async(lambda: chat_state.person)()
         if current_person != person:
             chat_state.person = person
             await sync_to_async(chat_state.save)()
 
-        # Determinar el tipo de mensaje y llamar al handler correspondiente
         message_type = message.get('type', 'text')
         handlers = {
             'text': handle_text_message,
@@ -129,9 +116,8 @@ async def handle_incoming_message(request):
         await handler(message, user_id, chatbot, business_unit, person, chat_state)
 
         return JsonResponse({'status': 'success'}, status=200)
-
     except Exception as e:
-        logger.error(f"Error procesando el mensaje: {e}", exc_info=True)
+        logger.error(f"Error procesando el mensaje para {user_id}: {e}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
 
 # ------------------------------------------------------------------------------
@@ -163,6 +149,7 @@ async def handle_text_message(message, sender_id, chatbot, business_unit, person
             text=text,
             business_unit=business_unit
         )
+        logger.info(f"Procesamiento completado para {sender_id} con mensaje: {text}")
     else:
         logger.info("Procesamiento avanzado deshabilitado. Solo captura básica.")
         response = f"Recibí tu mensaje: {text} @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
@@ -334,6 +321,7 @@ async def send_whatsapp_message(
                 }
                 for btn in buttons
             ]
+            logger.debug(f"Botones formateados: {formatted_buttons}")
             payload["type"] = "interactive"
             payload["interactive"] = {
                 "type": "button",

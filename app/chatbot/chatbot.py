@@ -286,11 +286,15 @@ class ChatBotHandler:
             await self.store_bot_message(chat_state, response)
 
         except ChatState.DoesNotExist:
-            logger.error(f"[process_message] ❌ No se encontró ChatState para {user_id} y BU: {business_unit.name}")
-            await send_message(platform, user_id, "No se encontró tu estado de chat. Por favor, reinicia la conversación.", business_unit.name.lower())
+            logger.error(f"No ChatState for {user_id} in {business_unit.name}")
+            await send_message(platform, user_id, "No se encontró tu estado de chat. Reiniciando...", business_unit.name.lower())
+        except ValueError as ve:
+            logger.error(f"ValueError processing message: {ve}")
+            await send_message(platform, user_id, "Entrada inválida. Intenta de nuevo.", business_unit.name.lower())
         except Exception as e:
-            logger.error(f"[process_message] ❌ Error procesando mensaje: {e}", exc_info=True)
-            await send_message(platform, user_id, "Ha ocurrido un error. Inténtalo más tarde.", business_unit.name.lower())
+            logger.error(f"Unexpected error: {e}", exc_info=True)
+            await send_message(platform, user_id, "Error interno. Intenta más tarde.", business_unit.name.lower())
+        logger.info(f"[process_message] Procesamiento completado para {user_id} con respuesta enviada")
     
     async def get_or_create_event(self, user_id: str, platform: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
@@ -525,6 +529,7 @@ class ChatBotHandler:
             history.append({'timestamp': timezone.now().isoformat(), 'role': 'assistant', 'content': message})
             event.conversation_history = history
             await sync_to_async(event.save)()
+            logger.info(f"Bot respondió a {event.user_id}: {message}")
         except Exception as e:
             logger.error(f"Error almacenando mensaje del bot: {e}", exc_info=True)
 

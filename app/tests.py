@@ -229,3 +229,45 @@ async def test_wordpress_failure(mock_job_data):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# test_nlp.py
+import unittest
+import os
+from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
+from app.chatbot.nlp import SkillExtractionPipeline, SkillExtractorManager
+
+class TestNLPIntegration(unittest.TestCase):
+    def test_esco_and_nice_integration(self):
+        esco_ext = ESCOExtractor()
+        nice_ext = NICEExtractor()
+        
+        # Obtener datos de ESCO y NICE
+        esco_skills_data = esco_ext.get_skills(language="es", limit=2)
+        nice_data = nice_ext.get_skills(sheet_name="Skills")
+
+        # Verificar que no estén vacíos
+        self.assertIsNotNone(esco_skills_data, "ESCO data is None")
+        self.assertIsNotNone(nice_data, "NICE data is None")
+
+        # Unificar
+        unified_data = unify_data(esco_skills_data, nice_data)
+        self.assertTrue(len(unified_data) > 0, "No se unificó ningún dato")
+
+        # Probar pipeline básico
+        pipeline = SkillExtractionPipeline()
+        example_text = "Busco a alguien con Python y Django."
+        extracted_skills = pipeline.extract_skills(example_text)
+        # No sabemos con certeza qué detecta, pero al menos no debe dar error
+        self.assertIsInstance(extracted_skills, list)
+
+        # Probar extractor avanzado
+        advanced_extractor = SkillExtractorManager.get_instance("es")
+        result = advanced_extractor.extract_skills(example_text)
+        self.assertIn("skills", result)
+        self.assertIsInstance(result["skills"], list)
+        print("Prueba completada con éxito:", result["skills"])
+
+if __name__ == "__main__":
+    unittest.main()
+
