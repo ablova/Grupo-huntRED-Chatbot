@@ -1,0 +1,61 @@
+# /home/pablo/app/tempaltes/home.html
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cálculo de Salario</title>
+</head>
+<body>
+    <h1>Cálculo de Salario</h1>
+
+    <!-- Formulario para calcular salario -->
+    <form method="POST">
+        {% csrf_token %}
+        
+        <label for="salario_bruto">Salario Bruto (MXN, USD, COP, PEN, BRL, CLP, EUR):</label>
+        <input type="number" id="salario_bruto" name="salario_bruto" step="any"><br><br>
+
+        <label for="salario_neto">Salario Neto (MXN, USD, COP, PEN, BRL, CLP, EUR):</label>
+        <input type="number" id="salario_neto" name="salario_neto" step="any"><br><br>
+
+        <label for="tipo_trabajador">Tipo de Trabajador:</label>
+        <select id="tipo_trabajador" name="tipo_trabajador">
+            <option value="asalariado">Asalariado</option>
+            <option value="honorarios">Honorarios</option>
+            <option value="asimilado">Asimilado</option>
+        </select><br><br>
+
+        <label for="periodo">Periodo:</label>
+        <select id="periodo" name="periodo">
+            <option value="mensual">Mensual</option>
+            <option value="anual">Anual</option>
+        </select><br><br>
+
+        <label for="moneda">Moneda de Resultado:</label>
+        <select id="moneda" name="moneda">
+            <option value="MXN">MXN</option>
+            <option value="USD">USD</option>
+            <option value="COP">COP</option>
+            <option value="PEN">PEN</option>
+            <option value="BRL">BRL</option>
+            <option value="CLP">CLP</option>
+            <option value="EUR">EUR</option>
+        </select><br><br>
+
+        <label for="tipo_cambio">Tipo de Cambio (MXN a USD, etc.):</label>
+        <input type="number" id="tipo_cambio" name="tipo_cambio" value="20.5" step="any"><br><br>
+
+        <input type="submit" value="Calcular">
+    </form>
+
+    {% if resultado %}
+        <h2>Resultado:</h2>
+        <p>Salario Calculado: {{ resultado }}</p>
+    {% elif error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+</body>
+</html>
