@@ -28,6 +28,7 @@ from app.utilidades.parser import CVParser
 logger = logging.getLogger(__name__)
 
 # Importaciones condicionales de NLP solo si está habilitado
+ML_ENABLED = False    # Cambia a False para desactivar ML
 NLP_ENABLED = False  # Cambia a True para habilitar NLP, False para desactivarlo
 if NLP_ENABLED:
     from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
@@ -237,28 +238,31 @@ class ChatBotHandler:
                 intents = []
                 analysis = {"entities": [], "sentiment": {}}
             
-            # Usar predicción y mensaje personalizado con GPTHandler
-            from app.ml.ml_model import MatchmakingLearningSystem
-            ml_system = MatchmakingLearningSystem(business_unit=business_unit.name)
-            top_candidates = await ml_system.predict_top_candidates(vacancy=None)
-            if user in [c[0] for c in top_candidates]:
-                gpt_handler = GPTHandler()
-                if not gpt_handler.client:
-                    await gpt_handler.initialize()
-                vacancy = await sync_to_async(Vacante.objects.filter)(activa=True, business_unit=business_unit).first()
-                if vacancy:
-                    candidate_skills = " ".join(user.skills.split(',') if user.skills else [])
-                    job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
-                    prompt = (
-                        f"Context: Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. "
-                        f"Genera un mensaje personalizado invitando al candidato a aplicar, usando un tono profesional y motivador."
-                    )
-                    personalized_msg = await gpt_handler.generate_response(prompt, business_unit)
-                    await send_message(platform, user_id, personalized_msg, business_unit.name.lower())
-                    await self.store_bot_message(chat_state, personalized_msg)
-                    if skills_data["sentiment"] == "negative":
-                        await send_message(platform, user_id, "¿Hay algo en lo que pueda ayudarte para mejorar tu experiencia?", business_unit.name.lower())
-                    return
+            # Procesamiento de ML solo si está habilitado
+            if ML_ENABLED:
+                from app.ml.ml_model import MatchmakingLearningSystem
+                ml_system = MatchmakingLearningSystem(business_unit=business_unit.name)
+                top_candidates = await ml_system.predict_top_candidates(vacancy=None)
+                if user in [c[0] for c in top_candidates]:
+                    if not self.gpt_handler.client:
+                        await self.gpt_handler.initialize()
+                    vacancy = await sync_to_async(Vacante.objects.filter)(activa=True, business_unit=business_unit).first()
+                    if vacancy:
+                        candidate_skills = " ".join(user.skills.split(',') if user.skills else [])
+                        job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
+                        prompt = (
+                            f"Context: Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. "
+                            f"Genera un mensaje personalizado invitando al candidato a aplicar, usando un tono profesional y motivador."
+                        )
+                        personalized_msg = await self.gpt_handler.generate_response(prompt, business_unit)
+                        await send_message(platform, user_id, personalized_msg, business_unit.name.lower())
+                        await self.store_bot_message(chat_state, personalized_msg)
+                        if NLP_ENABLED and analysis.get("sentiment", {}).get("sentiment") == "negative":
+                            await send_message(platform, user_id, "¿Hay algo en lo que pueda ayudarte para mejorar tu experiencia?", business_unit.name.lower())
+                        return
+            else:
+                logger.info(f"[ML DESACTIVADO] Omitiendo predicción de candidatos para {user_id}")
+
 
             bu_key = business_unit.name.lower()
             if bu_key in self.workflow_mapping:

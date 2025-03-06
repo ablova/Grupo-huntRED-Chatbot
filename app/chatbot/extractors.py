@@ -27,7 +27,7 @@ class ESCOExtractor:
             print(f"Error al obtener habilidades de ESCO: {e}")
             return None
 
-    def get_occupations(self, language="en", limit=100, full=true):
+    def get_occupations(self, language="en", limit=100, full=True):
         endpoint = "/resource/occupation"
         params = {
             "language": language,
