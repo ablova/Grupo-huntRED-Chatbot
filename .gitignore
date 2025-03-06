@@ -17,6 +17,8 @@ shell.py
 staticfiles/
 media/
 nltk_data/
+cache/
+skills_data/
 token_dist.json
 skill_db_relax_20.json
 # Ignorar archivos temporales
