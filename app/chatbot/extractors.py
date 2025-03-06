@@ -179,11 +179,11 @@ class CONOCERExtractor:
 
     def descargar_normas(self, lista_urls_pdfs):
         # Lógica para descargar PDFs y guardarlos localmente
-
+        pass
     def parsear_norma(self, pdf_path):
         # Lógica para extraer texto de PDF con PyPDF2, pdfplumber, etc.
         # Retorna un dict con 'titulo_norma', 'competencias', etc.
-
+        pass
     def generar_json_desde_normas(self, pdf_folder="normas_conocer"):
         # Recorre carpeta, parsea cada PDF y construye un JSON final
         conocer_data = []
