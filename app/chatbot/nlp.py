@@ -218,6 +218,12 @@ def get_positions_by_skills(skills: Set[str], skill_weights: Dict[str, float]) -
     # ...
     return suggestions
 
+def create_compatible_phrase_matcher(vocab, attr="LOWER"):
+    """Crea un PhraseMatcher compatible con diferentes versiones de spaCy"""
+    matcher = PhraseMatcher(vocab)
+    if hasattr(matcher, 'attr'):
+        matcher.attr = attr
+    return matcher
 # ============== MERGE DB =================
 class SkillDBMerger:
     """
@@ -299,7 +305,9 @@ class SkillExtractionPipeline:
         self.skill_extractor = None
         if self.nlp:
             try:
-                self.phrase_matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
+                self.phrase_matcher = PhraseMatcher(self.nlp.vocab)
+                if hasattr(self.phrase_matcher, 'attr'):
+                    self.phrase_matcher.attr = "LOWER"
                 self.skill_extractor = SkillExtractor(
                     nlp=self.nlp,
                     skills_db=self.skill_db,
@@ -339,7 +347,11 @@ class SkillExtractorManager:
 
     def __init__(self, language: str = "es"):
         self.language = language
-        self.skill_cache = shelve.open(CONFIG["CACHE_DB_PATH"], 'c')
+        try:
+            self.skill_cache = shelve.open(CONFIG["CACHE_DB_PATH"], 'c')
+        except Exception as e:
+            logger.error(f"❌ Error abriendo caché en {CONFIG['CACHE_DB_PATH']}: {e}. Usando caché en memoria.")
+            self.skill_cache = {}  # Fallback a caché en memoria
         self._nlp = load_nlp_model(language)
         if not self._nlp:
             logger.error("❌ No se pudo cargar el modelo NLP. SkillExtractorManager no iniciado.")
@@ -348,12 +360,15 @@ class SkillExtractorManager:
         self._skill_db = load_skill_dbs()
         logger.info(f"🔎 skill_db combinada contiene {len(self._skill_db)} ítems")
         self._common_terms = load_common_terms()
-        self._phrase_matcher = PhraseMatcher(self._nlp.vocab, attr="LOWER")
+        self._phrase_matcher = PhraseMatcher(self._nlp.vocab)
+        if hasattr(self._phrase_matcher, 'attr'): 
+            self._phrase_matcher.attr = "LOWER"
+
         self._matcher = Matcher(self._nlp.vocab)
         try:
             self._skill_extractor = SkillExtractor(
-                nlp=self._nlp, 
-                skills_db=self._skill_db, 
+                nlp=self._nlp,
+                skills_db=self._skill_db,
                 phraseMatcher=self._phrase_matcher
             )
             logger.info("✅ SkillExtractor de skillNer inicializado correctamente.")
@@ -361,7 +376,6 @@ class SkillExtractorManager:
             logger.error(f"❌ Error inicializando SkillExtractor: {e}", exc_info=True)
             self._skill_extractor = None
         self._prepare_spacy_patterns()
-        self._ner_pipeline = None
 
     def _prepare_spacy_patterns(self):
         for category, terms in self._common_terms.items():
@@ -397,26 +411,31 @@ class SkillExtractorManager:
         return cls.get_instance(language)
 
     def extract_skills(self, text: str) -> Dict[str, List[str]]:
-        if not self._skill_extractor or not self._nlp:
-            logger.warning("⚠️ SkillExtractor o modelo NLP no inicializados correctamente.")
+        if not self._nlp:
+            logger.warning("⚠️ Modelo NLP no inicializado.")
             return {"skills": []}
         try:
-            text = text.strip()
             skills = set()
-            cache_key = f"{self.language}:{text}"
-            if cache_key in self.skill_cache:
-                return {"skills": self.skill_cache[cache_key]}
-            skills.update(self._extract_with_skillner(text))
-            skills.update(self._extract_with_spacy_matcher(text))
-            skills.update(self._extract_with_ngrams(text))
-            if len(skills) < 2 and self.ner_pipeline:
-                skills.update(self._extract_with_transformers(text))
-            skills.update(self._extract_with_heuristics(text))
+            doc = self._nlp(text)
+            if self._skill_extractor:
+                try:
+                    annotations = self._skill_extractor.annotate(doc)
+                    if "results" in annotations:
+                        for match_type in ["full_matches", "ngram_scored"]:
+                            if match_type in annotations["results"]:
+                                for info in annotations["results"][match_type]:
+                                    skill = info.get("doc_node_value", "").strip().lower()
+                                    if skill:
+                                        skills.add(skill)
+                except Exception as e:
+                    logger.error(f"❌ Error usando SkillExtractor: {e}")
+            if self._matcher:
+                matches = self._matcher(doc)
+                for match_id, start, end in matches:
+                    skills.add(doc[start:end].text.lower())
             result = list(skills)
-            self.skill_cache[cache_key] = result
             logger.info(f"📊 Total de habilidades extraídas: {result}")
             return {"skills": result}
-
         except Exception as e:
             logger.error(f"❌ Error extrayendo habilidades: {e}", exc_info=True)
             return {"skills": []}
@@ -691,7 +710,7 @@ class SkillExtractorManager:
         return skills
     
     def __del__(self):
-        if hasattr(self, 'skill_cache'):
+        if hasattr(self, 'skill_cache') and isinstance(self.skill_cache, shelve.DbfilenameShelf):
             self.skill_cache.close()
 
 # ✅ Lazy Load NLPProcessor
@@ -755,7 +774,7 @@ class NLPProcessor:
         }
 
     @cachedmethod(lambda self: self.gpt_cache)
-    async def extract_skills(self, text: str, business_unit: str = "huntRED®") -> dict:
+    async def extract_skills(self, text: str, business_unit: str = "huntRED®") -> Dict[str, List[str]]:
         extractor = SkillExtractorManager.get_instance(self.language)
         if not extractor:
             logger.warning("⚠️ SkillExtractor no está inicializado")

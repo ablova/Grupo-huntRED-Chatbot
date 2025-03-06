@@ -27,7 +27,7 @@ class ESCOExtractor:
             print(f"Error al obtener habilidades de ESCO: {e}")
             return None
 
-    def get_occupations(self, language="en", limit=50):
+    def get_occupations(self, language="en", limit=100, full=true):
         endpoint = "/resource/occupation"
         params = {
             "language": language,
@@ -77,6 +77,52 @@ def parse_esco_rdf_to_json(rdf_path="esco.ttl", output_json="esco_from_rdf.json"
         logger.info(f"✅ {len(esco_skills)} skills de RDF guardados en {output_json}")
     except Exception as e:
         logger.error(f"❌ Error parseando RDF: {e}", exc_info=True)
+
+
+def load_esco_ttl(ttl_path="esco.ttl"):
+    """
+    Carga el archivo Turtle (TTL) con rdflib y retorna un objeto Graph.
+    """
+    g = rdflib.Graph()
+    g.parse(ttl_path, format="turtle")
+    return g
+
+def query_occupations(graph):
+    """
+    Ejemplo: Obtiene todas las ocupaciones y sus etiquetas preferidas en español.
+    Ajusta el prefijo/esco:Skill/Occupation según la ontología ESCO.
+    """
+    # SPARQL de ejemplo
+    #  - Filtra por 'esco:Occupation'
+    #  - Extrae la URI ( ?occ ), y su 'skos:prefLabel' en español
+    #  - Dependiendo de la estructura ESCO, revisa la doc u ontología
+    #  - 'ESCO' define que una Occupation es 'a esco:Occupation'
+    #  - 'prefLabel' se modela con 'skos:prefLabel'
+    #  - Filtro lang(?label) = "es" para español
+    query = """
+    PREFIX esco: <http://data.europa.eu/esco/model#>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+    SELECT ?occ ?label
+    WHERE {
+      ?occ a esco:Occupation .
+      ?occ skos:prefLabel ?label .
+      FILTER(lang(?label) = "es")
+    }
+    LIMIT 100  # Solo 100 para ejemplo. Quita esta línea si quieres todos.
+    """
+
+    results = graph.query(query)
+    occupations = []
+    for row in results:
+        occ_uri = str(row.occ)     # la URI
+        label = str(row.label)     # la etiqueta preferida en español
+        occupations.append({
+            "uri": occ_uri,
+            "preferredLabel_es": label
+        })
+    return occupations
+
 
 class ONETExtractor:
     """

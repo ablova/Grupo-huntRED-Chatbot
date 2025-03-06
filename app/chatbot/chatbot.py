@@ -15,8 +15,6 @@ from app.models import (
 from app.chatbot.integrations.services import (
     send_email, send_message, send_options, send_menu, send_url, send_image, GamificationService
     )
-from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming  # Encargado del NLP y patrones de intents
-
 # Importaciones de workflows
 from app.chatbot.workflow.common import generate_and_send_contract
 from app.chatbot.workflow.amigro import process_amigro_candidate
@@ -28,6 +26,12 @@ from app.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 
 logger = logging.getLogger(__name__)
+
+# Importaciones condicionales de NLP solo si está habilitado
+NLP_ENABLED = False  # Cambia a True para habilitar NLP, False para desactivarlo
+if NLP_ENABLED:
+    from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
+    from app.chatbot.nlp import NLPProcessor
 
 CACHE_TIMEOUT = 600  # 10 minutes
 
@@ -203,11 +207,14 @@ class ChatBotHandler:
             if chat_state_person != user:
                 chat_state.person = user
                 await sync_to_async(chat_state.save)()
-
-            if is_spam_message(user_id, text):
-                logger.warning(f"[SPAM DETECTADO] ⛔ Mensaje repetido de {user_id}: {text}")
-                await send_message(platform, user_id, "⚠️ No envíes mensajes repetidos, por favor.", business_unit.name.lower())
-                return
+            # Verificación de spam solo si NLP está habilitado
+            if NLP_ENABLED:
+                if is_spam_message(user_id, text):
+                    logger.warning(f"[SPAM DETECTADO] ⛔ Mensaje repetido de {user_id}: {text}")
+                    await send_message(platform, user_id, "⚠️ No envíes mensajes repetidos, por favor.", business_unit.name.lower())
+                    return
+            else:
+                logger.info(f"[NLP DESACTIVADO] Omitiendo verificación de spam para {user_id}")
 
             if cache.get(f"muted:{user_id}"):
                 logger.warning(f"[MUTEADO] ⛔ Usuario {user_id} aún en cooldown.")
@@ -218,12 +225,17 @@ class ChatBotHandler:
                 return
 
             await self.store_user_message(chat_state, text)
-
+            
             from app.chatbot.intents_handler import handle_known_intents
-            analysis = analyze_text(text)
-            intents = analysis.get("intents", [])
-            if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
-                return
+            if NLP_ENABLED:
+                analysis = analyze_text(text)
+                intents = analysis.get("intents", [])
+                if await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user):
+                    return
+            else:
+                # Respuesta predeterminada cuando NLP está desactivado
+                intents = []
+                analysis = {"entities": [], "sentiment": {}}
             
             # Usar predicción y mensaje personalizado con GPTHandler
             from app.ml.ml_model import MatchmakingLearningSystem
