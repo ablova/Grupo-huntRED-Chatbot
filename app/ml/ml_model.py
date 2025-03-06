@@ -208,6 +208,75 @@ class MatchmakingLearningSystem:
 
         return sorted(results, key=lambda x: x["score"], reverse=True)
 
+    async def predict_top_candidates(self, vacancy=None, limit=5):
+        """
+        Predice los mejores candidatos para una vacante específica o globalmente.
+        :param vacancy: Objeto Vacante (opcional). Si es None, evalúa todas las vacantes activas.
+        :param limit: Número máximo de candidatos a devolver.
+        :return: Lista de tuplas (Person, score) ordenada por score descendente.
+        """
+        from app.models import Person, Vacante
+        from asgiref.sync import sync_to_async
+        self.load_model()
+        if not self._loaded_model:
+            logger.warning("Modelo no entrenado. No se pueden predecir candidatos.")
+            return []
+
+        # Obtener todos los candidatos (Person) activos
+        candidates = await sync_to_async(
+            lambda: list(Person.objects.filter(is_active=True))
+        )()
+
+        if not candidates:
+            logger.info("No hay candidatos activos disponibles.")
+            return []
+
+        # Si se proporciona una vacante específica
+        if vacancy:
+            results = []
+            for person in candidates:
+                try:
+                    score = self.predict_candidate_success(person, vacancy)
+                    results.append((person, score))
+                except Exception as e:
+                    logger.error(f"Error prediciendo para {person.id}: {e}")
+                    continue
+            return sorted(results, key=lambda x: x[1], reverse=True)[:limit]
+
+        # Si no hay vacante específica, evaluar contra todas las vacantes activas
+        active_vacancies = await sync_to_async(
+            lambda: list(Vacante.objects.filter(
+                activa=True,
+                business_unit=self.business_unit if self.business_unit else None
+            ))
+        )()
+
+        if not active_vacancies:
+            logger.info(f"No hay vacantes activas para BU {self.business_unit or 'global'}.")
+            return []
+
+        # Calcular el mejor score promedio por candidato
+        results = {}
+        for person in candidates:
+            total_score = 0
+            count = 0
+            for vacancy in active_vacancies:
+                try:
+                    score = self.predict_candidate_success(person, vacancy)
+                    total_score += score
+                    count += 1
+                except Exception as e:
+                    logger.error(f"Error prediciendo para {person.id} en vacante {vacancy.id}: {e}")
+                    continue
+            if count > 0:
+                avg_score = total_score / count
+                results[person] = avg_score
+
+        # Ordenar y devolver los mejores candidatos
+        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
+        logger.info(f"Top {limit} candidatos predichos: {[f'{p.nombre}: {s:.2f}' for p, s in sorted_results[:limit]]}")
+        return sorted_results[:limit]
+
     # Métodos internos (sin cambios, están bien)
     def _calculate_hard_skills_match(self, application):
         from app.ml.ml_utils import calculate_match_percentage
