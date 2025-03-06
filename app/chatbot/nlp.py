@@ -55,11 +55,46 @@ logging.basicConfig(
     ]
 )
 
+
 CONFIG = {
     "OUTPUT_DIR": "/home/pablo/skills_data",
     "COMBINED_DB_PATH": os.path.join("OUTPUT_DIR", "combined_skills.json"),
     "CACHE_DB_PATH": "/home/pablo/cache/skill_cache.db"
 }
+
+# Diccionario de modelos por idioma
+MODEL_LANGUAGES = {
+    "es": "es_core_news_md",
+    "en": "en_core_web_md",
+    # Agrega más idiomas según necesites, e.g., "fr": "fr_core_news_md"
+}
+
+def load_nlp_model(language: str = "es") -> Optional[spacy.language.Language]:
+    """
+    Carga un modelo spaCy para el idioma especificado con manejo de errores y fallback.
+
+    Args:
+        language (str): Código de idioma (e.g., "es" para español, "en" para inglés).
+
+    Returns:
+        Optional[spacy.language.Language]: Modelo spaCy cargado o None si falla.
+    """
+    model_name = MODEL_LANGUAGES.get(language, "es_core_news_md")
+    fallback_model = "es_core_news_sm" if language == "es" else "en_core_web_sm"
+
+    try:
+        nlp = spacy.load(model_name)
+        logger.info(f"✅ Modelo spaCy '{model_name}' cargado para idioma '{language}'.")
+        return nlp
+    except Exception as e:
+        logger.error(f"❌ Error cargando modelo '{model_name}': {e}")
+        try:
+            nlp = spacy.load(fallback_model)
+            logger.info(f"✅ Modelo fallback '{fallback_model}' cargado para idioma '{language}'.")
+            return nlp
+        except Exception as e:
+            logger.error(f"❌ Error cargando modelo fallback '{fallback_model}': {e}")
+            return None
 # ============== CONFIGURACIÓN NLTK ==============
 try:
     nltk.data.find('tokenizers/punkt')
