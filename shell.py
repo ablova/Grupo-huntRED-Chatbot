@@ -167,7 +167,7 @@ from memory_profiler import profile
 from ai_huntred import your_specific_task
 
 # # # PRUEBAS SHELL
-Envio de mensajes de whatsapp
+
 import asyncio
 from app.models import WhatsAppAPI
 from app.chatbot.integrations.whatsapp import send_whatsapp_message
