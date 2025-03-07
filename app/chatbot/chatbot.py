@@ -175,7 +175,7 @@ class ChatBotHandler:
             if normalized in ['tos_accept', 'sí', 'si']:
                 user.tos_accepted = True
                 await sync_to_async(user.save)()
-                confirmation_msg = "Gracias por aceptar nuestros Términos de Servicio. Aquí tienes el menú principal:"
+                confirmation_msg = "Gracias por aceptar nuestros Términos de Servicio. Aquí tienes el Menú Principal:"
                 await send_message(platform, user_id, confirmation_msg, business_unit.name.lower())
                 await send_menu(platform, user_id, business_unit.name.lower())  # Enviar el menú de opciones
                 await self.store_bot_message(event, confirmation_msg)
@@ -208,7 +208,7 @@ class ChatBotHandler:
         """Procesa el mensaje entrante y responde según la intención del usuario."""
         try:
             # Extraer el texto del mensaje (asumiendo estructura de WhatsApp como en los logs)
-            text = message.get("text", {}).get("body", "").strip()
+            text = message.get("message", {}).get("body", "").strip()
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {business_unit.name}: {text}")
 
             # Obtener o crear ChatState y usuario de forma asíncrona

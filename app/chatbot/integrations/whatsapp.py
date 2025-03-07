@@ -182,11 +182,18 @@ async def handle_interactive_message(message, sender_id, chatbot, business_unit,
         selected_text = selection.get('title', 'Sin texto')
         logger.info(f"Botón seleccionado: {selected_text} (ID: {selected_id})")
 
-        # Enviar solo el id del botón al chatbot para procesarlo
+        # Construir un mensaje en el formato esperado por ChatBotHandler
+        message_for_chatbot = {
+            "text": {
+                "body": selected_id  # Usamos el ID del botón como el texto procesable
+            }
+        }
+
+        # Enviar el mensaje estructurado al chatbot
         await chatbot.process_message(
             platform='whatsapp',
             user_id=sender_id,
-            message=selected_id,  # Usamos el ID del botón como texto para procesar
+            message=message_for_chatbot,  # Pasamos un diccionario en lugar de solo el string
             business_unit=business_unit
         )
     elif interactive_type == 'list_reply':
@@ -194,7 +201,19 @@ async def handle_interactive_message(message, sender_id, chatbot, business_unit,
         selected_id = selection.get('id', 'Sin ID')
         selected_text = selection.get('title', 'Sin texto')
         logger.info(f"Lista seleccionada: {selected_text} (ID: {selected_id})")
-        # Aquí también puedes enviar el id de la lista si fuera necesario
+
+        # Similar para listas, si aplica
+        message_for_chatbot = {
+            "text": {
+                "body": selected_id
+            }
+        }
+        await chatbot.process_message(
+            platform='whatsapp',
+            user_id=sender_id,
+            message=message_for_chatbot,
+            business_unit=business_unit
+        )
     else:
         logger.warning(f"Tipo interactivo no soportado: {interactive_type}")
         await send_message('whatsapp', sender_id, "Interacción no soportada.", business_unit)
