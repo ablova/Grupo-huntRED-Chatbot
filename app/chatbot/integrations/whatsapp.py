@@ -146,7 +146,7 @@ async def handle_text_message(message, sender_id, chatbot, business_unit, person
         await chatbot.process_message(
             platform='whatsapp',
             user_id=sender_id,
-            text=text,
+            message=message,  # Pasa el diccionario completo
             business_unit=business_unit
         )
         logger.info(f"Procesamiento completado para {sender_id} con mensaje: {text}")
@@ -194,7 +194,7 @@ async def handle_interactive_message(message, sender_id, chatbot, business_unit,
         await chatbot.process_message(
             platform='whatsapp',
             user_id=sender_id,
-            text=selected_id,  # Usamos el ID del botón como texto para procesar (ej. 'tos_accept')
+            message=selected_id,  # Usamos el ID del botón como texto para procesar (ej. 'tos_accept') (cambiamos de text=selected_id)
             business_unit=business_unit
         )
     else:

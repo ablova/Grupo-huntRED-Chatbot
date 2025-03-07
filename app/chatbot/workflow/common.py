@@ -1,13 +1,14 @@
 # common.py - Funciones comunes para los workflows
 import logging
 import re    
-
+from forex_python.converter import CurrencyRates
 from django.core.files.storage import default_storage
 from app.utilidades.signature.pdf_generator import (
     generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
 )
 from app.utilidades.signature.digital_sign import request_digital_signature
-from app.utilidades.salario import calcular_neto, calcular_bruto, obtener_tipo_cambio
+from app.utilidades.salario import calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, obtener_tipo_cambio
+from currency_converter import CurrencyRates  # Para tipos de cambio
 
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
 from django.conf import settings
@@ -109,65 +110,130 @@ def generate_final_signed_contract(candidate, business_unit):
 
 
 CURRENCY_MAP = {
-    'usd': 'USD',
-    'dólar': 'USD',
-    'dolar': 'USD',
-    'us dollars': 'USD',
-    'mxn': 'MXN',
-    'peso': 'MXN',
-    'pesos': 'MXN',
-    'pesos mexicanos': 'MXN',
-    'eur': 'EUR',
-    'euro': 'EUR',
-    'cop': 'COP',
-    'colombiano': 'COP',
-    'pen': 'PEN',
-    'sol': 'PEN',
-    'brl': 'BRL',
-    'real': 'BRL',
-    'clp': 'CLP',
-    'peso chileno': 'CLP'
+    # Estados Unidos
+    'usd': 'USD', 'dólar': 'USD', 'dolar': 'USD', 'dolares': 'USD', 'dólares': 'USD',
+    # México
+    'mxn': 'MXN', 'peso': 'MXN', 'pesos': 'MXN', 'peso mexicano': 'MXN', 'pesos mexicanos': 'MXN',
+    # Nicaragua
+    'nio': 'NIO', 'córdoba': 'NIO', 'cordoba': 'NIO', 'cordobas': 'NIO', 'córdobas': 'NIO',
+    # Colombia
+    'cop': 'COP', 'peso colombiano': 'COP', 'pesos colombianos': 'COP',
+    # Argentina
+    'ars': 'ARS', 'peso argentino': 'ARS', 'pesos argentinos': 'ARS',
+    # Brasil
+    'brl': 'BRL', 'real': 'BRL', 'reales': 'BRL',
+    # Chile
+    'clp': 'CLP', 'peso chileno': 'CLP', 'pesos chilenos': 'CLP',
+    # Ecuador (actualmente usa USD, anteriormente Sucre - ECS)
+    'ecs': 'ECS', 'sucre': 'ECS', 'sucres': 'ECS',
+    # Perú
+    'pen': 'PEN', 'sol': 'PEN', 'soles': 'PEN', 'sol peruano': 'PEN', 'soles peruanos': 'PEN',
+    # Uruguay
+    'uyu': 'UYU', 'peso uruguayo': 'UYU', 'pesos uruguayos': 'UYU',
+    # Paraguay
+    'pyg': 'PYG', 'guaraní': 'PYG', 'guarani': 'PYG', 'guaranies': 'PYG', 'guaraníes': 'PYG',
+    # Panamá (oficial USD, también usa balboa - PAB)
+    'pab': 'PAB', 'balboa': 'PAB', 'balboas': 'PAB',
+    # República Dominicana
+    'dop': 'DOP', 'peso dominicano': 'DOP', 'pesos dominicanos': 'DOP',
+    # Bolivia
+    'bob': 'BOB', 'boliviano': 'BOB', 'bolivianos': 'BOB',
+    # Cuba
+    'cup': 'CUP', 'peso cubano': 'CUP', 'pesos cubanos': 'CUP',
+    # Costa Rica
+    'crc': 'CRC', 'colón': 'CRC', 'colon': 'CRC', 'colones': 'CRC',
+    # Guatemala
+    'gtq': 'GTQ', 'quetzal': 'GTQ', 'quetzales': 'GTQ',
+    # Haití
+    'htg': 'HTG', 'gourde': 'HTG', 'gourdes': 'HTG',
+    # Honduras
+    'hnl': 'HNL', 'lempira': 'HNL', 'lempiras': 'HNL',
+    # India (alta migración global hacia EE.UU.)
+    'inr': 'INR', 'rupia': 'INR', 'rupias': 'INR', 'rupia india': 'INR',
+    # China (ya incluida, pero relevante para migración)
+    'cny': 'CNY', 'yuan': 'CNY', 'renminbi': 'CNY',
+    # Filipinas (alta migración hacia EE.UU.)
+    'php': 'PHP', 'peso filipino': 'PHP', 'pesos filipinos': 'PHP',
+    # Principales monedas internacionales
+    'eur': 'EUR', 'euro': 'EUR', 'euros': 'EUR',
+    'gbp': 'GBP', 'libra esterlina': 'GBP', 'libras esterlinas': 'GBP', 'libra': 'GBP',
+    'cad': 'CAD', 'dólar canadiense': 'CAD', 'dolar canadiense': 'CAD',
+    'jpy': 'JPY', 'yen': 'JPY', 'yenes': 'JPY',
+    'cny': 'CNY', 'yuan': 'CNY', 'renminbi': 'CNY',
+    'chf': 'CHF', 'franco suizo': 'CHF', 'francos suizos': 'CHF',
+    'aud': 'AUD', 'dólar australiano': 'AUD', 'dolar australiano': 'AUD',
+
+    # Opcional: Criptomonedas principales
+    'btc': 'BTC', 'bitcoin': 'BTC', 'bitcoins': 'BTC',
+    'eth': 'ETH', 'ethereum': 'ETH',
+    'usdt': 'USDT', 'tether': 'USDT',
 }
 
+import re
+
+def normalizar_numero(valor_str):
+    """Convierte un string numérico (ej. '10k', '12,345.67') a float."""
+    valor_str = valor_str.lower().replace(',', '')
+    if 'k' in valor_str:
+        return float(valor_str.replace('k', '')) * 1000
+    return float(valor_str)
+
 def extraer_moneda(mensaje):
-    """
-    Extrae la divisa a partir del mensaje usando sinónimos comunes.
-    """
+    """Extrae la moneda del mensaje usando CURRENCY_MAP."""
     mensaje = mensaje.lower()
     for key, value in CURRENCY_MAP.items():
         if key in mensaje:
             return value
-    return 'MXN'  # Valor por defecto
+    return 'MXN'  # Por defecto
 
 def parsear_mensaje(mensaje):
     data = {}
+    mensaje = mensaje.lower()
 
-    # Buscar salario-bruto
+    # Buscar salario bruto
     match_bruto = re.search(r'salario[-\s]?bruto\s*=\s*([\d,\.]+k?)', mensaje, re.IGNORECASE)
     if match_bruto:
         data['salario_bruto'] = normalizar_numero(match_bruto.group(1))
+        data['tipo'] = 'bruto'
     
-    # Buscar salario-neto
+    # Buscar salario neto
     match_neto = re.search(r'salario[-\s]?neto\s*=\s*([\d,\.]+k?)', mensaje, re.IGNORECASE)
     if match_neto:
         data['salario_neto'] = normalizar_numero(match_neto.group(1))
-    
-    # Extraer moneda usando el diccionario
-    data['moneda'] = extraer_moneda(mensaje)
-    
-    # Buscar periodo: anual o mensual
-    match_periodo = re.search(r'\b(anual|mensual)\b', mensaje, re.IGNORECASE)
-    if match_periodo:
-        data['periodo'] = match_periodo.group(1).lower()
+        data['tipo'] = 'neto'
+
+    # Si no se especifica bruto o neto, buscar un valor genérico
+    if 'salario_bruto' not in data and 'salario_neto' not in data:
+        match_valor = re.search(r'(\d+(?:[,\.]\d+)?k?)', mensaje)
+        if match_valor:
+            data['salario_bruto'] = normalizar_numero(match_valor.group(1))
+            data['tipo'] = 'bruto'  # Por defecto
+
+    # Frecuencia
+    if 'hora' in mensaje:
+        data['frecuencia'] = 'hora'
+    elif 'semanal' in mensaje:
+        data['frecuencia'] = 'semanal'
+    elif 'quincenal' in mensaje:
+        data['frecuencia'] = 'quincenal'
+    elif 'mensual' in mensaje:
+        data['frecuencia'] = 'mensual'
+    elif 'anual' in mensaje:
+        data['frecuencia'] = 'anual'
     else:
-        data['periodo'] = 'mensual'
-    
-    # Buscar bono
+        data['frecuencia'] = 'mensual'  # Por defecto
+
+    # Moneda
+    data['moneda'] = extraer_moneda(mensaje)
+
+    # Bono
     match_bono = re.search(r'(\d+)\s*mes(?:es)?\s*de\s*bono', mensaje, re.IGNORECASE)
     if match_bono:
         data['bono'] = int(match_bono.group(1))
-    
-    # Detectar si se indica "sin prestaciones adicionales"
+    else:
+        data['bono'] = 0
+
+    # Prestaciones adicionales
     if re.search(r'sin prestaciones adicionales', mensaje, re.IGNORECASE):
         data['prestaciones_adicionales'] = False
     else:
@@ -175,49 +241,101 @@ def parsear_mensaje(mensaje):
 
     return data
 
-def calcular_salario_chatbot(mensaje):
-    """
-    Calcula el salario basado en la información extraída del mensaje del chatbot, 
-    incluyendo salario bruto/neto, periodo, moneda, bono y prestaciones adicionales.
-    """
+def get_business_unit_domain(business_unit):
+    domains = {
+        "huntred": "huntred.com",
+        "huntred_executive": "executive.huntred.com",
+        "huntu": "huntu.com",
+        "amigro": "amigro.com",
+        "sexsi": "sexsi.com"
+    }
+    return domains.get(business_unit.name.lower() if hasattr(business_unit, 'name') else business_unit, "huntred.com")
+
+async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit):
     data = parsear_mensaje(mensaje)
+    if 'salario_bruto' not in data and 'salario_neto' not in data:
+        await send_message(platform, user_id, "Por favor, proporciona un salario válido.", business_unit)
+        return
+
+    # Obtener tipo de cambio
+    c = CurrencyRates()
+    tipo_cambio = c.get_rate(data['moneda'], 'MXN') if data['moneda'] != 'MXN' else 1.0
+    tipo_cambio_inverso = 1 / tipo_cambio if tipo_cambio != 1.0 else 1.0
+
+    # Estandarizar a mensual en moneda original y MXN
+    valor = data['salario_bruto'] if data['tipo'] == 'bruto' else data['salario_neto']
+    if data['frecuencia'] == 'hora':
+        valor_mensual_orig = valor * 40 * 4
+    elif data['frecuencia'] == 'semanal':
+        valor_mensual_orig = valor * 4
+    elif data['frecuencia'] == 'quincenal':
+        valor_mensual_orig = valor * 2
+    elif data['frecuencia'] == 'anual':
+        valor_mensual_orig = valor / 12
+    else:  # mensual
+        valor_mensual_orig = valor
+    valor_mensual_mxn = valor_mensual_orig * tipo_cambio
+
+    # Ajustar bono
+    if data['bono'] > 0:
+        bono_anual_mxn = data['bono'] * valor_mensual_mxn
+        bono_mensual_mxn = bono_anual_mxn / 12
+        valor_mensual_mxn += bono_mensual_mxn
+        bono_mensual_orig = bono_mensual_mxn * tipo_cambio_inverso
+        valor_mensual_orig += bono_mensual_orig
+
+    # Calcular bruto y neto en MXN
+    if data['tipo'] == 'bruto':
+        salario_bruto_mxn = valor_mensual_mxn
+        salario_neto_mxn = calcular_neto(salario_bruto_mxn, incluye_prestaciones=data['prestaciones_adicionales'])
+    else:  # neto
+        salario_neto_mxn = valor_mensual_mxn
+        salario_bruto_mxn = calcular_bruto(salario_neto_mxn, incluye_prestaciones=data['prestaciones_adicionales'])
+    salario_bruto_orig = salario_bruto_mxn * tipo_cambio_inverso
+    salario_neto_orig = salario_neto_mxn * tipo_cambio_inverso
+
+    # Mensaje base
+    msg = (
+        f"Salario Bruto Mensual: {salario_bruto_orig:,.2f} {data['moneda']} ({salario_bruto_mxn:,.2f} MXN)\n"
+        f"Salario Neto Mensual: {salario_neto_orig:,.2f} {data['moneda']} ({salario_neto_mxn:,.2f} MXN)\n"
+        f"- ISR: {calcular_isr_mensual(salario_bruto_mxn):,.2f} MXN\n"
+        f"- IMSS: {calcular_cuotas_imss(salario_bruto_mxn):,.2f} MXN\n"
+        f"- Infonavit: {0.0} MXN\n"  # Placeholder, ajustar si aplica
+    )
+
+    # Comparativa bidireccional
+    pais_origen = {
+        'MXN': 'México', 'USD': 'USA', 'NIO': 'Nicaragua', 'COP': 'Colombia', 'ARS': 'Argentina', 'BRL': 'Brasil'
+    }.get(data['moneda'], 'Otro')
+    ciudad_origen = {
+        'México': 'Ciudad de México', 'USA': 'Nueva York', 'Nicaragua': 'Managua', 
+        'Colombia': 'Bogotá', 'Argentina': 'Buenos Aires', 'Brasil': 'São Paulo'
+    }.get(pais_origen, 'Otra ciudad')
+
+    if data['moneda'] != 'MXN':
+        # Ajustes a México
+        adjustment_coli = DATOS_COLI['Ciudad de México'] / DATOS_COLI.get(ciudad_origen, 50.0)
+        adjustment_ppa = DATOS_PPA['México'] / DATOS_PPA.get(pais_origen, 1.0)
+        adjustment_bigmac = DATOS_BIGMAC['México'] / DATOS_BIGMAC.get(pais_origen, 5.0)
+        
+        msg += (
+            f"\nComparativa en México:\n"
+            f"- COLI: {salario_neto_mxn * adjustment_coli:,.2f} MXN\n"
+            f"- PPA: {salario_neto_mxn * adjustment_ppa:,.2f} MXN\n"
+            f"- BigMac: {salario_neto_mxn * adjustment_bigmac:,.2f} MXN\n"
+        )
     
-    # Si tenemos salario-bruto
-    if 'salario_bruto' in data:
-        salario_bruto = data['salario_bruto']
-        if data.get('periodo') == 'anual':
-            salario_bruto /= 12  # Convertir a mensual
+    # Ajustes inversos (MXN a moneda de origen)
+    adjustment_coli_inv = DATOS_COLI.get(ciudad_origen, 50.0) / DATOS_COLI['Ciudad de México']
+    adjustment_ppa_inv = DATOS_PPA.get(pais_origen, 1.0) / DATOS_PPA['México']
+    adjustment_bigmac_inv = DATOS_BIGMAC.get(pais_origen, 5.0) / DATOS_BIGMAC['México']
+    
+    msg += (
+        f"\nComparativa en {pais_origen}:\n"
+        f"- COLI: {salario_neto_orig * adjustment_coli_inv:,.2f} {data['moneda']}\n"
+        f"- PPA: {salario_neto_orig * adjustment_ppa_inv:,.2f} {data['moneda']}\n"
+        f"- BigMac: {salario_neto_orig * adjustment_bigmac_inv:,.2f} {data['moneda']}\n"
+    )
 
-        # Si hay bono, lo sumamos
-        if 'bono' in data:
-            salario_bruto += (salario_bruto * data['bono']) / 12
-        
-        # Obtener tipo de cambio actualizado para la moneda de destino
-        tipo_cambio = obtener_tipo_cambio(data.get('moneda', 'USD'))
-
-        # Calcular el salario neto
-        resultado = calcular_neto(
-            salario_bruto,
-            tipo_trabajador='asalariado',
-            incluye_prestaciones=data.get('prestaciones_adicionales', False),
-            moneda=data.get('moneda', 'MXN'),
-            tipo_cambio=tipo_cambio
-        )
-    elif 'salario_neto' in data:
-        salario_neto = data['salario_neto']
-        if data.get('periodo') == 'anual':
-            salario_neto /= 12  # Convertir a mensual
-        
-        # Obtener tipo de cambio actualizado para la moneda de destino
-        tipo_cambio = obtener_tipo_cambio(data.get('moneda', 'USD'))
-
-        # Calcular el salario bruto
-        resultado = calcular_bruto(
-            salario_neto,
-            tipo_trabajador='asalariado',
-            incluye_prestaciones=data.get('prestaciones_adicionales', False),
-            moneda=data.get('moneda', 'MXN'),
-            tipo_cambio=tipo_cambio
-        )
-
-    return f"El resultado del cálculo es: {resultado}"
+    msg += f"\nReferencia: https://{get_business_unit_domain(business_unit)}/salario"
+    await send_message(platform, user_id, msg, business_unit)
