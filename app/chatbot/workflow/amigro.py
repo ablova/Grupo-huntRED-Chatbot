@@ -7,10 +7,16 @@ from celery import shared_task
 from app.models import Person, Vacante, BusinessUnit, Application
 from app.utilidades.signature.pdf_generator import generate_contract_pdf
 from app.utilidades.signature.digital_sign import request_digital_signature
-from app.chatbot.integrations.services import send_email, send_message, send_options
+from app.chatbot.integrations.services import send_email, send_message, send_options, send_menu, MENU_OPTIONS_BY_BU, Services
 
 logger = logging.getLogger(__name__)
 
+
+async def send_amigro_specific_menu(platform: str, user_id: str, business_unit: BusinessUnit):
+    services = Services(business_unit)
+    amigro_options = MENU_OPTIONS_BY_BU["amigro"]
+    # Personalización específica si es necesario
+    await services.send_menu(platform, user_id)  # Usa el menú de amigro directamente
 
 @shared_task
 def process_amigro_candidate(candidate_id):
