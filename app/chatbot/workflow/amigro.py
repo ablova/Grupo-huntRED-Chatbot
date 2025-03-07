@@ -122,12 +122,16 @@ def notify_legal_on_hire(candidate_id):
     if not job_position:
         return "No job position assigned for candidate."
 
-    send_email(
-        to="legal@amigro.org",
-        subject=f"Contratación Confirmada: {candidate.full_name} - {job_position.title}",
-        body=f"El candidato {candidate.full_name} ha sido contratado para la posición {job_position.title}.\n\n"
-             f"Cliente: {process.client.name if process.client else 'No asignado'}\n"
-             f"Fecha: {datetime.date.today()}",
+    email_recipient = "legal@amigro.org"
+    email_subject = f"Contratación Confirmada: {candidate.full_name} - {job_position.title}"
+    email_body = (
+        f"El candidato {candidate.full_name} ha sido contratado para la posición {job_position.title}.\n\n"
+        f"Cliente: {process.client.name if process.client else 'No asignado'}\n"
+        f"Fecha: {datetime.date.today()}"
     )
 
-    return f"Notificación de contratación enviada para {candidate.full_name}"
+    try:
+        send_email(to=email_recipient, subject=email_subject, body=email_body)
+        return f"Notificación de contratación enviada para {candidate.full_name}"
+    except Exception as e:
+        return f"Error al enviar la notificación: {str(e)}"

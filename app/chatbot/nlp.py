@@ -892,7 +892,7 @@ class RoBertASentimentAnalyzer:
 def get_skill_extractor(language: str = "es"):
     """
     Devuelve una instancia única de SkillExtractorManager
-    para el idioma especificado (por defecto 'es').
+    para el idioma especificado (por defecto 'es').p
     """
     return SkillExtractorManager.get_instance(language)
 # Instancia global del procesador

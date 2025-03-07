@@ -82,7 +82,7 @@ class MessageService:
                 if self._api_instances[platform]:
                     api = self._api_instances[platform]
                     required_attrs = {
-                        'whatsapp': ['phoneID', 'access_token'],
+                        'whatsapp': ['phoneID', 'api_token'],
                         'telegram': ['api_key'],
                         'messenger': ['page_access_token'],
                         'instagram': ['access_token'],
@@ -302,7 +302,7 @@ class MessageService:
                     user_id=user_id,
                     message=message,
                     phone_id=api_instance.phoneID,
-                    access_token=api_instance.access_token,
+                    #access_token=api_instance.api_token,
                     business_unit=self.business_unit
                 )
             return True
