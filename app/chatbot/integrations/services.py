@@ -35,6 +35,46 @@ REQUEST_TIMEOUT = 10.0
 CACHE_TIMEOUT = 600  # 10 minutos
 whatsapp_semaphore = asyncio.Semaphore(10)
 
+# En services.py
+MENU_OPTIONS_BY_BU = {
+    "amigro": [
+        {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+        {"title": "📝 Actualizar Perfil", "payload": "actualizar_perfil", "description": "Modifica tus datos personales o profesionales."},
+        {"title": "📖 Ayuda Postulación", "payload": "ayuda_postulacion", "description": "Guía para aplicar a vacantes."},
+        {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
+        {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+        {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
+        {"title": "⚙️ Configuración", "payload": "configuracion", "description": "Ajusta preferencias."},
+        {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
+        {"title": "🤝 Invitar Grupo", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+    ],
+    "huntred": [
+        {"title": "🔍 Buscar Empleo", "payload": "buscar_empleo", "description": "Encuentra trabajos específicos."},
+        {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Gestiona tu perfil."},
+        {"title": "📊 Ver Vacantes", "payload": "ver_vacantes", "description": "Lista de empleos disponibles."},
+        {"title": "📅 Agendar Entrevista", "payload": "agendar_entrevista", "description": "Programa una entrevista."},
+        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Soporte general."},
+        {"title": "💡 Tips Entrevista", "payload": "preparacion_entrevista", "description": "Consejos para entrevistas."},
+    ],
+    "huntu": [
+        {"title": "🔍 Explorar Vacantes", "payload": "explorar_vacantes", "description": "Descubre oportunidades únicas."},
+        {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Actualiza tu información."},
+        {"title": "🧑‍🏫 Asesoría Profesional", "payload": "asesoria_profesional", "description": "Recibe orientación."},
+        {"title": "🤝 Programa de Mentores", "payload": "mentores", "description": "Conéctate con mentores."},
+        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Asistencia general."},
+        {"title": "💰 Consultar Sueldo", "payload": "consultar_sueldo_mercado", "description": "Rangos salariales."},
+    ],
+    "default": [
+        {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Oportunidades disponibles."},
+        {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Gestiona tu perfil."},
+        {"title": "⚙️ Configuración", "payload": "configuracion", "description": "Ajustes personales."},
+        {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con soporte."},
+        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas."},
+    ]
+}
+
 class Button:
     def __init__(self, title: str, payload: Optional[str] = None, url: Optional[str] = None):
         self.title = title
@@ -203,43 +243,21 @@ class MessageService:
             logger.error(f"[send_image] Error enviando imagen en {platform}: {e}", exc_info=True)
             return False
 
+    # Actualizar send_menu para usar el diccionario
     async def send_menu(self, platform: str, user_id: str):
         """Envía el menú principal utilizando `send_options`"""
         try:
             logger.info(f"[send_menu] 📩 Enviando menú a {user_id} en {platform} para {self.business_unit.name}")
-
-            menu_options = {
-                "huntred": [
-                    {"title": "Buscar Empleo", "payload": "buscar_empleo"},
-                    {"title": "Mi Perfil", "payload": "mi_perfil"},
-                    {"title": "Ver Vacantes", "payload": "ver_vacantes"},
-                    {"title": "Agendar Entrevista", "payload": "agendar_entrevista"},
-                    {"title": "Ayuda", "payload": "ayuda"}
-                ],
-                "huntu": [
-                    {"title": "Explorar Vacantes", "payload": "explorar_vacantes"},
-                    {"title": "Mi Perfil", "payload": "mi_perfil"},
-                    {"title": "Asesoría Profesional", "payload": "asesoria_profesional"},
-                    {"title": "Programa de Mentores", "payload": "mentores"},
-                    {"title": "Ayuda", "payload": "ayuda"}
-                ],
-                "default": [
-                    {"title": "Ver Vacantes", "payload": "ver_vacantes"},
-                    {"title": "Mi Perfil", "payload": "mi_perfil"},
-                    {"title": "Configuración", "payload": "configuracion"},
-                    {"title": "Contacto", "payload": "contacto"},
-                    {"title": "Ayuda", "payload": "ayuda"}
-                ]
-            }
-
-            options = menu_options.get(self.business_unit.name.lower(), menu_options["default"])
+            options = MENU_OPTIONS_BY_BU.get(self.business_unit.name.lower(), MENU_OPTIONS_BY_BU["default"])
             message = "📍 *Menú Principal*\nSelecciona una opción:"
+            
+            # Simplificamos las opciones para enviar solo title y payload
+            simplified_options = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
 
             if platform == "slack":
-                slack_buttons = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
-                await self.send_options(platform, user_id, message, slack_buttons)
+                await self.send_options(platform, user_id, message, simplified_options)
             else:
-                success, msg_id = await send_smart_options(platform, user_id, message, options, self.business_unit.name)
+                success, msg_id = await send_smart_options(platform, user_id, message, simplified_options, self.business_unit.name)
                 if success:
                     logger.info(f"[send_menu] ✅ Menú enviado correctamente. Message ID: {msg_id}")
                     return True

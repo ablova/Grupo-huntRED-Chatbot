@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 from asgiref.sync import sync_to_async
 
 from app.models import ChatState, Person, BusinessUnit
-from app.chatbot.integrations.services import  send_message, send_email, send_options, reset_chat_state
+from app.chatbot.integrations.services import  send_message, send_email, send_options, reset_chat_state, send_menu
 from app.utilidades.vacantes import VacanteManager
 
 logger = logging.getLogger(__name__)
@@ -55,16 +55,9 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
             await send_message(platform, user_id, response, business_unit)
             return True
 
-        if intent == "menu":
-            menu_options = [
-                {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes"},
-                {"title": "📝 Actualizar Perfil", "payload": "actualizar_perfil"},
-                {"title": "📖 Ayuda Postulación", "payload": "ayuda_postulacion"},
-                {"title": "📊 Consultar Estatus", "payload": "consultar_estatus"},
-                {"title": "💰 Calcular Salario", "payload": "calcular_salario"},
-                {"title": "📄 Cargar CV", "payload": "cargar_cv"}
-            ]
-            await send_options(platform, user_id, "Aquí tienes el menú principal:", menu_options, business_unit)
+        # Intent "menu"
+        if "menu" in intents or text == "menu":
+            await send_menu(platform, user_id)
             return True
 
         if intent == "reset_chat_state":
