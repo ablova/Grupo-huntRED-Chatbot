@@ -28,7 +28,7 @@ from app.utilidades.parser import CVParser
 logger = logging.getLogger(__name__)
 
 # Importaciones condicionales de NLP solo si está habilitado
-GPT_ENABLED = True
+GPT_ENABLED = False
 ML_ENABLED = True    # Cambia a False para desactivar ML
 NLP_ENABLED = True  # Cambia a True para habilitar NLP, False para desactivarlo
 if NLP_ENABLED:
@@ -162,8 +162,8 @@ class ChatBotHandler:
         """Procesa la respuesta del usuario para los TOS."""
         tos_url = self.get_tos_url(business_unit)
         tos_buttons = [
-            {'title': 'Sí', 'payload': 'tos_accept'},
-            {'title': 'No', 'payload': 'tos_reject'},
+            {'title': 'He leído y Acepto', 'payload': 'tos_accept'},
+            {'title': 'No acepto', 'payload': 'tos_reject'},
             {'title': 'Ver TOS', 'url': tos_url}
         ]
         normalized = text.strip().lower()
