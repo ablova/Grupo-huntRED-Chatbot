@@ -7,7 +7,7 @@ from app.utilidades.signature.pdf_generator import (
     generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
 )
 from app.utilidades.signature.digital_sign import request_digital_signature
-from app.utilidades.salario import calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, obtener_tipo_cambio
+from app.utilidades.salario import calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA
 # from currency_converter import CurrencyRates  # Se esta utilizando forex-python el cual ya esta instalado.
 
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
@@ -335,6 +335,6 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
         f"- BigMac: {salario_neto_orig * adjustment_bigmac_inv:,.2f} {data['moneda']}\n"
     )
 
-    msg += "\nReferencia: https://amigro.com/salario"
+    msg += "\nReferencia: https://amigro.com/salario - UMA_DIARIA Valor UMA"
     from app.chatbot.integrations.services import send_message
     await send_message(platform, user_id, msg, business_unit_name)
