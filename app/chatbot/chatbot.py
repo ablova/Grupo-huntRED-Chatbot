@@ -251,7 +251,7 @@ class ChatBotHandler:
                 return
 
             # Procesar adjuntos si estamos esperando un CV
-            if chat_state.state == "waiting_for_cv" and "attachment" in message:
+            if hasattr(chat_state, 'state') and chat_state.state == "waiting_for_cv" and "attachment" in message:
                 attachment = message["attachment"]  # Ajustar según la estructura real del mensaje
                 with NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
                     temp_file.write(attachment["content"])

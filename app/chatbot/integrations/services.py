@@ -6,7 +6,7 @@ import asyncio
 import ssl
 import itertools
 from asgiref.sync import sync_to_async
-from typing import Optional, List, Dict, Union, Any
+from typing import Optional, List, Dict, Union, Any, Tuple
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
 from django.template.loader import render_to_string
