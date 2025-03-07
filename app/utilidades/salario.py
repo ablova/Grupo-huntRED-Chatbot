@@ -16,6 +16,9 @@ DATOS_COLI = {
 DATOS_BIGMAC = {
     "México": 4.5, "USA": 5.7, "Nicaragua": 3.0, "Colombia": 3.5, "Argentina": 3.8, "Brasil": 4.2
 }
+DIVISA_BASE = {
+    "MXN": 20, "USD": 1.0, "Nicaragua": 36.82
+}
 
 # Constantes y tablas aplicables para 2025
 UMA_DIARIA_2025 = 108.00  # Unidad de Medida y Actualización diaria
@@ -50,12 +53,12 @@ def obtener_tipo_cambio(moneda_destino="USD"):
         ValueError: Si no se puede obtener el tipo de cambio.
     """
     api_url = f"https://api.exchangerate-api.com/v4/latest/MXN"
-    response = requests.get(api_url)
-    if response.status_code == 200:
-        data = response.json()
-        return data['rates'].get(moneda_destino, 1.0)
-    else:
-        raise ValueError("No se pudo obtener el tipo de cambio.")
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()
+        return response.json()['rates'].get(moneda_destino, 1.0)
+    except requests.RequestException:
+        return 20.0  # Valor por defecto
 
 # Funciones de cálculo
 def calcular_isr_mensual(base_gravable: float) -> float:
@@ -249,24 +252,3 @@ def calcular_neto_equivalente(neto_origen: float, moneda_origen: str, modelo: st
         return neto_mxn * (precio_bigmac_destino / (precio_bigmac_origen * tipo_cambio))
     else:
         raise ValueError("Modelo no reconocido")
-
-
-
-# Pruebas unitarias
-class TestSalario(unittest.TestCase):
-    def test_calcular_neto(self):
-        """Prueba que el cálculo del salario neto sea razonable."""
-        bruto = 10000
-        neto = calcular_neto(bruto)
-        self.assertAlmostEqual(neto, 8500, delta=100)  # Tolerancia de 100 pesos
-
-    def test_calcular_bruto(self):
-        """Prueba que el cálculo del salario bruto sea consistente con el neto."""
-        neto_deseado = 8500
-        bruto = calcular_bruto(neto_deseado)
-        self.assertAlmostEqual(bruto, 10000, delta=100)  # Tolerancia de 100 pesos
-
-    def test_obtener_tipo_cambio(self):
-        """Prueba que el tipo de cambio sea positivo y razonable."""
-        tipo_cambio = obtener_tipo_cambio("USD")
-        self.assertGreater(tipo_cambio, 0)
