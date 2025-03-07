@@ -1,6 +1,6 @@
 # Ubicación: /home/pablo/app/chatbot/intents_handler.py
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import Dict, List, Any
 from asgiref.sync import sync_to_async
 
 from app.models import ChatState, Person, BusinessUnit
