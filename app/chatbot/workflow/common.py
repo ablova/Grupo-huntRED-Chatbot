@@ -318,7 +318,7 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
         adjustment_bigmac = DATOS_BIGMAC['México'] / DATOS_BIGMAC.get(pais_origen, 5.0)
         
         msg += (
-            f"\nComparativa en México:\n"
+            f"\n\nComparativa en México:\n"
             f"- COLI: {salario_neto_mxn * adjustment_coli:,.2f} MXN\n"
             f"- PPA: {salario_neto_mxn * adjustment_ppa:,.2f} MXN\n"
             f"- BigMac: {salario_neto_mxn * adjustment_bigmac:,.2f} MXN\n"
@@ -329,12 +329,12 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     adjustment_bigmac_inv = DATOS_BIGMAC.get(pais_origen, 5.0) / DATOS_BIGMAC['México']
     
     msg += (
-        f"\nComparativa en {pais_origen}:\n"
+        f"\n\nComparativa en {pais_origen}:\n"
         f"- COLI: {salario_neto_orig * adjustment_coli_inv:,.2f} {data['moneda']}\n"
         f"- PPA: {salario_neto_orig * adjustment_ppa_inv:,.2f} {data['moneda']}\n"
         f"- BigMac: {salario_neto_orig * adjustment_bigmac_inv:,.2f} {data['moneda']}\n"
     )
 
-    msg += "\nReferencia: https://amigro.com/salario -  Valor UMA= {UMA_DIARIA_2025}"
+    msg += "\n\nReferencias: https://amigro.com/salario "
     from app.chatbot.integrations.services import send_message
     await send_message(platform, user_id, msg, business_unit_name)
