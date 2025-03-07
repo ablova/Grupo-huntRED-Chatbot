@@ -360,7 +360,8 @@ class ChatBotHandler:
             await send_message(platform, user_id, "Entrada inválida. Intenta de nuevo.", business_unit.name.lower())
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
-            await send_message(platform, user_id, "Error interno. Intenta más tarde.", business_unit.name.lower())
+            await send_menu(platform, user_id, "No entendi que es lo que necesitas.", business_unit.name.lower())
+            await send_message(platform, user_id, "O indicame que repetimos.", business_unit.name.lower())
         logger.info(f"[process_message] Procesamiento completado para {user_id} con respuesta enviada")
 
     
