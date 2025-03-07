@@ -39,26 +39,23 @@ SUBSIDIO_EMPLEO_MAX = 475.00      # Subsidio al empleo máximo
 SUBSIDIO_EMPLEO_LIMITE = 10171.00 # Límite para aplicar subsidio
 
 # Funciones para obtener datos externos
-def obtener_tipo_cambio(moneda_destino="USD"):
-    """
-    Obtiene el tipo de cambio actualizado desde MXN a la moneda de destino usando una API externa.
-    
-    Args:
-        moneda_destino (str): Moneda a la que se convierte desde MXN (default: "USD").
-    
-    Returns:
-        float: Tipo de cambio actualizado.
-    
-    Raises:
-        ValueError: Si no se puede obtener el tipo de cambio.
-    """
-    api_url = f"https://api.exchangerate-api.com/v4/latest/MXN"
+def obtener_tipo_cambio(moneda_origen):
+    if moneda_origen == 'MXN':
+        return 1.0
     try:
+        api_url = "https://api.exchangerate-api.com/v4/latest/USD"
         response = requests.get(api_url)
-        response.raise_for_status()
-        return response.json()['rates'].get(moneda_destino, 1.0)
-    except requests.RequestException:
-        return 20.0  # Valor por defecto
+        response.raise_for_status()  # Levanta excepción si hay error HTTP
+        rates = response.json()['rates']
+        usd_to_mxn = rates.get('MXN', 20.3)  # Default a 20.31 si falla
+        usd_to_origen = rates.get(moneda_origen, 1.0)  # Default a 1.0 si no está la moneda
+        if usd_to_origen == 0:  # Evitar división por cero
+            raise ValueError(f"Tasa inválida para {moneda_origen}")
+        return usd_to_mxn / usd_to_origen  # Tipo de cambio moneda_origen -> MXN
+    except Exception as e:
+        print(f"Advertencia: Fallo al obtener tipo de cambio para {moneda_origen} -> MXN ({str(e)}). Usando valor por defecto.")
+        return 20.3 if moneda_origen == 'USD' else 1.0  # Default para USD, 1.0 para MXN u otras
+
 
 # Funciones de cálculo
 def calcular_isr_mensual(base_gravable: float) -> float:

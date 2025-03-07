@@ -1,4 +1,4 @@
-# common.py - Funciones comunes para los workflows
+# /home/pablo/app/chatbot/workflow/common.py - Funciones comunes para los workflows
 import logging
 import re    
 from forex_python.converter import CurrencyRates
@@ -8,7 +8,7 @@ from app.utilidades.signature.pdf_generator import (
 )
 from app.utilidades.signature.digital_sign import request_digital_signature
 from app.utilidades.salario import calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, obtener_tipo_cambio
-from currency_converter import CurrencyRates  # Para tipos de cambio
+# from currency_converter import CurrencyRates  # Se esta utilizando forex-python el cual ya esta instalado.
 
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
 from django.conf import settings
@@ -251,15 +251,15 @@ def get_business_unit_domain(business_unit):
     }
     return domains.get(business_unit.name.lower() if hasattr(business_unit, 'name') else business_unit, "huntred.com")
 
-async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit):
+async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_name):
     data = parsear_mensaje(mensaje)
     if 'salario_bruto' not in data and 'salario_neto' not in data:
-        await send_message(platform, user_id, "Por favor, proporciona un salario válido.", business_unit)
+        from app.chatbot.integrations.services import send_message
+        await send_message(platform, user_id, "Por favor, proporciona un salario válido.", business_unit_name)
         return
 
-    # Obtener tipo de cambio
-    c = CurrencyRates()
-    tipo_cambio = c.get_rate(data['moneda'], 'MXN') if data['moneda'] != 'MXN' else 1.0
+    # Obtener tipo de cambio usando exchangerate-api
+    tipo_cambio = obtener_tipo_cambio(data['moneda'])
     tipo_cambio_inverso = 1 / tipo_cambio if tipo_cambio != 1.0 else 1.0
 
     # Estandarizar a mensual en moneda original y MXN
@@ -300,7 +300,7 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit):
         f"Salario Neto Mensual: {salario_neto_orig:,.2f} {data['moneda']} ({salario_neto_mxn:,.2f} MXN)\n"
         f"- ISR: {calcular_isr_mensual(salario_bruto_mxn):,.2f} MXN\n"
         f"- IMSS: {calcular_cuotas_imss(salario_bruto_mxn):,.2f} MXN\n"
-        f"- Infonavit: {0.0} MXN\n"  # Placeholder, ajustar si aplica
+        f"- Infonavit: {0.0} MXN\n"
     )
 
     # Comparativa bidireccional
@@ -313,7 +313,6 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit):
     }.get(pais_origen, 'Otra ciudad')
 
     if data['moneda'] != 'MXN':
-        # Ajustes a México
         adjustment_coli = DATOS_COLI['Ciudad de México'] / DATOS_COLI.get(ciudad_origen, 50.0)
         adjustment_ppa = DATOS_PPA['México'] / DATOS_PPA.get(pais_origen, 1.0)
         adjustment_bigmac = DATOS_BIGMAC['México'] / DATOS_BIGMAC.get(pais_origen, 5.0)
@@ -325,7 +324,6 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit):
             f"- BigMac: {salario_neto_mxn * adjustment_bigmac:,.2f} MXN\n"
         )
     
-    # Ajustes inversos (MXN a moneda de origen)
     adjustment_coli_inv = DATOS_COLI.get(ciudad_origen, 50.0) / DATOS_COLI['Ciudad de México']
     adjustment_ppa_inv = DATOS_PPA.get(pais_origen, 1.0) / DATOS_PPA['México']
     adjustment_bigmac_inv = DATOS_BIGMAC.get(pais_origen, 5.0) / DATOS_BIGMAC['México']
@@ -337,5 +335,6 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit):
         f"- BigMac: {salario_neto_orig * adjustment_bigmac_inv:,.2f} {data['moneda']}\n"
     )
 
-    msg += f"\nReferencia: https://{get_business_unit_domain(business_unit)}/salario"
-    await send_message(platform, user_id, msg, business_unit)
+    msg += "\nReferencia: https://amigro.com/salario"
+    from app.chatbot.integrations.services import send_message
+    await send_message(platform, user_id, msg, business_unit_name)

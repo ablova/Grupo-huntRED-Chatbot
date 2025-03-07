@@ -166,33 +166,44 @@ class ChatBotHandler:
             {'title': 'No acepto', 'payload': 'tos_reject'},
             {'title': 'Ver TOS', 'url': tos_url}
         ]
-        normalized = text.strip().lower()
-        if normalized in ['tos_accept', 'sí', 'si']:
-            user.tos_accepted = True
-            await sync_to_async(user.save)()
-            confirmation_msg = "Gracias por aceptar nuestros TOS. Aquí tienes el menú principal:"
-            await send_message(platform, user_id, confirmation_msg, business_unit.name.lower())
-            await send_menu(platform, user_id, business_unit.name.lower())  # Pasar business_unit.name
-            await self.store_bot_message(event, confirmation_msg)
-            await self.award_gamification_points(user, "tos_accepted")
-            logger.info(f"TOS aceptados para {user.phone}")
-        elif normalized in ['tos_reject', 'no']:
-            rejection_msg = "No se puede continuar sin aceptar los TOS. Responde 'Sí' o 'Salir'."
-            await send_message(platform, user_id, rejection_msg, business_unit.name.lower())
-            await self.store_bot_message(event, rejection_msg)
-            event.context['tos_attempts'] = event.context.get('tos_attempts', 0) + 1
-            if event.context['tos_attempts'] >= 3:
-                await send_message(platform, user_id, "Sesión terminada por falta de aceptación.", business_unit.name.lower())
-                await self.store_bot_message(event, "Sesión terminada por falta de aceptación.")
-                return
-            await sync_to_async(event.save)()
+        
+        # Si el texto es un payload de un botón interactivo, trabajamos con ese
+        if isinstance(text, str):
+            normalized = text.strip().lower()
+
+            # Si el valor del botón es "tos_accept"
+            if normalized in ['tos_accept', 'sí', 'si']:
+                user.tos_accepted = True
+                await sync_to_async(user.save)()
+                confirmation_msg = "Gracias por aceptar nuestros Términos de Servicio. Aquí tienes el menú principal:"
+                await send_message(platform, user_id, confirmation_msg, business_unit.name.lower())
+                await send_menu(platform, user_id, business_unit.name.lower())  # Enviar el menú de opciones
+                await self.store_bot_message(event, confirmation_msg)
+                await self.award_gamification_points(user, "tos_accepted")  # Otorgar puntos de gamificación
+                logger.info(f"TOS aceptados para {user.phone}")
+            
+            # Si el usuario rechaza los términos
+            elif normalized in ['tos_reject', 'no']:
+                rejection_msg = "No se puede continuar sin aceptar los TOS. Responde 'Sí' o 'Salir'."
+                await send_message(platform, user_id, rejection_msg, business_unit.name.lower())
+                await self.store_bot_message(event, rejection_msg)
+                event.context['tos_attempts'] = event.context.get('tos_attempts', 0) + 1
+                if event.context['tos_attempts'] >= 3:
+                    await send_message(platform, user_id, "Sesión terminada por falta de aceptación.", business_unit.name.lower())
+                    await self.store_bot_message(event, "Sesión terminada por falta de aceptación.")
+                    return
+                await sync_to_async(event.save)()
+            
+            # Si el usuario no selecciona ni 'Sí' ni 'No', vuelve a mostrar los botones
+            else:
+                # Enviar URL como mensaje separado
+                await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}, es necesario que los aceptes para continuar y poder acercarte a la oportunidad que buscas.", business_unit.name.lower())
+                await asyncio.sleep(1)  # Pequeña pausa para evitar spam
+                prompt = "Por favor, selecciona una opción:"
+                await send_options(platform, user_id, prompt, tos_buttons, business_unit.name.lower())
         else:
-            # Enviar URL como mensaje separado
-            await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", business_unit.name.lower())
-            await asyncio.sleep(1)  # Pequeña pausa para evitar spam
-            prompt = "Por favor, selecciona una opción:"
-            await send_options(platform, user_id, prompt, tos_buttons, business_unit.name.lower())
-   
+            logger.error(f"[handle_tos_acceptance] Error: El tipo de texto no es válido para aceptar/rechazar los TOS.")
+
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
         """Procesa el mensaje entrante y responde según la intención del usuario."""
         try:

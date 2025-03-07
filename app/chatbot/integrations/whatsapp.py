@@ -161,6 +161,8 @@ async def handle_text_message(message, sender_id, chatbot, business_unit, person
         )
 
 
+# /home/pablo/app/chatbot/integrations/whatsapp.py
+
 async def handle_interactive_message(message, sender_id, chatbot, business_unit, person, chat_state):
     """
     Procesa mensajes interactivos (botones o listas) y extrae la selección.
@@ -179,28 +181,25 @@ async def handle_interactive_message(message, sender_id, chatbot, business_unit,
         selected_id = selection.get('id', 'Sin ID')
         selected_text = selection.get('title', 'Sin texto')
         logger.info(f"Botón seleccionado: {selected_text} (ID: {selected_id})")
+
+        # Enviar solo el id del botón al chatbot para procesarlo
+        await chatbot.process_message(
+            platform='whatsapp',
+            user_id=sender_id,
+            message=selected_id,  # Usamos el ID del botón como texto para procesar
+            business_unit=business_unit
+        )
     elif interactive_type == 'list_reply':
         selection = interactive.get('list_reply', {})
         selected_id = selection.get('id', 'Sin ID')
         selected_text = selection.get('title', 'Sin texto')
         logger.info(f"Lista seleccionada: {selected_text} (ID: {selected_id})")
+        # Aquí también puedes enviar el id de la lista si fuera necesario
     else:
         logger.warning(f"Tipo interactivo no soportado: {interactive_type}")
         await send_message('whatsapp', sender_id, "Interacción no soportada.", business_unit)
         return
 
-    if ENABLE_ADVANCED_PROCESSING:
-        logger.info("Procesamiento avanzado habilitado para mensajes interactivos.")
-        await chatbot.process_message(
-            platform='whatsapp',
-            user_id=sender_id,
-            message=selected_id,  # Usamos el ID del botón como texto para procesar (ej. 'tos_accept') (cambiamos de text=selected_id)
-            business_unit=business_unit
-        )
-    else:
-        logger.info("Procesamiento avanzado deshabilitado. Solo captura básica.")
-        response = f"Procesaste la opción: {selected_text}"
-        await send_message('whatsapp', sender_id, response, business_unit)
 
 async def handle_media_message(message, sender_id, chatbot_handler, business_unit, person, chat_state):
     """
