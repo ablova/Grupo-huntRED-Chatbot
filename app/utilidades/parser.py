@@ -1,4 +1,5 @@
-# ✅ Importaciones necesarias
+# /home/pablo/app/utilidades/parser.py
+# # ✅ Importaciones necesarias
 import logging
 import unicodedata
 import imaplib

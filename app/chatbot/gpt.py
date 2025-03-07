@@ -107,7 +107,7 @@ class GPTHandler:
 
         business_unit_name = business_unit.name if business_unit else "General"
         prompt_type = await self.detectar_intencion(prompt)
-        context = self.gpt_api.get_prompt(prompt_type, default="Proporciona información clara y concisa.")
+        context = self.gpt_api.get_prompt(prompt_type, default="Proporciona información clara y concisa, creando perfil de candidato.")
         full_prompt = f"[{business_unit_name} | {prompt_type}] {context}\n\nUsuario: {prompt}\n\nPor favor, devuelve solo una lista JSON de habilidades extraídas (ejemplo: [\"Python\", \"Django\"])."
 
         try:

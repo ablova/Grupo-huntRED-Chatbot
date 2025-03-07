@@ -41,7 +41,7 @@ sudo swapoff -a &&
 iotop &&
 # Eliminar procesos Zombie
 sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | sort -u)
-sudo find /var/log -type f -size +10M &&
+&& sudo find /var/log -type f -size +10M &&
 sudo sysctl vm.drop_caches=3 &&
 sudo rm -rf /tmp/* &&
 sudo journalctl --vacuum-time=10m &&
