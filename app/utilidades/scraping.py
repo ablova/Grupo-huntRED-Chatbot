@@ -17,7 +17,7 @@ from django.utils.timezone import now
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from prometheus_client import Counter, Histogram, start_http_server
 import spacy
-from app.chatbot.nlp import get_skill_extractor
+from app.chatbot.nlp import NLPProcessor
 from app.models import (
     DominioScraping, Vacante, RegistroScraping, ConfiguracionBU, BusinessUnit, Worker
 )
@@ -31,10 +31,9 @@ logger = logging.getLogger(__name__)
 
 
 nlp = spacy.load("en_core_web_md")
-from app.chatbot.nlp import get_skill_extractor
-sn = get_skill_extractor() # Se obtiene solo cuando se necesita
+sn = NLPProcessor # Se obtiene solo cuando se necesita
 if not sn:
-    logger.warning("⚠ SkillExtractor no está disponible. Se usarán métodos alternativos de extracción.")
+    logger.warning("⚠ NLPProcessor no está disponible. Se usarán métodos alternativos de extracción.")
 
 # ========================
 # Configuración General

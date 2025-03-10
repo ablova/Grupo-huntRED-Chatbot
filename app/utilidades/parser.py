@@ -22,7 +22,7 @@ from django.utils.timezone import now
 # ✅ Importaciones del proyecto
 from app.models import ConfiguracionBU, Person, Vacante, Division, Skill, BusinessUnit
 from app.utilidades.vacantes import VacanteManager
-from app.chatbot.nlp import load_nlp_model, SkillExtractorManager
+from app.chatbot.nlp import NLPProcessor
 
 # ✅ Configuración de logging
 logger = logging.getLogger(__name__)
@@ -319,7 +319,7 @@ class CVParser:
         self.nlp = load_nlp_model(self.detected_language)
         if not self.nlp:
             logger.error(f"❌ No se pudo cargar modelo NLP para idioma '{self.detected_language}'")
-        self.skill_extractor = SkillExtractorManager.get_instance(self.detected_language)
+        self.skill_extractor = NLPProcessor.get_instance(self.detected_language)
         self.analysis_points = self.get_analysis_points()
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
@@ -516,7 +516,7 @@ class CVParser:
             if self.skill_extractor:
                 skills_result = self.skill_extractor.extract_skills(doc.text)
                 skills = skills_result["skills"]
-                logger.debug(f"Habilidades extraídas con SkillExtractorManager: {skills}")
+                logger.debug(f"Habilidades extraídas con NLPProcessor: {skills}")
             else:
                 # Fallback básico
                 skill_keywords = ["python", "java", "machine learning", "project management"]
@@ -697,7 +697,7 @@ class CVParser:
         else:
             self._create_new_candidate(parsed_data, file_path)
 
-    def extract_text_from_file(self, file_path):
+    def extract_text_from_file(self, file_path: Path) -> Optional[str]:
         """
         Extrae texto de un archivo PDF o DOCX.
         
