@@ -7,9 +7,7 @@ from typing import List, Dict, Set, Optional
 from transformers import pipeline
 from spacy.matcher import PhraseMatcher
 from cachetools import cachedmethod, TTLCache
-from app.chatbot.utils import clean_text
 from tabiya_livelihoods_classifier.inference.linker import EntityLinker
-
 logger = logging.getLogger(__name__)
 
 # Diccionario de modelos por idioma
@@ -75,6 +73,7 @@ class BaseNLPProcessor:
 
     def extract_entities(self, text: str) -> List[str]:
         """Extrae entidades nombradas del texto usando spaCy y NER especializado."""
+        from app.chatbot.utils import clean_text
         text = clean_text(text)
         doc = self.nlp(text.lower())
         entities = set()
@@ -128,6 +127,7 @@ class CandidateNLPProcessor(BaseNLPProcessor):
     @cachedmethod(lambda self: self.skill_cache)
     def extract_skills(self, text: str) -> Dict[str, List[str]]:
         """Extrae habilidades del texto y las clasifica según el catálogo."""
+        from app.chatbot.utils import clean_text
         text = clean_text(text)
         doc = self.nlp(text.lower())
         skills = {"technical": [], "soft": [], "certifications": [], "tools": []}
@@ -181,6 +181,18 @@ class CandidateNLPProcessor(BaseNLPProcessor):
             "skills": skills_data,
             "sentiment": sentiment
         }
+    
+    def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
+        """Clasifica habilidades para oportunidades, normalizando con ESCO si está disponible."""
+        skill_lower = skill.lower()
+        # Aquí podrías agregar un mapeo a nombres estandarizados de ESCO si los obtienes de Tabiya
+        for division in self.skills_catalog.values():
+            for role_category in division.values():
+                for role, details in role_category.items():
+                    if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
+                        skills_dict["technical"].append(skill_lower)
+                    elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
+                        skills_dict["soft"].append(skill_lower)
 
 class OpportunityNLPProcessor(BaseNLPProcessor):
     """Procesador NLP para analizar oportunidades laborales."""
@@ -194,6 +206,7 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
 
     def extract_opportunity_details(self, text: str) -> Dict[str, any]:
         """Extrae detalles clave de una oportunidad laboral."""
+        from app.chatbot.utils import clean_text
         text = clean_text(text)
         entities = self.extract_entities(text)
         details = {"skills": {"technical": [], "soft": []}, "location": None, "contract_type": None, "role": None}
@@ -239,11 +252,21 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
         return None
 
     def classify_job(self, text: str) -> Dict[str, any]:
-        """Clasifica el tipo de empleo usando Tabiya."""
-        try:
-            return self.tabiya_linker.link_text(text)
-        except Exception as e:
-            logger.error(f"Error en clasificación con Tabiya: {e}")
+        """Clasifica el tipo de empleo usando Tabiya si está disponible."""
+        if self.tabiya_linker:
+            try:
+                tabiya_result = self.tabiya_linker.link_text(text)
+                # Normalizamos el resultado de Tabiya
+                return {
+                    "classification": tabiya_result.get("occupation", "unknown"),
+                    "esco_code": tabiya_result.get("esco_code"),
+                    "skills": tabiya_result.get("skills", [])
+                }
+            except Exception as e:
+                logger.error(f"Error en clasificación con Tabiya: {e}")
+                return {"classification": "unknown"}
+        else:
+            logger.info("Clasificación con Tabiya no disponible. Devolviendo valor por defecto.")
             return {"classification": "unknown"}
 
     def analyze_opportunity(self, text: str) -> Dict[str, any]:
@@ -251,8 +274,28 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
         details = self.extract_opportunity_details(text)
         job_classification = self.classify_job(text)
         sentiment = self.get_sentiment(text)
+        
+        # Combinar habilidades extraídas del texto con las de ESCO
+        esco_skills = job_classification.get("skills", [])
+        for skill in esco_skills:
+            skill_lower = skill.lower()
+            if skill_lower not in [s.lower() for s in details["skills"]["technical"]]:
+                self._classify_skill(skill_lower, details["skills"])
+        
         return {
             "details": details,
             "job_classification": job_classification,
             "sentiment": sentiment
         }
+
+    def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
+        """Clasifica habilidades para oportunidades, normalizando con ESCO si está disponible."""
+        skill_lower = skill.lower()
+        # Aquí podrías agregar un mapeo a nombres estandarizados de ESCO si los obtienes de Tabiya
+        for division in self.skills_catalog.values():
+            for role_category in division.values():
+                for role, details in role_category.items():
+                    if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
+                        skills_dict["technical"].append(skill_lower)
+                    elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
+                        skills_dict["soft"].append(skill_lower)
