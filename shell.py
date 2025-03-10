@@ -364,7 +364,7 @@ from app.models import BusinessUnit
 business_unit = BusinessUnit.objects.get(id=1)
 
 # Ejecutar la función
-process_csv('/home/pablollh/connections.csv', business_unit)
+process_csv('/home/pablo/connections.csv', business_unit)
 
 
 ### PROCESAR CON LINKEDIN
@@ -426,7 +426,7 @@ from app.models import Person, BusinessUnit
 import csv
 
 # Ruta al archivo connections.csv
-csv_path = "/home/pablollh/connections.csv"
+csv_path = "/home/pablo/connections.csv"
 
 # Leer las URLs desde el archivo
 with open(csv_path, 'r', encoding='utf-8-sig') as f:
