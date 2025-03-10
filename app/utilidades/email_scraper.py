@@ -17,6 +17,7 @@ import os
 import django
 from typing import List
 from app.utilidades.scraping import validate_job_data, JobListing
+from app.chatbot.nlp import OpportunityNLPProcessor
 
 #os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ai_huntred.settings")
 #django.setup()
@@ -44,6 +45,11 @@ VALID_SENDERS = [
     'santander@myworkday.com'
 ]
 
+opportunity_db = {
+    "locations": ["mexico", "usa", "remote"],
+    "contract_types": ["full-time", "part-time", "contract"],
+    "skills": ["python", "sql", "leadership"]
+}
 # Dominios permitidos para solicitudes HTTP
 ALLOWED_DOMAINS = {
     "linkedin.com", "www.linkedin.com", "mx.linkedin.com", "*.linkedin.com",
@@ -558,7 +564,6 @@ async def assign_business_unit(job_title, job_description=None, salary_range=Non
         return None
 
 async def process_job_alert_email(mail, email_id, message, stats):
-    """Procesa un correo de alerta de trabajo."""
     try:
         sender = message["From"]
         subject = message["Subject"]
@@ -598,7 +603,18 @@ async def process_job_alert_email(mail, email_id, message, stats):
             logger.info(f"📑 Vacantes encontradas: {len(job_listings)}")
             stats["total_vacancies"] += len(job_listings)
 
+            # Analizar cada vacante con OpportunityNLPProcessor
+            processor = OpportunityNLPProcessor(opportunity_db)
             for job_data in job_listings:
+                description = job_data.get("job_description", "")
+                if description:
+                    analysis = processor.analyze_opportunity(description)
+                    job_data["skills"] = analysis["details"].get("skills", job_data.get("skills", []))
+                    job_data["location"] = analysis["details"].get("location") or job_data.get("location", "Unknown")
+                    job_data["contract_type"] = analysis["details"].get("contract_type") or job_data.get("contract_type")
+                    job_data["job_classification"] = analysis["job_classification"]
+                    job_data["sentiment"] = analysis["sentiment"]
+
                 business_unit_id = await assign_business_unit(
                     job_data["job_title"], 
                     job_data["job_description"],
