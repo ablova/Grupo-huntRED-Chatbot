@@ -331,13 +331,18 @@ def extract_skills(description: str) -> List[str]:
         return []
         
     try:
-        nlp = NLPProcessor(language="es", mode="opportunity")
+        nlp = NLPProcessor(language="es", mode="opportunity", analysis_depth="deep")
         skills_dict = nlp.extract_skills(description)
+        skills = list(set(skills_dict["technical"] + skills_dict["soft"] + skills_dict["certifications"] + skills_dict["tools"]))
         # Combinar habilidades técnicas y blandas (las relevantes para vacantes)
-        return list(set(skills_dict["technical"] + skills_dict["soft"]))
+        return skills
     except Exception as e:
         logger.error(f"Error extrayendo habilidades: {e}")
         return []
+
+def process_linkedin_batch():
+    from app.chatbot.nlp import process_recent_users_batch
+    process_recent_users_batch()
 
 async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) -> list:
     """Extrae vacantes desde HTML o texto plano de manera asíncrona."""
@@ -599,7 +604,7 @@ async def process_job_alert_email(mail, email_id, message, stats):
             stats["total_vacancies"] += len(job_listings)
 
             # Analizar cada vacante con OpportunityNLPProcessor
-            processor = NLPProcessor(language="es", mode="opportunity")
+            processor = NLPProcessor(language="es", mode="opportunity", analysis_depth="deep")
             for job_data in job_listings:
                 description = job_data.get("job_description", "")
                 if description:

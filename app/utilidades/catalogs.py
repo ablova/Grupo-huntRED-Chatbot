@@ -34,7 +34,7 @@ def get_skills_for_unit(unit_name: str) -> dict:
         return _skills_cache[unit_name]
     
     try:
-        with open("/home/pablo/skill_db_relax_20.json", 'r', encoding='utf-8') as f:
+        with open("/home/pablo/skills_data/skill_db_relax_20.json", 'r', encoding='utf-8') as f:
             base_skills = json.load(f)
         logger.info("Se cargaron las habilidades base desde skill_db_relax_20.json.")
     except Exception as e:

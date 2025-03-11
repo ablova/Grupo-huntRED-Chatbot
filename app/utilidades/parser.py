@@ -310,16 +310,17 @@ class IMAPCVProcessor:
             logger.error(f"Error procesando alerta de empleo {email_id}: {e}")
             self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
 
-
 # Ajuste en la inicialización de CVParser
 class CVParser:
     def __init__(self, business_unit: str, text_sample: Optional[str] = None):
         self.business_unit = business_unit.strip()
-        self.detected_language = self.detect_language(text_sample) if text_sample else "es"
-        self.nlp = load_nlp_model(self.detected_language)
-        if not self.nlp:
-            logger.error(f"❌ No se pudo cargar modelo NLP para idioma '{self.detected_language}'")
-        self.skill_extractor = NLPProcessor.get_instance(self.detected_language)
+        self.detected_language = detect_language(text_sample) if text_sample else "es"
+        # Inicializamos NLPProcessor con modo "candidate" y profundidad "deep" por defecto
+        self.nlp_processor = NLPProcessor(
+            language=self.detected_language,
+            mode="candidate",
+            analysis_depth="deep"  # Usamos "deep" para análisis completo en CVs
+        )
         self.analysis_points = self.get_analysis_points()
         self.cross_analysis = self.get_cross_analysis()
         self.DIVISION_SKILLS = self._load_division_skills()
@@ -340,20 +341,6 @@ class CVParser:
             logger.error(f"❌ Error detectando idioma: {e}")
             return "es"  # Default a español si hay un error
 
-    def load_spacy_model(self, language: str):
-        """
-        Carga dinámicamente el modelo de NLP según el idioma detectado.
-        """
-        return load_nlp_model(language)  # ✅ Usa la función centralizada de NLP
-
-    def prepare_nlp_model(self, text: str):
-        """
-        Detecta el idioma del texto y prepara el modelo NLP correspondiente.
-        """
-        self.detected_language = self.detect_language(text)
-        self.nlp = load_nlp_model(self.detected_language)
-        logger.info(f"✅ Modelo NLP cargado para idioma: {self.detected_language}")
-
     def get_analysis_points(self) -> Dict:
         """
         Devuelve los puntos de análisis basados en la unidad de negocio.
@@ -371,7 +358,7 @@ class CVParser:
                 'educación', 'proyectos', 'habilidades_técnicas', 'potencial_crecimiento', 'logros', 'tecnología'
             ],
             'amigro': [
-                'permiso_trabajo', 'idiomas', 'experiencia_internacional', 'habilidades',
+                'permiso_trabajo', 'idiomas', 'experiencia_internacional', 'habilidades', 'mano de obra'
                 'habilidades_blandas', 'certificaciones'
             ],
             'huntRED® Tech': [

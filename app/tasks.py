@@ -406,6 +406,10 @@ def trigger_amigro_workflows(candidate_id):
 # =========================================================
 # Tareas para manejo de datos LinkedIn (API/Csv/Scraping)
 # =========================================================
+@shared_task
+def process_batch_task():
+    from app.chatbot.nlp import process_recent_users_batch
+    process_recent_users_batch()
 
 @shared_task
 def process_linkedin_api_data_task(member_ids: list):
