@@ -7,7 +7,7 @@ from typing import List, Dict, Set, Optional
 from transformers import pipeline
 from spacy.matcher import PhraseMatcher
 from cachetools import cachedmethod, TTLCache
-from tabiya_livelihoods_classifier.inference.linker import EntityLinker
+# from tabiya_livelihoods_classifier.inference.linker import EntityLinker     NO FUNCIONA
 logger = logging.getLogger(__name__)
 
 # Diccionario de modelos por idioma
@@ -198,11 +198,34 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
     """Procesador NLP para analizar oportunidades laborales."""
     def __init__(self, language: str = 'es'):
         super().__init__(language)
-        self.tabiya_linker = EntityLinker()
+        self.skill_extractor = None
+        try:
+            from transformers import pipeline
+            self.skill_extractor = pipeline("ner", model="jjzha/escoxlmr_skill_extraction", tokenizer="jjzha/escoxlmr_skill_extraction")
+        except Exception as e:
+            logger.warning(f"No se pudo cargar escoxlmr_skill_extraction: {e}. Usando extracción básica.")
         if language == 'en':
             self.skillner_pipeline = pipeline('ner', model='ihk/skillner')
         else:
             self.skillner_pipeline = None
+
+    def classify_job(self, text: str) -> Dict[str, any]:
+        """Clasifica el tipo de empleo usando reglas básicas o modelo ESCO si disponible."""
+        if self.skill_extractor:
+            try:
+                entities = self.skill_extractor(text)
+                skills = [ent["word"] for ent in entities if ent["entity"] == "SKILL"]
+                # Lógica simple para inferir ocupación (puedes mejorar esto)
+                doc = self.nlp(text.lower())
+                for ent in doc.ents:
+                    if ent.label_ in ["ORG", "PERSON", "NORP"]:  # Ajustar según necesidad
+                        continue
+                    if "ingeniero" in ent.text.lower() or "engineer" in ent.text.lower():
+                        return {"classification": "Software Engineer", "esco_code": "2512", "skills": skills}
+                return {"classification": "unknown", "skills": skills}
+            except Exception as e:
+                logger.error(f"Error en clasificación con ESCO: {e}")
+        return {"classification": "unknown"}
 
     def extract_opportunity_details(self, text: str) -> Dict[str, any]:
         """Extrae detalles clave de una oportunidad laboral."""
@@ -251,23 +274,6 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
                         return role
         return None
 
-    def classify_job(self, text: str) -> Dict[str, any]:
-        """Clasifica el tipo de empleo usando Tabiya si está disponible."""
-        if self.tabiya_linker:
-            try:
-                tabiya_result = self.tabiya_linker.link_text(text)
-                # Normalizamos el resultado de Tabiya
-                return {
-                    "classification": tabiya_result.get("occupation", "unknown"),
-                    "esco_code": tabiya_result.get("esco_code"),
-                    "skills": tabiya_result.get("skills", [])
-                }
-            except Exception as e:
-                logger.error(f"Error en clasificación con Tabiya: {e}")
-                return {"classification": "unknown"}
-        else:
-            logger.info("Clasificación con Tabiya no disponible. Devolviendo valor por defecto.")
-            return {"classification": "unknown"}
 
     def analyze_opportunity(self, text: str) -> Dict[str, any]:
         """Analiza una oportunidad laboral completa."""
