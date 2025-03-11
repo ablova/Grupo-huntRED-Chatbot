@@ -22,7 +22,7 @@ cache/
 token_dist.json
 skill_db_relax_20.json
 *.json
-*.csv
+
 # Ignorar archivos temporales
 ~*
 
