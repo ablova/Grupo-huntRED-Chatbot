@@ -39,6 +39,23 @@ CATALOG_PATHS = {
 # Ruta al catálogo de habilidades
 SKILLS_JSON_PATH = "/home/pablo/app/utilidades/catalogs/skills.json"
 
+def create_json_from_csv(csv_path, json_path):
+    """Crea un archivo JSON a partir de un CSV si el JSON no existe."""
+    if not os.path.exists(json_path):
+        try:
+            df = pd.read_csv(csv_path, encoding='utf-8')
+            df.to_json(json_path, orient='records', force_ascii=False)
+            print(f"Archivo {json_path} creado a partir de {csv_path} con UTF-8")
+        except UnicodeDecodeError:
+            print("Error con UTF-8, intentando con ISO-8859-1...")
+            df = pd.read_csv(csv_path, encoding='ISO-8859-1')
+            df.to_json(json_path, orient='records', force_ascii=False)
+            print(f"Archivo {json_path} creado con ISO-8859-1")
+
+# Crear los JSON si no existen
+create_json_from_csv(csv_paths["occupations_es"], json_paths["occupations_es"])
+create_json_from_csv(csv_paths["skills_es"], json_paths["skills_es"])
+
 # Inicializar NLTK VADER para análisis de sentimientos
 try:
     nltk.download('vader_lexicon', quiet=True)
@@ -87,6 +104,9 @@ model_manager = ModelManager()
 class BaseNLPProcessor:
     """Clase base para procesadores NLP con spaCy y análisis de sentimientos en cascada."""
     def __init__(self, language: str = 'es'):
+        # Asegurarse de que los JSON existan
+        create_json_from_csv(csv_paths["occupations_es"], json_paths["occupations_es"])
+        create_json_from_csv(csv_paths["skills_es"], json_paths["skills_es"])
         self.language = language
         self.skills_catalog = load_catalog(CATALOG_PATHS.get(language, CATALOG_PATHS["es"])["skills"])
         self.occupations_catalog = load_catalog(CATALOG_PATHS.get(language, CATALOG_PATHS["es"])["occupations"])
