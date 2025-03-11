@@ -72,7 +72,7 @@ class ScrapingCache:
 class ScrapingPipeline:
     def __init__(self, opportunity_db=None):
         self.cache = ScrapingCache()
-        self.processor = OpportunityNLPProcessor(opportunity_db)
+        self.processor = NLPProcessor(language="es", mode="opportunity")
 
     async def process(self, jobs: List[Dict]) -> List[Dict]:
         jobs = await self.clean_data(jobs)

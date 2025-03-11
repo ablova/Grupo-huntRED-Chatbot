@@ -17,7 +17,7 @@ import os
 import django
 from typing import List
 from app.utilidades.scraping import validate_job_data, JobListing
-from app.chatbot.nlp import OpportunityNLPProcessor
+from app.chatbot.nlp import NLPProcessor
 
 #os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ai_huntred.settings")
 #django.setup()
@@ -326,23 +326,18 @@ def extract_benefits(soup):
     return benefits if benefits else None
 
 def extract_skills(description: str) -> List[str]:
-    """Extrae habilidades del texto usando SkillExtractor."""
+    """Extrae habilidades del texto usando NLPProcessor en modo oportunidad."""
     if not description:
         return []
         
     try:
-        # Usar el extractor de habilidades existente
-        from app.chatbot.nlp import get_skill_extractor
-
-
-        sn = get_skill_extractor.get()
-        if sn:
-            annotations = sn.annotate(description)
-            return list(set(skill['doc_node_value'] for skill in annotations['results']))
+        nlp = NLPProcessor(language="es", mode="opportunity")
+        skills_dict = nlp.extract_skills(description)
+        # Combinar habilidades técnicas y blandas (las relevantes para vacantes)
+        return list(set(skills_dict["technical"] + skills_dict["soft"]))
     except Exception as e:
         logger.error(f"Error extrayendo habilidades: {e}")
-        
-    return []
+        return []
 
 async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) -> list:
     """Extrae vacantes desde HTML o texto plano de manera asíncrona."""
@@ -604,7 +599,7 @@ async def process_job_alert_email(mail, email_id, message, stats):
             stats["total_vacancies"] += len(job_listings)
 
             # Analizar cada vacante con OpportunityNLPProcessor
-            processor = OpportunityNLPProcessor(opportunity_db)
+            processor = NLPProcessor(language="es", mode="opportunity")
             for job_data in job_listings:
                 description = job_data.get("job_description", "")
                 if description:

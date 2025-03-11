@@ -1326,7 +1326,7 @@ class ScrapingPipeline:
     """Procesa datos scraped antes de guardar o publicar."""
     def __init__(self):
         self.cache = ScrapingCache()
-        self.processor = OpportunityNLPProcessor(opportunity_db)
+        self.processor = NLPProcessor(language="es", mode="opportunity")
 
     async def process(self, jobs: List[Dict]) -> List[Dict]:
         """Procesa trabajos: limpia, enriquece y valida."""

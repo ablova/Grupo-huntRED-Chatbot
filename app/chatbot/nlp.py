@@ -103,17 +103,24 @@ class CandidateNLPProcessor(BaseNLPProcessor):
     def __init__(self, language: str = 'es'):
         super().__init__(language)
         self.all_skills = self._get_all_skills()  # Primero inicializamos all_skills
-        self.phrase_matcher = self._build_phrase_matcher()  # Luego usamos all_skills
+        self.phrase_matcher = self._build_phrase_matcher()
         self.matcher = self._build_matcher()
 
     def _get_all_skills(self) -> set:
-        """Extrae todas las habilidades del catálogo."""
+        """Extrae todas las habilidades del catálogo, manejando listas o diccionarios."""
         skills = set()
         for division in self.skills_catalog.values():
             for role_category in division.values():
                 for role, details in role_category.items():
-                    for category in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
-                        skills.update([s.lower() for s in details.get(category, [])])
+                    if isinstance(details, dict):  # Estructura como diccionario
+                        for category in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
+                            skills.update([s.lower() for s in details.get(category, [])])
+                    elif isinstance(details, list):  # Estructura como lista
+                        for item in details:
+                            if isinstance(item, list):  # Lista anidada de habilidades
+                                skills.update([s.lower() for s in item if isinstance(s, str)])
+                            elif isinstance(item, str):  # Habilidad directa
+                                skills.add(item.lower())
         return skills
 
     def _build_phrase_matcher(self) -> PhraseMatcher:
@@ -157,19 +164,37 @@ class CandidateNLPProcessor(BaseNLPProcessor):
         return skills
 
     def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
-        """Clasifica una habilidad según skills.json."""
+        """Clasifica una habilidad según skills.json, manejando listas o diccionarios."""
+        # Si unit se proporciona, filtrar el catálogo por unidad antes de clasificar
+        catalog = self.skills_catalog.get(unit, self.skills_catalog) if unit else self.skills_catalog
+    
         skill_lower = skill.lower()
         for division in self.skills_catalog.values():
             for role_category in division.values():
                 for role, details in role_category.items():
-                    if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
-                        skills_dict["technical"].append(skill_lower)
-                    elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
-                        skills_dict["soft"].append(skill_lower)
-                    elif skill_lower in [s.lower() for s in details.get("Certificaciones", [])]:
-                        skills_dict["certifications"].append(skill_lower)
-                    elif skill_lower in [s.lower() for s in details.get("Herramientas", [])]:
-                        skills_dict["tools"].append(skill_lower)
+                    if isinstance(details, dict):
+                        if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
+                            skills_dict["technical"].append(skill_lower)
+                        elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
+                            skills_dict["soft"].append(skill_lower)
+                        elif skill_lower in [s.lower() for s in details.get("Certificaciones", [])]:
+                            skills_dict["certifications"].append(skill_lower)
+                        elif skill_lower in [s.lower() for s in details.get("Herramientas", [])]:
+                            skills_dict["tools"].append(skill_lower)
+                    elif isinstance(details, list):
+                        # Asumimos que las habilidades están en sublistas o como strings
+                        for item in details:
+                            if isinstance(item, list):
+                                if skill_lower in [s.lower() for s in item if isinstance(s, str)]:
+                                    # Clasificación simple: si está en la lista, asumimos técnica por defecto
+                                    skills_dict["technical"].append(skill_lower)
+                            elif isinstance(item, str) and skill_lower == item.lower():
+                                skills_dict["technical"].append(skill_lower)
+        # Eliminar duplicados
+        skills_dict["technical"] = list(set(skills_dict["technical"]))
+        skills_dict["soft"] = list(set(skills_dict["soft"]))
+        skills_dict["certifications"] = list(set(skills_dict["certifications"]))
+        skills_dict["tools"] = list(set(skills_dict["tools"]))
 
     def analyze_candidate(self, text: str) -> Dict[str, any]:
         """Analiza el texto de un candidato."""
@@ -181,18 +206,25 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
     """Procesador NLP para oportunidades laborales."""
     def __init__(self, language: str = 'es'):
         super().__init__(language)
-        self.all_skills = self._get_all_skills()  # Primero inicializamos all_skills
-        self.phrase_matcher = self._build_phrase_matcher()  # Luego usamos all_skills
+        self.all_skills = self._get_all_skills()
+        self.phrase_matcher = self._build_phrase_matcher()
         self.matcher = self._build_matcher()
 
     def _get_all_skills(self) -> set:
-        """Extrae todas las habilidades del catálogo."""
+        """Extrae todas las habilidades del catálogo, manejando listas o diccionarios."""
         skills = set()
         for division in self.skills_catalog.values():
             for role_category in division.values():
                 for role, details in role_category.items():
-                    for category in ["Habilidades Técnicas", "Habilidades Blandas"]:
-                        skills.update([s.lower() for s in details.get(category, [])])
+                    if isinstance(details, dict):
+                        for category in ["Habilidades Técnicas", "Habilidades Blandas"]:
+                            skills.update([s.lower() for s in details.get(category, [])])
+                    elif isinstance(details, list):
+                        for item in details:
+                            if isinstance(item, list):
+                                skills.update([s.lower() for s in item if isinstance(s, str)])
+                            elif isinstance(item, str):
+                                skills.add(item.lower())
         return skills
 
     def _build_phrase_matcher(self) -> PhraseMatcher:
@@ -211,47 +243,89 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
             matcher.add("FLEXIBLE_SKILL", [pattern])
         return matcher
 
-    def extract_opportunity_details(self, text: str) -> Dict[str, any]:
-        """Extrae detalles con máxima cobertura de habilidades."""
+    def extract_opportunity_details(self, text: str) -> dict[str, any]:
         from app.chatbot.utils import clean_text
         text = clean_text(text)
         doc = self.nlp(text.lower())
-        details = {"skills": {"technical": [], "soft": []}, "location": None, "contract_type": None, "role": None}
+        details = {
+            "skills": {"technical": [], "soft": [], "certifications": []},
+            "location": None,
+            "contract_type": None,
+            "role": None
+        }
 
+        # Extraer habilidades con PhraseMatcher
         matches = self.phrase_matcher(doc)
-        for _, start, end in matches:
+        for match_id, start, end in matches:
             skill = doc[start:end].text
             self._classify_skill(skill, details["skills"])
 
+        # Coincidencias flexibles
         flex_matches = self.matcher(doc)
-        for _, start, end in flex_matches:
+        for match_id, start, end in flex_matches:
             skill = doc[start:end].text.split()[-1]
             self._classify_skill(skill, details["skills"])
 
+        # Buscar tokens individuales en el catálogo
         for token in doc:
             if token.text in self.all_skills:
                 self._classify_skill(token.text, details["skills"])
 
-        for ent in doc.ents:
-            ent_lower = ent.text.lower()
-            if ent_lower in ["méxico", "são paulo", "brasil"]:
-                details["location"] = ent_lower
-            elif ent_lower in ["permanente", "temporal", "freelance"]:
-                details["contract_type"] = ent_lower
+        # Extraer ubicación
+        location_patterns = ["ubicación:", "location:", "lugar:", "ciudad:", "país:"]
+        for sent in doc.sents:
+            for pattern in location_patterns:
+                if pattern in sent.text:
+                    possible_location = sent.text.split(pattern)[1].strip().split('.')[0]
+                    details["location"] = possible_location
+                    break
+            if details["location"]:
+                break
 
-        details["role"] = self._identify_role(text)
+        # Si no hay patrón, buscar entidades nombradas
+        if not details["location"]:
+            for ent in doc.ents:
+                if ent.label_ in ["LOC", "GPE"]:
+                    details["location"] = ent.text
+                    break
+
+        # Extraer tipo de contrato (opcional, si aparece en el texto)
+        contract_keywords = ["contrato", "tipo de empleo"]
+        contract_types = ["permanente", "temporal", "freelance", "full-time", "part-time"]
+        for sent in doc.sents:
+            for keyword in contract_keywords:
+                if keyword in sent.text:
+                    for ctype in contract_types:
+                        if ctype in sent.text:
+                            details["contract_type"] = ctype
+                            break
+
+        # Extraer rol (buscar patrones como "Se busca [rol]")
+        for sent in doc.sents:
+            if "se busca" in sent.text:
+                possible_role = sent.text.replace("se busca", "").split("con")[0].strip()
+                details["role"] = possible_role
+                break
+
         return details
-
     def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
-        """Clasifica habilidades para oportunidades."""
+        """Clasifica habilidades para oportunidades, manejando listas o diccionarios."""
         skill_lower = skill.lower()
         for division in self.skills_catalog.values():
             for role_category in division.values():
                 for role, details in role_category.items():
-                    if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
-                        skills_dict["technical"].append(skill_lower)
-                    elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
-                        skills_dict["soft"].append(skill_lower)
+                    if isinstance(details, dict):
+                        if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
+                            skills_dict["technical"].append(skill_lower)
+                        elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
+                            skills_dict["soft"].append(skill_lower)
+                    elif isinstance(details, list):
+                        for item in details:
+                            if isinstance(item, list):
+                                if skill_lower in [s.lower() for s in item if isinstance(s, str)]:
+                                    skills_dict["technical"].append(skill_lower)
+                            elif isinstance(item, str) and skill_lower == item.lower():
+                                skills_dict["technical"].append(skill_lower)
 
     def _identify_role(self, text: str) -> Optional[str]:
         """Identifica el rol basado en el catálogo."""
@@ -288,7 +362,7 @@ class NLPProcessor:
         self.mode = mode.lower()
         if self.mode == 'candidate':
             self.processor = CandidateNLPProcessor(language=self.language)
-        else:  # Default a 'opportunity'
+        else:
             self.processor = OpportunityNLPProcessor(language=self.language)
 
     def extract_skills(self, text: str) -> Dict[str, List[str]]:
