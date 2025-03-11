@@ -85,7 +85,7 @@ class ChatBotHandler:
                 "huntred": "Bienvenido a huntRED® 🚀\nSomos expertos en encontrar el mejor talento para empresas líderes.",
                 "huntred executive": "Bienvenido a huntRED® Executive 🌟\nNos especializamos en colocación de altos ejecutivos.",
                 "huntu": "Bienvenido a huntU® 🏆\nConectamos talento joven con oportunidades de alto impacto.",
-                "amigro": "Bienvenido a Amigro® 🌍\nFacilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México.",
+                "amigro": "Bienvenido a Amigro® 🌍\nFacilitamos el acceso laboral a mexicanos y migrantes de Latinoamérica ingresando al territorio nacional.",
                 "sexsi": "Bienvenido a SEXSI 🔐\nAquí puedes gestionar acuerdos de consentimiento seguros y firmarlos digitalmente."
             }
             logo_urls = {
@@ -212,7 +212,7 @@ class ChatBotHandler:
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {business_unit.name}: {text}")
 
             # Obtener o crear ChatState y usuario de forma asíncrona
-            chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
+            chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
                 user_id=user_id, business_unit=business_unit, defaults={'platform': platform}
             )
             user, _ = await self.get_or_create_user(user_id, platform)
@@ -222,6 +222,10 @@ class ChatBotHandler:
             if chat_state_person != user:
                 chat_state.person = user
                 await sync_to_async(chat_state.save)()
+            # Si es un ChatState recién creado, iniciar el flujo de bienvenida
+            if created:
+                await self.send_complete_initial_messages(platform, user_id, business_unit)
+                return
 
             # Verificación de TOS al inicio
             if not user.tos_accepted:
@@ -360,7 +364,8 @@ class ChatBotHandler:
             await send_message(platform, user_id, "Entrada inválida. Intenta de nuevo.", business_unit.name.lower())
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
-            await send_menu(platform, user_id, "No entendi que es lo que necesitas.", business_unit.name.lower())
+            await send_message(platform, user_id, "Disculpame, no comprendi que requieres, te comparto nuestro Menú para que me indiques como continuamos.", business_unit.name.lower())
+            await send_menu(platform, user_id, business_unit.name.lower())
             await send_message(platform, user_id, "O indicame que repetimos.", business_unit.name.lower())
         logger.info(f"[process_message] Procesamiento completado para {user_id} con respuesta enviada")
 

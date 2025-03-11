@@ -32,10 +32,10 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
     }
 
     # Detección por palabras clave
-    greeting_keywords = ["hola", "buenos días", "buenas tardes", "buenas noches"]
+    greeting_keywords = ["hola", "buenos días", "buenas tardes", "buenas noches", "inicio", "iniciar", "start", "go", "activar"]
     if any(keyword in text for keyword in greeting_keywords):
         response = INTENT_RESPONSES["saludo"]
-        await send_message(platform, user_id, response, business_unit)
+        await chat_bot_handler.send_complete_initial_messages(platform, user_id, business_unit)
         return True
 
     cv_keywords = ["cv", "currículum", "curriculum", "resume", "hoja de vida"]
