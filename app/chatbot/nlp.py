@@ -12,105 +12,55 @@ import pandas as pd
 import subprocess
 import sys
 import os
+from threading import Lock
 
-# Importación condicional para análisis profundo
+# Importaciones condicionales
 try:
     from deep_translator import GoogleTranslator
     TRANSLATOR_AVAILABLE = True
 except ImportError:
     TRANSLATOR_AVAILABLE = False
 
+try:
+    from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Modelos spaCy por idioma
+# Modelos spaCy por idioma y tamaño
 MODEL_LANGUAGES = {
-    "es": "es_core_news_md",      # Español
-    "en": "en_core_web_md",       # Inglés
-    "fr": "fr_core_news_md",      # Francés
-    "default": "xx_ent_wiki_sm"   # Multilingüe por defecto
+    "es": {"sm": "es_core_news_sm", "md": "es_core_news_md", "lg": "es_core_news_lg"},
+    "en": {"sm": "en_core_web_sm", "md": "en_core_web_md", "lg": "en_core_web_lg"},
+    "fr": {"sm": "fr_core_news_sm", "md": "fr_core_news_md", "lg": "fr_core_news_lg"},
+    "default": {"sm": "xx_ent_wiki_sm", "md": "xx_ent_wiki_sm", "lg": "xx_ent_wiki_sm"}
 }
 
 # Rutas a los catálogos
 CATALOG_PATHS = {
     "es": {
-        "skills": "catalogs/skills_es.json",
-        "occupations": "catalogs/occupations_es.json"
-    },
-    "en": {
-        "skills": "catalogs/skills_en.json",
-        "occupations": "catalogs/occupations_en.json"
+        "skills": "/home/pablo/app/chatbot/catalogs/skills_es.json",
+        "occupations": "/home/pablo/app/chatbot/catalogs/occupations_es.json",
+        "skills_relax": "/home/pablo/skills_data/skill_db_relax_20.json"
     }
 }
 
-# Ruta al catálogo de habilidades
-SKILLS_JSON_PATH = "/home/pablo/app/utilidades/catalogs/skills.json"
-
-# Paths to CSV files
+# Paths to CSV and JSON files
 csv_paths = {
     "occupations_es": "/home/pablo/app/utilidades/catalogs/occupations_es.csv",
     "skills_es": "/home/pablo/app/utilidades/catalogs/skills_es.csv"
 }
-
-# Paths to JSON files
 json_paths = {
     "occupations_es": "/home/pablo/app/utilidades/catalogs/occupations_es.json",
     "skills_es": "/home/pablo/app/utilidades/catalogs/skills_es.json"
 }
 
-def create_json_from_csv(csv_path, json_path):
-    """Crea un archivo JSON a partir de un CSV si el JSON no existe."""
-    import os
-    
-    # Check if the JSON already exists
-    if os.path.exists(json_path):
-        return True
-        
-    # Check if CSV exists
-    if not os.path.exists(csv_path):
-        logger.warning(f"CSV file {csv_path} does not exist.")
-        
-        # Create an empty JSON file if the directory exists
-        json_dir = os.path.dirname(json_path)
-        if not os.path.exists(json_dir):
-            try:
-                os.makedirs(json_dir)
-                logger.info(f"Created directory: {json_dir}")
-            except Exception as e:
-                logger.error(f"Error creating directory {json_dir}: {e}")
-                return False
-        
-        # Create an empty JSON file
-        try:
-            with open(json_path, 'w', encoding='utf-8') as f:
-                f.write('[]')  # Empty JSON array
-            logger.info(f"Created empty JSON file: {json_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Error creating empty JSON file {json_path}: {e}")
-            return False
-    
-    # If CSV exists, convert it to JSON
-    try:
-        df = pd.read_csv(csv_path, encoding='utf-8')
-        df.to_json(json_path, orient='records', force_ascii=False)
-        logger.info(f"Created {json_path} from {csv_path} with UTF-8")
-        return True
-    except UnicodeDecodeError:
-        logger.info("Error with UTF-8, trying with ISO-8859-1...")
-        try:
-            df = pd.read_csv(csv_path, encoding='ISO-8859-1')
-            df.to_json(json_path, orient='records', force_ascii=False)
-            logger.info(f"Created {json_path} with ISO-8859-1")
-            return True
-        except Exception as e:
-            logger.error(f"Error processing CSV with ISO-8859-1: {e}")
-            return False
-    except Exception as e:
-        logger.error(f"Error processing CSV {csv_path}: {e}")
-        return False
+# Lock para escritura segura en JSON
+json_lock = Lock()
 
-# Inicializar NLTK VADER para análisis de sentimientos (análisis rápido)
+# Inicializar NLTK VADER
 try:
     nltk.download('vader_lexicon', quiet=True)
     SIA = SentimentIntensityAnalyzer()
@@ -118,14 +68,7 @@ except Exception as e:
     logger.error(f"Error inicializando NLTK VADER: {e}")
     SIA = None
 
-# Asegurar que los JSON existan
-for csv_key, json_key in [("occupations_es", "occupations_es"), ("skills_es", "skills_es")]:
-    success = create_json_from_csv(csv_paths[csv_key], json_paths[json_key])
-    if not success:
-        logger.warning(f"Could not create/find {json_key} data. Some functionality may be limited.")
-
 def load_catalog(path: str) -> Dict:
-    """Carga un catálogo desde un archivo JSON."""
     try:
         with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -133,405 +76,329 @@ def load_catalog(path: str) -> Dict:
         logger.error(f"Error cargando {path}: {e}")
         return {}
 
-class ModelManager:
-    """Gestor de modelos spaCy con caché y descarga bajo demanda."""
-    def __init__(self):
-        # Caché con límite de 5 modelos y tiempo de vida de 6 horas
-        self.model_cache = TTLCache(maxsize=5, ttl=21600)
+def save_catalog(path: str, data: Dict) -> None:
+    with json_lock:
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            logger.info(f"Catálogo actualizado: {path}")
+        except Exception as e:
+            logger.error(f"Error guardando {path}: {e}")
 
-    def get_model(self, lang: str, size: str = 'md') -> spacy.language.Language:
-        """
-        Obtiene el modelo spaCy para el idioma, descargándolo si es necesario.
-        
-        Args:
-            lang: Código de idioma ('es', 'en', etc.)
-            size: Tamaño del modelo ('sm', 'md', 'lg') - solo usado para análisis profundo
-        """
+def create_json_from_csv(csv_path, json_path):
+    if os.path.exists(json_path):
+        logger.info(f"JSON file {json_path} already exists.")
+        return True
+    if not os.path.exists(csv_path):
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
+        with open(json_path, 'w', encoding='utf-8') as f:
+            f.write('{"division1": {"role1": {"Habilidades Técnicas": [], "Habilidades Blandas": []}}}')
+        logger.info(f"Created empty JSON file: {json_path}")
+        return True
+    try:
+        df = pd.read_csv(csv_path, encoding='utf-8')
+        df.to_json(json_path, orient='records', force_ascii=False)
+        logger.info(f"Created {json_path} from {csv_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Error processing CSV {csv_path}: {e}")
+        return False
+
+# Crear los JSON si no existen
+create_json_from_csv(csv_paths["occupations_es"], json_paths["occupations_es"])
+create_json_from_csv(csv_paths["skills_es"], json_paths["skills_es"])
+
+class ModelManager:
+    def __init__(self):
+        self.model_cache = TTLCache(maxsize=10, ttl=21600)  # Más espacio para diferentes tamaños
+
+    def get_model(self, lang: str, size: str = 'sm') -> spacy.language.Language:
         cache_key = f"{lang}_{size}"
         if cache_key in self.model_cache:
             return self.model_cache[cache_key]
-        
-        model_name = MODEL_LANGUAGES.get(lang, MODEL_LANGUAGES["default"])
-        # Si se pide un modelo pequeño y estamos usando modelo mediano, usamos el pequeño para quick mode
-        if size == 'sm' and 'md' in model_name:
-            model_name = model_name.replace('md', 'sm')
-        
+        model_name = MODEL_LANGUAGES.get(lang, MODEL_LANGUAGES["default"]).get(size, MODEL_LANGUAGES["default"]["sm"])
         try:
             model = spacy.load(model_name)
-            logger.info(f"Modelo {model_name} cargado desde el sistema.")
         except OSError:
-            logger.info(f"Modelo {model_name} no encontrado. Descargando...")
+            logger.info(f"Descargando modelo {model_name}...")
             subprocess.check_call([sys.executable, "-m", "spacy", "download", model_name])
             model = spacy.load(model_name)
-            logger.info(f"Modelo {model_name} descargado y cargado.")
-        
         self.model_cache[cache_key] = model
         return model
 
-# Instancia global del gestor de modelos
 model_manager = ModelManager()
 
+class AdvancedModelManager:
+    """Gestor de modelos avanzados (transformers) para modo profundo."""
+    def __init__(self):
+        self.sentiment_pipeline = None
+        self.ner_pipelines = {}
+        self.tokenizer_cache = TTLCache(maxsize=5, ttl=21600)
+        self.model_cache = TTLCache(maxsize=5, ttl=21600)
+
+    def get_sentiment_pipeline(self):
+        if not TRANSFORMERS_AVAILABLE:
+            return None
+        if not self.sentiment_pipeline:
+            self.sentiment_pipeline = pipeline('sentiment-analysis', model='cardiffnlp/twitter-roberta-base-sentiment-latest')
+        return self.sentiment_pipeline
+
+    def get_ner_pipeline(self, model_path: str):
+        if not TRANSFORMERS_AVAILABLE:
+            return None
+        if model_path not in self.ner_pipelines:
+            try:
+                self.ner_pipelines[model_path] = pipeline("ner", model=model_path)
+                logger.info(f"Cargado NER: {model_path}")
+            except Exception as e:
+                logger.error(f"Error cargando NER {model_path}: {e}")
+                return None
+        return self.ner_pipelines[model_path]
+
+advanced_model_manager = AdvancedModelManager()
+
 class BaseNLPProcessor:
-    """Clase base para procesadores NLP con interfaz común."""
     def __init__(self, language: str = 'es', mode: str = 'quick'):
-        """
-        Inicializa el procesador NLP base.
-        
-        Args:
-            language: Código de idioma ('es', 'en', etc.)
-            mode: Modo de análisis ('quick' o 'deep')
-        """
         self.language = language
         self.mode = mode
-        self.skills_catalog = load_catalog(CATALOG_PATHS.get(language, CATALOG_PATHS["es"])["skills"])
-        self.occupations_catalog = load_catalog(CATALOG_PATHS.get(language, CATALOG_PATHS["es"])["occupations"])
-        
-        # Elegir el tamaño del modelo según el modo
-        model_size = 'sm' if mode == 'quick' else 'md'
-        self.nlp = model_manager.get_model(language, model_size)
-        
-        # Caché optimizada según el modo
-        cache_ttl = 3600 if mode == 'quick' else 7200  # 1h en modo rápido, 2h en modo profundo
-        self.skill_cache = TTLCache(maxsize=5000, ttl=cache_ttl)
-        
-        # Inicializar analizador de sentimiento según el modo
-        self.sentiment_analyzer = self._init_sentiment_analyzer()
-    
-    def _init_sentiment_analyzer(self):
-        """Inicializa el analizador de sentimiento apropiado según el modo."""
-        if self.mode == 'quick' or not self._is_transformers_available():
-            return SIA
-        
-        # Solo carga transformers en modo profundo
+        self.nlp = model_manager.get_model(language, 'sm' if mode == 'quick' else 'md')
+        self.skills_catalog = load_catalog(CATALOG_PATHS["es"]["skills"])
+        self.occupations_catalog = load_catalog(CATALOG_PATHS["es"]["occupations"])
+        self.skills_relax_catalog = load_catalog(CATALOG_PATHS["es"]["skills_relax"])
+        self.all_skills = self._get_all_skills()
+        self.phrase_matcher = self._build_phrase_matcher()
+        self.matcher = self._build_matcher() if mode == 'deep' else None
+        self.skill_cache = TTLCache(maxsize=5000, ttl=3600 if mode == 'quick' else 7200)
+        self.sentiment_analyzer = SIA if mode == 'quick' or not TRANSFORMERS_AVAILABLE else advanced_model_manager.get_sentiment_pipeline()
+        if mode == 'deep' and TRANSLATOR_AVAILABLE:
+            self.translator = GoogleTranslator(source='auto', target='es')
+            self.translation_cache = TTLCache(maxsize=1000, ttl=3600)
+        else:
+            self.translator = None
+
+    def _get_all_skills(self) -> Set[str]:
+        skills = set()
+        for catalog in [self.skills_catalog, self.skills_relax_catalog]:
+            if isinstance(catalog, dict):
+                for division in catalog.values():
+                    for role_category in division.values():
+                        for role, details in role_category.items():
+                            if isinstance(details, dict):
+                                for category in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
+                                    skills.update([s.lower() for s in details.get(category, [])])
+                            elif isinstance(details, list):
+                                skills.update([s.lower() for s in details if isinstance(s, str)])
+            elif isinstance(catalog, list):
+                skills.update([s.lower() for s in catalog if isinstance(s, str)])
+        logger.info(f"Total habilidades: {len(skills)} - Ejemplos: {list(skills)[:5]}")
+        return skills
+
+    def _build_phrase_matcher(self) -> PhraseMatcher:
+        matcher = PhraseMatcher(self.nlp.vocab, attr='LOWER')
+        patterns = [self.nlp.make_doc(skill) for skill in self.all_skills]
+        matcher.add("SKILL", patterns)
+        return matcher
+
+    def _build_matcher(self) -> Matcher:
+        matcher = Matcher(self.nlp.vocab)
+        for skill in self.all_skills:
+            pattern = [{"LOWER": {"IN": ["experiencia", "conocimiento", "uso", "habilidad", "requiere", "necesita"]}, "OP": "*"},
+                       {"LOWER": skill}]
+            matcher.add(f"SKILL_{skill}", [pattern])
+        return matcher
+
+    def get_sentiment(self, text: str) -> Dict[str, Union[str, float]]:
+        if not self.sentiment_analyzer:
+            return {"label": "neutral", "score": 0.0}
+        if self.mode == 'quick':
+            scores = SIA.polarity_scores(text)
+            compound = scores['compound']
+            label = "positive" if compound >= 0.05 else "negative" if compound <= -0.05 else "neutral"
+            return {"label": label, "score": abs(compound)}
         try:
-            from transformers import pipeline
-            return pipeline('sentiment-analysis', 
-                           model='cardiffnlp/twitter-roberta-base-sentiment-latest')
+            result = self.sentiment_analyzer(text[:512])[0]
+            return {"label": result["label"], "score": result["score"]}
         except Exception as e:
-            logger.warning(f"No se pudo cargar transformers: {e}. Usando NLTK VADER.")
-            return SIA
-    
-    def _is_transformers_available(self):
-        """Verifica si transformers está disponible."""
-        try:
-            import transformers
-            return True
-        except ImportError:
-            return False
-    
-    def get_sentiment(self, text: str) -> str:
-        """Analiza el sentimiento según el modo configurado."""
-        if self.mode == 'quick' or not hasattr(self.sentiment_analyzer, '__call__'):
-            # Análisis rápido con VADER
-            if SIA:
-                try:
-                    scores = SIA.polarity_scores(text)
-                    compound = scores['compound']
-                    if compound >= 0.05:
-                        return "positive"
-                    elif compound <= -0.05:
-                        return "negative"
-                except Exception as e:
-                    logger.error(f"Error con NLTK VADER: {e}")
-            return "neutral"
-        
-        # Análisis profundo con transformers
-        try:
-            result = self.sentiment_analyzer(text[:512])
-            return result[0]['label']
-        except Exception as e:
-            logger.error(f"Error con sentiment pipeline: {e}")
-            return "neutral"
+            logger.error(f"Error en análisis de sentimiento: {e}")
+            return {"label": "neutral", "score": 0.0}
 
     def extract_entities(self, text: str) -> List[str]:
-        """Extrae entidades nombradas con spaCy."""
         from app.chatbot.utils import clean_text
         text = clean_text(text)
         doc = self.nlp(text.lower())
         return [ent.text.lower() for ent in doc.ents]
 
 class CandidateProcessor(BaseNLPProcessor):
-    """Procesador NLP para candidatos con máxima extracción de habilidades."""
     def __init__(self, language: str = 'es', mode: str = 'quick'):
         super().__init__(language, mode)
-        self.all_skills = self._get_all_skills()
-        self.phrase_matcher = self._build_phrase_matcher()
-        
-        # Solo construir matcher complejo en modo deep
-        if self.mode == 'deep':
-            self.matcher = self._build_matcher()
+        if mode == 'deep' and TRANSFORMERS_AVAILABLE:
+            self.linkedin_ner = advanced_model_manager.get_ner_pipeline("/home/pablo/skills_data/algiraldohe_lm-ner-linkedin-skills-recognition")
+            self.ihk_ner = advanced_model_manager.get_ner_pipeline("/home/pablo/skills_data/ihk_skillner")
         else:
-            self.matcher = None
-            
-        # Solo inicializar traductor en modo deep si está disponible
-        if self.mode == 'deep' and TRANSLATOR_AVAILABLE:
-            from deep_translator import GoogleTranslator
-            self.translator = GoogleTranslator(source='auto', target='es')
-            self.translation_cache = TTLCache(maxsize=1000, ttl=3600)
-        else:
-            self.translator = None
-
-    def _get_all_skills(self) -> set:
-        """Extrae todas las habilidades del catálogo."""
-        skills = set()
-        for division in self.skills_catalog.values():
-            for role_category in division.values():
-                for role, details in role_category.items():
-                    if isinstance(details, dict):
-                        for category in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
-                            skills.update([s.lower() for s in details.get(category, [])])
-                    elif isinstance(details, list):
-                        for item in details:
-                            if isinstance(item, list):
-                                skills.update([s.lower() for s in item if isinstance(s, str)])
-                            elif isinstance(item, str):
-                                skills.add(item.lower())
-        return skills
-
-    def _build_phrase_matcher(self) -> PhraseMatcher:
-        """Construye un PhraseMatcher para coincidencias exactas."""
-        matcher = PhraseMatcher(self.nlp.vocab, attr='LOWER')
-        patterns = [self.nlp.make_doc(skill) for skill in self.all_skills]
-        matcher.add("SKILL", patterns)
-        return matcher
-
-    def _build_matcher(self) -> Matcher:
-        """Construye un Matcher para patrones flexibles - solo modo deep."""
-        matcher = Matcher(self.nlp.vocab)
-        for skill in self.all_skills:
-            pattern = [{"LOWER": {"IN": ["experiencia", "conocimiento", "uso", "habilidad"]}, "OP": "*"},
-                      {"LOWER": skill}]
-            matcher.add("FLEXIBLE_SKILL", [pattern])
-        return matcher
+            self.linkedin_ner = None
+            self.ihk_ner = None
 
     @cachedmethod(lambda self: self.skill_cache)
     def extract_skills(self, text: str) -> Dict[str, List[str]]:
-        """Extrae habilidades con diferente nivel de profundidad según el modo."""
         from app.chatbot.utils import clean_text
         text = clean_text(text)
         doc = self.nlp(text.lower())
         skills = {"technical": [], "soft": [], "certifications": [], "tools": []}
 
-        # Coincidencias básicas con PhraseMatcher - funciona en ambos modos
+        # Modo rápido: solo PhraseMatcher
         matches = self.phrase_matcher(doc)
         for _, start, end in matches:
             skill = doc[start:end].text
             self._classify_skill(skill, skills)
 
-        # Análisis más profundo solo en modo 'deep'
+        # Modo profundo: Matcher + NER
         if self.mode == 'deep':
-            # Coincidencias flexibles con Matcher
-            flex_matches = self.matcher(doc)
-            for _, start, end in flex_matches:
-                skill = doc[start:end].text.split()[-1]
-                self._classify_skill(skill, skills)
+            if self.matcher:
+                flex_matches = self.matcher(doc)
+                for _, start, end in flex_matches:
+                    skill = doc[start:end].text.split()[-1]
+                    self._classify_skill(skill, skills)
 
-            # Búsqueda por tokens individuales
-            for token in doc:
-                if token.text in self.all_skills:
-                    self._classify_skill(token.text, skills)
-                    
-            # Traducción para textos no españoles (si está disponible)
-            if self.translator and self.language != 'es':
-                try:
-                    translated_text = self.translator.translate(text)
-                    # Analizar traducción para detectar más habilidades
-                    trans_doc = self.nlp(translated_text.lower())
-                    trans_matches = self.phrase_matcher(trans_doc)
-                    for _, start, end in trans_matches:
-                        skill = trans_doc[start:end].text
-                        self._classify_skill(skill, skills)
-                except Exception as e:
-                    logger.error(f"Error en traducción: {e}")
+            if self.linkedin_ner:
+                entities = self.linkedin_ner(text)
+                for entity in entities:
+                    if entity["entity"].startswith("SKILL"):
+                        self._classify_skill(entity["word"], skills)
+            if self.ihk_ner:
+                entities = self.ihk_ner(text)
+                for entity in entities:
+                    if entity["entity"].startswith("SKILL"):
+                        self._classify_skill(entity["word"], skills)
 
-        return skills
+            if self.translator and detect(text) != 'es':
+                translated = self.translator.translate(text)
+                trans_doc = self.nlp(translated.lower())
+                trans_matches = self.phrase_matcher(trans_doc)
+                for _, start, end in trans_matches:
+                    skill = trans_doc[start:end].text
+                    self._classify_skill(skill, skills)
 
-    def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]], unit: str = None):
-        """Clasifica una habilidad según el catálogo."""
+            self._update_catalogs(skills)
+
+        return {k: list(set(v)) for k, v in skills.items()}
+
+    def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
         skill_lower = skill.lower()
         for division in self.skills_catalog.values():
             for role_category in division.values():
                 for role, details in role_category.items():
                     if isinstance(details, dict):
-                        if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
-                            skills_dict["technical"].append(skill_lower)
-                        elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
-                            skills_dict["soft"].append(skill_lower)
-                        elif skill_lower in [s.lower() for s in details.get("Certificaciones", [])]:
-                            skills_dict["certifications"].append(skill_lower)
-                        elif skill_lower in [s.lower() for s in details.get("Herramientas", [])]:
-                            skills_dict["tools"].append(skill_lower)
-                    elif isinstance(details, list):
-                        for item in details:
-                            if isinstance(item, list):
-                                if skill_lower in [s.lower() for s in item if isinstance(s, str)]:
-                                    skills_dict["technical"].append(skill_lower)
-                            elif isinstance(item, str) and skill_lower == item.lower():
-                                skills_dict["technical"].append(skill_lower)
-        # Eliminar duplicados
-        skills_dict["technical"] = list(set(skills_dict["technical"]))
-        skills_dict["soft"] = list(set(skills_dict["soft"]))
-        skills_dict["certifications"] = list(set(skills_dict["certifications"]))
-        skills_dict["tools"] = list(set(skills_dict["tools"]))
+                        for category, key in [("Habilidades Técnicas", "technical"), ("Habilidades Blandas", "soft"),
+                                             ("Certificaciones", "certifications"), ("Herramientas", "tools")]:
+                            if skill_lower in [s.lower() for s in details.get(category, [])]:
+                                skills_dict[key].append(skill_lower)
+
+    def _update_catalogs(self, skills: Dict[str, List[str]]):
+        skills_catalog = load_catalog(CATALOG_PATHS["es"]["skills"])
+        if "division1" not in skills_catalog:
+            skills_catalog["division1"] = {"role1": {"Habilidades Técnicas": [], "Habilidades Blandas": [], "Certificaciones": [], "Herramientas": []}}
+        for category, key in [("Habilidades Técnicas", "technical"), ("Habilidades Blandas", "soft"), ("Certificaciones", "certifications"), ("Herramientas", "tools")]:
+            current = skills_catalog["division1"]["role1"][category]
+            for skill in skills[key]:
+                if skill not in [s.lower() for s in current]:
+                    current.append(skill.capitalize())
+        save_catalog(CATALOG_PATHS["es"]["skills"], skills_catalog)
 
     def analyze_candidate(self, text: str) -> Dict[str, any]:
-        """Analiza el texto de un candidato."""
-        skills_data = self.extract_skills(text)
+        skills = self.extract_skills(text)
         sentiment = self.get_sentiment(text)
-        
-        # En modo profundo, añadir más análisis
+        result = {"skills": skills, "sentiment": sentiment["label"], "sentiment_score": sentiment["score"]}
         if self.mode == 'deep':
-            return {
-                "skills": skills_data, 
-                "sentiment": sentiment,
-                "entities": self.extract_entities(text)
-            }
-        
-        # En modo rápido, solo lo básico
-        return {"skills": skills_data, "sentiment": sentiment}
+            result["entities"] = self.extract_entities(text)
+            result["experience_level"] = self._detect_experience_level(text)
+        return result
+
+    def _detect_experience_level(self, text: str) -> Dict[str, str]:
+        levels = {}
+        doc = self.nlp(text.lower())
+        for sent in doc.sents:
+            for skill in self.all_skills:
+                if skill in sent.text:
+                    if any(w in sent.text for w in ["experto", "avanzado", "senior"]):
+                        levels[skill] = "advanced"
+                    elif any(w in sent.text for w in ["básico", "principiante", "junior"]):
+                        levels[skill] = "basic"
+                    else:
+                        levels[skill] = "intermediate"
+        return levels
 
 class OpportunityProcessor(BaseNLPProcessor):
-    """Procesador NLP para oportunidades laborales."""
     def __init__(self, language: str = 'es', mode: str = 'quick'):
         super().__init__(language, mode)
-        self.all_skills = self._get_all_skills()
-        self.phrase_matcher = self._build_phrase_matcher()
-        
-        # Solo construir matcher complejo en modo deep
-        if self.mode == 'deep':
-            self.matcher = self._build_matcher()
+        if mode == 'deep' and TRANSFORMERS_AVAILABLE:
+            self.linkedin_ner = advanced_model_manager.get_ner_pipeline("/home/pablo/skills_data/algiraldohe_lm-ner-linkedin-skills-recognition")
+            self.ihk_ner = advanced_model_manager.get_ner_pipeline("/home/pablo/skills_data/ihk_skillner")
         else:
-            self.matcher = None
+            self.linkedin_ner = None
+            self.ihk_ner = None
 
-    def _get_all_skills(self) -> set:
-        """Extrae todas las habilidades del catálogo."""
-        skills = set()
-        for division in self.skills_catalog.values():
-            for role_category in division.values():
-                for role, details in role_category.items():
-                    if isinstance(details, dict):
-                        for category in ["Habilidades Técnicas", "Habilidades Blandas"]:
-                            skills.update([s.lower() for s in details.get(category, [])])
-                    elif isinstance(details, list):
-                        for item in details:
-                            if isinstance(item, list):
-                                skills.update([s.lower() for s in item if isinstance(s, str)])
-                            elif isinstance(item, str):
-                                skills.add(item.lower())
-        return skills
-    
-    def _build_phrase_matcher(self) -> PhraseMatcher:
-        """Construye un PhraseMatcher para oportunidades."""
-        matcher = PhraseMatcher(self.nlp.vocab, attr='LOWER')
-        patterns = [self.nlp.make_doc(skill) for skill in self.all_skills]
-        matcher.add("SKILL", patterns)
-        return matcher
-
-    def _build_matcher(self) -> Matcher:
-        """Construye un Matcher para patrones flexibles - solo modo deep."""
-        matcher = Matcher(self.nlp.vocab)
-        for skill in self.all_skills:
-            pattern = [{"LOWER": {"IN": ["requiere", "necesita", "con", "en"]}, "OP": "*"},
-                      {"LOWER": skill}]
-            matcher.add("FLEXIBLE_SKILL", [pattern])
-        return matcher
-
-    def extract_opportunity_details(self, text: str) -> dict[str, any]:
-        """Extrae detalles de oportunidad con diferente nivel de profundidad según el modo."""
+    def extract_opportunity_details(self, text: str) -> Dict[str, any]:
         from app.chatbot.utils import clean_text
         text = clean_text(text)
         doc = self.nlp(text.lower())
-        details = {
-            "skills": {"technical": [], "soft": [], "certifications": []},
-            "location": None,
-            "role": None
-        }
-        
-        # También extraer tipo de contrato en modo profundo
-        if self.mode == 'deep':
-            details["contract_type"] = None
+        details = {"skills": {"technical": [], "soft": [], "certifications": []}, "location": None, "role": None, "contract_type": None}
 
-        # Extraer habilidades con PhraseMatcher - común en ambos modos
         matches = self.phrase_matcher(doc)
         for _, start, end in matches:
             skill = doc[start:end].text
             self._classify_skill(skill, details["skills"])
 
-        # Análisis más profundo solo en modo 'deep'
-        if self.mode == 'deep' and self.matcher:
-            # Coincidencias flexibles
-            flex_matches = self.matcher(doc)
-            for _, start, end in flex_matches:
-                skill = doc[start:end].text.split()[-1]
-                self._classify_skill(skill, details["skills"])
+        if self.mode == 'deep':
+            if self.matcher:
+                flex_matches = self.matcher(doc)
+                for _, start, end in flex_matches:
+                    skill = doc[start:end].text.split()[-1]
+                    self._classify_skill(skill, details["skills"])
+            if self.linkedin_ner:
+                entities = self.linkedin_ner(text)
+                for entity in entities:
+                    if entity["entity"].startswith("SKILL"):
+                        self._classify_skill(entity["word"], details["skills"])
+            if self.ihk_ner:
+                entities = self.ihk_ner(text)
+                for entity in entities:
+                    if entity["entity"].startswith("SKILL"):
+                        self._classify_skill(entity["word"], details["skills"])
+            self._update_catalogs(details["skills"])
 
-            # Análisis por tokens
-            for token in doc:
-                if token.text in self.all_skills:
-                    self._classify_skill(token.text, details["skills"])
-
-        # Extraer ubicación - siempre
         for ent in doc.ents:
             if ent.label_ in ["LOC", "GPE"]:
                 details["location"] = ent.text
                 break
-                
-        # Extraer rol - siempre pero con diferentes métodos según el modo
-        if self.mode == 'quick':
-            # Método simple para encontrar rol
-            role = self._identify_role(text)
-            if role:
-                details["role"] = role
-        else:
-            # Método más avanzado en modo profundo
-            for sent in doc.sents:
-                if "se busca" in sent.text:
-                    possible_role = sent.text.replace("se busca", "").split("con")[0].strip()
-                    details["role"] = possible_role
-                    break
-                elif "vacante" in sent.text:
-                    possible_role = sent.text.split("vacante")[1].split("para")[0].strip()
-                    details["role"] = possible_role
-                    break
-            
-            # Extraer tipo de contrato - solo en modo profundo
-            contract_keywords = ["contrato", "tipo de empleo"]
-            contract_types = ["permanente", "temporal", "freelance", "full-time", "part-time"]
-            for sent in doc.sents:
-                for keyword in contract_keywords:
-                    if keyword in sent.text:
-                        for ctype in contract_types:
-                            if ctype in sent.text:
-                                details["contract_type"] = ctype
-                                break
+        details["role"] = self._identify_role(text)
+        if self.mode == 'deep':
+            details["contract_type"] = self._detect_contract_type(text)
 
-        # Normalizar resultados
         details["skills"] = {k: list(set(v)) for k, v in details["skills"].items()}
         return details
-    
+
     def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
-        """Clasifica habilidades para oportunidades."""
         skill_lower = skill.lower()
         for division in self.skills_catalog.values():
             for role_category in division.values():
                 for role, details in role_category.items():
                     if isinstance(details, dict):
-                        if skill_lower in [s.lower() for s in details.get("Habilidades Técnicas", [])]:
-                            skills_dict["technical"].append(skill_lower)
-                        elif skill_lower in [s.lower() for s in details.get("Habilidades Blandas", [])]:
-                            skills_dict["soft"].append(skill_lower)
-                        elif "Certificaciones" in skills_dict and skill_lower in [s.lower() for s in details.get("Certificaciones", [])]:
-                            skills_dict["certifications"].append(skill_lower)
-                    elif isinstance(details, list):
-                        for item in details:
-                            if isinstance(item, list):
-                                if skill_lower in [s.lower() for s in item if isinstance(s, str)]:
-                                    skills_dict["technical"].append(skill_lower)
-                            elif isinstance(item, str) and skill_lower == item.lower():
-                                skills_dict["technical"].append(skill_lower)
+                        for category, key in [("Habilidades Técnicas", "technical"), ("Habilidades Blandas", "soft"), ("Certificaciones", "certifications")]:
+                            if skill_lower in [s.lower() for s in details.get(category, [])]:
+                                skills_dict[key].append(skill_lower)
+
+    def _update_catalogs(self, skills: Dict[str, List[str]]):
+        skills_catalog = load_catalog(CATALOG_PATHS["es"]["skills"])
+        if "division1" not in skills_catalog:
+            skills_catalog["division1"] = {"role1": {"Habilidades Técnicas": [], "Habilidades Blandas": [], "Certificaciones": []}}
+        for category, key in [("Habilidades Técnicas", "technical"), ("Habilidades Blandas", "soft"), ("Certificaciones", "certifications")]:
+            current = skills_catalog["division1"]["role1"][category]
+            for skill in skills[key]:
+                if skill not in [s.lower() for s in current]:
+                    current.append(skill.capitalize())
+        save_catalog(CATALOG_PATHS["es"]["skills"], skills_catalog)
 
     def _identify_role(self, text: str) -> Optional[str]:
-        """Identifica el rol basado en el catálogo."""
         text_lower = text.lower()
         for division in self.skills_catalog.values():
             for role_category in division.values():
@@ -540,108 +407,77 @@ class OpportunityProcessor(BaseNLPProcessor):
                         return role
         return None
 
+    def _detect_contract_type(self, text: str) -> Optional[str]:
+        contract_types = ["permanente", "temporal", "freelance", "full-time", "part-time"]
+        for sent in self.nlp(text.lower()).sents:
+            for ctype in contract_types:
+                if ctype in sent.text:
+                    return ctype
+        return None
+
     def analyze_opportunity(self, text: str) -> Dict[str, any]:
-        """Analiza una oportunidad laboral completa."""
         details = self.extract_opportunity_details(text)
         sentiment = self.get_sentiment(text)
-        
-        # En modo deep, añadir clasificación de trabajo
+        result = {"details": details, "sentiment": sentiment["label"], "sentiment_score": sentiment["score"]}
         if self.mode == 'deep':
-            doc = self.nlp(text.lower())
-            job_classification = "unknown"
-            for ent in doc.ents:
-                if "ingeniero" in ent.text.lower() or "engineer" in ent.text.lower():
-                    job_classification = "Software Engineer"
-                    break
-                
-            return {
-                "details": details, 
-                "sentiment": sentiment,
-                "job_classification": job_classification,
-                "entities": self.extract_entities(text)
-            }
-        
-        # En modo rápido, solo lo básico
-        return {"details": details, "sentiment": sentiment}
+            result["entities"] = self.extract_entities(text)
+        return result
 
 class NLPProcessor:
-    """
-    Clase principal que mantiene compatibilidad con código existente.
-    Permite elegir entre modo rápido y profundo.
-    """
     def __init__(self, language: str = 'es', mode: str = 'opportunity', analysis_depth: str = 'quick'):
-        """
-        Inicializa el procesador NLP.
-        
-        Args:
-            language: Código de idioma ('es', 'en', etc.)
-            mode: Tipo de análisis ('candidate' o 'opportunity')
-            analysis_depth: Profundidad de análisis ('quick' o 'deep')
-        """
         self.language = language
         self.mode = mode.lower()
         self.analysis_depth = analysis_depth.lower()
-        
-        # Validar y corregir parámetros
         if self.analysis_depth not in ['quick', 'deep']:
-            logger.warning(f"Modo de análisis '{self.analysis_depth}' no válido. Usando 'quick'.")
+            logger.warning(f"Profundidad '{self.analysis_depth}' no válida. Usando 'quick'.")
             self.analysis_depth = 'quick'
-            
         if self.mode == 'candidate':
             self.processor = CandidateProcessor(language=self.language, mode=self.analysis_depth)
         else:
             self.processor = OpportunityProcessor(language=self.language, mode=self.analysis_depth)
-            
-        logger.info(f"NLPProcessor inicializado: modo={self.mode}, profundidad={self.analysis_depth}, idioma={self.language}")
+        logger.info(f"NLPProcessor: mode={self.mode}, depth={self.analysis_depth}, lang={self.language}")
 
     def extract_skills(self, text: str) -> Dict[str, List[str]]:
-        """Extrae habilidades usando el procesador adecuado."""
         if self.mode == 'candidate':
             return self.processor.extract_skills(text)
         return self.processor.extract_opportunity_details(text)["skills"]
 
     def analyze(self, text: str) -> Dict[str, any]:
-        """Analiza el texto según el modo."""
         if self.mode == 'candidate':
             return self.processor.analyze_candidate(text)
         return self.processor.analyze_opportunity(text)
 
-    def get_sentiment(self, text: str) -> str:
-        """Obtiene el sentimiento usando el procesador base."""
-        return self.processor.get_sentiment(text)
-        
     def set_analysis_depth(self, depth: Literal['quick', 'deep']):
-        """
-        Cambia la profundidad de análisis dinámicamente.
-        Útil para cambiar entre modos sin crear una nueva instancia.
-        """
         if depth not in ['quick', 'deep']:
-            logger.warning(f"Modo de análisis '{depth}' no válido. No se cambió el modo.")
+            logger.warning(f"Profundidad '{depth}' no válida.")
             return
-            
         if depth != self.analysis_depth:
             self.analysis_depth = depth
-            # Reinicializar el procesador con la nueva profundidad
             if self.mode == 'candidate':
                 self.processor = CandidateProcessor(language=self.language, mode=self.analysis_depth)
             else:
                 self.processor = OpportunityProcessor(language=self.language, mode=self.analysis_depth)
-            logger.info(f"Profundidad de análisis cambiada a: {depth}")
+            logger.info(f"Profundidad cambiada a: {depth}")
 
-# Ejemplo de uso
+def process_recent_users_batch():
+    from app.models import Person
+    from django.utils import timezone
+    from datetime import timedelta
+    recent_threshold = timezone.now() - timedelta(days=7)
+    recent_users = Person.objects.filter(created_at__gte=recent_threshold)
+    nlp_deep = NLPProcessor(language="es", mode="candidate", analysis_depth="deep")
+    for user in recent_users:
+        text = " ".join([user.metadata.get("headline", ""), user.metadata.get("experience", "")])
+        if text:
+            result = nlp_deep.analyze(text)
+            user.metadata["skills"] = result["skills"]
+            user.metadata["sentiment"] = result["sentiment"]
+            user.save()
+            logger.info(f"Usuario procesado: {user.nombre} - {result}")
+
 if __name__ == "__main__":
-    # Procesador rápido para chatbot
     nlp_quick = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
-    text_candidate = "Tengo experiencia en Python y trabajo en equipo."
-    result_quick = nlp_quick.analyze(text_candidate)
-    print("Análisis rápido:", result_quick)
-    
-    # Procesador profundo para batch
     nlp_deep = NLPProcessor(language='es', mode='candidate', analysis_depth='deep')
-    result_deep = nlp_deep.analyze(text_candidate)
-    print("Análisis profundo:", result_deep)
-    
-    # Cambiar dinámicamente
-    nlp_quick.set_analysis_depth('deep')
-    result_changed = nlp_quick.analyze(text_candidate)
-    print("Después de cambio a modo profundo:", result_changed)
+    text = "Tengo experiencia avanzada en Python y liderazgo en equipos."
+    print("Quick:", nlp_quick.analyze(text))
+    print("Deep:", nlp_deep.analyze(text))
