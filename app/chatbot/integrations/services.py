@@ -735,11 +735,12 @@ async def send_list_options(platform: str, user_id: str, message: str, buttons: 
     from app.chatbot.integrations.whatsapp import send_whatsapp_list
 
     if platform != "whatsapp":
-        return await send_options(platform, user_id, message, buttons, business_unit_name)
-
+        success = await send_options(platform, user_id, message, buttons, business_unit_name)
+        return success, None
     sections = [{"title": "Opciones", "rows": [{"id": btn["payload"], "title": btn["title"]} for btn in buttons]}]
-
-    return await send_whatsapp_list(user_id, message, sections, business_unit_name)
+    success = await send_whatsapp_list(user_id, message, sections, business_unit_name)
+    msg_id = "msg_id_placeholder" if success else None  # Reemplaza con el ID real si la API lo devuelve
+    return success, msg_id
 #Envio de Lista Interactiva para cuando hay más de 3 botones
 
 async def send_smart_options(platform, user_id, message, options, business_unit):

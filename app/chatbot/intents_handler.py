@@ -4,6 +4,7 @@ from typing import Dict, List, Any
 from asgiref.sync import sync_to_async
 
 from app.models import ChatState, Person, BusinessUnit
+from app.chatbot.chatbot import ChatBotHandler
 from app.chatbot.integrations.services import  send_message, send_email, send_options, reset_chat_state, send_menu, MENU_OPTIONS_BY_BU
 from app.utilidades.vacantes import VacanteManager
 
@@ -15,7 +16,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
     Maneja los intents conocidos del usuario.
     Devuelve True si se manejó una intención, False si no.
     """
-    text = text.lower().strip()
+    text = text.strip().lower()  # Elimina espacios y convierte a minúsculas
 
     INTENT_RESPONSES = {
         "saludo": "¡Hola! ¿En qué puedo ayudarte hoy?",
@@ -32,18 +33,19 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
     }
 
     # Detección por palabras clave
-    greeting_keywords = ["hola", "buenos días", "buenas tardes", "buenas noches", "inicio", "iniciar", "start", "go", "activar"]
+    
+    greeting_keywords = ["hola", "hello", "buenos días", "buenas tardes", "buenas noches", "inicio", "iniciar", "start", "go", "activar"]
     if any(keyword in text for keyword in greeting_keywords):
         response = INTENT_RESPONSES["saludo"]
-        await chat_bot_handler.send_complete_initial_messages(platform, user_id, business_unit)
+        await ChatBotHandler.send_complete_initial_messages(platform, user_id, business_unit)
         return True
 
     cv_keywords = ["cv", "currículum", "curriculum", "resume", "hoja de vida"]
     if any(keyword in text for keyword in cv_keywords):
         response = "¡Perfecto! Puedes enviarme tu CV por este medio y lo procesaré para extraer la información relevante. Por favor, adjunta el archivo en tu próximo mensaje."
         await send_message(platform, user_id, response, business_unit)
-        chat_state.state = "waiting_for_cv"
-        await sync_to_async(chat_state.save)()
+        ChatState.state = "waiting_for_cv"
+        await sync_to_async(ChatState.save)()
         return True
 
     # Manejo de intents detectados por NLP o texto directo
@@ -68,7 +70,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         if intent == "consultar_estatus":
             response = "Por favor, proporciona tu correo electrónico asociado a la aplicación."
             await send_message(platform, user_id, response, business_unit)
-            chat_state.context['awaiting_status_email'] = True
+            ChatState.context['awaiting_status_email'] = True
             await sync_to_async(chat_state.save)()
             return True
 
@@ -78,14 +80,14 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 "Envíame su nombre completo y teléfono en el formato: 'Nombre Apellido +52XXXXXXXXXX'."
             )
             await send_message(platform, user_id, response, business_unit)
-            chat_state.context['awaiting_group_invitation'] = True
+            ChatState.context['awaiting_group_invitation'] = True
             await sync_to_async(chat_state.save)()
             return True
 
         if intent == "ver_vacantes":
             recommended_jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
             if recommended_jobs:
-                chat_state.context['recommended_jobs'] = recommended_jobs
+                ChatState.context['recommended_jobs'] = recommended_jobs
                 await sync_to_async(chat_state.save)()
                 await present_job_listings(platform, user_id, recommended_jobs, business_unit, chat_state)
             else:
@@ -119,7 +121,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         if intent == "consultar_requisitos_vacante":
             response = "Por favor, dime el nombre o ID de la vacante sobre la que quieres saber los requisitos."
             await send_message(platform, user_id, response, business_unit)
-            chat_state.state = "waiting_for_vacancy_id"
+            ChatState.state = "waiting_for_vacancy_id"
             await sync_to_async(chat_state.save)()
             return True
 
@@ -258,8 +260,8 @@ async def handle_document_upload(
         await send_message(platform, user_id, response, business_unit)
         
         # Actualizar el estado para esperar confirmación
-        chat_state.state = "waiting_for_cv_confirmation"
-        chat_state.context['parsed_data'] = parsed_data
+        ChatState.state = "waiting_for_cv_confirmation"
+        ChatState.context['parsed_data'] = parsed_data
         await sync_to_async(chat_state.save)()
         
     except Exception as e:

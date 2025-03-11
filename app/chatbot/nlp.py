@@ -332,14 +332,23 @@ class CandidateNLPProcessor(BaseNLPProcessor):
 
     def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
         skill_lower = skill.lower()
-        for division in self.skills_catalog.values():
-            for role_category in division.values():
-                for role, details in role_category.items():
-                    if isinstance(details, dict):
-                        for category, key in [("Habilidades Técnicas", "technical"), ("Habilidades Blandas", "soft"),
-                                             ("Certificaciones", "certifications"), ("Herramientas", "tools")]:
-                            if skill_lower in [s.lower() for s in details.get(category, [])]:
-                                skills_dict[key].append(skill_lower)
+        if isinstance(self.skills_catalog, list):
+            # Si es una lista, asumimos que contiene habilidades directamente
+            if skill_lower in [s.lower() for s in self.skills_catalog]:
+                skills_dict["technical"].append(skill_lower)  # Clasificación por defecto
+        elif isinstance(self.skills_catalog, dict):
+            # Lógica original para diccionarios
+            for division in self.skills_catalog.values():
+                for role_category in division.values():
+                    if isinstance(role_category, dict):
+                        for role, details in role_category.items():
+                            if isinstance(details, dict):
+                                for category, key in [("Habilidades Técnicas", "technical"), 
+                                                    ("Habilidades Blandas", "soft"), 
+                                                    ("Certificaciones", "certifications"), 
+                                                    ("Herramientas", "tools")]:
+                                    if skill_lower in [s.lower() for s in details.get(category, [])]:
+                                        skills_dict[key].append(skill_lower)
 
     def _update_catalogs(self, skills: Dict[str, List[str]]):
         skills_catalog = load_catalog(CATALOG_PATHS["es"]["skills"])

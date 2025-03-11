@@ -409,7 +409,9 @@ async def send_whatsapp_list(user_id, message, sections, business_unit_name):
             "type": "interactive",
             "interactive": {
                 "type": "list",
+                "header": {"type": "text", "text": "Menú Principal"},  # Campo obligatorio
                 "body": {"text": message},
+                "footer": {"text": "Selecciona una opción"},  # Campo recomendado
                 "action": {
                     "button": "Seleccionar",
                     "sections": sections
