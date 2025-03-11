@@ -69,18 +69,15 @@ def clean_text(text: str) -> str:
     text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)
     return text
 
-def analyze_text(text: str) -> dict:
-    """Analiza el texto del usuario y extrae intenciones, entidades y sentimiento."""
+def analyze_text(text: str) -> Dict[str, any]:
     try:
-        cleaned = text.strip()
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            return asyncio.run_coroutine_threadsafe(nlp_processor.analyze(cleaned), loop).result()
-        else:
-            return asyncio.run(nlp_processor.analyze(cleaned))
+        nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
+        cleaned = clean_text(text)
+        # Llamada síncrona en lugar de usar asyncio
+        return nlp_processor.analyze(cleaned)
     except Exception as e:
         logger.error(f"Error analizando texto: {e}", exc_info=True)
-        return {"intents": [], "entities": [], "sentiment": {}}
+        return {"entities": [], "sentiment": {}}
 
 def validate_term_in_catalog(term: str, catalog: List[str]) -> bool:
     """ Valida si un término existe en un catálogo especificado. """

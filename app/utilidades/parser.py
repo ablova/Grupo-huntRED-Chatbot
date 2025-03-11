@@ -321,30 +321,26 @@ class CVParser:
             return None
 
     def parse(self, text: str) -> Dict:
-        """✅ Analiza el texto del CV usando NLPProcessor."""
         if not text or len(text.strip()) < 10:
             logger.warning("Texto demasiado corto para análisis.")
             return {"education": [], "experience": [], "skills": []}
 
-        # ✅ Usamos el análisis completo del NLPProcessor
+        # Usamos el análisis completo del NLPProcessor
         analysis = self.nlp_processor.analyze(text)
         skills = analysis.get("skills", {"technical": [], "soft": [], "certifications": [], "tools": []})
         entities = analysis.get("entities", [])
         experience_level = analysis.get("experience_level", {})
+        ideal_positions = analysis.get("ideal_positions", [])  # Nueva funcionalidad
 
         parsed_data = {
-            "skills": {
-                "technical": skills["technical"],
-                "soft": skills["soft"],
-                "certifications": skills["certifications"],
-                "tools": skills["tools"]
-            },
-            "experience": analysis.get("experience", []),
-            "education": analysis.get("education", []),
+            "skills": skills,
+            "experience": analysis.get("experience", self._extract_experience(text, experience_level)),
+            "education": analysis.get("education", self._extract_education(text, entities)),
             "sentiment": analysis.get("sentiment", "neutral"),
             "sentiment_score": analysis.get("sentiment_score", 0.0),
             "entities": entities,
-            "experience_level": experience_level
+            "experience_level": experience_level,
+            "ideal_positions": ideal_positions  # Añadimos posiciones ideales
         }
         logger.info(f"Análisis completado: {parsed_data}")
         return parsed_data

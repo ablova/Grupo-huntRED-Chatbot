@@ -41,20 +41,21 @@ MODEL_LANGUAGES = {
 # Rutas a los catálogos
 CATALOG_PATHS = {
     "es": {
-        "skills": "/home/pablo/app/chatbot/catalogs/skills_es.json",
-        "occupations": "/home/pablo/app/chatbot/catalogs/occupations_es.json",
-        "skills_relax": "/home/pablo/skills_data/skill_db_relax_20.json"
+        "skills": "/home/pablo/skills_data/skills_es.json",  # Habilidades generales
+        "occupations": "/home/pablo/skills_data/occupations_es.json",
+        "skills_relax": "/home/pablo/skills_data/skill_db_relax_20.json",
+        "skills_opportunities": "/home/pablo/app/utilidades/catalogs/skills.json"  # Habilidades por posición
     }
 }
 
 # Paths to CSV and JSON files
 csv_paths = {
-    "occupations_es": "/home/pablo/app/utilidades/catalogs/occupations_es.csv",
-    "skills_es": "/home/pablo/app/utilidades/catalogs/skills_es.csv"
+    "occupations_es": "/home/pablo/skills_data/occupations_es.csv",
+    "skills_es": "/home/pablo/skills_data/skills_es.csv"
 }
 json_paths = {
-    "occupations_es": "/home/pablo/app/utilidades/catalogs/occupations_es.json",
-    "skills_es": "/home/pablo/app/utilidades/catalogs/skills_es.json"
+    "occupations_es": "/home/pablo/skills_data/occupations_es.json",
+    "skills_es": "/home/pablo/skills_data/skills_es.json"
 }
 
 # Lock para escritura segura en JSON
@@ -165,6 +166,7 @@ class BaseNLPProcessor:
         self.skills_catalog = load_catalog(CATALOG_PATHS["es"]["skills"])
         self.occupations_catalog = load_catalog(CATALOG_PATHS["es"]["occupations"])
         self.skills_relax_catalog = load_catalog(CATALOG_PATHS["es"]["skills_relax"])
+        self.skills_opportunities_catalog = load_catalog(CATALOG_PATHS["es"]["skills_opportunities"])  # Nuevo catálogo
         self.all_skills = self._get_all_skills()
         self.phrase_matcher = self._build_phrase_matcher()
         self.matcher = self._build_matcher() if mode == 'deep' else None
@@ -178,19 +180,33 @@ class BaseNLPProcessor:
 
     def _get_all_skills(self) -> Set[str]:
         skills = set()
-        for catalog in [self.skills_catalog, self.skills_relax_catalog]:
+        for catalog in [self.skills_catalog, self.occupations_catalog, self.skills_relax_catalog, self.skills_opportunities_catalog]:
             if isinstance(catalog, dict):
                 for division in catalog.values():
-                    for role_category in division.values():
-                        for role, details in role_category.items():
-                            if isinstance(details, dict):
-                                for category in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
-                                    skills.update([s.lower() for s in details.get(category, [])])
-                            elif isinstance(details, list):
-                                skills.update([s.lower() for s in details if isinstance(s, str)])
+                    if isinstance(division, dict):
+                        for role_category in division.values():
+                            if isinstance(role_category, dict):
+                                for role, details in role_category.items():
+                                    if isinstance(details, dict):
+                                        for category in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
+                                            skills.update([s.lower() for s in details.get(category, [])])
+                                    elif isinstance(details, list):
+                                        skills.update([s.lower() for s in details if isinstance(s, str)])
+                                    elif isinstance(details, str):
+                                        skills.add(details.lower())
+                            elif isinstance(role_category, list):
+                                skills.update([s.lower() for s in role_category if isinstance(s, str)])
+                            elif isinstance(role_category, str):
+                                skills.add(role_category.lower())
+                    elif isinstance(division, list):
+                        skills.update([s.lower() for s in division if isinstance(s, str)])
+                    elif isinstance(division, str):
+                        skills.add(division.lower())
             elif isinstance(catalog, list):
                 skills.update([s.lower() for s in catalog if isinstance(s, str)])
-        logger.info(f"Total habilidades: {len(skills)} - Ejemplos: {list(skills)[:5]}")
+            elif isinstance(catalog, str):
+                skills.add(catalog.lower())
+        logger.info(f"Total habilidades cargadas: {len(skills)} - Ejemplos: {list(skills)[:5]}")
         return skills
 
     def _build_phrase_matcher(self) -> PhraseMatcher:
@@ -227,8 +243,40 @@ class BaseNLPProcessor:
         text = clean_text(text)
         doc = self.nlp(text.lower())
         return [ent.text.lower() for ent in doc.ents]
+    
+    def find_ideal_positions(self, candidate_skills: Dict[str, List[str]]) -> List[Dict[str, str]]:
+        """
+        Encuentra posiciones ideales para un candidato basadas en sus habilidades.
+        """
+        ideal_positions = []
+        candidate_skills_set = set(
+            s.lower() for category in candidate_skills.values() for s in category
+        )
 
-class CandidateProcessor(BaseNLPProcessor):
+        for division, roles in self.skills_opportunities_catalog.items():
+            for role, details in roles.items():
+                role_skills = set()
+                for category in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
+                    role_skills.update([s.lower() for s in details.get(category, [])])
+                
+                # Calcular coincidencia
+                overlap = candidate_skills_set.intersection(role_skills)
+                match_percentage = len(overlap) / len(role_skills) if role_skills else 0
+                
+                if match_percentage > 0.5:  # Umbral ajustable
+                    ideal_positions.append({
+                        "division": division,
+                        "role": role,
+                        "match_percentage": match_percentage,
+                        "matched_skills": list(overlap)
+                    })
+
+        # Ordenar por porcentaje de coincidencia
+        ideal_positions.sort(key=lambda x: x["match_percentage"], reverse=True)
+        logger.info(f"Posiciones ideales encontradas: {len(ideal_positions)}")
+        return ideal_positions[:5]  # Top 5 posiciones
+
+class CandidateNLPProcessor(BaseNLPProcessor):
     def __init__(self, language: str = 'es', mode: str = 'quick'):
         super().__init__(language, mode)
         if mode == 'deep' and TRANSFORMERS_AVAILABLE:
@@ -307,10 +355,15 @@ class CandidateProcessor(BaseNLPProcessor):
     def analyze_candidate(self, text: str) -> Dict[str, any]:
         skills = self.extract_skills(text)
         sentiment = self.get_sentiment(text)
-        result = {"skills": skills, "sentiment": sentiment["label"], "sentiment_score": sentiment["score"]}
+        result = {
+            "skills": skills,
+            "sentiment": sentiment["label"],
+            "sentiment_score": sentiment["score"]
+        }
         if self.mode == 'deep':
             result["entities"] = self.extract_entities(text)
             result["experience_level"] = self._detect_experience_level(text)
+            result["ideal_positions"] = self.find_ideal_positions(skills)  # Añadimos posiciones ideales
         return result
 
     def _detect_experience_level(self, text: str) -> Dict[str, str]:
@@ -327,7 +380,7 @@ class CandidateProcessor(BaseNLPProcessor):
                         levels[skill] = "intermediate"
         return levels
 
-class OpportunityProcessor(BaseNLPProcessor):
+class OpportunityNLPProcessor(BaseNLPProcessor):
     def __init__(self, language: str = 'es', mode: str = 'quick'):
         super().__init__(language, mode)
         if mode == 'deep' and TRANSFORMERS_AVAILABLE:
@@ -432,9 +485,9 @@ class NLPProcessor:
             logger.warning(f"Profundidad '{self.analysis_depth}' no válida. Usando 'quick'.")
             self.analysis_depth = 'quick'
         if self.mode == 'candidate':
-            self.processor = CandidateProcessor(language=self.language, mode=self.analysis_depth)
+            self.processor =  CandidateNLPProcessor(language=self.language, mode=self.analysis_depth)
         else:
-            self.processor = OpportunityProcessor(language=self.language, mode=self.analysis_depth)
+            self.processor = OpportunityNLPProcessor(language=self.language, mode=self.analysis_depth)
         logger.info(f"NLPProcessor: mode={self.mode}, depth={self.analysis_depth}, lang={self.language}")
 
     def extract_skills(self, text: str) -> Dict[str, List[str]]:
@@ -443,9 +496,10 @@ class NLPProcessor:
         return self.processor.extract_opportunity_details(text)["skills"]
 
     def analyze(self, text: str) -> Dict[str, any]:
-        if self.mode == 'candidate':
-            return self.processor.analyze_candidate(text)
-        return self.processor.analyze_opportunity(text)
+        return self.processor.analyze_candidate(text) if self.mode == 'candidate' else self.processor.analyze_opportunity(text)
+
+    def find_ideal_positions(self, skills: Dict[str, List[str]]) -> List[Dict[str, str]]:
+        return self.processor.find_ideal_positions(skills)
 
     def set_analysis_depth(self, depth: Literal['quick', 'deep']):
         if depth not in ['quick', 'deep']:
@@ -454,9 +508,9 @@ class NLPProcessor:
         if depth != self.analysis_depth:
             self.analysis_depth = depth
             if self.mode == 'candidate':
-                self.processor = CandidateProcessor(language=self.language, mode=self.analysis_depth)
+                self.processor =  CandidateNLPProcessor(language=self.language, mode=self.analysis_depth)
             else:
-                self.processor = OpportunityProcessor(language=self.language, mode=self.analysis_depth)
+                self.processor = OpportunityNLPProcessor(language=self.language, mode=self.analysis_depth)
             logger.info(f"Profundidad cambiada a: {depth}")
 
 def process_recent_users_batch():
