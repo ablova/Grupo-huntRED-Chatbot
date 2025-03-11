@@ -40,9 +40,11 @@ CATALOGS_BASE_PATH = "/home/pablo/app/utilidades/catalogs"
 # =========================================================
 
 def extract_skills(text: str, unit: str) -> List[str]:
-    nlp = NLPProcessor(language="es", mode="candidate")  # O "opportunity" según el contexto
+    nlp = NLPProcessor(language="es", mode="candidate", analysis_depth="deep")
     skills_dict = nlp.extract_skills(text)
-    return skills_dict["technical"] + skills_dict["soft"]  # Combinar habilidades relevantes
+    skills = list(set(skills_dict["technical"] + skills_dict["soft"] + skills_dict["certifications"] + skills_dict["tools"]))
+    logger.info(f"Habilidades extraídas (deep) para {unit}: {skills}")
+    return skills
 
 class SkillsProcessor:
     def __init__(self, unit_name: str):
@@ -615,9 +617,6 @@ def extract_languages(soup):
             language_list.append({'language': lname, 'level': level})
     return language_list
 
-def extract_skills(text: str, unit: str) -> List[str]:
-    processor = SkillsProcessor(unit)
-    return processor.extract_skills(text)
 
 def associate_divisions(skills: List[str], unit: str) -> List[Dict[str, str]]:
     processor = SkillsProcessor(unit)
@@ -754,6 +753,10 @@ def process_linkedin_updates():
             errors_count += 1
 
     logger.info(f"Resumen: Procesados: {processed_count}, URLs construidas: {constructed_count}, Errores: {errors_count}")
+
+def process_linkedin_batch():
+    from app.chatbot.nlp import process_recent_users_batch
+    process_recent_users_batch()
 
 def main_test():
     unit = "amigro"  # Cambiar según la unidad de negocio

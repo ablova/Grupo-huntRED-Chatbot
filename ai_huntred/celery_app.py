@@ -146,6 +146,10 @@ SCHEDULE_DICT = {
         'task': 'app.tasks.enviar_invitaciones_completar_perfil',
         'schedule': crontab(minute=45, hour='*/6'),
     },
+    'Procesar perfiles a profundidad de reciente creacion': {
+        'task': 'app.tasks.process_batch_task',
+        'schedule': crontab(minute=0, hour=2, day_of_week='1,3,5'),
+    },
 }
 
 @worker_ready.connect
