@@ -28,7 +28,7 @@ from app.utilidades.parser import CVParser
 logger = logging.getLogger(__name__)
 
 # Importaciones condicionales de NLP solo si está habilitado
-GPT_ENABLED = False
+GPT_ENABLED = True
 ML_ENABLED = True    # Cambia a False para desactivar ML
 NLP_ENABLED = True  # Cambia a True para habilitar NLP, False para desactivarlo
 if NLP_ENABLED:
@@ -170,7 +170,7 @@ class ChatBotHandler:
         # Si el texto es un payload de un botón interactivo, trabajamos con ese
         if isinstance(text, str):
             normalized = text.strip().lower()
-
+        
             # Si el valor del botón es "tos_accept"
             if normalized in ['tos_accept', 'sí', 'si']:
                 user.tos_accepted = True
@@ -190,6 +190,8 @@ class ChatBotHandler:
                 event.context['tos_attempts'] = event.context.get('tos_attempts', 0) + 1
                 if event.context['tos_attempts'] >= 3:
                     await send_message(platform, user_id, "Sesión terminada por falta de aceptación.", business_unit.name.lower())
+                    await send_message(platform, user_id, "¡Vuelve cuando gustes! Te dejo el Menu.", business_unit.name.lower())
+                    await send_menu(platform, user_id, business_unit.name.lower())  # Enviar el menú de opciones
                     await self.store_bot_message(event, "Sesión terminada por falta de aceptación.")
                     return
                 await sync_to_async(event.save)()
@@ -206,6 +208,12 @@ class ChatBotHandler:
 
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
         """Procesa el mensaje entrante y responde según la intención del usuario."""
+        message_id = message.get("messages", [{}])[0].get("id")
+        cache_key = f"processed_message:{message_id}"
+        if cache.get(cache_key):
+            logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
+            return
+        cache.set(cache_key, True, timeout=3600)  # 1 hora de vida
         try:
             # Extraer el texto del mensaje (asumiendo estructura de WhatsApp como en los logs)
             text = message.get("message", {}).get("body", "").strip()
@@ -596,16 +604,13 @@ class ChatBotHandler:
         except Exception as e:
             logger.error(f"Error almacenando mensaje del usuario: {e}", exc_info=True)
 
-    async def store_bot_message(self, event: ChatState, message: str):
-        """Almacena el mensaje del bot en el historial."""
-        try:
-            history = event.conversation_history or []
-            history.append({'timestamp': timezone.now().isoformat(), 'role': 'assistant', 'content': message})
-            event.conversation_history = history
-            await sync_to_async(event.save)()
-            logger.info(f"Bot respondió a {event.user_id}: {message}")
-        except Exception as e:
-            logger.error(f"Error almacenando mensaje del bot: {e}", exc_info=True)
+    async def store_user_message(self, event: ChatState, text: str):
+        history = event.conversation_history or []
+        history.append({'timestamp': timezone.now().isoformat(), 'role': 'user', 'content': text})
+        if len(history) > 50:  # Límite de 50 mensajes
+            history = history[-50:]
+        event.conversation_history = history
+        await sync_to_async(event.save)()
 
     async def check_inactive_sessions(self, inactivity_threshold: int = 300):
         """Revisa sesiones inactivas y envía mensaje de reactivación."""
