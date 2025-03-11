@@ -21,6 +21,7 @@ cache/
 /home/pablo/skills_data/
 token_dist.json
 skill_db_relax_20.json
+*.json
 # Ignorar archivos temporales
 ~*
 
