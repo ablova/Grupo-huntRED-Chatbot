@@ -14,8 +14,10 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
+from app.chatbot.nlp import NLPProcessor
 from app.utilidades.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
@@ -36,10 +38,12 @@ CATALOGS_BASE_PATH = "/home/pablo/app/utilidades/catalogs"
 # =========================================================
 # Clase para manejar habilidades y divisiones
 # =========================================================
-from app.chatbot.nlp import get_skill_extractor
 
+def extract_skills(text: str, unit: str) -> List[str]:
+    nlp = NLPProcessor(language="es", mode="candidate")  # O "opportunity" según el contexto
+    skills_dict = nlp.extract_skills(text)
+    return skills_dict["technical"] + skills_dict["soft"]  # Combinar habilidades relevantes
 
-sn = get_skill_extractor()  # Se obtiene solo cuando se necesita
 class SkillsProcessor:
     def __init__(self, unit_name: str):
         self.unit_name = unit_name
@@ -619,35 +623,58 @@ def associate_divisions(skills: List[str], unit: str) -> List[Dict[str, str]]:
     processor = SkillsProcessor(unit)
     return processor.associate_divisions(skills)
 
-@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=5)
 def scrape_linkedin_profile(link_url, unit):
     """
-    Realiza scraping de un perfil de LinkedIn usando cookies autenticadas.
+    Realiza scraping de un perfil de LinkedIn usando Playwright con cookies autenticadas.
     """
     try:
-        headers = {
-            'User-Agent': random.choice(USER_AGENTS),
-            'Cookie': 'li_at=AQEDAQDH8CoALanRAAABk5Qqjz0AAAGUhN3cHE0AK_F0uPYrUA2GDrHieAWSq7GFY-RkYmrHvy7t8bDuY1Z3OJ65OoVyDtvrL9R7P1tGu3yPjfBGaZ8ORBYGiILzxToPCMtp2AcJZfKOXRT8ME-qfnGT'
-        }
-        time.sleep(random.uniform(10, 20))  # Evitar bloqueos
-        response = requests.get(link_url, headers=headers, timeout=10)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Extraer datos
-        data = {
-            'headline': extract_headline(soup),
-            'location': extract_location(soup),
-            'experience': extract_experience(soup),
-            'education': extract_education(soup),
-            'skills': extract_skills(soup.get_text(), unit),
-            'languages': extract_languages(soup),
-            'contact_info': extract_contact_info(soup)
-        }
-        data['skills'] = normalize_skills(data['skills'], unit)  # Normalizar habilidades
-        data['divisions'] = associate_divisions(data['skills'], unit)  # Asignar divisiones
-        return data
+        with sync_playwright() as p:
+            # Seleccionar un USER_AGENT aleatorio
+            user_agent = random.choice(USER_AGENTS)
+            
+            # Lanzar el navegador con el USER_AGENT
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(user_agent=user_agent)
+            
+            # Añadir la cookie de autenticación
+            context.add_cookies([{
+                'name': 'li_at',
+                'value': 'AQEDAQDH8CoALanRAAABk5Qqjz0AAAGUhN3cHE0AK_F0uPYrUA2GDrHieAWSq7GFY-RkYmrHvy7t8bDuY1Z3OJ65OoVyDtvrL9R7P1tGu3yPjfBGaZ8ORBYGiILzxToPCMtp2AcJZfKOXRT8ME-qfnGT',
+                'domain': '.linkedin.com',
+                'path': '/'
+            }])
+            
+            # Abrir la página
+            page = context.new_page()
+            page.goto(link_url)
+            
+            # Esperar a que la página cargue completamente
+            page.wait_for_load_state('networkidle')
+            
+            # Obtener el contenido HTML
+            content = page.content()
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            # Extraer datos
+            data = {
+                'headline': extract_headline(soup),
+                'location': extract_location(soup),
+                'experience': extract_experience(soup),
+                'education': extract_education(soup),
+                'skills': extract_skills(soup.get_text(), unit),
+                'languages': extract_languages(soup),
+                'contact_info': extract_contact_info(soup)
+            }
+            data['skills'] = normalize_skills(data['skills'], unit)  # Normalizar habilidades
+            data['divisions'] = associate_divisions(data['skills'], unit)  # Asignar divisiones
+            
+            # Cerrar el navegador
+            browser.close()
+            
+            # Esperar un tiempo aleatorio para no saturar
+            time.sleep(random.uniform(10, 20))
+            
+            return data
     except Exception as e:
         logger.error(f"Error scrapeando {link_url}: {e}")
         return {}
