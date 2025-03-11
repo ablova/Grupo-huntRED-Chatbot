@@ -44,7 +44,6 @@ class BaseNLPProcessor:
         self.skills_catalog = load_skills_catalog()
         self._load_nlp_model()
         self.skill_cache = TTLCache(maxsize=5000, ttl=7200)
-        # RoBERTa como opción secundaria para sentimientos
         self.sentiment_pipeline = None
         try:
             from transformers import pipeline
@@ -77,7 +76,6 @@ class BaseNLPProcessor:
         1. NLTK VADER (rápido, ligero).
         2. Si neutral o falla, RoBERTa (preciso, pesado).
         """
-        # Paso 1: NLTK VADER
         if SIA:
             try:
                 scores = SIA.polarity_scores(text)
@@ -91,26 +89,25 @@ class BaseNLPProcessor:
             except Exception as e:
                 logger.error(f"Error con NLTK VADER: {e}")
 
-        # Paso 2: RoBERTa si NLTK falla o da neutral
         if self.sentiment_pipeline:
             try:
-                result = self.sentiment_pipeline(text[:512])  # Límite de 512 tokens
-                return result[0]['label']  # positive, negative, neutral
+                result = self.sentiment_pipeline(text[:512])
+                return result[0]['label']
             except Exception as e:
                 logger.error(f"Error con RoBERTa sentiment: {e}")
 
-        return "neutral"  # Fallback
+        return "neutral"
 
 class CandidateNLPProcessor(BaseNLPProcessor):
     """Procesador NLP para candidatos con máxima extracción de habilidades."""
     def __init__(self, language: str = 'es'):
         super().__init__(language)
-        self.phrase_matcher = self._build_phrase_matcher()
+        self.all_skills = self._get_all_skills()  # Primero inicializamos all_skills
+        self.phrase_matcher = self._build_phrase_matcher()  # Luego usamos all_skills
         self.matcher = self._build_matcher()
-        self.all_skills = self._get_all_skills()  # Cache de todas las habilidades
 
     def _get_all_skills(self) -> set:
-        """Extrae todas las habilidades del catálogo para búsqueda rápida."""
+        """Extrae todas las habilidades del catálogo."""
         skills = set()
         for division in self.skills_catalog.values():
             for role_category in division.values():
@@ -143,19 +140,16 @@ class CandidateNLPProcessor(BaseNLPProcessor):
         doc = self.nlp(text.lower())
         skills = {"technical": [], "soft": [], "certifications": [], "tools": []}
 
-        # 1. Coincidencias exactas con PhraseMatcher
         matches = self.phrase_matcher(doc)
         for _, start, end in matches:
             skill = doc[start:end].text
             self._classify_skill(skill, skills)
 
-        # 2. Patrones flexibles con Matcher
         flex_matches = self.matcher(doc)
         for _, start, end in flex_matches:
             skill = doc[start:end].text.split()[-1]
             self._classify_skill(skill, skills)
 
-        # 3. Tokens individuales (robusto contra estructura de skills.json)
         for token in doc:
             if token.text in self.all_skills:
                 self._classify_skill(token.text, skills)
@@ -187,9 +181,9 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
     """Procesador NLP para oportunidades laborales."""
     def __init__(self, language: str = 'es'):
         super().__init__(language)
-        self.phrase_matcher = self._build_phrase_matcher()
+        self.all_skills = self._get_all_skills()  # Primero inicializamos all_skills
+        self.phrase_matcher = self._build_phrase_matcher()  # Luego usamos all_skills
         self.matcher = self._build_matcher()
-        self.all_skills = self._get_all_skills()
 
     def _get_all_skills(self) -> set:
         """Extrae todas las habilidades del catálogo."""
@@ -224,24 +218,20 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
         doc = self.nlp(text.lower())
         details = {"skills": {"technical": [], "soft": []}, "location": None, "contract_type": None, "role": None}
 
-        # 1. Coincidencias exactas
         matches = self.phrase_matcher(doc)
         for _, start, end in matches:
             skill = doc[start:end].text
             self._classify_skill(skill, details["skills"])
 
-        # 2. Patrones flexibles
         flex_matches = self.matcher(doc)
         for _, start, end in flex_matches:
             skill = doc[start:end].text.split()[-1]
             self._classify_skill(skill, details["skills"])
 
-        # 3. Tokens individuales
         for token in doc:
             if token.text in self.all_skills:
                 self._classify_skill(token.text, details["skills"])
 
-        # Entidades adicionales
         for ent in doc.ents:
             ent_lower = ent.text.lower()
             if ent_lower in ["méxico", "são paulo", "brasil"]:
@@ -287,3 +277,32 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
         job_classification = self.classify_job(text)
         sentiment = self.get_sentiment(text)
         return {"details": details, "job_classification": job_classification, "sentiment": sentiment}
+
+class NLPProcessor:
+    """
+    Clase genérica para compatibilidad con utils.py.
+    Delega a CandidateNLPProcessor o OpportunityNLPProcessor según el contexto.
+    """
+    def __init__(self, language: str = 'es', mode: str = 'opportunity'):
+        self.language = language
+        self.mode = mode.lower()
+        if self.mode == 'candidate':
+            self.processor = CandidateNLPProcessor(language=self.language)
+        else:  # Default a 'opportunity'
+            self.processor = OpportunityNLPProcessor(language=self.language)
+
+    def extract_skills(self, text: str) -> Dict[str, List[str]]:
+        """Extrae habilidades usando el procesador adecuado."""
+        if self.mode == 'candidate':
+            return self.processor.extract_skills(text)
+        return self.processor.extract_opportunity_details(text)["skills"]
+
+    def analyze(self, text: str) -> Dict[str, any]:
+        """Analiza el texto según el modo."""
+        if self.mode == 'candidate':
+            return self.processor.analyze_candidate(text)
+        return self.processor.analyze_opportunity(text)
+
+    def get_sentiment(self, text: str) -> str:
+        """Obtiene el sentimiento usando el procesador base."""
+        return self.processor.get_sentiment(text)

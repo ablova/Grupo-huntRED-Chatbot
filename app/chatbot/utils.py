@@ -17,7 +17,7 @@ from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
 from typing import Dict, List, Any
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
-from app.chatbot.nlp import CandidateNLPProcessor
+from app.chatbot.nlp import NLPProcessor
 
 
 logger = logging.getLogger(__name__)
@@ -298,7 +298,7 @@ def fetch_data_from_url(url):
    
 def analyze_name_gender(name: str) -> str:
     """
-    Analiza el género basado en el nombre usando CandidateNLPProcessor.
+    Analiza el género basado en el nombre usando NLPProcessor.
     """
     return nlp_processor.infer_gender(name)
 
@@ -413,5 +413,5 @@ def map_skill_to_database(llm_skill: str, database_skills: List[str], cutoff: fl
     return closest_match[0] if closest_match else None
 
 
-from app.chatbot.nlp import CandidateNLPProcessor
-nlp_processor = CandidateNLPProcessor(language="es")  # Instancia global para español
+from app.chatbot.nlp import NLPProcessor
+nlp_processor = NLPProcessor(language="es", mode="candidate")
