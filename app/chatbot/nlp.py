@@ -3,24 +3,43 @@
 import spacy
 import json
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set
 from spacy.matcher import PhraseMatcher, Matcher
 from cachetools import cachedmethod, TTLCache
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from langdetect import detect, LangDetectException
+from deep_translator import GoogleTranslator
+import subprocess
+import sys
+import os
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Modelos spaCy por idioma
 MODEL_LANGUAGES = {
-    "es": "es_core_news_md",      # Español, ~50 MB
-    "default": "xx_ent_wiki_sm"   # Multilingüe, ~10 MB
+    "es": "es_core_news_md",      # Español
+    "en": "en_core_web_md",       # Inglés
+    "fr": "fr_core_news_md",      # Francés
+    "default": "xx_ent_wiki_sm"   # Multilingüe por defecto
 }
 
+# Rutas a los catálogos (ajusta según tu estructura)
+CATALOG_PATHS = {
+    "es": {
+        "skills": "catalogs/skills_es.json",
+        "occupations": "catalogs/occupations_es.json"
+    },
+    "en": {
+        "skills": "catalogs/skills_en.json",
+        "occupations": "catalogs/occupations_en.json"
+    }
+}
 # Ruta al catálogo de habilidades
 SKILLS_JSON_PATH = "/home/pablo/app/utilidades/catalogs/skills.json"
 
-# Inicializar NLTK VADER
+# Inicializar NLTK VADER para análisis de sentimientos
 try:
     nltk.download('vader_lexicon', quiet=True)
     SIA = SentimentIntensityAnalyzer()
@@ -28,23 +47,53 @@ except Exception as e:
     logger.error(f"Error inicializando NLTK VADER: {e}")
     SIA = None
 
-def load_skills_catalog() -> Dict:
-    """Carga el catálogo de habilidades desde skills.json."""
+def load_catalog(path: str) -> Dict:
+    """Carga un catálogo desde un archivo JSON."""
     try:
-        with open(SKILLS_JSON_PATH, 'r', encoding='utf-8') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        logger.error(f"Error cargando skills.json: {e}")
+        logger.error(f"Error cargando {path}: {e}")
         return {}
+
+class ModelManager:
+    """Gestor de modelos spaCy con caché y descarga bajo demanda."""
+    def __init__(self):
+        # Caché con límite de 5 modelos y tiempo de vida de 6 horas (21600 segundos)
+        self.model_cache = TTLCache(maxsize=5, ttl=21600)
+
+    def get_model(self, lang: str) -> spacy.language.Language:
+        """Obtiene el modelo spaCy para el idioma, descargándolo si es necesario."""
+        if lang in self.model_cache:
+            logger.info(f"Usando modelo en caché para idioma: {lang}")
+            return self.model_cache[lang]
+        
+        model_name = MODEL_LANGUAGES.get(lang, MODEL_LANGUAGES["default"])
+        try:
+            model = spacy.load(model_name)
+            logger.info(f"Modelo {model_name} cargado desde el sistema.")
+        except OSError:
+            logger.info(f"Modelo {model_name} no encontrado. Descargando...")
+            subprocess.check_call([sys.executable, "-m", "spacy", "download", model_name])
+            model = spacy.load(model_name)
+            logger.info(f"Modelo {model_name} descargado y cargado.")
+        
+        self.model_cache[lang] = model
+        return model
+
+# Instancia global del gestor de modelos
+model_manager = ModelManager()
 
 class BaseNLPProcessor:
     """Clase base para procesadores NLP con spaCy y análisis de sentimientos en cascada."""
     def __init__(self, language: str = 'es'):
         self.language = language
-        self.skills_catalog = load_skills_catalog()
-        self._load_nlp_model()
-        self.skill_cache = TTLCache(maxsize=5000, ttl=7200)
-        self.sentiment_pipeline = None
+        self.skills_catalog = load_catalog(CATALOG_PATHS.get(language, CATALOG_PATHS["es"])["skills"])
+        self.occupations_catalog = load_catalog(CATALOG_PATHS.get(language, CATALOG_PATHS["es"])["occupations"])
+        self.nlp = model_manager.get_model(language)
+        self.skill_cache = TTLCache(maxsize=5000, ttl=7200)  # Caché de habilidades por 2 horas
+        self.translation_cache = TTLCache(maxsize=1000, ttl=3600)  # Caché de traducciones por 1 hora
+        self.translator = GoogleTranslator(source="auto", target="es")
         try:
             from transformers import pipeline
             self.sentiment_pipeline = pipeline('sentiment-analysis', 
@@ -226,7 +275,7 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
                             elif isinstance(item, str):
                                 skills.add(item.lower())
         return skills
-
+    
     def _build_phrase_matcher(self) -> PhraseMatcher:
         """Construye un PhraseMatcher para oportunidades."""
         matcher = PhraseMatcher(self.nlp.vocab, attr='LOWER')
@@ -307,7 +356,9 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
                 details["role"] = possible_role
                 break
 
+        details["skills"] = {k: list(v) for k, v in details["skills"].items()}
         return details
+    
     def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]):
         """Clasifica habilidades para oportunidades, manejando listas o diccionarios."""
         skill_lower = skill.lower()
@@ -380,3 +431,18 @@ class NLPProcessor:
     def get_sentiment(self, text: str) -> str:
         """Obtiene el sentimiento usando el procesador base."""
         return self.processor.get_sentiment(text)
+
+ 
+# Ejemplo de uso
+if __name__ == "__main__":
+    # Procesador para candidatos
+    nlp_candidate = NLPProcessor(language='es', mode='candidate')
+    text_candidate = "Tengo experiencia en Python y trabajo en equipo."
+    result_candidate = nlp_candidate.analyze(text_candidate)
+    print("Análisis de candidato:", result_candidate)
+
+    # Procesador para oportunidades
+    nlp_opportunity = NLPProcessor(language='fr', mode='opportunity')
+    text_opportunity = "Nous recherchons un développeur avec des compétences en Python."
+    result_opportunity = nlp_opportunity.analyze(text_opportunity)
+    print("Análisis de oportunidad:", result_opportunity)
