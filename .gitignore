@@ -16,9 +16,9 @@ shell.py
 # Archivos estáticos generados
 staticfiles/
 media/
-nltk_data/
+/home/pablo/nltk_data/
 cache/
-#skills_data/
+/home/pablo/skills_data/
 token_dist.json
 skill_db_relax_20.json
 # Ignorar archivos temporales
