@@ -35,18 +35,16 @@ REQUEST_TIMEOUT = 10.0
 CACHE_TIMEOUT = 600  # 10 minutos
 whatsapp_semaphore = asyncio.Semaphore(10)
 
-# En services.py
+# En services.py No pueden ser más de 10, por envio.
 MENU_OPTIONS_BY_BU = {
     "amigro": [
-        {"title": "📝 Creación / Actualizar Perfil", "payload": "actualizar_perfil", "description": "Modifica tus datos personales o profesionales."},
-        {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Gestiona tu perfil."},
-        {"title": "📖 Ayuda Postulación", "payload": "ayuda_postulacion", "description": "Guía para aplicar a vacantes."},
+        {"title": "📝 Crear Perfil", "payload": "actualizar_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
+        {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
         {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
         {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
         {"title": "🤝 Invitar Grupo", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
         {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
         {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-        {"title": "⚙️ Configuración", "payload": "configuracion", "description": "Ajusta preferencias."},
         {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
         {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
         {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
