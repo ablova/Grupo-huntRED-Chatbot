@@ -20,8 +20,8 @@ cache/
 skills_data/
 *.json
 *.csv
-#media/
-#*.png
+media/
+*.png
 # Ignorar archivos temporales
 ~*
 
