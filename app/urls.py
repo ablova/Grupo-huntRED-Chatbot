@@ -103,11 +103,11 @@ urlpatterns += [
 # 📌 RUTAS DE MENSAJERÍA (WEBHOOKS GLOBALES)
 # ----------------------------------------
 urlpatterns += [
-    path('webhook/whatsapp/<str:phoneID>/', WhatsAppWebhookView.as_view(), name='whatsapp_webhook'),
-    path('webhook/telegram/<str:bot_name>/', TelegramWebhookView.as_view(), name='telegram_webhook'),
+    path('webhook/whatsapp/<str:phoneID>[\w-]+)/?$', WhatsAppWebhookView.as_view(), name='whatsapp_webhook'),
+    path('webhook/telegram/<str:bot_name>[\w-]+)/?$', TelegramWebhookView.as_view(), name='telegram_webhook'),
     path('webhook/telegram/', TelegramWebhookView.as_view(), name='telegram_webhook_general'),
-    path('webhook/messenger/<str:page_id>/', MessengerWebhookView.as_view(), name='messenger_webhook'),
-    path('webhook/instagram/<str:page_id>/', InstagramWebhookView.as_view(), name='instagram_webhook'),
+    path('webhook/messenger/<str:page_id>[\w-]+)/?$', MessengerWebhookView.as_view(), name='messenger_webhook'),
+    path('webhook/instagram/<str:page_id>[\w-]+)/?$', InstagramWebhookView.as_view(), name='instagram_webhook'),
 ]
 
 # ----------------------------------------

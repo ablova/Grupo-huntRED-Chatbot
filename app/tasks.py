@@ -16,6 +16,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
+from app.chatbot.nlp import NLPProcessor
 from app.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
 from app.utilidades.parser import CVParser, IMAPCVProcessor
 from app.utilidades.email_scraper import email_scraper

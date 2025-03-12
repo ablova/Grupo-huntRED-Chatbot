@@ -11,6 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 ML_MODELS_DIR = os.path.join(BASE_DIR, 'ml_models')
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+APPEND_SLASH = False
 
 sentry_sdk.init(
     dsn=env('SENTRY_DSN'),

@@ -462,11 +462,15 @@ class OpportunityNLPProcessor(BaseNLPProcessor):
 
     def _identify_role(self, text: str) -> Optional[str]:
         text_lower = text.lower()
-        for division in self.skills_catalog.values():
-            for role_category in division.values():
-                for role in role_category.keys():
-                    if role.lower() in text_lower:
-                        return role
+        if isinstance(self.skills_catalog, dict):
+            for division in self.skills_catalog.values():
+                if isinstance(division, dict):
+                    for role_category in division.values():
+                        if isinstance(role_category, dict):
+                            for role in role_category.keys():
+                                if role.lower() in text_lower:
+                                    return role
+        logger.warning("skills_catalog no es un diccionario estructurado adecuadamente.")
         return None
 
     def _detect_contract_type(self, text: str) -> Optional[str]:

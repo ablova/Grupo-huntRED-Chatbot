@@ -606,6 +606,30 @@ class GrupohuntREDMLPipeline:
         ]
         return sorted(results, key=lambda x: x["score"], reverse=True)
 
+    def predict_pending(self):
+        from app.models import Application
+        pending_apps = Application.objects.filter(
+            vacancy__business_unit__name=self.business_unit,
+            status='pendiente'
+        ).select_related('person', 'vacancy')
+        
+        if not pending_apps.exists():
+            logger.info(f"No hay aplicaciones pendientes para {self.business_unit}.")
+            return []
+
+        predictions = []
+        for app in pending_apps:
+            probability = self.predict_candidate_success(app.person, app.vacancy)
+            predictions.append({
+                'application_id': app.id,
+                'candidate': app.person.nombre,
+                'vacancy': app.vacancy.titulo,
+                'probability': probability
+            })
+            logger.info(f"Predicción realizada para aplicación {app.id}: {probability:.2%}")
+
+        return predictions
+    
 class AdaptiveMLFramework(GrupohuntREDMLPipeline):
     def __init__(self, business_unit):
         super().__init__(business_unit)

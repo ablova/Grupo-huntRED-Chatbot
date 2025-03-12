@@ -9,270 +9,182 @@ from app.chatbot.integrations.services import send_email
 from django.conf import settings
 from asgiref.sync import sync_to_async
 import asyncio
+import json
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
 
-
-REQUEST_TIMEOUT = 10.0  # ya definido en services.py; se puede importar si se centraliza
-
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_formatter = logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(message)s')
-console_handler.setFormatter(console_formatter)
-logger.addHandler(console_handler)
-
-file_handler = logging.FileHandler('logs/gpt_handler.log')
-file_handler.setLevel(logging.DEBUG)
-file_formatter = logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(message)s')
-file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
-
-
-
-
+# Valores por defecto para futura configuración dinámica
+GPT_DEFAULTS = {
+    "model": "gpt-4",
+    "max_tokens": 150,
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "timeout": 60,
+}
 
 class GPTHandler:
     def __init__(self):
-        logger.debug("Creando instancia de GPTHandler...")
+        logger.debug("Instancia GPTHandler creada.")
         self.gpt_api = None
         self.client = None
-        self.model = None
-        self.max_tokens = None
-        self.temperature = None
-        self.top_p = None
+        self.config = GPT_DEFAULTS.copy()
 
     async def initialize(self):
-        """
-        Carga la configuración de GPT desde la base de datos.
-        """
         try:
             gpt_api = await sync_to_async(lambda: GptApi.objects.first())()
             if gpt_api:
                 self.gpt_api = gpt_api
                 self.client = OpenAI(api_key=gpt_api.api_token, organization=gpt_api.organization)
-                self.model = gpt_api.model or "gpt-4"
-                self.max_tokens = gpt_api.max_tokens or 150
-                self.temperature = gpt_api.temperature or 0.7
-                self.top_p = gpt_api.top_p or 1.0
-                logger.debug(f"GPTHandler configurado para usar el modelo: {self.model}")
+                self.config.update({
+                    "model": gpt_api.model or GPT_DEFAULTS["model"],
+                    "max_tokens": gpt_api.max_tokens or GPT_DEFAULTS["max_tokens"],
+                    "temperature": gpt_api.temperature or GPT_DEFAULTS["temperature"],
+                    "top_p": gpt_api.top_p or GPT_DEFAULTS["top_p"],
+                })
+                logger.info(f"GPTHandler configurado con modelo: {self.config['model']}")
             else:
-                logger.error("No se encontró una instancia de GptApi en la base de datos.")
-                raise ValueError("No hay GPT API configurada en la base de datos.")
+                logger.error("Sin configuración de GPT API en BD.")
+                raise ValueError("Configuración GPT no encontrada.")
         except Exception as e:
-            logger.exception("Error al inicializar GPTHandler:", exc_info=True)
+            logger.exception(f"Error inicializando GPTHandler: {e}")
             raise e
 
     async def detectar_intencion(self, mensaje: str) -> str:
-        """
-        Analiza la intención del usuario usando NLP y devuelve un tipo de prompt.
-        """
         from app.chatbot.nlp import NLPProcessor
-        nlp = NLPProcessor()  # Create an instance instead of relying on a global
-        analisis = await nlp.analyze(mensaje)  # Await the async method
-        entidades_detectadas = [entidad[0].lower() for entidad in analisis.get("entities", [])]
+        nlp = NLPProcessor()
+        analisis = await sync_to_async(nlp.analyze)(mensaje)
+
+        entidades = [ent[0].lower() for ent in analisis.get("entities", [])]
         intenciones = analisis.get("intents", [])
 
-        # 🔹 Identificar si el mensaje menciona una unidad de negocio
         unidades_negocio = ["huntred", "huntred executive", "huntu", "amigro"]
         for unidad in unidades_negocio:
-            if unidad.lower() in mensaje.lower() or unidad in entidades_detectadas:
+            if unidad.lower() in mensaje.lower() or unidad in entidades:
                 return unidad
 
-        # 🔹 Identificar preguntas comunes según la intención detectada
-        if "perfil" in intenciones or "experiencia" in intenciones:
-            return "perfil"
-        if "habilidades" in intenciones:
-            return "habilidades"
-        if "migracion" in intenciones:
-            return "migracion"
-        if "recomendaciones" in intenciones:
-            return "recomendaciones"
-        if "idiomas" in intenciones:
-            return "idiomas"
-        if "soft_skills" in intenciones:
-            return "soft_skills"
-        if "hard_skills" in intenciones:
-            return "hard_skills"
-        if "negociacion" in intenciones:
-            return "negociacion"
-        if "gestion_proyectos" in intenciones:
-            return "gestion_proyectos"
+        intent_map = {
+            "perfil": ["perfil", "experiencia"],
+            "habilidades": ["habilidades"],
+            "migracion": ["migracion"],
+            "recomendaciones": ["recomendaciones"],
+            "idiomas": ["idiomas"],
+            "soft_skills": ["soft_skills"],
+            "hard_skills": ["hard_skills"],
+            "negociacion": ["negociacion"],
+            "gestion_proyectos": ["gestion_proyectos"],
+        }
 
-        return "general"  # Default prompt type
+        for key, keywords in intent_map.items():
+            if any(intent in intenciones for intent in keywords):
+                return key
 
+        return "general"
+
+    @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
     async def generate_response(self, prompt: str, business_unit=None) -> str:
         if not self.client:
-            return "⚠ GPT no está inicializado."
+            return "⚠ GPT no inicializado."
 
-        business_unit_name = business_unit.name if business_unit else "General"
         prompt_type = await self.detectar_intencion(prompt)
-        context = self.gpt_api.get_prompt(prompt_type, default="Proporciona información clara y concisa, creando perfil de candidato.")
-        full_prompt = f"[{business_unit_name} | {prompt_type}] {context}\n\nUsuario: {prompt}\n\nPor favor, devuelve solo una lista JSON de habilidades extraídas (ejemplo: [\"Python\", \"Django\"])."
+        bu_name = business_unit.name if business_unit else "General"
+
+        full_prompt = (
+            f"Unidad de Negocio: {bu_name}\n"
+            f"Tipo de consulta: {prompt_type}\n"
+            f"{prompt}\n\n"
+            "Devuelve únicamente una lista JSON de habilidades (ej: ['Python', 'Django'])."
+        )
 
         try:
             response = await asyncio.wait_for(
                 asyncio.to_thread(
                     self.client.chat.completions.create,
-                    model=self.model,
+                    model=self.config["model"],
                     messages=[
-                        {"role": "system", "content": "Eres un experto en empleabilidad y desarrollo profesional."},
+                        {"role": "system", "content": "Eres experto en empleabilidad y reclutamiento."},
                         {"role": "user", "content": full_prompt}
                     ],
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    top_p=self.top_p
+                    max_tokens=self.config["max_tokens"],
+                    temperature=self.config["temperature"],
+                    top_p=self.config["top_p"]
                 ),
-                timeout=10.0
+                timeout=self.config["timeout"]
             )
-            respuesta_texto = response.choices[0].message.content.strip()
-            return respuesta_texto
-        except RateLimitError:
-            logger.warning("⚠ Cuota de solicitudes excedida.")
-            self._notify_quota_exceeded()
-            raise Exception("Cuota de OpenAI excedida")
-        except OpenAIError as e:
-            logger.error(f"Error de OpenAI: {str(e)}")
-            raise
-        except Exception as e:
-            logger.error(f"Error inesperado en GPTHandler: {str(e)}")
-            raise
+            return response.choices[0].message.content.strip()
 
-    def generate_response_sync(self, prompt: str, context: Optional[Dict] = None) -> str:
-        """
-        Versión síncrona de generate_response.
-        Se recomienda llamar a la versión asíncrona desde un entorno asíncrono.
-        """
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                logger.warning("Se está ejecutando en un loop asíncrono; se recomienda usar generate_response directamente.")
-                return asyncio.run(self.generate_response(prompt, context))
-            else:
-                return asyncio.run(self.generate_response(prompt, context))
-        except Exception as e:
-            logger.error(f"Error generando respuesta sincronizada con GPT: {e}", exc_info=True)
-            return "Error inesperado al procesar la solicitud."
+        except RateLimitError:
+            logger.warning("Cuota de OpenAI excedida.")
+            self._notify_quota_exceeded()
+            return "Cuota excedida. Intenta más tarde."
+
+        except asyncio.TimeoutError:
+            logger.warning("Timeout en la solicitud GPT.")
+            return "Solicitud tardó demasiado. Intenta nuevamente."
+
+        except OpenAIError as e:
+            logger.error(f"Error OpenAI: {e}")
+            return "Problema al comunicarse con GPT."
 
     def _notify_quota_exceeded(self):
-        logger.debug("Enviando notificación de cuota excedida.")
-        subject = "Se acabó la cuota de OpenAI"
+        subject = "Cuota de OpenAI agotada"
         body = (
-            "Hola,\n\n"
-            "El sistema ha detectado que se ha excedido la cuota de OpenAI.\n\n"
-            "Por favor, revisa el plan y detalles de facturación de OpenAI para continuar con el servicio.\n\n"
-            "Saludos."
+            "Hola,\n\nLa cuota de OpenAI se ha agotado. Por favor revisa tu cuenta.\n\nSaludos."
         )
         emails = ["pablo@huntred.com", "finanzas@huntred.com"]
         for email in emails:
             try:
-                send_email(
-                    business_unit_name="Amigro", 
-                    subject=subject, 
-                    to_email=email, 
-                    body=body
-                )
-                logger.debug(f"Correo de notificación enviado a {email}.")
+                send_email("Amigro", subject, email, body)
+                logger.info(f"Notificación cuota enviada a {email}.")
             except Exception as e:
-                logger.error(f"No se pudo enviar el correo de notificación de cuota excedida a {email}: {e}", exc_info=True)
+                logger.error(f"Error enviando correo a {email}: {e}")
 
     @staticmethod
     async def gpt_message(api_token: str, text: str, model: str = "gpt-4") -> Optional[str]:
-        """
-        Genera respuesta con OpenAI usando timeout.
-        """
-        logger.debug(f"Generando respuesta con timeout en gpt_message para: {text}")
-
         try:
             client = OpenAI(api_key=api_token)
-
             response = await asyncio.wait_for(
                 asyncio.to_thread(
                     client.chat.completions.create,
                     model=model,
                     messages=[{"role": "user", "content": text}],
                     max_tokens=150,
-                    temperature=0.7,
-                    top_p=1.0
+                    temperature=0.2,
+                    top_p=0.9
                 ),
-                timeout=10.0  # ⏳ Timeout de 10 segundos
+                timeout=10
             )
-
-            respuesta_texto = response.choices[0].message.content.strip()
-            logger.debug(f"📩 Respuesta generada: {respuesta_texto}")
-            return respuesta_texto
+            return response.choices[0].message.content.strip()
 
         except asyncio.TimeoutError:
-            logger.warning("[GPT] ⏳ Timeout en gpt_message.")
-            return "Lo siento, no pude procesar tu solicitud a tiempo."
+            logger.warning("Timeout en gpt_message.")
+            return None
         except OpenAIError as oe:
-            logger.error(f"❌ Error de OpenAI en gpt_message: {oe}", exc_info=True)
-            return "No se pudo procesar tu solicitud con OpenAI."
-        except Exception as e:
-            logger.error(f"❌ Error inesperado en gpt_message: {e}", exc_info=True)
-            return "Hubo un problema al generar la respuesta."
+            logger.error(f"Error OpenAI en gpt_message: {oe}")
+            return None
 
-    @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
-    async def generate_response_with_retries(self, prompt: str, context: Optional[Dict] = None) -> str:
-        """
-        Genera respuesta con OpenAI y reintentos, agregando timeout.
-        """
-        import json
-        full_prompt = prompt
-        if context:
-            full_prompt += "\nContexto adicional:\n" + json.dumps(context)
-        logger.debug(f"Generando respuesta con reintentos y timeout para: {full_prompt[:100]}...")
-
+    def generate_response_sync(self, prompt: str, business_unit=None) -> str:
         try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self.client.chat.completions.create,
-                    model=self.model,
-                    messages=[{"role": "user", "content": full_prompt}],
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    top_p=self.top_p
-                ),
-                timeout=10.0  # ⏳ Timeout de 10 segundos
-            )
-
-            respuesta_texto = response.choices[0].message.content.strip()
-            logger.debug(f"📩 Respuesta generada: {respuesta_texto}")
-            return respuesta_texto
-
-        except asyncio.TimeoutError:
-            logger.warning("[GPT] ⏳ Timeout en generate_response_with_retries.")
-            return "Lo siento, no pude procesar tu solicitud a tiempo."
-        except OpenAIError as oe:
-            logger.error(f"❌ Error de OpenAI en generate_response_with_retries: {oe}", exc_info=True)
-            raise oe
+            return asyncio.run(self.generate_response(prompt, business_unit))
         except Exception as e:
-            logger.error(f"❌ Error inesperado en generate_response_with_retries: {e}", exc_info=True)
-            raise e
-        
-    def generate_personalized_message(self, candidate, vacancy, classifier, llm_generator):
-        """
-        Genera un mensaje personalizado usando habilidades estandarizadas.
-        """
-        candidate_skills = " ".join(candidate.skills.split(',') if candidate.skills else [])
-        job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
-        prompt = f"Context: Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. Genera un mensaje personalizado invitando al candidato a aplicar."
-        return llm_generator.generate_response(prompt)
+            logger.error(f"Error generando respuesta síncrona GPT: {e}")
+            return "Error inesperado en la solicitud."
 
 class LLMChatGenerator:
     def __init__(self, model_name="huggyllama/llama-2-7b-chat-hf"):
+        from transformers import pipeline
         self.generator = pipeline("text-generation", model=model_name)
 
     def generate_response(self, prompt, max_length=100, temperature=0.7):
         response = self.generator(prompt, max_length=max_length, temperature=temperature)
         return response[0]["generated_text"]
-    
-    def generate_personalized_message(self, candidate, vacancy, classifier, llm_generator):
-        """
-        Genera un mensaje personalizado usando habilidades estandarizadas.
-        """
-        candidate_skills = " ".join(candidate.skills.split(',') if candidate.skills else [])
-        job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
-        prompt = f"Context: Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. Genera un mensaje personalizado invitando al candidato a aplicar."
-        return llm_generator.generate_response(prompt)
+
+    def generate_personalized_message(self, candidate, vacancy):
+        candidate_skills = candidate.skills.split(',') if candidate.skills else []
+        job_skills = vacancy.skills_required or []
+        prompt = (
+            f"Candidato con habilidades: {candidate_skills}. "
+            f"Vacante requiere: {job_skills}. Genera un mensaje personalizado invitando al candidato."
+        )
+        return self.generate_response(prompt)
     

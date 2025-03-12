@@ -169,8 +169,6 @@ CURRENCY_MAP = {
     'usdt': 'USDT', 'tether': 'USDT',
 }
 
-import re
-
 def normalizar_numero(valor_str):
     """Convierte un string numérico (ej. '10k', '12,345.67') a float."""
     valor_str = valor_str.lower().replace(',', '')
