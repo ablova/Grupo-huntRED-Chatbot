@@ -35,7 +35,7 @@ psql -U grupo_huntred_ai_user -h localhost -d postgres
 df -h &&
 free -h &&
 sudo du -h / | sort -h | tail -n 20 &&
-sudo du -sh /home/pablo/* &&
+sudo du -sh /home/pablo/ | sort -h | tail -n 20 &&
 swapon --show &&
 sudo swapoff -a &&
 iotop &&
@@ -47,11 +47,38 @@ sudo rm -rf /tmp/* &&
 sudo journalctl --vacuum-time=10m &&
 sleep 60 &&
 swapon --show &&
-sudo swapon -a
+sudo swapon -a && sleep 5 && sudo swapoff -a && sleep 5 && sudo swapon -a
 
 # Eliminar procesos Zombie
 sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | sort -u)
 
+sudo chown -R pablo:ai_huntred /home/pablo && \
+sudo find /home/pablo -type d -exec chmod 755 {} \; && \
+sudo find /home/pablo -type f -exec chmod 644 {} \; && \
+sudo chmod -R 775 /home/pablo/media && \
+sudo chmod -R 775 /home/pablo/static && \
+sudo chmod -R 775 /home/pablo/logs && \
+sudo chmod 640 /home/pablo/*/settings.py && \
+sudo chmod 640 /home/pablo/.env && \
+sudo find /home/pablo -name '*.sh' -exec chmod 755 {} \; && \
+sudo chmod 755 /home/pablo/manage.py && \
+echo 'Permisos corregidos correctamente'
+
+
+
+# Elimina archivos __pycache__ y .pyc
+find /home/pablo/venv -name "__pycache__" -type d -exec sudo rm -rf {} +
+find /home/pablo/venv -name "*.pyc" -delete
+find /home/pablo/venv -name "*.pyo" -delete
+find /home/pablo/venv -name "*.pyd" -delete
+
+# Elimina directorios de tests que vienen con los paquetes
+find /home/pablo/venv -path "*/tests*" -type d -exec sudo rm -rf {} +
+
+# Elimina documentación
+find /home/pablo/venv -path "*/doc*" -type d -exec sudo rm -rf {} +
+find /home/pablo/venv -path "*/docs*" -type d -exec sudo rm -rf {} +
+find /home/pablo/venv -path "*/examples*" -type d -exec sudo rm -rf {} +
 
 # List top memory-consuming processes
 ps aux --sort=-%mem | head -n 15

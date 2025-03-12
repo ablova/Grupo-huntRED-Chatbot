@@ -17,6 +17,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
     Devuelve True si se manejó una intención, False si no.
     """
     text = text.strip().lower()  # Elimina espacios y convierte a minúsculas
+    chat_bot_handler = ChatBotHandler()  # O importa la instancia existente
 
     INTENT_RESPONSES = {
         "saludo": "¡Hola! ¿En qué puedo ayudarte hoy?",
@@ -36,15 +37,14 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
     
     greeting_keywords = ["hola", "hello", "buenos días", "buenas tardes", "buenas noches", "inicio", "iniciar", "start", "go", "activar"]
     if any(keyword in text for keyword in greeting_keywords):
-        response = INTENT_RESPONSES["saludo"]
-        await ChatBotHandler.send_complete_initial_messages(platform, user_id, business_unit)
+        await chat_bot_handler.send_complete_initial_messages(platform, user_id, business_unit)
         return True
 
     cv_keywords = ["cv", "currículum", "curriculum", "resume", "hoja de vida"]
     if any(keyword in text for keyword in cv_keywords):
         response = "¡Perfecto! Puedes enviarme tu CV por este medio y lo procesaré para extraer la información relevante. Por favor, adjunta el archivo en tu próximo mensaje."
         await send_message(platform, user_id, response, business_unit)
-        ChatState.state = "waiting_for_cv"
+        chat_state.state = "waiting_for_cv"
         await sync_to_async(ChatState.save)()
         return True
 
@@ -121,7 +121,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         if intent == "consultar_requisitos_vacante":
             response = "Por favor, dime el nombre o ID de la vacante sobre la que quieres saber los requisitos."
             await send_message(platform, user_id, response, business_unit)
-            ChatState.state = "waiting_for_vacancy_id"
+            chat_state.state = "waiting_for_vacancy_id"
             await sync_to_async(chat_state.save)()
             return True
 
@@ -260,8 +260,8 @@ async def handle_document_upload(
         await send_message(platform, user_id, response, business_unit)
         
         # Actualizar el estado para esperar confirmación
-        ChatState.state = "waiting_for_cv_confirmation"
-        ChatState.context['parsed_data'] = parsed_data
+        chat_state.state = "waiting_for_cv_confirmation"
+        chat_state.context['parsed_data'] = parsed_data
         await sync_to_async(chat_state.save)()
         
     except Exception as e:

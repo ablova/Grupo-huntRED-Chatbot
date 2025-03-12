@@ -7,10 +7,11 @@ from celery import shared_task, chain, group
 from celery.schedules import crontab
 from django_celery_beat.models import PeriodicTask, CrontabSchedule, IntervalSchedule
 from celery.exceptions import MaxRetriesExceededError
-import celery
+import celery 
 app = celery.current_app
 from datetime import datetime, timedelta
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_email, send_message

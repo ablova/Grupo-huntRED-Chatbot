@@ -23,6 +23,9 @@ from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
 
 logger = logging.getLogger(__name__)
+os.environ["TRANSFORMERS_BACKEND"] = "tensorflow"
+
+
 
 
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "781zbztzovea6a")
@@ -631,57 +634,90 @@ def scrape_linkedin_profile(link_url, unit):
             # Seleccionar un USER_AGENT aleatorio
             user_agent = random.choice(USER_AGENTS)
             
-            # Lanzar el navegador con el USER_AGENT
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(user_agent=user_agent)
+            # Lanzar el navegador con configuraciones robustas
+            browser = p.chromium.launch(headless=True)  # Cambia a False para depurar visualmente
+            context = browser.new_context(
+                user_agent=user_agent,
+                viewport={"width": 1280, "height": 720},
+                locale="es-ES"  # Simula un navegador en español
+            )
             
-            # Añadir la cookie de autenticación
-            context.add_cookies([{
-                'name': 'li_at',
-                'value': 'AQEDAQDH8CoALanRAAABk5Qqjz0AAAGUhN3cHE0AK_F0uPYrUA2GDrHieAWSq7GFY-RkYmrHvy7t8bDuY1Z3OJ65OoVyDtvrL9R7P1tGu3yPjfBGaZ8ORBYGiILzxToPCMtp2AcJZfKOXRT8ME-qfnGT',
-                'domain': '.linkedin.com',
-                'path': '/'
-            }])
+            # Ruta para almacenar cookies autenticadas
+            cookies_file = "/home/pablo/skills_data/linkedin_cookies.json"
             
-            # Abrir la página
+            # Verificar si hay cookies guardadas y válidas
+            if os.path.exists(cookies_file):
+                context.storage_state(path=cookies_file)
+                logger.info(f"Cargando cookies desde {cookies_file}")
+            else:
+                logger.warning("No se encontraron cookies guardadas. Intentando login manual.")
+                # Si no hay cookies, realizar login (puedes proporcionar tus credenciales aquí)
+                page = context.new_page()
+                page.goto("https://www.linkedin.com/login")
+                page.fill("#username", "pablo@huntred.com")  # Reemplaza con tu email
+                page.fill("#password", "Natalia&Patricio1113!")  # Reemplaza con tu contraseña
+                page.click("button[type=submit]")
+                page.wait_for_load_state("networkidle", timeout=60000)
+                context.storage_state(path=cookies_file)  # Guardar cookies tras login
+                logger.info(f"Cookies guardadas en {cookies_file}")
+                page.close()
+
+            # Abrir la página del perfil
             page = context.new_page()
-            page.goto(link_url)
+            logger.info(f"Intentando acceder a {link_url}")
+            page.goto(link_url, timeout=60000)  # Timeout aumentado a 60 segundos
             
             # Esperar a que la página cargue completamente
-            page.wait_for_load_state('networkidle')
+            page.wait_for_load_state("networkidle", timeout=60000)
             
+            # Verificar si requiere login (título de la página de login)
+            if "Log In or Sign Up" in page.title():
+                logger.error(f"Autenticación fallida para {link_url}. Actualiza las credenciales o cookies.")
+                browser.close()
+                return {}
+
             # Obtener el contenido HTML
             content = page.content()
-            soup = BeautifulSoup(content, 'html.parser')
+            soup = BeautifulSoup(content, "html.parser")
             
             # Extraer datos
             data = {
-                'headline': extract_headline(soup),
-                'location': extract_location(soup),
-                'experience': extract_experience(soup),
-                'education': extract_education(soup),
-                'skills': extract_skills(soup.get_text(), unit),
-                'languages': extract_languages(soup),
-                'contact_info': extract_contact_info(soup)
+                "headline": extract_headline(soup),
+                "location": extract_location(soup),
+                "experience": extract_experience(soup),
+                "education": extract_education(soup),
+                "skills": extract_skills(soup.get_text(), unit),  # Esto usa NLPProcessor
+                "languages": extract_languages(soup),
+                "contact_info": extract_contact_info(soup),
             }
-            data['skills'] = normalize_skills(data['skills'], unit)  # Normalizar habilidades
-            data['divisions'] = associate_divisions(data['skills'], unit)  # Asignar divisiones
+            
+            # Normalizar habilidades y asociar divisiones
+            data["skills"] = normalize_skills(data["skills"], unit)
+            data["divisions"] = associate_divisions(data["skills"], unit)
+            
+            # Log de éxito
+            logger.info(f"Scrapeado exitosamente {link_url}")
             
             # Cerrar el navegador
             browser.close()
             
-            # Esperar un tiempo aleatorio para no saturar
+            # Pausa aleatoria para evitar bloqueos
             time.sleep(random.uniform(10, 20))
             
             return data
+            
     except Exception as e:
-        logger.error(f"Error scrapeando {link_url}: {e}")
+        logger.error(f"Error scrapeando {link_url}: {str(e)}", exc_info=True)
         return {}
 
 def update_person_from_scrape(person: Person, scraped_data: dict):
     """
-    Actualiza los datos de un perfil con la información scrapeada.
+    Actualiza los datos de un perfil con la información scrapeada solo si hay datos válidos.
     """
+    if not scraped_data or not any(scraped_data.values()):
+        logger.warning(f"No se encontraron datos válidos para actualizar {person.nombre}")
+        return
+    
     updated = False
     if scraped_data.get("headline"):
         person.metadata["headline"] = scraped_data["headline"]
@@ -712,6 +748,8 @@ def update_person_from_scrape(person: Person, scraped_data: dict):
     if updated:
         person.save()
         logger.info(f"Perfil actualizado: {person.nombre} {person.apellido_paterno}")
+    else:
+        logger.info(f"No se actualizó {person.nombre}: sin datos nuevos")
 
 def construct_linkedin_url(first_name: str, last_name: str) -> str:
     """
