@@ -1,7 +1,7 @@
 # Ubicación: /home/pablo/app/urls.py
 # Descripción: Archivo principal de rutas centralizadas para toda la aplicación.
 import logging
-from django.urls import path
+from django.urls import path, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -103,11 +103,11 @@ urlpatterns += [
 # 📌 RUTAS DE MENSAJERÍA (WEBHOOKS GLOBALES)
 # ----------------------------------------
 urlpatterns += [
-    path('webhook/whatsapp/<str:phoneID>[\w-]+)/?$', WhatsAppWebhookView.as_view(), name='whatsapp_webhook'),
-    path('webhook/telegram/<str:bot_name>[\w-]+)/?$', TelegramWebhookView.as_view(), name='telegram_webhook'),
+    re_path(r'^webhook/whatsapp/(?P<phoneID>[\w-]+)/?$', WhatsAppWebhookView.as_view(), name='whatsapp_webhook'),
+    re_path(r'^webhook/telegram/(?P<bot_name>[\w-]+)/?$', TelegramWebhookView.as_view(), name='telegram_webhook'),
     path('webhook/telegram/', TelegramWebhookView.as_view(), name='telegram_webhook_general'),
-    path('webhook/messenger/<str:page_id>[\w-]+)/?$', MessengerWebhookView.as_view(), name='messenger_webhook'),
-    path('webhook/instagram/<str:page_id>[\w-]+)/?$', InstagramWebhookView.as_view(), name='instagram_webhook'),
+    re_path(r'^webhook/messenger/(?P<page_id>[\w-]+)/?$', MessengerWebhookView.as_view(), name='messenger_webhook'),
+    re_path(r'^webhook/instagram/(?P<page_id>[\w-]+)/?$', InstagramWebhookView.as_view(), name='instagram_webhook'),
 ]
 
 # ----------------------------------------
