@@ -104,7 +104,7 @@ urlpatterns += [
 # ----------------------------------------
 urlpatterns += [
     re_path(r'^webhook/whatsapp/(?P<phoneID>[\w-]+)/?$', WhatsAppWebhookView.as_view(), name='whatsapp_webhook'),
-    re_path(r'^webhook/telegram/(?P<bot_name>[\w-]+)/?$', TelegramWebhookView.as_view(), name='telegram_webhook'),
+    re_path(r'^webhook/telegram/(?P<bot_name>.+)/?$', TelegramWebhookView.as_view(), name='telegram_webhook'),
     path('webhook/telegram/', TelegramWebhookView.as_view(), name='telegram_webhook_general'),
     re_path(r'^webhook/messenger/(?P<page_id>[\w-]+)/?$', MessengerWebhookView.as_view(), name='messenger_webhook'),
     re_path(r'^webhook/instagram/(?P<page_id>[\w-]+)/?$', InstagramWebhookView.as_view(), name='instagram_webhook'),
