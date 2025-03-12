@@ -15,14 +15,13 @@ shell.py
 
 # Archivos estáticos generados
 staticfiles/
-media/
-/home/pablo/nltk_data/
+nltk_data/
 cache/
-/home/pablo/skills_data/
-token_dist.json
-skill_db_relax_20.json
+skills_data/
 *.json
 *.csv
+#media/
+#*.png
 # Ignorar archivos temporales
 ~*
 
