@@ -44,7 +44,9 @@ class TelegramWebhookView(View):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     async def post(self, request, *args, **kwargs):
-        logger.info(f"📩 Webhook de Telegram activado para {bot_name if bot_name else 'desconocido'}")
+        bot_name = kwargs.get('bot_name', 'desconocido')  # Se obtiene bot_name de kwargs
+        logger.info(f"📩 Webhook de Telegram activado para {bot_name}")
+
         try:
             return await telegram_webhook(request)
         except Exception as e:
