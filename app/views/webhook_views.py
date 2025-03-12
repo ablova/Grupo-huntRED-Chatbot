@@ -43,8 +43,8 @@ class TelegramWebhookView(View):
             logger.error(f"Error en TelegramWebhook GET: {e}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    async def post(self, request, *args, **kwargs):
-        bot_name = kwargs.get('bot_name', 'desconocido')  # Se obtiene bot_name de kwargs
+    async def post(self, request, bot_name=None, *args, **kwargs):
+        bot_name = bot_name or "desconocido"  # Asegura que bot_name esté definido
         logger.info(f"📩 Webhook de Telegram activado para {bot_name}")
 
         try:
