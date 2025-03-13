@@ -8,10 +8,10 @@ from app.utilidades.signature.pdf_generator import (
 )
 from app.utilidades.signature.digital_sign import request_digital_signature
 from app.utilidades.salario import calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
-# from currency_converter import CurrencyRates  # Se esta utilizando forex-python el cual ya esta instalado.
-
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
 from django.conf import settings
+from app.models import BusinessUnit, ConfiguracionBU  # Importamos los modelos necesarios
+from urllib.parse import urlparse  # Ya estaba implícito, pero lo hacemos explícito
 
 logger = logging.getLogger(__name__)
 
