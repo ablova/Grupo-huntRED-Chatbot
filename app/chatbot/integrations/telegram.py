@@ -3,6 +3,7 @@ import logging
 import json
 import httpx
 import asyncio
+import time
 from typing import Optional, Tuple, Dict, Any, List
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
@@ -130,9 +131,12 @@ async def confirm_telegram_callback(callback_query_id: str, telegram_api: Telegr
 # -------------------------------
 @csrf_exempt
 async def telegram_webhook(request, bot_name: str):
+    logger.debug(f"🔔 Iniciando telegram_webhook para {bot_name} con método {request.method}")
     if request.method == "GET":
+        logger.info("Respondiendo a GET con mensaje de webhook activo")
         return JsonResponse({"status": "success", "message": "Webhook activo"}, status=200)
     if request.method != "POST":
+        logger.warning(f"Método no permitido: {request.method}")
         return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
 
     try:
@@ -142,56 +146,79 @@ async def telegram_webhook(request, bot_name: str):
     except json.JSONDecodeError:
         logger.error("❌ Error: JSON mal formado recibido en Telegram webhook")
         return JsonResponse({"status": "error", "message": "Formato JSON inválido"}, status=400)
+    except Exception as e:
+        logger.error(f"❌ Error decodificando body: {str(e)}", exc_info=True)
+        return JsonResponse({"status": "error", "message": "Error procesando solicitud"}, status=400)
 
     try:
-        # Obtener TelegramAPI usando bot_name
-        try:
-            telegram_api = await sync_to_async(TelegramAPI.objects.get)(name=bot_name, is_active=True)
-        except TelegramAPI.DoesNotExist:
-            logger.error(f"❌ No se encontró configuración de Telegram para bot_name: {bot_name}")
-            return JsonResponse({"status": "error", "message": "Configuración de Telegram no encontrada"}, status=404)
+        logger.debug(f"Buscando TelegramAPI para bot_name: {bot_name}")
+        telegram_api = await sync_to_async(
+            TelegramAPI.objects.select_related('business_unit').get
+        )(bot_name=bot_name, is_active=True)
 
-        # Obtener BusinessUnit desde TelegramAPI
         business_unit = telegram_api.business_unit
+        if not business_unit:
+            logger.error(f"❌ No BusinessUnit asociado al bot: {bot_name}")
+            return JsonResponse({"status": "error", "message": "BusinessUnit no encontrado"}, status=400)
 
-        # Validar configuración
         telegram_api, error_msg = await validate_telegram_config(business_unit)
         if error_msg:
+            logger.error(f"❌ Configuración inválida: {error_msg}")
             return JsonResponse({"status": "error", "message": error_msg}, status=400)
 
-        # Procesar mensaje o callback
         if "callback_query" in payload:
             callback_query = payload["callback_query"]
             callback_data = callback_query.get("data", "").strip()
             chat_id = int(callback_query["message"]["chat"]["id"])
+            message_id = callback_query["message"].get("message_id", f"callback_{chat_id}_{int(time.time())}")
             logger.info(f"📥 Callback recibido: {callback_data} de {chat_id}")
             callback_query_id = callback_query.get("id", "")
             if callback_query_id:
                 await confirm_telegram_callback(callback_query_id, telegram_api)
             text = callback_data
         else:
+            logger.debug("Validando mensaje de Telegram")
             chat_id, text = await validate_telegram_message(payload)
+            # Manejo seguro de message_id
+            message_id = (payload.get("message", {}).get("message_id") 
+                         if "message" in payload and "message_id" in payload.get("message", {})
+                         else f"telegram_{chat_id}_{int(time.time())}")
+            logger.debug(f"Generado message_id: {message_id}")
 
-        # Procesar mensaje con el chatbot
+        message_dict = {
+            "messages": [{"id": str(message_id), "text": {"body": text}}],
+            "chat": {"id": chat_id}
+        }
+
+        logger.debug(f"Enviando a ChatBotHandler: {message_dict}")
         chatbot = ChatBotHandler()
         response_text = await chatbot.process_message(
             platform="telegram",
-            user_id=f"{telegram_api.api_key}:{chat_id}",
-            text=text,
+            user_id=f"{chat_id}",
+            message=message_dict,
             business_unit=business_unit
         )
 
-        # Enviar respuesta
+        if response_text is None or not response_text.strip():
+            response_text = "Lo siento, no pude procesar tu mensaje. ¿En qué puedo ayudarte?"
+            logger.warning("Respuesta del chatbot fue None o vacía, usando mensaje por defecto")
+
+        logger.debug(f"Enviando respuesta: {response_text}")
         success = await send_telegram_message(chat_id, response_text, telegram_api, business_unit.name)
         if not success:
+            logger.error(f"❌ Fallo al enviar respuesta al chat_id: {chat_id}")
             return JsonResponse({"status": "error", "message": "Error al enviar respuesta"}, status=500)
 
+        logger.info(f"✅ Mensaje procesado y enviado exitosamente para {bot_name}")
         return JsonResponse({"status": "success"}, status=200)
 
+    except TelegramAPI.DoesNotExist:
+        logger.error(f"❌ No se encontró configuración de Telegram para bot_name: {bot_name}")
+        return JsonResponse({"status": "error", "message": "Configuración de Telegram no encontrada"}, status=404)
     except Exception as e:
         logger.error(f"❌ Error en webhook: {str(e)}", exc_info=True)
-        return JsonResponse({"status": "error", "message": "Error interno del servidor"}, status=500)
-    
+        return JsonResponse({"status": "error", "message": f"Error interno del servidor: {str(e)}"}, status=500)
+
 
 # -------------------------------
 # ✅ 3. ENVÍO DE MENSAJES Y BOTONES
