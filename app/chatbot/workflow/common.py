@@ -8,10 +8,10 @@ from app.utilidades.signature.pdf_generator import (
 )
 from app.utilidades.signature.digital_sign import request_digital_signature
 from app.utilidades.salario import calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
+# from currency_converter import CurrencyRates  # Se esta utilizando forex-python el cual ya esta instalado.
+
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
 from django.conf import settings
-from app.models import BusinessUnit, ConfiguracionBU  # Importamos los modelos necesarios
-from urllib.parse import urlparse  # Ya estaba implícito, pero lo hacemos explícito
 
 logger = logging.getLogger(__name__)
 
@@ -379,34 +379,16 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     adjustment_ppa_orig = DATOS_PPA.get(pais_origen, 1.0) / DATOS_PPA['México']
     adjustment_bigmac_orig = DATOS_BIGMAC.get(pais_origen, 5.0) / DATOS_BIGMAC['México']
 
-   # Construir tabla comparativa dinámica
+    # Construir tabla comparativa dinámica
     msg += "\n🌍 *Comparativa Salario Neto:*\n"
     msg += "```\n"
     msg += f"{'':<15} {'🇲🇽 México':<15} {(f'🌎 {pais_origen}' if data['moneda'] != 'MXN' else ''):<15}\n"
     msg += f"{'-' * 15} {'-' * 15} {'-' * 15 if data['moneda'] != 'MXN' else ''}\n"
-    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_coli_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_ppa_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_bigmac_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_coli_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_ppa_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_bigmac_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
     msg += "```\n"
-    
-    # Obtener el dominio desde ConfiguracionBU
-    try:
-        business_unit = BusinessUnit.objects.get(name=business_unit_name)
-        config = business_unit.configuracionbu  # Accede a la relación OneToOneField
-        if config and config.dominio_bu:
-            from urllib.parse import urlparse
-            parsed_url = urlparse(config.dominio_bu)
-            domain = parsed_url.netloc or parsed_url.path  # Extrae el dominio limpio
-            domain = domain.replace('www.', '')  # Elimina 'www.' si existe
-        else:
-            domain = "huntred.com"  # Dominio por defecto si no hay configuración
-    except BusinessUnit.DoesNotExist:
-        domain = "huntred.com"  # Dominio por defecto si la unidad no existe
-    except ConfiguracionBU.DoesNotExist:
-        domain = "huntred.com"  # Dominio por defecto si no hay ConfiguracionBU
-
-    # Añadir referencia dinámica
-    msg += f"\n📚 *Referencia:* https://{domain}/salario/"
+    msg += "\n📚 *Referencia:* https://amigro.org/salario/"
 
     from app.chatbot.integrations.services import send_message
     await send_message(platform, user_id, msg, business_unit_name)

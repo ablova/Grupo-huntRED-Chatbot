@@ -30,6 +30,7 @@ from app.chatbot.intents_handler import handle_known_intents
 logger = logging.getLogger(__name__)
 
 # Importaciones condicionales de NLP solo si está habilitado
+CACHE_ENABLED = False
 GPT_ENABLED = False
 ML_ENABLED = True    # Cambia a False para desactivar ML
 NLP_ENABLED = True  # Cambia a True para habilitar NLP, False para desactivarlo
@@ -70,11 +71,12 @@ class ChatBotHandler:
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
         """Procesa el mensaje entrante y responde según la intención del usuario."""
         message_id = message.get("messages", [{}])[0].get("id")
-        cache_key = f"processed_message:{message_id}"
-        if cache.get(cache_key):
-            logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
-            return
-        cache.set(cache_key, True, timeout=1200)
+        if CACHE_ENABLED:
+            cache_key = f"processed_message:{message_id}"
+            if cache.get(cache_key):
+                logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
+                return
+            cache.set(cache_key, True, timeout=1200)
 
         try:
             # Extraer el texto del mensaje con validación estricta
