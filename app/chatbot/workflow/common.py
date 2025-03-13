@@ -379,16 +379,16 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     adjustment_ppa_orig = DATOS_PPA.get(pais_origen, 1.0) / DATOS_PPA['México']
     adjustment_bigmac_orig = DATOS_BIGMAC.get(pais_origen, 5.0) / DATOS_BIGMAC['México']
 
-    # Construir tabla comparativa dinámica
+   # Construir tabla comparativa dinámica
     msg += "\n🌍 *Comparativa Salario Neto:*\n"
     msg += "```\n"
     msg += f"{'':<15} {'🇲🇽 México':<15} {(f'🌎 {pais_origen}' if data['moneda'] != 'MXN' else ''):<15}\n"
     msg += f"{'-' * 15} {'-' * 15} {'-' * 15 if data['moneda'] != 'MXN' else ''}\n"
-    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_coli_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_ppa_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_bigmac_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_coli_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_ppa_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_bigmac_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
     msg += "```\n"
-    msg += "\n📚 *Referencia:* https://amigro.org/salario/"
+    
     # Obtener el dominio desde ConfiguracionBU
     try:
         business_unit = BusinessUnit.objects.get(name=business_unit_name)
