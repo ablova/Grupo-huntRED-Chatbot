@@ -389,6 +389,24 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_bigmac_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
     msg += "```\n"
     msg += "\n📚 *Referencia:* https://amigro.org/salario/"
+    # Obtener el dominio desde ConfiguracionBU
+    try:
+        business_unit = BusinessUnit.objects.get(name=business_unit_name)
+        config = business_unit.configuracionbu  # Accede a la relación OneToOneField
+        if config and config.dominio_bu:
+            from urllib.parse import urlparse
+            parsed_url = urlparse(config.dominio_bu)
+            domain = parsed_url.netloc or parsed_url.path  # Extrae el dominio limpio
+            domain = domain.replace('www.', '')  # Elimina 'www.' si existe
+        else:
+            domain = "huntred.com"  # Dominio por defecto si no hay configuración
+    except BusinessUnit.DoesNotExist:
+        domain = "huntred.com"  # Dominio por defecto si la unidad no existe
+    except ConfiguracionBU.DoesNotExist:
+        domain = "huntred.com"  # Dominio por defecto si no hay ConfiguracionBU
+
+    # Añadir referencia dinámica
+    msg += f"\n📚 *Referencia:* https://{domain}/salario/"
 
     from app.chatbot.integrations.services import send_message
     await send_message(platform, user_id, msg, business_unit_name)
