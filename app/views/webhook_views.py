@@ -37,20 +37,21 @@ class WhatsAppWebhookView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class TelegramWebhookView(View):
     async def get(self, request, *args, **kwargs):
-        try:
-            return await telegram_webhook(request)
-        except Exception as e:
-            logger.error(f"Error en TelegramWebhook GET: {e}")
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        bot_name = kwargs.get('bot_name', None)
+        if not bot_name:
+            return JsonResponse({'status': 'error', 'message': 'Bot name no proporcionado'}, status=400)
+        logger.info(f"📩 Webhook de Telegram (GET) activado para {bot_name}")
+        return await telegram_webhook(request, bot_name)
 
-    async def post(self, request, bot_name=None, *args, **kwargs):
-        bot_name = bot_name or "desconocido"  # Asegura que bot_name esté definido
-        logger.info(f"📩 Webhook de Telegram activado para {bot_name}")
-
+    async def post(self, request, *args, **kwargs):
+        bot_name = kwargs.get('bot_name', None)
+        if not bot_name:
+            return JsonResponse({'status': 'error', 'message': 'Bot name no proporcionado'}, status=400)
+        logger.info(f"📩 Webhook de Telegram (POST) activado para {bot_name}")
         try:
-            return await telegram_webhook(request)
+            return await telegram_webhook(request, bot_name)
         except Exception as e:
-            logger.error(f"Error en TelegramWebhook POST: {e}")
+            logger.error(f"❌ Error en TelegramWebhook POST: {e}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
