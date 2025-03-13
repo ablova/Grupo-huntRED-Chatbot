@@ -249,12 +249,9 @@ def get_business_unit_domain(business_unit):
     }
     return domains.get(business_unit.name.lower() if hasattr(business_unit, 'name') else business_unit, "huntred.com")
 
-# ... (Manteniendo los imports y funciones previas como están) ...
-
 async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_name):
     data = parsear_mensaje(mensaje)
     if 'salario_bruto' not in data and 'salario_neto' not in data:
-        from app.chatbot.integrations.services import send_message
         await send_message(platform, user_id, "Por favor, proporciona un salario válido.", business_unit_name)
         return
 
@@ -384,11 +381,27 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     msg += "```\n"
     msg += f"{'':<15} {'🇲🇽 México':<15} {(f'🌎 {pais_origen}' if data['moneda'] != 'MXN' else ''):<15}\n"
     msg += f"{'-' * 15} {'-' * 15} {'-' * 15 if data['moneda'] != 'MXN' else ''}\n"
-    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_coli_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_ppa_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(salario_neto_orig * adjustment_bigmac_orig:>10,.2f} + ' ' + data['moneda'] if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_coli_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_ppa_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
+    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_bigmac_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
     msg += "```\n"
-    msg += "\n📚 *Referencia:* https://amigro.org/salario/"
 
-    from app.chatbot.integrations.services import send_message
+    # Obtener el dominio desde ConfiguracionBU
+    try:
+        business_unit = BusinessUnit.objects.get(name=business_unit_name)
+        config = business_unit.configuracionbu  # Accede a la relación OneToOneField
+        if config and config.dominio_bu:
+            parsed_url = urlparse(config.dominio_bu)
+            domain = parsed_url.netloc or parsed_url.path  # Extrae el dominio limpio
+            domain = domain.replace('www.', '')  # Elimina 'www.' si existe
+        else:
+            domain = "huntred.com"  # Dominio por defecto si no hay configuración
+    except BusinessUnit.DoesNotExist:
+        domain = "huntred.com"  # Dominio por defecto si la unidad no existe
+    except ConfiguracionBU.DoesNotExist:
+        domain = "huntred.com"  # Dominio por defecto si no hay ConfiguracionBU
+
+    # Añadir referencia dinámica
+    msg += f"\n📚 *Referencia:* https://{domain}/salario/"
+
     await send_message(platform, user_id, msg, business_unit_name)
