@@ -17,7 +17,7 @@ from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit,
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from app.chatbot.utils import clean_text
 from app.utilidades.loader import DIVISION_SKILLS
-from app.chatbot.nlp import OpportunityNLPProcessor
+from app.chatbot.nlp import NLPProcessor
 from app.utilidades.vacantes import VacanteManager
 from prometheus_client import Counter, Histogram, start_http_server
 import logging
@@ -197,7 +197,7 @@ async def validar_url(url: str, check_content: bool = False) -> bool:
             return False
 
 def extract_skills(text: str) -> List[str]:
-    nlp_processor = OpportunityNLPProcessor()
+    nlp_processor = NLPProcessor(language="es", mode="opportunity")
     return nlp_processor.extract_skills(clean_text(text))
 
 def associate_divisions(skills: List[str]) -> List[str]:
@@ -291,7 +291,7 @@ class BaseScraper:
         return vacantes
 
     async def analyze_description(self, description: str) -> Dict:
-        nlp_processor = OpportunityNLPProcessor()
+        nlp_processor = NLPProcessor(language="es", mode="opportunity")
         cleaned_text = clean_text(description)
         skills = nlp_processor.extract_skills(cleaned_text)
         return {"details": {"skills": skills, "cleaned_description": cleaned_text}}
