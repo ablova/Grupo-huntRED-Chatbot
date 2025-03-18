@@ -1,3 +1,8 @@
+import asyncio
+from app.chatbot.integrations.services import send_message
+mensaje = "Por otro lado ya es un proceso que tiene mucho retraso y si no fuera tuyo, estaría persiguiendo al consultor para saber que sucede. En mi scoreboard sale ya -35 días por lo que si a mi ya me urge resolverlo. Si es la única forma que sale pronto demosle."
+await send_message("whatsapp", "525518490291", mensaje, "amigro")
+
 # Sincronizacion GIT
 cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
 git add .
@@ -35,7 +40,8 @@ psql -U grupo_huntred_ai_user -h localhost -d postgres
 df -h &&
 free -h &&
 sudo du -h / | sort -h | tail -n 20 &&
-sudo du -sh /home/pablo/ | sort -h | tail -n 20 &&
+sudo du -sh /home/pablo/* | sort -h | tail -n 20 &&
+sudo du -sh /home/pablollh/* | sort -h | tail -n 20 &&
 swapon --show &&
 sudo swapoff -a &&
 iotop &&
@@ -67,18 +73,18 @@ echo 'Permisos corregidos correctamente'
 
 
 # Elimina archivos __pycache__ y .pyc
-find /home/pablo/venv -name "__pycache__" -type d -exec sudo rm -rf {} +
-find /home/pablo/venv -name "*.pyc" -delete
-find /home/pablo/venv -name "*.pyo" -delete
-find /home/pablo/venv -name "*.pyd" -delete
+sudo find /home/pablo/venv -name "__pycache__" -type d -exec sudo rm -rf {} +
+sudo find /home/pablo/venv -name "*.pyc" -delete
+sudo find /home/pablo/venv -name "*.pyo" -delete
+sudo find /home/pablo/venv -name "*.pyd" -delete
 
 # Elimina directorios de tests que vienen con los paquetes
-find /home/pablo/venv -path "*/tests*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablo/venv -path "*/tests*" -type d -exec sudo rm -rf {} +
 
 # Elimina documentación
-find /home/pablo/venv -path "*/doc*" -type d -exec sudo rm -rf {} +
-find /home/pablo/venv -path "*/docs*" -type d -exec sudo rm -rf {} +
-find /home/pablo/venv -path "*/examples*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablo/venv -path "*/doc*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablo/venv -path "*/docs*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablo/venv -path "*/examples*" -type d -exec sudo rm -rf {} +
 
 # List top memory-consuming processes
 ps aux --sort=-%mem | head -n 15
@@ -144,11 +150,19 @@ alias edit_linkedin='sudo rm /home/pablo/app/utilidades/linkedin.py && sudo nano
 # === Alias para chatbot e integraciones ===
 alias edit_chatbot='sudo rm /home/pablo/app/chatbot/chatbot.py && sudo nano /home/pablo/app/chatbot/chatbot.py'
 alias edit_nlp='sudo rm /home/pablo/app/chatbot/nlp.py && sudo nano /home/pablo/app/chatbot/nlp.py'
+alias edit_gpt='sudo rm /home/pablo/app/chatbot/gpt.py && sudo nano /home/pablo/app/chatbot/gpt.py'
+alias utils='sudo rm /home/pablo/app/chatbot/utils.py && sudo nano /home/pablo/app/chatbot/utils.py'
+alias edit_intent='sudo rm /home/pablo/app/chatbot/intents_handles.py && sudo nano /home/pablo/app/chatbot/intents_handler.py'
 alias edit_whatsapp='sudo rm /home/pablo/app/chatbot/integrations/whatsapp.py && sudo nano /home/pablo/app/chatbot/integrations/whatsapp.py'
 alias edit_telegram='sudo rm /home/pablo/app/chatbot/integrations/telegram.py && sudo nano /home/pablo/app/chatbot/integrations/telegram.py'
 alias edit_messenger='sudo rm /home/pablo/app/chatbot/integrations/messenger.py && sudo nano /home/pablo/app/chatbot/integrations/messenger.py'
 alias edit_instagram='sudo rm /home/pablo/app/chatbot/integrations/instagram.py && sudo nano /home/pablo/app/chatbot/integrations/instagram.py'
 alias edit_services='sudo rm /home/pablo/app/chatbot/integrations/services.py && sudo nano /home/pablo/app/chatbot/integrations/services.py'
+alias edit_common='sudo rm /home/pablo/app/chatbot/workflow/common.py && sudo nano /home/pablo/app/chatbot/workflow/common.py'
+alias edit_amigro='sudo rm /home/pablo/app/chatbot/workflow/amigro.py && sudo nano /home/pablo/app/chatbot/workflow/amigro.py'
+alias edit_executive='sudo rm /home/pablo/app/chatbot/workflow/executive.py && sudo nano /home/pablo/app/chatbot/workflow/executive.py'
+alias edit_huntred='sudo rm /home/pablo/app/chatbot/workflow/huntred.py && sudo nano /home/pablo/app/chatbot/workflow/huntred.py'
+alias edit_huntu='sudo rm /home/pablo/app/chatbot/workflow/huntu.py && sudo nano /home/pablo/app/chatbot/workflow/huntu.py'
 
 # === Alias para edición de views ===
 alias edit_views='sudo rm /home/pablo/app/views.py && sudo nano /home/pablo/app/views.py'
@@ -184,10 +198,18 @@ alias migrate='python /home/pablo/manage.py migrate'
 alias makemigrations='python /home/pablo/manage.py makemigrations'
 alias collectstatic='python /home/pablo/manage.py collectstatic --noinput'
 alias shell='python /home/pablo/manage.py shell'
+alias monitor_django='python /home/pablo/manage.py runprofileserver'
+alias inspect_model='python /home/pablo/manage.py inspectdb'
 alias restart_celery='sudo systemctl restart celery'
 alias restart_gunicorn='sudo systemctl restart gunicorn'
 alias restart_nginx='sudo systemctl restart nginx'
+alias smart_reload='cd /home/pablo && python manage.py check && (systemctl is-active --quiet celery && sudo systemctl restart celery) && (systemctl is-active --quiet gunicorn && sudo systemctl restart gunicorn)'
 alias restart_all='sudo systemctl restart gunicorn nginx celery-worker celery-beat celery-ml celery-scraping'
+alias up_git='sudo truncate -s 0 /home/pablo/logs/*.log && sudo truncate -s 0 /var/log/nginx/access.log && sudo truncate -s 0 /var/log/nginx/error.log && sudo truncate -s 0 /var/log/syslog && sudo truncate -s 0 /var/log/auth.log && sudo truncate -s 0 /var/log/dmesg && sudo truncate -s 0 /var/log/kern.log && sudo logrotate -f /etc/logrotate.conf && sudo journalctl --vacuum-time=1s && sudo journalctl --vacuum-size=50M && sleep 5'
+alias up2_git='cd /home/pablo && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
+alias zombie='sudo kill -9 $(ps -ef | grep "systemctl.*less" | awk "{print \$2,\$3}" | tr " " "\n" | sort -u) && sudo find /var/log -type f -size +10M'
+alias rmem='sudo sysctl vm.drop_caches=3 && sudo rm -rf /tmp/* && sudo journalctl --vacuum-time=10m && sleep 40 && swapon --show && sudo swapon -a'
+
 
 # Then in the Python shell, you can import and profile specific tasks
 from memory_profiler import profile
@@ -1147,21 +1169,16 @@ def calcular_neto_equivalente(neto_origen: float, moneda_origen: str, modelo: st
     else:
         raise ValueError("Modelo no reconocido")
 
-
-# /home/pablo/prueba_salario_detallada.py
 import asyncio
 import os
 import django
-from django.conf import settings
-
-# Configurar el entorno Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'your_project.settings')  # Reemplaza con el nombre real de tu proyecto
-django.setup()
-
 from app.chatbot.workflow.common import calcular_salario_chatbot
 from app.models import BusinessUnit
 from asgiref.sync import sync_to_async
 
+# Configurar el entorno Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')  # Reemplaza con el nombre real de tu proyecto
+django.setup()
 # Obtener el nombre del BusinessUnit
 async def get_amigro_business_unit_name():
     business_unit = await sync_to_async(BusinessUnit.objects.filter(name__iexact='amigro').first)()
@@ -1174,20 +1191,15 @@ async def get_amigro_business_unit_name():
 async def ejecutar_pruebas_detalladas():
     business_unit_name = await get_amigro_business_unit_name()
 
-    # Prueba 1: Telegram - Salario bruto simple
-    mensaje_telegram = "Salario bruto = 15000 MXN mensual"
-    print(f"Enviando a Telegram: {mensaje_telegram}")
-    await calcular_salario_chatbot("telegram", "871198362", mensaje_telegram, business_unit_name)
 
     # Prueba 2: WhatsApp - Salario neto con bono
-    mensaje_whatsapp = "Salario neto = 1000 USD mensual con 1 mes de bono"
+    mensaje_whatsapp = "Salario bruto = 100000000 COP mensual con 8 mes de bono"
     print(f"Enviando a WhatsApp: {mensaje_whatsapp}")
-    await calcular_salario_chatbot("whatsapp", "5215518490291", mensaje_whatsapp, business_unit_name)
-
-    # Prueba 3: WhatsApp - Salario bruto con prestaciones adicionales
-    mensaje_whatsapp_prestaciones = "Salario bruto = 20000 MXN mensual con vales de 1000 MXN y fondo de ahorro"
-    print(f"Enviando a WhatsApp: {mensaje_whatsapp_prestaciones}")
-    await calcular_salario_chatbot("whatsapp", "5215518490291", mensaje_whatsapp_prestaciones, business_unit_name)
+    await calcular_salario_chatbot("whatsapp", "525518490291", mensaje_whatsapp, business_unit_name)
 
 if __name__ == "__main__":
     asyncio.run(ejecutar_pruebas_detalladas())
+
+
+nohup python /home/pablo/nlp_pruebas_optimizadas.py &> /home/pablo/logs/nlp_pruebas_optimizadas.out & 
+nohup python /home/pablo/nlp_pruebas.py &> /home/pablo/logs/nlp_pruebas.out &

@@ -1,17 +1,21 @@
 # /home/pablo/app/chatbot/workflow/common.py - Funciones comunes para los workflows
 import logging
-import re    
+import re
 from forex_python.converter import CurrencyRates
 from django.core.files.storage import default_storage
 from app.utilidades.signature.pdf_generator import (
     generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
 )
 from app.utilidades.signature.digital_sign import request_digital_signature
-from app.utilidades.salario import calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
-# from currency_converter import CurrencyRates  # Se esta utilizando forex-python el cual ya esta instalado.
-
+from app.utilidades.salario import (
+    calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
+    obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
+)
 from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
+from app.models import BusinessUnit, ConfiguracionBU
 from django.conf import settings
+from urllib.parse import urlparse
+from asgiref.sync import sync_to_async  # Para consultas asíncronas a la BD
 
 logger = logging.getLogger(__name__)
 
@@ -171,10 +175,13 @@ CURRENCY_MAP = {
 
 def normalizar_numero(valor_str):
     """Convierte un string numérico (ej. '10k', '12,345.67') a float."""
-    valor_str = valor_str.lower().replace(',', '')
-    if 'k' in valor_str:
-        return float(valor_str.replace('k', '')) * 1000
-    return float(valor_str)
+    try:
+        valor_str = valor_str.lower().replace(',', '')
+        if 'k' in valor_str:
+            return float(valor_str.replace('k', '')) * 1000
+        return float(valor_str)
+    except (ValueError, AttributeError):
+        return 0.0  # Valor por defecto si falla la conversión
 
 def extraer_moneda(mensaje):
     """Extrae la moneda del mensaje usando CURRENCY_MAP."""
@@ -185,6 +192,7 @@ def extraer_moneda(mensaje):
     return 'MXN'  # Por defecto
 
 def parsear_mensaje(mensaje):
+    """Parsea el mensaje para extraer datos de salario."""
     data = {}
     mensaje = mensaje.lower()
 
@@ -236,6 +244,15 @@ def parsear_mensaje(mensaje):
         data['prestaciones_adicionales'] = False
     else:
         data['prestaciones_adicionales'] = True
+
+    # Prestaciones específicas
+    match_vales = re.search(r'vales\s*(?:de)?\s*([\d,\.]+k?)', mensaje, re.IGNORECASE)
+    if match_vales:
+        data['monto_vales'] = normalizar_numero(match_vales.group(1))
+    else:
+        data['monto_vales'] = 0.0
+
+    data['fondo_ahorro'] = 'fondo de ahorro' in mensaje.lower()
 
     return data
 
@@ -386,10 +403,10 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_bigmac_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
     msg += "```\n"
 
-    # Obtener el dominio desde ConfiguracionBU
+    # Obtener el dominio desde ConfiguracionBU de manera asíncrona
     try:
-        business_unit = BusinessUnit.objects.get(name=business_unit_name)
-        config = business_unit.configuracionbu  # Accede a la relación OneToOneField
+        business_unit = await sync_to_async(BusinessUnit.objects.get)(name=business_unit_name)
+        config = await sync_to_async(lambda: business_unit.configuracionbu)()
         if config and config.dominio_bu:
             parsed_url = urlparse(config.dominio_bu)
             domain = parsed_url.netloc or parsed_url.path  # Extrae el dominio limpio
@@ -400,6 +417,9 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
         domain = "huntred.com"  # Dominio por defecto si la unidad no existe
     except ConfiguracionBU.DoesNotExist:
         domain = "huntred.com"  # Dominio por defecto si no hay ConfiguracionBU
+    except Exception as e:
+        logger.error(f"Error al obtener dominio para {business_unit_name}: {e}")
+        domain = "huntred.com"  # Fallback en caso de error inesperado
 
     # Añadir referencia dinámica
     msg += f"\n📚 *Referencia:* https://{domain}/salario/"
