@@ -755,6 +755,7 @@ class ChatState(models.Model):
     person = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True,
                                help_text="Perfil del candidato asociado.")  # Cambiado a ForeignKey
     context = JSONField(default=dict, blank=True)
+    state = models.CharField(max_length=50, default='initial', help_text="Estado actual del chat (ej. initial, waiting_for_tos)")
     class Meta:
         unique_together = ('user_id', 'business_unit')  # Permitir múltiples ChatState por persona y BU
 

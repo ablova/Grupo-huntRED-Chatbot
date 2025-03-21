@@ -2,7 +2,7 @@
 import logging
 from asgiref.sync import sync_to_async
 from app.models import Person, ChatState, BusinessUnit, Application, EnhancedNetworkGamificationProfile
-from app.chatbot.integrations.services import send_message, send_options
+from app.chatbot.integrations.services import send_message, send_options, send_menu
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,6 @@ async def handle_job_selection(plataforma: str, user_id: str, texto: str, estado
         await send_message(plataforma, user_id, resp, unidad_negocio.name.lower())
 
 async def handle_job_action(plataforma: str, user_id: str, texto: str, estado_chat: ChatState, unidad_negocio: BusinessUnit, persona: Person):
-    """Maneja acciones específicas sobre una vacante seleccionada."""
     recommended_jobs = estado_chat.context.get('recommended_jobs', [])
     bu_name = unidad_negocio.name.lower()
 
@@ -42,9 +41,12 @@ async def handle_job_action(plataforma: str, user_id: str, texto: str, estado_ch
         if 0 <= job_index < len(recommended_jobs):
             job = recommended_jobs[job_index]
             await sync_to_async(Application.objects.create)(user=persona, vacancy_id=job['id'], status='applied')
+            estado_chat.state = "applied"  # Transición a estado 'applied'
+            await sync_to_async(estado_chat.save)()
             resp = "¡Has aplicado a la vacante con éxito!"
             await send_message(plataforma, user_id, resp, bu_name)
             await award_gamification_points(persona, "job_application", plataforma, unidad_negocio)
+            await send_menu(plataforma, user_id, unidad_negocio)  # Enviar menú dinámico
         else:
             resp = "No encuentro esa vacante."
             await send_message(plataforma, user_id, resp, bu_name)
@@ -78,6 +80,9 @@ async def handle_job_action(plataforma: str, user_id: str, texto: str, estado_ch
         else:
             resp = "No encuentro esa vacante."
             await send_message(plataforma, user_id, resp, bu_name)
+        estado_chat.state = "scheduled"  # Transición a estado 'scheduled'
+        await sync_to_async(estado_chat.save)()
+        await send_menu(plataforma, user_id, unidad_negocio)  # Enviar menú dinámico
 
     elif texto.startswith("tips_"):
         job_index = int(texto.split('_')[1])
@@ -103,27 +108,22 @@ async def get_interview_slots(job: Dict[str, Any]) -> List[Dict[str, str]]:
     ]
 
 async def award_gamification_points(persona: Person, activity_type: str, plataforma: str, unidad_negocio: BusinessUnit):
-    """Otorga puntos de gamificación al usuario y actualiza niveles."""
-    try:
-        profile, created = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get_or_create)(
-            user=persona, defaults={'points': 0, 'level': 1}
-        )
-        await sync_to_async(profile.award_points)(activity_type)
-        await sync_to_async(profile.save)()
-
-        # Actualización de niveles basada en puntos
-        if profile.points >= 100 and profile.level < 2:
-            profile.level = 2
-            await sync_to_async(profile.save)()
-            await send_message(plataforma, persona.phone, "¡Subiste al nivel 2! Ahora tienes acceso a más beneficios.", unidad_negocio.name.lower())
-        elif profile.points >= 200 and profile.level < 3:
-            profile.level = 3
-            await sync_to_async(profile.save)()
-            await send_message(plataforma, persona.phone, "¡Subiste al nivel 3! Eres un candidato destacado.", unidad_negocio.name.lower())
-
-        await notify_user_gamification_update(persona, activity_type, plataforma, unidad_negocio)
-    except Exception as e:
-        logger.error(f"Error otorgando puntos de gamificación a {persona.id}: {e}", exc_info=True)
+    profile, created = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get_or_create)(
+        user=persona, defaults={'points': 0, 'level': 1}
+    )
+    points_awarded = {"job_application": 20, "tos_accepted": 10}.get(activity_type, 5)
+    profile.points += points_awarded
+    if profile.points >= 300 and profile.level < 4:
+        profile.level = 4
+        await send_message(plataforma, persona.phone, "¡Subiste al nivel 4! Eres un candidato estrella.", unidad_negocio.name.lower())
+    elif profile.points >= 200 and profile.level < 3:
+        profile.level = 3
+        await send_message(plataforma, persona.phone, "¡Subiste al nivel 3! Eres un candidato destacado.", unidad_negocio.name.lower())
+    elif profile.points >= 100 and profile.level < 2:
+        profile.level = 2
+        await send_message(plataforma, persona.phone, "¡Subiste al nivel 2! Más beneficios desbloqueados.", unidad_negocio.name.lower())
+    await sync_to_async(profile.save)()
+    await notify_user_gamification_update(persona, activity_type, plataforma, unidad_negocio)
 
 async def notify_user_gamification_update(persona: Person, activity_type: str, plataforma: str, unidad_negocio: BusinessUnit):
     """Notifica al usuario sobre la actualización de puntos de gamificación."""
