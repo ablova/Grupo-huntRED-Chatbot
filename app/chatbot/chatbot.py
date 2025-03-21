@@ -73,182 +73,182 @@ class ChatBotHandler:
         await iniciar_creacion_perfil(platform, user_id, business_unit, chat_state, person)
 
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
-    """Procesa el mensaje entrante y responde según la intención del usuario y el estado del chat."""
-    message_id = message.get("messages", [{}])[0].get("id")
-    if CACHE_ENABLED:
-        cache_key = f"processed_message:{message_id}"
-        if cache.get(cache_key):
-            logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
-            return
-        cache.set(cache_key, True, timeout=1200)
+        """Procesa el mensaje entrante y responde según la intención del usuario y el estado del chat."""
+        message_id = message.get("messages", [{}])[0].get("id")
+        if CACHE_ENABLED:
+            cache_key = f"processed_message:{message_id}"
+            if cache.get(cache_key):
+                logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
+                return
+            cache.set(cache_key, True, timeout=1200)
 
-    try:
-        text = ""
-        if isinstance(message, dict) and "text" in message and "body" in message["text"]:
-            text = message["text"]["body"].strip().lower()
-        elif message.get("messages") and "text" in message["messages"][0] and "body" in message["messages"][0]["text"]:
-            text = message["messages"][0]["text"]["body"].strip().lower()
-        else:
-            logger.error(f"[process_message] Mensaje sin texto válido: {message}")
-            await send_message(platform, user_id, "No entendí tu mensaje. ¿Puedes intentarlo de nuevo?", business_unit.name.lower())
-            return
+        try:
+            text = ""
+            if isinstance(message, dict) and "text" in message and "body" in message["text"]:
+                text = message["text"]["body"].strip().lower()
+            elif message.get("messages") and "text" in message["messages"][0] and "body" in message["messages"][0]["text"]:
+                text = message["messages"][0]["text"]["body"].strip().lower()
+            else:
+                logger.error(f"[process_message] Mensaje sin texto válido: {message}")
+                await send_message(platform, user_id, "No entendí tu mensaje. ¿Puedes intentarlo de nuevo?", business_unit.name.lower())
+                return
 
-        logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {business_unit.name}: {text}")
+            logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {business_unit.name}: {text}")
 
-        chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
-            user_id=user_id, business_unit=business_unit, defaults={'platform': platform, 'state': 'initial', 'context': {}}
-        )
-        user, _ = await self.get_or_create_user(user_id, platform)
-        if chat_state.person != user or chat_state.platform != platform:
-            chat_state.person = user
-            chat_state.platform = platform
-            await sync_to_async(chat_state.save)()
-        user.number_interaction += 1
-        await sync_to_async(user.save)()
+            chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
+                user_id=user_id, business_unit=business_unit, defaults={'platform': platform, 'state': 'initial', 'context': {}}
+            )
+            user, _ = await self.get_or_create_user(user_id, platform)
+            if chat_state.person != user or chat_state.platform != platform:
+                chat_state.person = user
+                chat_state.platform = platform
+                await sync_to_async(chat_state.save)()
+            user.number_interaction += 1
+            await sync_to_async(user.save)()
 
-        if created or chat_state.state == 'initial':
-            logger.info(f"[process_message] Nuevo usuario detectado: {user_id}. Iniciando flujo de bienvenida.")
-            await self.send_complete_initial_messages(platform, user_id, business_unit)
-            chat_state.state = 'waiting_for_tos'
-            await sync_to_async(chat_state.save)()
-            return
+            if created or chat_state.state == 'initial':
+                logger.info(f"[process_message] Nuevo usuario detectado: {user_id}. Iniciando flujo de bienvenida.")
+                await self.send_complete_initial_messages(platform, user_id, business_unit)
+                chat_state.state = 'waiting_for_tos'
+                await sync_to_async(chat_state.save)()
+                return
 
-        if not user.tos_accepted:
-            logger.info(f"[process_message] TOS no aceptados para {user_id}. Solicitando aceptación.")
-            await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
-            return
+            if not user.tos_accepted:
+                logger.info(f"[process_message] TOS no aceptados para {user_id}. Solicitando aceptación.")
+                await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
+                return
 
-        if NLP_ENABLED and is_spam_message(user_id, text):
-            logger.warning(f"[SPAM DETECTADO] ⛔ Mensaje repetido de {user_id}: {text}")
-            await send_message(platform, user_id, "⚠️ Por favor, no envíes mensajes repetidos.", business_unit.name.lower())
-            return
+            if NLP_ENABLED and is_spam_message(user_id, text):
+                logger.warning(f"[SPAM DETECTADO] ⛔ Mensaje repetido de {user_id}: {text}")
+                await send_message(platform, user_id, "⚠️ Por favor, no envíes mensajes repetidos.", business_unit.name.lower())
+                return
 
-        if cache.get(f"muted:{user_id}"):
-            logger.warning(f"[MUTEADO] ⛔ Usuario {user_id} en cooldown.")
-            await send_message(platform, user_id, "⚠️ Demasiados mensajes similares, espera un momento.", business_unit.name.lower())
-            return
+            if cache.get(f"muted:{user_id}"):
+                logger.warning(f"[MUTEADO] ⛔ Usuario {user_id} en cooldown.")
+                await send_message(platform, user_id, "⚠️ Demasiados mensajes similares, espera un momento.", business_unit.name.lower())
+                return
 
-        await self.store_user_message(chat_state, text)
+            await self.store_user_message(chat_state, text)
 
-        detected_intents = []
-        if NLP_ENABLED:
-            analisis = await sync_to_async(nlp_processor.analyze)(text)
-            entities = analisis.get("entities", [])
-            sentiment = analisis.get("sentiment", {})
-            detected_intents = [analisis["intent"]["intent"]] if analisis.get("intent") else []
-            logger.info(f"[process_message] 🎯 NLP detectó intents: {detected_intents}")
-        else:
-            entities = []
-            sentiment = {}
+            detected_intents = []
+            if NLP_ENABLED:
+                analisis = await sync_to_async(nlp_processor.analyze)(text)
+                entities = analisis.get("entities", [])
+                sentiment = analisis.get("sentiment", {})
+                detected_intents = [analisis["intent"]["intent"]] if analisis.get("intent") else []
+                logger.info(f"[process_message] 🎯 NLP detectó intents: {detected_intents}")
+            else:
+                entities = []
+                sentiment = {}
 
-        from app.chatbot.workflow.common import manejar_respuesta_perfil
-        if await manejar_respuesta_perfil(platform, user_id, text, business_unit, chat_state, user, self.gpt_handler):
-            logger.info(f"[process_message] Respuesta de perfil manejada por common.py")
-            return
+            from app.chatbot.workflow.common import manejar_respuesta_perfil
+            if await manejar_respuesta_perfil(platform, user_id, text, business_unit, chat_state, user, self.gpt_handler):
+                logger.info(f"[process_message] Respuesta de perfil manejada por common.py")
+                return
 
-        if chat_state.state == "waiting_for_cv" and "attachment" in message:
-            attachment = message["attachment"]
-            with NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-                temp_file.write(attachment["content"])
-                temp_path = Path(temp_file.name)
-            parser = CVParser(business_unit.name)
-            cv_text = parser.extract_text_from_file(temp_path)
-            if cv_text:
-                parsed_data = parser.parse(cv_text)
-                if parsed_data:
-                    user.nombre = parsed_data.get('nombre', user.nombre)
-                    user.apellido_paterno = parsed_data.get('apellido_paterno', user.apellido_paterno)
-                    user.email = parsed_data.get('email', user.email)
-                    user.phone = parsed_data.get('phone', user.phone)
-                    user.skills = parsed_data.get('skills', user.skills)
-                    user.work_experience = parsed_data.get('experience', user.work_experience)
-                    user.metadata['cv_data'] = parsed_data
-                    await sync_to_async(user.save)()
-                    response = "¡CV procesado con éxito! He extraído tu información. ¿Todo correcto?"
-                    await self.recap_information(platform, user_id, user, business_unit, chat_state)
+            if chat_state.state == "waiting_for_cv" and "attachment" in message:
+                attachment = message["attachment"]
+                with NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                    temp_file.write(attachment["content"])
+                    temp_path = Path(temp_file.name)
+                parser = CVParser(business_unit.name)
+                cv_text = parser.extract_text_from_file(temp_path)
+                if cv_text:
+                    parsed_data = parser.parse(cv_text)
+                    if parsed_data:
+                        user.nombre = parsed_data.get('nombre', user.nombre)
+                        user.apellido_paterno = parsed_data.get('apellido_paterno', user.apellido_paterno)
+                        user.email = parsed_data.get('email', user.email)
+                        user.phone = parsed_data.get('phone', user.phone)
+                        user.skills = parsed_data.get('skills', user.skills)
+                        user.work_experience = parsed_data.get('experience', user.work_experience)
+                        user.metadata['cv_data'] = parsed_data
+                        await sync_to_async(user.save)()
+                        response = "¡CV procesado con éxito! He extraído tu información. ¿Todo correcto?"
+                        await self.recap_information(platform, user_id, user, business_unit, chat_state)
+                    else:
+                        response = "Hubo un problema al analizar tu CV. Intenta de nuevo."
+                        chat_state.state = "waiting_for_cv"
                 else:
-                    response = "Hubo un problema al analizar tu CV. Intenta de nuevo."
+                    response = "No se pudo extraer texto del CV. Asegúrate de enviar un PDF o Word válido."
                     chat_state.state = "waiting_for_cv"
-            else:
-                response = "No se pudo extraer texto del CV. Asegúrate de enviar un PDF o Word válido."
-                chat_state.state = "waiting_for_cv"
+                await send_message(platform, user_id, response, business_unit.name.lower())
+                await sync_to_async(chat_state.save)()
+                temp_path.unlink()
+                return
+
+            if not self.is_profile_complete(user, business_unit):
+                await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
+                return
+
+            intent_handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text)
+            if intent_handled:
+                logger.info(f"[process_message] ✅ Intent manejado: {detected_intents}")
+                return
+
+            bu_key = business_unit.name.lower()
+            if bu_key in self.workflow_mapping:
+                workflow_func = self.workflow_mapping[bu_key]
+                if bu_key == "sexsi":
+                    response = workflow_func(user_id, user, business_unit, chat_state.context)
+                    await send_message(platform, user_id, response, bu_key)
+                    await self.store_bot_message(chat_state, response)
+                else:
+                    await sync_to_async(workflow_func)(user.id)
+                return
+
+            if chat_state.context.get('awaiting_status_email'):
+                await self.handle_status_email(platform, user_id, text, chat_state, business_unit, user)
+                return
+            if chat_state.context.get('awaiting_group_invitation') or chat_state.state in [
+                "waiting_for_invitation_name", 
+                "waiting_for_invitation_apellido", 
+                "waiting_for_invitation_phone", 
+                "waiting_for_invitation_confirmation"
+            ]:
+                await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
+                return
+            if text in ["confirmar contratación", "he sido contratado", "contratado"]:
+                await self.handle_hiring_event(user, business_unit, chat_state)
+                return
+
+            from app.chatbot.workflow.jobs import handle_job_selection, handle_job_action
+            if chat_state.context.get('recommended_jobs') and text.isdigit():
+                await handle_job_selection(platform, user_id, text, chat_state, business_unit, user)
+                return
+            if any(text.startswith(prefix) for prefix in ["apply_", "details_", "schedule_", "tips_", "book_slot_"]):
+                await handle_job_action(platform, user_id, text, chat_state, business_unit, user)
+                return
+
+            if ML_ENABLED and user.profile_complete:
+                from app.ml.ml_model import MatchmakingLearningSystem
+                ml_system = MatchmakingLearningSystem(business_unit=business_unit.name)
+                top_candidates = await ml_system.predict_top_candidates(vacancy=None)
+                if user in [c[0] for c in top_candidates]:
+                    cache_key = f"active_vacancies_{business_unit.name}"
+                    vacancy = cache.get(cache_key)
+                    if not vacancy:
+                        vacancy = await sync_to_async(Vacante.objects.filter)(activa=True, business_unit=business_unit).first()
+                        cache.set(cache_key, vacancy, timeout=3600)  # 1 hora
+                    if vacancy:
+                        candidate_skills = " ".join(user.skills.split(',') if user.skills else [])
+                        job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
+                        prompt = f"Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. Invita al candidato a aplicar."
+                        personalized_msg = await self.gpt_handler.generate_response(prompt, business_unit) if GPT_ENABLED else "¡Eres ideal para una vacante activa! ¿Te interesa aplicar?"
+                        await send_message(platform, user_id, personalized_msg, business_unit.name.lower())
+                        await self.store_bot_message(chat_state, personalized_msg)
+                        return
+
+            response = "No entendí tu mensaje. ¿En qué puedo ayudarte?" if not GPT_ENABLED else await self.generate_dynamic_response(user, chat_state, text, entities, sentiment)
             await send_message(platform, user_id, response, business_unit.name.lower())
-            await sync_to_async(chat_state.save)()
-            temp_path.unlink()
-            return
+            await self.store_bot_message(chat_state, response)
 
-        if not self.is_profile_complete(user, business_unit):
-            await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
-            return
+        except Exception as e:
+            logger.error(f"Error en process_message: {e}", exc_info=True)
+            await send_message(platform, user_id, "Ups, algo salió mal. Te comparto el menú:", business_unit.name.lower())
+            await send_menu(platform, user_id, business_unit.name.lower())
+            logger.info(f"[process_message] Procesamiento completado para {user_id} con respuesta enviada")
 
-        intent_handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text)
-        if intent_handled:
-            logger.info(f"[process_message] ✅ Intent manejado: {detected_intents}")
-            return
-
-        bu_key = business_unit.name.lower()
-        if bu_key in self.workflow_mapping:
-            workflow_func = self.workflow_mapping[bu_key]
-            if bu_key == "sexsi":
-                response = workflow_func(user_id, user, business_unit, chat_state.context)
-                await send_message(platform, user_id, response, bu_key)
-                await self.store_bot_message(chat_state, response)
-            else:
-                await sync_to_async(workflow_func)(user.id)
-            return
-
-        if chat_state.context.get('awaiting_status_email'):
-            await self.handle_status_email(platform, user_id, text, chat_state, business_unit, user)
-            return
-        if chat_state.context.get('awaiting_group_invitation') or chat_state.state in [
-            "waiting_for_invitation_name", 
-            "waiting_for_invitation_apellido", 
-            "waiting_for_invitation_phone", 
-            "waiting_for_invitation_confirmation"
-        ]:
-            await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
-            return
-        if text in ["confirmar contratación", "he sido contratado", "contratado"]:
-            await self.handle_hiring_event(user, business_unit, chat_state)
-            return
-
-        from app.chatbot.workflow.jobs import handle_job_selection, handle_job_action
-        if chat_state.context.get('recommended_jobs') and text.isdigit():
-            await handle_job_selection(platform, user_id, text, chat_state, business_unit, user)
-            return
-        if any(text.startswith(prefix) for prefix in ["apply_", "details_", "schedule_", "tips_", "book_slot_"]):
-            await handle_job_action(platform, user_id, text, chat_state, business_unit, user)
-            return
-
-        if ML_ENABLED and user.profile_complete:
-            from app.ml.ml_model import MatchmakingLearningSystem
-            ml_system = MatchmakingLearningSystem(business_unit=business_unit.name)
-            top_candidates = await ml_system.predict_top_candidates(vacancy=None)
-            if user in [c[0] for c in top_candidates]:
-                cache_key = f"active_vacancies_{business_unit.name}"
-                vacancy = cache.get(cache_key)
-                if not vacancy:
-                    vacancy = await sync_to_async(Vacante.objects.filter)(activa=True, business_unit=business_unit).first()
-                    cache.set(cache_key, vacancy, timeout=3600)  # 1 hora
-                if vacancy:
-                    candidate_skills = " ".join(user.skills.split(',') if user.skills else [])
-                    job_skills = " ".join(vacancy.skills_required if vacancy.skills_required else [])
-                    prompt = f"Candidato con habilidades: {candidate_skills}. Vacante requiere: {job_skills}. Invita al candidato a aplicar."
-                    personalized_msg = await self.gpt_handler.generate_response(prompt, business_unit) if GPT_ENABLED else "¡Eres ideal para una vacante activa! ¿Te interesa aplicar?"
-                    await send_message(platform, user_id, personalized_msg, business_unit.name.lower())
-                    await self.store_bot_message(chat_state, personalized_msg)
-                    return
-
-        response = "No entendí tu mensaje. ¿En qué puedo ayudarte?" if not GPT_ENABLED else await self.generate_dynamic_response(user, chat_state, text, entities, sentiment)
-        await send_message(platform, user_id, response, business_unit.name.lower())
-        await self.store_bot_message(chat_state, response)
-
-    except Exception as e:
-        logger.error(f"Error en process_message: {e}", exc_info=True)
-        await send_message(platform, user_id, "Ups, algo salió mal. Te comparto el menú:", business_unit.name.lower())
-        await send_menu(platform, user_id, business_unit.name.lower())
-        logger.info(f"[process_message] Procesamiento completado para {user_id} con respuesta enviada")
-          
     def get_tos_url(self, business_unit: BusinessUnit) -> str:
             """Obtiene la URL de TOS según la unidad de negocio."""
             tos_urls = {
