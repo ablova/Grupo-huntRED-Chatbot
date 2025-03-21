@@ -11,7 +11,95 @@ from app.chatbot.integrations.services import send_email, send_message, send_opt
 
 logger = logging.getLogger(__name__)
 
+# Diccionario de países frecuentes basado en volumen histórico de migración a México
+PAISES_FRECUENTES = [
+    {"title": "El Salvador", "payload": "El Salvador"},
+    {"title": "Guatemala", "payload": "Guatemala"},
+    {"title": "Honduras", "payload": "Honduras"},
+    {"title": "Estados Unidos", "payload": "Estados Unidos"},
+    {"title": "Otros", "payload": "otros_pais"}
+]
 
+# Opciones de estatus migratorio
+ESTATUS_MIGRATORIO = [
+    {"title": "Residente Permanente", "payload": "residente_permanente"},
+    {"title": "Residente Temporal", "payload": "residente_temporal"},
+    {"title": "Sin Documentación", "payload": "sin_documentacion"},
+    {"title": "En Trámite", "payload": "en_tramite"},
+    {"title": "Otro", "payload": "otro_estatus"}
+]
+
+async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Continúa el flujo conversacional para Amigro con campos específicos e interactivos."""
+    bu_name = unidad_negocio.name.lower()
+
+    # Preguntar si es mexicano o extranjero
+    if not estado_chat.context.get('tipo_candidato'):
+        mensaje = "¿Eres mexicano regresando a México o extranjero ingresando a México?"
+        botones = [
+            {"title": "Mexicano", "payload": "mexicano"},
+            {"title": "Extranjero", "payload": "extranjero"}
+        ]
+        await send_message(plataforma, user_id, mensaje, bu_name)
+        await send_options(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
+        estado_chat.state = "waiting_for_tipo_candidato"
+        await sync_to_async(estado_chat.save)()
+        return
+
+    # Determinar nacionalidad
+    if not persona.nacionalidad:
+        if estado_chat.context.get('tipo_candidato') == "mexicano":
+            persona.nacionalidad = "México"
+            await sync_to_async(persona.save)()
+            await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        elif estado_chat.context.get('tipo_candidato') == "extranjero":
+            if estado_chat.state != "waiting_for_pais":
+                await send_message(plataforma, user_id, "¿De qué país vienes? Selecciona una opción:", bu_name)
+                await send_options(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
+                estado_chat.state = "waiting_for_pais"
+                await sync_to_async(estado_chat.save)()
+            return
+        return
+
+    # Preguntar estatus migratorio
+    if "migratory_status" not in persona.metadata:
+        if estado_chat.state != "waiting_for_migratory_status":
+            await send_message(plataforma, user_id, "¿Cuál es tu estatus migratorio actual en México?", bu_name)
+            await send_options(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
+            estado_chat.state = "waiting_for_migratory_status"
+            await sync_to_async(estado_chat.save)()
+        return
+
+    # Perfil completo
+    recap_message = await obtener_resumen_perfil(persona)
+    await send_message(plataforma, user_id, recap_message, bu_name)
+    estado_chat.state = "profile_complete_pending_confirmation"
+    await sync_to_async(estado_chat.save)()
+
+async def create_or_update_profile(platform, user_id, person, chat_state, business_unit):
+    """Flujo específico para Amigro."""
+    from app.chatbot.workflow.common import create_or_update_profile as common_profile
+
+    # Ejecutar flujo común primero
+    await common_profile(platform, user_id, person, chat_state, business_unit)
+
+    if chat_state.state == "profile_basic_complete":
+        if not person.nacionalidad:
+            await send_message(platform, user_id, "¿Cuál es tu nacionalidad?", "amigro")
+            chat_state.state = "waiting_for_nacionalidad"
+            await sync_to_async(chat_state.save)()
+            return
+        if "migratory_status" not in person.metadata:
+            await send_message(platform, user_id, "¿Cuál es tu estatus migratorio? (Ej. Residente, Temporal)", "amigro")
+            chat_state.state = "waiting_for_migratory_status"
+            await sync_to_async(chat_state.save)()
+            return
+
+        # Perfil completo para Amigro
+        await send_message(platform, user_id, "¡Listo! Tu perfil para Amigro está completo. ¿En qué te ayudo ahora?", "amigro")
+        chat_state.state = "idle"
+        await sync_to_async(chat_state.save)()
+        
 async def send_amigro_specific_menu(platform: str, user_id: str, business_unit: BusinessUnit):
     services = Services(business_unit)
     amigro_options = MENU_OPTIONS_BY_BU["amigro"]

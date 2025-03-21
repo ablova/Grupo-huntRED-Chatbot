@@ -53,27 +53,32 @@ async def whatsapp_webhook(request):
 @csrf_exempt
 async def handle_incoming_message(request):
     try:
-        # Convertir el cuerpo de la solicitud a JSON y registrar el payload
         payload = json.loads(request.body)
         logger.info(f"[handle_incoming_message] Payload recibido de {payload.get('entry', [{}])[0].get('id', 'unknown')}: {json.dumps(payload, indent=4)}")
 
-        # Extraer datos relevantes del payload
         entry = payload.get('entry', [])[0]
         changes = entry.get('changes', [])[0]
         value = changes.get('value', {})
         messages = value.get('messages', [])
         contacts = value.get('contacts', [])
+        statuses = value.get('statuses', [])
 
+        # Si solo hay statuses, registrar y salir
+        if statuses and not messages:
+            for status in statuses:
+                logger.info(f"Estado recibido: {status['status']} para mensaje {status['id']} al destinatario {status['recipient_id']}")
+            return JsonResponse({'status': 'success', 'message': 'Estado procesado'}, status=200)
+
+        # Si no hay mensajes ni contactos, devolver error solo si no hay statuses
         if not messages or not contacts:
-            logger.warning("No se encontraron mensajes o contactos en el payload.")
-            return JsonResponse({'error': 'No messages found'}, status=400)
+            logger.warning("No se encontraron mensajes o contactos en el payload, y no hay statuses para procesar.")
+            return JsonResponse({'error': 'No messages or contacts found'}, status=400)
 
-        # Procesar solo el primer mensaje y contacto
+        # Procesar mensaje entrante
         message = messages[0]
         contact = contacts[0]
         user_id = contact.get('wa_id')
         
-        # Extraer texto del mensaje; en mensajes interactivos, obtener el ID del botón
         text = message.get('text', {}).get('body', '').strip()
         if message.get('type') == 'interactive':
             interactive_content = message.get('interactive', {})
@@ -81,7 +86,7 @@ async def handle_incoming_message(request):
                 text = interactive_content.get('button_reply', {}).get('id', '')
             elif interactive_content.get('type') == 'list_reply':
                 text = interactive_content.get('list_reply', {}).get('id', '')
-        
+
         phone_number_id = value.get('metadata', {}).get('phone_number_id')
         logger.info(f"Procesando mensaje de {user_id}: {text}")
 
@@ -89,7 +94,6 @@ async def handle_incoming_message(request):
             logger.error("phone_number_id no está presente en el payload.")
             return JsonResponse({'error': 'Missing phone_number_id'}, status=400)
 
-        # Obtener la configuración de WhatsAppAPI de forma asíncrona
         whatsapp_api = await sync_to_async(lambda: WhatsAppAPI.objects.filter(
             phoneID=phone_number_id, is_active=True
         ).select_related('business_unit').first())()
@@ -101,25 +105,21 @@ async def handle_incoming_message(request):
         business_unit = whatsapp_api.business_unit
         chatbot = ChatBotHandler()
 
-        # Obtener o crear el estado del chat para el usuario
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
             user_id=user_id,
             business_unit=business_unit,
             defaults={'platform': 'whatsapp'}
         )
-        # Obtener o crear la persona asociada al usuario
         person, _ = await sync_to_async(Person.objects.get_or_create)(
             phone=user_id,
             defaults={'nombre': 'Nuevo Usuario'}
         )
 
-        # Actualizar chat_state si la persona asociada ha cambiado
         current_person = await sync_to_async(lambda: chat_state.person)()
         if current_person != person:
             chat_state.person = person
             await sync_to_async(chat_state.save)()
 
-        # Determinar el tipo de mensaje y seleccionar el handler correspondiente
         message_type = message.get('type', 'text')
         handlers = {
             'text': handle_text_message,

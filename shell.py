@@ -33,6 +33,7 @@ sudo journalctl --rotate
 #Ingreso a base de datos
 psql -U grupo_huntred_ai_user -h localhost -d postgres
 
+pip freeze | cut -d= -f1 > requirements.txt
 
 #______________
 # Manejo y mejora de memoria
@@ -42,6 +43,8 @@ free -h &&
 sudo du -h / | sort -h | tail -n 20 &&
 sudo du -sh /home/pablo/* | sort -h | tail -n 20 &&
 sudo du -sh /home/pablollh/* | sort -h | tail -n 20 &&
+sudo du -sh /home/pablo/venv/lib/python3.12/site-packages/* | sort -h | tail -n 20 &&
+sudo du -sh /home/pablo/skills_data/* | sort -h | tail -n 20 && 
 swapon --show &&
 sudo swapoff -a &&
 iotop &&

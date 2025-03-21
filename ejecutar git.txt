@@ -19,7 +19,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git /home/pablo
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "Integracion de logging, slack, mejoras en nlp, gpt, etc ..." &&
+git commit -m "Mejoras de chatbot, common y workflows específicos, mejoras en nlp, gpt, etc ..." &&
 git push origin main
 
 

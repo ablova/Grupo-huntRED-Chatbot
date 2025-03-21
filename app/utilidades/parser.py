@@ -1,5 +1,4 @@
 # /home/pablo/app/utilidades/parser.py
-# /home/pablo/app/utilidades/parser.py
 # ✅ Importaciones necesarias
 import logging
 import unicodedata
@@ -21,7 +20,7 @@ from docx import Document
 # ✅ Importaciones del proyecto
 from app.models import ConfiguracionBU, Person, Vacante, Division, Skill, BusinessUnit
 from app.utilidades.vacantes import VacanteManager
-from app.chatbot.nlp import NLPProcessor, MODEL_LANGUAGES  # Importamos MODEL_LANGUAGES
+from app.chatbot.nlp import NLPProcessor
 
 # ✅ Configuración de logging
 logger = logging.getLogger(__name__)
@@ -40,14 +39,14 @@ FOLDER_CONFIG = {
 
 def detect_language(text: str) -> str:
     """
-    Detecta el idioma del texto y lo normaliza según los modelos disponibles en `nlp.py`.
+    Detecta el idioma del texto usando langdetect. El NLPProcessor manejará la traducción a inglés si es necesario.
     """
     try:
         detected_lang = detect(text)
-        return detected_lang if detected_lang in MODEL_LANGUAGES else "es"
+        return detected_lang  # Devolvemos el idioma detectado directamente
     except Exception as e:
         logger.error(f"Error detectando idioma: {e}")
-        return "es"  # Default a español
+        return "es"  # Default a español si falla
 
 def normalize_text(text: str) -> str:
     """
