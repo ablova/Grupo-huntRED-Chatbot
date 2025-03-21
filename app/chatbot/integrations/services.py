@@ -83,6 +83,108 @@ MENU_OPTIONS_BY_BU = {
         {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas."},
     ]
 }
+MENU_OPTIONS_BY_STATE = {
+    "amigro": {
+        "initial": [
+            {"title": "📝 Crear Perfil", "payload": "actualizar_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
+            {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "waiting_for_tos": [
+            {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "profile_in_progress": [
+            {"title": "📝 Continuar Perfil", "payload": "actualizar_perfil", "description": "Sigue completando tu perfil."},
+            {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "profile_complete": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "applied": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "scheduled": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
+            {"title": "📅 Reagendar Entrevista", "payload": "reagendar_entrevista", "description": "Modifica tu cita de entrevista."},
+            {"title": "📩 Enviar Recordatorio", "payload": "recordatorio_entrevista", "description": "Solicita un recordatorio."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "interviewed": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
+            {"title": "📝 Enviar Feedback", "payload": "enviar_feedback", "description": "Comparte tu experiencia de la entrevista."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "offered": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
+            {"title": "📜 Ver Oferta", "payload": "ver_oferta", "description": "Consulta los detalles de tu oferta."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "signed": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
+            {"title": "📜 Descargar Oferta", "payload": "descargar_oferta", "description": "Descarga tu oferta firmada."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "hired": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora nuevas oportunidades tras 6 meses."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+        "idle": [
+            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
+            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
+            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
+            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
+            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
+        ],
+    },
+    "default": MENU_OPTIONS_BY_BU["default"]  # Fallback para otras unidades
+}
 
 class Button:
     def __init__(self, title: str, payload: Optional[str] = None, url: Optional[str] = None):
@@ -227,7 +329,7 @@ class MessageService:
                     chat_id=user_id,
                     image_url=image_url,
                     caption=message,
-                    access_token=api_instance.api_key
+                    api_key=api_instance.api_key  # Cambiar access_token por api_key
                 )
             elif platform in ["messenger", "instagram"]:
                 from app.chatbot.integrations.messenger import send_messenger_image
@@ -258,17 +360,32 @@ class MessageService:
     from tenacity import retry, stop_after_attempt
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_menu(self, platform: str, user_id: str):
-        """Envía el menú principal utilizando `send_options`"""
+        """Envía el menú principal dinámico basado en el estado del ChatState"""
         try:
             logger.info(f"[send_menu] 📩 Enviando menú a {user_id} en {platform} para {self.business_unit.name}")
-            options = MENU_OPTIONS_BY_BU.get(self.business_unit.name.lower(), MENU_OPTIONS_BY_BU["default"])
-            message = "📍 *Menú Principal*\nSelecciona una opción:"
             
-            # Simplificamos las opciones para enviar solo title y payload
+            # Obtener el ChatState del usuario
+            chat_state = await sync_to_async(ChatState.objects.filter)(
+                user_id=user_id, business_unit=self.business_unit
+            ).afirst()
+            
+            if not chat_state:
+                logger.warning(f"[send_menu] No se encontró ChatState para {user_id}, usando 'initial'")
+                state = "initial"
+            else:
+                state = chat_state.state
+
+            # Determinar las opciones según el estado y la unidad de negocio
+            bu_name = self.business_unit.name.lower()
+            options_by_state = MENU_OPTIONS_BY_STATE.get(bu_name, MENU_OPTIONS_BY_STATE["default"])
+            options = options_by_state.get(state, options_by_state["initial"])
+            
+            message = "📍 *Menú Principal*\nSelecciona una opción:"
             simplified_options = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
 
             if platform == "slack":
-                await self.send_options(platform, user_id, message, simplified_options)
+                success = await self.send_options(platform, user_id, message, simplified_options)
+                return success
             else:
                 success, msg_id = await send_smart_options(platform, user_id, message, simplified_options, self.business_unit.name)
                 if success:
@@ -277,7 +394,6 @@ class MessageService:
                 else:
                     logger.error(f"[send_menu] ❌ Falló el envío del menú.")
                     return False
-            return True
         except Exception as e:
             logger.error(f"[send_menu] ❌ Error enviando menú: {e}", exc_info=True)
             return False
@@ -749,7 +865,7 @@ async def send_list_options(platform: str, user_id: str, message: str, buttons: 
     return success, msg_id
 #Envio de Lista Interactiva para cuando hay más de 3 botones
 
-async def send_smart_options(platform, user_id, message, options, business_unit):
+async def send_smart_options(platform, user_id, message, options, business_unit_name):
     """
     Envía opciones interactivas de manera optimizada:
     - Si hay solo botones con URL, los envía como mensajes separados.
@@ -759,50 +875,54 @@ async def send_smart_options(platform, user_id, message, options, business_unit)
     - Si hay 3 o menos opciones, usa botones directamente.
     """
     try:
+        business_unit = await get_business_unit(business_unit_name)
+        if not business_unit:
+            logger.error(f"[send_smart_options] No se encontró BusinessUnit para {business_unit_name}")
+            return False, None
+
+        service = MessageService(business_unit)
+
         if platform == "whatsapp":
             url_buttons = [opt for opt in options if "url" in opt]
             normal_buttons = [opt for opt in options if "url" not in opt]
 
-            # ✅ Caso: Solo botones con URL → Enviar como mensajes separados
             if url_buttons and not normal_buttons:
                 logger.info("[send_smart_options] 📤 Enviando botones URL como mensajes separados.")
                 for opt in url_buttons:
-                    await send_message(platform, user_id, f"🔗 {opt['title']}: {opt['url']}")
+                    await service.send_message(platform, user_id, f"🔗 {opt['title']}: {opt['url']}")
                 return True, None
 
-            # ✅ Caso: 1 botón con URL + otros sin URL → Enviar URL primero, luego los botones
             if len(url_buttons) == 1 and normal_buttons:
                 logger.info(f"[send_smart_options] 📤 Enviando primero el enlace: {url_buttons[0]['url']}")
-                await send_message(platform, user_id, f"🔗 {url_buttons[0]['title']}: {url_buttons[0]['url']}")
-                await asyncio.sleep(2)  # Espera de 2 segundos antes de enviar los botones
+                await service.send_message(platform, user_id, f"🔗 {url_buttons[0]['title']}: {url_buttons[0]['url']}")
+                await asyncio.sleep(2)
 
-            # ✅ Caso: Más de 3 opciones → Intentar lista interactiva
             if len(normal_buttons) > 3:
-                success, msg_id = await send_list_options(platform, user_id, message, normal_buttons, business_unit)
+                success, msg_id = await send_list_options(platform, user_id, message, normal_buttons, business_unit_name)
                 if success:
                     return True, msg_id
                 logger.warning("[send_smart_options] ❌ Listas interactivas fallaron, usando fallback.")
 
-            # ✅ Caso: 3 opciones o menos → Usar botones directamente
             last_msg_id = None
             option_batches = [normal_buttons[i:i+3] for i in range(0, len(normal_buttons), 3)]
             for batch in option_batches:
-                success = await send_options(platform, user_id, message, batch, business_unit)
+                success = await service.send_options(platform, user_id, message, batch)
                 if not success:
                     logger.error("[send_smart_options] ❌ Falló el envío de opciones.")
                     return False, None
-                last_msg_id = "msg_id_placeholder"  # Debe reemplazarse con el ID real del mensaje
-                await asyncio.sleep(0.5)  # Pequeña pausa para evitar bloqueos por spam
+                last_msg_id = "msg_id_placeholder"  # Reemplaza con el ID real si está disponible
+                await asyncio.sleep(0.5)
 
             return True, last_msg_id
 
-        # ✅ Caso: Otra plataforma → Enviar con `send_options`
-        return await send_options(platform, user_id, message, options, business_unit)
+        else:
+            success = await service.send_options(platform, user_id, message, options)
+            return success, "msg_id_placeholder" if success else None
 
     except Exception as e:
         logger.error(f"[send_smart_options] ❌ Error enviando opciones a {user_id}: {e}", exc_info=True)
         return False, None
-        
+           
 async def send_options_async(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
     """
     Envío de mensaje con botones interactivos de forma asíncrona.
