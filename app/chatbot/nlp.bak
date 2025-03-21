@@ -959,3 +959,295 @@ if __name__ == "__main__":
             res = await nlp_proc.extract_skills(txt)
             print(f"[NLPProcessor] {txt} -> {res['skills']}")
     asyncio.run(test_nlp())
+
+
+
+
+
+    _______________
+    # /home/pablo/app/chatbot/nlp.py
+import time
+import psutil
+import os
+import sys
+import subprocess
+import spacy
+import json
+import logging
+from typing import Dict, List, Optional, Set, Union, Literal
+from cachetools import TTLCache
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from langdetect import detect
+from threading import Lock
+from datetime import datetime
+
+# Importaciones condicionales
+try:
+    from deep_translator import GoogleTranslator
+    TRANSLATOR_AVAILABLE = True
+except ImportError:
+    TRANSLATOR_AVAILABLE = False
+
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+log_file = '/home/pablo/logs/nlp.log'
+try:
+    handler = logging.FileHandler(log_file)
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s'))
+    logger.addHandler(handler)
+except PermissionError:
+    logger.addHandler(logging.StreamHandler(sys.stdout))
+    logger.warning(f"No se pudo escribir en {log_file}. Usando stdout.")
+
+# Modelos spaCy
+MODEL_LANGUAGES = {
+    "es": {"sm": "es_core_news_sm", "md": "es_core_news_md", "lg": "es_core_news_lg"},
+    "en": {"sm": "en_core_web_sm", "md": "en_core_web_md", "lg": "en_core_web_lg"},
+    "fr": {"sm": "fr_core_news_sm", "md": "fr_core_news_md", "lg": "fr_core_news_lg"},
+    "default": {"sm": "xx_ent_wiki_sm", "md": "xx_ent_wiki_sm", "lg": "xx_ent_wiki_sm"}
+}
+
+# Directorios de catálogos
+CATALOG_BASE_PATH = "/home/pablo/skills_data"
+UTILITIES_CATALOG_PATH = "/home/pablo/app/utilidades/catalogs"
+
+CATALOGS = {
+    "global": {"esco": os.path.join(CATALOG_BASE_PATH, "ESCO_occup_skills.json")},
+    "es": {
+        "occupations": os.path.join(CATALOG_BASE_PATH, "occupations_es.json"),
+        "skills": os.path.join(CATALOG_BASE_PATH, "skills_es.json"),
+        "skills_relax": os.path.join(CATALOG_BASE_PATH, "skill_db_relax_20.json"),
+        "skills_opportunities": os.path.join(UTILITIES_CATALOG_PATH, "skills.json")
+    }
+}
+
+# Configuración global
+MAX_SKILLS = 20000  # Aumentado para cubrir más casos, ajustable según RAM
+USE_TABIYA = False  # Cambia a True si integras Tabiya
+json_lock = Lock()
+nltk.download('vader_lexicon', quiet=True)
+SIA = SentimentIntensityAnalyzer()
+
+class CatalogManager:
+    def __init__(self, catalogs: Dict = CATALOGS):
+        self.catalogs = catalogs
+        self.cached_data = TTLCache(maxsize=10, ttl=21600)  # 6 horas de caché
+
+    def get_catalog_path(self, category: str, catalog_name: str) -> str:
+        if category in self.catalogs and catalog_name in self.catalogs[category]:
+            return self.catalogs[category][catalog_name]
+        raise ValueError(f"Catálogo {catalog_name} no encontrado en categoría {category}")
+
+    def load_catalog(self, category: str, catalog_name: str) -> Union[Dict, List]:
+        path = self.get_catalog_path(category, catalog_name)
+        cache_key = f"{category}_{catalog_name}"
+        if cache_key in self.cached_data:
+            return self.cached_data[cache_key]
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self.cached_data[cache_key] = data
+            logger.info(f"Catálogo cargado: {path}")
+            return data
+        except Exception as e:
+            logger.error(f"Error cargando catálogo {category}/{catalog_name}: {e}")
+            return {}
+
+    def get_all_skills(self, categories_and_catalogs: List[tuple], max_skills: int = MAX_SKILLS) -> Set[str]:
+        skills = set()
+        
+        def extract_skills(data, skills_set: Set[str]) -> bool:
+            if len(skills_set) >= max_skills:
+                return True
+            if isinstance(data, dict):
+                for key, value in data.items():
+                    if key in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
+                        if isinstance(value, list):
+                            skills_set.update(s.lower() for s in value if isinstance(s, str))
+                    elif extract_skills(value, skills_set):
+                        return True
+            elif isinstance(data, list):
+                for item in data:
+                    if extract_skills(item, skills_set):
+                        return True
+            elif isinstance(data, str):
+                skills_set.add(data.lower())
+            if len(skills_set) >= max_skills:
+                logger.warning(f"Límite de {max_skills} habilidades alcanzado")
+                return True
+            return False
+
+        for category, catalog_name in categories_and_catalogs:
+            catalog = self.load_catalog(category, catalog_name)
+            if not catalog:
+                continue
+            if extract_skills(catalog, skills):
+                break
+
+        logger.info(f"Total habilidades cargadas: {len(skills)}")
+        return skills
+
+class ModelManager:
+    def __init__(self):
+        self.spacy_cache = TTLCache(maxsize=5, ttl=21600)
+        self.transformer_cache = TTLCache(maxsize=3, ttl=21600)
+
+    def get_spacy_model(self, lang: str, size: str = 'sm') -> spacy.language.Language:
+        key = f"{lang}_{size}"
+        if key in self.spacy_cache:
+            return self.spacy_cache[key]
+        model_name = MODEL_LANGUAGES.get(lang, MODEL_LANGUAGES["default"]).get(size, "xx_ent_wiki_sm")
+        try:
+            model = spacy.load(model_name)
+        except OSError:
+            logger.info(f"Descargando modelo {model_name}...")
+            subprocess.check_call([sys.executable, "-m", "spacy", "download", model_name])
+            model = spacy.load(model_name)
+        self.spacy_cache[key] = model
+        return model
+
+    def get_transformer_pipeline(self, task: str, model_path: str) -> Optional[pipeline]:
+        if not TRANSFORMERS_AVAILABLE:
+            return None
+        key = f"{task}_{model_path}"
+        if key in self.transformer_cache:
+            return self.transformer_cache[key]
+        try:
+            pipe = pipeline(task, model=model_path, device=-1)
+            self.transformer_cache[key] = pipe
+            logger.info(f"Transformer cargado: {model_path}")
+            return pipe
+        except Exception as e:
+            logger.error(f"Error cargando transformer {model_path}: {e}")
+            return None
+
+class NLPProcessor:
+    def __init__(self, language: str = 'es', mode: Literal['candidate', 'opportunity'] = 'opportunity', analysis_depth: Literal['quick', 'deep'] = 'quick'):
+        self.language = language
+        self.mode = mode
+        self.analysis_depth = analysis_depth
+        self.catalog_mgr = CatalogManager()
+        self.model_mgr = ModelManager()
+        self.nlp = self.model_mgr.get_spacy_model(language, 'sm' if analysis_depth == 'quick' else 'md')
+        
+        self.catalog_sources = [
+            ("es", "skills"),
+            ("es", "occupations"),
+            ("es", "skills_relax"),
+            ("es", "skills_opportunities"),
+            ("global", "esco")
+        ]
+        
+        self.skills = self.catalog_mgr.get_all_skills(self.catalog_sources, max_skills=MAX_SKILLS)
+        self.phrase_matcher = self._build_phrase_matcher()
+        self.sentiment_analyzer = SIA if analysis_depth == 'quick' or not TRANSFORMERS_AVAILABLE else self.model_mgr.get_transformer_pipeline('sentiment-analysis', 'cardiffnlp/twitter-roberta-base-sentiment-latest')
+        self.translator = GoogleTranslator(source='auto', target='es') if TRANSLATOR_AVAILABLE and analysis_depth == 'deep' else None
+        
+        self._log_resources("Inicialización completada")
+
+    def _build_phrase_matcher(self) -> spacy.matcher.PhraseMatcher:
+        matcher = spacy.matcher.PhraseMatcher(self.nlp.vocab, attr='LOWER')
+        patterns = [self.nlp.make_doc(skill) for skill in self.skills]
+        matcher.add("SKILL", patterns)
+        return matcher
+
+    def _log_resources(self, stage: str) -> None:
+        process = psutil.Process(os.getpid())
+        logger.info(f"{stage} - CPU: {process.cpu_percent(interval=None):.2f}%, Memoria: {process.memory_info().rss / 1024 / 1024:.2f} MB")
+
+    def extract_skills(self, text: str) -> Dict[str, List[str]]:
+        doc = self.nlp(text.lower())
+        skills = {"technical": [], "soft": [], "certifications": [], "tools": []}
+        matches = self.phrase_matcher(doc)
+        for _, start, end in matches:
+            skill = doc[start:end].text
+            self._classify_skill(skill, skills)
+        
+        if self.analysis_depth == 'deep' and self.translator and detect(text) != 'es':
+            try:
+                translated = self.translator.translate(text)
+                trans_doc = self.nlp(translated.lower())
+                trans_matches = self.phrase_matcher(trans_doc)
+                for _, start, end in trans_matches:
+                    skill = trans_doc[start:end].text
+                    self._classify_skill(skill, skills)
+            except Exception as e:
+                logger.error(f"Error en traducción: {e}")
+        
+        return {k: list(set(v)) for k, v in skills.items()}
+
+    def _classify_skill(self, skill: str, skills_dict: Dict[str, List[str]]) -> None:
+        skill_lower = skill.lower()
+        for category, catalog_name in self.catalog_sources:
+            catalog = self.catalog_mgr.load_catalog(category, catalog_name)
+            if not catalog:
+                continue
+            found = False
+            
+            def check_skills(data, target: str) -> Optional[str]:
+                if isinstance(data, dict):
+                    for key, value in data.items():
+                        if key in ["Habilidades Técnicas", "Habilidades Blandas", "Certificaciones", "Herramientas"]:
+                            if isinstance(value, list) and target in [s.lower() for s in value if isinstance(s, str)]:
+                                return key
+                        elif result := check_skills(value, target):
+                            return result
+                elif isinstance(data, list):
+                    if target in [s.lower() for s in data if isinstance(s, str)]:
+                        return "technical"  # Default si no hay categoría explícita
+                elif isinstance(data, str) and target == data.lower():
+                    return "technical"
+                return None
+
+            category_key = check_skills(catalog, skill_lower)
+            if category_key:
+                key_map = {
+                    "Habilidades Técnicas": "technical",
+                    "Habilidades Blandas": "soft",
+                    "Certificaciones": "certifications",
+                    "Herramientas": "tools",
+                    "technical": "technical"
+                }
+                skills_dict[key_map[category_key]].append(skill_lower)
+                found = True
+                break
+            if found:
+                break
+
+    def analyze(self, text: str) -> Dict[str, any]:
+        start_time = time.time()
+        self._log_resources("Inicio análisis")
+        skills = self.extract_skills(text)
+        sentiment = self.get_sentiment(text)
+        result = {"skills": skills, "sentiment": sentiment["label"], "sentiment_score": sentiment["score"]}
+        exec_time = time.time() - start_time
+        self._log_resources(f"Fin análisis (Tiempo: {exec_time:.2f}s)")
+        return result
+
+    def get_sentiment(self, text: str) -> Dict[str, Union[str, float]]:
+        if not self.sentiment_analyzer:
+            return {"label": "neutral", "score": 0.0}
+        try:
+            if self.analysis_depth == 'quick':
+                scores = SIA.polarity_scores(text)
+                compound = scores['compound']
+                label = "positive" if compound >= 0.05 else "negative" if compound <= -0.05 else "neutral"
+                return {"label": label, "score": abs(compound)}
+            result = self.sentiment_analyzer(text[:512])[0]
+            return {"label": result["label"], "score": result["score"]}
+        except Exception as e:
+            logger.error(f"Error en análisis de sentimiento: {e}")
+            return {"label": "neutral", "score": 0.0}
+
+nlp_processor = NLPProcessor()
+
+if __name__ == "__main__":
+    sample_text = "Tengo experiencia en Python, liderazgo y gestión de proyectos."
+    result = nlp_processor.analyze(sample_text)
+    print(json.dumps(result, ensure_ascii=False, indent=2))

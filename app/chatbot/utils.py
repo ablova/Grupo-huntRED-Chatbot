@@ -16,12 +16,22 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
 from typing import Dict, List, Any
+from difflib import get_close_matches
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
 from app.chatbot.nlp import NLPProcessor
 
-
 logger = logging.getLogger(__name__)
 
+# Variable global para la instancia de NLPProcessor
+_nlp_processor_instance = None
+
+def get_nlp_processor():
+    """Obtiene o crea una instancia singleton de NLPProcessor."""
+    global _nlp_processor_instance
+    if _nlp_processor_instance is None:
+        logger.info("Inicializando NLPProcessor por primera vez.")
+        _nlp_processor_instance = NLPProcessor(language="es", mode="candidate")
+    return _nlp_processor_instance
 
 # Cargar catálogo desde el JSON centralizado
 CATALOG_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs', 'catalogs.json')
@@ -52,13 +62,6 @@ def get_all_skills_for_unit(unit_name: str = "huntRED®") -> List[str]:
     except Exception as e:
         logger.error(f"Error obteniendo habilidades de {unit_name}: {e}")
         return []
-    
-def map_skill_to_database(llm_skill: str, database_skills: List[str], cutoff: float = 0.6) -> str:
-    """Mapea una habilidad extraída por GPT a la base de datos usando similitud."""
-    if llm_skill in database_skills:
-        return llm_skill
-    closest_match = get_close_matches(llm_skill, database_skills, n=1, cutoff=cutoff)
-    return closest_match[0] if closest_match else None
 
 def clean_text(text: str) -> str:
     """Limpia texto eliminando caracteres especiales y espacios adicionales."""
@@ -398,12 +401,8 @@ def tokenize_text(text, model_name="cardiffnlpsentiment-robertabassentiment"):
 def prepare_llm_prompt(user_input, context):
     return f"Context: {context}\nUser: {user_input}\nAssistant: "
 
-from difflib import get_close_matches
-
 def map_skill_to_database(llm_skill: str, database_skills: List[str], cutoff: float = 0.6) -> str:
-    """
-    Mapea una habilidad extraída por LLM a la base de datos usando similitud.
-    """
+    """Mapea una habilidad extraída por GPT a la base de datos usando similitud."""
     if llm_skill in database_skills:
         return llm_skill
     closest_match = get_close_matches(llm_skill, database_skills, n=1, cutoff=cutoff)

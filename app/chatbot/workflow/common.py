@@ -1,4 +1,4 @@
-# /home/pablo/app/chatbot/workflow/common.py - Funciones comunes para los workflows
+# /home/pablo/app/chatbot/workflow/common.py
 import logging
 import re
 from forex_python.converter import CurrencyRates
@@ -11,14 +11,311 @@ from app.utilidades.salario import (
     calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
     obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
 )
-from app.chatbot.integrations.services import send_email, send_message, send_menu, send_image
-from app.models import BusinessUnit, ConfiguracionBU
+from app.chatbot.integrations.services import send_email, send_message, send_options, send_image
+from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState
 from django.conf import settings
 from urllib.parse import urlparse
-from asgiref.sync import sync_to_async  # Para consultas asíncronas a la BD
+from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)
 
+# Diccionario de explicaciones para los métodos de creación de perfil
+EXPLICACIONES_METODOS = {
+    "default": {
+        "dynamic": "Te haré preguntas una por una para completar tu perfil paso a paso.",
+        "template": "Te enviaré un formulario inteligente para que llenes tus datos de una vez (solo en WhatsApp).",
+        "cv": "Envía tu CV y extraeré automáticamente la información para tu perfil."
+    },
+    "amigro": {
+        "dynamic": "Ideal si prefieres una conversación guiada sobre tu situación migratoria y experiencia.",
+        "template": "Perfecto si quieres ingresar tus datos rápidamente en un solo paso (solo en WhatsApp).",
+        "cv": "Si ya tienes un CV, puedo analizarlo para ahorrarte tiempo."
+    },
+    "huntu": {
+        "dynamic": "Te guiaré para destacar tus habilidades como recién egresado.",
+        "template": "Llena un formulario rápido para enfocarte en tus logros académicos (solo en WhatsApp).",
+        "cv": "Envía tu CV y lo adaptaré a las oportunidades para jóvenes profesionales."
+    },
+    "huntred": {
+        "dynamic": "Te ayudaré a detallar tu experiencia profesional paso a paso.",
+        "template": "Ingresa tus datos clave en un formulario rápido (solo en WhatsApp).",
+        "cv": "Sube tu CV y lo analizaré para encontrar las mejores vacantes ejecutivas."
+    }
+}
+
+def obtener_explicaciones_metodos(bu_name: str) -> dict:
+    """Devuelve las explicaciones de los métodos según la unidad de negocio."""
+    return EXPLICACIONES_METODOS.get(bu_name.lower(), EXPLICACIONES_METODOS["default"])
+
+async def iniciar_creacion_perfil(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Inicia la creación del perfil ofreciendo tres opciones al usuario."""
+    bu_name = unidad_negocio.name.lower()
+
+    if estado_chat.state != "asking_profile_method":
+        explicaciones = obtener_explicaciones_metodos(bu_name)
+        mensaje = (
+            "¿Cómo prefieres crear tu perfil?\n\n"
+            f"**Dinámico**: {explicaciones['dynamic']}\n"
+            f"**Formulario**: {explicaciones['template']}\n"
+            f"**CV**: {explicaciones['cv']}\n\n"
+            "Selecciona una opción:"
+        )
+        botones = [
+            {"title": "Dinámico", "payload": "profile_dynamic"},
+            {"title": "Formulario", "payload": "profile_template"},
+            {"title": "CV", "payload": "profile_cv"}
+        ]
+        await send_message(plataforma, user_id, mensaje, unidad_negocio.name.lower())
+        await send_options(plataforma, user_id, "Elige una opción:", botones, unidad_negocio.name.lower())
+        estado_chat.state = "asking_profile_method"
+        await sync_to_async(estado_chat.save)()
+
+async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Inicia el flujo conversacional básico para la creación del perfil."""
+    bu_name = unidad_negocio.name.lower()
+
+    if not persona.nombre or persona.nombre == "Nuevo Usuario":
+        await send_message(plataforma, user_id, "¡Hola! ¿Cuál es tu nombre?", bu_name)
+        estado_chat.state = "waiting_for_nombre"
+        await sync_to_async(estado_chat.save)()
+        return
+    if not persona.apellido_paterno:
+        await send_message(plataforma, user_id, f"Gracias, {persona.nombre}. ¿Cuál es tu apellido paterno?", bu_name)
+        estado_chat.state = "waiting_for_apellido_paterno"
+        await sync_to_async(estado_chat.save)()
+        return
+    if not persona.email:
+        await send_message(plataforma, user_id, "¿Cuál es tu correo electrónico?", bu_name)
+        estado_chat.state = "waiting_for_email"
+        await sync_to_async(estado_chat.save)()
+        return
+    if not persona.phone:
+        await send_message(plataforma, user_id, "Por último, ¿cuál es tu número de teléfono?", bu_name)
+        estado_chat.state = "waiting_for_phone"
+        await sync_to_async(estado_chat.save)()
+        return
+
+    # Delegar a workflows específicos por unidad de negocio
+    if bu_name == "amigro":
+        from app.chatbot.workflow.amigro import continuar_perfil_amigro
+        await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+    elif bu_name == "huntu":
+        from app.chatbot.workflow.huntu import continuar_perfil_huntu
+        await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
+    else:
+        recap_message = await obtener_resumen_perfil(persona)
+        await send_message(plataforma, user_id, recap_message, bu_name)
+        estado_chat.state = "profile_complete_pending_confirmation"
+        await sync_to_async(estado_chat.save)()
+
+async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler=None):
+    """Maneja todas las respuestas del flujo de creación de perfiles."""
+    bu_name = unidad_negocio.name.lower()
+
+    # Respuesta a la selección del método de creación
+    if estado_chat.state == "asking_profile_method":
+        if texto == "profile_dynamic":
+            estado_chat.context['use_gpt'] = GPT_ENABLED and gpt_handler is not None
+            await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        elif texto == "profile_template" and plataforma == "whatsapp":
+            template_name = f"registro_{bu_name}"
+            try:
+                await send_whatsapp_template(user_id, template_name, unidad_negocio)
+                estado_chat.state = "waiting_for_template_response"
+                await sync_to_async(estado_chat.save)()
+            except Exception as e:
+                logger.warning(f"No se pudo enviar template {template_name}: {e}. Usando flujo conversacional.")
+                await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        elif texto == "profile_cv":
+            await send_message(plataforma, user_id, "Por favor, envía tu CV como archivo adjunto (PDF o Word).", bu_name)
+            estado_chat.state = "waiting_for_cv"
+            await sync_to_async(estado_chat.save)()
+        else:
+            await send_message(plataforma, user_id, "Opción no válida. Selecciona 'Dinámico', 'Formulario' o 'CV'.", bu_name)
+        return True
+
+    # Respuestas en el flujo conversacional
+    if estado_chat.state.startswith("waiting_for_"):
+        field = estado_chat.state.replace("waiting_for_", "")
+        if estado_chat.context.get('use_gpt') and GPT_ENABLED and gpt_handler:
+            await procesar_respuesta_con_gpt(plataforma, user_id, texto, unidad_negocio, estado_chat, persona, gpt_handler)
+        else:
+            if field in ['nombre', 'apellido_paterno', 'email', 'phone', 'nacionalidad']:
+                if field == 'email' and not re.match(r"[^@]+@[^@]+\.[^@]+", texto):
+                    await send_message(plataforma, user_id, "Por favor, ingresa un email válido.", bu_name)
+                    return True
+                setattr(persona, field, texto.capitalize() if field in ['nombre', 'apellido_paterno'] else texto)
+                await sync_to_async(persona.save)()
+                if bu_name == "amigro":
+                    from app.chatbot.workflow.amigro import continuar_perfil_amigro
+                    await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+                elif bu_name == "huntu":
+                    from app.chatbot.workflow.huntu import continuar_perfil_huntu
+                    await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
+                else:
+                    await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            elif field == "tipo_candidato" and bu_name == "amigro":
+                if texto in ["mexicano", "extranjero"]:
+                    estado_chat.context['tipo_candidato'] = texto
+                    await sync_to_async(estado_chat.save)()
+                    from app.chatbot.workflow.amigro import continuar_perfil_amigro
+                    await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+                else:
+                    await send_message(plataforma, user_id, "Por favor, selecciona 'Mexicano' o 'Extranjero'.", bu_name)
+            elif field == "pais" and bu_name == "amigro":
+                if texto == "otros_pais":
+                    await send_message(plataforma, user_id, "Por favor, escribe el nombre de tu país de origen.", bu_name)
+                    estado_chat.state = "waiting_for_pais_texto"
+                else:
+                    persona.nacionalidad = texto.capitalize()
+                    await sync_to_async(persona.save)()
+                    from app.chatbot.workflow.amigro import continuar_perfil_amigro
+                    await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+                await sync_to_async(estado_chat.save)()
+            elif field == "pais_texto" and bu_name == "amigro":
+                persona.nacionalidad = texto.capitalize()
+                await sync_to_async(persona.save)()
+                from app.chatbot.workflow.amigro import continuar_perfil_amigro
+                await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            elif field == "migratory_status" and bu_name == "amigro":
+                if texto == "otro_estatus":
+                    await send_message(plataforma, user_id, "Por favor, especifica tu estatus migratorio.", bu_name)
+                    estado_chat.state = "waiting_for_migratory_status_texto"
+                else:
+                    persona.metadata['migratory_status'] = texto.replace("_", " ").capitalize()
+                    await sync_to_async(persona.save)()
+                    from app.chatbot.workflow.amigro import continuar_perfil_amigro
+                    await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+                await sync_to_async(estado_chat.save)()
+            elif field == "migratory_status_texto" and bu_name == "amigro":
+                persona.metadata['migratory_status'] = texto.capitalize()
+                await sync_to_async(persona.save)()
+                from app.chatbot.workflow.amigro import continuar_perfil_amigro
+                await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            elif field == "experience" and bu_name == "huntu":
+                persona.work_experience = texto
+                await sync_to_async(persona.save)()
+                from app.chatbot.workflow.huntu import continuar_perfil_huntu
+                await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        return True
+
+    # Correcciones intuitivas
+    if texto.startswith("cambiar") or texto.startswith("corregir"):
+        field = texto.split(" ")[1].lower()
+        valid_fields = ["nombre", "apellido_paterno", "email", "phone", "nacionalidad", "migratory_status", "experience"]
+        if field in valid_fields:
+            estado_chat.state = f"correcting_{field}"
+            await sync_to_async(estado_chat.save)()
+            await send_message(plataforma, user_id, f"Claro, ¿cuál es tu nuevo {field}?", bu_name)
+            return True
+        await send_message(plataforma, user_id, "No reconozco ese campo. Usa 'cambiar [campo]' como 'cambiar email'.", bu_name)
+        return True
+
+    if estado_chat.state.startswith("correcting_"):
+        field = estado_chat.state.replace("correcting_", "")
+        if field in ['nombre', 'apellido_paterno', 'email', 'phone', 'nacionalidad']:
+            if field == 'email' and not re.match(r"[^@]+@[^@]+\.[^@]+", texto):
+                await send_message(plataforma, user_id, "Por favor, ingresa un email válido.", bu_name)
+                return True
+            setattr(persona, field, texto.capitalize() if field in ['nombre', 'apellido_paterno'] else texto)
+            await sync_to_async(persona.save)()
+            await send_message(plataforma, user_id, f"{field.capitalize()} actualizado correctamente.", bu_name)
+            estado_chat.state = "profile_in_progress"
+            await sync_to_async(estado_chat.save)()
+            await iniciar_creacion_perfil(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        elif field == "migratory_status" and bu_name == "amigro":
+            persona.metadata['migratory_status'] = texto.capitalize()
+            await sync_to_async(persona.save)()
+            await send_message(plataforma, user_id, "Estatus migratorio actualizado correctamente.", bu_name)
+            estado_chat.state = "profile_in_progress"
+            await sync_to_async(estado_chat.save)()
+            await iniciar_creacion_perfil(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        elif field == "experience" and bu_name == "huntu":
+            persona.work_experience = texto
+            await sync_to_async(persona.save)()
+            await send_message(plataforma, user_id, "Experiencia laboral actualizada correctamente.", bu_name)
+            estado_chat.state = "profile_in_progress"
+            await sync_to_async(estado_chat.save)()
+            await iniciar_creacion_perfil(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        return True
+
+    # Confirmación final
+    if estado_chat.state == "profile_complete_pending_confirmation":
+        if texto == "sí":
+            persona.profile_complete = True
+            await sync_to_async(persona.save)()
+            await send_message(plataforma, user_id, "¡Perfecto! Tu perfil está completo. ¿En qué te ayudo ahora?", bu_name)
+            estado_chat.state = "idle"
+            await sync_to_async(estado_chat.save)()
+        elif texto == "no":
+            await send_message(plataforma, user_id, "¿Qué te gustaría corregir? Usa 'cambiar [campo]' (ej. 'cambiar email').", bu_name)
+            estado_chat.state = "profile_in_progress"
+            await sync_to_async(estado_chat.save)()
+        else:
+            await send_message(plataforma, user_id, "Por favor, responde 'sí' o 'no'.", bu_name)
+        return True
+
+    return False
+
+async def procesar_respuesta_con_gpt(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler):
+    """Procesa respuestas en el flujo dinámico usando GPT."""
+    bu_name = unidad_negocio.name.lower()
+    field = estado_chat.state.replace("waiting_for_", "")
+    prompt = (
+        f"El usuario está proporcionando su {field} en un flujo conversacional. "
+        f"Su respuesta fue: '{texto}'. Extrae el valor correspondiente para {field} de manera precisa. "
+        f"Devuelve solo el valor extraído en texto plano, o 'NO_ENTENDIDO' si no se pudo interpretar."
+    )
+    respuesta_gpt = await gpt_handler.generate_response(prompt, unidad_negocio)
+
+    if respuesta_gpt.strip() == "NO_ENTENDIDO":
+        await send_message(plataforma, user_id, f"No entendí tu {field}. Por favor, intenta de nuevo.", bu_name)
+        return
+
+    if field == 'email' and not re.match(r"[^@]+@[^@]+\.[^@]+", respuesta_gpt):
+        await send_message(plataforma, user_id, "Por favor, ingresa un email válido.", bu_name)
+        return
+
+    if field in ['nombre', 'apellido_paterno']:
+        setattr(persona, field, respuesta_gpt.capitalize())
+    else:
+        setattr(persona, field, respuesta_gpt)
+    await sync_to_async(persona.save)()
+
+    if bu_name == "amigro":
+        from app.chatbot.workflow.amigro import continuar_perfil_amigro
+        await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+    elif bu_name == "huntu":
+        from app.chatbot.workflow.huntu import continuar_perfil_huntu
+        await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
+    else:
+        await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
+
+async def obtener_resumen_perfil(persona: Person) -> str:
+    """Genera un resumen del perfil del usuario."""
+    info_fields = {
+        "Nombre": persona.nombre,
+        "Apellido Paterno": persona.apellido_paterno,
+        "Apellido Materno": persona.apellido_materno,
+        "Email": persona.email,
+        "Teléfono": persona.phone,
+        "Nacionalidad": persona.nacionalidad,
+        "Estatus Migratorio": persona.metadata.get('migratory_status') if 'migratory_status' in persona.metadata else None,
+        "Experiencia Laboral": persona.work_experience
+    }
+    recap_lines = ["Recapitulación de tu información:"]
+    faltante = []
+    for etiqueta, valor in info_fields.items():
+        if valor:
+            recap_lines.append(f"{etiqueta}: {valor}")
+        else:
+            faltante.append(etiqueta)
+    if faltante:
+        recap_lines.append("\nInformación faltante: " + ", ".join(faltante))
+    else:
+        recap_lines.append("\nToda la información está completa.")
+    recap_lines.append("\n¿Es correcta esta información? Responde 'Sí' o 'No'.")
+    return "\n".join(recap_lines)
 
 def send_welcome_message(user_id, platform, business_unit):
     """ Envía un mensaje de bienvenida, el logo de la unidad y el menú de servicios. """
