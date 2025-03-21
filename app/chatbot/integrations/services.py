@@ -196,6 +196,8 @@ class MessageService:
             logger.error(f"[send_message] Error: {e}", exc_info=True)
             return False
 
+    from tenacity import retry, stop_after_attempt
+    @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_image(
         self,
         platform: str,
@@ -253,6 +255,8 @@ class MessageService:
             return False
 
     # Actualizar send_menu para usar el diccionario
+    from tenacity import retry, stop_after_attempt
+    @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_menu(self, platform: str, user_id: str):
         """Envía el menú principal utilizando `send_options`"""
         try:
@@ -278,9 +282,13 @@ class MessageService:
             logger.error(f"[send_menu] ❌ Error enviando menú: {e}", exc_info=True)
             return False
 
+    from tenacity import retry, stop_after_attempt
+    @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_url(self, platform: str, user_id: str, url: str) -> bool:
         return await self.send_message(platform, user_id, f"Aquí tienes el enlace: {url}")
 
+    from tenacity import retry, stop_after_attempt
+    @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_options(
         self,
         platform: str,
