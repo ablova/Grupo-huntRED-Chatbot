@@ -641,33 +641,35 @@ class SlackAPI(models.Model):
     is_active = models.BooleanField(default=True)
 
 class GptApi(models.Model):
-    api_token = models.CharField(max_length=500)
-    organization = models.CharField(max_length=100, blank=True, null=True)
-    project = models.CharField(max_length=100, blank=True, null=True)
-    model = models.CharField(max_length=100)
-    model_type = models.CharField(
-        max_length=50,
-        choices=[("gpt-4", "GPT-4 (OpenAI)"), ("llama-2", "Llama 2 (Vertex AI)")],
-        default="gpt-4",
-        help_text="Selecciona el modelo de generación de texto."
+    MODEL_TYPES = (
+        ('gpt-4', 'GPT-4 (OpenAI)'),
+        ('llama-2', 'Llama 2 (Vertex AI)'),
+        ('grok-2', 'Grok 2 (X AI)'),
+        ('gemini', 'Gemini (Google)'),  # Agregamos Gemini
     )
-    tabiya_enabled = models.BooleanField(
-        default=False,
-        help_text="Habilita/deshabilita el uso de tabiya-livelihoods-classifier."
-    )
-    # ✅ Almacenamos los prompts en un JSONField para mayor flexibilidad
-    prompts = models.JSONField(default=dict, blank=True, help_text="Diccionario con diferentes tipos de prompts")
 
-    max_tokens = models.IntegerField(default=150)
-    temperature = models.FloatField(default=0.7)
-    top_p = models.FloatField(default=1.0, blank=True, null=True)
+    model_type = models.CharField(max_length=20, choices=MODEL_TYPES, default='gpt-4', verbose_name="Tipo de modelo")
+    is_active = models.BooleanField(default=False, verbose_name="Activo")
+    model = models.CharField(max_length=100, default='gpt-4o', verbose_name="Modelo específico")
+    api_token = models.CharField(max_length=255, blank=True, null=True, verbose_name="Token API")
+    organization = models.CharField(max_length=100, blank=True, null=True, verbose_name="Organización")
+    project = models.CharField(max_length=100, blank=True, null=True, verbose_name="Proyecto")
+    max_tokens = models.IntegerField(default=1000, verbose_name="Máximo de tokens")
+    temperature = models.FloatField(default=0.7, verbose_name="Temperatura")
+    top_p = models.FloatField(default=1.0, verbose_name="Top P")
+    prompts = models.JSONField(default=dict, blank=True, verbose_name="Prompts personalizados")
+    tabiya_enabled = models.BooleanField(default=False, verbose_name="Tabiya habilitado")
 
-    def get_prompt(self, key: str, default: str = "Responde de forma clara y concisa.") -> str:
-        """ Obtiene prompt optimizado, basado en contexto de Headhunter. """
-        return self.prompts.get(key, default)
+    class Meta:
+        verbose_name = "Configuración de API GPT"
+        verbose_name_plural = "Configuraciones de API GPT"
 
     def __str__(self):
-        return f"Model: {self.model} | Org: {self.organization} | Project: {self.project}"
+        return f"{self.model} ({self.model_type}) - {'Activo' if self.is_active else 'Inactivo'}"
+
+    def get_prompt(self, key, default=None):
+        """Obtiene un prompt del campo JSON 'prompts'."""
+        return self.prompts.get(key, default)
 
 class Chat(models.Model):
     body = models.TextField(max_length=1000)

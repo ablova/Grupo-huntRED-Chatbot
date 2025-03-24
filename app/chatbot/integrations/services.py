@@ -22,7 +22,6 @@ from app.models import (
 )
 logger = logging.getLogger(__name__)
 
-
 # Constantes globales
 MAX_RETRIES = 3
 REQUEST_TIMEOUT = 10.0

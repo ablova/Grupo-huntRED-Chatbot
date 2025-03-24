@@ -455,10 +455,43 @@ class TelegramAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
     search_fields = ('bot_name', 'api_key')
 
 @admin.register(GptApi)
-class GptApiAdmin(TokenMaskingMixin, admin.ModelAdmin):
-    token_fields = ['api_token']
-    list_display = ('api_token', 'model', 'organization')
-    search_fields = ('model', 'organization')
+class GptApiAdmin(admin.ModelAdmin):
+    list_display = ('model', 'model_type', 'is_active', 'organization', 'project')
+    list_filter = ('model_type', 'is_active')
+    search_fields = ('model', 'organization', 'project')
+    list_editable = ('is_active',)  # Permite cambiar 'is_active' directamente desde la lista
+    readonly_fields = ('prompts_preview',)  # Vista previa de prompts
+
+    fieldsets = (
+        ('Configuración General', {
+            'fields': ('model_type', 'is_active')
+        }),
+        ('Detalles del Modelo', {
+            'fields': ('model', 'api_token', 'organization', 'project')
+        }),
+        ('Parámetros de Generación', {
+            'fields': ('max_tokens', 'temperature', 'top_p')
+        }),
+        ('Prompts', {
+            'fields': ('prompts', 'prompts_preview')
+        }),
+        ('Otras Opciones', {
+            'fields': ('tabiya_enabled',)
+        }),
+    )
+
+    def prompts_preview(self, obj):
+        """Muestra una vista previa de los prompts en el admin."""
+        if obj.prompts:
+            return json.dumps(obj.prompts, indent=2)[:200] + "..." if len(str(obj.prompts)) > 200 else json.dumps(obj.prompts, indent=2)
+        return "Sin prompts configurados"
+    prompts_preview.short_description = "Vista previa de prompts"
+
+    def save_model(self, request, obj, form, change):
+        """Asegura que solo haya una configuración activa."""
+        if obj.is_active:
+            GptApi.objects.filter(is_active=True).exclude(id=obj.id).update(is_active=False)
+        super().save_model(request, obj, form, change)
 
 @admin.register(SmtpConfig)
 class SmtpConfigAdmin(TokenMaskingMixin, admin.ModelAdmin):

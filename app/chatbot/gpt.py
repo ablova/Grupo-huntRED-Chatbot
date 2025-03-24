@@ -4,17 +4,18 @@ import logging
 import backoff
 from openai import OpenAI, OpenAIError, RateLimitError
 from typing import Dict, Optional
-from app.models import GptApi
+from app.models import GptApi, BusinessUnit
 from app.chatbot.integrations.services import send_email
 from django.conf import settings
 from asgiref.sync import sync_to_async
 import asyncio
 import json
+import requests  # Para las APIs de Grok y Gemini
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
 
-# Valores por defecto para futura configuración dinámica
+# Valores por defecto
 GPT_DEFAULTS = {
     "model": "gpt-4",
     "max_tokens": 150,
@@ -23,19 +24,175 @@ GPT_DEFAULTS = {
     "timeout": 60,
 }
 
+# Clase base para handlers
+class BaseHandler:
+    def __init__(self, config: GptApi):
+        self.config = config
+        self.client = None
+
+    async def initialize(self):
+        raise NotImplementedError("Método 'initialize' debe ser implementado.")
+
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
+        raise NotImplementedError("Método 'generate_response' debe ser implementado.")
+
+# Handler para OpenAI
+class OpenAIHandler(BaseHandler):
+    async def initialize(self):
+        self.client = OpenAI(api_key=self.config.api_token, organization=self.config.organization)
+        logger.info(f"OpenAIHandler configurado con modelo: {self.config.model}")
+
+    @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
+        if not self.client:
+            return "⚠ OpenAI no inicializado."
+
+        bu_name = business_unit.name if business_unit else "General"
+        full_prompt = (
+            f"Unidad de Negocio: {bu_name}\n"
+            f"{prompt}\n\n"
+            "Devuelve únicamente una lista JSON de habilidades (ej: ['Python', 'Django'])."
+        )
+
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.client.chat.completions.create,
+                    model=self.config.model,
+                    messages=[
+                        {"role": "system", "content": self.config.get_prompt("system", "Eres experto en empleabilidad y reclutamiento.")},
+                        {"role": "user", "content": full_prompt}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    top_p=self.config.top_p
+                ),
+                timeout=GPT_DEFAULTS["timeout"]
+            )
+            return response.choices[0].message.content.strip()
+        except RateLimitError:
+            logger.warning("Cuota de OpenAI excedida.")
+            return "Cuota excedida."
+        except asyncio.TimeoutError:
+            logger.warning("Timeout en OpenAI.")
+            return "Solicitud tardó demasiado."
+
+# Handler para Llama (Vertex AI)
+class LlamaHandler(BaseHandler):
+    async def initialize(self):
+        # Nota: Esto asume que usas la API de Vertex AI para Llama
+        from google.cloud import aiplatform
+        aiplatform.init(project=self.config.project, credentials=self.config.api_token)
+        logger.info(f"LlamaHandler configurado con modelo: {self.config.model}")
+
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
+        bu_name = business_unit.name if business_unit else "General"
+        full_prompt = (
+            f"Unidad de Negocio: {bu_name}\n"
+            f"{prompt}\n\n"
+            "Devuelve únicamente una lista JSON de habilidades (ej: ['Python', 'Django'])."
+        )
+        # Placeholder: ajustar según la API real de Vertex AI
+        return f"Respuesta desde Llama: {full_prompt}"  # Implementar la llamada real
+
+# Handler para Grok (X AI)
+class GrokHandler(BaseHandler):
+    async def initialize(self):
+        self.api_url = "https://api.x.ai/v1/chat/completions"  # URL ficticia, reemplazar con la real
+        self.headers = {"Authorization": f"Bearer {self.config.api_token}"}
+        logger.info(f"GrokHandler configurado con modelo: {self.config.model}")
+
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
+        bu_name = business_unit.name if business_unit else "General"
+        full_prompt = (
+            f"Unidad de Negocio: {bu_name}\n"
+            f"{prompt}\n\n"
+            "Devuelve únicamente una lista JSON de habilidades (ej: ['Python', 'Django'])."
+        )
+
+        payload = {
+            "model": self.config.model,
+            "messages": [
+                {"role": "system", "content": self.config.get_prompt("system", "Eres experto en empleabilidad y reclutamiento.")},
+                {"role": "user", "content": full_prompt}
+            ],
+            "max_tokens": self.config.max_tokens,
+            "temperature": self.config.temperature,
+            "top_p": self.config.top_p
+        }
+
+        try:
+            response = await asyncio.to_thread(
+                requests.post, self.api_url, headers=self.headers, json=payload
+            )
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"].strip()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error en Grok: {e}")
+            return "Error al comunicarse con Grok."
+
+# Handler para Gemini (Google)
+class GeminiHandler(BaseHandler):
+    async def initialize(self):
+        self.api_url = "https://api.google.com/gemini/v1/generate"  # URL ficticia, reemplazar con la real
+        self.headers = {"Authorization": f"Bearer {self.config.api_token}"}
+        logger.info(f"GeminiHandler configurado con modelo: {self.config.model}")
+
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
+        bu_name = business_unit.name if business_unit else "General"
+        full_prompt = (
+            f"Unidad de Negocio: {bu_name}\n"
+            f"{prompt}\n\n"
+            "Devuelve únicamente una lista JSON de habilidades (ej: ['Python', 'Django'])."
+        )
+
+        payload = {
+            "model": self.config.model,
+            "prompt": full_prompt,
+            "max_tokens": self.config.max_tokens,
+            "temperature": self.config.temperature,
+            "top_p": self.config.top_p
+        }
+
+        try:
+            response = await asyncio.to_thread(
+                requests.post, self.api_url, headers=self.headers, json=payload
+            )
+            response.raise_for_status()
+            return response.json()["text"].strip()  # Ajustar según la estructura real de la respuesta
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error en Gemini: {e}")
+            return "Error al comunicarse con Gemini."
+
+# Fábrica de handlers
+def get_handler(config: GptApi) -> BaseHandler:
+    model_type = config.model_type
+    if model_type == 'gpt-4':
+        return OpenAIHandler(config)
+    elif model_type == 'llama-2':
+        return LlamaHandler(config)
+    elif model_type == 'grok-2':
+        return GrokHandler(config)
+    elif model_type == 'gemini':
+        return GeminiHandler(config)
+    else:
+        raise ValueError(f"Tipo de modelo no soportado: {model_type}")
+
+# Clase principal ajustada
 class GPTHandler:
     def __init__(self):
         logger.debug("Instancia GPTHandler creada.")
         self.gpt_api = None
         self.client = None
         self.config = GPT_DEFAULTS.copy()
+        self.current_business_unit = None  # Atributo para almacenar la unidad de negocio actual
 
     async def initialize(self):
         try:
-            gpt_api = await sync_to_async(lambda: GptApi.objects.first())()
+            gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True).first())()
             if gpt_api:
-                self.gpt_api = gpt_api
-                self.client = OpenAI(api_key=gpt_api.api_token, organization=gpt_api.organization)
+                self.handler = get_handler(gpt_api)
+                await self.handler.initialize()
                 self.config.update({
                     "model": gpt_api.model or GPT_DEFAULTS["model"],
                     "max_tokens": gpt_api.max_tokens or GPT_DEFAULTS["max_tokens"],
@@ -82,7 +239,8 @@ class GPTHandler:
         return "general"
 
     @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
-    async def generate_response(self, prompt: str, business_unit=None) -> str:
+    async def generate_response(self, prompt: str, business_unit: Optional[BusinessUnit] = None) -> str:
+        self.current_business_unit = business_unit  # Almacenar la unidad de negocio
         if not self.client:
             return "⚠ GPT no inicializado."
 
@@ -118,73 +276,32 @@ class GPTHandler:
             self._notify_quota_exceeded()
             return "Cuota excedida. Intenta más tarde."
 
-        except asyncio.TimeoutError:
-            logger.warning("Timeout en la solicitud GPT.")
-            return "Solicitud tardó demasiado. Intenta nuevamente."
-
-        except OpenAIError as e:
-            logger.error(f"Error OpenAI: {e}")
-            return "Problema al comunicarse con GPT."
-
     def _notify_quota_exceeded(self):
-        subject = "Cuota de OpenAI agotada"
+        # Determinar dinámicamente el remitente y los destinatarios
+        if self.current_business_unit and hasattr(self.current_business_unit, 'admin_email') and self.current_business_unit.admin_email:
+            remitente = self.current_business_unit.name
+            emails = [self.current_business_unit.admin_email]
+        else:
+            remitente = "Grupo huntRED®"
+            emails = ["hola@huntRED.com", "finanzas@huntRED.com"]
+
+        subject = "Cuota de API agotada"
         body = (
-            "Hola,\n\nLa cuota de OpenAI se ha agotado. Por favor revisa tu cuenta.\n\nSaludos."
+            f"Hola,\n\nLa cuota de la API para '{remitente}' se ha agotado. "
+            f"Por favor revisa tu cuenta.\n\nSaludos."
         )
-        emails = ["pablo@huntred.com", "finanzas@huntred.com"]
         for email in emails:
             try:
-                send_email("Amigro", subject, email, body)
-                logger.info(f"Notificación cuota enviada a {email}.")
+                # Usar la función send_email de services.py
+                send_email(
+                    subject=subject,
+                    to_email=email,
+                    body=body,
+                    business_unit_name=remitente,
+                    from_email=f"no-reply@{remitente.lower().replace(' ', '')}.com"
+                )
+                logger.info(f"Notificación cuota enviada a {email} desde {remitente}.")
             except Exception as e:
                 logger.error(f"Error enviando correo a {email}: {e}")
 
-    @staticmethod
-    async def gpt_message(api_token: str, text: str, model: str = "gpt-4") -> Optional[str]:
-        try:
-            client = OpenAI(api_key=api_token)
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    client.chat.completions.create,
-                    model=model,
-                    messages=[{"role": "user", "content": text}],
-                    max_tokens=150,
-                    temperature=0.2,
-                    top_p=0.9
-                ),
-                timeout=10
-            )
-            return response.choices[0].message.content.strip()
-
-        except asyncio.TimeoutError:
-            logger.warning("Timeout en gpt_message.")
-            return None
-        except OpenAIError as oe:
-            logger.error(f"Error OpenAI en gpt_message: {oe}")
-            return None
-
-    def generate_response_sync(self, prompt: str, business_unit=None) -> str:
-        try:
-            return asyncio.run(self.generate_response(prompt, business_unit))
-        except Exception as e:
-            logger.error(f"Error generando respuesta síncrona GPT: {e}")
-            return "Error inesperado en la solicitud."
-
-class LLMChatGenerator:
-    def __init__(self, model_name="huggyllama/llama-2-7b-chat-hf"):
-        from transformers import pipeline
-        self.generator = pipeline("text-generation", model=model_name)
-
-    def generate_response(self, prompt, max_length=100, temperature=0.7):
-        response = self.generator(prompt, max_length=max_length, temperature=temperature)
-        return response[0]["generated_text"]
-
-    def generate_personalized_message(self, candidate, vacancy):
-        candidate_skills = candidate.skills.split(',') if candidate.skills else []
-        job_skills = vacancy.skills_required or []
-        prompt = (
-            f"Candidato con habilidades: {candidate_skills}. "
-            f"Vacante requiere: {job_skills}. Genera un mensaje personalizado invitando al candidato."
-        )
-        return self.generate_response(prompt)
-    
+# Eliminamos LLMChatGenerator si no lo usas activamente
