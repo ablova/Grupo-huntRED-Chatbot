@@ -22,6 +22,8 @@ git add . &&
 git commit -m "Mejoras de chatbot, common y workflows específicos, mejoras en nlp, gpt, etc ..." &&
 git push origin main
 
+git config --global user.name "Pablo Lelo de Larrea"
+git config --global user.email "ablova@gmail.com"
 
 #Ejecutar desde el SERVIDOR Donde se realizará el clonado
 # Truncar logs antes de iniciar el despliegue

@@ -427,10 +427,7 @@ def fetch_url(url):
     time.sleep(random.uniform(15, 30))  # Pausa entre requests
     return r.text
 
-def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
-    """
-    Scrape lento desde CSV, usando las URLs para enriquecer datos.
-    """
+async def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -442,7 +439,6 @@ def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
             company = row.get('Company', '').strip() or None
             position = row.get('Position', '').strip() or None
 
-            # Verificar si ya se procesó usando metadata
             existing_person = Person.objects.filter(
                 nombre__iexact=fn,
                 apellido_paterno__iexact=ln,
@@ -451,52 +447,49 @@ def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
 
             if existing_person and existing_person.metadata.get('scraped', False):
                 logger.info(f"Perfil ya procesado: {fn} {ln}")
-                continue  # Saltar si ya fue procesado
+                continue
 
             if linkedin_url:
-                # Realizar el scraping
                 try:
-                    scraped_data = scrape_linkedin_profile(linkedin_url)
+                    scraped_data = await scrape_linkedin_profile(linkedin_url, business_unit.name.lower())
                     if scraped_data:
-                        # Guardar o actualizar el registro
                         person = save_person_record(
                             fn, ln, linkedin_url, email, birthday, company, position, business_unit
                         )
-
-                        # Actualizar metadata si hay cambios en email o celular
                         updated = False
                         if 'contact_info' in scraped_data:
                             contact_info = scraped_data['contact_info']
-
                             if contact_info.get('email') and not person.email:
                                 person.email = contact_info['email']
                                 updated = True
                                 logger.info(f"📧 Email actualizado: {person.email}")
-
                             if contact_info.get('phone'):
                                 person.metadata['phone'] = contact_info['phone']
                                 updated = True
                                 logger.info(f"📱 Celular actualizado: {contact_info['phone']}")
-
-                        # Marcar como procesado en metadata
                         person.metadata['scraped'] = True
                         person.save()
-
                         if updated:
                             logger.info(f"✅ Perfil enriquecido y actualizado: {person.nombre} {person.apellido_paterno}")
                         else:
                             logger.info(f"Perfil enriquecido sin actualizaciones: {person.nombre} {person.apellido_paterno}")
                     else:
                         logger.warning(f"⚠️ No se encontraron datos para {fn} {ln} con URL {linkedin_url}")
-
                 except Exception as e:
                     logger.error(f"❌ Error scrapeando {linkedin_url}: {e}")
             else:
-                # Sin URL, solo guardamos básico
-                person = save_person_record(
-                    fn, ln, None, email, birthday, company, position, business_unit
-                )
+                person = save_person_record(fn, ln, None, email, birthday, company, position, business_unit)
                 logger.info(f"✅ Perfil básico guardado: {fn} {ln} ({email})")
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def slow_scrape_from_csv_task(self, csv_path: str, business_unit_id: int):
+    try:
+        business_unit = BusinessUnit.objects.get(id=business_unit_id)
+        asyncio.run(slow_scrape_from_csv(csv_path, business_unit))
+        logger.info(f"✅ Slow scrape completed for {csv_path}")
+    except Exception as e:
+        logger.error(f"❌ Error in slow scrape: {e}")
+        self.retry(exc=e)
 
 
 def safe_extract(func):
@@ -625,18 +618,17 @@ def associate_divisions(skills: List[str], unit: str) -> List[Dict[str, str]]:
     processor = SkillsProcessor(unit)
     return processor.associate_divisions(skills)
 
-def scrape_linkedin_profile(link_url, unit):
-    """
-    Realiza scraping de un perfil de LinkedIn usando Playwright con cookies autenticadas.
-    """
+from playwright.async_api import async_playwright
+
+async def scrape_linkedin_profile(link_url: str, unit: str) -> Dict:
     try:
-        with sync_playwright() as p:
+        async with async_playwright() as p:
             # Seleccionar un USER_AGENT aleatorio
             user_agent = random.choice(USER_AGENTS)
             
             # Lanzar el navegador con configuraciones robustas
-            browser = p.chromium.launch(headless=True)  # Cambia a False para depurar visualmente
-            context = browser.new_context(
+            browser = await p.chromium.launch(headless=True)  # Cambia a False para depurar visualmente
+            context = await browser.new_context(
                 user_agent=user_agent,
                 viewport={"width": 1280, "height": 720},
                 locale="es-ES"  # Simula un navegador en español
@@ -647,37 +639,36 @@ def scrape_linkedin_profile(link_url, unit):
             
             # Verificar si hay cookies guardadas y válidas
             if os.path.exists(cookies_file):
-                context.storage_state(path=cookies_file)
+                await context.storage_state(path=cookies_file)
                 logger.info(f"Cargando cookies desde {cookies_file}")
             else:
                 logger.warning("No se encontraron cookies guardadas. Intentando login manual.")
-                # Si no hay cookies, realizar login (puedes proporcionar tus credenciales aquí)
-                page = context.new_page()
-                page.goto("https://www.linkedin.com/login")
-                page.fill("#username", "pablo@huntred.com")  # Reemplaza con tu email
-                page.fill("#password", "Natalia&Patricio1113!")  # Reemplaza con tu contraseña
-                page.click("button[type=submit]")
-                page.wait_for_load_state("networkidle", timeout=60000)
-                context.storage_state(path=cookies_file)  # Guardar cookies tras login
+                page = await context.new_page()
+                await page.goto("https://www.linkedin.com/login")
+                await page.fill("#username", "pablo@huntred.com")  # Reemplaza con tu email
+                await page.fill("#password", "Natalia&Patricio1113!")  # Reemplaza con tu contraseña
+                await page.click("button[type=submit]")
+                await page.wait_for_load_state("networkidle", timeout=60000)
+                await context.storage_state(path=cookies_file)  # Guardar cookies tras login
                 logger.info(f"Cookies guardadas en {cookies_file}")
-                page.close()
+                await page.close()
 
             # Abrir la página del perfil
-            page = context.new_page()
+            page = await context.new_page()
             logger.info(f"Intentando acceder a {link_url}")
-            page.goto(link_url, timeout=60000)  # Timeout aumentado a 60 segundos
+            await page.goto(link_url, timeout=60000)  # Timeout aumentado a 60 segundos
             
             # Esperar a que la página cargue completamente
-            page.wait_for_load_state("networkidle", timeout=60000)
+            await page.wait_for_load_state("networkidle", timeout=60000)
             
             # Verificar si requiere login (título de la página de login)
-            if "Log In or Sign Up" in page.title():
+            if "Log In or Sign Up" in await page.title():
                 logger.error(f"Autenticación fallida para {link_url}. Actualiza las credenciales o cookies.")
-                browser.close()
+                await browser.close()
                 return {}
 
             # Obtener el contenido HTML
-            content = page.content()
+            content = await page.content()
             soup = BeautifulSoup(content, "html.parser")
             
             # Extraer datos
@@ -699,16 +690,20 @@ def scrape_linkedin_profile(link_url, unit):
             logger.info(f"Scrapeado exitosamente {link_url}")
             
             # Cerrar el navegador
-            browser.close()
+            await browser.close()
             
             # Pausa aleatoria para evitar bloqueos
-            time.sleep(random.uniform(10, 20))
+            await asyncio.sleep(random.uniform(10, 20))
             
             return data
             
     except Exception as e:
         logger.error(f"Error scrapeando {link_url}: {str(e)}", exc_info=True)
         return {}
+    
+@backoff.on_exception(backoff.expo, Exception, max_tries=5, jitter=backoff.full_jitter)
+async def fetch_page(page, url):
+    await page.goto(url)
 
 def update_person_from_scrape(person: Person, scraped_data: dict):
     """
@@ -759,11 +754,7 @@ def construct_linkedin_url(first_name: str, last_name: str) -> str:
     name_slug = f"{first_name.lower()}-{last_name.lower()}".replace(" ", "-")
     return f"{base_url}{name_slug}"
 
-def process_linkedin_updates():
-    """
-    Revisa todos los perfiles de LinkedIn en la base de datos y los actualiza.
-    Muestra un resumen al finalizar.
-    """
+async def process_linkedin_updates():
     persons = Person.objects.all()
     processed_count = 0
     constructed_count = 0
@@ -771,18 +762,16 @@ def process_linkedin_updates():
 
     for person in persons:
         linkedin_url = person.linkedin_url
-
-        # Construir URL si falta
         if not linkedin_url:
             linkedin_url = construct_linkedin_url(person.nombre, person.apellido_paterno)
-            person.linkedin_url = linkedin_url  # Guardar en el campo del modelo
+            person.linkedin_url = linkedin_url
             person.save()
             constructed_count += 1
             logger.info(f"🌐 URL construida para {person.nombre}: {linkedin_url}")
 
         try:
             logger.info(f"Procesando: {person.nombre} ({linkedin_url})")
-            scraped_data = scrape_linkedin_profile(linkedin_url)
+            scraped_data = await scrape_linkedin_profile(linkedin_url, "amigro")  # Default unit
             update_person_from_scrape(person, scraped_data)
             processed_count += 1
             logger.info(f"✅ Actualizado: {person.nombre}")
@@ -791,6 +780,15 @@ def process_linkedin_updates():
             errors_count += 1
 
     logger.info(f"Resumen: Procesados: {processed_count}, URLs construidas: {constructed_count}, Errores: {errors_count}")
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def process_linkedin_updates_task(self):
+    try:
+        asyncio.run(process_linkedin_updates())
+        logger.info("✅ LinkedIn updates completed")
+    except Exception as e:
+        logger.error(f"❌ Error in LinkedIn updates: {e}")
+        self.retry(exc=e)
 
 def process_linkedin_batch():
     from app.chatbot.nlp import process_recent_users_batch

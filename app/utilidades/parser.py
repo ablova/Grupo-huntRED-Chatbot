@@ -1,35 +1,35 @@
 # /home/pablo/app/utilidades/parser.py
-# ✅ Importaciones necesarias
 import logging
 import unicodedata
-import imaplib
 import email
 import asyncio
 import json
+from aioimaplib import aioimaplib
 from email.header import decode_header
 from tempfile import NamedTemporaryFile
 from pathlib import Path
 from datetime import datetime
-from functools import lru_cache
 from typing import List, Dict, Optional
 from langdetect import detect
 from PyPDF2 import PdfReader
+from contextlib import ExitStack
 from django.utils.timezone import now
 from docx import Document
+from asgiref.sync import sync_to_async
 
-# ✅ Importaciones del proyecto
-from app.models import ConfiguracionBU, Person, Vacante, Division, Skill, BusinessUnit
-from app.utilidades.vacantes import VacanteManager
+# Importaciones del proyecto
+from app.models import ConfiguracionBU, Person, BusinessUnit
 from app.chatbot.nlp import NLPProcessor
+from app.chatbot.integrations.services import send_email
 
-# ✅ Configuración de logging
+# Configuración de logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# ✅ Importación de servicios adicionales
-from app.chatbot.integrations.services import send_email, send_message
+# Instancia global de NLPProcessor
+NLP_PROCESSOR = NLPProcessor(language="es", mode="candidate", analysis_depth="deep")
 
-# ✅ Diccionario de carpetas por acción en IMAP
+# Diccionario de carpetas IMAP
 FOLDER_CONFIG = {
     "inbox": "INBOX",
     "cv_folder": "INBOX.CV",
@@ -38,46 +38,28 @@ FOLDER_CONFIG = {
 }
 
 def detect_language(text: str) -> str:
-    """
-    Detecta el idioma del texto usando langdetect. El NLPProcessor manejará la traducción a inglés si es necesario.
-    """
+    """Detecta el idioma del texto."""
     try:
-        detected_lang = detect(text)
-        return detected_lang  # Devolvemos el idioma detectado directamente
+        return detect(text)
     except Exception as e:
         logger.error(f"Error detectando idioma: {e}")
-        return "es"  # Default a español si falla
+        return "es"  # Default a español
 
 def normalize_text(text: str) -> str:
-    """
-    Normaliza el texto eliminando acentos y convirtiendo a minúsculas.
-    """
-    text = unicodedata.normalize('NFD', text)
-    text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
-    return text.lower()
+    """Normaliza el texto eliminando acentos y convirtiendo a minúsculas."""
+    return ''.join(char for char in unicodedata.normalize('NFD', text) if unicodedata.category(char) != 'Mn').lower()
 
 # ✅ IMAPCVProcessor (Funciona perfecto, no tocar)
 class IMAPCVProcessor:
-    def __init__(self, business_unit):
+    def __init__(self, business_unit: BusinessUnit):
         self.business_unit = business_unit
         self.config = self._load_config(business_unit)
         self.parser = CVParser(business_unit)
-        self.stats = {"processed": 0, "created": 0, "updated": 0}
+        self.stats = {"processed": 0, "created": 0, "updated": 0, "errors": 0}
         self.FOLDER_CONFIG = FOLDER_CONFIG
 
-    def _verify_folders(self, mail):
-        for folder_key, folder_name in self.FOLDER_CONFIG.items():
-            try:
-                status, folder_list = mail.list(pattern=folder_name)
-                if not folder_list:
-                    logger.error(f"Carpeta no encontrada: {folder_name}")
-                    return False
-            except Exception as e:
-                logger.error(f"Error verificando carpeta {folder_name}: {e}")
-                return False
-        return True
-    
-    def _load_config(self, business_unit):
+    def _load_config(self, business_unit: BusinessUnit) -> Dict:
+        """Carga la configuración IMAP desde la base de datos."""
         try:
             config = ConfiguracionBU.objects.get(business_unit=business_unit)
             return {
@@ -85,142 +67,166 @@ class IMAPCVProcessor:
                 'port': 993,
                 'username': config.smtp_username,
                 'password': config.smtp_password,
-                'use_tls': True,
-                'folders': FOLDER_CONFIG
             }
         except ConfiguracionBU.DoesNotExist:
-            raise ValueError(f"No configuration found for business unit: {business_unit}")
+            raise ValueError(f"No configuration found for business unit: {business_unit.name}")
 
-    def _connect_imap(self, config):
+    async def _connect_imap(self, config: Dict):
+        """Conecta al servidor IMAP de forma asíncrona."""
         try:
-            mail = imaplib.IMAP4_SSL(config['server'], config['port'])
-            mail.login(config['username'], config['password'])
-            if not self._verify_folders(mail):
+            client = aioimaplib.IMAP4_SSL(config['server'], config['port'])
+            await client.wait_hello_from_server()
+            await client.login(config['username'], config['password'])
+            if not await self._verify_folders(client):
                 raise ValueError("Carpetas IMAP no configuradas correctamente")
-            return mail
-        except imaplib.IMAP4.error as e:
-            logger.error(f"Error IMAP: {e}")
+            logger.info(f"✅ Conectado al servidor IMAP: {config['server']}")
+            return client
+        except Exception as e:
+            logger.error(f"❌ Error conectando al servidor IMAP: {e}")
             return None
 
-    def _move_email(self, mail, msg_id, dest_folder):
-        try:
-            mail.copy(msg_id, dest_folder)
-            mail.store(msg_id, '+FLAGS', '\\Deleted')
-            mail.expunge()
-        except Exception as e:
-            logger.error(f"Error moviendo correo a {dest_folder}: {e}")
+    async def _verify_folders(self, mail) -> bool:
+        """Verifica la existencia de las carpetas IMAP necesarias."""
+        for folder_key, folder_name in self.FOLDER_CONFIG.items():
+            try:
+                resp, folder_list = await mail.list(pattern=folder_name)
+                if not folder_list:
+                    logger.error(f"❌ Carpeta no encontrada: {folder_name}")
+                    return False
+            except Exception as e:
+                logger.error(f"❌ Error verificando carpeta {folder_name}: {e}")
+                return False
+        return True
 
-    def _update_stats(self, result):
+    async def _move_email(self, mail, msg_id: str, dest_folder: str):
+        """Mueve un correo a la carpeta destino."""
+        try:
+            await mail.copy(msg_id, dest_folder)
+            await mail.store(msg_id, '+FLAGS', '\\Deleted')
+            logger.info(f"📩 Correo {msg_id} movido a {dest_folder}")
+        except Exception as e:
+            logger.error(f"❌ Error moviendo correo {msg_id} a {dest_folder}: {e}")
+
+    def _update_stats(self, result: Dict):
+        """Actualiza las estadísticas de procesamiento."""
         if result.get("status") == "created":
             self.stats["created"] += 1
         elif result.get("status") == "updated":
             self.stats["updated"] += 1
         self.stats["processed"] += 1
 
-    def _process_single_email(self, mail, email_id):
+    async def _process_single_email(self, mail, email_id: str):
+        """Procesa un correo individual y maneja errores."""
         try:
-            status, data = mail.fetch(email_id, "(RFC822)")
-            if status != 'OK':
+            resp, data = await mail.fetch(email_id, "(RFC822)")
+            if resp != "OK":
                 raise ValueError(f"Error obteniendo correo {email_id}")
 
             message = email.message_from_bytes(data[0][1])
-            attachments = self.parser.extract_attachments(message)  # Usamos self.parser
+            attachments = self.parser.extract_attachments(message)
 
             if not attachments:
-                logger.warning(f"Correo {email_id} sin adjuntos válidos.")
-                self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
+                logger.warning(f"⚠️ Correo {email_id} sin adjuntos válidos")
+                await self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
+                self.stats["errors"] += 1
                 return
 
-            for attachment in attachments:
-                temp_path = Path(f"/tmp/{attachment['filename']}")
-                temp_path.write_bytes(attachment['content'])
+            with ExitStack() as stack:
+                for attachment in attachments:
+                    temp_file = stack.enter_context(NamedTemporaryFile(delete=False))
+                    temp_path = Path(temp_file.name)
+                    temp_path.write_bytes(attachment['content'])
 
-                try:
                     text = self.parser.extract_text_from_file(temp_path)
                     if text:
-                        parsed_data = self.parser.parse(text)  # Usamos parse del parser
-
+                        parsed_data = self.parser.parse(text)
                         if parsed_data:
                             email_addr = parsed_data.get("email", "")
                             phone = parsed_data.get("phone", "")
-
-                            candidate = Person.objects.filter(email=email_addr).first() or Person.objects.filter(phone=phone).first()
+                            candidate = await sync_to_async(Person.objects.filter)(email=email_addr).first() or \
+                                        await sync_to_async(Person.objects.filter)(phone=phone).first()
 
                             if candidate:
-                                self.parser._update_candidate(candidate, parsed_data, temp_path)
+                                await self.parser._update_candidate(candidate, parsed_data, temp_path)
                                 self._update_stats({"status": "updated"})
                             else:
-                                self.parser._create_new_candidate(parsed_data, temp_path)
+                                await self.parser._create_new_candidate(parsed_data, temp_path)
                                 self._update_stats({"status": "created"})
 
-                except Exception as e:
-                    logger.error(f"Error procesando adjunto {attachment['filename']}: {e}")
-                finally:
-                    temp_path.unlink()
-
-            self._move_email(mail, email_id, self.FOLDER_CONFIG['parsed_folder'])
+            await self._move_email(mail, email_id, self.FOLDER_CONFIG['parsed_folder'])
 
         except Exception as e:
-            logger.error(f"Error procesando correo {email_id}: {e}")
-            self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
+            logger.error(f"❌ Error procesando correo {email_id}: {e}")
+            await self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
+            self.stats["errors"] += 1
+            if self.business_unit.admin_email:
+                await send_email(
+                    business_unit_name=self.business_unit.name,
+                    subject=f"CV Parser Error: {email_id}",
+                    to_email=self.business_unit.admin_email,
+                    body=f"Error processing CV email {email_id}: {str(e)}",
+                    from_email="noreply@huntred.com"
+                )
 
-    def process_emails(self):
-        mail = self._connect_imap(self.config)
+    async def process_emails(self):
+        """Procesa todos los correos en la carpeta CV."""
+        mail = await self._connect_imap(self.config)
         if not mail:
             return
 
         try:
-            status, _ = mail.select(self.FOLDER_CONFIG['cv_folder'])
-            if status != 'OK':
+            resp, _ = await mail.select(self.FOLDER_CONFIG['cv_folder'])
+            if resp != "OK":
                 raise ValueError(f"Error seleccionando {self.FOLDER_CONFIG['cv_folder']}")
 
-            status, messages = mail.search(None, 'ALL')
-            if status != 'OK':
+            resp, messages = await mail.search("ALL")
+            if resp != "OK":
                 raise ValueError("Error en búsqueda de mensajes")
 
             email_ids = messages[0].split()
-            batch_size = 10  # Definimos batch_size aquí
+            logger.info(f"📬 Total de correos a procesar: {len(email_ids)}")
+            batch_size = 10
             for i in range(0, len(email_ids), batch_size):
                 batch = email_ids[i:i + batch_size]
+                logger.info(f"📤 Procesando lote de {len(batch)} correos")
                 for email_id in batch:
-                    self._process_single_email(mail, email_id)
+                    await self._process_single_email(mail, email_id)
+                    await asyncio.sleep(2)  # Pausa para evitar sobrecarga
+
+            await mail.expunge()
+            logger.info("🗑️ Correos eliminados después de procesar")
+
         finally:
-            mail.close()
-            mail.logout()
+            await mail.logout()
+            logger.info("🔌 Desconectado del servidor IMAP")
+            await self._generate_summary_and_send_report(**self.stats)
 
-        self._generate_summary_and_send_report(**self.stats)
-
-    def _generate_summary_and_send_report(self, candidates_processed, candidates_created, candidates_updated):
-        admin_email = self.business_unit.configuracionbu.correo_bu
+    async def _generate_summary_and_send_report(self, processed: int, created: int, updated: int, errors: int):
+        """Genera y envía un resumen del procesamiento."""
+        admin_email = self.business_unit.admin_email
         if not admin_email:
-            logger.warning("Correo del administrador no configurado. Resumen no enviado.")
+            logger.warning("⚠️ Correo del administrador no configurado")
             return
 
         summary = f"""
         <h2>Resumen del Procesamiento de CVs para {self.business_unit.name}:</h2>
         <ul>
-            <li>Total de candidatos procesados: {candidates_processed}</li>
-            <li>Nuevos candidatos creados: {candidates_created}</li>
-            <li>Candidatos actualizados: {candidates_updated}</li>
+            <li>Total de correos procesados: {processed}</li>
+            <li>Nuevos candidatos creados: {created}</li>
+            <li>Candidatos actualizados: {updated}</li>
+            <li>Errores encontrados: {errors}</li>
         </ul>
         """
-        logger.info(f"Resumen generado:\n{summary}")
+        logger.info(f"📊 Resumen generado:\n{summary}")
 
-        try:
-            result = asyncio.run(send_email(
-                business_unit_name=self.business_unit.name,
-                subject=f"Resumen de Procesamiento de CVs - {self.business_unit.name}",
-                to_email=admin_email,
-                body=summary,
-                from_email="noreply@huntred.com",
-            ))
-            if result.get("status") == "success":
-                logger.info(f"Resumen enviado correctamente a {admin_email}.")
-            else:
-                logger.error(f"Error en el envío del correo: {result.get('message')}")
-        except Exception as e:
-            logger.error(f"Error enviando el resumen: {e}", exc_info=True)
-
+        await send_email(
+            business_unit_name=self.business_unit.name,
+            subject=f"Resumen de Procesamiento de CVs - {self.business_unit.name}",
+            to_email=admin_email,
+            body=summary,
+            from_email="noreply@huntred.com"
+        )
+        
 # ✅ CVParser con integración completa de NLPProcessor
 class CVParser:
     def __init__(self, business_unit: str, text_sample: Optional[str] = None):
@@ -285,7 +291,7 @@ class CVParser:
             return {"finance": ["budgeting"], "tech": ["programming"]}
 
     def extract_attachments(self, message) -> List[Dict]:
-        """✅ Extrae adjuntos de un mensaje de correo."""
+        """Extrae adjuntos de un mensaje de correo."""
         attachments = []
         for part in message.walk():
             if part.get_content_maintype() == 'multipart':
@@ -296,11 +302,11 @@ class CVParser:
             if filename:
                 content = part.get_payload(decode=True)
                 attachments.append({'filename': filename, 'content': content})
-        logger.info(f"Se encontraron {len(attachments)} adjuntos.")
+        logger.info(f"📎 Encontrados {len(attachments)} adjuntos")
         return attachments
 
     def extract_text_from_file(self, file_path: Path) -> Optional[str]:
-        """✅ Extrae texto de un archivo PDF o DOCX."""
+        """Extrae texto de archivos PDF o DOCX."""
         try:
             if file_path.suffix.lower() == '.pdf':
                 reader = PdfReader(str(file_path))
@@ -309,40 +315,30 @@ class CVParser:
                 doc = Document(str(file_path))
                 text = "\n".join(para.text for para in doc.paragraphs)
             else:
-                logger.warning(f"Formato no soportado: {file_path}")
+                logger.warning(f"⚠️ Formato no soportado: {file_path}")
                 return None
-            if not text.strip():
-                logger.warning(f"No se extrajo texto de: {file_path}")
-                return None
-            return text
+            return text if text.strip() else None
         except Exception as e:
-            logger.error(f"Error extrayendo texto de {file_path}: {e}")
+            logger.error(f"❌ Error extrayendo texto de {file_path}: {e}")
             return None
 
     def parse(self, text: str) -> Dict:
+        """Analiza el texto del CV usando NLPProcessor global."""
         if not text or len(text.strip()) < 10:
-            logger.warning("Texto demasiado corto para análisis.")
-            return {"education": [], "experience": [], "skills": []}
+            logger.warning("⚠️ Texto demasiado corto para análisis")
+            return {}
 
-        # Usamos el análisis completo del NLPProcessor
-        analysis = self.nlp_processor.analyze(text)
+        analysis = NLP_PROCESSOR.analyze(text)
         skills = analysis.get("skills", {"technical": [], "soft": [], "certifications": [], "tools": []})
-        entities = analysis.get("entities", [])
-        experience_level = analysis.get("experience_level", {})
-        ideal_positions = analysis.get("ideal_positions", [])  # Nueva funcionalidad
-
-        parsed_data = {
+        return {
+            "email": analysis.get("entities", {}).get("email", ""),
+            "phone": analysis.get("entities", {}).get("phone", ""),
             "skills": skills,
-            "experience": analysis.get("experience", self._extract_experience(text, experience_level)),
-            "education": analysis.get("education", self._extract_education(text, entities)),
+            "experience": analysis.get("experience", []),
+            "education": analysis.get("education", []),
             "sentiment": analysis.get("sentiment", "neutral"),
-            "sentiment_score": analysis.get("sentiment_score", 0.0),
-            "entities": entities,
-            "experience_level": experience_level,
-            "ideal_positions": ideal_positions  # Añadimos posiciones ideales
+            "experience_level": analysis.get("experience_level", {})
         }
-        logger.info(f"Análisis completado: {parsed_data}")
-        return parsed_data
 
     def _update_candidate(self, candidate: Person, parsed_data: Dict, file_path: Path):
         """✅ Actualiza un candidato existente."""
@@ -362,7 +358,7 @@ class CVParser:
         candidate.save()
         logger.info(f"Perfil actualizado: {candidate.nombre} {candidate.apellido_paterno}")
 
-    def _create_new_candidate(self, parsed_data: Dict, file_path: Path):
+    async def _create_new_candidate(self, parsed_data: Dict, file_path: Path):
         """✅ Crea un nuevo candidato."""
         skills = parsed_data["skills"]
         divisions = self.associate_divisions(skills["technical"] + skills["soft"])

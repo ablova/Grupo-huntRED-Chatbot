@@ -18,6 +18,7 @@ cat /home/pablollh/logs/error.log
 sudo systemctl restart gunicorn && sudo journalctl --vacuum-time=2minutes && sudo truncate -s 0 /home/pablollh/logs/*.log
 
 ##  CONEXION A GCLOUD
+gcloud compute ssh grupo-huntred --project=grupo-huntred --zone=us-central1-a
 gcloud compute ssh pablo@grupo-huntred --zone=us-central1-a --project=grupo-huntred 
 cd /home/pablollh && source venv/bin/activate
 sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y && sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt-get clean -y && sudo apt clean -y 
@@ -1206,3 +1207,64 @@ if __name__ == "__main__":
 
 nohup python /home/pablo/nlp_pruebas_optimizadas.py &> /home/pablo/logs/nlp_pruebas_optimizadas.out & 
 nohup python /home/pablo/nlp_pruebas.py &> /home/pablo/logs/nlp_pruebas.out &
+
+import asyncio
+from app.chatbot.gpt import GPTHandler
+from app.models import BusinessUnit, GptApi
+from asgiref.sync import sync_to_async
+
+# Listar configuraciones
+async def list_configs():
+    configs = await sync_to_async(lambda: list(GptApi.objects.select_related('provider').all()))()
+    for config in configs:
+        provider_name = await sync_to_async(lambda: config.provider.name)()
+        print(f"Model: {config.model}, Provider: {provider_name}, Active: {config.is_active}")
+
+# Activar Grok
+@sync_to_async
+def activate_grok():
+    GptApi.objects.update(is_active=False)
+    grok_config = GptApi.objects.get(model='grok-2')
+    grok_config.is_active = True
+    grok_config.save()
+    return grok_config
+
+# Activar ChatGPT
+@sync_to_async
+def activate_chatgpt():
+    grok_config = GptApi.objects.get(model='grok-2')
+    grok_config.is_active = False
+    grok_config.save()
+    chatgpt_config = GptApi.objects.get(model='gpt-4')  # Ajusta si es 'gpt-4o'
+    chatgpt_config.is_active = True
+    chatgpt_config.save()
+    return chatgpt_config
+
+# Probar Grok y ChatGPT
+async def test_models():
+    # Listar configuraciones
+    await list_configs()
+
+    # Probar Grok
+    await activate_grok()
+    handler = GPTHandler()
+    await handler.initialize()
+    prompt = "Dame una lista de habilidades para un desarrollador de software."
+    business_unit = await sync_to_async(BusinessUnit.objects.first)()
+    response_grok = await handler.generate_response(prompt, business_unit)
+    print(f"Respuesta de Grok: {response_grok}")
+
+    # Probar ChatGPT
+    await activate_chatgpt()
+    handler = GPTHandler()
+    await handler.initialize()
+    response_chatgpt = await handler.generate_response(prompt, business_unit)
+    print(f"Respuesta de ChatGPT: {response_chatgpt}")
+
+    # Comparar
+    print("Comparación:")
+    print(f"Grok: {response_grok}")
+    print(f"ChatGPT: {response_chatgpt}")
+
+# Ejecutar en IPython
+await test_models()

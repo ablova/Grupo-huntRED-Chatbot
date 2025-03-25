@@ -3,6 +3,7 @@
 import json
 import random
 import asyncio
+from celery import shared_task
 from asgiref.sync import sync_to_async
 from datetime import datetime
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from django.db import transaction
 from django.utils.timezone import now
+from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, Worker, USER_AGENTS
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
@@ -55,19 +57,13 @@ class ScrapingMetrics:
 
 class ScrapingCache:
     def __init__(self):
-        self.cache = {}
         self.TTL = 3600  # 1 hora
 
     async def get(self, key: str) -> Optional[Dict]:
-        if key in self.cache:
-            data, timestamp = self.cache[key]
-            if (datetime.now() - timestamp).total_seconds() < self.TTL:
-                return data
-            del self.cache[key]
-        return None
+        return await cache.get(key)  # Ensure async compatibility if using async cache backend
 
     async def set(self, key: str, value: Dict):
-        self.cache[key] = (value, datetime.now())
+        await cache.set(key, value, timeout=self.TTL)
 
 class ScrapingPipeline:
     def __init__(self, opportunity_db=None):
@@ -126,17 +122,50 @@ def validate_job_data(job: JobListing) -> Optional[Dict]:
         "business_unit": assign_business_unit({"title": job.title})
     }
 
-def assign_business_unit(job: Dict) -> str:
-    business_rules = {
-        "huntRED": {"subdirector", "director", "vp", "ceo", "presidente", "board", "consejero", "estratégico", "executive", "alta dirección", "gerente", "chief"},
-        "huntu": {"trainee", "junior", "recién egresado", "entry level", "practicante", "pasante", "becario", "líder", "coordinador", "analista", "senior", "lead"},
-        "amigro": {"migrante", "trabajador internacional", "operativo", "cajero", "auxiliar", "soporte", "campos agrícolas", "construcción", "servicio", "operador"},
-    }
-    title = job["title"].lower()
-    for bu, keywords in business_rules.items():
-        if any(keyword in title for keyword in keywords):
-            return bu
-    return "amigro"
+async def assign_business_unit(job: Dict) -> str:
+    from app.models import WeightingModel, BusinessUnit
+    title_lower = job["title"].lower()
+    desc_lower = job.get("description", "").lower()
+    skills = job.get("skills", [])
+    location = job.get("location", "").lower()
+    
+    # Fetch all business units
+    bu_candidates = await sync_to_async(list)(BusinessUnit.objects.all())
+    scores = {}
+    
+    for bu in bu_candidates:
+        weighting = WeightingModel(bu)
+        weights = weighting.get_weights("operativo")  # Default level, adjust dynamically if needed
+        score = 0
+        
+        # Title-based scoring
+        keywords = {
+            "huntRED": {"subdirector", "director", "vp", "ceo", "presidente", "board", "consejero", "estratégico", "executive", "alta dirección", "gerente", "chief"},
+            "huntu": {"trainee", "junior", "recién egresado", "entry level", "practicante", "pasante", "becario", "líder", "coordinador", "analista", "senior", "lead"},
+            "amigro": {"migrante", "trabajador internacional", "operativo", "cajero", "auxiliar", "soporte", "campos agrícolas", "construcción", "servicio", "operador"},
+        }.get(bu.name, set())
+        if any(keyword in title_lower for keyword in keywords):
+            score += weights["hard_skills"] * 0.5  # Partial weight for title match
+        
+        # Skills-based scoring
+        if skills:
+            skill_overlap = len(set(skills) & set(DIVISION_SKILLS.get(bu.name, {}).get("skills", [])))
+            score += weights["hard_skills"] * (skill_overlap / max(len(skills), 1))
+        
+        # Location-based scoring
+        if "remote" in location or "remoto" in desc_lower:
+            score += weights["ubicacion"] * 0.8
+        if "mexico" in location or "usa" in location:
+            score += weights["ubicacion"] * 0.5
+        
+        # Description-based scoring
+        if "leadership" in desc_lower or "liderazgo" in desc_lower:
+            score += weights["soft_skills"] * 0.3
+        
+        scores[bu.name] = score
+    
+    # Return highest scoring BU, default to "amigro" if no matches
+    return max(scores, key=scores.get, default="amigro")
 
 @transaction.atomic
 async def save_vacantes(jobs: List[Dict], dominio: DominioScraping):
@@ -161,6 +190,8 @@ async def save_vacantes(jobs: List[Dict], dominio: DominioScraping):
                     "contract_type": job.get("contract_type"),
                     "job_type": job.get("job_type"),
                     "beneficios": ", ".join(job.get("benefits", [])),
+                    "sentiment": job.get("sentiment"),
+                    "job_classification": job.get("job_classification"),
                 }
             )
             logger.info(f"Vacante {'creada' if created else 'actualizada'}: {vacante.titulo}")
@@ -196,8 +227,9 @@ async def validar_url(url: str, check_content: bool = False) -> bool:
             logger.error(f"Error validating URL {url}: {e}")
             return False
 
+nlp_processor = NLPProcessor(language="es", mode="opportunity")
+
 def extract_skills(text: str) -> List[str]:
-    nlp_processor = NLPProcessor(language="es", mode="opportunity")
     return nlp_processor.extract_skills(clean_text(text))
 
 def associate_divisions(skills: List[str]) -> List[str]:
@@ -218,12 +250,22 @@ def extract_field(element: BeautifulSoup, selector: str, attribute: Optional[str
         logger.warning(f"Error extracting field with selector {selector}: {e}")
         return None
 
-# Clase BaseScraper
+async def get_scraper(domain: DominioScraping):
+    scraper_class = SCRAPER_MAP.get(domain.plataforma, SCRAPER_MAP["default"])
+    if domain.mapeo_configuracion:
+        selectors = domain.mapeo_configuracion.get("selectors", PLATFORM_SELECTORS.get(domain.plataforma, {}))
+    else:
+        selectors = PLATFORM_SELECTORS.get(domain.plataforma, {})
+    return scraper_class(domain, custom_selectors=selectors)
+
 class BaseScraper:
-    def __init__(self, domain: DominioScraping):
+    def __init__(self, domain: DominioScraping, custom_selectors: Optional[Dict] = None):
         self.domain = domain
         self.plataforma = domain.plataforma
-        self.selectors = PLATFORM_SELECTORS.get(self.plataforma, {})
+        self.selectors = custom_selectors or PLATFORM_SELECTORS.get(self.plataforma, {})
+        self.response_type = "json" if self.plataforma in ["eightfold_ai", "oracle_hcm"] else "html"
+        self.semaphore = asyncio.Semaphore(10)  # Adjust based on domain
+        self.delay = domain.frecuencia_scraping / 3600  # Convert hours to seconds
         self.session = None
 
     async def __aenter__(self):
@@ -235,14 +277,16 @@ class BaseScraper:
         if self.session:
             await self.session.close()
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), before_sleep=before_sleep_log(logger, logging.WARNING))
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), 
+           before_sleep=before_sleep_log(logger, logging.WARNING))
     async def fetch(self, url: str, use_playwright: bool = False) -> Optional[str]:
+        
         if use_playwright:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
                 await page.goto(url)
-                await asyncio.sleep(2)
+                await asyncio.sleep(2)  # Wait for dynamic content
                 content = await page.content()
                 await browser.close()
                 return content
@@ -254,47 +298,75 @@ class BaseScraper:
             logger.error(f"Error fetching {url}: {e}")
             raise
 
+    def _build_url(self, page: int) -> str:
+        param = self.selectors.get("pagination_param", "page")
+        step = self.selectors.get("pagination_step", 1)
+        return f"{self.domain.dominio}?{param}={page * step}"
+
     async def scrape(self) -> List[JobListing]:
         if not self.selectors:
             raise NotImplementedError(f"No selectors defined for {self.plataforma}")
         vacantes = []
         page = 1
         seen_urls = set()
-        while True:
-            url = f"{self.domain.dominio}?{self.selectors.get('pagination_param', 'page')}={page * self.selectors.get('pagination_step', 1)}"
-            content = await self.fetch(url, use_playwright=self.plataforma in ["workday", "linkedin", "phenom_people"])
-            if not content:
-                break
-            soup = BeautifulSoup(content, "html.parser")
-            job_cards = soup.select(self.selectors.get("job_cards", "div.job-card"))
-            if not job_cards:
-                break
-            for card in job_cards:
-                title = extract_field(card, self.selectors["title"]) or "No especificado"
-                url_elem = extract_field(card, self.selectors["url"], "href")
-                link = url_elem if url_elem and url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem or ''}"
-                if link not in seen_urls:
-                    seen_urls.add(link)
-                    details = await self.get_job_details(link)
-                    vacantes.append(JobListing(
-                        title=title,
-                        location=details.get("location", "Unknown"),
-                        company=details.get("company", "Unknown"),
-                        url=link,
-                        description=details.get("description", "No disponible"),
-                        skills=details.get("skills", []),
-                        posted_date=details.get("posted_date"),
-                        responsible=details.get("responsible"),
-                        job_type=details.get("job_type"),
-                    ))
-            page += 1
+        async with self:
+            while True:
+                url = self._build_url(page)
+                content = await self.fetch(url, use_playwright=self.plataforma in ["workday", "linkedin", "phenom_people"])
+                if not content:
+                    break
+                if self.response_type == "json":
+                    new_vacantes = await self._parse_json(content, seen_urls)
+                else:
+                    new_vacantes = await self._parse_html(content, seen_urls)
+                if not new_vacantes:
+                    break
+                vacantes.extend(new_vacantes)
+                page += 1
         return vacantes
 
-    async def analyze_description(self, description: str) -> Dict:
-        nlp_processor = NLPProcessor(language="es", mode="opportunity")
-        cleaned_text = clean_text(description)
-        skills = nlp_processor.extract_skills(cleaned_text)
-        return {"details": {"skills": skills, "cleaned_description": cleaned_text}}
+    async def _parse_json(self, content: str, seen_urls: set) -> List[JobListing]:
+        try:
+            data = json.loads(content)
+            jobs = data.get("jobs", data.get("jobList", []))
+            vacantes = []
+            for job in jobs:
+                url = job.get("url", job.get("detailUrl", ""))
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    vacantes.append(JobListing(
+                        title=job.get("title", "No especificado"),
+                        url=url,
+                        location=job.get("locations", [{}])[0].get("name", "Unknown"),
+                        company=job.get("company_name", "Unknown"),
+                        description="No disponible",  # Can be enriched with get_job_details if needed
+                    ))
+            return vacantes
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {e}")
+            return []
+
+    async def _parse_html(self, content: str, seen_urls: set) -> List[JobListing]:
+        soup = BeautifulSoup(content, "html.parser")
+        job_cards = soup.select(self.selectors.get("job_cards", "div.job-card"))
+        vacantes = []
+        for card in job_cards:
+            url_elem = extract_field(card, self.selectors["url"], "href")
+            link = url_elem if url_elem and url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem or ''}"
+            if link not in seen_urls:
+                seen_urls.add(link)
+                title = extract_field(card, self.selectors["title"]) or "No especificado"
+                details = await self.get_job_details(link)
+                vacantes.append(JobListing(
+                    title=title,
+                    url=link,
+                    location=details.get("location", "Unknown"),
+                    company=details.get("company", "Unknown"),
+                    description=details.get("description", "No disponible"),
+                    skills=details.get("skills", []),
+                    posted_date=details.get("posted_date"),
+                ))
+        return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
         content = await self.fetch(url)
@@ -316,6 +388,17 @@ class BaseScraper:
             details.update(analysis["details"])
         return details
 
+    async def analyze_description(self, description: str) -> Dict:
+        analysis = nlp_processor.analyze_opportunity(description)
+        return {
+            "details": {
+                "skills": analysis.get("details", {}).get("skills", []),
+                "contract_type": analysis.get("details", {}).get("contract_type"),
+            },
+            "sentiment": analysis.get("sentiment"),
+            "job_classification": analysis.get("job_classification"),
+        }
+    
 # Scrapers específicos
 class WorkdayScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -517,8 +600,72 @@ class OracleScraper(BaseScraper):
         return vacantes
 
 # Otros scrapers como placeholders
-class IndeedScraper(BaseScraper): pass
-class GreenhouseScraper(BaseScraper): pass
+class IndeedScraper(BaseScraper):
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}?start={page * self.selectors.get('pagination_step', 10)}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select(self.selectors["job_cards"])
+            if not job_cards:
+                break
+            for card in job_cards:
+                title = extract_field(card, self.selectors["title"]) or "No especificado"
+                url_elem = extract_field(card, self.selectors["url"], "href")
+                link = f"https://www.indeed.com{url_elem}" if url_elem else ""
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    details = await self.get_job_details(link)
+                    vacantes.append(JobListing(
+                        title=title,
+                        location=details.get("location", "Unknown"),
+                        company=details.get("company", "Unknown"),
+                        url=link,
+                        description=details.get("description", "No disponible"),
+                        skills=details.get("skills", []),
+                        posted_date=details.get("posted_date"),
+                    ))
+            page += 1
+        return vacantes
+    
+class GreenhouseScraper(BaseScraper):
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}?{self.selectors.get('pagination_param', 'page')}={page * self.selectors.get('pagination_step', 1)}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select(self.selectors["job_cards"])
+            if not job_cards:
+                break
+            for card in job_cards:
+                title = extract_field(card, self.selectors["title"]) or "No especificado"
+                url_elem = extract_field(card, self.selectors["url"], "href")
+                link = url_elem if url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem}"
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    details = await self.get_job_details(link)
+                    vacantes.append(JobListing(
+                        title=title,
+                        location=details.get("location", "Unknown"),
+                        company=details.get("company", "Greenhouse Employer"),
+                        url=link,
+                        description=details.get("description", "No disponible"),
+                        skills=details.get("skills", []),
+                        posted_date=details.get("posted_date"),
+                    ))
+            page += 1
+        return vacantes
+    
 class AccentureScraper(BaseScraper): pass
 class ADPScraper(BaseScraper): pass
 class PeopleSoftScraper(BaseScraper): pass
@@ -609,19 +756,24 @@ async def process_domain(scraper, domain: DominioScraping, registro: RegistroScr
         registro.error_log = str(e)
         logger.error(f"Scraping failed for {domain.dominio}: {e}")
         metrics.errors_total.inc()
-        return domain, []
+        bu = await sync_to_async(BusinessUnit.objects.filter)(scraping_domains=domain).first()
+        if bu and bu.admin_email:
+            await send_email(
+                business_unit_name=bu.name,
+                subject=f"Scraping Error for {domain.dominio}",
+                to_email=bu.admin_email,
+                body=f"Error: {str(e)}\nDetails: {registro.error_log}",
+                from_email="noreply@huntred.com",
+            )
     finally:
         registro.fecha_fin = now()
         await sync_to_async(registro.save)()
 
+@shared_task
 async def run_all_scrapers() -> None:
-    domains = await sync_to_async(list)(DominioScraping.objects.filter(activo=True))
+    domains = await sync_to_async(list)(DominioScraping.objects.filter(activo=True, business_units__scrapping_enabled=True))
     await scrape_and_publish(domains)
 
-class Command(BaseCommand):
-    help = "Run job scraping across all active domains"
-    def handle(self, *args, **kwargs):
-        asyncio.run(run_all_scrapers())
 
 # Selectors (mantén tu definición de PLATFORM_SELECTORS aquí)
 PLATFORM_SELECTORS = {

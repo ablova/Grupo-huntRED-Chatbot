@@ -67,7 +67,6 @@ def get_business_unit(business_unit_id=None, default_name="amigro"):
 def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
     from app.models import BusinessUnit
     from app.chatbot.integrations.services import send_message
-    import asyncio
     try:
         bu = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('whatsapp', recipient, message, bu))
@@ -216,6 +215,17 @@ def predict_top_candidates_task(vacancy_id, top_n=10):
 # =========================================================
 # Tareas relacionadas con el scraping programado
 # =========================================================
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def process_cv_emails_task(self, business_unit_id):
+    try:
+        business_unit = BusinessUnit.objects.get(id=business_unit_id)
+        processor = IMAPCVProcessor(business_unit)
+        await processor.process_emails()
+        logger.info(f"✅ CV email processing completed for {business_unit.name}")
+    except Exception as e:
+        logger.error(f"❌ Error in CV email processing: {e}")
+        self.retry(exc=e)
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def ejecutar_scraping(self, dominio_id=None):
     from app.models import DominioScraping, RegistroScraping
@@ -444,19 +454,15 @@ def process_linkedin_csv_task(csv_path: str = "/home/pablo/connections.csv"):
     process_csv(csv_path, bu)
     logger.info("Procesamiento CSV completado.")
 
-@shared_task
-def slow_scrape_profiles_task(csv_path: str):
-    """
-    Scraping lento desde el CSV (a perfiles de LinkedIn).
-    """
-    bu = BusinessUnit.objects.filter(name='huntRED').first()
-    if not bu:
-        logger.error("No se encontró BU huntRED.")
-        return
-
-    logger.info(f"Iniciando scraping lento {csv_path}")
-    slow_scrape_from_csv(csv_path, bu)
-    logger.info("Scraping lento completado.")
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
+def slow_scrape_from_csv_task(self, csv_path: str, business_unit_id: int):
+    try:
+        business_unit = BusinessUnit.objects.get(id=business_unit_id)
+        asyncio.run(slow_scrape_from_csv(csv_path, business_unit))
+        logger.info(f"✅ Slow scrape completed for {csv_path}")
+    except Exception as e:
+        logger.error(f"❌ Error in slow scrape: {e}")
+        self.retry(exc=e)
 
 @shared_task
 def scrape_single_profile_task(profile_url: str):
@@ -781,21 +787,8 @@ def enviar_reporte_diario(self):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def scrape_single_profile_task(self, profile_url: str):
-    """
-    Tarea que toma una URL de perfil LinkedIn y obtiene datos.
-    """
     logger.info(f"Scrapeando perfil: {profile_url}")
-    data = scrape_linkedin_profile(profile_url)
-    logger.info(f"Datos obtenidos: {data}")
-    return data
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def scrape_single_profile_task(self, profile_url: str):
-    """
-    Tarea que toma una URL de perfil LinkedIn y obtiene datos.
-    """
-    logger.info(f"Scrapeando perfil: {profile_url}")
-    data = scrape_linkedin_profile(profile_url)
+    data = asyncio.run(scrape_linkedin_profile(profile_url, "amigro"))  # Default unit, adjust as needed
     logger.info(f"Datos obtenidos: {data}")
     return data
 

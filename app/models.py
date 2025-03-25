@@ -371,6 +371,8 @@ class Vacante(models.Model):
     )  # Relación con BusinessUnit
     current_stage = models.ForeignKey(
         WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
+    sentiment = models.CharField(max_length=20, blank=True, null=True)
+    job_classification = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         unique_together = ['titulo', 'empresa', 'url_original']
@@ -640,17 +642,43 @@ class SlackAPI(models.Model):
     bot_token = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
 
-class GptApi(models.Model):
-    MODEL_TYPES = (
-        ('gpt-4', 'GPT-4 (OpenAI)'),
-        ('llama-2', 'Llama 2 (Vertex AI)'),
-        ('grok-2', 'Grok 2 (X AI)'),
-        ('gemini', 'Gemini (Google)'),  # Agregamos Gemini
-    )
+class Provider(models.Model):
+    name = models.CharField(max_length=50, unique=True, verbose_name="Nombre del proveedor")
+    api_endpoint = models.URLField(verbose_name="Endpoint de la API", help_text="URL base para interactuar con la API")
+    models_endpoint = models.URLField(blank=True, null=True, verbose_name="Endpoint de modelos", help_text="URL para obtener modelos disponibles")
 
-    model_type = models.CharField(max_length=20, choices=MODEL_TYPES, default='gpt-4', verbose_name="Tipo de modelo")
+    class Meta:
+        verbose_name = "Proveedor de IA"
+        verbose_name_plural = "Proveedores de IA"
+
+    def __str__(self):
+        return self.name
+
+    def fetch_models(self, api_token=None):
+        """Obtiene dinámicamente los modelos disponibles desde la API del proveedor."""
+        if not self.models_endpoint or not api_token:
+            return []
+        try:
+            headers = {"Authorization": f"Bearer {api_token}"}
+            response = requests.get(self.models_endpoint, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            # Ajustar según la estructura de respuesta de cada proveedor
+            if self.name == "OpenAI":
+                return [model["id"] for model in data["data"]]
+            elif self.name == "Grok (X AI)":
+                return data.get("models", [])  # Ejemplo hipotético
+            elif self.name == "Google (Gemini)":
+                return [model["name"] for model in data.get("models", [])]
+            return []
+        except Exception as e:
+            logger.error(f"Error al obtener modelos de {self.name}: {e}")
+            return []
+
+class GptApi(models.Model):
+    provider = models.ForeignKey(Provider, on_delete=models.CASCADE, verbose_name="Proveedor")
+    model = models.CharField(max_length=100, verbose_name="Modelo específico", help_text="Ejemplo: gpt-4o, gemini-1.5-flash-001")
     is_active = models.BooleanField(default=False, verbose_name="Activo")
-    model = models.CharField(max_length=100, default='gpt-4o', verbose_name="Modelo específico")
     api_token = models.CharField(max_length=255, blank=True, null=True, verbose_name="Token API")
     organization = models.CharField(max_length=100, blank=True, null=True, verbose_name="Organización")
     project = models.CharField(max_length=100, blank=True, null=True, verbose_name="Proyecto")
@@ -665,11 +693,19 @@ class GptApi(models.Model):
         verbose_name_plural = "Configuraciones de API GPT"
 
     def __str__(self):
-        return f"{self.model} ({self.model_type}) - {'Activo' if self.is_active else 'Inactivo'}"
+        return f"{self.model} ({self.provider.name}) - {'Activo' if self.is_active else 'Inactivo'}"
 
     def get_prompt(self, key, default=None):
-        """Obtiene un prompt del campo JSON 'prompts'."""
         return self.prompts.get(key, default)
+
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            GptApi.objects.filter(is_active=True).exclude(id=self.id).update(is_active=False)
+        super().save(*args, **kwargs)
+
+    def available_models(self):
+        """Devuelve los modelos disponibles para este proveedor usando el token de la configuración."""
+        return self.provider.fetch_models(self.api_token)
 
 class Chat(models.Model):
     body = models.TextField(max_length=1000)

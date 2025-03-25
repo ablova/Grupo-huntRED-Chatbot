@@ -25,7 +25,7 @@ from app.sexsi.admin import *
 from app.models import (
     ApiConfig, Application, BusinessUnit, Chat, ChatState, Configuracion,
     ConfiguracionBU, Division, DominioScraping, EnhancedMLProfile,
-    EnhancedNetworkGamificationProfile, GptApi, InstagramAPI, Interview,
+    EnhancedNetworkGamificationProfile, GptApi, InstagramAPI, Interview, Provider,
     Invitacion, MetaAPI, MessengerAPI, MigrantSupportPlatform, ModelTrainingLog,
     Person, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
     SmtpConfig, TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
@@ -456,15 +456,15 @@ class TelegramAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
 
 @admin.register(GptApi)
 class GptApiAdmin(admin.ModelAdmin):
-    list_display = ('model', 'model_type', 'is_active', 'organization', 'project')
-    list_filter = ('model_type', 'is_active')
+    list_display = ('model', 'provider', 'is_active', 'organization', 'project')  # Cambiar 'model_type' por 'provider'
+    list_filter = ('provider', 'is_active')  # Cambiar 'model_type' por 'provider'
     search_fields = ('model', 'organization', 'project')
-    list_editable = ('is_active',)  # Permite cambiar 'is_active' directamente desde la lista
-    readonly_fields = ('prompts_preview',)  # Vista previa de prompts
+    list_editable = ('is_active',)
+    readonly_fields = ('prompts_preview',)
 
     fieldsets = (
         ('Configuración General', {
-            'fields': ('model_type', 'is_active')
+            'fields': ('provider', 'is_active')
         }),
         ('Detalles del Modelo', {
             'fields': ('model', 'api_token', 'organization', 'project')
@@ -481,17 +481,20 @@ class GptApiAdmin(admin.ModelAdmin):
     )
 
     def prompts_preview(self, obj):
-        """Muestra una vista previa de los prompts en el admin."""
         if obj.prompts:
             return json.dumps(obj.prompts, indent=2)[:200] + "..." if len(str(obj.prompts)) > 200 else json.dumps(obj.prompts, indent=2)
         return "Sin prompts configurados"
     prompts_preview.short_description = "Vista previa de prompts"
 
     def save_model(self, request, obj, form, change):
-        """Asegura que solo haya una configuración activa."""
         if obj.is_active:
             GptApi.objects.filter(is_active=True).exclude(id=obj.id).update(is_active=False)
         super().save_model(request, obj, form, change)
+
+@admin.register(Provider)
+class ProviderAdmin(admin.ModelAdmin):
+    list_display = ('name', 'api_endpoint', 'models_endpoint')
+    search_fields = ('name',)
 
 @admin.register(SmtpConfig)
 class SmtpConfigAdmin(TokenMaskingMixin, admin.ModelAdmin):

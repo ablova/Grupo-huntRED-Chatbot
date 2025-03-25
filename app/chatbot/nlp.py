@@ -1,341 +1,352 @@
-import os
-import json
-import time
+# /home/pablo/app/utilidades/parser.py
 import logging
-import spacy
-import nltk
-import pandas as pd
-from functools import lru_cache
+import unicodedata
+import email
+import asyncio
+from aioimaplib import aioimaplib
+from tempfile import NamedTemporaryFile
+from pathlib import Path
+from typing import List, Dict, Optional
 from langdetect import detect
-import numpy as np
-import tensorflow as tf
-from transformers import pipeline, TFAutoModel, AutoTokenizer
-from sklearn.metrics.pairwise import cosine_similarity
-from diskcache import Cache
-from typing import Dict, List, Optional
-import requests
-from app.ml.ml_opt import configure_tensorflow_based_on_load
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from app.chatbot.intents_handler import INTENTS  # Importar INTENTS directamente
+from PyPDF2 import PdfReader
+from contextlib import ExitStack
+from django.utils.timezone import now
+from docx import Document
+from asgiref.sync import sync_to_async
 
-# Configurar TensorFlow según la carga del sistema
-configure_tensorflow_based_on_load()
+# Project imports
+from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill
+from app.chatbot.nlp import NLPProcessor
+from app.chatbot.integrations.services import send_email
 
-# Configuración de logging
-logging.basicConfig(level=logging.INFO)
+# Logging setup
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-nltk.download('vader_lexicon', quiet=True)
+# Global NLPProcessor for Spanish CVs (default language)
+NLP_PROCESSOR_ES = NLPProcessor(language="es", mode="candidate", analysis_depth="deep")
 
-# Rutas de archivos (ajustadas según tu estructura, sin "intents")
-FILE_PATHS = {
-    "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
-    "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
-    "tabiya_skills": "/home/pablo/skills_data/tabiya/tabiya-esco-v1.1.1/csv/skills.csv",
-    "opportunity_catalog": "/home/pablo/app/utilidades/catalogs/skills.json"
+# Dictionary to cache NLPProcessor instances by language
+NLP_PROCESSORS = {"es": NLP_PROCESSOR_ES}
+
+# Global cache for division skills
+DIVISION_SKILLS_CACHE = None
+
+# IMAP folder configuration
+FOLDER_CONFIG = {
+    "inbox": "INBOX",
+    "cv_folder": "INBOX.CV",
+    "parsed_folder": "INBOX.Parsed",
+    "error_folder": "INBOX.Error",
 }
 
-class NLPProcessor:
-    def __init__(self, mode: str = "candidate", analysis_depth: str = "quick", language: str = "es"):
-        """
-        Inicializa el procesador NLP con modelos y catálogos.
-        Modo: 'candidate' o 'opportunity'.
-        Análisis: 'quick' (rápido) o 'deep' (profundo).
-        """
-        self.mode = mode
-        self.depth = analysis_depth
-        self.language = language
-        self.last_used = time.time()
+def detect_language(text: str) -> str:
+    """Detecta el idioma del texto."""
+    try:
+        return detect(text)
+    except Exception as e:
+        logger.error(f"Error detectando idioma: {e}")
+        return "es"  # Default a español
 
-        # Modelos ligeros para quick
-        self.nlp_spacy = spacy.load("es_core_news_sm" if language == "es" else "en_core_web_sm")
+def normalize_text(text: str) -> str:
+    """Normaliza el texto eliminando acentos y convirtiendo a minúsculas."""
+    return ''.join(char for char in unicodedata.normalize('NFD', text) if unicodedata.category(char) != 'Mn').lower()
 
-        # Modelos multilenguajes (inicializados como None para lazy loading)
-        self._encoder = None
-        self._encoder_tokenizer = None
-        self._ner = None
-        self._translator = None
-        self._sentiment_analyzer = None
-        self._intent_classifier = None
-        self.api_key = os.getenv("GROK_API_KEY")
-
-        # Catálogos
-        self.candidate_catalog = self._load_catalog("candidate")
-        self.opportunity_catalog = self._load_opportunity_catalog()
-        self.intents = self._load_intents()  # Esto ahora usará INTENTS de intents_handler.py
-
-        # Cacheo para embeddings
-        self._cache_embeddings = {}
-
-    def _check_and_free_models(self, timeout=600):  # 10 minutos
-        if time.time() - self.last_used > timeout:
-            self._encoder = None
-            self._ner = None
-            self._translator = None
-            self._sentiment_analyzer = None
-            self._intent_classifier = None
-            logger.info("Modelos liberados por inactividad")
-        self.last_used = time.time()
-
-    def _load_encoder(self):
-        if self._encoder is None:
-            self._encoder = TFAutoModel.from_pretrained("distilbert-base-multilingual-cased")
-            self._encoder_tokenizer = AutoTokenizer.from_pretrained("distilbert-base-multilingual-cased")
-        return self._encoder, self._encoder_tokenizer
-
-    def _load_ner(self):
-        if self._ner is None:
-            self._ner = pipeline("ner", model="dslim/bert-base-NER", framework="tf", aggregation_strategy="simple")
-        return self._ner
-
-    def _load_translator(self):
-        if self._translator is None:
-            self._translator = pipeline("translation", model="Helsinki-NLP/opus-mt-es-en", framework="tf")
-        return self._translator
-
-    def _load_sentiment_analyzer(self):
-        if self._sentiment_analyzer is None:
-            self._sentiment_analyzer = SentimentIntensityAnalyzer()
-        return self._sentiment_analyzer
-
-    def _load_intent_classifier(self):
-        if self._intent_classifier is None:
-            self._intent_classifier = pipeline("text-classification", model="distilbert-base-multilingual-cased", framework="tf")
-        return self._intent_classifier
-
-    @lru_cache(maxsize=1)
-    def _load_catalog(self, catalog_type: str) -> Dict[str, List[Dict[str, str]]]:
-        """Carga y combina los catálogos de habilidades según el tipo."""
-        catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
-        for path_key, path in FILE_PATHS.items():
-            if path_key == "opportunity_catalog":  # Ignorar opportunity_catalog aquí
-                continue
-            if not os.path.exists(path):
-                logger.warning(f"Archivo no encontrado: {path}")
-                continue
-            try:
-                if path.endswith(".json"):
-                    with open(path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    if path_key == "relax_skills":
-                        for category in catalog:
-                            for skill in data.get(category, []):
-                                lang = detect(skill)
-                                translated = self._translate_to_english(skill) if lang != "en" else skill
-                                catalog[category].append({"original": skill, "translated": translated.lower(), "lang": lang})
-                    elif path_key == "esco_skills" and isinstance(data, list):
-                        for entry in data:
-                            if isinstance(entry, dict) and "skill" in entry:
-                                skill = entry["skill"]
-                                lang = detect(skill)
-                                translated = self._translate_to_english(skill) if lang != "en" else skill
-                                self._classify_skill({"original": skill, "translated": translated.lower(), "lang": lang}, catalog)
-                elif path.endswith(".csv"):
-                    df = pd.read_csv(path)
-                    for _, row in df.iterrows():
-                        skill = row.get("preferredLabel_en")
-                        if skill:
-                            self._classify_skill({"original": skill, "translated": skill.lower(), "lang": "en"}, catalog)
-                logger.info(f"Cargado {path} con éxito")
-            except Exception as e:
-                logger.warning(f"Error al cargar {path}: {e}")
-        
-        for category in catalog:
-            seen = set()
-            catalog[category] = [s for s in catalog[category] if not (s["translated"] in seen or seen.add(s["translated"]))]
-        
-        logger.info(f"Catálogo de {catalog_type} cargado: {len(catalog['technical'])} technical, {len(catalog['soft'])} soft")
-        return catalog
-
-    @lru_cache(maxsize=1)
-    def _load_opportunity_catalog(self) -> List[Dict]:
-        opp_path = FILE_PATHS["opportunity_catalog"]
-        if not os.path.exists(opp_path):
-            logger.warning(f"Archivo no encontrado: {opp_path}. Usando catálogo vacío.")
-            return []
+def load_division_skills() -> Dict[str, List[str]]:
+    """Carga las habilidades de las divisiones una vez y las almacena en caché global."""
+    global DIVISION_SKILLS_CACHE
+    if DIVISION_SKILLS_CACHE is None:
         try:
-            with open(opp_path, "r", encoding="utf-8") as f:
-                content = f.read().strip()  # Leer como string y eliminar espacios
-                opp_data = json.loads(content)  # Convertir a objeto JSON
-            opportunities = []
-            for opp in opp_data:
-                skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
-                for category in skills:
-                    for skill in opp.get(category, []):
-                        lang = detect(skill)
-                        translated = self._translate_to_english(skill) if lang != "en" else skill
-                        skills[category].append({"original": skill, "translated": translated.lower(), "lang": lang})
-                opportunities.append({"title": opp["title"], "required_skills": skills})
-            logger.info(f"Catálogo de oportunidades cargado con {len(opportunities)} oportunidades")
-            return opportunities
-        except Exception as e:
-            logger.warning(f"Error al cargar {opp_path}: {e}. Usando catálogo vacío.")
-            return []
-
-    @lru_cache(maxsize=1)
-    def _load_intents(self) -> Dict[str, List[str]]:
-        """Carga el catálogo de intents desde intents_handler.py."""
-        logger.info("Intents cargados desde intents_handler.py")
-        return {intent: data["patterns"] for intent, data in INTENTS.items()}
-
-    def _translate_to_english(self, text: str) -> str:
-        """Traduce texto a inglés si es necesario."""
-        translator = self._load_translator()
-        try:
-            return translator(text)[0]["translation_text"]
-        except Exception as e:
-            logger.warning(f"Error en traducción: {e}. Usando texto original.")
-            return text
-
-    def preprocess(self, text: str) -> Dict[str, str]:
-        """Preprocesa el texto, detecta el idioma y traduce si es necesario."""
-        if not text or len(text.strip()) < 3:
-            return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
-        lang = detect(text)
-        translated = self._translate_to_english(text) if lang != "en" else text
-        return {"original": text.lower(), "translated": translated.lower(), "lang": lang}
-
-    def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
-        """Extrae habilidades del texto según el modo y profundidad."""
-        self._check_and_free_models()
-        preprocessed = self.preprocess(text)
-        translated = preprocessed["translated"]
-        skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
-        catalog = self.candidate_catalog if self.mode == "candidate" else self.opportunity_catalog
-
-        if self.depth == "quick":
-            # Modo rápido: búsqueda simple en catálogo
-            for category, skill_list in catalog.items():
-                for skill_dict in skill_list:
-                    if skill_dict["translated"] in translated or skill_dict["original"] in preprocessed["original"]:
-                        skills[category].append(skill_dict)
-        else:  # Modo deep
-            # Modo profundo: NER + embeddings
-            ner = self._load_ner()
-            ner_results = ner(translated)
-            for res in ner_results:
-                if res["score"] > 0.7:  # Umbral de confianza
-                    category = self._classify_entity(res["entity_group"])
-                    skills[category].append({"original": res["word"], "translated": res["word"].lower(), "lang": preprocessed["lang"]})
-            
-            text_emb = self.get_text_embedding(translated)
-            for category, skill_list in catalog.items():
-                for skill_dict in skill_list:
-                    skill_emb = self.get_skill_embedding(skill_dict["translated"])
-                    similarity = cosine_similarity([text_emb], [skill_emb])[0][0]
-                    if similarity > 0.8:  # Umbral de similitud
-                        skills[category].append(skill_dict)
-        
-        # Eliminar duplicados
-        for category in skills:
-            seen = set()
-            skills[category] = [s for s in skills[category] if not (s["translated"] in seen or seen.add(s["translated"]))]
-        
-        return skills
-
-    def _classify_entity(self, entity_group: str) -> str:
-        """Clasifica entidades NER en categorías de habilidades."""
-        if entity_group in ["SKILL", "TECH"]: return "technical"
-        if entity_group == "TOOL": return "tools"
-        if entity_group == "CERT": return "certifications"
-        return "soft"
-
-    def _classify_skill(self, skill_dict: Dict[str, str], catalog: Dict[str, List], from_catalog: bool = False):
-        """Clasifica una habilidad en una categoría."""
-        skill = skill_dict["translated"]
-        if any(keyword in skill for keyword in ["certified", "certification", "license"]):
-            catalog["certifications"].append(skill_dict)
-        elif any(keyword in skill for keyword in ["python", "java", "sql", "aws", "machine learning"]):
-            catalog["technical"].append(skill_dict)
-        elif any(keyword in skill for keyword in ["tool", "software", "excel", "git"]):
-            catalog["tools"].append(skill_dict)
-        else:
-            catalog["soft"].append(skill_dict)
-
-    @lru_cache(maxsize=128)
-    def get_text_embedding(self, text: str) -> np.ndarray:
-        """Genera el embedding del texto."""
-        encoder, tokenizer = self._load_encoder()
-        inputs = tokenizer(text, return_tensors="tf", padding=True, truncation=True, max_length=128)
-        outputs = encoder(inputs["input_ids"], attention_mask=inputs["attention_mask"])
-        return tf.reduce_mean(outputs.last_hidden_state, axis=1).numpy()[0]
-
-    def get_skill_embedding(self, skill: str) -> np.ndarray:
-        """Genera el embedding de una habilidad con cacheo."""
-        if skill not in self._cache_embeddings:
-            self._cache_embeddings[skill] = self.get_text_embedding(skill)
-        return self._cache_embeddings[skill]
-
-    def analyze_sentiment(self, text: str) -> Dict[str, float]:
-        """Analiza el sentimiento del texto."""
-        sentiment_analyzer = self._load_sentiment_analyzer()
-        sentiment = sentiment_analyzer.polarity_scores(text)
-        return {
-            "compound": sentiment["compound"],
-            "label": "positive" if sentiment["compound"] > 0.05 else "negative" if sentiment["compound"] < -0.05 else "neutral"
-        }
-
-    def classify_intent(self, text: str) -> Dict[str, float]:
-        """Clasifica la intención del usuario en una conversación de chatbot."""
-        intent_classifier = self._load_intent_classifier()
-        preprocessed = self.preprocess(text)
-        translated = preprocessed["translated"]
-        intent_result = intent_classifier(translated)[0]
-        return {"intent": intent_result["label"], "confidence": intent_result["score"]}
-
-    def match_opportunities(self, candidate_skills: Dict[str, List[Dict[str, str]]]) -> List[Dict]:
-        """Relaciona las habilidades del candidato con oportunidades laborales."""
-        if self.mode != "candidate":
-            logger.warning("match_opportunities solo está disponible en modo 'candidate'")
-            return []
-        
-        matches = []
-        candidate_emb = np.mean([self.get_skill_embedding(s["translated"]) for s in sum(candidate_skills.values(), [])] or [np.zeros(768)], axis=0)
-        for opp in self.opportunity_catalog:
-            opp_skills = sum(opp["required_skills"].values(), [])
-            opp_emb = np.mean([self.get_skill_embedding(s["translated"]) for s in opp_skills] or [np.zeros(768)], axis=0)
-            score = cosine_similarity([candidate_emb], [opp_emb])[0][0]
-            matches.append({"opportunity": opp["title"], "match_score": score})
-        return sorted(matches, key=lambda x: x["match_score"], reverse=True)[:5]  # Top 5
-
-    def analyze(self, text: str, mode: str = None) -> Dict:
-        """Analiza el texto según el modo y profundidad."""
-        start_time = time.time()
-        preprocessed = self.preprocess(text)
-        analysis_mode = mode if mode is not None else self.mode
-        skills = self.extract_skills(text)
-        sentiment = self.analyze_sentiment(preprocessed["translated"])
-        result = {
-            "skills": skills,
-            "sentiment": sentiment["label"],
-            "sentiment_score": abs(sentiment["compound"]),
-            "metadata": {
-                "execution_time": time.time() - start_time,
-                "original_text": preprocessed["original"],
-                "translated_text": preprocessed["translated"],
-                "detected_language": preprocessed["lang"]
+            divisions = Division.objects.all()
+            DIVISION_SKILLS_CACHE = {
+                division.name: list(Skill.objects.filter(division=division).values_list('name', flat=True))
+                for division in divisions
             }
-        }
+        except Exception as e:
+            logger.error(f"Error cargando habilidades de divisiones: {e}")
+            DIVISION_SKILLS_CACHE = {"finance": ["budgeting"], "tech": ["programming"]}
+    return DIVISION_SKILLS_CACHE
 
-        if analysis_mode == "candidate":
-            result["opportunities"] = self.match_opportunities(skills)
-        elif analysis_mode == "opportunity":
-            result["required_skills"] = skills
+class IMAPCVProcessor:
+    def __init__(self, business_unit: BusinessUnit, batch_size: int = 10, sleep_time: float = 2.0):
+        """Inicializa el procesador de CVs por IMAP."""
+        self.business_unit = business_unit
+        self.config = self._load_config(business_unit)
+        self.parser = CVParser(business_unit)
+        self.stats = {"processed": 0, "created": 0, "updated": 0, "errors": 0}
+        self.FOLDER_CONFIG = FOLDER_CONFIG
+        self.batch_size = batch_size
+        self.sleep_time = sleep_time
 
-        if self.depth == "quick":
-            result["intents"] = self.classify_intent(text)
-        
-        return result
+    def _load_config(self, business_unit: BusinessUnit) -> Dict:
+        """Carga la configuración IMAP desde la base de datos."""
+        try:
+            config = ConfiguracionBU.objects.get(business_unit=business_unit)
+            return {
+                'server': 'mail.huntred.com',
+                'port': 993,
+                'username': config.smtp_username,
+                'password': config.smtp_password,
+            }
+        except ConfiguracionBU.DoesNotExist:
+            raise ValueError(f"No se encontró configuración para la unidad de negocio: {business_unit.name}")
 
-if __name__ == "__main__":
-    nlp = NLPProcessor(mode="candidate", analysis_depth="quick")
-    examples = {
-        "candidate_quick": "Tengo experiencia en Python y trabajo en equipo.",
-        "candidate_deep": "Soy un desarrollador con certificación AWS y habilidades en Java.",
-        "opportunity_quick": "Buscamos un ingeniero con experiencia en SQL y comunicación."
-    }
-    for mode, text in examples.items():
-        print(f"\nAnalizando en modo '{mode}':")
-        nlp.depth = "quick" if "quick" in mode else "deep"
-        result = nlp.analyze(text)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+    async def _connect_imap(self, config: Dict) -> Optional[aioimaplib.IMAP4_SSL]:
+        """Conecta al servidor IMAP de forma asíncrona."""
+        try:
+            client = aioimaplib.IMAP4_SSL(config['server'], config['port'])
+            await client.wait_hello_from_server()
+            await client.login(config['username'], config['password'])
+            if not await self._verify_folders(client):
+                raise ValueError("Las carpetas IMAP no están configuradas correctamente")
+            logger.info(f"✅ Conectado al servidor IMAP: {config['server']}")
+            return client
+        except Exception as e:
+            logger.error(f"❌ Error conectando al servidor IMAP: {e}")
+            return None
+
+    async def _verify_folders(self, mail) -> bool:
+        """Verifica la existencia de las carpetas IMAP requeridas."""
+        for folder_key, folder_name in self.FOLDER_CONFIG.items():
+            try:
+                resp, folder_list = await mail.list(pattern=folder_name)
+                if not folder_list:
+                    logger.error(f"❌ Carpeta no encontrada: {folder_name}")
+                    return False
+            except Exception as e:
+                logger.error(f"❌ Error verificando carpeta {folder_name}: {e}")
+                return False
+        return True
+
+    async def _move_email(self, mail, msg_id: str, dest_folder: str):
+        """Mueve un correo a la carpeta de destino."""
+        try:
+            await mail.copy(msg_id, dest_folder)
+            await mail.store(msg_id, '+FLAGS', '\\Deleted')
+            logger.info(f"📩 Correo {msg_id} movido a {dest_folder}")
+        except Exception as e:
+            logger.error(f"❌ Error moviendo correo {msg_id} a {dest_folder}: {e}")
+
+    def _update_stats(self, result: Dict):
+        """Actualiza las estadísticas de procesamiento."""
+        if result.get("status") == "created":
+            self.stats["created"] += 1
+        elif result.get("status") == "updated":
+            self.stats["updated"] += 1
+        self.stats["processed"] += 1
+
+    async def _process_single_email(self, mail, email_id: str):
+        """Procesa un solo correo y maneja errores."""
+        try:
+            resp, data = await mail.fetch(email_id, "(RFC822)")
+            if resp != "OK":
+                raise ValueError(f"Error al obtener correo {email_id}")
+
+            message = email.message_from_bytes(data[0][1])
+            attachments = self.parser.extract_attachments(message)
+
+            if not attachments:
+                logger.warning(f"⚠️ Correo {email_id} sin adjuntos válidos")
+                await self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
+                self.stats["errors"] += 1
+                return
+
+            with ExitStack() as stack:
+                for attachment in attachments:
+                    temp_file = stack.enter_context(NamedTemporaryFile(delete=False))
+                    temp_path = Path(temp_file.name)
+                    temp_path.write_bytes(attachment['content'])
+
+                    text = self.parser.extract_text_from_file(temp_path)
+                    if text:
+                        parsed_data = self.parser.parse(text)
+                        if parsed_data:
+                            email_addr = parsed_data.get("email", "")
+                            phone = parsed_data.get("phone", "")
+                            candidate = await sync_to_async(Person.objects.filter)(email=email_addr).first() or \
+                                        await sync_to_async(Person.objects.filter)(phone=phone).first()
+
+                            if candidate:
+                                await self.parser._update_candidate(candidate, parsed_data, temp_path)
+                                self._update_stats({"status": "updated"})
+                            else:
+                                await self.parser._create_new_candidate(parsed_data, temp_path)
+                                self._update_stats({"status": "created"})
+
+            await self._move_email(mail, email_id, self.FOLDER_CONFIG['parsed_folder'])
+
+        except Exception as e:
+            logger.error(f"❌ Error procesando correo {email_id}: {e}")
+            await self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
+            self.stats["errors"] += 1
+            if self.business_unit.admin_email:
+                await send_email(
+                    business_unit_name=self.business_unit.name,
+                    subject=f"Error en CV Parser: {email_id}",
+                    to_email=self.business_unit.admin_email,
+                    body=f"Error procesando CV en correo {email_id}: {str(e)}",
+                    from_email="noreply@huntred.com"
+                )
+
+    async def process_emails(self):
+        """Procesa todos los correos en la carpeta de CVs."""
+        mail = await self._connect_imap(self.config)
+        if not mail:
+            return
+
+        try:
+            resp, _ = await mail.select(self.FOLDER_CONFIG['cv_folder'])
+            if resp != "OK":
+                raise ValueError(f"Error seleccionando {self.FOLDER_CONFIG['cv_folder']}")
+
+            resp, messages = await mail.search("ALL")
+            if resp != "OK":
+                raise ValueError("Error buscando mensajes")
+
+            email_ids = messages[0].split()
+            logger.info(f"📬 Total de correos a procesar: {len(email_ids)}")
+            for i in range(0, len(email_ids), self.batch_size):
+                batch = email_ids[i:i + self.batch_size]
+                logger.info(f"📤 Procesando lote de {len(batch)} correos")
+                for email_id in batch:
+                    await self._process_single_email(mail, email_id)
+                    await asyncio.sleep(self.sleep_time)  # Pausa para evitar sobrecarga
+                logger.info(f"✅ Lote completado")
+
+            await mail.expunge()
+            logger.info("🗑️ Correos eliminados expurgados")
+
+        finally:
+            await mail.logout()
+            logger.info("🔌 Desconectado del servidor IMAP")
+            await self._generate_summary_and_send_report(**self.stats)
+
+    async def _generate_summary_and_send_report(self, processed: int, created: int, updated: int, errors: int):
+        """Genera y envía un resumen del procesamiento."""
+        admin_email = self.business_unit.admin_email
+        if not admin_email:
+            logger.warning("⚠️ Correo del administrador no configurado")
+            return
+
+        summary = f"""
+        <h2>Resumen de Procesamiento de CVs para {self.business_unit.name}:</h2>
+        <ul>
+            <li>Total de correos procesados: {processed}</li>
+            <li>Nuevos candidatos creados: {created}</li>
+            <li>Candidatos actualizados: {updated}</li>
+            <li>Errores encontrados: {errors}</li>
+        </ul>
+        """
+        logger.info(f"📊 Resumen generado:\n{summary}")
+
+        await send_email(
+            business_unit_name=self.business_unit.name,
+            subject=f"Resumen de Procesamiento de CVs - {self.business_unit.name}",
+            to_email=admin_email,
+            body=summary,
+            from_email="noreply@huntred.com"
+        )
+
+class CVParser:
+    def __init__(self, business_unit: BusinessUnit):
+        """Inicializa el parser de CVs."""
+        self.business_unit = business_unit
+        self.DIVISION_SKILLS = load_division_skills()
+
+    def extract_attachments(self, message) -> List[Dict]:
+        """Extrae adjuntos de un mensaje de correo."""
+        attachments = []
+        for part in message.walk():
+            if part.get_content_maintype() == 'multipart':
+                continue
+            if part.get('Content-Disposition') is None:
+                continue
+            filename = part.get_filename()
+            if filename:
+                content = part.get_payload(decode=True)
+                attachments.append({'filename': filename, 'content': content})
+        logger.info(f"📎 Encontrados {len(attachments)} adjuntos")
+        return attachments
+
+    def extract_text_from_file(self, file_path: Path) -> Optional[str]:
+        """Extrae texto de archivos PDF o DOCX."""
+        try:
+            if file_path.suffix.lower() == '.pdf':
+                reader = PdfReader(str(file_path))
+                text = ' '.join([page.extract_text() or "" for page in reader.pages])
+            elif file_path.suffix.lower() in ['.doc', '.docx']:
+                doc = Document(str(file_path))
+                text = "\n".join(para.text for para in doc.paragraphs)
+            else:
+                logger.warning(f"⚠️ Formato no soportado: {file_path}")
+                return None
+            return text if text.strip() else None
+        except Exception as e:
+            logger.error(f"❌ Error extrayendo texto de {file_path}: {e}")
+            return None
+
+    def parse(self, text: str) -> Dict:
+        """Procesa el texto del CV usando NLPProcessor con detección de idioma."""
+        if not text or len(text.strip()) < 10:
+            logger.warning("⚠️ Texto demasiado corto para análisis")
+            return {}
+
+        detected_lang = detect_language(text)
+        if detected_lang not in NLP_PROCESSORS:
+            NLP_PROCESSORS[detected_lang] = NLPProcessor(language=detected_lang, mode="candidate", analysis_depth="deep")
+        nlp_processor = NLP_PROCESSORS[detected_lang]
+
+        try:
+            analysis = nlp_processor.analyze(text)
+            skills = analysis.get("skills", {"technical": [], "soft": [], "tools": [], "certifications": []})
+            entities = {
+                "email": "",
+                "phone": "",
+            }  # Simplificación: asumimos que NLPProcessor no extrae email/phone directamente
+            return {
+                "email": entities["email"],
+                "phone": entities["phone"],
+                "skills": skills,
+                "experience": analysis.get("experience", []),
+                "education": analysis.get("education", []),
+                "sentiment": analysis.get("sentiment", "neutral"),
+                "experience_level": analysis.get("experience_level", {})
+            }
+        except Exception as e:
+            logger.error(f"❌ Error analizando texto del CV: {e}")
+            return {}
+
+    async def _update_candidate(self, candidate: Person, parsed_data: Dict, file_path: Path):
+        """Actualiza un candidato existente de forma asíncrona."""
+        candidate.cv_file = str(file_path)
+        candidate.cv_analysis = parsed_data
+        candidate.cv_parsed = True
+        candidate.metadata.update({
+            "last_cv_update": now().isoformat(),
+            "skills": parsed_data["skills"],
+            "experience": parsed_data["experience"],
+            "education": parsed_data["education"],
+            "sentiment": parsed_data["sentiment"]
+        })
+        await sync_to_async(candidate.save)()
+        logger.info(f"✅ Perfil actualizado: {candidate.nombre} {candidate.apellido_paterno}")
+
+    async def _create_new_candidate(self, parsed_data: Dict, file_path: Path):
+        """Crea un nuevo candidato de forma asíncrona."""
+        candidate = await sync_to_async(Person.objects.create)(
+            nombre=parsed_data.get("nombre", "Unknown"),
+            apellido_paterno=parsed_data.get("apellido_paterno", ""),
+            email=parsed_data.get("email", ""),
+            phone=parsed_data.get("phone", ""),
+            cv_file=str(file_path),
+            cv_parsed=True,
+            cv_analysis=parsed_data,
+            metadata={
+                "last_cv_update": now().isoformat(),
+                "skills": parsed_data["skills"],
+                "experience": parsed_data["experience"],
+                "education": parsed_data["education"],
+                "sentiment": parsed_data["sentiment"]
+            }
+        )
+        logger.info(f"✅ Nuevo perfil creado: {candidate.nombre} {candidate.apellido_paterno}")

@@ -12,6 +12,7 @@ from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 from django.db import transaction
 from asgiref.sync import sync_to_async
+from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
@@ -45,7 +46,8 @@ opportunity_db = {
 # ========================
 class ScrapingConfig:
     def __init__(self):
-        self.RATE_LIMIT = 2  # Requests por segundo
+        self.rate_limit = domain.rate_limit or 2
+        self.semaphore = asyncio.Semaphore(domain.max_concurrent_requests or 10)
         self.MAX_RETRIES = 3
         self.TIMEOUT = 30    # Tiempo máximo por solicitud (segundos)
         self.MAX_CONCURRENT_REQUESTS = 10
@@ -63,20 +65,31 @@ class ScrapingMetrics:
             logger.warning(f"Failed to start Prometheus server: {e}")
 
 class ScrapingCache:
+    TTL = 3600  # 1 hora
+
     def __init__(self):
-        self.cache = {}
-        self.TTL = 3600  # 1 hora
+        self.local_cache = {}
 
     async def get(self, key: str) -> Optional[Dict]:
-        if key in self.cache:
-            data, timestamp = self.cache[key]
+        # Primero, busca en la caché de Django
+        cached_data = cache.get(key)
+        if cached_data:
+            return cached_data
+
+        # Si no está en Django, revisa la caché en memoria
+        if key in self.local_cache:
+            data, timestamp = self.local_cache[key]
             if (datetime.now() - timestamp).seconds < self.TTL:
                 return data
-            del self.cache[key]
+            del self.local_cache[key]  # Expirar clave si está fuera del TTL
+
         return None
 
     async def set(self, key: str, value: Dict):
-        self.cache[key] = (value, datetime.now())
+        # Guardar en la caché de Django
+        cache.set(key, value, timeout=self.TTL)
+        # Guardar en la caché en memoria también
+        self.local_cache[key] = (value, datetime.now())
 
 # ========================
 # Estructura de Datos
@@ -248,15 +261,20 @@ class BaseScraper:
         if self.session:
             await self.session.close()
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), before_sleep=before_sleep_log(logger, logging.WARNING))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
     async def fetch(self, url: str) -> Optional[str]:
-        try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                return await response.text()
-        except aiohttp.ClientError as e:
-            logger.error(f"Fetch failed for {url}: {e}")
-            raise
+        async with self.config.semaphore:  # Control de concurrencia
+            try:
+                async with self.session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.text()
+            except aiohttp.ClientError as e:
+                logger.error(f"Fetch failed for {url}: {e}")
+                raise
 
     async def scrape(self) -> List[JobListing]:
         raise NotImplementedError("Subclasses must implement scrape method.")
