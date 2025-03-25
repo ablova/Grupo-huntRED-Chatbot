@@ -1,8 +1,10 @@
+# /home/pablo/app/utilidades/email_scraper.py
 import email
 import logging
 import aiohttp
 import environ
 import asyncio
+from typing import Optional, List, Dict, Any, Tuple
 from aioimaplib import aioimaplib
 from datetime import datetime, timedelta
 from email.header import decode_header

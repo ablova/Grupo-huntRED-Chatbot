@@ -30,8 +30,8 @@ from app.chatbot.intents_handler import handle_known_intents
 logger = logging.getLogger(__name__)
 
 # Importaciones condicionales de NLP solo si está habilitado
-CACHE_ENABLED = False
-GPT_ENABLED = False
+CACHE_ENABLED = True
+GPT_ENABLED = True
 ML_ENABLED = True    # Cambia a False para desactivar ML
 NLP_ENABLED = True  # Cambia a True para habilitar NLP, False para desactivarlo
 if NLP_ENABLED:
@@ -190,7 +190,7 @@ class ChatBotHandler:
             # Análisis de NLP
             detected_intents = []
             if NLP_ENABLED:
-                analisis = await sync_to_async(nlp_processor.analyze)(text)
+                analisis = await nlp_processor.analyze(text)  # Llamar directamente con await
                 entities = analisis.get("entities", [])
                 sentiment = analisis.get("sentiment", {})
                 detected_intents = [analisis["intent"]["intent"]] if analisis.get("intent") else []

@@ -12,6 +12,8 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from pathlib import Path
+from tenacity import retry, stop_after_attempt
+from django.core.cache import cache
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -198,7 +200,7 @@ class Button:
             payload=button_dict.get('payload'),
             url=button_dict.get('url')
         )
-
+        
 class MessageService:
     def __init__(self, business_unit: BusinessUnit):
         self.business_unit = business_unit
@@ -209,28 +211,28 @@ class MessageService:
         cache_key = f"api_instance:{platform}:{self.business_unit.id}"
         
         if platform not in self._api_instances:
-            self._api_instances[platform] = cache.get(cache_key)
-            
-            if not self._api_instances[platform]:
+            cached_api = cache.get(cache_key)
+            if cached_api is not None:
+                self._api_instances[platform] = cached_api
+            else:
                 model_mapping = {
                     'whatsapp': WhatsAppAPI,
                     'telegram': TelegramAPI,
                     'messenger': MessengerAPI,
                     'instagram': InstagramAPI,
-                    'slack': SlackAPI  # Corregido: '=' por ':'
+                    'slack': SlackAPI
                 }
                 model_class = model_mapping.get(platform)
                 if not model_class:
                     logger.error(f"Plataforma no soportada: {platform}")
                     return None
 
-                self._api_instances[platform] = await sync_to_async(model_class.objects.filter(
+                api_instance = await sync_to_async(model_class.objects.filter(
                     business_unit=self.business_unit,
                     is_active=True
                 ).select_related('business_unit').first)()
                 
-                if self._api_instances[platform]:
-                    api = self._api_instances[platform]
+                if api_instance:
                     required_attrs = {
                         'whatsapp': ['phoneID', 'api_token'],
                         'telegram': ['api_key'],
@@ -239,12 +241,13 @@ class MessageService:
                         'slack': ['bot_token']
                     }
                     for attr in required_attrs.get(platform, []):
-                        if not hasattr(api, attr) or not getattr(api, attr):
+                        if not hasattr(api_instance, attr) or not getattr(api_instance, attr):
                             logger.error(f"Configuración incompleta para {platform} en BU {self.business_unit.name}: {attr} faltante")
                             self._api_instances[platform] = None
                             break
                     else:
-                        cache.set(cache_key, api, timeout=CACHE_TIMEOUT)
+                        self._api_instances[platform] = api_instance
+                        cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
                 else:
                     logger.warning(f"No se encontró configuración activa para {platform} en BU {self.business_unit.name}")
 
@@ -270,7 +273,7 @@ class MessageService:
             'telegram': self._send_telegram,
             'messenger': self._send_messenger,
             'instagram': self._send_instagram,
-            'slack': self._send_slack  # Corregido: Añadido Slack
+            'slack': self._send_slack
         }
 
         send_func = send_funcs.get(platform)
@@ -280,7 +283,6 @@ class MessageService:
 
         return await send_func(user_id, message, api_instance, options)
 
-    from tenacity import retry, stop_after_attempt
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_message(
         self,
@@ -297,7 +299,6 @@ class MessageService:
             logger.error(f"[send_message] Error: {e}", exc_info=True)
             return False
 
-    from tenacity import retry, stop_after_attempt
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_image(
         self,
@@ -328,7 +329,7 @@ class MessageService:
                     chat_id=user_id,
                     image_url=image_url,
                     caption=message,
-                    api_key=api_instance.api_key  # Cambiar access_token por api_key
+                    api_key=api_instance.api_key
                 )
             elif platform in ["messenger", "instagram"]:
                 from app.chatbot.integrations.messenger import send_messenger_image
@@ -355,16 +356,14 @@ class MessageService:
             logger.error(f"[send_image] Error enviando imagen en {platform}: {e}", exc_info=True)
             return False
 
-    # Actualizar send_menu para usar el diccionario
-    from tenacity import retry, stop_after_attempt
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_menu(self, platform: str, user_id: str):
         """Envía el menú principal dinámico basado en el estado del ChatState"""
         try:
             logger.info(f"[send_menu] 📩 Enviando menú a {user_id} en {platform} para {self.business_unit.name}")
             
-            # Obtener el ChatState del usuario
-            chat_state = await sync_to_async(ChatState.objects.filter)(
+            # Obtener el ChatState del usuario de manera asíncrona
+            chat_state = await ChatState.objects.filter(
                 user_id=user_id, business_unit=self.business_unit
             ).afirst()
             
@@ -374,13 +373,20 @@ class MessageService:
             else:
                 state = chat_state.state
 
-            # Determinar las opciones según el estado y la unidad de negocio
-            bu_name = self.business_unit.name.lower()
-            options_by_state = MENU_OPTIONS_BY_STATE.get(bu_name, MENU_OPTIONS_BY_STATE["default"])
-            options = options_by_state.get(state, options_by_state["initial"])
-            
-            message = "📍 *Menú Principal*\nSelecciona una opción:"
-            simplified_options = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
+            # Usar caché para las opciones del menú
+            cache_key = f"menu_options:{self.business_unit.name.lower()}:{state}:{user_id}"
+            cached_options = cache.get(cache_key)
+            if cached_options:
+                message, simplified_options = cached_options
+            else:
+                # Determinar las opciones según el estado y la unidad de negocio
+                bu_name = self.business_unit.name.lower()
+                options_by_state = MENU_OPTIONS_BY_STATE.get(bu_name, MENU_OPTIONS_BY_STATE["default"])
+                options = options_by_state.get(state, options_by_state["initial"])
+                
+                message = f"📍 *Menú de {bu_name}*\nSelecciona una opción:"
+                simplified_options = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
+                cache.set(cache_key, (message, simplified_options), timeout=CACHE_TIMEOUT)
 
             if platform == "slack":
                 success = await self.send_options(platform, user_id, message, simplified_options)
@@ -397,12 +403,10 @@ class MessageService:
             logger.error(f"[send_menu] ❌ Error enviando menú: {e}", exc_info=True)
             return False
 
-    from tenacity import retry, stop_after_attempt
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_url(self, platform: str, user_id: str, url: str) -> bool:
         return await self.send_message(platform, user_id, f"Aquí tienes el enlace: {url}")
 
-    from tenacity import retry, stop_after_attempt
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_options(
         self,
@@ -428,7 +432,7 @@ class MessageService:
                 'telegram': self._send_telegram_options,
                 'messenger': self._send_messenger_options,
                 'instagram': self._send_instagram_options,
-                'slack': self._send_slack_options  # Añadido soporte para Slack
+                'slack': self._send_slack_options
             }
 
             handler = platform_handlers.get(platform)
@@ -452,7 +456,6 @@ class MessageService:
                     user_id=user_id,
                     message=message,
                     phone_id=api_instance.phoneID,
-                    #access_token=api_instance.api_token,
                     business_unit=self.business_unit
                 )
             return True

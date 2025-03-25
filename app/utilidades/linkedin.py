@@ -481,17 +481,6 @@ async def slow_scrape_from_csv(csv_path: str, business_unit: BusinessUnit):
                 person = save_person_record(fn, ln, None, email, birthday, company, position, business_unit)
                 logger.info(f"✅ Perfil básico guardado: {fn} {ln} ({email})")
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def slow_scrape_from_csv_task(self, csv_path: str, business_unit_id: int):
-    try:
-        business_unit = BusinessUnit.objects.get(id=business_unit_id)
-        asyncio.run(slow_scrape_from_csv(csv_path, business_unit))
-        logger.info(f"✅ Slow scrape completed for {csv_path}")
-    except Exception as e:
-        logger.error(f"❌ Error in slow scrape: {e}")
-        self.retry(exc=e)
-
-
 def safe_extract(func):
     """
     Decorador para manejar excepciones en funciones de extracción.
@@ -781,14 +770,6 @@ async def process_linkedin_updates():
 
     logger.info(f"Resumen: Procesados: {processed_count}, URLs construidas: {constructed_count}, Errores: {errors_count}")
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def process_linkedin_updates_task(self):
-    try:
-        asyncio.run(process_linkedin_updates())
-        logger.info("✅ LinkedIn updates completed")
-    except Exception as e:
-        logger.error(f"❌ Error in LinkedIn updates: {e}")
-        self.retry(exc=e)
 
 def process_linkedin_batch():
     from app.chatbot.nlp import process_recent_users_batch

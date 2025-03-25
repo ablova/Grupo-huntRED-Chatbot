@@ -7,6 +7,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Variable global para controlar si la configuración inicial ya se realizó
+TF_CONFIG_INITIALIZED = False
+
 def check_system_load(threshold=70):
     """
     Verifica la carga de la CPU. Retorna True si la carga es menor al umbral.
@@ -19,11 +22,15 @@ def configure_tensorflow_based_on_load():
     """
     Configura TensorFlow según la carga del sistema, incluyendo hilos y uso de memoria.
     """
-    # Configuración de memoria para GPUs (si están disponibles)
-    tf.config.set_soft_device_placement(True)
-    for gpu in tf.config.experimental.list_physical_devices('GPU'):
-        tf.config.experimental.set_memory_growth(gpu, True)
-    logger.info("Configuración de memoria de TensorFlow aplicada: soft device placement y memory growth habilitados")
+    global TF_CONFIG_INITIALIZED
+
+    # Configuración inicial de memoria (solo se ejecuta una vez)
+    if not TF_CONFIG_INITIALIZED:
+        tf.config.set_soft_device_placement(True)
+        for gpu in tf.config.experimental.list_physical_devices('GPU'):
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logger.info("Configuración de memoria de TensorFlow aplicada: soft device placement y memory growth habilitados")
+        TF_CONFIG_INITIALIZED = True
 
     # Configuración de hilos según la carga de la CPU
     cpu_load = psutil.cpu_percent(interval=1)

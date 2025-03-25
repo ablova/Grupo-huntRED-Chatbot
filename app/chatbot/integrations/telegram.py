@@ -126,6 +126,10 @@ async def confirm_telegram_callback(callback_query_id: str, telegram_api: Telegr
         logger.error(f"❌ Error al confirmar callback de Telegram: {str(e)}", exc_info=True)
         return False
 
+def set_telegram_webhook(api_key, webhook_url):
+    url = f"https://api.telegram.org/bot{api_key}/setWebhook"
+    response = requests.post(url, json={"url": webhook_url})
+    return response.json()
 # -------------------------------
 # ✅ 2. WEBHOOK Y PROCESAMIENTO DE MENSAJES
 # -------------------------------

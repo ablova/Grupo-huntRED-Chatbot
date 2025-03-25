@@ -1,4 +1,5 @@
 # /home/pablo/ai_huntred/settings.py
+
 import os
 from pathlib import Path
 import sentry_sdk
@@ -35,6 +36,8 @@ CACHES = {
         'LOCATION': 'redis://127.0.0.1:6379/1',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'MAX_CONNECTIONS': 100,  # Aumentar el límite de conexiones
+            'TIMEOUT': 86400,  # 24 horas de expiración por defecto
         }
     }
 }
