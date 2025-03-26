@@ -108,23 +108,25 @@ async def send_amigro_specific_menu(platform: str, user_id: str, business_unit: 
 
 @shared_task
 def process_amigro_candidate(candidate_id):
-    """Genera la Carta Propuesta y la envía para firma digital en Amigro."""
-    candidate = Person.objects.get(id=candidate_id)
-    application = Application.objects.filter(user=candidate).first()
-
-    if not application or not application.vacancy:
-        return "Candidato sin vacante asignada."
-
-    # Generar y enviar contrato para firma digital
-    generate_and_send_contract(candidate, application.vacancy, application.vacancy.titulo, application.business_unit)
-
-    return f"Contrato generado y enviado a {candidate.nombre}"
+    try:
+        candidate = Person.objects.get(id=candidate_id)
+        application = Application.objects.filter(user=candidate).first()
+        if not application or not application.vacancy:
+            return "Candidato sin vacante asignada."
+        generate_and_send_contract(candidate, application.vacancy, application.vacancy.titulo, application.business_unit)
+        return f"Contrato generado y enviado a {candidate.nombre}"
+    except Person.DoesNotExist:
+        logger.error(f"Candidato {candidate_id} no encontrado.")
+        return "Candidato no encontrado."
+    except Exception as e:
+        logger.error(f"Error procesando candidato {candidate_id}: {e}", exc_info=True)
+        return f"Error: {str(e)}"
 
 # Diccionario dinámico de despachos migratorios por país
 MIGRATION_AGENCIES = {
-    "USA": "us_migration@amigro.org",
-    "Canada": "ca_migration@amigro.org",
-    "Spain": "es_migration@amigro.org",
+    "US": "us_migration@amigro.org",
+    "CA": "ca_migration@amigro.org",
+    "ES": "es_migration@amigro.org",
     "default": "global_migration@amigro.org"
 }
 

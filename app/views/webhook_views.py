@@ -54,17 +54,6 @@ class TelegramWebhookView(View):
             logger.error(f"❌ Error en TelegramWebhook POST: {e}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-@csrf_exempt
-def telegram_webhook(request):
-    if request.method == "POST":
-        try:
-            payload = json.loads(request.body)
-            # Procesar el payload de Telegram
-            return HttpResponse(status=200)
-        except json.JSONDecodeError:
-            return HttpResponse("Bad Request: Invalid JSON", status=400)
-    return HttpResponse("Bad Request: Method not allowed", status=400)
-
 @method_decorator(csrf_exempt, name='dispatch')
 class MessengerWebhookView(View):
     async def get(self, request, *args, **kwargs):

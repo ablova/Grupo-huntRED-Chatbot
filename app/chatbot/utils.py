@@ -26,11 +26,13 @@ logger = logging.getLogger(__name__)
 _nlp_processor_instance = None
 
 def get_nlp_processor():
-    """Obtiene o crea una instancia singleton de NLPProcessor."""
     global _nlp_processor_instance
     if _nlp_processor_instance is None:
-        logger.info("Inicializando NLPProcessor por primera vez.")
-        _nlp_processor_instance = NLPProcessor(language="es", mode="candidate")
+        try:
+            _nlp_processor_instance = NLPProcessor(language="es", mode="candidate")
+        except Exception as e:
+            logger.error(f"Error creando NLPProcessor: {e}")
+            return None
     return _nlp_processor_instance
 
 # Cargar catálogo desde el JSON centralizado

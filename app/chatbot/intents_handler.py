@@ -132,9 +132,11 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
     logger.info(f"[handle_known_intents] 🏢 Business Unit: {business_unit.name}")
     logger.info(f"[handle_known_intents] 📜 Chat State Context: {chat_state.context}")
 
-    # Usar cache si el mensaje ya fue procesado
-    if text in response_cache:
-        await send_message(platform, user_id, response_cache[text], business_unit.name.lower())
+    # Usar cache de Django con timeout de 10 minutos
+    cache_key = f"intent_response:{text}"
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        await send_message(platform, user_id, cached_response, business_unit.name.lower())
         logger.info(f"[handle_known_intents] 📥 Respuesta obtenida del cache para: '{text}'")
         return True
 
@@ -304,13 +306,11 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         await send_message(platform, user_id, response, business_unit.name.lower(), options=reubicacion_buttons)
         return True
 
-    # Respuesta por defecto si no se manejó ningún intent
-    tos_url = chat_bot_handler.get_tos_url(business_unit)  # Obtener URL dinámica
+    # Respuesta por defecto
     response = "No entendí tu mensaje. ¿Qué te gustaría hacer? Puedes decir 'ver vacantes', 'subir mi CV' o 'menú'."
     await send_message(platform, user_id, response, business_unit.name.lower())
     await send_options(platform, user_id, "Elige una opción:", main_options, business_unit.name.lower())
-    response_cache[text] = response
-    logger.info(f"[handle_known_intents] ⚠️ Intent no manejado: {top_intent}, enviando respuesta por defecto.")
+    cache.set(cache_key, response, timeout=600)
     return False
 
 async def handle_document_upload(

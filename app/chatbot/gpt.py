@@ -135,11 +135,15 @@ class GeminiHandler(BaseHandler):
             }
         }
         try:
-            response = await asyncio.to_thread(
-                requests.post, self.api_url, headers=self.headers, json=payload
+            response = await asyncio.wait_for(
+                asyncio.to_thread(requests.post, self.api_url, headers=self.headers, json=payload),
+                timeout=GPT_DEFAULTS["timeout"]
             )
             response.raise_for_status()
             return response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except asyncio.TimeoutError:
+            logger.warning("Timeout en Gemini.")
+            return "Solicitud tardó demasiado."
         except requests.exceptions.RequestException as e:
             logger.error(f"Error en Gemini: {e}")
             return "Error al comunicarse con Gemini."

@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 async def handle_job_selection(plataforma: str, user_id: str, texto: str, estado_chat: ChatState, unidad_negocio: BusinessUnit, persona: Person):
     """Maneja la selección de una vacante por parte del usuario."""
     recommended_jobs = estado_chat.context.get('recommended_jobs', [])
+    if not recommended_jobs:
+        resp = "No hay vacantes recomendadas disponibles actualmente."
+        await send_message(plataforma, user_id, resp, unidad_negocio.name.lower())
+        return
     try:
         job_index = int(texto.strip()) - 1
     except ValueError:
@@ -80,9 +84,6 @@ async def handle_job_action(plataforma: str, user_id: str, texto: str, estado_ch
         else:
             resp = "No encuentro esa vacante."
             await send_message(plataforma, user_id, resp, bu_name)
-        estado_chat.state = "scheduled"  # Transición a estado 'scheduled'
-        await sync_to_async(estado_chat.save)()
-        await send_menu(plataforma, user_id, unidad_negocio)  # Enviar menú dinámico
 
     elif texto.startswith("tips_"):
         job_index = int(texto.split('_')[1])
@@ -96,9 +97,16 @@ async def handle_job_action(plataforma: str, user_id: str, texto: str, estado_ch
             selected_slot = available_slots[slot_index]
             resp = f"Entrevista agendada para {selected_slot['label']} ¡Éxito!"
             await send_message(plataforma, user_id, resp, bu_name)
+            estado_chat.state = "scheduled"  # Movido aquí
+            await sync_to_async(estado_chat.save)()
+            await send_menu(plataforma, user_id, unidad_negocio)
         else:
             resp = "No encuentro ese horario."
             await send_message(plataforma, user_id, resp, bu_name)
+
+    else:
+        resp = "Opción no reconocida."
+        await send_message(plataforma, user_id, resp, bu_name)
 
 async def get_interview_slots(job: Dict[str, Any]) -> List[Dict[str, str]]:
     """Devuelve horarios disponibles para entrevistas."""
