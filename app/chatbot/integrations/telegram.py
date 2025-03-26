@@ -156,14 +156,20 @@ async def telegram_webhook(request, bot_name: str):
 
     try:
         logger.debug(f"Buscando TelegramAPI para bot_name: {bot_name}")
-        telegram_api = await sync_to_async(
-            TelegramAPI.objects.select_related('business_unit').get
-        )(bot_name=bot_name, is_active=True)
+        telegram_api = await sync_to_async(TelegramAPI.objects.select_related('business_unit').get)(
+            bot_name=bot_name, 
+            is_active=True
+        )
 
         business_unit = telegram_api.business_unit
         if not business_unit:
             logger.error(f"❌ No BusinessUnit asociado al bot: {bot_name}")
             return JsonResponse({"status": "error", "message": "BusinessUnit no encontrado"}, status=400)
+
+        # Asegurarse de que el business_unit sea válido antes de continuar
+        if not isinstance(business_unit, BusinessUnit):
+            logger.error(f"❌ Tipo inválido de business_unit para {bot_name}: {type(business_unit)}")
+            return JsonResponse({"status": "error", "message": "Configuración inválida"}, status=400)
 
         telegram_api, error_msg = await validate_telegram_config(business_unit)
         if error_msg:
@@ -229,18 +235,26 @@ async def telegram_webhook(request, bot_name: str):
 # -------------------------------
 async def send_telegram_message(chat_id: int, message: str, telegram_api: TelegramAPI, business_unit_name: str) -> bool:
     """Envía un mensaje de texto a un usuario en Telegram."""
+    if not message or not message.strip():
+        logger.warning("Intento de enviar mensaje vacío")
+        return False
+
     url = f"https://api.telegram.org/bot{telegram_api.api_key}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": message,
         "parse_mode": "HTML"
     }
+    
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
-        logger.info(f"[send_telegram_message] Mensaje enviado a {chat_id} en {business_unit_name}")
-        return True
+            logger.info(f"[send_telegram_message] Mensaje enviado a {chat_id} en {business_unit_name}")
+            return True
+    except Exception as e:
+        logger.error(f"[send_telegram_message] Error enviando mensaje: {str(e)}", exc_info=True)
+        return False
     except httpx.HTTPStatusError as e:
         logger.error(f"[send_telegram_message] Error HTTP: {e.response.text}")
         return False

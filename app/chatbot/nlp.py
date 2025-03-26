@@ -286,7 +286,7 @@ class NLPProcessor:
             else:
                 logger.debug(f"Entrada inválida en skills_opportunities.json: {entry}")
 
-    def _load_opportunity_catalog(self) -> List[Dict]:
+    async def _load_opportunity_catalog(self) -> List[Dict]:
         cache_key = "opportunity_catalog"
         cached_catalog = cache.get(cache_key)
         if cached_catalog is not None:

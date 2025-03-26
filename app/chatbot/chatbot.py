@@ -212,6 +212,17 @@ class ChatBotHandler:
         )
         return chat_state
 
+    async def get_or_create_user(self, user_id: str, platform: str) -> Tuple[Person, bool]:
+        """Obtiene o crea un usuario basado en el user_id y la plataforma."""
+        user, created = await sync_to_async(Person.objects.get_or_create)(
+            phone=user_id,  # Usamos user_id como identificador único
+            defaults={
+                'nombre': f"Usuario_{user_id}",  # Nombre genérico por defecto
+                'platform': platform,           # Guardamos la plataforma
+            }
+        )
+        return user, created
+
     def _extract_message_content(self, message: dict) -> Tuple[str, Optional[dict]]:
         text = ""
         attachment = None
@@ -226,7 +237,8 @@ class ChatBotHandler:
     async def _get_or_create_user_and_chat_state(self, user_id: str, platform: str, business_unit: BusinessUnit) -> Tuple[Person, ChatState]:
         user, _ = await self.get_or_create_user(user_id, platform)
         chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
-            user_id=user_id, business_unit=business_unit, 
+            user_id=user_id,
+            business_unit=business_unit,
             defaults={'platform': platform, 'state': 'initial', 'context': {}}
         )
         current_person = await sync_to_async(lambda: chat_state.person)()
@@ -663,4 +675,28 @@ class ChatBotHandler:
             business_unit = user.chat_state.business_unit if hasattr(user, 'chat_state') else user.businessunit_set.first()
             if platform and business_unit:
                 await send_message(platform, user.phone, message, business_unit.name)
+
+    async def store_user_message(self, chat_state, text: str):
+        """Almacena el mensaje del usuario en el historial de conversación."""
+        if not chat_state.conversation_history:
+            chat_state.conversation_history = []
+        chat_state.conversation_history.append({
+            "role": "user",
+            "content": text,
+            "timestamp": timezone.now().isoformat()
+        })
+        chat_state.last_interaction_at = timezone.now()
+        await sync_to_async(chat_state.save)()
+
+    async def store_bot_message(self, chat_state, text: str):
+        """Almacena el mensaje del bot en el historial de conversación."""
+        if not chat_state.conversation_history:
+            chat_state.conversation_history = []
+        chat_state.conversation_history.append({
+            "role": "assistant",
+            "content": text,
+            "timestamp": timezone.now().isoformat()
+        })
+        chat_state.last_interaction_at = timezone.now()
+        await sync_to_async(chat_state.save)()
                 

@@ -740,32 +740,20 @@ async def notify_employer(worker, message):
 # FUNCIONES PARA OBTENER BUSINESS UNIT DINÁMICO
 # ================================
 async def get_business_unit(name: Optional[str] = None) -> Optional[BusinessUnit]:
-    """
-    Obtiene la Business Unit de forma segura.
-
-    Args:
-        name (Optional[str]): Nombre de la unidad de negocio (opcional).
-
-    Returns:
-        Optional[BusinessUnit]: Objeto BusinessUnit si se encuentra, None si no.
-    """
+    """Obtiene una instancia de BusinessUnit por nombre."""
     try:
-        if name:
-            logger.debug(f"[get_business_unit] Buscando BusinessUnit con nombre: {name}")
-            business_unit = await sync_to_async(lambda: BusinessUnit.objects.filter(name__iexact=name).first())()
-        else:
-            logger.debug("[get_business_unit] Buscando primera BusinessUnit disponible")
-            business_unit = await sync_to_async(lambda: BusinessUnit.objects.first())()
-
-        if business_unit:
-            logger.info(f"[get_business_unit] BusinessUnit encontrada: {business_unit.name}")
-            return business_unit
-        else:
-            logger.warning(f"[get_business_unit] No se encontró BusinessUnit para nombre: {name}")
+        if not name:
             return None
-
+        
+        # Usar valores seguros para la comparación
+        safe_name = name.lower().replace('®', '').strip()
+        
+        business_unit = await sync_to_async(BusinessUnit.objects.filter)(
+            name__iexact=safe_name
+        )
+        return await sync_to_async(business_unit.first)()
     except Exception as e:
-        logger.error(f"[get_business_unit] Error obteniendo BusinessUnit ({name}): {e}", exc_info=True)
+        logger.error(f"[get_business_unit] Error obteniendo BusinessUnit ({name}): {e}")
         return None
 
 def run_async(func, *args, **kwargs):
@@ -850,7 +838,7 @@ async def send_email_async(subject: str, to_email: str, body: str, business_unit
 
 def send_email(subject: str, to_email: str, body: str, business_unit_name: str = None, from_email=None):
     """ Wrapper de `send_email`, compatible con entornos síncronos y asíncronos. """
-    return run_async(send_email_async, subject, to_email, body, business_unit, from_email)
+    return run_async(send_email_async, subject, to_email, body, business_unit_name, from_email)
 
 async def send_list_options(platform: str, user_id: str, message: str, buttons: List[Dict], business_unit_name: str):
     """
