@@ -7,19 +7,24 @@ from app.models import ChatState, Person, BusinessUnit
 from app.chatbot.integrations.services import send_message, send_options, send_menu
 from django.core.cache import cache
 from django.utils import timezone
+import random
 
 logger = logging.getLogger(__name__)
 
 # Cache para almacenar respuestas previas (mensaje -> respuesta)
 response_cache = {}
 
-# Definición de intents con patrones regex, respuestas y prioridad (menor número = mayor prioridad)
-INTENTS = {
-    "saludo": {
-        "patterns": [r"\b(hola|hi|saludos|buen(os)?\s(días|tardes|noches)|hey|qué\s+tal)\b"],
-        "responses": ["¡Hola! ¿En qué puedo ayudarte hoy?"],
-        "priority": 1
-    },
+# Mantener el diccionario de intents existente
+INTENT_PATTERNS = {
+    'saludo': [
+        "¡Hola! 👋 Bienvenido a Amigro®. Soy tu asistente virtual y estoy aquí para ayudarte a encontrar oportunidades laborales. ¿En qué puedo ayudarte?",
+        "¡Hola! 🌟 Me alegra verte por aquí. ¿Qué te gustaría hacer hoy?",
+        "¡Bienvenido! 🤝 ¿Cómo puedo ayudarte en tu búsqueda de empleo?"
+    ],
+    'presentacion_bu': [
+        "Bienvenido a Amigro® 🌍 - amigro.org, somos una organización que facilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México, mediante Inteligencia Artificial Conversacional",
+        "Por lo que platicaremos un poco de tu trayectoria profesional, tus intereses, tu situación migratoria, etc. Es importante ser lo más preciso posible, ya que con eso podremos identificar las mejores oportunidades para tí, tu familia, y en caso de venir en grupo, favorecerlo."
+    ],
     "despedida": {
         "patterns": [r"\b(adiós|hasta\s+luego|chau|bye)\b"],
         "responses": ["¡Hasta luego! Si necesitas más ayuda, contáctame de nuevo."],
@@ -107,214 +112,57 @@ def detect_intents(message: str) -> List[str]:
     detected_intents = []
     message_lower = message.lower().strip()
 
-    for intent, data in INTENTS.items():
+    for intent, data in INTENT_PATTERNS.items():
         for pattern in data["patterns"]:
             if re.search(pattern, message_lower):
                 detected_intents.append(intent)
                 break  # Evitar duplicar el mismo intent
 
     # Ordenar por prioridad (menor número = mayor prioridad)
-    detected_intents.sort(key=lambda x: INTENTS[x]["priority"])
+    detected_intents.sort(key=lambda x: INTENT_PATTERNS[x]["priority"])
     return detected_intents
 
-async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
-                             chat_state, business_unit, user, text: str) -> bool:
-    """
-    Maneja intents conocidos del mensaje.
-    """
-    logger.info(f"[handle_known_intents] 🔎 Procesando mensaje: '{text}'")
-    logger.info(f"[handle_known_intents] 📌 Intents recibidos: {intents}")
-    logger.info(f"[handle_known_intents] 🆔 User ID: {user_id}")
-    logger.info(f"[handle_known_intents] 🏢 Business Unit: {business_unit.name}")
-    logger.info(f"[handle_known_intents] 📜 Chat State Context: {chat_state.context}")
-
+async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state, business_unit, user, text: str) -> bool:
+    """Maneja intents conocidos del mensaje."""
     try:
-        cache_key = f"intent_response:{user_id}:{','.join(intents)}"
-        cached_response = cache.get(cache_key)
-        
-        if cached_response:
-            logger.info(f"[handle_known_intents] Usando respuesta cacheada para {cache_key}")
-            return cached_response
-
-        # Manejar payloads de botones directamente
-        if text in ["tos_accept", "tos_reject"]:
-            from app.chatbot.chatbot import ChatBotHandler
-            chat_bot_handler = ChatBotHandler()
-            tos_url = chat_bot_handler.get_tos_url(business_unit)  # Obtener URL dinámica
-            if text == "tos_accept":
-                user.tos_accepted = True
-                await sync_to_async(user.save)()
-                response = f"✅ Gracias por aceptar los Términos de Servicio de {business_unit.name}. Aquí tienes el Menú Principal:"
-                await send_message(platform, user_id, response, business_unit.name.lower())
-                await send_menu(platform, user_id, business_unit.name.lower())
-                await chat_bot_handler.store_bot_message(chat_state, response)
-            else:
-                response = "⚠ No se puede continuar sin aceptar los TOS. Por favor, selecciona una opción:"
-                tos_buttons = [
-                    {"title": "✅ Aceptar", "payload": "tos_accept"},
-                    {"title": "❌ Rechazar", "payload": "tos_reject"},
-                    {"title": "📜 Ver TOS", "url": tos_url}  # Usar URL dinámica
-                ]
-                if platform == "whatsapp":
-                    await send_message(platform, user_id, f"📜 Consulta nuestros términos aquí: {tos_url}", business_unit.name.lower())
-                await send_message(platform, user_id, response, business_unit.name.lower(), options=tos_buttons)
-                await chat_bot_handler.store_bot_message(chat_state, response)
-            response_cache[text] = response
-            return True
-
-        # Detección de intents (NLP o regex)
-        detected_intents = intents.copy()
-        if not detected_intents:
-            detected_intents = detect_intents(text)
-            logger.debug(f"[handle_known_intents] Intents detectados por regex: {detected_intents}")
-
-        if not detected_intents:
-            tos_url = chat_bot_handler.get_tos_url(business_unit)  # Obtener URL dinámica para el caso por defecto
-            response = "No entendí tu mensaje. ¿Qué te gustaría hacer? Puedes decir 'ver vacantes', 'subir mi CV' o 'menú'."
-            await send_message(platform, user_id, response, business_unit.name.lower())
-            await send_options(platform, user_id, "Elige una opción:", main_options, business_unit.name.lower())
-            response_cache[text] = response
-            logger.info(f"[handle_known_intents] ⚠️ No se detectó ningún intent, enviando respuesta por defecto.")
+        if not intents:
             return False
 
-        # Procesar el intent de mayor prioridad (el primero en la lista)
-        top_intent = detected_intents[0]
-        logger.info(f"[handle_known_intents] ✅ Procesando intent principal: {top_intent}")
-
-        if top_intent in INTENTS:
-            response = INTENTS[top_intent]["responses"][0]
-            if top_intent == "show_jobs":
-                from app.utilidades.vacantes import VacanteManager
-                recommended_jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
-                if recommended_jobs:
-                    chat_state.context['recommended_jobs'] = recommended_jobs
-                    await sync_to_async(chat_state.save)()
-                    await present_job_listings(platform, user_id, recommended_jobs, business_unit, chat_state)
-                else:
-                    response = "No encontré vacantes para tu perfil por ahora."
-                    await send_message(platform, user_id, response, business_unit.name.lower())
-            elif top_intent == "upload_cv":
-                await send_message(platform, user_id, response, business_unit.name.lower())
-                chat_state.state = "waiting_for_cv"
-                await sync_to_async(chat_state.save)()
-            elif top_intent == "show_menu":
-                await send_menu(platform, user_id, business_unit.name.lower())
-            else:
-                await send_message(platform, user_id, response, business_unit.name.lower())
-            response_cache[text] = response
+        logger.info(f"[handle_known_intents] 🔎 Procesando intents: {intents}")
+        
+        # Obtener el intent principal
+        primary_intent = intents[0]
+        
+        # Si existe una respuesta para el intent en el diccionario
+        if primary_intent in INTENT_PATTERNS:
+            # Seleccionar una respuesta aleatoria para el intent
+            response = random.choice(INTENT_PATTERNS[primary_intent])
+            
+            # Enviar la respuesta
+            await send_message(platform, user_id, response, business_unit.name)
+            
+            # Acciones específicas según el intent
+            if primary_intent == 'saludo':
+                # Después del saludo, mostrar la presentación del business unit
+                if 'presentacion_bu' in INTENT_PATTERNS:
+                    for msg in INTENT_PATTERNS['presentacion_bu']:
+                        await send_message(platform, user_id, msg, business_unit.name)
+                
+                # Si el usuario no tiene perfil completo, mostrar TOS y menú
+                if not getattr(user, 'is_profile_complete', False):
+                    tos_url = f"https://{business_unit.name.lower()}.org/tos"
+                    await send_message(platform, user_id, f"📜 Por favor, revisa nuestros Términos de Servicio: {tos_url}", business_unit.name)
+                    await send_options(platform, user_id, "¿Aceptas nuestros Términos de Servicio?", 
+                                     [{"title": "Sí", "payload": "tos_accept"},
+                                      {"title": "No", "payload": "tos_reject"}],
+                                     business_unit.name)
+            
             return True
 
-        # Manejo de intents específicos adicionales
-        if top_intent == "greeting":
-            from app.chatbot.chatbot import ChatBotHandler
-            chat_bot_handler = ChatBotHandler()
-            await chat_bot_handler.send_complete_initial_messages(platform, user_id, business_unit)
-            return True
-        elif top_intent == "reset_chat_state":
-            chat_state.state = "initial"
-            chat_state.context = {}
-            await sync_to_async(chat_state.save)()
-            await send_message(platform, user_id, f"🧹 ¡Listo, {user.nombre}! Tu conversación en {platform} ha sido reiniciada. ¿En qué puedo ayudarte ahora?", business_unit.name.lower())
-            return True
-        elif top_intent == "consultar_estatus":
-            response = "Por favor, proporciona tu correo electrónico asociado a la aplicación."
-            await send_message(platform, user_id, response, business_unit.name.lower())
-            chat_state.context['awaiting_status_email'] = True
-            await sync_to_async(chat_state.save)()
-            return True
-        elif top_intent in ["travel_in_group", "travel_with_family"]:
-            response = (
-                "Entiendo, ¿te gustaría invitar a tus acompañantes para que también obtengan oportunidades laborales? "
-                "Envíame su nombre completo y teléfono en el formato: 'Nombre Apellido +52XXXXXXXXXX'."
-            )
-            await send_message(platform, user_id, response, business_unit.name.lower())
-            chat_state.context['awaiting_group_invitation'] = True
-            await sync_to_async(chat_state.save)()
-            return True
-        elif top_intent in ["tos_accept", "tos_reject"]:
-            if top_intent == "tos_accept":
-                user.tos_accepted = True
-                await sync_to_async(user.save)()
-                response = "✅ Gracias por aceptar nuestros TOS. Ahora podemos continuar con el proceso."
-            else:
-                response = "⚠ No se puede continuar sin aceptar los TOS. Por favor, selecciona una opción:"
-            tos_buttons = [
-                {"title": "✅ Aceptar", "payload": "tos_accept"},
-                {"title": "❌ Rechazar", "payload": "tos_reject"},
-                {"title": "📜 Ver TOS", "url": "https://amigro.org/tos"}
-            ]
-            if platform == "whatsapp":
-                await send_message(platform, user_id, "📜 Consulta nuestros términos aquí: https://amigro.org/tos", business_unit.name.lower())
-            await send_message(platform, user_id, response, business_unit.name.lower(), options=tos_buttons)
-            return True
-        elif top_intent == "calcular_salario":
-            response = "¿Qué deseas calcular?\n1. Salario neto (desde bruto)\n2. Salario bruto (desde neto)\nResponde con '1' o '2'."
-            await send_message(platform, user_id, response, business_unit.name.lower())
-            chat_state.state = "waiting_for_salary_calc_type"
-            await sync_to_async(chat_state.save)()
-            return True
-        elif top_intent == "consultar_requisitos_vacante":
-            response = "Por favor, dime el nombre o ID de la vacante sobre la que quieres saber los requisitos."
-            await send_message(platform, user_id, response, business_unit.name.lower())
-            chat_state.state = "waiting_for_vacancy_id"
-            await sync_to_async(chat_state.save)()
-            return True
-        elif top_intent == "solicitar_contacto_reclutador":
-            response = "Te conectaré con un reclutador. Por favor, espera mientras te asignamos uno."
-            await send_message(platform, user_id, response, business_unit.name.lower())
-            response_recruit = "Un candidato requiere asistencia especial, te paso sus datos - "
-            await send_message(platform, "525518490291", response_recruit, business_unit.name.lower())
-            return True
-        elif top_intent == "preparacion_entrevista":
-            response = "Para entrevistas: investiga la empresa, sé puntual, muestra logros cuantificables y prepara ejemplos de situaciones pasadas. ¿Necesitas más ayuda?"
-            await send_message(platform, user_id, response, business_unit.name.lower())
-            return True
-        elif top_intent == "consultar_beneficios":
-            response = "¿Qué tipo de beneficios te interesan?"
-            benefit_buttons = [
-                {"title": "🏥 Salud", "payload": "beneficio_salud"},
-                {"title": "💰 Bonos", "payload": "beneficio_bonos"},
-                {"title": "📆 Días libres", "payload": "beneficio_dias_libres"}
-            ]
-            await send_message(platform, user_id, response, business_unit.name.lower(), options=benefit_buttons)
-            return True
-        elif top_intent == "consultar_horario":
-            response = "¿Buscas un horario específico?"
-            horario_buttons = [
-                {"title": "⏳ Jornada Completa", "payload": "horario_completo"},
-                {"title": "⏰ Medio Tiempo", "payload": "horario_medio_tiempo"},
-                {"title": "🔄 Flexible", "payload": "horario_flexible"}
-            ]
-            await send_message(platform, user_id, response, business_unit.name.lower(), options=horario_buttons)
-            return True
-        elif top_intent == "consultar_tipo_contrato":
-            response = "¿Qué tipo de contrato buscas?"
-            contrato_buttons = [
-                {"title": "📄 Indefinido", "payload": "contrato_indefinido"},
-                {"title": "📌 Por Proyecto", "payload": "contrato_proyecto"},
-                {"title": "💼 Freelance", "payload": "contrato_freelance"}
-            ]
-            await send_message(platform, user_id, response, business_unit.name.lower(), options=contrato_buttons)
-            return True
-        elif top_intent == "preguntar_reubicacion":
-            response = "¿Estás dispuesto a reubicarte por una oportunidad laboral?"
-            reubicacion_buttons = [
-                {"title": "✅ Sí", "payload": "reubicacion_si"},
-                {"title": "❌ No", "payload": "reubicacion_no"},
-                {"title": "🤔 Depende (ubicación/posición)", "payload": "reubicacion_depende"}
-            ]
-            await send_message(platform, user_id, response, business_unit.name.lower(), options=reubicacion_buttons)
-            return True
-
-        # Respuesta por defecto
-        response = "No entendí tu mensaje. ¿Qué te gustaría hacer? Puedes decir 'ver vacantes', 'subir mi CV' o 'menú'."
-        await send_message(platform, user_id, response, business_unit.name.lower())
-        await send_options(platform, user_id, "Elige una opción:", main_options, business_unit.name.lower())
-        cache.set(cache_key, response, timeout=600)
         return False
 
     except Exception as e:
-        logger.error(f"[handle_known_intents] Error manejando intents: {str(e)}", exc_info=True)
+        logger.error(f"[handle_known_intents] ❌ Error: {e}", exc_info=True)
         return False
 
 async def handle_document_upload(

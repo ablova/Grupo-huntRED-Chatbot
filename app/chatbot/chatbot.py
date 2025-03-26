@@ -81,7 +81,7 @@ class ChatBotHandler:
         return 'default'
 
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
-        """Procesa mensajes entrantes con orden de prioridad correcto."""
+        """Procesa mensajes entrantes."""
         try:
             # 1. Verificación de mensaje duplicado
             message_id = message.get("messages", [{}])[0].get("id")
@@ -113,29 +113,33 @@ class ChatBotHandler:
                 await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
                 return
 
-            # 5. Estado inicial y TOS
+            # Detectar y manejar intents (con prioridad alta)
+            if text:
+                detected_intents = detect_intents(text)
+                if detected_intents:
+                    logger.info(f"[process_message] Intents detectados: {detected_intents}")
+                    handled = await handle_known_intents(
+                        detected_intents, platform, user_id, 
+                        chat_state, business_unit, user, text
+                    )
+                    if handled:
+                        return
+
+            # 6. Estado inicial y TOS
             if chat_state.state == "initial":
                 await self.send_complete_initial_messages(platform, user_id, business_unit)
                 chat_state.state = "waiting_for_tos"
                 await sync_to_async(chat_state.save)()
                 return
 
-            # 6. Verificación de aceptación de TOS
+            # 7. Verificación de aceptación de TOS
             if not user.tos_accepted:
                 await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
-                if text in ["tos_accept", "sí", "si"]:
+                if text.lower() in ["tos_accept", "sí", "si"]:
                     chat_state.state = "profile_in_progress"
                     await sync_to_async(chat_state.save)()
                     await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
                 return
-
-            # 7. Detectar y manejar intents (ahora con prioridad más alta)
-            if text:
-                detected_intents = detect_intents(text)
-                if detected_intents:
-                    handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text)
-                    if handled:
-                        return
 
             # 8. Almacenar mensaje del usuario
             if text:
