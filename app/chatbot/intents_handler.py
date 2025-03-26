@@ -56,6 +56,17 @@ INTENT_PATTERNS = {
         "responses": ["Aceptaste los Términos de Servicio. ¡Continuemos!"],
         "priority": 5
     },
+    "travel_in_group": {
+        "patterns": [
+            r"\b(travel_in_group|invitar|invita|invitar\s+a|invitación|"
+            r"pasa\s+la\s+voz|pasar\s+la\s+voz|corre\s+la\s+voz|"
+            r"reclutamiento\s+en\s+grupo|grupo\s+de\s+reclutamiento|"
+            r"traer\s+a\s+alguien|recomendar\s+a\s+alguien|"
+            r"amigo|conocido|familiar|compañero)\b"
+        ],
+        "responses": ["Voy a ayudarte a invitar a alguien. ¿Cuál es su nombre?"],
+        "priority": 10
+    },
     "show_jobs": {
         "patterns": [r"\b(ver\s+vacantes|mostrar\s+vacantes|vacante(s)?|oportunidad(es)?|empleo(s)?|trabajo(s)?|puestos|listado\s+de\s+vacantes)\b"],
         "responses": ["Te voy a mostrar vacantes recomendadas según tu perfil. Un momento..."],
@@ -150,10 +161,10 @@ def detect_intents(text: str) -> List[str]:
             if re.search(pattern, text):
                 detected_intents.append((intent, data.get('priority', 100)))
                 break  # Evita duplicados del mismo intent
-    # Ordenar por prioridad (menor número = mayor prioridad)
     detected_intents.sort(key=lambda x: x[1])
     logger.debug(f"[detect_intents] Intents detectados: {[intent for intent, _ in detected_intents]}")
     return [intent for intent, _ in detected_intents]
+
 def get_tos_url(business_unit: BusinessUnit) -> str:
     tos_urls = {
         "huntred": "https://huntred.com/tos",
@@ -164,7 +175,7 @@ def get_tos_url(business_unit: BusinessUnit) -> str:
     }
     return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
-async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, text: str = "") -> bool:
+async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, text: str = "", chatbot=None) -> bool:
     try:
         if not intents:
             logger.info(f"[handle_known_intents] No se detectaron intents en: '{text}'")
@@ -205,6 +216,13 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 chat_state.state = "profile_in_progress"
                 await sync_to_async(chat_state.save)()
                 await send_menu(platform, user_id, business_unit)
+                return True
+            elif primary_intent == "travel_in_group":
+                if chatbot:
+                    await chatbot.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
+                else:
+                    logger.error("Chatbot instance not provided for travel_in_group intent")
+                    await send_message(platform, user_id, "Ups, algo salió mal al intentar invitar a alguien. Intenta de nuevo.", business_unit.name.lower())
                 return True
             elif primary_intent == "show_jobs":
                 from app.utilidades.vacantes import VacanteManager
