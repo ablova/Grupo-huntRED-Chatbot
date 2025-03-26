@@ -745,13 +745,16 @@ async def get_business_unit(name: Optional[str] = None) -> Optional[BusinessUnit
         if not name:
             return None
         
-        # Usar valores seguros para la comparación
-        safe_name = name.lower().replace('®', '').strip()
+        # Normalizar el nombre antes de la búsqueda
+        normalized_name = name.replace('®', '').strip()
         
         business_unit = await sync_to_async(BusinessUnit.objects.filter)(
-            name__iexact=safe_name
+            name__iexact=normalized_name
         )
         return await sync_to_async(business_unit.first)()
+    except AttributeError as e:
+        logger.error(f"[get_business_unit] Error de atributo con BusinessUnit ({name}): {e}")
+        return None
     except Exception as e:
         logger.error(f"[get_business_unit] Error obteniendo BusinessUnit ({name}): {e}")
         return None
