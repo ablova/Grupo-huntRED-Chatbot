@@ -15,7 +15,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from difflib import get_close_matches
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
 from app.chatbot.nlp import NLPProcessor
