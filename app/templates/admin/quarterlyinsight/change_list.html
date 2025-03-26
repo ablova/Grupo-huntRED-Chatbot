@@ -1,0 +1,12 @@
+<!-- templates/admin/quarterlyinsight/change_list.html -->
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block content %}
+  {{ block.super }}
+  <h2>Insights de Machine Learning</h2>
+  <div>
+      <h3>Top 10 Habilidades Más Frecuentes en Candidatos Contratados</h3>
+      <img src="data:image/png;base64,{{ grafico_skills }}" alt="Top Skills">
+  </div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "admin/login.html" %}
+{% load static %}
+
+{% block content %}
+<div class="custom-login">
+    <h1>Bienvenido al Portal Administrativo de Chatbots y Servicios de Grupo huntRED®</h1>
+    <img src="{% static 'images/logo.png' %}" alt="Grupo huntRED® Logo" style="height:100px; margin-bottom: 20px;">
+    {{ block.super }}
+</div>
+{% endblock %}
+
+{% block styles %}
+{{ block.super }}
+<style>
+    .custom-login {
+        text-align: center;
+    }
+    .custom-login h1 {
+        color: #1f3544;
+        font-size: 28px;
+    }
+</style>
+{% endblock %}

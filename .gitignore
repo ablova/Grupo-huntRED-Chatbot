@@ -1,0 +1,42 @@
+.env
+/etc/
+# Ignorar el entorno virtual
+venv/
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.DS_Store
+setup_server.sh
+update_git.sh
+shell.py
+
+# Archivos de respaldo
+*_old.py
+
+
+# Archivos estáticos generados
+staticfiles/
+nltk_data/
+cache/
+skills_data/
+*.json
+*.csv
+#media/
+#*.png
+# Ignorar archivos temporales
+~*
+
+
+#omitir las bases de datos
+db.sqlite3
+db1.sqlite3
+db2.sqlite3
+
+no_borrar.json
+
+# Directorios no rastreados
+.chainlit/
+logs/
+app/migrations/

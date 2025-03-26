@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>MilkyLeak</title>
+    <!-- Enlaces CSS y JavaScript -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="form-section">
+            <h2>Ejecutor de Post de MilkyLeak</h2>
+
+            <!-- Estado de la conexión con Mega.nz -->
+            <div class="form-group">
+                <label><strong>Estado de conexión con Mega.nz:</strong></label>
+                {% if mega_connected %}
+                    <div class="alert alert-success">Conectado a Mega.nz</div>
+                {% else %}
+                    <div class="alert alert-danger">Error en la conexión a Mega.nz</div>
+                {% endif %}
+            </div>
+            <!-- Mostrar estado de la conexión con Dropbox -->
+            <div class="form-group">
+                <label><strong>Estado de conexión con Dropbox:</strong></label>
+                {% if dropbox_connected %}
+                    <div class="alert alert-success">Conectado a Dropbox</div>
+                {% else %}
+                    <div class="alert alert-danger">Error en la conexión a Dropbox</div>
+                {% endif %}
+            </div>
+
+            <!-- Estado de la conexión con Twitter -->
+            <div class="form-group">
+                <label><strong>Estado de conexión con Twitter:</strong></label>
+                {% if twitter_connected %}
+                    <div class="alert alert-success">Conectado a Twitter</div>
+                {% else %}
+                    <div class="alert alert-danger">Error en la conexión a Twitter</div>
+                {% endif %}
+            </div>
+
+            <!-- Formulario POST con CSRF token -->
+            <form method="POST" id="post-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label><strong>Prefijo de Imagen:</strong></label>
+                    <input type="text" class="form-control" value="{{ milky_leak.image_prefix }}" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label><strong>Directorio de Imágenes:</strong></label>
+                    <input type="text" class="form-control" value="{{ milky_leak.folder_location }}" readonly>
+                </div>
+
+                <!-- Ingresar el texto del post -->
+                <div class="form-group">
+                    <label for="post_text"><strong>Texto a incluir en el post:</strong></label>
+                    <textarea class="form-control" id="post_text" name="post_text" rows="4" placeholder="Escribe aquí el texto para el post..." required></textarea>
+                </div>
+
+                <!-- Botón de Enviar -->
+                <button type="submit" class="btn btn-primary send-button"><i class="fas fa-paper-plane"></i> Publicar Post</button>
+
+                <!-- Mensaje de éxito -->
+                {% if success %}
+                <div class="alert alert-success" role="alert" id="successAlert">
+                    {{ message }}
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</body>
+</html>

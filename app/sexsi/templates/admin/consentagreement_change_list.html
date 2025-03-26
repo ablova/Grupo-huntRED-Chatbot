@@ -1,0 +1,50 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/admin/consentagreement_change_list.html -->
+
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block content %}
+<style>
+    .kanban-board {
+        display: flex;
+        gap: 20px;
+    }
+    .kanban-column {
+        flex: 1;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        background: #f9f9f9;
+    }
+    .kanban-column h2 {
+        text-align: center;
+        margin-top: 0;
+    }
+    .kanban-item {
+        background: #fff;
+        margin-bottom: 10px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="kanban-board">
+    {% for status, operations in operations_by_status.items %}
+    <div class="kanban-column">
+        <h2>{{ status }} ({{ operations.count }})</h2>
+        {% for op in operations %}
+        <div class="kanban-item">
+            <strong>ID:</strong> {{ op.id }}<br>
+            <strong>Creador - {{ op.invitee_contact }}:</strong> {{ op.creator.username }}<br>
+            <strong>Fecha:</strong> {{ op.date_created|date:"d/m/Y H:i" }}<br>
+            <strong>Método:</strong> {{ op.signature_method|capfirst }}
+        </div>
+        {% empty %}
+        <p>No hay operaciones.</p>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

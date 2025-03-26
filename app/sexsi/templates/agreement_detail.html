@@ -1,0 +1,46 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/agreement_detail.html -->
+
+{% extends "base.html" %}
+{% block content %}
+<h1>Detalle del Acuerdo SEXSI</h1>
+
+<p><strong>ID del Acuerdo:</strong> {{ agreement.id }}</p>
+<p><strong>Creador - {{ agreement.invitee_contact }}:</strong> {{ agreement.creator.username }}</p>
+<p><strong>Invitado - {{ agreement.invitee_contact }}:</strong> {{ agreement.invitee_contact }}</p>
+<p><strong>Fecha de Solicitud:</strong> {{ agreement.date_created|date:"d/m/Y" }}</p>
+<p><strong>Hora de Solicitud:</strong> {{ agreement.date_created|time:"H:i:s" }}</p>
+<p><strong>Origen de la Solicitud:</strong> ChatBot</p>
+
+<p><strong>Fecha de Encuentro:</strong> {{ agreement.date_of_encounter }}</p>
+<p><strong>Ubicación del Encuentro:</strong> {{ agreement.location }}</p>
+
+<p><strong>Texto del Acuerdo:</strong> {{ agreement.agreement_text }}</p>
+<p><strong>Firmado por el Creador:</strong> {{ agreement.is_signed_by_creator }}</p>
+<p><strong>Firmado por el Invitado:</strong> {{ agreement.is_signed_by_invitee }}</p>
+
+<p><strong>Ubicación del Creador:</strong> 
+    {% if agreement.creator.profile.location %}
+        {{ agreement.creator.profile.location }}
+    {% else %}
+        No disponible
+    {% endif %}
+</p>
+<p><strong>Ubicación del Invitado:</strong> No disponible</p>
+
+{% if not agreement.is_signed_by_creator %}
+    <p>
+        <a href="{% url 'sexsi:sign_agreement' agreement.id %}?signer=creator&token={{ agreement.token }}">Firmar como Creador</a>
+    </p>
+{% endif %}
+{% if not agreement.is_signed_by_invitee %}
+    <p>
+        <a href="{% url 'sexsi:sign_agreement' agreement.id %}?token={{ agreement.token }}">Firmar como Invitado</a>
+    </p>
+{% endif %}
+
+{% if agreement.is_signed_by_creator and agreement.is_signed_by_invitee %}
+    <p>
+        <a href="{% url 'sexsi:download_pdf' agreement.id %}">Descargar PDF del Acuerdo</a>
+    </p>
+{% endif %}
+{% endblock %}

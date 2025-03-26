@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 align="center">Firmar Acuerdo SEXSI</h1>
+<p>Para brindar la mayor validez legal a esta transacción, se registrarán detalles como el origen de la solicitud, fecha, hora y ubicación de ambas partes.</p>
+<p><strong>Estado del Acuerdo:</strong> <span id="agreementStatus">{{ agreement.get_status_display }}</span></p>
+<h2>📜 Contenido del Acuerdo</h2>
+<div id="agreementTextContainer">
+    <p>{{ agreement.agreement_text|linebreaks }}</p>
+</div>
+<hr>
+<h2>Opciones de Firma</h2>
+<h3>📸 Firma con Identificación (Selfie + INE/Pasaporte)</h3>
+<p><strong>Importante:</strong> Sube una imagen donde aparezca tu identificación oficial (INE o pasaporte) junto con tu rostro.</p>
+<p>⚠️ <strong>Si la imagen no cumple con estos requisitos, el acuerdo podría ser inválido.</strong></p>
+
+<form id="signatureForm" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="signature">Realizar Selfie con Identificación Oficial:</label>
+    <input type="file" name="signature" id="signature" accept="image/*" capture="user">
+    <br>
+    <img id="preview" src="#" alt="Vista previa de la imagen" style="display:none; max-width: 250px; margin-top: 10px;">
+    <br>
+    <h3>✍️ Firma Autógrafa (Dibujar en pantalla)</h3>
+    <p>Usa tu dedo o un stylus para firmar en el recuadro.</p>
+    <div id="signature-container">
+        <canvas id="biometricCanvas"></canvas>
+    </div>
+    <button type="button" id="clearBiometric">🗑 Limpiar Firma</button>
+    <br><br>
+    <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 10px;">
+        <button type="button" id="requestRevision" style="background-color: #ffc107;">Solicitar Revisión</button>
+        <button type="button" id="revokeAgreement" style="background-color: #dc3545; color: white;">❌ Rechazar Acuerdo</button>
+    </div>
+    <div style="text-align: center;">
+        <button type="button" id="sendBiometric" style="background-color: #28a745; color: white; width: 100%;">
+            ✅ Enviar Firma y Selfie - Autorizar Acuerdo
+        </button>
+    </div>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let canvas = document.getElementById("biometricCanvas");
+        let ctx = canvas.getContext("2d");
+        let isDrawing = false;
+        let userLat = null;
+        let userLon = null;
+        let signer = "{{ signer }}";
+        let token = "{{ token }}";
+        let agreementId = "{{ agreement.id }}";
+        let sendButton = document.getElementById("sendBiometric");
+
+        function resizeCanvas() {
+            canvas.width = 350;
+            canvas.height = 200;
+            ctx.fillStyle = "#FFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        resizeCanvas();
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    userLat = position.coords.latitude;
+                    userLon = position.coords.longitude;
+                }, error => {
+                    console.warn("⚠️ No se pudo obtener la ubicación:", error);
+                    alert("⚠️ No se pudo obtener la ubicación. Asegúrate de habilitar el GPS.");
+                });
+            }
+        }
+        getLocation();
+
+        function startDrawing(event) {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(event.offsetX || event.touches[0].clientX, event.offsetY || event.touches[0].clientY);
+            event.preventDefault();
+        }
+
+        function draw(event) {
+            if (!isDrawing) return;
+            ctx.lineTo(event.offsetX || event.touches[0].clientX, event.offsetY || event.touches[0].clientY);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            event.preventDefault();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("mouseup", stopDrawing);
+        canvas.addEventListener("mouseleave", stopDrawing);
+        canvas.addEventListener("touchstart", startDrawing);
+        canvas.addEventListener("touchmove", draw);
+        canvas.addEventListener("touchend", stopDrawing);
+
+        document.getElementById("clearBiometric").addEventListener("click", function () {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#FFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        });
+
+        sendButton.addEventListener("click", function () {
+            let biometricData = canvas.toDataURL("image/png");
+            let selfieFile = document.getElementById("signature").files[0];
+
+            if (!selfieFile) {
+                alert("⚠️ Debes subir una selfie con identificación.");
+                return;
+            }
+
+            if (biometricData.length < 1000) {
+                alert("⚠️ Debes firmar en el recuadro.");
+                return;
+            }
+
+            sendButton.disabled = true;
+            sendButton.innerText = "Enviando...";
+
+            let formData = new FormData();
+            formData.append("signature", selfieFile);
+            formData.append("biometric_data", biometricData);
+            formData.append("latitude", userLat || "Ubicación desconocida");
+            formData.append("longitude", userLon || "Ubicación desconocida");
+
+            fetch(`/app/sexsi/sign/save/${agreementId}/?signer=${signer}`, {
+                method: "POST",
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("✅ Firma y selfie enviadas con éxito.");
+                    window.location.href = `/app/sexsi/agreement/${agreementId}/`;
+                } else {
+                    alert("⚠️ Error: " + data.message);
+                    sendButton.disabled = false;
+                    sendButton.innerText = "✅ Enviar Firma y Selfie - Autorizar Acuerdo";
+                }
+            })
+            .catch(error => {
+                console.error("Error en el envío:", error);
+                alert("⚠️ Hubo un problema al enviar los datos.");
+                sendButton.disabled = false;
+                sendButton.innerText = "✅ Enviar Firma y Selfie - Autorizar Acuerdo";
+            });
+        });
+    });
+</script>
+{% endblock %}
