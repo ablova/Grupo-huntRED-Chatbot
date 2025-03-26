@@ -94,7 +94,6 @@ async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_ne
         estado_chat.state = "waiting_for_phone"
         await sync_to_async(estado_chat.save)()
         return
-    
 
     # Delegar a workflows específicos por unidad de negocio
     if bu_name == "amigro":

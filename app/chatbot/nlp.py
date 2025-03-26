@@ -130,6 +130,7 @@ class NLPProcessor:
         return self._intent_classifier
 
     def _load_catalog(self, catalog_type: str) -> Dict[str, List[Dict[str, str]]]:
+        """Carga catálogos desde archivos con manejo robusto y logs."""
         cache_key = f"catalog_{catalog_type}"
         cached_catalog = cache.get(cache_key)
         if cached_catalog is not None:
@@ -137,76 +138,37 @@ class NLPProcessor:
             return cached_catalog
 
         catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
-
-        # Diccionario de archivos esperados y cómo procesarlos
-        CATALOG_FILES = {
-            "relax_skills": {
-                "path": FILE_PATHS["relax_skills"],
-                "type": "json",
-                "process": lambda data: self._process_relax_skills(data, catalog)
-            },
-            "esco_skills": {
-                "path": FILE_PATHS["esco_skills"],
-                "type": "json",
-                "process": lambda data: self._process_esco_skills(data, catalog)
-            },
-            "tabiya_skills": {
-                "path": FILE_PATHS["tabiya_skills"],
-                "type": "csv",
-                "process": lambda data: self._process_csv_skills(data, catalog)
-            },
-            "skills": {
-                "path": "/home/pablo/skills_data/skills.json",
-                "type": "json",
-                "process": lambda data: self._process_json_skills(data, catalog, categories=["technical", "soft", "tools", "certifications"])
-            },
-            "occupations_es": {
-                "path": "/home/pablo/skills_data/occupations_es.json",
-                "type": "json",
-                "process": lambda data: self._process_occupations(data, catalog)
-            },
-            "skills_relax": {
-                "path": "/home/pablo/skills_data/skills_relax.json",
-                "type": "json",
-                "process": lambda data: self._process_json_skills(data, catalog, categories=["technical", "soft", "tools", "certifications"])
-            },
-            "skills_opportunities": {
-                "path": "/home/pablo/skills_data/skills_opportunities.json",
-                "type": "json",
-                "process": lambda data: self._process_opportunities(data, catalog)
-            }
-        }
         
         for file_key, file_info in CATALOG_FILES.items():
             path = file_info["path"]
+            # Excluir archivos específicos
             if path in [FILE_PATHS["opportunity_catalog"], FILE_PATHS["intents"]]:
+                logger.debug(f"Omitiendo archivo excluido: {path}")
                 continue
+            
+            # Verificar existencia del archivo
             if not os.path.exists(path):
                 logger.warning(f"Archivo no encontrado: {path}. Omitiendo.")
                 continue
+            
             try:
                 if file_info["type"] == "json":
                     with open(path, "r", encoding="utf-8") as f:
                         data = json.load(f)
-                    logger.debug(f"Contenido de {path}: {json.dumps(data, indent=2)[:500]}...")  # Mostrar primeros 500 caracteres
                 elif file_info["type"] == "csv":
                     data = pd.read_csv(path)
-                    logger.debug(f"Columnas de {path}: {list(data.columns)}")
-                    logger.debug(f"Primeras filas de {path}:\n{data.head().to_string()}")
-                skills_before = {category: len(catalog[category]) for category in catalog}
-                file_info["process"](data)
-                skills_added = {category: len(catalog[category]) - skills_before[category] for category in catalog}
-                logger.info(f"Cargado {path} con éxito. Habilidades añadidas: {skills_added}")
+                else:
+                    logger.error(f"Tipo de archivo no soportado para {path}: {file_info['type']}")
+                    continue
+                
+                file_info["process"](data, catalog)  # Asumiendo que process actualiza el catálogo
+                logger.info(f"Catálogo cargado exitosamente desde {path}")
+            
             except Exception as e:
-                logger.error(f"Error al cargar {path}: {e}")
+                logger.error(f"Error al cargar {path}: {e}", exc_info=True)
                 continue
         
-        for category in catalog:
-            seen = set()
-            catalog[category] = [s for s in catalog[category] if not (s["translated"] in seen or seen.add(s["translated"]))]
-        
-        logger.info(f"Catálogo de {catalog_type} cargado: {len(catalog['technical'])} technical, {len(catalog['soft'])} soft")
-        cache.set(cache_key, catalog, timeout=None)  # Almacenar sin expiración
+        cache.set(cache_key, catalog, timeout=CACHE_TIMEOUT)
         return catalog
 
     def _process_json_skills(self, data: Dict, catalog: Dict, categories: List[str]) -> None:

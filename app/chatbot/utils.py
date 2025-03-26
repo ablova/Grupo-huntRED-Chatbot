@@ -20,19 +20,20 @@ from difflib import get_close_matches
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
 from app.chatbot.nlp import NLPProcessor
 
-logger = logging.getLogger(__name__)
-
 # Variable global para la instancia de NLPProcessor
-_nlp_processor_instance = None
+logger = logging.getLogger(__name__)
+_nlp_processor_instance: Optional[NLPProcessor] = None
 
-def get_nlp_processor():
+def get_nlp_processor() -> Optional[NLPProcessor]:
+    """Obtiene la instancia singleton de NLPProcessor."""
     global _nlp_processor_instance
     if _nlp_processor_instance is None:
         try:
             _nlp_processor_instance = NLPProcessor(language="es", mode="candidate")
+            logger.info("Instancia de NLPProcessor creada exitosamente")
         except Exception as e:
-            logger.error(f"Error creando NLPProcessor: {e}")
-            return None
+            logger.error(f"Error creando NLPProcessor: {e}", exc_info=True)
+            _nlp_processor_instance = None
     return _nlp_processor_instance
 
 # Cargar catálogo desde el JSON centralizado
@@ -75,13 +76,18 @@ def clean_text(text: str) -> str:
     return text
 
 def analyze_text(text: str) -> Dict[str, any]:
+    """Analiza el texto usando NLPProcessor."""
+    nlp_processor = get_nlp_processor()
+    if nlp_processor is None:
+        logger.warning("No se pudo obtener NLPProcessor, devolviendo resultado vacío")
+        return {"entities": [], "sentiment": {}}
+    
     try:
-        nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
-        cleaned = clean_text(text)
-        # Llamada síncrona en lugar de usar asyncio
-        return nlp_processor.analyze(cleaned)
+        cleaned_text = clean_text(text)
+        result = nlp_processor.analyze(cleaned_text)
+        return result
     except Exception as e:
-        logger.error(f"Error analizando texto: {e}", exc_info=True)
+        logger.error(f"Error analizando texto '{text}': {e}", exc_info=True)
         return {"entities": [], "sentiment": {}}
 
 def validate_term_in_catalog(term: str, catalog: List[str]) -> bool:

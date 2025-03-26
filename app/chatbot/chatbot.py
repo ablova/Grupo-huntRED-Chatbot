@@ -81,7 +81,7 @@ class ChatBotHandler:
         return 'default'
 
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
-    """Procesa mensajes entrantes de forma robusta y validada."""
+        """Procesa mensajes entrantes de forma robusta y validada."""
         # Validación de business_unit
         if not isinstance(business_unit, BusinessUnit):
             logger.error(f"BusinessUnit inválido para user_id {user_id}: {business_unit}")
@@ -197,6 +197,31 @@ class ChatBotHandler:
                 await send_menu(platform, user_id, business_unit)
             except Exception as menu_error:
                 logger.error(f"Error enviando menú: {menu_error}")
+
+    def _extract_message_content(self, message: dict) -> Tuple[str, Optional[dict]]:
+        """Extrae texto y attachment del mensaje con validación estricta."""
+        text = ""
+        attachment = None
+        
+        if not isinstance(message, dict):
+            logger.error(f"Mensaje no es un diccionario: {message}")
+            return text, attachment
+
+        # Extraer texto
+        if "text" in message and "body" in message["text"]:
+            text = message["text"]["body"].strip().lower()
+        elif message.get("messages") and isinstance(message["messages"], list) and len(message["messages"]) > 0:
+            if "text" in message["messages"][0] and "body" in message["messages"][0]["text"]:
+                text = message["messages"][0]["text"]["body"].strip().lower()
+
+        # Extraer y validar attachment
+        if "attachment" in message:
+            attachment = message.get("attachment")
+            if not isinstance(attachment, dict):
+                logger.warning(f"Attachment no es un diccionario: {attachment}")
+                attachment = None
+
+        return text, attachment
 
     async def initialize_chat_state(platform: str, user_id: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(

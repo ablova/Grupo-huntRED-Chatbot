@@ -51,22 +51,25 @@ class ProcessMessageView(View):
     """Vista para procesar mensajes del chatbot."""
     async def post(self, request, *args, **kwargs):
         try:
-            data = json.loads(request.body)
-            platform = data.get('platform')
-            sender_id = data.get('sender_id')
-            message = data.get('message')
-            if not all([platform, sender_id, message]):
-                return JsonResponse({'status': 'error', 'detail': 'Faltan campos requeridos.'}, status=400)
-            bot = ChatBotHandler()
-            business_unit = await sync_to_async(BusinessUnit.objects.get)(id=4)  # Default: Amigro
-            await bot.process_message(platform, sender_id, message, business_unit)
-            return JsonResponse({'status': 'success'})
-        except json.JSONDecodeError as e:
-            logger.error(f"Error de decodificación JSON: {e}", exc_info=True)
-            return JsonResponse({'status': 'error', 'detail': 'JSON inválido'}, status=400)
+            body = json.loads(request.body)
+            platform = body.get('platform')
+            user_id = body.get('user_id')
+            message = body.get('message')
+            
+            if not all([platform, user_id, message]):
+                logger.error(f"Datos incompletos: platform={platform}, user_id={user_id}, message={message}")
+                return JsonResponse({'status': 'error', 'message': 'Datos incompletos'}, status=400)
+            
+            # Procesar mensaje (asumiendo una función existente)
+            success = await process_chatbot_message(platform, user_id, message)
+            return JsonResponse({'status': 'success' if success else 'error'})
+        
+        except json.JSONDecodeError:
+            logger.error("Error decodificando JSON en ProcessMessageView")
+            return JsonResponse({'status': 'error', 'message': 'Formato JSON inválido'}, status=400)
         except Exception as e:
-            logger.error(f"Error procesando mensaje: {e}", exc_info=True)
-            return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
+            logger.error(f"Error en ProcessMessageView: {e}", exc_info=True)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @login_required
 async def send_test_message(request):

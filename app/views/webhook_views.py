@@ -57,11 +57,15 @@ class TelegramWebhookView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class MessengerWebhookView(View):
     async def get(self, request, *args, **kwargs):
-        page_id = kwargs.get('page_id')  # Extraer page_id de la URL
+        page_id = kwargs.get('page_id')
+        if not page_id:
+            logger.error("GET request sin page_id")
+            return JsonResponse({'status': 'error', 'message': 'page_id no proporcionado'}, status=400)
+        
         try:
             return await messenger_webhook(request, page_id)
         except Exception as e:
-            logger.error(f"Error en MessengerWebhook GET: {e}")
+            logger.error(f"Error en MessengerWebhook GET para page_id {page_id}: {e}", exc_info=True)
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     async def post(self, request, *args, **kwargs):
