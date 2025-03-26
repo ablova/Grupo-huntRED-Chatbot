@@ -154,9 +154,17 @@ def detect_intents(text: str) -> List[str]:
     detected_intents.sort(key=lambda x: x[1])
     logger.debug(f"[detect_intents] Intents detectados: {[intent for intent, _ in detected_intents]}")
     return [intent for intent, _ in detected_intents]
+def get_tos_url(business_unit: BusinessUnit) -> str:
+    tos_urls = {
+        "huntred": "https://huntred.com/tos",
+        "huntred executive": "https://huntred.com/executive/tos",
+        "huntu": "https://huntu.mx/tos",
+        "amigro": "https://amigro.org/tos",
+        "sexsi": "https://sexsi.org/tos"
+    }
+    return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
 async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, text: str = "") -> bool:
-    """Maneja intents conocidos del usuario con acciones específicas para reclutamiento."""
     try:
         if not intents:
             logger.info(f"[handle_known_intents] No se detectaron intents en: '{text}'")
@@ -176,9 +184,8 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
             responses = INTENT_PATTERNS[primary_intent]['responses']
             response = random.choice(responses)
             await send_message(platform, user_id, response, business_unit.name.lower())
-            cache.set(cache_key, response, timeout=600)  # Cache por 10 minutos
+            cache.set(cache_key, response, timeout=600)
 
-            # Acciones específicas según el intent
             if primary_intent == "start_command":
                 await send_menu(platform, user_id, business_unit)
             elif primary_intent == "saludo":
@@ -186,13 +193,13 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 for msg in bu_responses:
                     await send_message(platform, user_id, msg, business_unit.name.lower())
                 if not user.profile_complete:
-                    tos_url = f"https://{business_unit.name.lower()}.org/tos"
+                    tos_url = get_tos_url(business_unit)
                     await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", business_unit.name.lower())
                     await send_options(platform, user_id, "¿Aceptas los Términos de Servicio?", 
                                        [{"title": "Sí", "payload": "tos_accept"}, {"title": "No", "payload": "tos_reject"}],
                                        business_unit.name.lower())
             elif primary_intent == "tos_accept":
-                await send_message(platform, user_id, f"📜 Aceptaste los Términos de Servicio: {self.get_tos_url(business_unit)}", business_unit.name.lower())
+                await send_message(platform, user_id, f"📜 Aceptaste los Términos de Servicio: {get_tos_url(business_unit)}", business_unit.name.lower())
                 user.tos_accepted = True
                 await sync_to_async(user.save)()
                 chat_state.state = "profile_in_progress"

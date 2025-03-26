@@ -26,7 +26,7 @@ from app.chatbot.workflow.executive import process_executive_candidate
 from app.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 from app.chatbot.gpt import GPTHandler
-from app.chatbot.intents_handler import detect_intents, handle_known_intents
+from app.chatbot.intents_handler import detect_intents, handle_known_intents, get_tos_url
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ if NLP_ENABLED:
     from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
     from app.chatbot.nlp import NLPProcessor
     nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
-    logger.info("✅ NLPProcessor inicializado globalmente")
+    logger.info("✅ NLPProcessor inicializado globalmente desde chatbot")
 
 class ChatBotHandler:
     def __init__(self):
@@ -82,7 +82,6 @@ class ChatBotHandler:
 
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
         """Procesa mensajes entrantes de forma robusta y validada."""
-        # Validación de business_unit
         if not isinstance(business_unit, BusinessUnit):
             logger.error(f"BusinessUnit inválido para user_id {user_id}: {business_unit}")
             return False
@@ -105,7 +104,7 @@ class ChatBotHandler:
             # 3. Obtener usuario y estado
             user, chat_state = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit)
 
-            # 4. Verificar SPAM y verificar que no este silenciado por uso excesivo. (NLP solo si está habilitado y necesario)
+            # 4. Verificar SPAM y silenciado
             if NLP_ENABLED and text and is_spam_message(user_id, text):
                 if is_user_spamming(user_id):
                     cache.set(f"muted:{user_id}", True, timeout=60)
@@ -117,23 +116,11 @@ class ChatBotHandler:
                 await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
                 return
 
-            # 5. Detectar intents
+            # 5. Detectar y manejar intents
             if text:
                 detected_intents = detect_intents(text)
                 if detected_intents:
                     logger.info(f"[process_message] Intents detectados: {detected_intents}")
-                    if "tos_accept" in detected_intents:
-                        await send_message(platform, user_id, f"📜 Aquí están nuestros Términos de Servicio {self.get_tos_url(business_unit)}", bu_key)
-                        await send_message(platform, user_id, "¿Aceptas nuestros Términos de Servicio? (Sí/No)", bu_key)
-                        chat_state.state = "waiting_for_tos"
-                        await sync_to_async(chat_state.save)()
-                        return
-                    elif "travel_in_group" in detected_intents:
-                        await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
-                        return
-                    elif "show_menu" in detected_intents:
-                        await send_menu(platform, user_id, business_unit)
-                        return
                     handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text)
                     if handled:
                         return
@@ -148,7 +135,7 @@ class ChatBotHandler:
             # 7. Verificación de aceptación de TOS
             if not user.tos_accepted:
                 await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
-                if text.lower() in ["tos_accept", "sí", "si"]:
+                if text.lower() in ["sí", "si"]:  # Simplificado, "tos_accept" ya se maneja en intents_handler
                     chat_state.state = "profile_in_progress"
                     await sync_to_async(chat_state.save)()
                     await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
@@ -169,7 +156,6 @@ class ChatBotHandler:
             if chat_state.state == "profile_in_progress":
                 from app.chatbot.workflow.common import manejar_respuesta_perfil
                 if await manejar_respuesta_perfil(platform, user_id, text, business_unit, chat_state, user, self.gpt_handler):
-                    # Activar NLP solo aquí si es necesario
                     if NLP_ENABLED and self.nlp_processor:
                         analysis = await self.nlp_processor.analyze(text)
                         response = await self._generate_default_response(user, chat_state, text, analysis.get("entities", []), analysis.get("sentiment", {}))
@@ -200,18 +186,6 @@ class ChatBotHandler:
             except Exception as menu_error:
                 logger.error(f"Error enviando menú: {menu_error}")
 
-
-    
-    def get_tos_url(self, business_unit: BusinessUnit) -> str:
-             """Obtiene la URL de TOS según la unidad de negocio."""
-             tos_urls = {
-                 "huntred": "https://huntred.com/tos",
-                 "huntred executive": "https://huntred.com/executive/tos",
-                 "huntu": "https://huntu.mx/tos",
-                 "amigro": "https://amigro.org/tos",
-                 "sexsi": "https://sexsi.org/tos"
-             }
-             return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
     async def initialize_chat_state(platform: str, user_id: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
