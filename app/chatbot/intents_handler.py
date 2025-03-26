@@ -14,86 +14,114 @@ logger = logging.getLogger(__name__)
 # Cache para almacenar respuestas previas (mensaje -> respuesta)
 response_cache = {}
 
-# Mantener el diccionario de intents existente
+# Diccionario de intents y sus respuestas
 INTENT_PATTERNS = {
-    'saludo': [
-        "¡Hola! 👋 Bienvenido a Amigro®. Soy tu asistente virtual y estoy aquí para ayudarte a encontrar oportunidades laborales. ¿En qué puedo ayudarte?",
-        "¡Hola! 🌟 Me alegra verte por aquí. ¿Qué te gustaría hacer hoy?",
-        "¡Bienvenido! 🤝 ¿Cómo puedo ayudarte en tu búsqueda de empleo?"
-    ],
-    'presentacion_bu': [
-        "Bienvenido a Amigro® 🌍 - amigro.org, somos una organización que facilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México, mediante Inteligencia Artificial Conversacional",
-        "Por lo que platicaremos un poco de tu trayectoria profesional, tus intereses, tu situación migratoria, etc. Es importante ser lo más preciso posible, ya que con eso podremos identificar las mejores oportunidades para tí, tu familia, y en caso de venir en grupo, favorecerlo."
-    ],
+    "start_command": {
+        "patterns": [r"\/start"],
+        "responses": ["¡Hola! Bienvenido a tu asistente de reclutamiento. ¿Cómo puedo ayudarte hoy?"],
+        "priority": 1
+    },
+    "saludo": {
+        "patterns": [r"\b(hola|hi|buenos\s+días|buenas\s+tardes|buenas\s+noches|saludos|hey)\b"],
+        "responses": [
+            "¡Hola! 👋 Soy tu asistente de reclutamiento. ¿En qué puedo ayudarte hoy?",
+            "¡Hola! 🌟 Bienvenido(a) a Amigro®. ¿Cómo puedo apoyarte en tu búsqueda laboral?",
+            "¡Saludos! 🤝 Estoy aquí para ayudarte con oportunidades laborales. ¿Qué necesitas?"
+        ],
+        "priority": 20
+    },
+    "presentacion_bu": {
+        "patterns": [r"\b(qué\s+es\s+amigro|qué\s+hace\s+amigro|acerca\s+de\s+amigro|quiénes\s+son\s+ustedes|about\s+amigro)\b"],
+        "responses": [
+            "Amigro® 🌍 (amigro.org) es una organización que usa IA conversacional para facilitar el acceso laboral a mexicanos que regresan y migrantes de Latinoamérica en México. Te ayudamos a encontrar oportunidades según tu perfil, intereses y situación migratoria."
+        ],
+        "priority": 25
+    },
     "despedida": {
-        "patterns": [r"\b(adiós|hasta\s+luego|chau|bye)\b"],
-        "responses": ["¡Hasta luego! Si necesitas más ayuda, contáctame de nuevo."],
-        "priority": 2
+        "patterns": [r"\b(adiós|hasta\s+luego|bye|chao|nos\s+vemos)\b"],
+        "responses": [
+            "¡Hasta pronto! 👋 Si necesitas más ayuda, aquí estaré.",
+            "¡Adiós! 🌟 Que tengas un gran día. Vuelve cuando quieras.",
+            "¡Chao! 😊 Estoy a un mensaje de distancia si me necesitas."
+        ],
+        "priority": 30
     },
     "iniciar_conversacion": {
-        "patterns": [r"\b(inicio|iniciar|start|go|activar)\b"],
-        "responses": ["¡Claro! Empecemos de nuevo. ¿En qué puedo ayudarte?"],
-        "priority": 3
-    },
-    "solicitar_ayuda_postulacion": {
-        "patterns": [r"\b(ayuda\s+postulacion|postular|aplicar|como\s+postular)\b"],
-        "responses": ["Puedo guiarte en el proceso de postulación. ¿Qué necesitas saber?"],
-        "priority": 4
-    },
-    "busqueda_impacto": {
-        "patterns": [r"\b(impacto\s+social|trabajo\s+con\s+proposito|vacantes\s+con\s+impacto)\b"],
-        "responses": ["Entiendo que buscas un trabajo con impacto social. ¿Deseas ver vacantes con propósito?"],
-        "priority": 5
-    },
-    "solicitar_informacion_empresa": {
-        "patterns": [r"\b(informacion\s+empresa|sobre\s+la\s+empresa|valores\s+empresa|cultura\s+empresa)\b"],
-        "responses": ["¿Sobre qué empresa necesitas información? Puedo contarte sobre sus valores, cultura o posiciones disponibles."],
-        "priority": 6
-    },
-    "solicitar_tips_entrevista": {
-        "patterns": [r"\b(tips\s+entrevista|consejos\s+entrevista|preparacion\s+entrevista)\b"],
-        "responses": ["Para entrevistas: investiga la empresa, sé puntual, muestra logros cuantificables y prepara ejemplos de situaciones pasadas."],
-        "priority": 7
-    },
-    "consultar_sueldo_mercado": {
-        "patterns": [r"\b(sueldo\s+mercado|rango\s+salarial|cuanto\s+pagan)\b"],
-        "responses": ["¿Para qué posición o nivel buscas el rango salarial de mercado? Puedo darte una estimación."],
-        "priority": 8
-    },
-    "actualizar_perfil": {
-        "patterns": [r"\b(actualizar\s+perfil|cambiar\s+datos|modificar\s+informacion)\b"],
-        "responses": ["Claro, ¿qué dato de tu perfil deseas actualizar? (Ejemplo: nombre, email, experiencia, expectativas salariales)"],
-        "priority": 9
-    },
-    "notificaciones": {
-        "patterns": [r"\b(notificaciones|alertas|avisos)\b"],
-        "responses": ["Puedo enviarte notificaciones automáticas sobre cambios en tus procesos. ¿Quieres activarlas? Responde 'sí' para confirmar."],
+        "patterns": [r"\b(inicio|iniciar|start|empezar|go|activar)\b"],
+        "responses": ["¡Claro! Vamos a empezar. ¿Qué te gustaría hacer? Puedes ver vacantes, subir tu CV o explorar opciones."],
         "priority": 10
     },
-    "agradecimiento": {
-        "patterns": [r"\b(gracias|muchas\s+gracias|te\s+agradezco)\b"],
-        "responses": ["¡De nada! ¿En qué más puedo ayudarte?"],
-        "priority": 11
-    },
     "show_jobs": {
-        "patterns": [r"\b(vacante|vacantes|oportunidad|oportunidades|empleo|puestos|listado)\b"],
-        "responses": ["Te mostraré las vacantes disponibles según tu perfil."],
-        "priority": 12
+        "patterns": [r"\b(ver\s+vacantes|mostrar\s+vacantes|vacante(s)?|oportunidad(es)?|empleo(s)?|trabajo(s)?|puestos|listado\s+de\s+vacantes)\b"],
+        "responses": ["Te voy a mostrar vacantes recomendadas según tu perfil. Un momento..."],
+        "priority": 15
     },
     "upload_cv": {
-        "patterns": [r"\b(cv|currículum|curriculum|resume|hoja\s+de\s+vida|subir|enviar)\b"],
-        "responses": ["¡Perfecto! Puedes enviarme tu CV por este medio y lo procesaré para extraer la información relevante. Por favor, adjunta el archivo en tu próximo mensaje."],
-        "priority": 13
+        "patterns": [r"\b(subir\s+cv|enviar\s+cv|cv|currículum|curriculum|resume|hoja\s+de\s+vida)\b"],
+        "responses": ["¡Perfecto! Envíame tu CV en PDF o Word y lo procesaré para actualizar tu perfil. Adjunta el archivo en tu próximo mensaje."],
+        "priority": 18
     },
     "show_menu": {
-        "patterns": [r"\b(menu|menú|opciones|lista|que\s+puedes\s+hacer|qué\s+puedes\s+hacer|servicios)\b"],
-        "responses": ["Te mostraré el menú de opciones disponibles."],
+        "patterns": [r"\b(menú|menu|opciones\s+disponibles|qué\s+puedes\s+hacer|qué\s+haces|servicios)\b"],
+        "responses": ["Aquí tienes las opciones disponibles:"],
+        "priority": 22
+    },
+    "solicitar_ayuda_postulacion": {
+        "patterns": [r"\b(ayuda\s+con\s+postulación|cómo\s+postular(me)?|aplicar\s+a\s+vacante|postular(me)?)\b"],
+        "responses": ["Te puedo guiar para postularte. ¿A qué vacante te interesa aplicar o necesitas ayuda con el proceso?"],
+        "priority": 12
+    },
+    "consultar_estado_postulacion": {
+        "patterns": [r"\b(estado\s+de\s+mi\s+postulación|seguimiento\s+a\s+mi\s+aplicación|cómo\s+va\s+mi\s+proceso)\b"],
+        "responses": ["Dame tu correo asociado a la postulación y te daré el estado actual."],
         "priority": 14
     },
+    "solicitar_tips_entrevista": {
+        "patterns": [r"\b(tips\s+para\s+entrevista|consejos\s+entrevista|preparación\s+entrevista|cómo\s+prepararme\s+para\s+entrevista)\b"],
+        "responses": [
+            "Claro, aquí tienes algunos consejos: investiga la empresa, llega puntual, prepara ejemplos de tus logros y practica respuestas a preguntas comunes. ¿Te gustaría más ayuda con algo específico?"
+        ],
+        "priority": 16
+    },
+    "consultar_sueldo_mercado": {
+        "patterns": [r"\b(sueldo\s+mercado|rango\s+salarial|cuánto\s+pagan|salario\s+para\s+.*)\b"],
+        "responses": ["¿Para qué posición o nivel quieres saber el rango salarial? Puedo darte una estimación basada en el mercado."],
+        "priority": 17
+    },
+    "actualizar_perfil": {
+        "patterns": [r"\b(actualizar\s+perfil|cambiar\s+datos|modificar\s+información|editar\s+mi\s+perfil)\b"],
+        "responses": ["¿Qué quieres actualizar? Puedes decirme: nombre, email, teléfono, habilidades, experiencia o salario esperado."],
+        "priority": 19
+    },
+    "notificaciones": {
+        "patterns": [r"\b(activar\s+notificaciones|alertas\s+de\s+vacantes|avisos\s+de\s+proceso)\b"],
+        "responses": ["Puedo enviarte notificaciones sobre nuevas vacantes o cambios en tus procesos. ¿Quieres activarlas? Responde 'sí' o 'no'."],
+        "priority": 21
+    },
+    "agradecimiento": {
+        "patterns": [r"\b(gracias|muchas\s+gracias|te\s+agradezco|thank\s+you)\b"],
+        "responses": ["¡De nada! 😊 ¿En qué más puedo ayudarte?"],
+        "priority": 23
+    },
     "retry_conversation": {
-        "patterns": [r"\b(intentemos\s+de\s+nuevo|volvamos\s+a\s+intentar|retry|de\s+nuevo)\b"],
-        "responses": ["¡Claro! Vamos a intentarlo de nuevo. ¿En qué puedo ayudarte ahora?"],
-        "priority": 15
+        "patterns": [r"\b(intentemos\s+de\s+nuevo|volvamos\s+a\s+intentar|retry|de\s+nuevo|empezar\s+otra\s+vez)\b"],
+        "responses": ["¡Claro! Vamos a empezar de nuevo. ¿En qué te ayudo ahora?"],
+        "priority": 11
+    },
+    "consultar_requisitos_vacante": {
+        "patterns": [r"\b(requisitos\s+vacante|qué\s+necesito\s+para\s+.*|qué\s+piden\s+para\s+.*)\b"],
+        "responses": ["Dime el nombre o número de la vacante y te diré los requisitos."],
+        "priority": 13
+    },
+    "solicitar_contacto_reclutador": {
+        "patterns": [r"\b(hablar\s+con\s+reclutador|contactar\s+a\s+alguien|necesito\s+un\s+reclutador)\b"],
+        "responses": ["Te conectaré con un reclutador. Por favor, espera mientras te asigno uno."],
+        "priority": 24
+    },
+    "busqueda_impacto": {
+        "patterns": [r"\b(impacto\s+social|trabajo\s+con\s+propósito|vacantes\s+con\s+impacto)\b"],
+        "responses": ["¿Buscas trabajo con impacto social? Puedo mostrarte vacantes con propósito. ¿Te interesa?"],
+        "priority": 26
     }
 }
 
@@ -101,68 +129,119 @@ INTENT_PATTERNS = {
 main_options = [
     {"title": "💼 Ver Vacantes", "payload": "show_jobs"},
     {"title": "📄 Subir CV", "payload": "upload_cv"},
-    {"title": "📋 Ver Menú", "payload": "show_menu"}
+    {"title": "📋 Ver Menú", "payload": "show_menu"},
+    {"title": "📝 Actualizar Perfil", "payload": "actualizar_perfil"},
+    {"title": "📞 Contactar Reclutador", "payload": "solicitar_contacto_reclutador"}
 ]
 
-def detect_intents(message: str) -> List[str]:
-    """
-    Detecta todos los intents en un mensaje usando expresiones regulares.
-    Retorna una lista de intents ordenada por prioridad.
-    """
+def detect_intents(text: str) -> List[str]:
+    """Detecta intents en el texto, ordenados por prioridad."""
+    if not text:
+        return []
+    text = text.lower().strip()
     detected_intents = []
-    message_lower = message.lower().strip()
-
     for intent, data in INTENT_PATTERNS.items():
-        for pattern in data["patterns"]:
-            if re.search(pattern, message_lower):
-                detected_intents.append(intent)
-                break  # Evitar duplicar el mismo intent
-
+        for pattern in data['patterns']:
+            if re.search(pattern, text):
+                detected_intents.append((intent, data.get('priority', 100)))
+                break  # Evita duplicados del mismo intent
     # Ordenar por prioridad (menor número = mayor prioridad)
-    detected_intents.sort(key=lambda x: INTENT_PATTERNS[x]["priority"])
-    return detected_intents
+    detected_intents.sort(key=lambda x: x[1])
+    logger.debug(f"[detect_intents] Intents detectados: {[intent for intent, _ in detected_intents]}")
+    return [intent for intent, _ in detected_intents]
 
-async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state, business_unit, user, text: str) -> bool:
-    """Maneja intents conocidos del mensaje."""
+async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, text: str = "") -> bool:
+    """Maneja intents conocidos del usuario con acciones específicas para reclutamiento."""
     try:
         if not intents:
+            logger.info(f"[handle_known_intents] No se detectaron intents en: '{text}'")
             return False
 
         logger.info(f"[handle_known_intents] 🔎 Procesando intents: {intents}")
-        
-        # Obtener el intent principal
         primary_intent = intents[0]
-        
-        # Si existe una respuesta para el intent en el diccionario
+        cache_key = f"intent:{user_id}:{text}"
+        cached_response = cache.get(cache_key)
+
+        if cached_response:
+            await send_message(platform, user_id, cached_response, business_unit.name.lower())
+            logger.info(f"[handle_known_intents] Respuesta obtenida de caché: '{cached_response}'")
+            return True
+
         if primary_intent in INTENT_PATTERNS:
-            # Seleccionar una respuesta aleatoria para el intent
-            response = random.choice(INTENT_PATTERNS[primary_intent])
-            
-            # Enviar la respuesta
-            await send_message(platform, user_id, response, business_unit.name)
-            
+            responses = INTENT_PATTERNS[primary_intent]['responses']
+            response = random.choice(responses)
+            await send_message(platform, user_id, response, business_unit.name.lower())
+            cache.set(cache_key, response, timeout=600)  # Cache por 10 minutos
+
             # Acciones específicas según el intent
-            if primary_intent == 'saludo':
-                # Después del saludo, mostrar la presentación del business unit
-                if 'presentacion_bu' in INTENT_PATTERNS:
-                    for msg in INTENT_PATTERNS['presentacion_bu']:
-                        await send_message(platform, user_id, msg, business_unit.name)
-                
-                # Si el usuario no tiene perfil completo, mostrar TOS y menú
-                if not getattr(user, 'is_profile_complete', False):
+            if primary_intent == "start_command":
+                await send_menu(platform, user_id, business_unit)
+            elif primary_intent == "saludo":
+                bu_responses = INTENT_PATTERNS['presentacion_bu']['responses']
+                for msg in bu_responses:
+                    await send_message(platform, user_id, msg, business_unit.name.lower())
+                if not user.profile_complete:
                     tos_url = f"https://{business_unit.name.lower()}.org/tos"
-                    await send_message(platform, user_id, f"📜 Por favor, revisa nuestros Términos de Servicio: {tos_url}", business_unit.name)
-                    await send_options(platform, user_id, "¿Aceptas nuestros Términos de Servicio?", 
-                                     [{"title": "Sí", "payload": "tos_accept"},
-                                      {"title": "No", "payload": "tos_reject"}],
-                                     business_unit.name)
-            
+                    await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", business_unit.name.lower())
+                    await send_options(platform, user_id, "¿Aceptas los Términos de Servicio?", 
+                                       [{"title": "Sí", "payload": "tos_accept"}, {"title": "No", "payload": "tos_reject"}],
+                                       business_unit.name.lower())
+            elif primary_intent == "show_jobs":
+                from app.utilidades.vacantes import VacanteManager
+                jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
+                if jobs:
+                    await present_job_listings(platform, user_id, jobs, business_unit, chat_state)
+                else:
+                    await send_message(platform, user_id, "No encontré vacantes para tu perfil aún. ¿Quieres subir tu CV para mejorar las recomendaciones?", business_unit.name.lower())
+            elif primary_intent == "upload_cv":
+                chat_state.state = "waiting_for_cv"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "show_menu":
+                await send_menu(platform, user_id, business_unit)
+            elif primary_intent == "solicitar_ayuda_postulacion":
+                await send_options(platform, user_id, "¿En qué parte necesitas ayuda?", 
+                                   [{"title": "Buscar Vacante", "payload": "show_jobs"}, {"title": "Aplicar", "payload": "apply_job"}],
+                                   business_unit.name.lower())
+            elif primary_intent == "consultar_estado_postulacion":
+                chat_state.state = "waiting_for_status_email"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "solicitar_tips_entrevista":
+                await send_options(platform, user_id, "¿Quieres más tips o practicar una entrevista?", 
+                                   [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
+                                   business_unit.name.lower())
+            elif primary_intent == "consultar_sueldo_mercado":
+                chat_state.state = "waiting_for_salary_position"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "actualizar_perfil":
+                chat_state.state = "waiting_for_profile_field"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "notificaciones":
+                chat_state.state = "waiting_for_notifications_confirmation"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "retry_conversation":
+                chat_state.state = "initial"
+                chat_state.context = {}
+                await sync_to_async(chat_state.save)()
+                await send_menu(platform, user_id, business_unit)
+            elif primary_intent == "consultar_requisitos_vacante":
+                chat_state.state = "waiting_for_vacancy_id"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "solicitar_contacto_reclutador":
+                await send_message(platform, "525518490291", f"Un candidato ({user_id}) requiere asistencia especial.", business_unit.name.lower())
+                await send_message(platform, user_id, "Un reclutador te contactará pronto.", business_unit.name.lower())
+            elif primary_intent == "busqueda_impacto":
+                await send_options(platform, user_id, "¿Qué tipo de impacto buscas?", 
+                                   [{"title": "Social", "payload": "impact_social"}, {"title": "Ambiental", "payload": "impact_environmental"}],
+                                   business_unit.name.lower())
+
+            logger.info(f"[handle_known_intents] Intent manejado: {primary_intent}")
             return True
 
         return False
 
     except Exception as e:
         logger.error(f"[handle_known_intents] ❌ Error: {e}", exc_info=True)
+        await send_message(platform, user_id, "Ups, algo salió mal. ¿Intentamos de nuevo?", business_unit.name.lower())
         return False
 
 async def handle_document_upload(
@@ -174,17 +253,10 @@ async def handle_document_upload(
     user: Person,
     chat_state: ChatState
 ) -> None:
-    """
-    Maneja la carga de documentos como CVs.
-    """
+    """Maneja la carga de documentos como CVs."""
     from app.utilidades.parser import parse_document
     
-    await send_message(
-        platform, 
-        user_id, 
-        "Estoy procesando tu documento. Esto tomará unos momentos...", 
-        business_unit.name.lower()
-    )
+    await send_message(platform, user_id, "Estoy procesando tu documento. Esto tomará unos momentos...", business_unit.name.lower())
     
     try:
         if file_type.lower() in ['pdf', 'application/pdf']:
@@ -192,17 +264,10 @@ async def handle_document_upload(
         elif file_type.lower() in ['doc', 'docx', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
             parsed_data = await sync_to_async(parse_document)(file_url, 'doc')
         else:
-            await send_message(
-                platform, 
-                user_id, 
-                f"No puedo procesar archivos de tipo {file_type}. Por favor, envía tu archivo en PDF o Word.", 
-                business_unit.name.lower()
-            )
+            await send_message(platform, user_id, f"No puedo procesar archivos de tipo {file_type}. Usa PDF o Word.", business_unit.name.lower())
             return
         
-        # Lista para rastrear los atributos guardados
         saved_attributes = []
-
         user.cv_parsed = True
         saved_attributes.append(f"cv_parsed: True")
         user.cv_url = file_url
@@ -220,13 +285,10 @@ async def handle_document_upload(
             user.phone = parsed_data['phone']
             saved_attributes.append(f"phone: {parsed_data['phone']}")
         if 'skills' in parsed_data:
-            # Guardar las habilidades directamente en el campo skills de Person
             user.skills = ', '.join(parsed_data['skills']) if isinstance(parsed_data['skills'], list) else parsed_data['skills']
             saved_attributes.append(f"skills: {user.skills}")
 
         await sync_to_async(user.save)()
-        
-        # Log detallado de los atributos guardados
         logger.info(f"[handle_document_upload] Atributos guardados para {user_id}: {', '.join(saved_attributes)}")
 
         response = (
@@ -236,9 +298,8 @@ async def handle_document_upload(
             f"📧 Email: {parsed_data.get('email', 'No detectado')}\n"
             f"📱 Teléfono: {parsed_data.get('phone', 'No detectado')}\n"
             f"🛠 Habilidades: {', '.join(parsed_data.get('skills', [])) or 'No detectadas'}\n\n"
-            "¿Están correctos estos datos? Por favor, responde 'sí' para confirmar o 'no' para corregir."
+            "¿Están correctos estos datos? Responde 'sí' para confirmar o 'no' para corregir."
         )
-        
         await send_message(platform, user_id, response, business_unit.name.lower())
         
         chat_state.state = "waiting_for_cv_confirmation"
@@ -247,12 +308,7 @@ async def handle_document_upload(
         
     except Exception as e:
         logger.error(f"Error procesando documento: {str(e)}", exc_info=True)
-        await send_message(
-            platform, 
-            user_id, 
-            "❌ Hubo un problema al procesar tu documento. Por favor, intenta de nuevo.", 
-            business_unit.name.lower()
-        )
+        await send_message(platform, user_id, "❌ Hubo un problema al procesar tu documento. Intenta de nuevo.", business_unit.name.lower())
 
 async def present_job_listings(
     platform: str, 
@@ -264,9 +320,7 @@ async def present_job_listings(
     jobs_per_page: int = 3,
     filters: Dict[str, Any] = None
 ) -> None:
-    """
-    Presenta listados de trabajo al usuario con paginación y filtros opcionales.
-    """
+    """Presenta listados de trabajo al usuario con paginación y filtros opcionales."""
     filters = filters or {}
     filtered_jobs = jobs
     
@@ -283,9 +337,22 @@ async def present_job_listings(
     start_idx = page * jobs_per_page
     end_idx = min(start_idx + jobs_per_page, total_jobs)
     
-    response = "Aquí tienes algunas vacantes recomendadas:\n"
+    response = f"Aquí tienes algunas vacantes recomendadas (página {page + 1} de {total_jobs // jobs_per_page + 1}):\n"
+    job_options = []
     for idx, job in enumerate(filtered_jobs[start_idx:end_idx], start=start_idx + 1):
-        response += f"{idx}. {job['title']} en {job.get('company', 'N/A')}\n"
-    response += "Responde con el número de la vacante que te interesa o 'más' para ver más opciones."
+        salary = f"${job.get('salary', 'N/A')}" if job.get('salary') else "N/A"
+        location = job.get('location', 'No especificada')
+        response += f"{idx}. {job['title']} - {job.get('company', 'N/A')} ({location}, Salario: {salary})\n"
+        job_options.append({"title": f"Vacante {idx}", "payload": f"job_{idx-1}"})
     
-    await send_message(platform, user_id, response, business_unit.name.lower())
+    navigation_options = []
+    if start_idx > 0:
+        navigation_options.append({"title": "⬅️ Anterior", "payload": f"jobs_page_{page - 1}"})
+    if end_idx < total_jobs:
+        navigation_options.append({"title": "➡️ Siguiente", "payload": f"jobs_page_{page + 1}"})
+    
+    all_options = job_options + navigation_options
+    await send_message(platform, user_id, response, business_unit.name.lower(), options=all_options if all_options else None)
+    chat_state.context['current_jobs_page'] = page
+    chat_state.context['recommended_jobs'] = filtered_jobs
+    await sync_to_async(chat_state.save)()

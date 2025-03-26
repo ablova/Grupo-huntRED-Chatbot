@@ -490,7 +490,7 @@ class NLPProcessor:
     def analyze_sentiment(self, text: str) -> Dict[str, float]:
         sentiment_analyzer = self._load_sentiment_analyzer()
         sentiment = sentiment_analyzer.polarity_scores(text)
-        return {
+            return {
             "compound": sentiment["compound"],
             "label": "positive" if sentiment["compound"] > 0.05 else "negative" if sentiment["compound"] < -0.05 else "neutral"
         }
@@ -548,7 +548,7 @@ class NLPProcessor:
         skills = await self.extract_skills(text)
         sentiment = self.analyze_sentiment(preprocessed["translated"])
         result = {
-            "skills": skills,
+                "skills": skills,
             "sentiment": sentiment["label"],
             "sentiment_score": abs(sentiment["compound"]),
             "metadata": {
