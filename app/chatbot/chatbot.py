@@ -80,20 +80,18 @@ class ChatBotHandler:
             logger.error(f"Error obteniendo business unit key: {e}")
         return 'default'
 
-    async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
-        """Procesa mensajes entrantes."""
+    async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit) -> str:
+        """Procesa mensajes entrantes y siempre retorna una respuesta."""
         try:
             message_id = message.get("messages", [{}])[0].get("id")
             if CACHE_ENABLED and message_id:
                 cache_key = f"processed_message:{message_id}"
                 if cache.get(cache_key):
                     logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
-                    return
+                    return "Mensaje ya procesado"
 
             # Extraer contenido del mensaje
             text, attachment = self._extract_message_content(message)
-            
-            # Manejo seguro del nombre del business unit
             bu_key = str(business_unit.name).lower().replace('®', '').strip() if hasattr(business_unit, 'name') else 'default'
             
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
@@ -101,136 +99,45 @@ class ChatBotHandler:
             # Obtener o crear usuario y estado de chat
             user, chat_state = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit)
 
-            # Estado inicial: enviar mensajes de bienvenida
-            if chat_state.state == "initial":
-                await self.send_complete_initial_messages(platform, user_id, business_unit)
-                chat_state.state = "waiting_for_tos"
-                await sync_to_async(chat_state.save)()
-                return
-
-            # Verificación de aceptación de TOS
-            if not user.tos_accepted:
-                await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
-                if text in ["tos_accept", "sí", "si"]:
-                    chat_state.state = "profile_in_progress"
-                    await sync_to_async(chat_state.save)()
-                    await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
-                return
-
-            # Almacenar mensaje del usuario si existe
+            # Almacenar mensaje del usuario
             if text:
                 await self.store_user_message(chat_state, text)
 
-            # Detectar y manejar intents conocidos
-            detected_intents = detect_intents(text) if text else []
-            if detected_intents:
-                handled = await handle_known_intents(
-                    detected_intents, 
-                    platform, 
-                    user_id, 
-                    chat_state, 
-                    business_unit, 
-                    user, 
-                    text
-                )
-                if handled:
-                    return
+            # Generar respuesta basada en el estado actual
+            response = None
 
-            # Detección de SPAM y muteo
-            if NLP_ENABLED and is_spam_message(user_id, text):
-                if is_user_spamming(user_id):
-                    cache.set(f"muted:{user_id}", True, timeout=60)  # Mute por 1 minuto
-                    await send_message(platform, user_id, "⚠️ Demasiados mensajes similares, espera un momento.", bu_key)
+            # Detectar y manejar intents
+            if text:
+                detected_intents = detect_intents(text)
+                if detected_intents:
+                    handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text)
+                    if handled:
+                        return "Intent procesado correctamente"
+
+            # Si no hay respuesta específica, generar una respuesta por defecto
+            if not response:
+                if self.nlp_processor:
+                    analysis = await self.nlp_processor.analyze(text)
+                    response = await self._generate_default_response(user, chat_state, text, 
+                                                                  analysis.get("entities", []), 
+                                                                  analysis.get("sentiment", {}))
                 else:
-                    await send_message(platform, user_id, "⚠️ Por favor, no envíes mensajes repetidos.", bu_key)
-                return
-            if cache.get(f"muted:{user_id}"):
-                await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
-                return
+                    response = "¿En qué puedo ayudarte?"
 
-            # Manejo de adjuntos (CV u otros documentos)
-            if attachment:
-                file_type = attachment.get("type", "")
-                if file_type not in ["pdf", "application/pdf", "doc", "docx", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
-                    await send_message(platform, user_id, "Formato no soportado. Usa PDF o Word.", bu_key)
-                    return
-                response = await self.handle_cv_upload(user, attachment.get("url", ""))
-                await send_message(platform, user_id, response, bu_key)
-                await self.store_bot_message(chat_state, response)
-                await self.award_gamification_points(user, "cv_upload")
-                return
-
-            # Manejo de estados conversacionales
-            if chat_state.state == "profile_in_progress":
-                from app.chatbot.workflow.common import manejar_respuesta_perfil
-                if await manejar_respuesta_perfil(platform, user_id, text, business_unit, chat_state, user, self.gpt_handler):
-                    if self.is_profile_complete(user, business_unit):
-                        chat_state.state = "waiting_for_cv_confirmation"
-                        recap = await self.recap_information(user)
-                        await send_message(platform, user_id, recap, bu_key)
-                        await sync_to_async(chat_state.save)()
-                    return
-
-            if chat_state.state == "waiting_for_cv_confirmation":
-                if text.lower() == "sí":
-                    chat_state.state = "profile_complete"
-                    user.profile_complete = True
-                    await sync_to_async(user.save)()
-                    await sync_to_async(chat_state.save)()
-                    await self.award_gamification_points(user, "profile_completion")
-                    await send_message(platform, user_id, "¡Perfecto! Tu perfil está completo. ¿En qué te ayudo ahora?", bu_key)
-                    await send_menu(platform, user_id, business_unit)
-                    await self.notify_user_challenges(user)
-                elif text.lower() == "no":
-                    await send_message(platform, user_id, "¿Qué dato necesitas corregir?", bu_key)
-                    chat_state.state = "profile_in_progress"
-                    await sync_to_async(chat_state.save)()
-                return
-
-            # Manejo de invitaciones de grupo
-            if chat_state.context.get("awaiting_group_invitation"):
-                await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
-                return
-
-            # Manejo de selección de vacantes
-            if text.startswith("job_") or text.startswith("apply_") or text.startswith("details_") or text.startswith("schedule_") or text.startswith("tips_") or text.startswith("book_slot_"):
-                await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
-                return
-
-            # Flujos específicos por unidad de negocio
-            if bu_key in self.workflow_mapping and getattr(user, 'is_profile_complete', False):
-                workflow_func = self.workflow_mapping[bu_key]
-                if bu_key == "sexsi":
-                    response = workflow_func(user_id, user, business_unit, chat_state.context)
-                    await send_message(platform, user_id, response, bu_key)
-                    await self.store_bot_message(chat_state, response)
-                else:
-                    await sync_to_async(workflow_func)(user.id)
-                return
-
-            # Respuesta por defecto con análisis NLP
-            if NLP_ENABLED and self.nlp_processor:
-                analysis = await self.nlp_processor.analyze(text)
-                entities = analysis.get("entities", [])
-                sentiment = analysis.get("sentiment", {})
-            else:
-                entities = []
-                sentiment = {}
-            response = await self._generate_default_response(user, chat_state, text, entities, sentiment)
-            await send_message(platform, user_id, response, bu_key)
+            # Almacenar respuesta del bot
             await self.store_bot_message(chat_state, response)
-            logger.info(f"[process_message] ✅ Mensaje procesado y enviado exitosamente para {user_id}")
-            return
+            
+            return response
 
         except Exception as e:
-            logger.error(f"Error en process_message (ID: {message_id}): {e}", exc_info=True)
+            logger.error(f"Error en process_message: {e}", exc_info=True)
+            error_message = "Ups, algo salió mal. ¿En qué puedo ayudarte?"
             try:
-                # Usar el nombre del business unit de forma segura
-                bu_name = str(business_unit.name).lower().replace('®', '').strip() if hasattr(business_unit, 'name') else 'default'
-                await send_message(platform, user_id, "Ups, algo salió mal. Te comparto el menú:", bu_name)
+                await send_message(platform, user_id, error_message, bu_key)
                 await send_menu(platform, user_id, business_unit)
             except Exception as menu_error:
                 logger.error(f"Error enviando menú: {menu_error}")
+            return error_message
 
     async def initialize_chat_state(platform: str, user_id: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
