@@ -80,64 +80,98 @@ class ChatBotHandler:
             logger.error(f"Error obteniendo business unit key: {e}")
         return 'default'
 
-    async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit) -> str:
-        """Procesa mensajes entrantes y siempre retorna una respuesta."""
+    async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
+        """Procesa mensajes entrantes con orden de prioridad correcto."""
         try:
+            # 1. Verificación de mensaje duplicado
             message_id = message.get("messages", [{}])[0].get("id")
             if CACHE_ENABLED and message_id:
                 cache_key = f"processed_message:{message_id}"
                 if cache.get(cache_key):
                     logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
-                    return "Mensaje ya procesado"
+                    return
 
-            # Extraer contenido del mensaje
+            # 2. Extraer contenido del mensaje
             text, attachment = self._extract_message_content(message)
             bu_key = str(business_unit.name).lower().replace('®', '').strip() if hasattr(business_unit, 'name') else 'default'
             
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
 
-            # Obtener o crear usuario y estado de chat
+            # 3. Obtener o crear usuario y estado de chat
             user, chat_state = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit)
 
-            # Almacenar mensaje del usuario
-            if text:
-                await self.store_user_message(chat_state, text)
+            # 4. Verificar SPAM
+            if NLP_ENABLED and text and is_spam_message(user_id, text):
+                if is_user_spamming(user_id):
+                    cache.set(f"muted:{user_id}", True, timeout=60)
+                    await send_message(platform, user_id, "⚠️ Demasiados mensajes similares, espera un momento.", bu_key)
+                    return
+                await send_message(platform, user_id, "⚠️ Por favor, no envíes mensajes repetidos.", bu_key)
+                return
 
-            # Generar respuesta basada en el estado actual
-            response = None
+            if cache.get(f"muted:{user_id}"):
+                await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
+                return
 
-            # Detectar y manejar intents
+            # 5. Estado inicial y TOS
+            if chat_state.state == "initial":
+                await self.send_complete_initial_messages(platform, user_id, business_unit)
+                chat_state.state = "waiting_for_tos"
+                await sync_to_async(chat_state.save)()
+                return
+
+            # 6. Verificación de aceptación de TOS
+            if not user.tos_accepted:
+                await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
+                if text in ["tos_accept", "sí", "si"]:
+                    chat_state.state = "profile_in_progress"
+                    await sync_to_async(chat_state.save)()
+                    await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
+                return
+
+            # 7. Detectar y manejar intents (ahora con prioridad más alta)
             if text:
                 detected_intents = detect_intents(text)
                 if detected_intents:
                     handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text)
                     if handled:
-                        return "Intent procesado correctamente"
+                        return
 
-            # Si no hay respuesta específica, generar una respuesta por defecto
-            if not response:
-                if self.nlp_processor:
-                    analysis = await self.nlp_processor.analyze(text)
-                    response = await self._generate_default_response(user, chat_state, text, 
-                                                                  analysis.get("entities", []), 
-                                                                  analysis.get("sentiment", {}))
-                else:
-                    response = "¿En qué puedo ayudarte?"
+            # 8. Almacenar mensaje del usuario
+            if text:
+                await self.store_user_message(chat_state, text)
 
-            # Almacenar respuesta del bot
-            await self.store_bot_message(chat_state, response)
-            
-            return response
+            # 9. Procesar adjuntos si existen
+            if attachment:
+                response = await self.handle_cv_upload(user, attachment.get("url", ""))
+                await send_message(platform, user_id, response, bu_key)
+                await self.store_bot_message(chat_state, response)
+                return
+
+            # 10. Procesamiento específico por estado
+            if chat_state.state == "profile_in_progress":
+                from app.chatbot.workflow.common import manejar_respuesta_perfil
+                if await manejar_respuesta_perfil(platform, user_id, text, business_unit, chat_state, user, self.gpt_handler):
+                    return
+
+            # 11. Análisis NLP y respuesta por defecto
+            if NLP_ENABLED and self.nlp_processor and text:
+                analysis = await self.nlp_processor.analyze(text)
+                response = await self._generate_default_response(
+                    user, chat_state, text, 
+                    analysis.get("entities", []), 
+                    analysis.get("sentiment", {})
+                )
+                await send_message(platform, user_id, response, bu_key)
+                await self.store_bot_message(chat_state, response)
 
         except Exception as e:
             logger.error(f"Error en process_message: {e}", exc_info=True)
-            error_message = "Ups, algo salió mal. ¿En qué puedo ayudarte?"
             try:
-                await send_message(platform, user_id, error_message, bu_key)
+                await send_message(platform, user_id, "Ups, algo salió mal. Te comparto el menú:", bu_key)
                 await send_menu(platform, user_id, business_unit)
             except Exception as menu_error:
                 logger.error(f"Error enviando menú: {menu_error}")
-            return error_message
 
     async def initialize_chat_state(platform: str, user_id: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
