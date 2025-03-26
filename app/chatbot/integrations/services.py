@@ -30,11 +30,6 @@ REQUEST_TIMEOUT = 10.0
 CACHE_TIMEOUT = 600  # 10 minutos
 whatsapp_semaphore = asyncio.Semaphore(10)
 
-# Constantes globales
-MAX_RETRIES = 3
-REQUEST_TIMEOUT = 10.0
-CACHE_TIMEOUT = 600  # 10 minutos
-whatsapp_semaphore = asyncio.Semaphore(10)
 
 # En services.py No pueden ser más de 10, por envio.
 MENU_OPTIONS_BY_BU = {
@@ -96,6 +91,7 @@ MENU_OPTIONS_BY_STATE = {
         ],
         "waiting_for_tos": [
             {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
+            {"title": "📜 Aceptar TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
             {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
@@ -207,14 +203,17 @@ class MessageService:
         self._api_instances = {}
 
     async def get_api_instance(self, platform: str):
-        """Obtiene o cachea la instancia de API para la plataforma especificada"""
+        """Obtiene o cachea la instancia de API para la plataforma especificada."""
         cache_key = f"api_instance:{platform}:{self.business_unit.id}"
         
+        # Verificar si ya está en memoria
         if platform not in self._api_instances:
+            # Intentar obtener del caché primero
             cached_api = cache.get(cache_key)
             if cached_api is not None:
                 self._api_instances[platform] = cached_api
             else:
+                # Mapeo de plataformas a modelos
                 model_mapping = {
                     'whatsapp': WhatsAppAPI,
                     'telegram': TelegramAPI,
@@ -227,32 +226,40 @@ class MessageService:
                     logger.error(f"Plataforma no soportada: {platform}")
                     return None
 
-                api_instance = await sync_to_async(model_class.objects.filter(
-                    business_unit=self.business_unit,
-                    is_active=True
-                ).select_related('business_unit').first)()
-                
-                if api_instance:
-                    required_attrs = {
-                        'whatsapp': ['phoneID', 'api_token'],
-                        'telegram': ['api_key'],
-                        'messenger': ['page_access_token'],
-                        'instagram': ['access_token'],
-                        'slack': ['bot_token']
-                    }
-                    for attr in required_attrs.get(platform, []):
-                        if not hasattr(api_instance, attr) or not getattr(api_instance, attr):
-                            logger.error(f"Configuración incompleta para {platform} en BU {self.business_unit.name}: {attr} faltante")
-                            self._api_instances[platform] = None
-                            break
+                try:
+                    # Obtener la instancia de la base de datos de forma asíncrona
+                    api_instance = await sync_to_async(model_class.objects.filter(
+                        business_unit=self.business_unit,
+                        is_active=True
+                    ).select_related('business_unit').first)()
+
+                    if not api_instance:
+                        logger.warning(f"No se encontró configuración activa para {platform} en BU {self.business_unit.name}")
+                        self._api_instances[platform] = None
                     else:
-                        self._api_instances[platform] = api_instance
-                        cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
-                else:
-                    logger.warning(f"No se encontró configuración activa para {platform} en BU {self.business_unit.name}")
+                        # Validar atributos requeridos según la plataforma
+                        required_attrs = {
+                            'whatsapp': ['phoneID', 'api_token'],
+                            'telegram': ['api_key'],
+                            'messenger': ['page_access_token'],
+                            'instagram': ['access_token'],
+                            'slack': ['bot_token']
+                        }
+                        for attr in required_attrs.get(platform, []):
+                            if not hasattr(api_instance, attr) or not getattr(api_instance, attr):
+                                logger.error(f"Configuración incompleta para {platform} en BU {self.business_unit.name}: {attr} faltante")
+                                self._api_instances[platform] = None
+                                break
+                        else:
+                            # Si todo está correcto, almacenar en memoria y caché
+                            self._api_instances[platform] = api_instance
+                            cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
+                except Exception as e:
+                    logger.error(f"Error al obtener instancia de API para {platform}: {e}", exc_info=True)
+                    self._api_instances[platform] = None
 
         return self._api_instances[platform]
-
+    
     async def send_platform_message(
         self,
         platform: str,

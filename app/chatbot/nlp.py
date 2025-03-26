@@ -176,7 +176,7 @@ class NLPProcessor:
                 "process": lambda data: self._process_opportunities(data, catalog)
             }
         }
-
+        
         for file_key, file_info in CATALOG_FILES.items():
             path = file_info["path"]
             if path in [FILE_PATHS["opportunity_catalog"], FILE_PATHS["intents"]]:
@@ -490,7 +490,7 @@ class NLPProcessor:
     def analyze_sentiment(self, text: str) -> Dict[str, float]:
         sentiment_analyzer = self._load_sentiment_analyzer()
         sentiment = sentiment_analyzer.polarity_scores(text)
-            return {
+        return {
             "compound": sentiment["compound"],
             "label": "positive" if sentiment["compound"] > 0.05 else "negative" if sentiment["compound"] < -0.05 else "neutral"
         }

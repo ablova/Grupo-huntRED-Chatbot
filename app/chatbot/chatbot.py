@@ -81,8 +81,14 @@ class ChatBotHandler:
         return 'default'
 
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
-        """Procesa mensajes entrantes."""
+    """Procesa mensajes entrantes de forma robusta y validada."""
+        # Validación de business_unit
+        if not isinstance(business_unit, BusinessUnit):
+            logger.error(f"BusinessUnit inválido para user_id {user_id}: {business_unit}")
+            return False
+        
         try:
+            logger.info(f"Procesando mensaje de {user_id} en {platform} para {business_unit.name}")
             # 1. Verificación de mensaje duplicado
             message_id = message.get("messages", [{}])[0].get("id")
             if CACHE_ENABLED and message_id:
@@ -113,15 +119,30 @@ class ChatBotHandler:
                 await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
                 return
 
-            # Detectar y manejar intents (con prioridad alta)
+            # 5. Detectar y manejar intents (MOVIDO AQUÍ ARRIBA)
             if text:
                 detected_intents = detect_intents(text)
                 if detected_intents:
                     logger.info(f"[process_message] Intents detectados: {detected_intents}")
-                    handled = await handle_known_intents(
-                        detected_intents, platform, user_id, 
-                        chat_state, business_unit, user, text
-                    )
+                    if "tos_accept" in detected_intents:
+                        # Manejo específico para TOS
+                        tos_url = f"https://amigro.org/tos"  # Ajusta según el business unit
+                        await send_message(platform, user_id, f"📜 Aquí están nuestros Términos de Servicio: {tos_url}", bu_key)
+                        await send_message(platform, user_id, "¿Aceptas nuestros Términos de Servicio? (Sí/No)", bu_key)
+                        chat_state.state = "waiting_for_tos"
+                        await sync_to_async(chat_state.save)()
+                        return
+                    elif "travel_in_group" in detected_intents:
+                        # Manejo específico para invitación grupal
+                        await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
+                        return
+                    elif "show_menu" in detected_intents:
+                        # Manejo específico para mostrar menú
+                        await send_menu(platform, user_id, business_unit)
+                        return
+                    
+                    # Intentar manejar otros intents conocidos
+                    handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text)
                     if handled:
                         return
 
