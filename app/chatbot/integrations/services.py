@@ -746,15 +746,15 @@ async def get_business_unit(name: Optional[str] = None) -> Optional[BusinessUnit
             return None
         
         # Normalizar el nombre antes de la búsqueda
-        normalized_name = name.replace('®', '').strip()
+        normalized_name = str(name).lower().replace('®', '').strip() if isinstance(name, str) else name
         
+        if isinstance(name, BusinessUnit):
+            return name
+            
         business_unit = await sync_to_async(BusinessUnit.objects.filter)(
             name__iexact=normalized_name
         )
         return await sync_to_async(business_unit.first)()
-    except AttributeError as e:
-        logger.error(f"[get_business_unit] Error de atributo con BusinessUnit ({name}): {e}")
-        return None
     except Exception as e:
         logger.error(f"[get_business_unit] Error obteniendo BusinessUnit ({name}): {e}")
         return None
@@ -793,37 +793,24 @@ async def reset_chat_state(user_id: str, business_unit: BusinessUnit, platform: 
 # ================================
 # WRAPPERS PARA FUNCIONES ASÍNCRONAS Y SINCRÓNICAS -----  NO MODIFICAR POR FAVOR
 # ================================
-async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: Optional[str] = None):
-    """
-    Envío de mensaje asíncrono con validación de Business Unit.
-
-    Args:
-        platform (str): Plataforma donde se enviará el mensaje (WhatsApp, Telegram, Messenger, Instagram).
-        user_id (str): ID del usuario al que se enviará el mensaje.
-        message (str): Contenido del mensaje a enviar.
-        business_unit_name (Optional[str]): Nombre de la unidad de negocio (opcional).
-
-    Returns:
-        bool: True si el mensaje se envió correctamente, False en caso contrario.
-    """
+async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: str = None):
+    """Envía un mensaje de forma asíncrona."""
     try:
+        if not business_unit_name:
+            business_unit_name = 'default'
+        
+        # Normalizar el nombre del business unit
+        business_unit_name = business_unit_name.lower().replace('®', '').strip()
+        
         business_unit = await get_business_unit(business_unit_name)
         if not business_unit:
-            logger.error(f"[send_message_async] ❌ No se encontró BusinessUnit para {business_unit}")
+            logger.error(f"Business unit no encontrado: {business_unit_name}")
             return False
-
-        service = MessageService(business_unit)
-        success = await service.send_message(platform, user_id, message)
-
-        if success:
-            logger.info(f"[send_message_async] ✅ Mensaje enviado a {user_id} en {platform}: {message}")
-        else:
-            logger.warning(f"[send_message_async] ⚠️ Fallo en el envío de mensaje a {user_id} en {platform}")
-
-        return success
-
+            
+        message_service = MessageService(business_unit)
+        return await message_service.send_message(platform, user_id, message)
     except Exception as e:
-        logger.error(f"[send_message_async] ❌ Error enviando mensaje a {user_id} en {platform}: {e}", exc_info=True)
+        logger.error(f"Error en send_message_async: {e}", exc_info=True)
         return False
 
 def send_message(platform: str, user_id: str, message: str, business_unit: str = None):

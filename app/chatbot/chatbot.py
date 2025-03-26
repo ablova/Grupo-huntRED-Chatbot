@@ -80,41 +80,33 @@ class ChatBotHandler:
             logger.error(f"Error obteniendo business unit key: {e}")
         return 'default'
 
-    async def process_message(self, platform: str, user_id: str, message: dict, business_unit) -> Optional[str]:
-        """Procesa mensajes entrantes con mejor manejo de errores."""
-        message_id = None
+    async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
+        """Procesa mensajes entrantes."""
         try:
             message_id = message.get("messages", [{}])[0].get("id")
             if CACHE_ENABLED and message_id:
                 cache_key = f"processed_message:{message_id}"
                 if cache.get(cache_key):
                     logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
-                    return None
-                cache.set(cache_key, True, timeout=CACHE_TIMEOUT)
+                    return
 
             # Extraer contenido del mensaje
             text, attachment = self._extract_message_content(message)
-            bu_key = self.get_business_unit_key(business_unit)
+            
+            # Manejo seguro del nombre del business unit
+            bu_key = str(business_unit.name).lower().replace('®', '').strip() if hasattr(business_unit, 'name') else 'default'
+            
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
 
             # Obtener o crear usuario y estado de chat
             user, chat_state = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit)
-
-            # Detectar y manejar intents
-            if text:
-                detected_intents = detect_intents(text)
-                try:
-                    if detected_intents and await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text):
-                        return None
-                except Exception as e:
-                    logger.error(f"Error manejando intents: {e}", exc_info=True)
 
             # Estado inicial: enviar mensajes de bienvenida
             if chat_state.state == "initial":
                 await self.send_complete_initial_messages(platform, user_id, business_unit)
                 chat_state.state = "waiting_for_tos"
                 await sync_to_async(chat_state.save)()
-                return None
+                return
 
             # Verificación de aceptación de TOS
             if not user.tos_accepted:
@@ -123,7 +115,26 @@ class ChatBotHandler:
                     chat_state.state = "profile_in_progress"
                     await sync_to_async(chat_state.save)()
                     await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
-                return None
+                return
+
+            # Almacenar mensaje del usuario si existe
+            if text:
+                await self.store_user_message(chat_state, text)
+
+            # Detectar y manejar intents conocidos
+            detected_intents = detect_intents(text) if text else []
+            if detected_intents:
+                handled = await handle_known_intents(
+                    detected_intents, 
+                    platform, 
+                    user_id, 
+                    chat_state, 
+                    business_unit, 
+                    user, 
+                    text
+                )
+                if handled:
+                    return
 
             # Detección de SPAM y muteo
             if NLP_ENABLED and is_spam_message(user_id, text):
@@ -132,26 +143,22 @@ class ChatBotHandler:
                     await send_message(platform, user_id, "⚠️ Demasiados mensajes similares, espera un momento.", bu_key)
                 else:
                     await send_message(platform, user_id, "⚠️ Por favor, no envíes mensajes repetidos.", bu_key)
-                return None
+                return
             if cache.get(f"muted:{user_id}"):
                 await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
-                return None
+                return
 
             # Manejo de adjuntos (CV u otros documentos)
             if attachment:
                 file_type = attachment.get("type", "")
                 if file_type not in ["pdf", "application/pdf", "doc", "docx", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
                     await send_message(platform, user_id, "Formato no soportado. Usa PDF o Word.", bu_key)
-                    return None
+                    return
                 response = await self.handle_cv_upload(user, attachment.get("url", ""))
                 await send_message(platform, user_id, response, bu_key)
                 await self.store_bot_message(chat_state, response)
                 await self.award_gamification_points(user, "cv_upload")
-                return None
-
-            # Almacenar mensaje del usuario si existe
-            if text:
-                await self.store_user_message(chat_state, text)
+                return
 
             # Manejo de estados conversacionales
             if chat_state.state == "profile_in_progress":
@@ -162,7 +169,7 @@ class ChatBotHandler:
                         recap = await self.recap_information(user)
                         await send_message(platform, user_id, recap, bu_key)
                         await sync_to_async(chat_state.save)()
-                    return None
+                    return
 
             if chat_state.state == "waiting_for_cv_confirmation":
                 if text.lower() == "sí":
@@ -178,20 +185,20 @@ class ChatBotHandler:
                     await send_message(platform, user_id, "¿Qué dato necesitas corregir?", bu_key)
                     chat_state.state = "profile_in_progress"
                     await sync_to_async(chat_state.save)()
-                return None
+                return
 
             # Manejo de invitaciones de grupo
             if chat_state.context.get("awaiting_group_invitation"):
                 await self.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
-                return None
+                return
 
             # Manejo de selección de vacantes
             if text.startswith("job_") or text.startswith("apply_") or text.startswith("details_") or text.startswith("schedule_") or text.startswith("tips_") or text.startswith("book_slot_"):
                 await self.handle_job_action(platform, user_id, text, chat_state, business_unit, user)
-                return None
+                return
 
             # Flujos específicos por unidad de negocio
-            if bu_key in self.workflow_mapping and user.profile_complete:
+            if bu_key in self.workflow_mapping and getattr(user, 'is_profile_complete', False):
                 workflow_func = self.workflow_mapping[bu_key]
                 if bu_key == "sexsi":
                     response = workflow_func(user_id, user, business_unit, chat_state.context)
@@ -199,7 +206,7 @@ class ChatBotHandler:
                     await self.store_bot_message(chat_state, response)
                 else:
                     await sync_to_async(workflow_func)(user.id)
-                return None
+                return
 
             # Respuesta por defecto con análisis NLP
             if NLP_ENABLED and self.nlp_processor:
@@ -213,18 +220,17 @@ class ChatBotHandler:
             await send_message(platform, user_id, response, bu_key)
             await self.store_bot_message(chat_state, response)
             logger.info(f"[process_message] ✅ Mensaje procesado y enviado exitosamente para {user_id}")
-            return None
+            return
 
         except Exception as e:
             logger.error(f"Error en process_message (ID: {message_id}): {e}", exc_info=True)
-            error_message = "Ups, algo salió mal. Te comparto el menú:"
-            bu_key = self.get_business_unit_key(business_unit)
-            await send_message(platform, user_id, error_message, bu_key)
             try:
+                # Usar el nombre del business unit de forma segura
+                bu_name = str(business_unit.name).lower().replace('®', '').strip() if hasattr(business_unit, 'name') else 'default'
+                await send_message(platform, user_id, "Ups, algo salió mal. Te comparto el menú:", bu_name)
                 await send_menu(platform, user_id, business_unit)
             except Exception as menu_error:
                 logger.error(f"Error enviando menú: {menu_error}")
-            return error_message
 
     async def initialize_chat_state(platform: str, user_id: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
@@ -332,22 +338,22 @@ class ChatBotHandler:
 
     async def handle_group_invitation_input(self, platform: str, user_id: str, text: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person):
         """Handle group invitation input interactively with buttons."""
-        bu_name = self.get_business_unit_key(business_unit)
+        bu_key = self.get_business_unit_key(business_unit)
         if not chat_state.context.get('awaiting_group_invitation'):
-            await send_message(platform, user_id, "Por favor, dime el nombre de la persona que quieres invitar.", bu_name)
+            await send_message(platform, user_id, "Por favor, dime el nombre de la persona que quieres invitar.", bu_key)
             chat_state.context['awaiting_group_invitation'] = True
             chat_state.state = "waiting_for_invitation_name"
             await sync_to_async(chat_state.save)()
             return
         if chat_state.state == "waiting_for_invitation_name":
             chat_state.context['invitation_name'] = text.capitalize()
-            await send_message(platform, user_id, "Gracias, ahora dime el apellido.", bu_name)
+            await send_message(platform, user_id, "Gracias, ahora dime el apellido.", bu_key)
             chat_state.state = "waiting_for_invitation_apellido"
             await sync_to_async(chat_state.save)()
             return
         elif chat_state.state == "waiting_for_invitation_apellido":
             chat_state.context['invitation_apellido'] = text.capitalize()
-            await send_message(platform, user_id, "Perfecto, ahora dame el número de teléfono (ej. +521234567890).", bu_name)
+            await send_message(platform, user_id, "Perfecto, ahora dame el número de teléfono (ej. +521234567890).", bu_key)
             chat_state.state = "waiting_for_invitation_phone"
             await sync_to_async(chat_state.save)()
             return
@@ -363,13 +369,13 @@ class ChatBotHandler:
                     {"title": "Sí", "payload": "yes_invite_more"},
                     {"title": "No", "payload": "no_invite_more"}
                 ]
-                await send_message(platform, user_id, resp, bu_name)
-                await send_options(platform, user_id, "Selecciona una opción:", buttons, bu_name)
+                await send_message(platform, user_id, resp, bu_key)
+                await send_options(platform, user_id, "Selecciona una opción:", buttons, bu_key)
                 chat_state.state = "waiting_for_invitation_confirmation"
                 await sync_to_async(chat_state.save)()
             else:
                 resp = "El número no parece válido. Usa el formato '+521234567890'. Intenta de nuevo."
-                await send_message(platform, user_id, resp, bu_name)
+                await send_message(platform, user_id, resp, bu_key)
                 await self.store_bot_message(chat_state, resp)
             return
         elif chat_state.state == "waiting_for_invitation_confirmation":
@@ -377,11 +383,11 @@ class ChatBotHandler:
                 chat_state.context.pop('invitation_name', None)
                 chat_state.context.pop('invitation_apellido', None)
                 chat_state.context['awaiting_group_invitation'] = True
-                await send_message(platform, user_id, "¡Genial! Dime el nombre de la siguiente persona.", bu_name)
+                await send_message(platform, user_id, "¡Genial! Dime el nombre de la siguiente persona.", bu_key)
                 chat_state.state = "waiting_for_invitation_name"
                 await sync_to_async(chat_state.save)()
             elif text == "no_invite_more":
-                await send_message(platform, user_id, "¡Listo! No invitaré a nadie más. ¿En qué te ayudo ahora?", bu_name)
+                await send_message(platform, user_id, "¡Listo! No invitaré a nadie más. ¿En qué te ayudo ahora?", bu_key)
                 await send_menu(platform, user_id, business_unit)
                 chat_state.context.pop('awaiting_group_invitation', None)
                 chat_state.context.pop('invitation_name', None)
@@ -389,7 +395,7 @@ class ChatBotHandler:
                 chat_state.state = "idle"
                 await sync_to_async(chat_state.save)()
             else:
-                await send_message(platform, user_id, "Por favor, selecciona 'Sí' o 'No'.", bu_name)
+                await send_message(platform, user_id, "Por favor, selecciona 'Sí' o 'No'.", bu_key)
             return
 
     async def invite_known_person(self, referrer: Person, name: str, apellido: str, phone_number: str):
