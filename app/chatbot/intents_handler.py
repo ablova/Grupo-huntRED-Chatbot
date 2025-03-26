@@ -51,6 +51,11 @@ INTENT_PATTERNS = {
         "responses": ["¡Claro! Vamos a empezar. ¿Qué te gustaría hacer? Puedes ver vacantes, subir tu CV o explorar opciones."],
         "priority": 10
     },
+    "tos_accept": {
+        "patterns": [r"\btos_accept\b"],
+        "responses": ["Aceptaste los Términos de Servicio. ¡Continuemos!"],
+        "priority": 5
+    },
     "show_jobs": {
         "patterns": [r"\b(ver\s+vacantes|mostrar\s+vacantes|vacante(s)?|oportunidad(es)?|empleo(s)?|trabajo(s)?|puestos|listado\s+de\s+vacantes)\b"],
         "responses": ["Te voy a mostrar vacantes recomendadas según tu perfil. Un momento..."],
@@ -186,6 +191,14 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                     await send_options(platform, user_id, "¿Aceptas los Términos de Servicio?", 
                                        [{"title": "Sí", "payload": "tos_accept"}, {"title": "No", "payload": "tos_reject"}],
                                        business_unit.name.lower())
+            elif primary_intent == "tos_accept":
+                await send_message(platform, user_id, f"📜 Aceptaste los Términos de Servicio: {self.get_tos_url(business_unit)}", business_unit.name.lower())
+                user.tos_accepted = True
+                await sync_to_async(user.save)()
+                chat_state.state = "profile_in_progress"
+                await sync_to_async(chat_state.save)()
+                await send_menu(platform, user_id, business_unit)
+                return True
             elif primary_intent == "show_jobs":
                 from app.utilidades.vacantes import VacanteManager
                 jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
