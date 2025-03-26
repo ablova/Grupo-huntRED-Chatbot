@@ -2,11 +2,16 @@
 /etc/
 # Ignorar el entorno virtual
 venv/
+<<<<<<< HEAD
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 .env
+=======
+*.pyc
+__pycache__/
+>>>>>>> b9ca4c182a9a0aa894200811d42a078183e964d8
 .DS_Store
 setup_server.sh
 update_git.sh
