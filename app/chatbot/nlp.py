@@ -368,7 +368,7 @@ class NLPProcessor:
 
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
         self._check_and_free_models()
-        preprocessed = self.preprocess(text)
+        preprocessed = await self.preprocess(text)
         translated = preprocessed["translated"]
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
         catalog = self.candidate_catalog if self.mode == "candidate" else self.opportunity_catalog

@@ -8,6 +8,7 @@ from app.chatbot.integrations.services import send_message, send_options, send_m
 from django.core.cache import cache
 from django.utils import timezone
 import random
+from app.chatbot.workflow.common import calcular_salario_chatbot
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ INTENT_PATTERNS = {
         "priority": 10
     },
     "tos_accept": {
-        "patterns": [r"\btos_accept\b"],
+        "patterns": [r"\b(tos_accept|accept_tos)\b"],  # Add accept_tos here
         "responses": ["Aceptaste los Términos de Servicio. ¡Continuemos!"],
         "priority": 5
     },
@@ -138,6 +139,11 @@ INTENT_PATTERNS = {
         "patterns": [r"\b(impacto\s+social|trabajo\s+con\s+propósito|vacantes\s+con\s+impacto)\b"],
         "responses": ["¿Buscas trabajo con impacto social? Puedo mostrarte vacantes con propósito. ¿Te interesa?"],
         "priority": 26
+    },
+    "calcular_salario": {
+        "patterns": [r"salario\s*(bruto|neto)\s*=\s*[\d,\.]+k?"],
+        "responses": ["Voy a calcular tu salario. Por favor, dime cuánto ganas (ej. 'salario bruto = 20k MXN mensual') y cualquier detalle extra como bonos o prestaciones, o en que moneda lo tienes (yo te lo convierto si es necesario)."],
+        "priority": 17
     }
 }
 
@@ -247,6 +253,11 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 await send_options(platform, user_id, "¿Quieres más tips o practicar una entrevista?", 
                                    [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
                                    business_unit.name.lower())
+            elif primary_intent == "calcular_salario":
+                await calcular_salario_chatbot(platform, user_id, text, business_unit.name.lower())
+                chat_state.state = "waiting_for_salary_details"
+                await sync_to_async(chat_state.save)()
+                return True
             elif primary_intent == "consultar_sueldo_mercado":
                 chat_state.state = "waiting_for_salary_position"
                 await sync_to_async(chat_state.save)()
