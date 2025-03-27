@@ -184,7 +184,7 @@ async def telegram_webhook(request, bot_name: str):
             logger.info(f"📥 Callback recibido: {callback_data} de {chat_id}")
             callback_query_id = callback_query.get("id", "")
             if callback_query_id:
-                await confirm_telegram_callback(callback_query_id, telegram_api)
+                await confirm_telegram_callback(callback_query_id, telegram_api)  # Confirm immediately
             text = callback_data
         else:
             logger.debug("Validando mensaje de Telegram")
@@ -210,7 +210,7 @@ async def telegram_webhook(request, bot_name: str):
         )
 
         if response_text is None or not response_text.strip():
-            response_text = "Lo siento, no pude procesar tu mensaje. ¿En qué puedo ayudarte?"
+            response_text = "Lo siento, no pude procesar tu mensaje / algo salio medio mal, ups. ¿En qué puedo ayudarte?"
             logger.warning("Respuesta del chatbot fue None o vacía, usando mensaje por defecto")
 
         logger.debug(f"Enviando respuesta: {response_text}")

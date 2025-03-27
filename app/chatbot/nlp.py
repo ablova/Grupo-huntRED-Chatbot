@@ -94,9 +94,9 @@ class NLPProcessor:
 
     def _load_encoder(self):
         if self._encoder is None:
-            self._encoder = TFAutoModel.from_pretrained("distilbert-base-multilingual-cased")
+            self._encoder = TFAutoModel.from_pretrained("distilbert-base-multilingual-cased", from_pt=True)
             self._encoder_tokenizer = AutoTokenizer.from_pretrained("distilbert-base-multilingual-cased")
-            logger.info("Modelo encoder y tokenizer cargados")
+            logger.info("Modelo encoder y tokenizer cargados con from_pt=True")
         return self._encoder, self._encoder_tokenizer
 
     def _load_ner(self):

@@ -470,8 +470,9 @@ def get_business_unit_domain(business_unit):
 async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_name):
     data = parsear_mensaje(mensaje)
     if 'salario_bruto' not in data and 'salario_neto' not in data:
-        await send_message(platform, user_id, "Por favor, proporciona un salario válido.", business_unit_name)
-        return
+        response = "Por favor, proporciona un salario válido (ej. 'salario bruto = 20k MXN mensual')."
+        await send_message(platform, user_id, response, business_unit_name)
+        return response
 
     # Obtener tipo de cambio
     tipo_cambio = obtener_tipo_cambio(data['moneda'])
@@ -626,3 +627,4 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     msg += f"\n📚 *Referencia:* https://{domain}/salario/"
 
     await send_message(platform, user_id, msg, business_unit_name)
+    return msg

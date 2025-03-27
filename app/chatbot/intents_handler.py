@@ -26,7 +26,7 @@ INTENT_PATTERNS = {
         "patterns": [r"\b(hola|hi|buenos\s+días|buenas\s+tardes|buenas\s+noches|saludos|hey)\b"],
         "responses": [
             "¡Hola! 👋 Soy tu asistente de reclutamiento. ¿En qué puedo ayudarte hoy?",
-            "¡Hola! 🌟 Bienvenido(a) a Amigro®. ¿Cómo puedo apoyarte en tu búsqueda laboral?",
+            "¡Hola! 🌟 Bienvenido(a). ¿Cómo puedo apoyarte en tu búsqueda laboral?",
             "¡Saludos! 🤝 Estoy aquí para ayudarte con oportunidades laborales. ¿Qué necesitas?"
         ],
         "priority": 2
@@ -109,7 +109,7 @@ INTENT_PATTERNS = {
     "calcular_salario": {
         "patterns": [r"\bcalcular_salario\b", r"salario\s*(bruto|neto)\s*=\s*[\d,\.]+k?"],
         "responses": ["Voy a calcular tu salario. Por favor, dime cuánto ganas (ej. 'salario bruto = 20k MXN mensual') y cualquier detalle extra como bonos o prestaciones, o en qué moneda lo tienes (yo te lo convierto si es necesario)."],
-        "priority": 45
+        "priority": 17
     },
     "consultar_sueldo_mercado": {
         "patterns": [r"\b(sueldo\s+mercado|rango\s+salarial|cuánto\s+pagan|salario\s+para\s+.*)\b"],
@@ -209,12 +209,13 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 bu_responses = INTENT_PATTERNS['presentacion_bu']['responses']
                 for msg in bu_responses:
                     await send_message(platform, user_id, msg, business_unit.name.lower())
-                if not user.profile_complete:
+                # Replace user.profile_complete with chatbot.is_profile_complete
+                if chatbot and not chatbot.is_profile_complete(user, business_unit):
                     tos_url = get_tos_url(business_unit)
                     await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", business_unit.name.lower())
                     await send_options(platform, user_id, "¿Aceptas los Términos de Servicio?", 
-                                       [{"title": "Sí", "payload": "tos_accept"}, {"title": "No", "payload": "tos_reject"}],
-                                       business_unit.name.lower())
+                                    [{"title": "Sí", "payload": "tos_accept"}, {"title": "No", "payload": "tos_reject"}],
+                                    business_unit.name.lower())
             elif primary_intent == "tos_accept":
                 await send_message(platform, user_id, f"📜 Aceptaste los Términos de Servicio: {get_tos_url(business_unit)}", business_unit.name.lower())
                 user.tos_accepted = True
@@ -254,9 +255,14 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                                 [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
                                 business_unit.name.lower())
             elif primary_intent == "calcular_salario":
-                await calcular_salario_chatbot(platform, user_id, text, business_unit.name.lower())
+                # Call calcular_salario_chatbot and capture its response
+                response = await calcular_salario_chatbot(platform, user_id, text, business_unit.name.lower())
+                if response:  # Check if a response was returned
+                    cache.set(cache_key, response, timeout=600)
+                    await send_message(platform, user_id, response, business_unit.name.lower())
                 chat_state.state = "waiting_for_salary_details"
                 await sync_to_async(chat_state.save)()
+                logger.info(f"[handle_known_intents] Intent manejado: calcular_salario")
                 return True
             elif primary_intent == "consultar_sueldo_mercado":
                 chat_state.state = "waiting_for_salary_position"
