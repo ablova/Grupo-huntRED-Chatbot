@@ -1,3 +1,4 @@
+# /home/pablo/app/chatbot/chatbot.py
 import logging
 import asyncio
 import re
@@ -26,7 +27,8 @@ from app.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 from app.chatbot.gpt import GPTHandler
 from app.chatbot.intents_handler import detect_intents, handle_known_intents, get_tos_url
-
+import tracemalloc
+tracemalloc.start()
 logger = logging.getLogger(__name__)
 
 # Configuración simplificada en el mismo archivo
@@ -95,13 +97,26 @@ class ChatBotHandler:
                     logger.info(f"Mensaje {message_id} ya procesado, ignorando.")
                     return
 
-            # 2. Extraer contenido
+            # 2. Extraer contenido y detectar idioma/ubicación
             text, attachment = self._extract_message_content(message)
             bu_key = self.get_business_unit_key(business_unit)
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
 
+            # Detectar idioma desde el primer mensaje
+            language = detect(text) if text else "es"  # Por defecto español
+            logger.info(f"Idioma detectado: {language}")
+            
+            # Extraer ubicación (WhatsApp-specific, si está disponible)
+            location = message.get("messages", [{}])[0].get("location", None) if platform == "whatsapp" else None
+            if location:
+                logger.info(f"Ubicación detectada: {location}")
+
             # 3. Obtener usuario y estado
             user, chat_state = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit)
+            chat_state.context["language"] = language  # Guardar idioma en el estado
+            if location:
+                chat_state.context["location"] = location  # Guardar ubicación si existe
+            await sync_to_async(chat_state.save)()
 
             # 4. Verificar SPAM y silenciado
             if NLP_ENABLED and text and is_spam_message(user_id, text):
@@ -117,12 +132,27 @@ class ChatBotHandler:
 
             # 5. Detectar y manejar intents
             if text:
-                detected_intents = detect_intents(text)
-                if detected_intents:
-                    logger.info(f"[process_message] Intents detectados: {detected_intents}")
-                    handled = await handle_known_intents(detected_intents, platform, user_id, chat_state, business_unit, user, text, self)
+                intents = detect_intents(text)
+                logger.info(f"[process_message] Intents detectados: {intents}")
+                if intents:
+                    handled = await handle_known_intents(intents, platform, user_id, text, chat_state, business_unit, self)
                     if handled:
-                        return
+                        return None  # El handler del intent ya envió la respuesta
+                
+                # Fallback a NLP con manejo de errores
+                if NLP_ENABLED and self.nlp_processor:
+                    try:
+                        analysis = await self.nlp_processor.analyze(text, language=language)
+                        response = await self._generate_default_response(
+                            user, chat_state, text, 
+                            analysis.get("entities", []), 
+                            analysis.get("sentiment", {})
+                        )
+                    except Exception as nlp_error:
+                        logger.error(f"Error en análisis NLP: {nlp_error}")
+                        response = "Ups, no pude procesar eso. ¿En qué más puedo ayudarte?"
+                    await send_message(platform, user_id, response, bu_key)
+                    return response
 
             # 6. Estado inicial y TOS
             if chat_state.state == "initial":
@@ -134,7 +164,7 @@ class ChatBotHandler:
             # 7. Verificación de aceptación de TOS
             if not user.tos_accepted:
                 await self.handle_tos_acceptance(platform, user_id, text, chat_state, business_unit, user)
-                if text.lower() in ["sí", "si"]:  # Simplificado, "tos_accept" ya se maneja en intents_handler
+                if text.lower() in ["sí", "si"]:
                     chat_state.state = "profile_in_progress"
                     await sync_to_async(chat_state.save)()
                     await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
@@ -151,15 +181,25 @@ class ChatBotHandler:
                 await self.store_bot_message(chat_state, response)
                 return
 
-            # 10. Procesamiento específico por estado
+            # 10. Procesamiento específico por estado (incluye captura de sueldo)
             if chat_state.state == "profile_in_progress":
-                from app.chatbot.workflow.common import manejar_respuesta_perfil
                 if await manejar_respuesta_perfil(platform, user_id, text, business_unit, chat_state, user, self.gpt_handler):
-                    if NLP_ENABLED and self.nlp_processor:
-                        analysis = await self.nlp_processor.analyze(text)
-                        response = await self._generate_default_response(user, chat_state, text, analysis.get("entities", []), analysis.get("sentiment", {}))
+                    # Preguntar por sueldo actual después de experiencia
+                    if "experience" in chat_state.context and "current_salary" not in chat_state.context:
+                        response = "¿Cuál es tu sueldo actual? Si está en MXN, puedo darte una comparativa con otras monedas si quieres."
                         await send_message(platform, user_id, response, bu_key)
-                        await self.store_bot_message(chat_state, response)
+                        chat_state.context["awaiting_salary"] = True
+                        await sync_to_async(chat_state.save)()
+                    elif chat_state.context.get("awaiting_salary") and text:
+                        salary = text.strip()
+                        chat_state.context["current_salary"] = salary
+                        chat_state.context["awaiting_salary"] = False
+                        if "mxn" in salary.lower():
+                            response = f"Guardé tu sueldo: {salary}. ¿Te gustaría una comparativa con otras monedas o el mercado laboral?"
+                        else:
+                            response = f"Guardé tu sueldo: {salary}. ¿En qué más puedo ayudarte?"
+                        await send_message(platform, user_id, response, bu_key)
+                        await sync_to_async(chat_state.save)()
                     return
 
             # 11. Análisis NLP y respuesta por defecto

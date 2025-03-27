@@ -255,9 +255,8 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                                 [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
                                 business_unit.name.lower())
             elif primary_intent == "calcular_salario":
-                # Call calcular_salario_chatbot and capture its response
                 response = await calcular_salario_chatbot(platform, user_id, text, business_unit.name.lower())
-                if response:  # Check if a response was returned
+                if response:
                     cache.set(cache_key, response, timeout=600)
                     await send_message(platform, user_id, response, business_unit.name.lower())
                 chat_state.state = "waiting_for_salary_details"

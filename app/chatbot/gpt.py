@@ -11,7 +11,8 @@ from asgiref.sync import sync_to_async
 import asyncio
 import json
 import requests
-
+import tracemalloc
+tracemalloc.start()
 logger = logging.getLogger(__name__)
 
 GPT_DEFAULTS = {

@@ -22,6 +22,8 @@ from app.models import (
     InstagramAPI, MessengerAPI, ChatState, Person,
     EnhancedNetworkGamificationProfile
 )
+import tracemalloc
+tracemalloc.start()
 logger = logging.getLogger(__name__)
 
 # Constantes globales

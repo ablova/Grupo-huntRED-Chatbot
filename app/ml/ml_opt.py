@@ -4,6 +4,8 @@ import os
 import psutil
 import tensorflow as tf
 import logging
+from app.ml.ml_config import ML_CONFIG
+from app.chatbot.migration_check import skip_on_migrate
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,27 @@ def check_system_load(threshold=70):
     cpu_load = psutil.cpu_percent(interval=1)
     logger.info(f"Carga actual de la CPU: {cpu_load}%")
     return cpu_load < threshold
+
+@skip_on_migrate
+def configure_tensorflow():
+    """Configura TensorFlow solo cuando no estamos migrando"""
+    try:
+        # Configuración de memoria
+        tf.config.set_soft_device_placement(True)
+        for gpu in tf.config.list_physical_devices('GPU'):
+            tf.config.experimental.set_memory_growth(gpu, True)
+        
+        # Configuración de hilos
+        tf.config.threading.set_intra_op_parallelism_threads(
+            ML_CONFIG['TENSORFLOW_THREADS']['INTRA_OP']
+        )
+        tf.config.threading.set_inter_op_parallelism_threads(
+            ML_CONFIG['TENSORFLOW_THREADS']['INTER_OP']
+        )
+        
+        logger.info("Configuración de TensorFlow aplicada correctamente")
+    except Exception as e:
+        logger.error(f"Error configurando TensorFlow: {e}")
 
 def configure_tensorflow_based_on_load():
     """

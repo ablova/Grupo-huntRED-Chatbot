@@ -1,5 +1,3 @@
-# Ubicación: /home/pablo/app/chatbot/nlp.py
-
 import os
 import json
 import time
@@ -8,6 +6,7 @@ import spacy
 import nltk
 import pandas as pd
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from langdetect import detect
 import numpy as np
 import tensorflow as tf
@@ -17,9 +16,13 @@ from typing import Dict, List, Optional
 import requests
 from app.ml.ml_opt import configure_tensorflow_based_on_load
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from django.core.cache import cache
 from tenacity import retry, stop_after_attempt, wait_exponential
+import aiohttp
+from asyncio import Semaphore
+from app.chatbot.migration_check import skip_on_migrate
+import sys
 
 # Configurar TensorFlow según la carga del sistema
 configure_tensorflow_based_on_load()
@@ -30,41 +33,166 @@ logger = logging.getLogger(__name__)
 
 nltk.download('vader_lexicon', quiet=True)
 
+# Constantes
+CACHE_TIMEOUT = 600  # 10 minutes
+TRANSLATION_RATE_LIMIT = 5  # Requests per second
+TRANSLATION_DAILY_LIMIT = 1000  # Daily translation limit
+MAX_BATCH_SIZE = 50  # Maximum batch size for translations
+# Catálogos globales
+CANDIDATE_CATALOG = None
+OPPORTUNITY_CATALOG = None
+INTENTS_CATALOG = None
+
 # Rutas de archivos
 FILE_PATHS = {
     "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
     "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
     "tabiya_skills": "/home/pablo/skills_data/tabiya/tabiya-esco-v1.1.1/csv/skills.csv",
     "opportunity_catalog": "/home/pablo/app/utilidades/catalogs/skills.json",
-    "intents": "/home/pablo/chatbot_data/intents.json"  # Este archivo ya no se usa directamente
+    "intents": "/home/pablo/chatbot_data/intents.json"
 }
 
-# Definición de CATALOG_FILES
-CATALOG_FILES = {
-    "relax_skills": {
-        "path": FILE_PATHS["relax_skills"],
-        "type": "json",
-        "process": lambda data, catalog: NLPProcessor._process_relax_skills(None, data, catalog)
-    },
-    "esco_skills": {
-        "path": FILE_PATHS["esco_skills"],
-        "type": "json",
-        "process": lambda data, catalog: NLPProcessor._process_esco_skills(None, data, catalog)
-    },
-    "tabiya_skills": {
-        "path": FILE_PATHS["tabiya_skills"],
-        "type": "csv",
-        "process": lambda data, catalog: NLPProcessor._process_csv_skills(None, data, catalog)
-    }
+# 1. Configuración y constantes mejoradas
+TRANSLATION_CONFIG = {
+    'RATE_LIMIT': 5,  # Solicitudes por segundo
+    'DAILY_LIMIT': 1000,  # Límite diario
+    'BATCH_SIZE': 50,  # Tamaño máximo del lote
+    'TIMEOUT': 30,  # Tiempo de espera para traducciones
+    'RETRY_ATTEMPTS': 3,  # Intentos de reintento
+    'BACKOFF_FACTOR': 2  # Factor de retroceso exponencial
 }
+CACHE_CONFIG = {
+    'EMBEDDINGS_TTL': 3600,  # 1 hora para embeddings
+    'CATALOG_TTL': 86400,    # 24 horas para catálogos
+    'TRANSLATION_TTL': 1800  # 30 minutos para traducciones
+}
+MODEL_CONFIG = {
+    'MAX_SEQUENCE_LENGTH': 128,
+    'SIMILARITY_THRESHOLD': 0.8,
+    'CONFIDENCE_THRESHOLD': 0.7,
+    'BATCH_SIZE': 32
+}
+class RateLimitedTranslator:
+    def __init__(self, source='auto', target='en', max_requests_per_second=TRANSLATION_RATE_LIMIT):
+        """
+        Rate-limited translator with intelligent backoff and retry mechanisms       
+        Args:
+            source (str): Source language code
+            target (str): Target language code
+            max_requests_per_second (int): Maximum translation requests per second
+        """
+        self.translator = GoogleTranslator(source=source, target=target)
+        self.request_semaphore = asyncio.Semaphore(max_requests_per_second)
+        self.daily_request_count = 0
+        self.last_reset_time = time.time()
+        self.error_backoff_time = 1  # Initial backoff time
+        self.max_error_backoff_time = 60  # Maximum backoff time
 
-# Catálogos globales
-CANDIDATE_CATALOG = None
-OPPORTUNITY_CATALOG = None
-INTENTS_CATALOG = None
+    async def _check_and_reset_daily_limit(self):
+        """Check and reset daily request count"""
+        current_time = time.time()
+        if current_time - self.last_reset_time >= 86400:  # 24 hours
+            self.daily_request_count = 0
+            self.last_reset_time = current_time
+
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
+    )
+    async def translate(self, text: str) -> str:
+        """
+        Translate a single text with rate limiting and error handling
+        Args:
+            text (str): Text to translate
+        Returns:
+            str: Translated text
+        """
+        await self._check_and_reset_daily_limit()
+        
+        if not text or len(text.strip()) < 1:
+            return text
+
+        if self.daily_request_count >= TRANSLATION_DAILY_LIMIT:
+            logger.warning("Daily translation limit reached. Returning original text.")
+            return text
+
+        try:
+            async with self.request_semaphore:
+                # Random jitter to distribute requests
+                await asyncio.sleep(random.uniform(0, 0.5))
+                translated = await asyncio.to_thread(self.translator.translate, text)
+                self.daily_request_count += 1
+                self.error_backoff_time = 1  # Reset backoff time on success
+                return translated
+        
+        except Exception as e:
+            logger.warning(f"Translation error: {e}")
+            # Implement exponential backoff
+            await asyncio.sleep(self.error_backoff_time)
+            self.error_backoff_time = min(self.error_backoff_time * 2, self.max_error_backoff_time)
+            return text
+
+    async def translate_batch(self, texts: List[str]) -> List[str]:
+        """
+        Translate a batch of texts with intelligent batching and rate limiting
+        Args:
+            texts (List[str]): List of texts to translate
+        Returns:
+            List[str]: Translated texts
+        """
+        if not texts:
+            return []
+
+        # Split into smaller batches to manage rate limits
+        translated_texts = []
+        for i in range(0, len(texts), MAX_BATCH_SIZE):
+            batch = texts[i:i+MAX_BATCH_SIZE]
+            batch_translations = await asyncio.gather(
+                *[self.translate(text) for text in batch]
+            )
+            translated_texts.extend(batch_translations)
+
+        return translated_texts
+
+class AsyncTranslator:
+    def __init__(self, source='auto', target='en'):
+        """
+        Asynchronous translator wrapper with fallback mechanisms
+        Args:
+            source (str): Source language code
+            target (str): Target language code
+        """
+        self.rate_limited_translator = RateLimitedTranslator(source, target)
+        self.executor = ThreadPoolExecutor(max_workers=10)
+
+    async def translate(self, text: str) -> str:
+        """
+        Translate a single text
+        Args:
+            text (str): Text to translate
+        Returns:
+            str: Translated text
+        """
+        if not text or len(text.strip()) < 1:
+            return text
+        
+        return await self.rate_limited_translator.translate(text)
+
+    async def translate_batch(self, texts: List[str]) -> List[str]:
+        """
+        Translate multiple texts
+        Args:
+            texts (List[str]): List of texts to translate        
+        Returns:
+            List[str]: Translated texts
+        """
+        return await self.rate_limited_translator.translate_batch(texts)
+
 
 class NLPProcessor:
+    @skip_on_migrate
     def __init__(self, mode: str = "candidate", analysis_depth: str = "quick", language: str = "es"):
+        if 'migrate' in sys.argv:
+            return
         self.mode = mode
         self.depth = analysis_depth
         self.language = language
@@ -79,17 +207,22 @@ class NLPProcessor:
         self._encoder = None
         self._encoder_tokenizer = None
         self._ner = None
-        self._translator = None
+        self._translator = AsyncTranslator()
         self._translator_fallback = None
         self._sentiment_analyzer = None
         self._intent_classifier = None
         self.api_key = os.getenv("GROK_API_KEY")
 
+        self.CATALOG_FILES = {
+            "relax_skills": {"path": FILE_PATHS["relax_skills"], "type": "json", "process": self._process_relax_skills},
+            "esco_skills": {"path": FILE_PATHS["esco_skills"], "type": "json", "process": self._process_esco_skills},
+            "tabiya_skills": {"path": FILE_PATHS["tabiya_skills"], "type": "csv", "process": self._process_csv_skills}
+        }
         global CANDIDATE_CATALOG, OPPORTUNITY_CATALOG, INTENTS_CATALOG
         if CANDIDATE_CATALOG is None:
-            CANDIDATE_CATALOG = self._load_catalog("candidate")
+            CANDIDATE_CATALOG = asyncio.run(self._load_catalog_async("candidate"))
         if OPPORTUNITY_CATALOG is None:
-            OPPORTUNITY_CATALOG = self._load_opportunity_catalog()
+            OPPORTUNITY_CATALOG = asyncio.run(self._load_opportunity_catalog())
         if INTENTS_CATALOG is None:
             INTENTS_CATALOG = self._load_intents()
 
@@ -97,14 +230,15 @@ class NLPProcessor:
         self.opportunity_catalog = OPPORTUNITY_CATALOG
         self.intents = INTENTS_CATALOG
 
-        # Cacheo para embeddings (usamos django.core.cache)
         self._cache_embeddings = {}
+        self.cache_manager = CacheManager()
+        self.model_pool = ModelPool()
+        self.batch_processor = BatchProcessor(self.model_pool)
 
     def _check_and_free_models(self, timeout=600):
         if time.time() - self.last_used > timeout:
             self._encoder = None
             self._ner = None
-            self._translator = None
             self._translator_fallback = None
             self._sentiment_analyzer = None
             self._intent_classifier = None
@@ -124,12 +258,6 @@ class NLPProcessor:
             logger.info("Modelo NER cargado")
         return self._ner
 
-    def _load_translator(self):
-        if self._translator is None:
-            self._translator = Translator()
-            logger.info("Traductor Google Translate cargado")
-        return self._translator
-
     def _load_translator_fallback(self):
         if self._translator_fallback is None:
             self._translator_fallback = pipeline("translation", model="facebook/m2m100_418M", framework="tf", src_lang="es", tgt_lang="en")
@@ -148,8 +276,7 @@ class NLPProcessor:
             logger.info("Clasificador de intenciones cargado")
         return self._intent_classifier
 
-    def _load_catalog(self, catalog_type: str) -> Dict[str, List[Dict[str, str]]]:
-        """Carga catálogos desde archivos con manejo robusto y logs."""
+    async def _load_catalog_async(self, catalog_type: str) -> Dict[str, List[Dict[str, str]]]:
         cache_key = f"catalog_{catalog_type}"
         cached_catalog = cache.get(cache_key)
         if cached_catalog is not None:
@@ -158,14 +285,12 @@ class NLPProcessor:
 
         catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
         
-        for file_key, file_info in CATALOG_FILES.items():
+        for file_key, file_info in self.CATALOG_FILES.items():
             path = file_info["path"]
-            # Excluir archivos específicos
             if path in [FILE_PATHS["opportunity_catalog"], FILE_PATHS["intents"]]:
                 logger.debug(f"Omitiendo archivo excluido: {path}")
                 continue
             
-            # Verificar existencia del archivo
             if not os.path.exists(path):
                 logger.warning(f"Archivo no encontrado: {path}. Omitiendo.")
                 continue
@@ -180,7 +305,7 @@ class NLPProcessor:
                     logger.error(f"Tipo de archivo no soportado para {path}: {file_info['type']}")
                     continue
                 
-                file_info["process"](data, catalog)  # Asumiendo que process actualiza el catálogo
+                await file_info["process"](data, catalog)
                 logger.info(f"Catálogo cargado exitosamente desde {path}")
             
             except Exception as e:
@@ -190,28 +315,24 @@ class NLPProcessor:
         cache.set(cache_key, catalog, timeout=CACHE_TIMEOUT)
         return catalog
 
-    def _process_json_skills(self, data: Dict, catalog: Dict, categories: List[str]) -> None:
-        """Procesa archivos JSON con habilidades organizadas por categorías."""
-        for category in categories:
-            skills = data.get(category, [])
-            if not skills:
-                logger.debug(f"No se encontraron habilidades en la categoría {category} del archivo.")
-                continue
-            translated_skills = asyncio.run(self._translate_to_english_batch(skills))
-            for skill, translated in zip(skills, translated_skills):
-                lang = detect(skill)
-                catalog[category].append({"original": skill, "translated": translated.lower(), "lang": lang})
+    async def _process_relax_skills(self, data: Dict, catalog: Dict) -> None:
+        skill_names = [skill_info.get("skill_name") for skill_info in data.values() if skill_info.get("skill_name")]
+        skill_types = [skill_info.get("skill_type") for skill_info in data.values() if skill_info.get("skill_name")]
+        
+        if not skill_names:
+            logger.debug("No hay habilidades válidas en skill_db_relax_20.json")
+            return
 
-    def _process_relax_skills(self, data: Dict, catalog: Dict) -> None:
-        """Procesa el archivo skill_db_relax_20.json."""
-        for skill_id, skill_info in data.items():
-            skill_name = skill_info.get("skill_name")
-            skill_type = skill_info.get("skill_type")
-            if not skill_name or not skill_type:
-                logger.debug(f"Entrada inválida en skill_db_relax_20.json: {skill_info}")
+        langs = [detect(skill) for skill in skill_names]
+        to_translate = [skill for skill, lang in zip(skill_names, langs) if lang != "en"]
+        translated_skills = await self._translator.translate_batch(to_translate) if to_translate else []
+        translated_iter = iter(translated_skills)
+
+        for skill_name, skill_type, lang in zip(skill_names, skill_types, langs):
+            if not skill_type:
+                logger.debug(f"Entrada inválida en skill_db_relax_20.json: {skill_name}")
                 continue
-            lang = detect(skill_name)
-            translated = self._translate_to_english(skill_name) if lang != "en" else skill_name
+            translated = next(translated_iter) if lang != "en" else skill_name
             skill_dict = {"original": skill_name, "translated": translated.lower(), "lang": lang}
             if skill_type == "Certification":
                 catalog["certifications"].append(skill_dict)
@@ -222,48 +343,41 @@ class NLPProcessor:
             else:
                 catalog["tools"].append(skill_dict)
 
-    def _process_esco_skills(self, data: Dict, catalog: Dict) -> None:
-        """Procesa el archivo ESCO_occup_skills.json."""
+    async def _process_esco_skills(self, data: Dict, catalog: Dict) -> None:
         for occupation, info in data.items():
             description = info.get("description", "")
             if not description:
-                logger.debug(f"No se encontró descripción para la ocupación {occupation} en ESCO_occup_skills.json")
+                logger.debug(f"No se encontró descripción para la ocupación {occupation}")
                 continue
-            # Podríamos extraer habilidades de la descripción, pero por ahora lo omitimos
-            logger.debug(f"Omitiendo ocupación {occupation} en ESCO_occup_skills.json: no se encontraron habilidades directas")
+            logger.debug(f"Omitiendo ocupación {occupation}: no se procesan habilidades directas")
 
-    def _process_csv_skills(self, data: pd.DataFrame, catalog: Dict) -> None:
-        """Procesa archivos CSV con habilidades."""
-        for _, row in data.iterrows():
-            skill = row.get("PREFERREDLABEL")  # Ajustado a la columna real
-            if skill:
+    async def _process_csv_skills(self, data: pd.DataFrame, catalog: Dict) -> None:
+        skills = data["PREFERREDLABEL"].dropna().tolist()
+        if not skills:
+            logger.debug("No hay habilidades válidas en skills.csv")
+            return
+        
+        translated_skills = await self._translator.translate_batch(skills)
+        for skill, translated in zip(skills, translated_skills):
+            if isinstance(translated, str):
+                self._classify_skill({"original": skill, "translated": translated.lower(), "lang": "en"}, catalog)
+            else:
+                logger.warning(f"Traducción fallida para {skill}: {translated}")
                 self._classify_skill({"original": skill, "translated": skill.lower(), "lang": "en"}, catalog)
-            else:
-                logger.debug(f"Fila sin PREFERREDLABEL en skills.csv: {row.to_dict()}")
 
-    def _process_occupations(self, data: List[Dict], catalog: Dict) -> None:
-        """Procesa el archivo occupations_es.json."""
-        for entry in data:
-            if isinstance(entry, dict) and "occupation" in entry:
-                skills = entry.get("skills", [])
-                if skills:
-                    translated_skills = asyncio.run(self._translate_to_english_batch(skills))
-                    for skill, translated in zip(skills, translated_skills):
-                        lang = detect(skill)
-                        self._classify_skill({"original": skill, "translated": translated.lower(), "lang": lang}, catalog)
-            else:
-                logger.debug(f"Entrada inválida en occupations_es.json: {entry}")
-
-    def _process_opportunities(self, data: List[Dict], catalog: Dict) -> None:
-        """Procesa el archivo skills_opportunities.json."""
+    async def _process_opportunities(self, data: List[Dict], catalog: Dict) -> None:
         for entry in data:
             if isinstance(entry, dict) and "title" in entry:
                 for category, skills in entry.get("skills", {}).items():
                     if skills:
-                        translated_skills = asyncio.run(self._translate_to_english_batch(skills))
+                        translated_skills = await self._translator.translate_batch(skills)
                         for skill, translated in zip(skills, translated_skills):
-                            lang = detect(skill)
-                            catalog[category].append({"original": skill, "translated": translated.lower(), "lang": lang})
+                            if isinstance(translated, str):
+                                lang = detect(skill)
+                                catalog[category].append({"original": skill, "translated": translated.lower(), "lang": lang})
+                            else:
+                                logger.warning(f"Traducción fallida para {skill}: {translated}")
+                                catalog[category].append({"original": skill, "translated": skill.lower(), "lang": detect(skill)})
             else:
                 logger.debug(f"Entrada inválida en skills_opportunities.json: {entry}")
 
@@ -284,7 +398,6 @@ class NLPProcessor:
             with open(opp_path, "r", encoding="utf-8") as f:
                 opp_data = json.load(f)
 
-            # Si es un diccionario anidado, convertir a lista
             opportunities = []
             if isinstance(opp_data, dict):
                 for business_unit, roles in opp_data.items():
@@ -300,23 +413,26 @@ class NLPProcessor:
                             "required_skills": skill_dict
                         })
             elif isinstance(opp_data, list):
-                opportunities = opp_data  # Si ya es una lista, usarla directamente
+                opportunities = opp_data
             else:
                 logger.error(f"Formato no soportado en {opp_path}. Usando catálogo vacío.")
                 return []
 
-            # Traducir habilidades a inglés
             for opp in opportunities:
                 for category in opp["required_skills"]:
                     skills = opp["required_skills"][category]
                     if skills:
-                        translated = await self._translate_to_english_batch([s["original"] for s in skills])
+                        originals = [s["original"] for s in skills]
+                        translated = await self._translator.translate_batch(originals)
                         for skill, trans in zip(skills, translated):
-                            skill["translated"] = trans.lower()
+                            if isinstance(trans, str):
+                                skill["translated"] = trans.lower()
+                            else:
+                                logger.warning(f"Traducción fallida para {skill['original']}: {trans}")
+                                skill["translated"] = skill["original"].lower()
 
             logger.info(f"Catálogo de oportunidades cargado con {len(opportunities)} oportunidades")
             cache.set(cache_key, opportunities, timeout=None)
-            logger.info(f"✅ Catálogo de oportunidades cargado con {len(opportunities)} oportunidades")
             return opportunities
         except Exception as e:
             logger.error(f"Error al cargar {opp_path}: {e}. Usando catálogo vacío.")
@@ -339,45 +455,17 @@ class NLPProcessor:
             logger.error(f"Error al cargar intents: {e}. Usando intents vacíos.")
             return {}
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=5))
-    async def _translate_to_english(self, text: str) -> str:
-        """Traducción asíncrona a inglés."""
-        cache_key = f"translation_{text}_es_en"
-        cached_translation = cache.get(cache_key)
-        if cached_translation is not None:
-            return cached_translation
-
-        translator = self._load_translator()
-        try:
-            # Ejecutar la traducción en un executor para evitar bloqueos
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, lambda: translator.translate(text, src="es", dest="en").text
-            )
-            cache.set(cache_key, result, timeout=3600)
-            return result
-        except Exception as e:
-            logger.warning(f"Error en traducción: {e}")
-            return text  # Fallback al texto original
-
-    async def _translate_to_english_batch(self, texts: List[str]) -> List[str]:
-        """Traduce múltiples textos en paralelo."""
-        tasks = [self._translate_to_english(text) for text in texts]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        return [r if isinstance(r, str) else t for r, t in zip(results, texts)]
-
     async def preprocess(self, text: str) -> Dict[str, str]:
-        """Preprocesamiento asíncrono del texto."""
         if not text or len(text.strip()) < 3:
             return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
         lang = detect(text)
-        translated = await self._translate_to_english(text) if lang != "en" else text
+        translated = await self._translator.translate(text) if lang != "en" else text
         return {"original": text.lower(), "translated": translated.lower(), "lang": lang}
 
     async def preprocess_batch(self, texts: List[str]) -> List[Dict[str, str]]:
         langs = [detect(text) if text and len(text.strip()) >= 3 else "unknown" for text in texts]
         to_translate = [text for text, lang in zip(texts, langs) if lang != "en"]
-        translated_texts = await self._translate_to_english_batch(to_translate)
+        translated_texts = await self._translator.translate_batch(to_translate) if to_translate else []
         translated_iter = iter(translated_texts)
         return [
             {"original": text.lower(), "translated": next(translated_iter) if lang != "en" else text.lower(), "lang": lang}
@@ -386,60 +474,35 @@ class NLPProcessor:
         ]
 
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
-        self._check_and_free_models()
-        preprocessed = await self.preprocess(text)  # Must have await
-        translated = preprocessed["translated"]
+        cache_key = f"skills_{hash(text)}"
+        return await self.cache_manager.get_or_set(
+            cache_key,
+            lambda: self._extract_skills_impl(text),
+            CACHE_CONFIG['EMBEDDINGS_TTL']
+        )
+
+    async def _extract_skills_impl(self, text: str) -> Dict[str, List[Dict[str, str]]]:
+        # Implementación optimizada con procesamiento por lotes
+        preprocessed = await self.preprocess(text)
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
-        catalog = self.candidate_catalog if self.mode == "candidate" else self.opportunity_catalog
-
+        
         if self.depth == "quick":
-            if self.nlp_spacy:
-                doc = self.nlp_spacy(preprocessed["original"])
-                for ent in doc.ents:
-                    category = self._classify_entity(ent.label_)
-                    skills[category].append({"original": ent.text, "translated": ent.text.lower(), "lang": preprocessed["lang"]})
-            for category, skill_list in catalog.items():
-                for skill_dict in skill_list:
-                    if skill_dict["translated"] in translated or skill_dict["original"] in preprocessed["original"]:
-                        skills[category].append(skill_dict)
+            skills = await self.batch_processor.process_quick(preprocessed)
         elif self.depth == "deep":
-            ner = self._load_ner()
-            ner_results = ner(translated)
-            for res in ner_results:
-                if res["score"] > 0.7:
-                    category = self._classify_entity(res["entity_group"])
-                    skills[category].append({"original": res["word"], "translated": res["word"].lower(), "lang": preprocessed["lang"]})
-            text_emb = self.get_text_embedding(translated)
-            for category, skill_list in catalog.items():
-                for skill_dict in skill_list:
-                    skill_emb = self.get_skill_embedding(skill_dict["translated"])
-                    similarity = cosine_similarity([text_emb], [skill_emb])[0][0]
-                    if similarity > 0.8:
-                        skills[category].append(skill_dict)
-            self._ner = None  # Liberar modelo después de uso
-        elif self.depth == "intense":
-            if not self.api_key:
-                logger.error("API key para Grok no encontrada.")
-                return skills
-            try:
-                response = requests.post(
-                    "https://api.xai.com/grok",  # Ajustar URL según API real
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json={"text": preprocessed["original"], "task": "extract_skills"}
-                )
-                response.raise_for_status()
-                api_skills = response.json().get("skills", {})
-                for category, skill_list in api_skills.items():
-                    for skill in skill_list:
-                        skills[category].append({"original": skill, "translated": skill.lower(), "lang": preprocessed["lang"]})
-            except Exception as e:
-                logger.error(f"Error al usar la API de Grok: {e}")
+            skills = await self.batch_processor.process_deep(preprocessed)
+        
+        return self._deduplicate_skills(skills)
 
-        for category in skills:
-            seen = set()
-            skills[category] = [s for s in skills[category] if not (s["translated"] in seen or seen.add(s["translated"]))]
-
-        return {"skills": skills}
+    def _classify_skill(self, skill_dict: Dict[str, str], catalog: Dict) -> None:
+        skill_lower = skill_dict["translated"]
+        if "cert" in skill_lower or "certificación" in skill_lower:
+            catalog["certifications"].append(skill_dict)
+        elif "tool" in skill_lower or "herramienta" in skill_lower:
+            catalog["tools"].append(skill_dict)
+        elif "soft" in skill_lower or "blanda" in skill_lower:
+            catalog["soft"].append(skill_dict)
+        else:
+            catalog["technical"].append(skill_dict)
 
     def _classify_entity(self, entity_group: str) -> str:
         if entity_group in ["SKILL", "TECH"]:
@@ -483,7 +546,7 @@ class NLPProcessor:
 
     def classify_intent(self, text: str) -> Dict[str, float]:
         intent_classifier = self._load_intent_classifier()
-        preprocessed = self.preprocess(text)
+        preprocessed = asyncio.run(self.preprocess(text))
         intent_result = intent_classifier(preprocessed["translated"])[0]
         return {"intent": intent_result["label"], "confidence": intent_result["score"]}
 
@@ -500,20 +563,16 @@ class NLPProcessor:
             matches.append({"opportunity": opp["title"], "match_score": score})
         return sorted(matches, key=lambda x: x["match_score"], reverse=True)[:5]
 
-
     def get_suggested_skills(self, business_unit: str, category: str = "general") -> List[str]:
-        """Devuelve habilidades sugeridas para una unidad de negocio."""
         if not self.opportunity_catalog:
             logger.warning("Catálogo de oportunidades vacío. No se pueden sugerir habilidades.")
             return []
 
-        # Buscar oportunidades relacionadas con la unidad de negocio
         relevant_opps = [opp for opp in self.opportunity_catalog if business_unit.lower() in opp["title"].lower()]
         if not relevant_opps:
             logger.warning(f"No se encontraron oportunidades para {business_unit}. Usando catálogo general.")
             relevant_opps = self.opportunity_catalog
 
-        # Extraer habilidades de las oportunidades relevantes
         suggested = set()
         for opp in relevant_opps:
             if category == "general":
@@ -532,7 +591,7 @@ class NLPProcessor:
         skills = await self.extract_skills(text)
         sentiment = self.analyze_sentiment(preprocessed["translated"])
         result = {
-            "skills": skills["skills"],  # Extract inner dict
+            "skills": skills["skills"],
             "sentiment": sentiment["label"],
             "sentiment_score": abs(sentiment["compound"]),
             "metadata": {
@@ -551,6 +610,149 @@ class NLPProcessor:
             result["intent"] = self.classify_intent(text)
 
         return result
+
+# 2. Pool de conexiones para solicitudes HTTP
+class AsyncHTTPClient:
+    def __init__(self, max_connections=100):
+        self._session = None
+        self._semaphore = asyncio.Semaphore(max_connections)
+    
+    async def get_session(self):
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30),
+                connector=aiohttp.TCPConnector(limit=100)
+            )
+        return self._session
+
+# 3. Gestor de caché mejorado
+class CacheManager:
+    def __init__(self):
+        self.redis_client = cache
+        self._local_cache = {}
+        self._last_cleanup = time.time()
+    
+    async def get_or_set(self, key: str, getter_func, ttl: int = 3600):
+        # Intentar obtener de caché local primero
+        if key in self._local_cache:
+            value, expiry = self._local_cache[key]
+            if time.time() < expiry:
+                return value
+        
+        # Intentar obtener de Redis
+        value = self.redis_client.get(key)
+        if value is not None:
+            self._local_cache[key] = (value, time.time() + ttl)
+            return value
+        
+        # Obtener valor y almacenar en ambas cachés
+        value = await getter_func()
+        self.redis_client.set(key, value, timeout=ttl)
+        self._local_cache[key] = (value, time.time() + ttl)
+        return value
+
+# 4. Optimización del RateLimitedTranslator
+class RateLimitedTranslator:
+    def __init__(self, config=TRANSLATION_CONFIG):
+        self.config = config
+        self.request_semaphore = asyncio.Semaphore(config['RATE_LIMIT'])
+        self.daily_requests = 0
+        self.last_reset = time.time()
+        self.cache_manager = CacheManager()
+        self.http_client = AsyncHTTPClient()
+        self._translation_queue = asyncio.Queue()
+        self._worker_task = None
+
+    async def start_worker(self):
+        if self._worker_task is None:
+            self._worker_task = asyncio.create_task(self._process_queue())
+
+    async def _process_queue(self):
+        while True:
+            batch = []
+            try:
+                while len(batch) < self.config['BATCH_SIZE']:
+                    try:
+                        text = await asyncio.wait_for(
+                            self._translation_queue.get(), 
+                            timeout=0.1
+                        )
+                        batch.append(text)
+                    except asyncio.TimeoutError:
+                        break
+                
+                if batch:
+                    translated = await self._translate_batch(batch)
+                    for future in translated:
+                        future.set_result(translated)
+                
+            except Exception as e:
+                logger.error(f"Error en el procesamiento de la cola: {e}")
+                await asyncio.sleep(1)
+
+# 5. Optimización del NLPProcessor
+class NLPProcessor:
+    def __init__(self, mode: str = "candidate", analysis_depth: str = "quick", language: str = "es"):
+        # ... código existente ...
+        self.cache_manager = CacheManager()
+        self.model_pool = ModelPool()
+        self.batch_processor = BatchProcessor(self.model_pool)
+
+    async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
+        cache_key = f"skills_{hash(text)}"
+        return await self.cache_manager.get_or_set(
+            cache_key,
+            lambda: self._extract_skills_impl(text),
+            CACHE_CONFIG['EMBEDDINGS_TTL']
+        )
+
+    async def _extract_skills_impl(self, text: str) -> Dict[str, List[Dict[str, str]]]:
+        # Implementación optimizada con procesamiento por lotes
+        preprocessed = await self.preprocess(text)
+        skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
+        
+        if self.depth == "quick":
+            skills = await self.batch_processor.process_quick(preprocessed)
+        elif self.depth == "deep":
+            skills = await self.batch_processor.process_deep(preprocessed)
+        
+        return self._deduplicate_skills(skills)
+
+# 6. Pool de modelos para mejor gestión de memoria
+class ModelPool:
+    def __init__(self, max_models=3):
+        self.max_models = max_models
+        self.models = {}
+        self.last_used = {}
+        self._lock = asyncio.Lock()
+
+    async def get_model(self, model_type: str):
+        async with self._lock:
+            if model_type not in self.models:
+                if len(self.models) >= self.max_models:
+                    # Liberar el modelo menos usado
+                    oldest = min(self.last_used.items(), key=lambda x: x[1])[0]
+                    del self.models[oldest]
+                    del self.last_used[oldest]
+                
+                self.models[model_type] = self._load_model(model_type)
+            
+            self.last_used[model_type] = time.time()
+            return self.models[model_type]
+
+# 7. Procesador por lotes para mejor rendimiento
+class BatchProcessor:
+    def __init__(self, model_pool: ModelPool):
+        self.model_pool = model_pool
+        self.batch_size = MODEL_CONFIG['BATCH_SIZE']
+
+    async def process_quick(self, preprocessed: Dict) -> Dict:
+        model = await self.model_pool.get_model('quick')
+        return await self._process_batch(preprocessed, model)
+
+    async def process_deep(self, preprocessed: Dict) -> Dict:
+        model = await self.model_pool.get_model('deep')
+        return await self._process_batch(preprocessed, model)
 
 if __name__ == "__main__":
     nlp = NLPProcessor(mode="candidate", analysis_depth="quick")

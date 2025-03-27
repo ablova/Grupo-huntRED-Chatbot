@@ -4,6 +4,7 @@ import logging
 from django.apps import AppConfig as DjangoAppConfig
 from django.conf import settings
 from django.core.cache import cache
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,14 @@ class AppConfig(DjangoAppConfig):
             return
         if 'gunicorn' in os.environ.get('SERVER_SOFTWARE', '') or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
             self.register_startup_handlers()
+
+        if 'migrate' in sys.argv or 'makemigrations' in sys.argv:
+            # Evitar cargar ML durante migraciones
+            return
+
+        # Importar solo si no estamos migrando
+        from app.ml.ml_opt import configure_tensorflow
+        configure_tensorflow()
 
     def register_startup_handlers(self):
         from django.core.signals import request_started
