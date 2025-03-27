@@ -29,33 +29,64 @@ INTENT_PATTERNS = {
             "¡Hola! 🌟 Bienvenido(a) a Amigro®. ¿Cómo puedo apoyarte en tu búsqueda laboral?",
             "¡Saludos! 🤝 Estoy aquí para ayudarte con oportunidades laborales. ¿Qué necesitas?"
         ],
-        "priority": 20
+        "priority": 2
+    },
+    "tos_accept": {
+        "patterns": [r"\b(tos_accept|accept_tos)\b"],
+        "responses": ["Aceptaste los Términos de Servicio. ¡Continuemos!"],
+        "priority": 3
+    },
+    "show_menu": {
+        "patterns": [r"\b(menú|menu|opciones\s+disponibles|qué\s+puedes\s+hacer|qué\s+haces|servicios)\b"],
+        "responses": ["Aquí tienes las opciones disponibles:"],
+        "priority": 4
     },
     "presentacion_bu": {
         "patterns": [r"\b(qué\s+es\s+amigro|qué\s+hace\s+amigro|acerca\s+de\s+amigro|quiénes\s+son\s+ustedes|about\s+amigro)\b"],
         "responses": [
             "Amigro® 🌍 (amigro.org) es una organización que usa IA conversacional para facilitar el acceso laboral a mexicanos que regresan y migrantes de Latinoamérica en México. Te ayudamos a encontrar oportunidades según tu perfil, intereses y situación migratoria."
         ],
-        "priority": 25
+        "priority": 5
     },
-    "despedida": {
-        "patterns": [r"\b(adiós|hasta\s+luego|bye|chao|nos\s+vemos)\b"],
-        "responses": [
-            "¡Hasta pronto! 👋 Si necesitas más ayuda, aquí estaré.",
-            "¡Adiós! 🌟 Que tengas un gran día. Vuelve cuando quieras.",
-            "¡Chao! 😊 Estoy a un mensaje de distancia si me necesitas."
-        ],
-        "priority": 30
-    },
-    "iniciar_conversacion": {
-        "patterns": [r"\b(inicio|iniciar|start|empezar|go|activar)\b"],
-        "responses": ["¡Claro! Vamos a empezar. ¿Qué te gustaría hacer? Puedes ver vacantes, subir tu CV o explorar opciones."],
+    "show_jobs": {
+        "patterns": [r"\b(ver\s+vacantes|mostrar\s+vacantes|vacante(s)?|oportunidad(es)?|empleo(s)?|trabajo(s)?|puestos|listado\s+de\s+vacantes)\b"],
+        "responses": ["Te voy a mostrar vacantes recomendadas según tu perfil. Un momento..."],
         "priority": 10
     },
-    "tos_accept": {
-        "patterns": [r"\b(tos_accept|accept_tos)\b"],  # Add accept_tos here
-        "responses": ["Aceptaste los Términos de Servicio. ¡Continuemos!"],
-        "priority": 5
+    "upload_cv": {
+        "patterns": [r"\b(subir\s+cv|enviar\s+cv|cv|currículum|curriculum|resume|hoja\s+de\s+vida)\b"],
+        "responses": ["¡Perfecto! Envíame tu CV en PDF o Word y lo procesaré para actualizar tu perfil. Adjunta el archivo en tu próximo mensaje."],
+        "priority": 15
+    },
+    "cargar_cv": {
+        "patterns": [r"\bcargar_cv\b"],
+        "responses": ["¡Perfecto! Envíame tu CV en PDF o Word para cargarlo."],
+        "priority": 18
+    },
+    "contacto": {
+        "patterns": [r"\bcontacto\b"],
+        "responses": ["Te conectaré con un reclutador. Espera un momento."],
+        "priority": 24
+    },
+    "ayuda": {
+        "patterns": [r"\b(ayuda|faq)\b"],
+        "responses": ["¿En qué necesitas ayuda? Puedo explicarte cómo usar el bot o resolver dudas comunes."],
+        "priority": 25
+    },
+    "solicitar_ayuda_postulacion": {
+        "patterns": [r"\b(ayuda\s+con\s+postulación|cómo\s+postular(me)?|aplicar\s+a\s+vacante|postular(me)?)\b"],
+        "responses": ["Te puedo guiar para postularte. ¿A qué vacante te interesa aplicar o necesitas ayuda con el proceso?"],
+        "priority": 20
+    },
+    "consultar_estado_postulacion": {
+        "patterns": [r"\b(estado\s+de\s+mi\s+postulación|seguimiento\s+a\s+mi\s+aplicación|cómo\s+va\s+mi\s+proceso)\b"],
+        "responses": ["Dame tu correo asociado a la postulación y te daré el estado actual."],
+        "priority": 25
+    },
+    "actualizar_perfil": {
+        "patterns": [r"\b(actualizar\s+perfil|cambiar\s+datos|modificar\s+información|editar\s+mi\s+perfil)\b"],
+        "responses": ["¿Qué quieres actualizar? Puedes decirme: nombre, email, teléfono, habilidades, experiencia o salario esperado."],
+        "priority": 30
     },
     "travel_in_group": {
         "patterns": [
@@ -66,84 +97,53 @@ INTENT_PATTERNS = {
             r"amigo|conocido|familiar|compañero)\b"
         ],
         "responses": ["Voy a ayudarte a invitar a alguien. ¿Cuál es su nombre?"],
-        "priority": 10
-    },
-    "show_jobs": {
-        "patterns": [r"\b(ver\s+vacantes|mostrar\s+vacantes|vacante(s)?|oportunidad(es)?|empleo(s)?|trabajo(s)?|puestos|listado\s+de\s+vacantes)\b"],
-        "responses": ["Te voy a mostrar vacantes recomendadas según tu perfil. Un momento..."],
-        "priority": 15
-    },
-    "upload_cv": {
-        "patterns": [r"\b(subir\s+cv|enviar\s+cv|cv|currículum|curriculum|resume|hoja\s+de\s+vida)\b"],
-        "responses": ["¡Perfecto! Envíame tu CV en PDF o Word y lo procesaré para actualizar tu perfil. Adjunta el archivo en tu próximo mensaje."],
-        "priority": 18
-    },
-    "show_menu": {
-        "patterns": [r"\b(menú|menu|opciones\s+disponibles|qué\s+puedes\s+hacer|qué\s+haces|servicios)\b"],
-        "responses": ["Aquí tienes las opciones disponibles:"],
-        "priority": 22
-    },
-    "solicitar_ayuda_postulacion": {
-        "patterns": [r"\b(ayuda\s+con\s+postulación|cómo\s+postular(me)?|aplicar\s+a\s+vacante|postular(me)?)\b"],
-        "responses": ["Te puedo guiar para postularte. ¿A qué vacante te interesa aplicar o necesitas ayuda con el proceso?"],
-        "priority": 12
-    },
-    "consultar_estado_postulacion": {
-        "patterns": [r"\b(estado\s+de\s+mi\s+postulación|seguimiento\s+a\s+mi\s+aplicación|cómo\s+va\s+mi\s+proceso)\b"],
-        "responses": ["Dame tu correo asociado a la postulación y te daré el estado actual."],
-        "priority": 14
+        "priority": 35
     },
     "solicitar_tips_entrevista": {
         "patterns": [r"\b(tips\s+para\s+entrevista|consejos\s+entrevista|preparación\s+entrevista|cómo\s+prepararme\s+para\s+entrevista)\b"],
         "responses": [
             "Claro, aquí tienes algunos consejos: investiga la empresa, llega puntual, prepara ejemplos de tus logros y practica respuestas a preguntas comunes. ¿Te gustaría más ayuda con algo específico?"
         ],
-        "priority": 16
+        "priority": 40
+    },
+    "calcular_salario": {
+        "patterns": [r"\bcalcular_salario\b", r"salario\s*(bruto|neto)\s*=\s*[\d,\.]+k?"],
+        "responses": ["Voy a calcular tu salario. Por favor, dime cuánto ganas (ej. 'salario bruto = 20k MXN mensual') y cualquier detalle extra como bonos o prestaciones, o en qué moneda lo tienes (yo te lo convierto si es necesario)."],
+        "priority": 45
     },
     "consultar_sueldo_mercado": {
         "patterns": [r"\b(sueldo\s+mercado|rango\s+salarial|cuánto\s+pagan|salario\s+para\s+.*)\b"],
         "responses": ["¿Para qué posición o nivel quieres saber el rango salarial? Puedo darte una estimación basada en el mercado."],
-        "priority": 17
-    },
-    "actualizar_perfil": {
-        "patterns": [r"\b(actualizar\s+perfil|cambiar\s+datos|modificar\s+información|editar\s+mi\s+perfil)\b"],
-        "responses": ["¿Qué quieres actualizar? Puedes decirme: nombre, email, teléfono, habilidades, experiencia o salario esperado."],
-        "priority": 19
-    },
-    "notificaciones": {
-        "patterns": [r"\b(activar\s+notificaciones|alertas\s+de\s+vacantes|avisos\s+de\s+proceso)\b"],
-        "responses": ["Puedo enviarte notificaciones sobre nuevas vacantes o cambios en tus procesos. ¿Quieres activarlas? Responde 'sí' o 'no'."],
-        "priority": 21
-    },
-    "agradecimiento": {
-        "patterns": [r"\b(gracias|muchas\s+gracias|te\s+agradezco|thank\s+you)\b"],
-        "responses": ["¡De nada! 😊 ¿En qué más puedo ayudarte?"],
-        "priority": 23
-    },
-    "retry_conversation": {
-        "patterns": [r"\b(intentemos\s+de\s+nuevo|volvamos\s+a\s+intentar|retry|de\s+nuevo|empezar\s+otra\s+vez)\b"],
-        "responses": ["¡Claro! Vamos a empezar de nuevo. ¿En qué te ayudo ahora?"],
-        "priority": 11
-    },
-    "consultar_requisitos_vacante": {
-        "patterns": [r"\b(requisitos\s+vacante|qué\s+necesito\s+para\s+.*|qué\s+piden\s+para\s+.*)\b"],
-        "responses": ["Dime el nombre o número de la vacante y te diré los requisitos."],
-        "priority": 13
+        "priority": 50
     },
     "solicitar_contacto_reclutador": {
         "patterns": [r"\b(hablar\s+con\s+reclutador|contactar\s+a\s+alguien|necesito\s+un\s+reclutador)\b"],
         "responses": ["Te conectaré con un reclutador. Por favor, espera mientras te asigno uno."],
-        "priority": 24
+        "priority": 55
     },
     "busqueda_impacto": {
         "patterns": [r"\b(impacto\s+social|trabajo\s+con\s+propósito|vacantes\s+con\s+impacto)\b"],
         "responses": ["¿Buscas trabajo con impacto social? Puedo mostrarte vacantes con propósito. ¿Te interesa?"],
-        "priority": 26
+        "priority": 60
     },
-    "calcular_salario": {
-        "patterns": [r"salario\s*(bruto|neto)\s*=\s*[\d,\.]+k?"],
-        "responses": ["Voy a calcular tu salario. Por favor, dime cuánto ganas (ej. 'salario bruto = 20k MXN mensual') y cualquier detalle extra como bonos o prestaciones, o en que moneda lo tienes (yo te lo convierto si es necesario)."],
-        "priority": 17
+    "agradecimiento": {
+        "patterns": [r"\b(gracias|muchas\s+gracias|te\s+agradezco|thank\s+you)\b"],
+        "responses": ["¡De nada! 😊 ¿En qué más puedo ayudarte?"],
+        "priority": 65
+    },
+    "despedida": {
+        "patterns": [r"\b(adiós|hasta\s+luego|bye|chao|nos\s+vemos)\b"],
+        "responses": [
+            "¡Hasta pronto! 👋 Si necesitas más ayuda, aquí estaré.",
+            "¡Adiós! 🌟 Que tengas un gran día. Vuelve cuando quieras.",
+            "¡Chao! 😊 Estoy a un mensaje de distancia si me necesitas."
+        ],
+        "priority": 70
+    },
+    "retry_conversation": {
+        "patterns": [r"\b(intentemos\s+de\s+nuevo|volvamos\s+a\s+intentar|retry|de\s+nuevo|empezar\s+otra\s+vez)\b"],
+        "responses": ["¡Claro! Vamos a empezar de nuevo. ¿En qué te ayudo ahora?"],
+        "priority": 75
     }
 }
 
@@ -251,8 +251,8 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 await sync_to_async(chat_state.save)()
             elif primary_intent == "solicitar_tips_entrevista":
                 await send_options(platform, user_id, "¿Quieres más tips o practicar una entrevista?", 
-                                   [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
-                                   business_unit.name.lower())
+                                [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
+                                business_unit.name.lower())
             elif primary_intent == "calcular_salario":
                 await calcular_salario_chatbot(platform, user_id, text, business_unit.name.lower())
                 chat_state.state = "waiting_for_salary_details"
@@ -263,6 +263,19 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 await sync_to_async(chat_state.save)()
             elif primary_intent == "actualizar_perfil":
                 chat_state.state = "waiting_for_profile_field"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "cargar_cv":
+                chat_state.state = "waiting_for_cv"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "contacto":
+                await send_message(platform, "525518490291", f"Un candidato ({user_id}) requiere asistencia especial.", business_unit.name.lower())
+                await send_message(platform, user_id, "Un reclutador te contactará pronto.", business_unit.name.lower())
+            elif primary_intent == "ayuda":
+                await send_options(platform, user_id, "¿Qué necesitas?", 
+                                [{"title": "Cómo usar el bot", "payload": "help_usage"}, {"title": "FAQ", "payload": "help_faq"}],
+                                business_unit.name.lower())
+            elif primary_intent == "notificaciones":
+                chat_state.state = "waiting_for_notifications_confirmation"
                 await sync_to_async(chat_state.save)()
             elif primary_intent == "notificaciones":
                 chat_state.state = "waiting_for_notifications_confirmation"

@@ -368,7 +368,7 @@ class NLPProcessor:
 
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
         self._check_and_free_models()
-        preprocessed = await self.preprocess(text)
+        preprocessed = await self.preprocess(text)  # Must have await
         translated = preprocessed["translated"]
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
         catalog = self.candidate_catalog if self.mode == "candidate" else self.opportunity_catalog
@@ -472,7 +472,6 @@ class NLPProcessor:
         if self.mode != "candidate":
             logger.warning("match_opportunities solo está disponible en modo 'candidate'")
             return []
-        
         matches = []
         candidate_emb = np.mean([self.get_skill_embedding(s["translated"]) for s in sum(candidate_skills.values(), [])] or [np.zeros(768)], axis=0)
         for opp in self.opportunity_catalog:
@@ -509,13 +508,12 @@ class NLPProcessor:
         return list(suggested)
 
     async def analyze(self, text: str) -> Dict:
-        """Analiza el texto según el modo y profundidad."""
         start_time = time.time()
         preprocessed = await self.preprocess(text)
         skills = await self.extract_skills(text)
         sentiment = self.analyze_sentiment(preprocessed["translated"])
         result = {
-                "skills": skills,
+            "skills": skills["skills"],  # Extract inner dict
             "sentiment": sentiment["label"],
             "sentiment_score": abs(sentiment["compound"]),
             "metadata": {
@@ -525,9 +523,8 @@ class NLPProcessor:
                 "detected_language": preprocessed["lang"]
             }
         }
-
         if self.mode == "candidate":
-            result["opportunities"] = self.match_opportunities(skills)
+            result["opportunities"] = self.match_opportunities(skills["skills"])
         elif self.mode == "opportunity":
             result["required_skills"] = skills
 
