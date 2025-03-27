@@ -39,6 +39,25 @@ FILE_PATHS = {
     "intents": "/home/pablo/chatbot_data/intents.json"  # Este archivo ya no se usa directamente
 }
 
+# Definición de CATALOG_FILES
+CATALOG_FILES = {
+    "relax_skills": {
+        "path": FILE_PATHS["relax_skills"],
+        "type": "json",
+        "process": lambda data, catalog: NLPProcessor._process_relax_skills(None, data, catalog)
+    },
+    "esco_skills": {
+        "path": FILE_PATHS["esco_skills"],
+        "type": "json",
+        "process": lambda data, catalog: NLPProcessor._process_esco_skills(None, data, catalog)
+    },
+    "tabiya_skills": {
+        "path": FILE_PATHS["tabiya_skills"],
+        "type": "csv",
+        "process": lambda data, catalog: NLPProcessor._process_csv_skills(None, data, catalog)
+    }
+}
+
 # Catálogos globales
 CANDIDATE_CATALOG = None
 OPPORTUNITY_CATALOG = None
