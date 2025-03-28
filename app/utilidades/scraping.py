@@ -63,7 +63,10 @@ class ScrapingCache:
         return await cache.get(key)  # Ensure async compatibility if using async cache backend
 
     async def set(self, key: str, value: Dict):
-        await cache.set(key, value, timeout=self.TTL)
+        serialized = json.dumps(value)
+        await cache.set(key, serialized, timeout=self.TTL)
+        logger.info(f"Cached {key}")
+        return True
 
 class ScrapingPipeline:
     def __init__(self, opportunity_db=None):

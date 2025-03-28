@@ -36,10 +36,8 @@ def calcular_precio_con_iva(precio_base):
     """Calcula el precio total en USD incluyendo IVA."""
     return round(precio_base * (1 + IVA_RATE), 2)
 
+# Función existente para obtener la tasa de conversión
 def obtener_tasa_conversion(base_currency="USD", target_currency="MXN"):
-    """
-    Consulta la tasa de conversión actual utilizando forex-python.
-    """
     try:
         c = CurrencyRates()
         rate = c.get_rate(base_currency, target_currency)
@@ -47,13 +45,28 @@ def obtener_tasa_conversion(base_currency="USD", target_currency="MXN"):
     except Exception:
         return 20.53  # Tasa de respaldo en caso de error
 
+# Nueva función sugerida por ti para encapsular la tasa de conversión
+def get_conversion_rate_lazy():
+    return obtener_tasa_conversion()
+
+# Función para convertir precios de USD a MXN
 def convertir_usd_a_mxn(precio_usd):
-    """
-    Convierte un precio en USD a MXN usando la tasa de cambio actual.
-    """
-    rate = obtener_tasa_conversion("USD", "MXN")
+    rate = get_conversion_rate_lazy()  # Usamos la función lazy aquí
     precio_mxn = round(precio_usd * rate, 2)
     return redondear_a_50_centavos(precio_mxn)
+
+# Función para obtener las opciones de precios (antes llamada al importar)
+def get_pricing_options():
+    pricing_options = {}
+    for key, data in PRICING_OPTIONS_USD.items():
+        precio_total_usd = data["precio_total"]
+        precio_total_mxn = convertir_usd_a_mxn(precio_total_usd)
+        pricing_options[key] = {
+            "precio_base_usd": data["precio_base"],
+            "precio_total_usd": precio_total_usd,
+            "precio_total_mxn": precio_total_mxn
+        }
+    return pricing_options
 
 # Definir los precios en USD para cada opción.
 # Ejemplo: Hellosign 7 USD y Desarrollo Interno 5 USD.
@@ -98,21 +111,19 @@ def process_sexsi_payment(user, amount):
     return True, transaction_id
 
 def iniciar_flujo_sexsi(phone_id, user, business_unit, context):
-    """
-    Inicia el flujo SEXSI mostrando las opciones de firma y precios.
-    """
+    pricing_options = get_pricing_options()  # Calculamos los precios solo cuando se necesitan
     mensaje = (
         "Bienvenido al flujo SEXSI. Por favor, elige tu opción para firmar el contrato:\n"
-        f"1. Firma electrónica con Hellosign (Precio: ${PRICING_OPTIONS['hellosign']['precio_total_usd']} USD, "
-        f"{PRICING_OPTIONS['hellosign']['precio_total_mxn']} MXN).\n"
-        f"2. Firma interna (Precio: ${PRICING_OPTIONS['internal']['precio_total_usd']} USD, "
-        f"{PRICING_OPTIONS['internal']['precio_total_mxn']} MXN).\n"
+        f"1. Firma electrónica con Hellosign (Precio: ${pricing_options['hellosign']['precio_total_usd']} USD, "
+        f"{pricing_options['hellosign']['precio_total_mxn']} MXN).\n"
+        f"2. Firma interna (Precio: ${pricing_options['internal']['precio_total_usd']} USD, "
+        f"{pricing_options['internal']['precio_total_mxn']} MXN).\n"
         "Responde con '1' o '2'."
     )
     async_to_sync(send_message)("whatsapp", phone_id, mensaje, business_unit)
     context['operacion_sexsi'] = {
         'pending_choice': True,
-        'pricing': PRICING_OPTIONS
+        'pricing': pricing_options
     }
     return "Flujo SEXSI iniciado. Esperando elección de método."
 

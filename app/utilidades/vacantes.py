@@ -10,6 +10,7 @@ from typing import List, Dict, Optional
 from functools import lru_cache
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
+from sentence_transformers import SentenceTransformer
 from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -469,8 +470,12 @@ class VacanteManager:
             logger.debug("Generando etiquetas a partir de la descripción")
             return [tag.strip() for tag in tags if tag.strip()]
         except Exception as e:
-            logger.warning(f"Error generando etiquetas con OpenAI: {e}")
-            return self.generate_tags_backup(job_description)
+            logger.warning("OpenAI falló, usando spaCy")
+            import spacy
+            nlp = spacy.load("es_core_news_sm")
+            doc = nlp(job_description)
+            tags = list(set([ent.text for ent in doc.ents]))
+        return tags
 
     @staticmethod
     def generate_tags_backup(job_description: str) -> List[str]:
@@ -531,6 +536,9 @@ class VacanteManager:
         person_skills = set(person.skills.split(",")) if person.skills else set()
 
         matches = []
+        model = SentenceTransformer('distiluse-base-multilingual-cased')
+        person_emb = model.encode(', '.join(person_skills)) if person_skills else None
+
         for job in job_list:
             try:
                 score = 0
@@ -540,13 +548,19 @@ class VacanteManager:
                 skill_match = len(person_skills & job_skills)
                 score += skill_match * 2
 
+                # 🔹 Similitud semántica (si hay habilidades)
+                if person_emb is not None and job_skills:
+                    job_emb = model.encode(', '.join(job_skills))
+                    similarity = cosine_similarity([person_emb], [job_emb])[0][0]
+                    score += similarity * 10  # Peso ajustable
+
                 # 🔹 Distancia geográfica (mayor cercanía = más puntos)
                 if person_location and job.lat and job.lon:
                     job_location = (job.lat, job.lon)
                     distance = geodesic(person_location, job_location).km
-                    if distance <= 10:
+                    if distance <= 4:
                         score += 3  # Cercano
-                    elif distance <= 50:
+                    elif distance <= 10:
                         score += 1  # Moderadamente lejos
 
                 # 🔹 Comparación de salario (si el puesto paga igual o más, suma puntos)

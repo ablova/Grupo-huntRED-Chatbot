@@ -5,10 +5,10 @@ import email
 import asyncio
 from aioimaplib import aioimaplib
 from tempfile import NamedTemporaryFile
-from pathlib import Path
 from typing import List, Dict, Optional
 from langdetect import detect
-from PyPDF2 import PdfReader
+from pathlib import Path
+import pdfplumber
 from contextlib import ExitStack
 from django.utils.timezone import now
 from docx import Document
@@ -208,10 +208,9 @@ class IMAPCVProcessor:
             for i in range(0, len(email_ids), self.batch_size):
                 batch = email_ids[i:i + self.batch_size]
                 logger.info(f"📤 Procesando lote de {len(batch)} correos")
-                for email_id in batch:
-                    await self._process_single_email(mail, email_id)
-                    await asyncio.sleep(self.sleep_time)  # Pausa para evitar sobrecarga
-                logger.info(f"✅ Lote completado")
+                await asyncio.gather(*[self._process_single_email(mail, email_id) for email_id in batch])
+                await asyncio.sleep(self.sleep_time)
+                logger.info(f"Procesados {len(batch)} emails")
 
             await mail.expunge()
             logger.info("🗑️ Correos eliminados expurgados")
@@ -269,18 +268,22 @@ class CVParser:
         return attachments
 
     def extract_text_from_file(self, file_path: Path) -> Optional[str]:
-        """Extrae texto de archivos PDF o DOCX."""
+        """Extrae texto de archivos PDF, DOCX o HTML."""
         try:
             if file_path.suffix.lower() == '.pdf':
-                reader = PdfReader(str(file_path))
-                text = ' '.join([page.extract_text() or "" for page in reader.pages])
+                with pdfplumber.open(str(file_path)) as pdf:
+                    text = ' '.join([page.extract_text() or "" for page in pdf.pages])
             elif file_path.suffix.lower() in ['.doc', '.docx']:
                 doc = Document(str(file_path))
                 text = "\n".join(para.text for para in doc.paragraphs)
+            elif file_path.suffix.lower() == '.html':
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                text = trafilatura.extract(html_content) or ""
             else:
                 logger.warning(f"⚠️ Formato no soportado: {file_path}")
                 return None
-            return text if text.strip() else None
+            return text.strip() if text.strip() else None
         except Exception as e:
             logger.error(f"❌ Error extrayendo texto de {file_path}: {e}")
             return None

@@ -1,11 +1,13 @@
 absl-py
 aiohappyeyeballs
 aiohttp
+aioimaplib
 aiosignal
 amqp
 annotated-types
 anyio
 asgiref
+asttokens
 astunparse
 attrs
 backoff
@@ -13,6 +15,7 @@ beautifulsoup4
 billiard
 blis
 Brotli
+cachetools
 catalogue
 celery
 certifi
@@ -32,6 +35,8 @@ cssselect2
 cycler
 cymem
 datasets
+decorator
+deep-translator
 defusedxml
 dill
 diskcache
@@ -42,6 +47,7 @@ django-celery-results
 django-cors-headers
 django-environ
 django-filter
+django-grappelli
 django-redis
 django-timezone-field
 djangorestframework
@@ -54,6 +60,7 @@ en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_
 es_core_news_lg @ https://github.com/explosion/spacy-models/releases/download/es_core_news_lg-3.8.0/es_core_news_lg-3.8.0-py3-none-any.whl#sha256
 es_core_news_md @ https://github.com/explosion/spacy-models/releases/download/es_core_news_md-3.8.0/es_core_news_md-3.8.0-py3-none-any.whl#sha256
 es_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.8.0/es_core_news_sm-3.8.0-py3-none-any.whl#sha256
+executing
 filelock
 flatbuffers
 fonttools
@@ -62,23 +69,30 @@ fpdf2
 fr_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_sm-3.8.0/fr_core_news_sm-3.8.0-py3-none-any.whl#sha256
 frozenlist
 fsspec
+futures
 gast
 geographiclib
 geopy
 google-pasta
-googletrans
 greenlet
 grpcio
 gunicorn
 h11
+h2
 h5py
+hpack
+hstspreload
 httpcore
 httpx
 huggingface-hub
+hyperframe
 idna
 IMAPClient
 inflection
+ipython
+ipython_pygments_lexers
 itsdangerous
+jedi
 jellyfish
 Jinja2
 jiter
@@ -96,6 +110,7 @@ Markdown
 markdown-it-py
 MarkupSafe
 matplotlib
+matplotlib-inline
 mdurl
 ml_dtypes
 multidict
@@ -110,7 +125,9 @@ opt_einsum
 optree
 packaging
 pandas
+parso
 paypalrestsdk
+pexpect
 pillow
 playwright
 ply
@@ -121,6 +138,8 @@ propcache
 protobuf
 psutil
 psycopg2-binary
+ptyprocess
+pure_eval
 pyarrow
 pycparser
 pydantic
@@ -143,6 +162,7 @@ regex
 reportlab
 requests
 requests-oauthlib
+rfc3986
 rich
 sacremoses
 safetensors
@@ -164,11 +184,13 @@ spacy-legacy
 spacy-loggers
 sqlparse
 srsly
+stack-data
 stone
 stopwords
 tenacity
 tensorboard
 tensorboard-data-server
+tensorflow @ file:///home/pablo/tensorflow_shim
 tensorflow_cpu
 termcolor
 tf_keras
@@ -178,6 +200,7 @@ tinycss2
 tinyhtml5
 tokenizers
 tqdm
+traitlets
 transformers
 tweepy
 typer

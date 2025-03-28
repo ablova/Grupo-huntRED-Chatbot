@@ -54,7 +54,7 @@ async def whatsapp_webhook(request):
 async def handle_incoming_message(request):
     try:
         payload = json.loads(request.body)
-        logger.info(f"[handle_incoming_message] Payload recibido de {payload.get('entry', [{}])[0].get('id', 'unknown')}: {json.dumps(payload, indent=4)}")
+        logger.info(f"[handle_incoming_message] Payload recibido de {payload.get('entry', [{}])[0].get('id', 'unknown')}: {json.dumps(payload, indent=2)}")#Antes 4 espero que me deje menos detalle pero menos consumo de logs
 
         entry = payload.get('entry', [])[0]
         changes = entry.get('changes', [])[0]
@@ -106,13 +106,10 @@ async def handle_incoming_message(request):
         chatbot = ChatBotHandler()
 
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
-            user_id=user_id,
-            business_unit=business_unit,
-            defaults={'platform': 'whatsapp'}
+            user_id=user_id, business_unit=business_unit, defaults={'platform': 'whatsapp'}
         )
         person, _ = await sync_to_async(Person.objects.get_or_create)(
-            phone=user_id,
-            defaults={'nombre': 'Nuevo Usuario'}
+            phone=user_id, defaults={'nombre': 'Nuevo Usuario'}
         )
 
         current_person = await sync_to_async(lambda: chat_state.person)()
@@ -122,12 +119,7 @@ async def handle_incoming_message(request):
 
         message_type = message.get('type', 'text')
         handlers = {
-            'text': handle_text_message,
-            'image': handle_media_message,
-            'audio': handle_media_message,
-            'location': handle_location_message,
-            'interactive': handle_interactive_message
-        }
+            'text': handle_text_message, 'image': handle_media_message, 'audio': handle_media_message, 'location': handle_location_message, 'interactive': handle_interactive_message}
         handler = handlers.get(message_type, handle_unknown_message)
         await handler(message, user_id, chatbot, business_unit, person, chat_state)
 

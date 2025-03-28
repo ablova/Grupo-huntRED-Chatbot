@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from email.header import decode_header
 from email.utils import parseaddr
 from urllib.parse import urlparse
-from bs4 import BeautifulSoup
+import trafilatura
 from app.models import BusinessUnit, Vacante, ConfiguracionBU, WeightingModel
 from app.utilidades.vacantes import VacanteManager
 from asgiref.sync import sync_to_async
@@ -174,6 +174,7 @@ async def email_scraper():
         await mail.logout()
         logger.info("🔌 Desconectado del servidor IMAP")
 
+
 async def fetch_job_details(url: str, retries=3) -> dict:
     domain = urlparse(url).netloc.lower()
     if not any(allowed in domain for allowed in ALLOWED_DOMAINS):
@@ -191,7 +192,7 @@ async def fetch_job_details(url: str, retries=3) -> dict:
                 async with session.get(url) as response:
                     if response.status == 200:
                         html = await response.text()
-                        soup = BeautifulSoup(html, "html.parser")
+                        text = trafilatura.extract(html)
                         details = {
                             "title": extract_title(soup),
                             "description": extract_description(soup),

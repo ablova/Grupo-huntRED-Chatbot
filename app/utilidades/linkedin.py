@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
 from playwright.sync_api import sync_playwright
 from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
@@ -295,8 +296,11 @@ def procesar_cumpleaños(fecha_str):
 # =========================================================
 # Manejo de CSV
 # =========================================================
-def process_csv(csv_path: str, business_unit: BusinessUnit):
+async def process_csv(csv_path: str, business_unit: BusinessUnit):
     count = 0
+    candidates = []  # Para almacenar candidatos y asociarlos con los resultados del scraping
+    tasks = []  # Para tareas asíncronas de scraping
+
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -332,17 +336,26 @@ def process_csv(csv_path: str, business_unit: BusinessUnit):
                     candidate.save()
                     logger.info(f"Creado nuevo candidato: {candidate.nombre} (ID {candidate.id})")
 
-                # Si existe linkedin_url y se quiere enriquecer, realizar scraping:
+                candidates.append(candidate)
                 if linkedin_url:
-                    scraped_data = scrape_linkedin_profile(linkedin_url, business_unit.name.lower())
-                    if scraped_data:
-                        update_person_from_scrape(candidate, scraped_data)
-                        logger.info(f"Enriquecido candidato {candidate.nombre} con datos de LinkedIn")
+                    tasks.append(scrape_linkedin_profile(linkedin_url, business_unit.name.lower()))
+
             except Exception as e:
                 logger.error(f"Error procesando registro: {fn} {ln} ({email}): {e}", exc_info=True)
 
             if count % 100 == 0:
                 logger.info(f"Avance: Se han procesado {count} registros.")
+
+    # Ejecutar todas las tareas de scraping de forma asíncrona
+    if tasks:
+        scraped_data_list = await asyncio.gather(*tasks, return_exceptions=True)
+        for candidate, scraped_data in zip(candidates, scraped_data_list):
+            if isinstance(scraped_data, dict) and scraped_data:
+                update_person_from_scrape(candidate, scraped_data)
+                logger.info(f"Enriquecido candidato {candidate.nombre} con datos de LinkedIn")
+            elif isinstance(scraped_data, Exception):
+                logger.error(f"Error en scraping para {candidate.linkedin_url}: {scraped_data}")
+
     logger.info(f"Proceso CSV completado. Total registros: {count}")
 
 def update_phone_number(person: Person, new_phone: str):
@@ -607,8 +620,6 @@ def associate_divisions(skills: List[str], unit: str) -> List[Dict[str, str]]:
     processor = SkillsProcessor(unit)
     return processor.associate_divisions(skills)
 
-from playwright.async_api import async_playwright
-
 async def scrape_linkedin_profile(link_url: str, unit: str) -> Dict:
     try:
         async with async_playwright() as p:
@@ -650,7 +661,7 @@ async def scrape_linkedin_profile(link_url: str, unit: str) -> Dict:
             # Esperar a que la página cargue completamente
             await page.wait_for_load_state("networkidle", timeout=60000)
             
-            # Verificar si requiere login (título de la página de login)
+            # Verificar si requiere login
             if "Log In or Sign Up" in await page.title():
                 logger.error(f"Autenticación fallida para {link_url}. Actualiza las credenciales o cookies.")
                 await browser.close()
@@ -687,9 +698,34 @@ async def scrape_linkedin_profile(link_url: str, unit: str) -> Dict:
             return data
             
     except Exception as e:
-        logger.error(f"Error scrapeando {link_url}: {str(e)}", exc_info=True)
-        return {}
-    
+        logger.warning(f"Playwright falló para {link_url}, intentando con Selenium: {e}")
+        try:
+            from selenium import webdriver
+            from selenium.webdriver.chrome.options import Options
+            options = Options()
+            options.add_argument("--headless")  # Ejecutar en modo headless
+            driver = webdriver.Chrome(options=options)
+            driver.get(link_url)
+            content = driver.page_source
+            soup = BeautifulSoup(content, "html.parser")
+            data = {
+                "headline": extract_headline(soup),
+                "location": extract_location(soup),
+                "experience": extract_experience(soup),
+                "education": extract_education(soup),
+                "skills": extract_skills(soup.get_text(), unit),
+                "languages": extract_languages(soup),
+                "contact_info": extract_contact_info(soup),
+            }
+            data["skills"] = normalize_skills(data["skills"], unit)
+            data["divisions"] = associate_divisions(data["skills"], unit)
+            driver.quit()
+            logger.info(f"Scrapeado con Selenium exitosamente {link_url}")
+            return data
+        except Exception as se:
+            logger.error(f"Error con Selenium para {link_url}: {se}", exc_info=True)
+            return {}
+            
 @backoff.on_exception(backoff.expo, Exception, max_tries=5, jitter=backoff.full_jitter)
 async def fetch_page(page, url):
     await page.goto(url)
