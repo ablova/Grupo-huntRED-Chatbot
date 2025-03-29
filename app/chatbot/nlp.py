@@ -14,6 +14,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text as text  # Necesario para registrar SentencepieceOp
 import concurrent.futures
+from django.core.cache import cache
 from sklearn.metrics.pairwise import cosine_similarity
 from geopy.distance import geodesic
 from datetime import datetime
