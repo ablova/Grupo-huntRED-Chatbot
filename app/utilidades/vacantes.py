@@ -10,7 +10,8 @@ from typing import List, Dict, Optional
 from functools import lru_cache
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-from sentence_transformers import SentenceTransformer
+import tensorflow as tf
+import tensorflow_hub as hub
 from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -25,7 +26,8 @@ from app.chatbot.utils import prioritize_interests, get_positions_by_skills
 
 # Configuración del logger En el módulo utilidades
 logger = logging.getLogger(__name__)
-
+# Cargar el modelo Universal Sentence Encoder (multilingüe)
+embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
 
 def main(message: str) -> None:
     """
@@ -536,8 +538,8 @@ class VacanteManager:
         person_skills = set(person.skills.split(",")) if person.skills else set()
 
         matches = []
-        model = SentenceTransformer('distiluse-base-multilingual-cased')
-        person_emb = model.encode(', '.join(person_skills)) if person_skills else None
+        # Generar embedding para las habilidades del candidato
+        person_emb = embed([', '.join(person_skills)]).numpy()[0] if person_skills else None
 
         for job in job_list:
             try:
@@ -550,7 +552,7 @@ class VacanteManager:
 
                 # 🔹 Similitud semántica (si hay habilidades)
                 if person_emb is not None and job_skills:
-                    job_emb = model.encode(', '.join(job_skills))
+                    job_emb = embed([', '.join(job_skills)]).numpy()[0]
                     similarity = cosine_similarity([person_emb], [job_emb])[0][0]
                     score += similarity * 10  # Peso ajustable
 

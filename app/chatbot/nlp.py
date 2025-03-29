@@ -7,32 +7,36 @@ import asyncio
 import sys
 import random
 import weakref
-import pandas as pd  # Necesario para anotaciones de tipo
-import numpy as np  # Necesario para métodos
+import pandas as pd
+import numpy as np
 from functools import lru_cache
+import tensorflow as tf
+import tensorflow_hub as hub
+import concurrent.futures
+from sklearn.metrics.pairwise import cosine_similarity
+from geopy.distance import geodesic
+from datetime import datetime
 from tenacity import retry, stop_after_attempt, wait_exponential
 from typing import Dict, List, Any, Optional
 from app.chatbot.migration_check import skip_on_migrate
-from google import genai
-from google.genai import types
 
-# Configuración de logging para producción
+# Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.FileHandler('/home/pablo/logs/nlp.log'),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler('/home/pablo/logs/nlp.log'), logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
-# Constantes optimizadas para producción
-CACHE_TIMEOUT = 600  # 10 minutos
-TRANSLATION_RATE_LIMIT = 5  # Solicitudes por segundo
-TRANSLATION_DAILY_LIMIT = 200000  # Límite diario real de Google Translate
-MAX_BATCH_SIZE = 50  # Tamaño máximo del lote
-RETRY_ATTEMPTS = 3  # Intentos de reintento para estabilidad
+# Cargar Universal Sentence Encoder (multilingüe)
+embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
+
+# Constantes
+CACHE_TIMEOUT = 600
+TRANSLATION_RATE_LIMIT = 5
+TRANSLATION_DAILY_LIMIT = 200000
+MAX_BATCH_SIZE = 50
+RETRY_ATTEMPTS = 3
 
 # Rutas de archivos
 FILE_PATHS = {
@@ -43,29 +47,10 @@ FILE_PATHS = {
     "intents": "/home/pablo/chatbot_data/intents.json"
 }
 
-# Configuraciones centralizadas
-TRANSLATION_CONFIG = {
-    'RATE_LIMIT': TRANSLATION_RATE_LIMIT,
-    'DAILY_LIMIT': TRANSLATION_DAILY_LIMIT,
-    'BATCH_SIZE': MAX_BATCH_SIZE,
-    'TIMEOUT': 30,
-    'RETRY_ATTEMPTS': RETRY_ATTEMPTS,
-    'BACKOFF_FACTOR': 2
-}
-
-CACHE_CONFIG = {
-    'EMBEDDINGS_TTL': 3600,  # 1 hora
-    'CATALOG_TTL': 86400,    # 24 horas
-    'TRANSLATION_TTL': 1800  # 30 minutos
-}
-
-MODEL_CONFIG = {
-    'MAX_SEQUENCE_LENGTH': 128,
-    'SIMILARITY_THRESHOLD': 0.8,
-    'CONFIDENCE_THRESHOLD': 0.7,
-    'BATCH_SIZE': 32
-}
-
+# Configuraciones
+TRANSLATION_CONFIG = {'RATE_LIMIT': 5, 'DAILY_LIMIT': 200000, 'BATCH_SIZE': 50, 'TIMEOUT': 30, 'RETRY_ATTEMPTS': 3, 'BACKOFF_FACTOR': 2}
+CACHE_CONFIG = {'EMBEDDINGS_TTL': 3600, 'CATALOG_TTL': 86400, 'TRANSLATION_TTL': 1800}
+MODEL_CONFIG = {'MAX_SEQUENCE_LENGTH': 128, 'SIMILARITY_THRESHOLD': 0.8, 'CONFIDENCE_THRESHOLD': 0.7, 'BATCH_SIZE': 32}
 # Catálogos globales
 CANDIDATE_CATALOG = None
 OPPORTUNITY_CATALOG = None
@@ -96,6 +81,7 @@ class RateLimitedTranslator:
         self._error_count = 0
         self._last_error_time = 0
         self._backoff_time = 1
+        self._translation_cache = {}  # Caché local para traducciones
 
     async def _handle_error(self, e: Exception):
         """Manejo inteligente de errores con backoff exponencial"""
@@ -127,6 +113,10 @@ class RateLimitedTranslator:
         if not text or len(text.strip()) < 1:
             logger.debug(f"Texto vacío o inválido para traducción: '{text}'")
             return text
+        # Verificar caché primero
+        cache_key = f"{text}_{self.translator.source}_{self.translator.target}"
+        if cache_key in self._translation_cache:
+            return self._translation_cache[cache_key]
 
         await self._check_and_reset_daily_limit()
         if self.daily_request_count >= TRANSLATION_CONFIG['DAILY_LIMIT']:
@@ -223,25 +213,16 @@ class CacheManager:
                 self._local_cache = {k: v for k, v in self._local_cache.items() if current_time < v[1]}
                 self._last_cleanup = current_time
 
-class ModelPool:
+cclass ModelPool:
     def __init__(self, max_models=3):
         self.max_models = max_models
         self.models = {}
         self.last_used = {}
         self._lock = asyncio.Lock()
-        self.spacy_model = None
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     async def get_model(self, model_type: str):
         async with self._lock:
-            if model_type == "spacy" and self.spacy_model is None:
-                try:
-                    self.spacy_model = spacy.load("es_core_news_sm" if "es" in model_type else "en_core_web_sm")
-                    logger.info("Modelo spaCy cargado")
-                except Exception as e:
-                    logger.error(f"Error al cargar modelo spaCy: {e}", exc_info=True)
-                    self.spacy_model = None
-                return self.spacy_model
-
             if model_type not in self.models:
                 if len(self.models) >= self.max_models:
                     oldest = min(self.last_used.items(), key=lambda x: x[1])[0]
@@ -249,13 +230,18 @@ class ModelPool:
                     del self.last_used[oldest]
                 
                 try:
+                    loop = asyncio.get_event_loop()
                     if model_type == "ner":
-                        self.models[model_type] = pipeline("ner", model="dslim/bert-base-NER", framework="tf", aggregation_strategy="simple")
+                        # Cargar modelo NER de TensorFlow Hub
+                        self.models[model_type] = await loop.run_in_executor(
+                            self.executor, lambda: hub.load("https://tfhub.dev/google/bert_multi_cased_L-12_H-768_A-12/4")
+                        )
                     elif model_type == "intent":
-                        self.models[model_type] = pipeline("text-classification", model="distilbert-base-multilingual-cased", framework="tf")
-                    elif model_type == "encoder":
-                        self.models[model_type] = (TFAutoModel.from_pretrained("distilbert-base-multilingual-cased", from_pt=True),
-                                                 AutoTokenizer.from_pretrained("distilbert-base-multilingual-cased"))
+                        # Cargar clasificador personalizado con tf.keras
+                        self.models[model_type] = await loop.run_in_executor(
+                            self.executor, self._load_intent_model
+                        )
+                    # No necesitamos "encoder" porque USE ya lo reemplaza
                     logger.info(f"Modelo {model_type} cargado")
                 except Exception as e:
                     logger.error(f"Error al cargar modelo {model_type}: {e}", exc_info=True)
@@ -264,6 +250,18 @@ class ModelPool:
             self.last_used[model_type] = time.time()
             return self.models[model_type]
 
+    def _load_intent_model(self):
+        # Modelo ligero de clasificación con tf.keras
+        model = tf.keras.Sequential([
+            tf.keras.layers.Input(shape=(512,)),  # USE embeddings tienen 512 dimensiones
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(len(self._load_intents()), activation='softmax')  # Número de intenciones
+        ])
+        model.load_weights("path/to/intent_model_weights.h5")  # Cargar pesos preentrenados
+        return model
+
 class BatchProcessor:
     def __init__(self, model_pool: ModelPool):
         self.model_pool = model_pool
@@ -271,51 +269,39 @@ class BatchProcessor:
 
     async def process_quick(self, preprocessed: Dict, catalog: Dict) -> Dict:
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
-        spacy_model = await self.model_pool.get_model(f"spacy_{preprocessed['lang']}")
-        if spacy_model:
-            try:
-                doc = spacy_model(preprocessed["original"])
-                for ent in doc.ents:
-                    category = self._classify_entity(ent.label_)
-                    skills[category].append({"original": ent.text, "translated": ent.text.lower(), "lang": preprocessed["lang"]})
-            except Exception as e:
-                logger.error(f"Error procesando texto con spaCy: {e}", exc_info=True)
+        # Usar embeddings de USE para coincidencias rápidas
+        text_emb = self._get_text_embedding(preprocessed["translated"])
         for category, skill_list in catalog.items():
             for skill_dict in skill_list:
-                if skill_dict["translated"] in preprocessed["translated"] or skill_dict["original"] in preprocessed["original"]:
+                skill_emb = self._get_text_embedding(skill_dict["translated"])
+                similarity = cosine_similarity([text_emb], [skill_emb])[0][0]
+                if similarity > MODEL_CONFIG['SIMILARITY_THRESHOLD']:
                     skills[category].append(skill_dict)
         return skills
 
     async def process_deep(self, preprocessed: Dict, catalog: Dict) -> Dict:
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
         ner_model = await self.model_pool.get_model("ner")
-        encoder, tokenizer = await self.model_pool.get_model("encoder")
         
         if ner_model:
             try:
-                ner_results = ner_model(preprocessed["translated"])
-                for res in ner_results:
-                    if res["score"] > MODEL_CONFIG['CONFIDENCE_THRESHOLD']:
-                        category = self._classify_entity(res["entity_group"])
-                        skills[category].append({"original": res["word"], "translated": res["word"].lower(), "lang": preprocessed["lang"]})
-            except Exception as e:
-                logger.error(f"Error procesando NER: {e}", exc_info=True)
-
-        if encoder and tokenizer:
-            try:
-                inputs = tokenizer(preprocessed["translated"], return_tensors="tf", padding=True, truncation=True, max_length=MODEL_CONFIG['MAX_SEQUENCE_LENGTH'])
-                outputs = encoder(inputs["input_ids"], attention_mask=inputs["attention_mask"])
-                text_emb = tf.reduce_mean(outputs.last_hidden_state, axis=1).numpy()[0]
+                # Procesar texto con modelo NER de TensorFlow Hub
+                text_emb = self._get_text_embedding(preprocessed["translated"])
+                # Aquí podrías integrar un pipeline NER personalizado con tf.keras si es necesario
+                # Por simplicidad, usamos coincidencias de embeddings
                 for category, skill_list in catalog.items():
                     for skill_dict in skill_list:
-                        skill_emb = self._get_skill_embedding(skill_dict["translated"], encoder, tokenizer)
+                        skill_emb = self._get_text_embedding(skill_dict["translated"])
                         similarity = cosine_similarity([text_emb], [skill_emb])[0][0]
                         if similarity > MODEL_CONFIG['SIMILARITY_THRESHOLD']:
                             skills[category].append(skill_dict)
             except Exception as e:
-                logger.error(f"Error procesando embeddings: {e}", exc_info=True)
+                logger.error(f"Error procesando NER: {e}", exc_info=True)
 
         return skills
+
+    def _get_text_embedding(self, text: str) -> np.ndarray:
+        return embed([text]).numpy()[0]
 
     def _classify_entity(self, entity_group: str) -> str:
         if entity_group in ["SKILL", "TECH"]:
@@ -366,19 +352,22 @@ class NLPProcessor:
     @skip_on_migrate
     def __init__(self, mode: str = "candidate", analysis_depth: str = "quick", language: str = "es"):
         if 'migrate' in sys.argv:
-            logger.info("Saltando inicialización completa de NLPProcessor durante migración")
             self.mode = mode
             self.depth = analysis_depth
             self.language = language
-            self._translator = None
-            self.candidate_catalog = None
-            self.opportunity_catalog = None
-            self.intents = None
-            self.cache_manager = None
-            self.model_pool = None
-            self.batch_processor = None
-            self.performance_monitor = None
             return
+
+        self.mode = mode
+        self.depth = analysis_depth
+        self.language = language
+        self.last_used = time.time()
+        self._translator = AsyncTranslator()
+        self.candidate_catalog = None
+        self.opportunity_catalog = None
+        self.intents = None
+        self.cache_manager = CacheManager()
+        self.performance_monitor = PerformanceMonitor()
+        logger.info(f"NLPProcessor inicializado: modo={mode}, profundidad={analysis_depth}, idioma={language}")
 
         initialize_nlp_dependencies()  # Inicializar dependencias solo aquí
 
@@ -408,8 +397,17 @@ class NLPProcessor:
         self.performance_monitor = PerformanceMonitor()
         logger.info(f"NLPProcessor inicializado: modo={mode}, profundidad={analysis_depth}, idioma={language}")
 
+    async def initialize_gpt(self):
+        if not self.gpt_handler:
+            self.gpt_handler = GPTHandler()
+            await self.gpt_handler.initialize()
+
+    async def analyze_with_gpt(self, text: str, prompt: str) -> str:
+        await self.initialize_gpt()
+        response = await self.gpt_handler.generate_response(prompt + text)
+        return response
+
     async def _ensure_catalogs_loaded(self):
-        """Carga catálogos solo cuando se necesitan"""
         if self.candidate_catalog is None:
             self.candidate_catalog = await self._load_catalog_async("candidate") or {"technical": [], "soft": [], "tools": [], "certifications": []}
         if self.opportunity_catalog is None:
@@ -604,7 +602,7 @@ class NLPProcessor:
 
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
         cache_key = f"skills_{hash(text)}"
-        await self._ensure_catalogs_loaded()  # Asegurarse de que los catálogos estén cargados
+        await self._ensure_catalogs_loaded()
         return await self.cache_manager.get_or_set(
             cache_key,
             lambda: self._extract_skills_impl(text),
@@ -612,26 +610,32 @@ class NLPProcessor:
         )
     
     async def _extract_skills_impl(self, text: str) -> Dict[str, List[Dict[str, str]]]:
-        self._check_and_free_models()
         preprocessed = await self.preprocess(text)
         catalog = self.candidate_catalog if self.mode == "candidate" else self.opportunity_catalog
-        try:
-            skills = await self.batch_processor.process_quick(preprocessed, catalog) if self.depth == "quick" else \
-                     await self.batch_processor.process_deep(preprocessed, catalog)
-            return self._deduplicate_skills(skills)
-        except Exception as e:
-            logger.error(f"Error extrayendo habilidades: {e}", exc_info=True)
-            return {"skills": {"technical": [], "soft": [], "tools": [], "certifications": []}}
+        skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
+        text_emb = self.get_text_embedding(preprocessed["translated"])
+        for category, skill_list in catalog.items():
+            for skill_dict in skill_list:
+                skill_emb = self.get_skill_embedding(skill_dict["translated"])
+                similarity = cosine_similarity([text_emb], [skill_emb])[0][0]
+                if similarity > MODEL_CONFIG['SIMILARITY_THRESHOLD']:
+                    skills[category].append(skill_dict)
+        return {"skills": skills}
 
     def _deduplicate_skills(self, skills: Dict[str, List[Dict[str, str]]]) -> Dict[str, List[Dict[str, str]]]:
-        try:
-            for category in skills:
-                seen = set()
-                skills[category] = [s for s in skills[category] if not (s["translated"] in seen or seen.add(s["translated"]))]
-            return {"skills": skills}
-        except Exception as e:
-            logger.error(f"Error deduplicando habilidades: {e}", exc_info=True)
-            return {"skills": skills}
+        for category in skills:
+            unique_skills = []
+            embeddings = [self.get_skill_embedding(s["translated"]) for s in skills[category]]
+            for i, emb in enumerate(embeddings):
+                is_unique = True
+                for j in range(i):
+                    if cosine_similarity([emb], [embeddings[j]])[0][0] > 0.9:
+                        is_unique = False
+                        break
+                if is_unique:
+                    unique_skills.append(skills[category][i])
+            skills[category] = unique_skills
+        return {"skills": skills}
 
     def _classify_skill(self, skill_dict: Dict[str, str], catalog: Dict) -> None:
         try:
@@ -653,17 +657,12 @@ class NLPProcessor:
         if cached_embedding is not None:
             return cached_embedding
         try:
-            encoder, tokenizer = asyncio.run(self.model_pool.get_model("encoder"))
-            if encoder and tokenizer:
-                inputs = tokenizer(text, return_tensors="tf", padding=True, truncation=True, max_length=MODEL_CONFIG['MAX_SEQUENCE_LENGTH'])
-                outputs = encoder(inputs["input_ids"], attention_mask=inputs["attention_mask"])
-                embedding = tf.reduce_mean(outputs.last_hidden_state, axis=1).numpy()[0]
-                cache.set(cache_key, embedding, timeout=CACHE_CONFIG['EMBEDDINGS_TTL'])
-                return embedding
-            return np.zeros(768)
+            embedding = embed([text]).numpy()[0]
+            cache.set(cache_key, embedding, timeout=CACHE_CONFIG['EMBEDDINGS_TTL'])
+            return embedding
         except Exception as e:
             logger.error(f"Error obteniendo embedding de texto: {e}", exc_info=True)
-            return np.zeros(768)
+            return np.zeros(512)  # USE devuelve embeddings de 512 dimensiones
 
     def get_skill_embedding(self, skill: str) -> np.ndarray:
         return self.get_text_embedding(skill)
@@ -681,7 +680,7 @@ class NLPProcessor:
                 logger.error(f"Error analizando sentimiento: {e}", exc_info=True)
         return {"compound": 0.0, "label": "neutral"}
 
-    def classify_intent(self, text: str) -> Dict[str, float]:
+    async def classify_intent(self, text: str) -> Dict[str, float]:
         try:
             intent_classifier = asyncio.run(self.model_pool.get_model("intent"))
             if intent_classifier:
@@ -697,15 +696,14 @@ class NLPProcessor:
 
     def match_opportunities(self, candidate_skills: Dict[str, List[Dict[str, str]]]) -> List[Dict]:
         if self.mode != "candidate":
-            logger.warning("match_opportunities solo está disponible en modo 'candidate'")
             return []
-        asyncio.run(self._ensure_catalogs_loaded())  # Asegurarse de que los catálogos estén cargados
+        asyncio.run(self._ensure_catalogs_loaded())
         try:
             matches = []
-            candidate_emb = np.mean([self.get_skill_embedding(s["translated"]) for s in sum(candidate_skills.values(), [])] or [np.zeros(768)], axis=0)
+            candidate_emb = np.mean([self.get_skill_embedding(s["translated"]) for s in sum(candidate_skills.values(), [])] or [np.zeros(512)], axis=0)
             for opp in self.opportunity_catalog:
                 opp_skills = sum(opp["required_skills"].values(), [])
-                opp_emb = np.mean([self.get_skill_embedding(s["translated"]) for s in opp_skills] or [np.zeros(768)], axis=0)
+                opp_emb = np.mean([self.get_skill_embedding(s["translated"]) for s in opp_skills] or [np.zeros(512)], axis=0)
                 score = cosine_similarity([candidate_emb], [opp_emb])[0][0]
                 matches.append({"opportunity": opp["title"], "match_score": float(score)})
             return sorted(matches, key=lambda x: x["match_score"], reverse=True)[:5]
@@ -763,6 +761,9 @@ class NLPProcessor:
                 result["opportunities"] = self.match_opportunities(skills["skills"])
             elif self.mode == "opportunity":
                 result["required_skills"] = skills["skills"]
+            elif self.depth == "deep":
+                summary = await self.analyze_with_gpt(text, "Resume el siguiente texto en una frase: ")
+                result["summary"] = summary
 
             logger.info(f"Análisis completado para texto: {text[:50]}... en {result['metadata']['execution_time']:.2f}s")
             return result
@@ -781,6 +782,7 @@ class NLPProcessor:
                     "detected_language": "unknown"
                 }
             }
+        
 
 if __name__ == "__main__":
     nlp = NLPProcessor(mode="candidate", analysis_depth="quick")
