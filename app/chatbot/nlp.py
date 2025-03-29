@@ -12,6 +12,7 @@ import numpy as np
 from functools import lru_cache
 import tensorflow as tf
 import tensorflow_hub as hub
+import tensorflow_text as text  # Necesario para registrar SentencepieceOp
 import concurrent.futures
 from sklearn.metrics.pairwise import cosine_similarity
 from geopy.distance import geodesic
@@ -28,7 +29,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Cargar Universal Sentence Encoder (multilingüe)
+# Cargar el Universal Sentence Encoder multilingüe
 embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
 
 # Constantes
@@ -60,9 +61,7 @@ INTENTS_CATALOG = None
 def initialize_nlp_dependencies():
     """Inicializa configuraciones pesadas solo cuando se necesitan"""
     if not hasattr(initialize_nlp_dependencies, 'initialized'):
-        from app.ml.ml_opt import configure_tensorflow_based_on_load
         import nltk
-        configure_tensorflow_based_on_load()
         nltk.download('vader_lexicon', quiet=True)
         initialize_nlp_dependencies.initialized = True
 

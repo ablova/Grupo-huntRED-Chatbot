@@ -63,19 +63,19 @@ def configure_tensorflow_based_on_load():
         logger.error(f"Error al obtener el número de CPUs: {e}. Usando valor por defecto.")
         max_threads = 4  # Valor por defecto si os.cpu_count() falla
 
-    if cpu_load < 30:
-        # Baja carga: más hilos
-        tf.config.threading.set_intra_op_parallelism_threads(min(4, max_threads))
-        tf.config.threading.set_inter_op_parallelism_threads(2)
-        logger.info("Configuración para baja carga: 4 hilos intra, 2 inter")
-    elif cpu_load < 70:
-        # Carga media: menos hilos
-        tf.config.threading.set_intra_op_parallelism_threads(2)
-        tf.config.threading.set_inter_op_parallelism_threads(1)
-        logger.info("Configuración para carga media: 2 hilos intra, 1 inter")
-    else:
-        # Carga alta: mínimo hilos
-        tf.config.threading.set_intra_op_parallelism_threads(1)
-        tf.config.threading.set_inter_op_parallelism_threads(1)
-        logger.info("Configuración para carga alta: 1 hilo intra, 1 inter")
-    logger.info(f"Hilos configurados: intra={tf.config.threading.get_intra_op_parallelism_threads()}, inter={tf.config.threading.get_inter_op_parallelism_threads()}")
+#    if cpu_load < 30:
+#        # Baja carga: más hilos
+#        tf.config.threading.set_intra_op_parallelism_threads(min(4, max_threads))
+#        tf.config.threading.set_inter_op_parallelism_threads(2)
+#        logger.info("Configuración para baja carga: 4 hilos intra, 2 inter")
+#    elif cpu_load < 70:
+#        # Carga media: menos hilos
+#        tf.config.threading.set_intra_op_parallelism_threads(2)
+#        tf.config.threading.set_inter_op_parallelism_threads(1)
+#        logger.info("Configuración para carga media: 2 hilos intra, 1 inter")
+#    else:
+#        # Carga alta: mínimo hilos
+#        tf.config.threading.set_intra_op_parallelism_threads(1)
+#        tf.config.threading.set_inter_op_parallelism_threads(1)
+#        logger.info("Configuración para carga alta: 1 hilo intra, 1 inter")
+#    logger.info(f"Hilos configurados: intra={tf.config.threading.get_intra_op_parallelism_threads()}, inter={tf.config.threading.get_inter_op_parallelism_threads()}")

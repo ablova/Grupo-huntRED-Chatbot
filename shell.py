@@ -1268,3 +1268,98 @@ async def test_models():
 
 # Ejecutar en IPython
 await test_models()
+
+import asyncio
+import logging
+from email_processor import EmailProcessor  # Ajusta según tu estructura
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class CVParser(EmailProcessor):
+    async def process_emails(self):
+        mail = await self._connect_imap(self.config)
+        if not mail:
+            return
+        try:
+            await mail.select("INBOX.CV")
+            resp, messages = await mail.search(None, "ALL")
+            email_ids = messages[0].split()
+            logger.info(f"📬 Total de correos a procesar: {len(email_ids)}")
+            
+            batch_size = 50  # Procesar 50 correos por lote
+            for i in range(0, len(email_ids), batch_size):
+                batch = email_ids[i:i + batch_size]
+                tasks = [self._process_single_email(mail, email_id) for email_id in batch]
+                await asyncio.gather(*tasks)
+                await asyncio.sleep(2)  # Pausa para no sobrecargar el servidor
+            await mail.expunge()
+        finally:
+            await mail.logout()
+
+if __name__ == "__main__":
+    config = {"imap_server": "imap.gmail.com", "email": "hola@huntred.com", "password": "tu_contraseña"}
+    parser = CVParser(config)
+    asyncio.run(parser.process_emails())
+
+
+
+import asyncio
+import logging
+from email_processor import EmailProcessor  # Ajusta según tu estructura
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class JobScraper(EmailProcessor):
+    async def process_job_emails(self):
+        mail = await self._connect_imap(self.config)
+        if not mail:
+            return
+        try:
+            await mail.select("INBOX.Jobs")
+            resp, messages = await mail.search(None, "ALL")
+            email_ids = messages[0].split()
+            logger.info(f"📬 Total de correos a procesar: {len(email_ids)}")
+            
+            batch_size = 20  # Procesar 20 correos por lote
+            for i in range(0, len(email_ids), batch_size):
+                batch = email_ids[i:i + batch_size]
+                tasks = [self._scrape_email_data(mail, email_id) for email_id in batch]
+                await asyncio.gather(*tasks)
+                await asyncio.sleep(5)  # Pausa para respetar límites
+            await mail.expunge()
+        finally:
+            await mail.logout()
+
+if __name__ == "__main__":
+    config = {"imap_server": "imap.gmail.com", "email": "pablo@huntred.com", "password": "tu_contraseña"}
+    scraper = JobScraper(config)
+    asyncio.run(scraper.process_job_emails())
+
+import pandas as pd
+from nlp import NLPProcessor  # Ajusta según tu estructura
+
+def normalize_name(name: str) -> str:
+    return ' '.join(word.capitalize() for word in name.strip().split())
+
+def process_linkedin_data(csv_path="linkedin_data.csv"):
+    df = pd.read_csv(csv_path)
+    nlp = NLPProcessor()  # Usa Universal Sentence Encoder de TensorFlow
+    
+    # Normaliza nombres
+    df['name'] = df['name'].apply(normalize_name)
+    
+    # Extrae habilidades de descripciones
+    df['skills'] = df['description'].apply(lambda x: nlp.extract_skills(x))
+    
+    # Deduplica por email
+    df = df.drop_duplicates(subset=['email'])
+    
+    # Guarda los resultados
+    df.to_csv("linkedin_data_processed.csv", index=False)
+    print("Datos procesados guardados en linkedin_data_processed.csv")
+
+if __name__ == "__main__":
+    process_linkedin_data()
+

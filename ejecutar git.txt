@@ -43,8 +43,8 @@ sudo journalctl --vacuum-size=50M
 cd /home/pablo && source venv/bin/activate &&
 git fetch origin &&
 git reset --hard origin/main &&
-git clean -fd &&
 git status &&
+git clean -fd &&
 git log -1 &&
 sudo systemctl restart gunicorn nginx &&
 python manage.py makemigrations && python manage.py collectstatic && python manage.py migrate && python manage.py shell 

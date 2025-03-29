@@ -6,6 +6,7 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 import environ
 import logging
+import tensorflow as tf
 
 # Configuración de entorno
 env = environ.Env()
@@ -41,6 +42,14 @@ sentry_sdk.init(
     send_default_pii=env.bool('SENTRY_SEND_PII', default=False),  # Desactivado por defecto por privacidad
     debug=env.bool('SENTRY_DEBUG', default=False),
 )
+
+#Configuración TENSORFLOW
+# Configuración estática de hilos
+tf.config.threading.set_intra_op_parallelism_threads(2)  # Ajusta según tus necesidades
+tf.config.threading.set_inter_op_parallelism_threads(1)  # Ajusta según tus necesidades
+
+# Configuración de memoria (opcional, útil si usas GPU en el futuro)
+tf.config.set_soft_device_placement(True)
 
 # Aplicaciones instaladas
 INSTALLED_APPS = [

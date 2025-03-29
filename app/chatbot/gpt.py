@@ -11,8 +11,8 @@ from asgiref.sync import sync_to_async
 import asyncio
 import json
 import requests
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+
 logger = logging.getLogger(__name__)
 
 GPT_DEFAULTS = {
@@ -190,6 +190,41 @@ class ClaudeHandler(BaseHandler):
         except requests.exceptions.RequestException as e:
             logger.error(f"Error en Claude: {e}")
             return "Error al comunicarse con Claude."
+       
+class VertexAIHandler(BaseHandler):
+    async def initialize(self):
+        self.client = genai.Client(
+            vertexai=True,
+            project="grupo-huntred",
+            location="us-central1",
+        )
+        self.model = self.config.model or "gemini-2.0-flash-001"
+        logger.info(f"VertexAIHandler configurado con modelo: {self.model}")
+
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
+        if not self.client:
+            return "⚠ Vertex AI no inicializado."
+        bu_name = business_unit.name if business_unit else "General"
+        full_prompt = f"Unidad de Negocio: {bu_name}\n{prompt}"
+        document = types.Part.from_text(text=full_prompt)
+        contents = [types.Content(role="user", parts=[document])]
+        config = types.GenerateContentConfig(
+            temperature=self.config.temperature,
+            top_p=self.config.top_p,
+            max_output_tokens=self.config.max_tokens,
+            response_mime_type="application/json",
+        )
+        try:
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.model,
+                contents=contents,
+                config=config,
+            )
+            return response.text.strip()
+        except Exception as e:
+            logger.error(f"Error en Vertex AI: {e}")
+            return "Error al comunicarse con Vertex AI."
 
 class GPTHandler:
     def __init__(self):
@@ -256,42 +291,7 @@ class GPTHandler:
         except Exception as e:
             logger.error(f"Error generando respuesta síncrona GPT: {e}")
             return "Error inesperado en la solicitud."
-        
-class VertexAIHandler(BaseHandler):
-    async def initialize(self):
-        self.client = genai.Client(
-            vertexai=True,
-            project="grupo-huntred",
-            location="us-central1",
-        )
-        self.model = self.config.model or "gemini-2.0-flash-001"
-        logger.info(f"VertexAIHandler configurado con modelo: {self.model}")
-
-    async def generate_response(self, prompt: str, business_unit=None) -> str:
-        if not self.client:
-            return "⚠ Vertex AI no inicializado."
-        bu_name = business_unit.name if business_unit else "General"
-        full_prompt = f"Unidad de Negocio: {bu_name}\n{prompt}"
-        document = types.Part.from_text(text=full_prompt)
-        contents = [types.Content(role="user", parts=[document])]
-        config = types.GenerateContentConfig(
-            temperature=self.config.temperature,
-            top_p=self.config.top_p,
-            max_output_tokens=self.config.max_tokens,
-            response_mime_type="application/json",
-        )
-        try:
-            response = await asyncio.to_thread(
-                self.client.models.generate_content,
-                model=self.model,
-                contents=contents,
-                config=config,
-            )
-            return response.text.strip()
-        except Exception as e:
-            logger.error(f"Error en Vertex AI: {e}")
-            return "Error al comunicarse con Vertex AI."
-        
+         
 # Actualizar HANDLER_MAPPING
 HANDLER_MAPPING = {
     'openai': OpenAIHandler,
