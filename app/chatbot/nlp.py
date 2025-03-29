@@ -213,7 +213,7 @@ class CacheManager:
                 self._local_cache = {k: v for k, v in self._local_cache.items() if current_time < v[1]}
                 self._last_cleanup = current_time
 
-cclass ModelPool:
+class ModelPool:
     def __init__(self, max_models=3):
         self.max_models = max_models
         self.models = {}
