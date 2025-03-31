@@ -4,20 +4,21 @@ import logging
 import aiohttp
 import environ
 import asyncio
+import re
 from typing import Optional, List, Dict, Any, Tuple
 from aioimaplib import aioimaplib
 from datetime import datetime, timedelta
-from email.header import decode_header
 from email.utils import parseaddr
 from urllib.parse import urlparse
 import trafilatura
+from bs4 import BeautifulSoup
 from app.models import BusinessUnit, Vacante, ConfiguracionBU, WeightingModel
 from app.utilidades.vacantes import VacanteManager
 from asgiref.sync import sync_to_async
-from app.chatbot.utils import clean_text  # Imported explicitly
-from app.utilidades.scraping import validate_job_data, JobListing
+from app.chatbot.utils import clean_text
 from app.chatbot.nlp import NLPProcessor
 from app.chatbot.integrations.services import send_email
+from app.utilidades.scraping import extract_field, validate_job_data, assign_business_unit, extract_skills
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,9 @@ EMAIL_PASSWORD = env("EMAIL_HOST_PASSWORD")
 IMAP_SERVER = env("EMAIL_HOST", default="mail.huntred.com")
 
 # Variables de configuración
-DAYS_TO_PROCESS = 10  # Últimos días a procesar
-BATCH_SIZE = 10       # Tamaño del lote para procesar correos
-SLEEP_TIME = 2        # Tiempo de espera entre lotes (segundos)
+DAYS_TO_PROCESS = 10
+BATCH_SIZE = 10
+SLEEP_TIME = 2
 
 # Lista de remitentes válidos
 VALID_SENDERS = [
@@ -67,7 +68,7 @@ FOLDER_CONFIG = {
     "error_folder": "INBOX.Error",
 }
 
-# Constantes para assign_business_unit
+# Constantes para assign_business_unit (mantengo por compatibilidad, pero se usa la versión de scraping.py)
 BUSINESS_UNITS_KEYWORDS = {
     'huntRED®': {
         'manager': 2, 'director': 3, 'leadership': 2, 'senior manager': 4, 'operations manager': 3,
@@ -132,12 +133,7 @@ async def email_scraper():
     if not mail:
         return
 
-    stats = {
-        "emails_processed": 0,
-        "total_vacancies": 0,
-        "vacancies_created": 0,
-        "errors": 0
-    }
+    stats = {"emails_processed": 0, "total_vacancies": 0, "vacancies_created": 0, "errors": 0}
 
     try:
         date_filter = (datetime.now() - timedelta(days=DAYS_TO_PROCESS)).strftime("%d-%b-%Y")
@@ -152,29 +148,18 @@ async def email_scraper():
         for i in range(0, len(email_ids), BATCH_SIZE):
             batch_ids = email_ids[i:i + BATCH_SIZE]
             logger.info(f"📤 Procesando lote de {len(batch_ids)} correos (índices {i} a {i + len(batch_ids) - 1})")
-
-            for email_id in batch_ids:
-                resp, data = await mail.fetch(email_id, "(RFC822)")
-                if resp != "OK":
-                    logger.error(f"⚠️ No se pudo obtener correo {email_id}")
-                    stats["errors"] += 1
-                    continue
-                message = email.message_from_bytes(data[0][1])
-                await process_job_alert_email(mail, email_id, message, stats)
-                await asyncio.sleep(SLEEP_TIME)
+            tasks = [process_job_alert_email(mail, email_id, email.message_from_bytes((await mail.fetch(email_id, "(RFC822)"))[1][0][1]), stats) 
+                     for email_id in batch_ids]
+            await asyncio.gather(*tasks)
+            await asyncio.sleep(SLEEP_TIME)
 
         await mail.expunge()
         logger.info("🗑️ Correos eliminados del inbox después de procesar todos los lotes")
-
-        logger.info(f"📊 Estadísticas finales: Correos procesados: {stats['emails_processed']}, "
-                   f"Vacantes encontradas: {stats['total_vacancies']}, Vacantes creadas: {stats['vacancies_created']}, "
-                   f"Errores: {stats['errors']}")
-
+        logger.info(f"📊 Estadísticas: Procesados: {stats['emails_processed']}, Vacantes: {stats['total_vacancies']}, Creadas: {stats['vacancies_created']}, Errores: {stats['errors']}")
     except Exception as e:
         logger.error(f"❌ Error ejecutando email_scraper: {e}")
     finally:
         await mail.logout()
-        logger.info("🔌 Desconectado del servidor IMAP")
 
 def extract_from_plain_text(plain_text: str) -> List[Dict]:
     job_listings = []
@@ -194,43 +179,37 @@ def extract_from_plain_text(plain_text: str) -> List[Dict]:
         job_listings.append(current_job)
     return job_listings
 
-
 def is_job_email(subject: str) -> bool:
     return any(pattern.search(subject) for pattern in JOB_SUBJECT_PATTERNS)
 
-async def fetch_job_details(url: str, retries=3) -> dict:
+async def fetch_job_details(url: str, retries=3) -> Dict:
     domain = urlparse(url).netloc.lower()
     if not any(allowed in domain for allowed in ALLOWED_DOMAINS):
         logger.warning(f"URL no permitida: {url}")
         return {}
-    """Obtiene detalles completos de la vacante desde la URL."""
     timeout = aiohttp.ClientTimeout(total=30)
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124'}
     async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
         for attempt in range(retries):
             try:
                 async with session.get(url) as response:
                     if response.status == 200:
                         html = await response.text()
-                        text = trafilatura.extract(html)
                         details = {
-                            "title": extract_title(soup),
-                            "description": extract_description(soup),
-                            "location": extract_location(soup),
-                            "salary_range": extract_salary(soup),
-                            "requirements": extract_requirements(soup),
-                            "company_info": extract_company_info(soup),
-                            "employment_type": extract_employment_type(soup),
-                            "experience_level": extract_experience_level(soup),
-                            "posting_date": extract_posting_date(soup),
-                            "benefits": extract_benefits(soup),
-                            "skills": await extract_skills(soup),  # Updated to use global NLP_PROCESSOR
+                            "title": extract_field(html, ["h1", "h2", "h3", "span.job-title", "a.job-title"]),
+                            "description": extract_field(html, ["div.job-description", "section.job-description", "div[id*=description]"]),
+                            "location": extract_field(html, ["span.location", "span.job-location", "div.companyLocation"]),
+                            "salary_range": extract_field(html, ["span.salary", "div.salary-range"]),
+                            "requirements": extract_requirements(html),
+                            "company_info": extract_field(html, ["div.company-info", "span.company-name"]),
+                            "employment_type": extract_field(html, ["span.employment-type", "div.employment-info"]),
+                            "experience_level": extract_field(html, ["span.experience-level", "div.experience"]),
+                            "posting_date": extract_field(html, ["span.posting-date", "time"]),
+                            "benefits": extract_benefits(html),
+                            "skills": await extract_skills(html),
                             "original_url": url
                         }
-                        logger.info(f"✅ Detalles completos obtenidos de {url}")
+                        logger.info(f"✅ Detalles obtenidos de {url}")
                         return {k: v for k, v in details.items() if v}
             except Exception as e:
                 logger.error(f"❌ Error en intento {attempt + 1}/{retries} para {url}: {e}")
@@ -238,60 +217,8 @@ async def fetch_job_details(url: str, retries=3) -> dict:
                     await asyncio.sleep(2)
     return {}
 
-def extract_title(soup):
-    """Extrae el título del puesto con mayor precisión."""
-    title_candidates = [
-        soup.find("h1"),
-        soup.find("h1", class_=lambda x: x and any(word in x.lower() for word in ['job', 'title', 'position'])),
-        soup.find(class_=lambda x: x and any(word in x.lower() for word in ['job-title', 'position-title']))
-    ]
-    for candidate in title_candidates:
-        if candidate and candidate.text.strip():
-            return clean_text(candidate.text)
-    return None
-
-def extract_description(soup):
-    """Extrae la descripción completa del puesto."""
-    description_selectors = [
-        ("div", {"class_": ["job-description", "description", "details"]}),
-        ("section", {"class_": ["job-description", "description"]}),
-        ("div", {"id": lambda x: x and "description" in x.lower()})
-    ]
-    for tag, attrs in description_selectors:
-        element = soup.find(tag, **attrs)
-        if element:
-            return clean_text(element.text)
-    return None
-
-def extract_location(soup):
-    """Extrae la ubicación del puesto."""
-    location_selectors = [
-        ("span", {"class_": ["location", "job-location", "posting-location"]}),
-        ("div", {"class_": ["location", "job-location"]}),
-        ("meta", {"property": "jobLocation"}),
-        ("div", {"data-automation-id": "location"})
-    ]
-    for tag, attrs in location_selectors:
-        element = soup.find(tag, **attrs)
-        if element:
-            return clean_text(element.text)
-    return None
-
-def extract_salary(soup):
-    """Extrae el rango salarial si está disponible."""
-    salary_selectors = [
-        ("span", {"class_": ["salary", "compensation"]}),
-        ("div", {"class_": ["salary-range", "compensation-info"]}),
-        ("div", {"data-automation-id": "salary"})
-    ]
-    for tag, attrs in salary_selectors:
-        element = soup.find(tag, **attrs)
-        if element:
-            return clean_text(element.text)
-    return None
-
-def extract_requirements(soup):
-    """Extrae requisitos del puesto."""
+def extract_requirements(html: str) -> Optional[List[str]]:
+    soup = BeautifulSoup(html, "html.parser")
     req_selectors = [
         ("div", {"class_": ["requirements", "qualifications"]}),
         ("ul", {"class_": ["requirements-list", "qualifications-list"]}),
@@ -307,59 +234,8 @@ def extract_requirements(soup):
                 requirements.append(clean_text(element.text))
     return requirements if requirements else None
 
-def extract_company_info(soup):
-    """Extrae información de la empresa."""
-    company_selectors = [
-        ("div", {"class_": ["company-info", "employer-info"]}),
-        ("span", {"class_": ["company-name", "employer"]}),
-        ("div", {"data-automation-id": "company"})
-    ]
-    for tag, attrs in company_selectors:
-        element = soup.find(tag, **attrs)
-        if element:
-            return clean_text(element.text)
-    return None
-
-def extract_employment_type(soup):
-    """Extrae el tipo de empleo."""
-    type_selectors = [
-        ("span", {"class_": ["employment-type", "job-type"]}),
-        ("div", {"class_": ["employment-info", "job-type"]}),
-        ("div", {"data-automation-id": "employmentType"})
-    ]
-    for tag, attrs in type_selectors:
-        element = soup.find(tag, **attrs)
-        if element:
-            return clean_text(element.text)
-    return None
-
-def extract_experience_level(soup):
-    """Extrae el nivel de experiencia requerido."""
-    exp_selectors = [
-        ("span", {"class_": ["experience-level", "seniority"]}),
-        ("div", {"class_": ["experience", "seniority-level"]})
-    ]
-    for tag, attrs in exp_selectors:
-        element = soup.find(tag, **attrs)
-        if element:
-            return clean_text(element.text)
-    return None
-
-def extract_posting_date(soup):
-    """Extrae la fecha de publicación."""
-    date_selectors = [
-        ("span", {"class_": ["posting-date", "job-date"]}),
-        ("time", {}),
-        ("meta", {"property": "datePosted"})
-    ]
-    for tag, attrs in date_selectors:
-        element = soup.find(tag, **attrs)
-        if element:
-            return clean_text(element.get("datetime", element.text))
-    return None
-
-def extract_benefits(soup):
-    """Extrae los beneficios ofrecidos."""
+def extract_benefits(html: str) -> Optional[List[str]]:
+    soup = BeautifulSoup(html, "html.parser")
     benefits_selectors = [
         ("div", {"class_": ["benefits", "perks"]}),
         ("ul", {"class_": ["benefits-list", "perks-list"]})
@@ -374,22 +250,7 @@ def extract_benefits(soup):
                 benefits.append(clean_text(element.text))
     return benefits if benefits else None
 
-async def extract_skills(soup) -> List[str]:
-    """Extrae habilidades del texto usando el NLPProcessor global."""
-    description = extract_description(soup)
-    if not description:
-        return []
-    try:
-        skills_dict = NLP_PROCESSOR.extract_skills(description)
-        skills = list(set(skills_dict["technical"] + skills_dict["soft"] + 
-                         skills_dict["certifications"] + skills_dict["tools"]))
-        return skills
-    except Exception as e:
-        logger.error(f"Error extrayendo habilidades: {e}")
-        return []
-
-async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) -> list:
-    """Extrae vacantes desde HTML o texto plano de manera asíncrona."""
+async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) -> List[Dict]:
     soup = BeautifulSoup(html, "html.parser")
     job_listings = []
     excluded_texts = ["sign in", "ayuda", "darse de baja", "help", "unsubscribe", "feed", "profile", "premium"]
@@ -435,251 +296,21 @@ async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = 
             })
 
     if not job_listings and plain_text:
-        lines = plain_text.split('\n')
-        current_job = {}
-        for line in lines:
-            line = line.strip().lower()
-            if any(keyword in line for keyword in JOB_KEYWORDS) and not current_job.get("job_title"):
-                current_job["job_title"] = line.title()
-                current_job["company_name"] = sender.split('@')[1].split('.')[0].capitalize()
-            elif "apply now" in line and current_job.get("job_title"):
-                apply_link = soup.find("a", string=lambda text: text and "apply now" in text.lower())
-                current_job["job_link"] = apply_link["href"] if apply_link else ""
-                if current_job["job_link"]:
-                    details = await fetch_job_details(current_job["job_link"])
-                    current_job.update({
-                        "job_title": details.get("title", current_job["job_title"]),
-                        "job_description": details.get("description", current_job["job_title"]),
-                        "location": details.get("location", "Unknown")
-                    })
-                job_listings.append(current_job)
-                current_job = {}
-            elif current_job.get("job_title") and not current_job.get("location"):
-                current_job["location"] = line if line else "Unknown"
-            elif current_job.get("job_title"):
-                current_job["job_description"] = current_job.get("job_description", "") + " " + line
-    if not body:
         job_listings = extract_from_plain_text(plain_text)
 
     return job_listings
 
-
-
-async def assign_business_unit(job_title, job_description=None, salary_range=None, required_experience=None, location=None):
-    """Determina la unidad de negocio para una vacante con pesos dinámicos."""
-    job_title_lower = job_title.lower()
-    job_desc_lower = job_description.lower() if job_description else ""
-    location_lower = location.lower() if location else ""
-
-    # Fetch all business units and their weights
-    bu_candidates = await sync_to_async(list)(BusinessUnit.objects.all())
-    scores = {bu.name: 0 for bu in bu_candidates}
-
-    # Seniority scoring
-    seniority_score = 0
-    for keyword, score in SENIORITY_KEYWORDS.items():
-        if keyword in job_title_lower:
-            seniority_score = max(seniority_score, score)
-
-    # Industry scoring
-    industry_scores = {ind: 0 for ind in INDUSTRY_KEYWORDS}
-    for ind, keywords in INDUSTRY_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in job_title_lower or keyword in job_desc_lower:
-                industry_scores[ind] += 1
-    dominant_industry = max(industry_scores, key=industry_scores.get) if max(industry_scores.values()) > 0 else None
-
-    # Dynamic scoring with weights
-    for bu in bu_candidates:
-        weighting = WeightingModel(bu)
-        weights = weighting.get_weights("operativo")  # Adjust level dynamically if needed
-
-        # Keyword scoring with weights
-        for keyword, weight in BUSINESS_UNITS_KEYWORDS.get(bu.name, {}).items():
-            if keyword in job_title_lower or (job_description and keyword in job_desc_lower):
-                scores[bu.name] += weight * weights["hard_skills"]
-
-        # Seniority adjustments
-        if seniority_score >= 5:  # Roles muy senior (ejecutivos)
-            if bu.name == 'huntRED® Executive':
-                scores[bu.name] += 4 * weights["personalidad"]
-            elif bu.name == 'huntRED®':
-                scores[bu.name] += 2 * weights["soft_skills"]
-        elif seniority_score >= 3:  # Roles de nivel medio a senior (gestión)
-            if bu.name == 'huntRED®':
-                scores[bu.name] += 3 * weights["soft_skills"]
-            elif bu.name == 'huntu':
-                scores[bu.name] += 1 * weights["hard_skills"]
-        elif seniority_score >= 1:  # Roles junior a intermedios (técnicos)
-            if bu.name == 'huntu':
-                scores[bu.name] += 2 * weights["hard_skills"]
-            elif bu.name == 'amigro':
-                scores[bu.name] += 1 * weights["ubicacion"]
-        else:  # Roles de nivel inicial o operativos
-            if bu.name == 'amigro':
-                scores[bu.name] += 3 * weights["ubicacion"]
-
-        # Industry adjustments
-        if dominant_industry:
-            if dominant_industry == 'tech':
-                if bu.name == 'huntu':
-                    scores[bu.name] += 3 * weights["hard_skills"] * industry_scores['tech']
-                elif bu.name == 'huntRED®':  # Para roles de gestión técnica
-                    scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['tech']
-            elif dominant_industry == 'management':
-                if bu.name == 'huntRED®':
-                    scores[bu.name] += 3 * weights["soft_skills"] * industry_scores['management']
-                elif bu.name == 'huntRED® Executive':
-                    scores[bu.name] += 2 * weights["personalidad"] * industry_scores['management']
-            elif dominant_industry == 'operations':
-                if bu.name == 'amigro':
-                    scores[bu.name] += 3 * weights["ubicacion"] * industry_scores['operations']
-            elif dominant_industry == 'strategy':
-                if bu.name == 'huntRED® Executive':
-                    scores[bu.name] += 3 * weights["personalidad"] * industry_scores['strategy']
-                elif bu.name == 'huntRED®':
-                    scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['strategy']
-
-        # Description-based adjustments
-        if job_description:
-            if any(term in job_desc_lower for term in ['migration', 'visa', 'bilingual', 'temporary', 'migración']):
-                if bu.name == 'amigro':
-                    scores[bu.name] += 4 * weights["ubicacion"]
-            if any(term in job_desc_lower for term in ['strategic', 'global', 'executive', 'board', 'estrategico']):
-                if bu.name == 'huntRED® Executive':
-                    scores[bu.name] += 3 * weights["personalidad"]
-            if any(term in job_desc_lower for term in ['development', 'coding', 'software', 'data', 'programación']):
-                if bu.name == 'huntu':
-                    scores[bu.name] += 3 * weights["hard_skills"]
-            if any(term in job_desc_lower for term in ['operations', 'management', 'leadership', 'gerencia']):
-                if bu.name == 'huntRED®':
-                    scores[bu.name] += 3 * weights["soft_skills"]
-
-        # Salary range adjustments
-        if salary_range:
-            try:
-                if isinstance(salary_range, str):
-                    salary_range = salary_range.replace(',', '').replace('$', '').replace('k', '000')
-                    if '-' in salary_range:
-                        min_salary, max_salary = map(float, salary_range.split('-'))
-                    elif salary_range.isdigit():
-                        min_salary = max_salary = float(salary_range)
-                    else:
-                        min_salary = max_salary = 0
-                else:
-                    min_salary, max_salary = salary_range
-                avg_salary = (min_salary + max_salary) / 2
-                if avg_salary > 160000:
-                    if bu.name == 'huntRED® Executive':
-                        scores[bu.name] += 4 * weights["personalidad"]
-                    elif bu.name == 'huntRED®':
-                        scores[bu.name] += 2 * weights["soft_skills"]
-                elif avg_salary > 70000:
-                    if bu.name == 'huntRED®':
-                        scores[bu.name] += 3 * weights["soft_skills"]
-                    elif bu.name == 'huntu':
-                        scores[bu.name] += 2 * weights["hard_skills"]
-                elif avg_salary > 30000:
-                    if bu.name == 'huntu':
-                        scores[bu.name] += 2 * weights["hard_skills"]
-                    elif bu.name == 'amigro':
-                        scores[bu.name] += 1 * weights["ubicacion"]
-                else:
-                    if bu.name == 'amigro':
-                        scores[bu.name] += 3 * weights["ubicacion"]
-            except (ValueError, TypeError):
-                logger.warning(f"⚠️ No se pudo parsear rango salarial: {salary_range}")
-
-        # Experience adjustments
-        if required_experience is not None:
-            try:
-                exp_years = float(required_experience) if isinstance(required_experience, (int, str)) else 0
-                if exp_years >= 12:
-                    if bu.name == 'huntRED® Executive':
-                        scores[bu.name] += 3 * weights["personalidad"]
-                    elif bu.name == 'huntRED®':
-                        scores[bu.name] += 2 * weights["soft_skills"]
-                elif exp_years >= 7:
-                    if bu.name == 'huntRED®':
-                        scores[bu.name] += 3 * weights["soft_skills"]
-                    elif bu.name == 'huntu':
-                        scores[bu.name] += 2 * weights["hard_skills"]
-                elif exp_years >= 3:
-                    if bu.name == 'huntu':
-                        scores[bu.name] += 2 * weights["hard_skills"]
-                else:
-                    if bu.name == 'amigro':
-                        scores[bu.name] += 2 * weights["ubicacion"]
-                    elif bu.name == 'huntu':
-                        scores[bu.name] += 1 * weights["hard_skills"]
-            except ValueError:
-                logger.warning(f"⚠️ No se pudo parsear experiencia requerida: {required_experience}")
-
-        # Location adjustments
-        if location:
-            if any(term in location_lower for term in ['usa', 'europe', 'asia', 'mexico', 'latam', 'frontera', 'migración']):
-                if bu.name == 'amigro':
-                    scores[bu.name] += 3 * weights["ubicacion"]
-            if any(term in location_lower for term in ['silicon valley', 'new york', 'london']):
-                if bu.name == 'huntRED® Executive':
-                    scores[bu.name] += 2 * weights["personalidad"]
-                elif bu.name == 'huntu':
-                    scores[bu.name] += 1 * weights["hard_skills"]
-
-    # Selección de la unidad de negocio
-    max_score = max(scores.values())
-    candidates = [bu for bu, score in scores.items() if score == max_score]
-    priority_order = ['huntRED® Executive', 'huntRED®', 'huntu', 'amigro']
-
-    if candidates:
-        if len(candidates) > 1 and dominant_industry:
-            if dominant_industry == 'strategy' and 'huntRED® Executive' in candidates:
-                chosen_bu = 'huntRED® Executive'
-            elif dominant_industry == 'management' and 'huntRED®' in candidates:
-                chosen_bu = 'huntRED®'
-            elif dominant_industry == 'tech' and 'huntu' in candidates:
-                chosen_bu = 'huntu'
-            elif dominant_industry == 'operations' and 'amigro' in candidates:
-                chosen_bu = 'amigro'
-            else:
-                for bu in priority_order:
-                    if bu in candidates:
-                        chosen_bu = bu
-                        break
-        else:
-            chosen_bu = candidates[0]
-    else:
-        chosen_bu = 'huntRED®'  # Default fallback
-
-    try:
-        bu_obj = await sync_to_async(BusinessUnit.objects.get)(name=chosen_bu)
-        logger.info(f"✅ Unidad de negocio asignada: {chosen_bu} (ID: {bu_obj.id}) para '{job_title}'")
-        return bu_obj.id
-    except BusinessUnit.DoesNotExist:
-        logger.warning(f"⚠️ Unidad de negocio '{chosen_bu}' no encontrada, usando huntRED® por defecto")
-        try:
-            default_bu = await sync_to_async(BusinessUnit.objects.get)(id=1)
-            logger.info(f"🔧 Asignada huntRED® por defecto (ID: {default_bu.id}) para '{job_title}'")
-            return default_bu.id
-        except BusinessUnit.DoesNotExist:
-            logger.error(f"❌ Unidad de negocio por defecto 'huntRED®' no encontrada en BD")
-            return None
-
 async def process_job_alert_email(mail, email_id, message, stats):
-    """Procesa un correo de alerta de empleo y reporta errores al administrador."""
     try:
         sender = message["From"]
         subject = message["Subject"]
-
         if not sender or not subject:
             logger.warning(f"⚠️ Correo {email_id} sin remitente o asunto")
             stats["errors"] += 1
             return
 
-        sender = sender.lower().strip()
+        sender_email = parseaddr(sender)[1].lower().strip()
         subject = subject.lower().strip()
-        _, sender_email = parseaddr(sender)
-        sender_email = sender_email.lower().strip()
 
         if sender_email in VALID_SENDERS or is_job_email(subject) or any(keyword in subject for keyword in JOB_KEYWORDS):
             logger.info(f"📧 Procesando correo {email_id} de {sender_email}")
@@ -703,9 +334,9 @@ async def process_job_alert_email(mail, email_id, message, stats):
                 return
 
             job_listings = await extract_vacancies_from_html(body or "", sender_email, plain_text)
-            logger.info(f"📑 Vacantes encontradas: {len(job_listings)}")
             stats["total_vacancies"] += len(job_listings)
 
+            tasks = []
             for job_data in job_listings:
                 description = job_data.get("job_description", "")
                 if description:
@@ -715,34 +346,22 @@ async def process_job_alert_email(mail, email_id, message, stats):
                     job_data["contract_type"] = analysis["details"].get("contract_type") or job_data.get("contract_type")
                     job_data["job_classification"] = analysis["job_classification"]
                     job_data["sentiment"] = analysis["sentiment"]
-
-                business_unit_id = await assign_business_unit(
-                    job_data["job_title"],
-                    job_data["job_description"],
-                    job_data.get("salary_range"),
-                    job_data.get("experience_level"),
-                    job_data.get("location")
-                )
-
+                
+                business_unit_id = await assign_business_unit(job_data)
                 if business_unit_id:
-                    success = await create_vacancy_from_email(job_data, business_unit_id)
-                    if success:
-                        stats["vacancies_created"] += 1
-                    else:
-                        stats["errors"] += 1
-                else:
-                    logger.warning(f"⚠️ No se asignó unidad de negocio para '{job_data['job_title']}'")
-                    stats["errors"] += 1
+                    tasks.append(create_vacancy_from_email(job_data, business_unit_id))
+
+            results = await asyncio.gather(*tasks)
+            stats["vacancies_created"] += sum(1 for r in results if r)
+            stats["errors"] += sum(1 for r in results if not r)
 
             await mail.copy(email_id, FOLDER_CONFIG["parsed_folder"])
             await mail.store(email_id, "+FLAGS", "\\Deleted")
-            logger.info(f"📩 Correo {email_id} movido a {FOLDER_CONFIG['parsed_folder']}")
-
     except Exception as e:
         logger.error(f"❌ Error procesando correo {email_id}: {e}")
+        stats["errors"] += 1
         await mail.copy(email_id, FOLDER_CONFIG["error_folder"])
         await mail.store(email_id, "+FLAGS", "\\Deleted")
-        stats["errors"] += 1
         bu = await sync_to_async(BusinessUnit.objects.get)(name="huntRED®")
         if bu and bu.admin_email:
             await send_email(
@@ -753,24 +372,26 @@ async def process_job_alert_email(mail, email_id, message, stats):
                 from_email="noreply@huntred.com"
             )
 
-async def create_vacancy_from_email(job_data: dict, business_unit_id: int) -> bool:
+async def create_vacancy_from_email(job_data: Dict, business_unit_id: int) -> bool:
     try:
         bu = await sync_to_async(BusinessUnit.objects.get)(id=business_unit_id)
         vacante, created = await sync_to_async(Vacante.objects.get_or_create)(
             url_original=job_data["job_link"],
             defaults={
-                title=job_data["job_title"],
-                location=job_data["location"],
-                company=job_data["company_name"],
-                description=job_data["job_description"],
-                url=job_data["job_link"],
-                skills=job_data.get("skills", []),
-                posted_date=job_data.get("posting_date"),
-                salary=job_data.get("salary_range"),
-                responsible=job_data.get("responsible"),
-                contract_type=job_data.get("employment_type"),
-                job_type=job_data.get("job_type"),
-                benefits=job_data.get("benefits", [])}
+                "titulo": job_data["job_title"],
+                "empresa": job_data["company_name"],
+                "ubicacion": job_data["location"],
+                "descripcion": job_data["job_description"],
+                "business_unit": bu,
+                "fecha_publicacion": job_data.get("posting_date", now()),
+                "skills_required": job_data.get("skills", []),
+                "contract_type": job_data.get("contract_type"),
+                "job_type": job_data.get("employment_type"),
+                "beneficios": ", ".join(job_data.get("benefits", [])) if job_data.get("benefits") else None,
+                "salario": job_data.get("salary_range"),
+                "sentiment": job_data.get("sentiment"),
+                "job_classification": job_data.get("job_classification"),
+            }
         )
         if created:
             logger.info(f"✅ Vacante creada: {vacante.titulo}")
