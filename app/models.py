@@ -128,7 +128,7 @@ class DominioScraping(models.Model):
         default='css'
     )
     # Configuración JSON para mapeos más complejos
-    mapeo_configuracion = models.JSONField(null=True, blank=True)
+    mapeo_configuracion = models.JSONField(null=True, blank=True, help_text="Configuración personalizada (selectores, paginación, etc.)")
 
     def generar_correo_asignado(self):
         from app.models import ConfiguracionBU

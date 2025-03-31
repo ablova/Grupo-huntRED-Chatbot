@@ -172,7 +172,13 @@ async def assign_business_unit(job: Dict) -> str:
 
 @transaction.atomic
 async def save_vacantes(jobs: List[Dict], dominio: DominioScraping):
+    seen_keys = set()
     for job in jobs:
+        key = f"{job['title']}:{job['company']}:{job['location']}"
+        if key in seen_keys:
+            logger.info(f"Vacante duplicada omitida: {job['title']}")
+            continue
+        seen_keys.add(key)
         try:
             bu_name = assign_business_unit(job)
             business_unit = await sync_to_async(BusinessUnit.objects.get)(name=bu_name)
@@ -209,6 +215,8 @@ async def save_vacantes(jobs: List[Dict], dominio: DominioScraping):
                     }
                 )
                 logger.info(f"Worker {'creado' if worker_created else 'asociado'}: {worker.name}")
+            if not created:
+            logger.info(f"Vacante ya existe: {job['title']}")
         except Exception as e:
             logger.error(f"Error saving job {job['title']}: {e}")
 
@@ -243,15 +251,21 @@ def associate_divisions(skills: List[str]) -> List[str]:
                 divisions.add(division)
     return list(divisions)
 
-def extract_field(element: BeautifulSoup, selector: str, attribute: Optional[str] = None) -> Optional[str]:
-    try:
-        elem = element.select_one(selector)
-        if elem:
-            return elem[attribute] if attribute else elem.text.strip()
-        return None
-    except Exception as e:
-        logger.warning(f"Error extracting field with selector {selector}: {e}")
-        return None
+def extract_field(element: BeautifulSoup, selectors: List[str], attribute: Optional[str] = None) -> Optional[str]:
+    for selector in selectors:
+        try:
+            elem = element.select_one(selector)
+            if elem:
+                return elem[attribute] if attribute else elem.text.strip()
+        except Exception as e:
+            logger.warning(f"Error con selector {selector}: {e}")
+    # Respaldo con regex si aplica
+    if not attribute and "title" in selectors[0]:
+        import re
+        text = str(element)
+        match = re.search(r"(?:job[- ]?title|puesto)[\s:]*([^<]+)", text, re.IGNORECASE)
+        return match.group(1).strip() if match else None
+    return None
 
 async def get_scraper(domain: DominioScraping):
     scraper_class = SCRAPER_MAP.get(domain.plataforma, SCRAPER_MAP["default"])
@@ -270,40 +284,44 @@ class BaseScraper:
         self.semaphore = asyncio.Semaphore(10)  # Adjust based on domain
         self.delay = domain.frecuencia_scraping / 3600  # Convert hours to seconds
         self.session = None
+        self.cookies = {}
 
     async def __aenter__(self):
         headers = {'User-Agent': random.choice(USER_AGENTS)}
-        self.session = ClientSession(headers=headers, timeout=ClientTimeout(total=30))
+        self.session = ClientSession(headers=headers, timeout=ClientTimeout(total=30), cookies=self.cookies)
         return self
-
+    
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
 
+    async def update_cookies(self, url: str):
+        async with self.session.get(url) as response:
+            self.cookies.update(response.cookies)
+            logger.info(f"Cookies actualizadas para {url}")
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), 
            before_sleep=before_sleep_log(logger, logging.WARNING))
     async def fetch(self, url: str, use_playwright: bool = False) -> Optional[str]:
-        
-        if use_playwright:
+        if use_playwright or self.plataforma in ["linkedin", "workday", "phenom_people"]:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
                 await page.goto(url)
-                await asyncio.sleep(2)  # Wait for dynamic content
+                await asyncio.sleep(2)  # Esperar carga dinámica
                 content = await page.content()
                 await browser.close()
                 return content
-        try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                return await response.text()
-        except Exception as e:
-            logger.error(f"Error fetching {url}: {e}")
-            raise
+        async with self.session.get(url) as response:
+            response.raise_for_status()
+            return await response.text()
+        
 
     def _build_url(self, page: int) -> str:
-        param = self.selectors.get("pagination_param", "page")
-        step = self.selectors.get("pagination_step", 1)
+        pagination = self.selectors.get("pagination", {"param": "page", "step": 1})
+        param, step = pagination["param"], pagination["step"]
+        if self.plataforma == "linkedin":
+            return f"{self.domain.dominio}?{param}={page * step}"
         return f"{self.domain.dominio}?{param}={page * step}"
 
     async def scrape(self) -> List[JobListing]:
@@ -331,18 +349,19 @@ class BaseScraper:
     async def _parse_json(self, content: str, seen_urls: set) -> List[JobListing]:
         try:
             data = json.loads(content)
-            jobs = data.get("jobs", data.get("jobList", []))
+            jobs = data.get("jobs") or data.get("jobList") or data.get("results", {}).get("jobs", [])
             vacantes = []
             for job in jobs:
-                url = job.get("url", job.get("detailUrl", ""))
-                if url not in seen_urls:
+                url = job.get("url") or job.get("detailUrl") or job.get("applyUrl", "")
+                if url and url not in seen_urls:
                     seen_urls.add(url)
+                    location = (job.get("locations") or [{}])[0].get("name") or job.get("location", {}).get("city", "Unknown")
                     vacantes.append(JobListing(
                         title=job.get("title", "No especificado"),
                         url=url,
-                        location=job.get("locations", [{}])[0].get("name", "Unknown"),
-                        company=job.get("company_name", "Unknown"),
-                        description="No disponible",  # Can be enriched with get_job_details if needed
+                        location=location,
+                        company=job.get("company_name") or job.get("organization", "Unknown"),
+                        description=job.get("description", "No disponible"),
                     ))
             return vacantes
         except json.JSONDecodeError as e:
@@ -443,34 +462,33 @@ class LinkedInScraper(BaseScraper):
         vacantes = []
         page = 1
         seen_urls = set()
-        while True:
-            url = f"{self.domain.dominio}?{self.selectors.get('pagination_param', 'start')}={page * self.selectors.get('pagination_step', 25)}"
-            content = await self.fetch(url, use_playwright=True)
-            if not content:
-                break
-            soup = BeautifulSoup(content, "html.parser")
-            job_cards = soup.select(self.selectors["job_cards"])
-            if not job_cards:
-                break
-            for card in job_cards:
-                title = extract_field(card, self.selectors["title"]) or "No especificado"
-                url_elem = extract_field(card, self.selectors["url"], "href")
-                link = url_elem if url_elem.startswith("http") else f"https://www.linkedin.com{url_elem}"
-                if link not in seen_urls:
-                    seen_urls.add(link)
-                    details = await self.get_job_details(link)
-                    vacantes.append(JobListing(
-                        title=title,
-                        location=details.get("location", "Unknown"),
-                        company=details.get("company", "Unknown"),
-                        url=link,
-                        description=details.get("description", "No disponible"),
-                        skills=details.get("skills", []),
-                        posted_date=details.get("posted_date"),
-                        responsible=details.get("responsible"),
-                        job_type=details.get("job_type"),
-                    ))
-            page += 1
+        async with self:
+            while True:
+                url = f"{self.domain.dominio}?start={page * 25}"
+                content = await self.fetch(url, use_playwright=True)
+                if not content:
+                    break
+                soup = BeautifulSoup(content, "html.parser")
+                job_cards = soup.select("a.base-card__full-link")
+                if not job_cards:
+                    break
+                for card in job_cards:
+                    link = card["href"]
+                    if link not in seen_urls:
+                        seen_urls.add(link)
+                        details = await self.get_job_details(link)
+                        vacantes.append(JobListing(
+                            title=details.get("title", "No especificado"),
+                            location=details.get("location", "Unknown"),
+                            company=details.get("company", "Unknown"),
+                            url=link,
+                            description=details.get("description", "No disponible"),
+                            skills=details.get("skills", []),
+                            posted_date=details.get("posted_date"),
+                            responsible=details.get("responsible"),
+                            job_type=details.get("job_type"),
+                        ))
+                page += 1
         return vacantes
 
 class PhenomPeopleScraper(BaseScraper):
@@ -746,18 +764,19 @@ async def scrape_and_publish(domains: List[DominioScraping]) -> None:
 
 async def process_domain(scraper, domain: DominioScraping, registro: RegistroScraping, pipeline: ScrapingPipeline, metrics: ScrapingMetrics) -> tuple:
     try:
-        async with scraper:
-            with metrics.scraping_duration.time():
-                raw_jobs = await scraper.scrape()
-                processed_jobs = await pipeline.process([vars(job) for job in raw_jobs])
-                await save_vacantes(processed_jobs, domain)
-                registro.vacantes_encontradas = len(processed_jobs)
-                registro.estado = 'exitoso'
-                return domain, processed_jobs
-    except Exception as e:
+        async with asyncio.timeout(3600):  # 1 hora de timeout
+            async with scraper:
+                with metrics.scraping_duration.time():
+                    raw_jobs = await scraper.scrape()
+                    processed_jobs = await pipeline.process([vars(job) for job in raw_jobs])
+                    await save_vacantes(processed_jobs, domain)
+                    registro.vacantes_encontradas = len(processed_jobs)
+                    registro.estado = 'exitoso'
+                    return domain, processed_jobs
+    except asyncio.TimeoutError:
         registro.estado = 'fallido'
-        registro.error_log = str(e)
-        logger.error(f"Scraping failed for {domain.dominio}: {e}")
+        registro.error_log = "Timeout exceeded"
+        logger.error(f"Scraping timeout for {domain.dominio}")
         metrics.errors_total.inc()
         bu = await sync_to_async(BusinessUnit.objects.filter)(scraping_domains=domain).first()
         if bu and bu.admin_email:

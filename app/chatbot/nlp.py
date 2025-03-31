@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Cargar el Universal Sentence Encoder multilingüe
-embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
+# embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
 
 # Constantes
 CACHE_TIMEOUT = 600

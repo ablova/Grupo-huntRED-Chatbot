@@ -103,27 +103,29 @@ INDUSTRY_KEYWORDS = {
     'strategy': {'strategic', 'global', 'board', 'president', 'estrategico'}
 }
 
-async def connect_to_email():
-    """Conecta a la cuenta IMAP usando credenciales de la BD."""
-    try:
-        config = await sync_to_async(ConfiguracionBU.objects.filter)(business_unit__name="huntRED®").first()
-        if not config:
-            logger.error("⚠️ No ConfiguracionBU found for huntRED®")
-            return None
-        username = config.smtp_username or EMAIL_ACCOUNT
-        password = config.smtp_password or EMAIL_PASSWORD
-        if not username or not password:
-            logger.error("⚠️ No email credentials found in DB")
-            return None
-        client = aioimaplib.IMAP4_SSL(IMAP_SERVER, 993)
-        await client.wait_hello_from_server()
-        await client.login(username, password)
-        await client.select(FOLDER_CONFIG["jobs_folder"])
-        logger.info(f"✅ Conectado al servidor IMAP: {IMAP_SERVER}")
-        return client
-    except Exception as e:
-        logger.error(f"❌ Error conectando al servidor IMAP: {e}")
-        return None
+JOB_SUBJECT_PATTERNS = [
+    re.compile(r'\bjob alert\b', re.IGNORECASE),
+    re.compile(r'\bvacante\b', re.IGNORECASE),
+    re.compile(r'\bopportunit(y|ies)\b', re.IGNORECASE),
+    re.compile(r'\bempleo\b', re.IGNORECASE),
+    re.compile(r'\boferta laboral\b', re.IGNORECASE),
+]
+
+async def connect_to_email(retries=3):
+    for attempt in range(retries):
+        try:
+            client = aioimaplib.IMAP4_SSL(IMAP_SERVER, 993)
+            await client.wait_hello_from_server()
+            await client.login(EMAIL_ACCOUNT, EMAIL_PASSWORD)
+            await client.select(FOLDER_CONFIG["jobs_folder"])
+            logger.info(f"✅ Conectado al servidor IMAP: {IMAP_SERVER}")
+            return client
+        except Exception as e:
+            logger.error(f"❌ Intento {attempt + 1}/{retries} fallido: {e}")
+            if attempt < retries - 1:
+                await asyncio.sleep(5)
+    logger.error("❌ No se pudo conectar al servidor IMAP tras varios intentos")
+    return None
 
 async def email_scraper():
     mail = await connect_to_email()
@@ -174,6 +176,27 @@ async def email_scraper():
         await mail.logout()
         logger.info("🔌 Desconectado del servidor IMAP")
 
+def extract_from_plain_text(plain_text: str) -> List[Dict]:
+    job_listings = []
+    lines = plain_text.split('\n')
+    current_job = {}
+    for line in lines:
+        line = line.strip()
+        if any(keyword in line.lower() for keyword in JOB_KEYWORDS):
+            if current_job:
+                job_listings.append(current_job)
+            current_job = {"job_title": line}
+        elif "http" in line and current_job:
+            current_job["job_link"] = line
+        elif current_job:
+            current_job["job_description"] = current_job.get("job_description", "") + " " + line
+    if current_job:
+        job_listings.append(current_job)
+    return job_listings
+
+
+def is_job_email(subject: str) -> bool:
+    return any(pattern.search(subject) for pattern in JOB_SUBJECT_PATTERNS)
 
 async def fetch_job_details(url: str, retries=3) -> dict:
     domain = urlparse(url).netloc.lower()
@@ -435,8 +458,12 @@ async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = 
                 current_job["location"] = line if line else "Unknown"
             elif current_job.get("job_title"):
                 current_job["job_description"] = current_job.get("job_description", "") + " " + line
+    if not body:
+        job_listings = extract_from_plain_text(plain_text)
 
     return job_listings
+
+
 
 async def assign_business_unit(job_title, job_description=None, salary_range=None, required_experience=None, location=None):
     """Determina la unidad de negocio para una vacante con pesos dinámicos."""
@@ -654,7 +681,7 @@ async def process_job_alert_email(mail, email_id, message, stats):
         _, sender_email = parseaddr(sender)
         sender_email = sender_email.lower().strip()
 
-        if sender_email in VALID_SENDERS or any(keyword in subject for keyword in JOB_KEYWORDS):
+        if sender_email in VALID_SENDERS or is_job_email(subject) or any(keyword in subject for keyword in JOB_KEYWORDS):
             logger.info(f"📧 Procesando correo {email_id} de {sender_email}")
             stats["emails_processed"] += 1
 
@@ -727,33 +754,26 @@ async def process_job_alert_email(mail, email_id, message, stats):
             )
 
 async def create_vacancy_from_email(job_data: dict, business_unit_id: int) -> bool:
-    """Crea una nueva vacante desde datos de email."""
     try:
-        job_listing = JobListing(
-            title=job_data["job_title"],
-            location=job_data["location"],
-            company=job_data["company_name"],
-            description=job_data["job_description"],
-            url=job_data["job_link"],
-            skills=job_data.get("skills", []),
-            posted_date=job_data.get("posting_date"),
-            salary=job_data.get("salary_range"),
-            responsible=job_data.get("responsible"),
-            contract_type=job_data.get("employment_type"),
-            job_type=job_data.get("job_type"),
-            benefits=job_data.get("benefits", [])
+        bu = await sync_to_async(BusinessUnit.objects.get)(id=business_unit_id)
+        vacante, created = await sync_to_async(Vacante.objects.get_or_create)(
+            url_original=job_data["job_link"],
+            defaults={
+                title=job_data["job_title"],
+                location=job_data["location"],
+                company=job_data["company_name"],
+                description=job_data["job_description"],
+                url=job_data["job_link"],
+                skills=job_data.get("skills", []),
+                posted_date=job_data.get("posting_date"),
+                salary=job_data.get("salary_range"),
+                responsible=job_data.get("responsible"),
+                contract_type=job_data.get("employment_type"),
+                job_type=job_data.get("job_type"),
+                benefits=job_data.get("benefits", [])}
         )
-        
-        validated_data = validate_job_data(job_listing)
-        if not validated_data:
-            logger.error(f"❌ Datos inválidos para vacante: {job_data['job_title']}")
-            return False
-            
-        vacante_manager = VacanteManager(validated_data)
-        result = await vacante_manager.create_job_listing()
-        
-        if result:
-            logger.info(f"✅ Vacante creada exitosamente: {job_data['job_title']}")
+        if created:
+            logger.info(f"✅ Vacante creada: {vacante.titulo}")
             return True
         return False
     except Exception as e:
