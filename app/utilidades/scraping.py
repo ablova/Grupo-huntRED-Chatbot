@@ -697,7 +697,7 @@ class OracleScraper(BaseScraper):
                             description=job.get("description", "No disponible"),
                             location=job.get("location", {}).get("city", "Unknown"),
                             company=job.get("company", "Oracle Employer"),
-                            responsible nostro=job.get("responsible"),
+                            responsible=job.get("responsible"),
                             job_type=job.get("job_type"),
                             posted_date=job.get("posted_date"),
                         ))
