@@ -2,6 +2,7 @@
 import logging
 import asyncio
 import re
+from langdetect import detect
 from typing import Optional, List, Dict, Any, Tuple
 from django.utils import timezone
 from asgiref.sync import sync_to_async
@@ -83,9 +84,11 @@ class ChatBotHandler:
 
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
         """Procesa mensajes entrantes de forma robusta y validada."""
+        logger.info(f"[process_message] business_unit recibido: {business_unit}, tipo: {type(business_unit)}")
         if not isinstance(business_unit, BusinessUnit):
-            logger.error(f"BusinessUnit inválido para user_id {user_id}: {business_unit}")
-            return False
+            logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Abortando.")
+            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "amigro")
+            return
         
         try:
             logger.info(f"Procesando mensaje de {user_id} en {platform} para {business_unit.name}")
@@ -103,8 +106,12 @@ class ChatBotHandler:
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
 
             # Detectar idioma desde el primer mensaje
-            language = detect(text) if text else "es"  # Por defecto español
-            logger.info(f"Idioma detectado: {language}")
+            try:
+                language = detect(text) if text else "es"  # Por defecto español
+                logger.info(f"Idioma detectado: {language}")
+            except Exception as e:
+                logger.error(f"Error detectando idioma: {e}")
+                language = "es"  # Fallback a español
             
             # Extraer ubicación (WhatsApp-specific, si está disponible)
             location = message.get("messages", [{}])[0].get("location", None) if platform == "whatsapp" else None
@@ -129,6 +136,16 @@ class ChatBotHandler:
             if cache.get(f"muted:{user_id}"):
                 await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
                 return
+            # Verificar tipos y valores antes de llamar a handle_known_intents (137-146 se borraran despues)
+            logger.info(f"Antes de handle_known_intents: chat_state={chat_state}, tipo={type(chat_state)}")
+            logger.info(f"Antes de handle_known_intents: business_unit={business_unit}, tipo={type(business_unit)}")
+
+            # Asegurarse de que business_unit sea un BusinessUnit
+            from app.models import BusinessUnit  # Asegúrate de importar esto al inicio del archivo si no está
+            if not isinstance(business_unit, BusinessUnit):
+                logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Abortando.")
+                await send_message(platform, user_id, "Ups, algo salió mal. Contacta al soporte.", "amigro")  # Fallback provisional
+                return
 
             # 5. Detectar y manejar intents
             if text:
@@ -142,7 +159,7 @@ class ChatBotHandler:
                 # Fallback a NLP con manejo de errores
                 if NLP_ENABLED and self.nlp_processor:
                     try:
-                        analysis = await self.nlp_processor.analyze(text, language=language)
+                        analysis = await self.nlp_processor.analyze(text, language=language)  # Ver si se cambia por analysis = await self.nlp_processor.analyze(text)
                         response = await self._generate_default_response(
                             user, chat_state, text, 
                             analysis.get("entities", []), 
@@ -217,13 +234,14 @@ class ChatBotHandler:
                 analysis = await self.nlp_processor.analyze(text)
                 # Usar análisis
 
+        except NameError as ne:
+            logger.error(f"Error de definición en process_message: {ne}", exc_info=True)
+            await send_message(platform, user_id, "Ups, algo salió mal con la configuración. Intenta de nuevo.", bu_key)
+            await send_menu(platform, user_id, business_unit)
         except Exception as e:
             logger.error(f"Error en process_message: {e}", exc_info=True)
-            try:
-                await send_message(platform, user_id, "Ups, algo salió mal. Te comparto el menú:", bu_key)
-                await send_menu(platform, user_id, business_unit)
-            except Exception as menu_error:
-                logger.error(f"Error enviando menú: {menu_error}")
+            await send_message(platform, user_id, "Ups, algo salió mal. Te comparto el menú:", bu_key)
+            await send_menu(platform, user_id, business_unit)
 
     async def initialize_chat_state(self, platform: str, user_id: str, business_unit: BusinessUnit) -> ChatState:
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(

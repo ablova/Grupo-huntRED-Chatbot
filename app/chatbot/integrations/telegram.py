@@ -202,6 +202,7 @@ async def telegram_webhook(request, bot_name: str):
 
         logger.debug(f"Enviando a ChatBotHandler: {message_dict}")
         chatbot = ChatBotHandler()
+        logger.info(f"[telegram.py] Enviando a process_message: business_unit={business_unit}, tipo={type(business_unit)}")
         response_text = await chatbot.process_message(
             platform="telegram",
             user_id=f"{chat_id}",

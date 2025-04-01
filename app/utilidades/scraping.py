@@ -276,7 +276,8 @@ class BaseScraper:
         self.semaphore = asyncio.Semaphore(10)
         self.delay = domain.frecuencia_scraping / 3600
         self.session = None
-        self.cookies = {}
+        # Cargar cookies desde la base de datos
+        self.cookies = domain.cookies or {}
 
     async def __aenter__(self):
         headers = {'User-Agent': random.choice(USER_AGENTS)}
@@ -287,11 +288,6 @@ class BaseScraper:
         if self.session:
             await self.session.close()
 
-    async def update_cookies(self, url: str):
-        async with self.session.get(url) as response:
-            self.cookies.update(response.cookies)
-            logger.info(f"Cookies actualizadas para {url}")
-
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), 
            before_sleep=before_sleep_log(logger, logging.WARNING))
     async def fetch(self, url: str, use_playwright: bool = False) -> Optional[str]:
@@ -299,8 +295,11 @@ class BaseScraper:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
-                await page.goto(url)
-                await asyncio.sleep(2)
+                # Aplicar cookies desde la base de datos
+                if self.cookies:
+                    await page.context.add_cookies([{"name": k, "value": v, "domain": self.domain.dominio.split('/')[2], "path": "/"} for k, v in self.cookies.items()])
+                await page.goto(url, wait_until="networkidle")
+                await asyncio.sleep(2)  # Espera para carga dinámica
                 content = await page.content()
                 await browser.close()
                 return content
@@ -322,18 +321,22 @@ class BaseScraper:
         async with self:
             while True:
                 url = self._build_url(page)
+                logger.info(f"Scrapeando página {page}: {url}")
                 content = await self.fetch(url, use_playwright=self.plataforma in ["workday", "linkedin", "phenom_people"])
                 if not content:
+                    logger.info(f"No hay más contenido en página {page}")
                     break
                 if self.response_type == "json":
                     new_vacantes = await self._parse_json(content, seen_urls)
                 else:
                     new_vacantes = await self._parse_html(content, seen_urls)
                 if not new_vacantes:
+                    logger.info(f"No se encontraron más vacantes en página {page}")
                     break
                 vacantes.extend(new_vacantes)
                 page += 1
                 await asyncio.sleep(self.delay)
+        logger.info(f"Scraping finalizado con {len(vacantes)} vacantes")
         return vacantes
 
     async def _parse_json(self, content: str, seen_urls: set) -> List[JobListing]:
@@ -372,9 +375,9 @@ class BaseScraper:
                 title = extract_field(str(card), [self.selectors["title"]]) or "No especificado"
                 tasks.append(self.get_job_details(link))
         details_list = await asyncio.gather(*tasks)
-        for detail in details_list:
+        for idx, detail in enumerate(details_list):
             vacantes.append(JobListing(
-                title=title,
+                title=extract_field(str(job_cards[idx]), [self.selectors["title"]]) or "No especificado",
                 url=link,
                 location=detail.get("location", "Unknown"),
                 company=detail.get("company", "Unknown"),
@@ -420,52 +423,73 @@ class WorkdayScraper(BaseScraper):
         vacantes = []
         page = 1
         seen_urls = set()
+        base_url = self.domain.dominio.rsplit('/', 1)[0]  # Ajustar según el dominio real
+
         while True:
-            url = f"{self.domain.dominio}?{self.selectors.get('pagination_param', 'page')}={page * self.selectors.get('pagination_step', 1)}"
+            url = f"{self.domain.dominio}?page={page}"
             content = await self.fetch(url, use_playwright=True)
             if not content:
                 break
             soup = BeautifulSoup(content, "html.parser")
-            job_cards = soup.select(self.selectors["job_cards"])
+            job_cards = soup.select('a[data-automation-id="jobTitle"]')
             if not job_cards:
                 break
+
             tasks = []
             for card in job_cards:
-                title = extract_field(str(card), [self.selectors["title"]]) or "No especificado"
-                url_elem = extract_field(str(card), [self.selectors["url"]], "href")
-                link = url_elem if url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem}"
-                if link not in seen_urls:
-                    seen_urls.add(link)
-                    tasks.append(self.get_job_details(link))
+                title = card.get_text(strip=True)
+                relative_url = card.get("href", "")
+                full_url = f"{base_url}{relative_url}" if relative_url.startswith('/') else relative_url
+                if full_url not in seen_urls:
+                    seen_urls.add(full_url)
+                    tasks.append(self.get_job_details(full_url))
+
             details_list = await asyncio.gather(*tasks)
             for detail in details_list:
-                vacantes.append(JobListing(
-                    title=title,
-                    location=detail.get("location", "Unknown"),
-                    company=detail.get("company", "Workday Employer"),
-                    url=link,
-                    description=detail.get("description", "No disponible"),
-                    skills=detail.get("skills", []),
-                    posted_date=detail.get("posted_date"),
-                    responsible=detail.get("responsible"),
-                    job_type=detail.get("job_type"),
-                ))
+                if detail:  # Asegurarse de que se obtuvieron detalles
+                    vacantes.append(JobListing(
+                        title=detail.get("title", "No especificado"),
+                        location=detail.get("location", "Unknown"),
+                        company=detail.get("company", "Santander"),
+                        url=detail.get("original_url", ""),
+                        description=detail.get("description", "No disponible"),
+                        skills=detail.get("skills", [])
+                    ))
             page += 1
         return vacantes
 
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url, use_playwright=True)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h2[data-automation-id="jobTitle"]') or soup.select_one('h1')
+        desc_elem = soup.select_one('div[data-automation-id="jobPostingDescription"]') or soup.select_one('div.job-description')
+        loc_elem = soup.select_one('div[data-automation-id="location"]') or soup.select_one('span.location')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": "Santander",  # Ajustar según dominio si no es fijo
+            "skills": extract_skills(content),
+            "original_url": url
+        }
+
 class LinkedInScraper(BaseScraper):
-    async def scrape(self, max_pages: int = None) -> List[JobListing]:
+    async def scrape(self) -> List[JobListing]:
         vacantes = []
         page = 1
         seen_urls = set()
         async with self:
             while True:
-                if max_pages and page > max_pages:
-                    logger.info(f"Límite de {max_pages} páginas alcanzado.")
-                    break
-                url = f"{self.domain.dominio}?start={page * 25}"
+                url = f"{self.domain.dominio}&start={page * 25}"
                 logger.info(f"Scrapeando página {page}: {url}")
-                content = await self.fetch(url, use_playwright=True)
+                try:
+                    async with asyncio.timeout(60):
+                        content = await self.fetch(url, use_playwright=True)
+                except asyncio.TimeoutError:
+                    logger.error(f"Timeout al scrapear página {page}: {url}")
+                    break
                 if not content:
                     logger.info("No hay más contenido para scrapear.")
                     break
@@ -476,63 +500,114 @@ class LinkedInScraper(BaseScraper):
                     break
                 tasks = []
                 for card in job_cards:
-                    link = card["href"]
-                    if link not in seen_urls:
+                    link = card.get("href", "")
+                    if link and link not in seen_urls:
                         seen_urls.add(link)
                         tasks.append(self.get_job_details(link))
+                logger.info(f"Encontradas {len(tasks)} vacantes en página {page}")
                 details_list = await asyncio.gather(*tasks)
                 for detail in details_list:
-                    vacantes.append(JobListing(
-                        title=detail.get("title", "No especificado"),
-                        location=detail.get("location", "Unknown"),
-                        company=detail.get("company", "Unknown"),
-                        url=link,
-                        description=detail.get("description", "No disponible"),
-                        skills=detail.get("skills", []),
-                        posted_date=detail.get("posted_date"),
-                        responsible=detail.get("responsible"),
-                        job_type=detail.get("job_type"),
-                    ))
+                    if detail:
+                        vacantes.append(JobListing(
+                            title=detail.get("title", "No especificado"),
+                            location=detail.get("location", "Unknown"),
+                            company=detail.get("company", "Unknown"),
+                            url=detail.get("original_url", ""),
+                            description=detail.get("description", "No disponible"),
+                            skills=detail.get("skills", []),
+                            posted_date=detail.get("posted_date"),
+                        ))
                 page += 1
+        logger.info(f"Scraping finalizado con {len(vacantes)} vacantes.")
         return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url, use_playwright=True)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one("h1.topcard__title") or soup.select_one("h1")
+        desc_elem = soup.select_one("div.description__text") or soup.select_one("div.job-description")
+        loc_elem = soup.select_one("span.topcard__flavor--bullet") or soup.select_one("span.location")
+        comp_elem = soup.select_one("a.topcard__org-name-link") or soup.select_one("span.company")
+        date_elem = soup.select_one("span.posted-time-ago__text") or soup.select_one("time")
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": comp_elem.get_text(strip=True) if comp_elem else "Unknown",
+            "posted_date": date_elem.get_text(strip=True) if date_elem else None,
+            "skills": extract_skills(content),
+            "original_url": url
+        }
 
 class PhenomPeopleScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
         vacantes = []
-        page = 1
         seen_urls = set()
-        while True:
-            url = f"{self.domain.dominio}?{self.selectors.get('pagination_param', 'page')}={page * self.selectors.get('pagination_step', 1)}"
-            content = await self.fetch(url, use_playwright=True)
-            if not content:
-                break
-            soup = BeautifulSoup(content, "html.parser")
-            job_cards = soup.select(self.selectors["job_cards"])
-            if not job_cards:
-                break
-            tasks = []
-            for card in job_cards:
-                title = extract_field(str(card), [self.selectors["title"]]) or "No especificado"
-                url_elem = extract_field(str(card), [self.selectors["url"]], "href")
-                link = url_elem if url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem}"
-                if link not in seen_urls:
-                    seen_urls.add(link)
-                    tasks.append(self.get_job_details(link))
-            details_list = await asyncio.gather(*tasks)
-            for detail in details_list:
-                vacantes.append(JobListing(
-                    title=title,
-                    location=detail.get("location", "Unknown"),
-                    company=detail.get("company", "Phenom Employer"),
-                    url=link,
-                    description=detail.get("description", "No disponible"),
-                    skills=detail.get("skills", []),
-                    posted_date=detail.get("posted_date"),
-                    responsible=detail.get("responsible"),
-                    job_type=detail.get("job_type"),
-                ))
-            page += 1
+        base_url = self.domain.dominio.rsplit('/', 1)[0]  # Ajustar según el dominio real
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            if self.cookies:
+                await page.context.add_cookies([{"name": k, "value": v, "domain": self.domain.dominio.split('/')[2], "path": "/"} for k, v in self.cookies.items()])
+            await page.goto(self.domain.dominio, wait_until="networkidle")
+
+            while True:
+                content = await page.content()
+                soup = BeautifulSoup(content, "html.parser")
+                job_cards = soup.select('a.job-title-link')
+                if not job_cards:
+                    break
+
+                tasks = []
+                for card in job_cards:
+                    title = card.get_text(strip=True)
+                    relative_url = card.get("href", "")
+                    full_url = f"{base_url}{relative_url}" if relative_url.startswith('/') else relative_url
+                    if full_url not in seen_urls:
+                        seen_urls.add(full_url)
+                        tasks.append(self.get_job_details(full_url))
+
+                details_list = await asyncio.gather(*tasks)
+                for detail in details_list:
+                    if detail:
+                        vacantes.append(JobListing(
+                            title=detail.get("title", "No especificado"),
+                            location=detail.get("location", "Unknown"),
+                            company=detail.get("company", "Honeywell"),
+                            url=detail.get("original_url", ""),
+                            description=detail.get("description", "No disponible"),
+                            skills=detail.get("skills", [])
+                        ))
+
+                load_more_button = await page.query_selector('button.load-more')
+                if load_more_button:
+                    await load_more_button.click()
+                    await page.wait_for_load_state('networkidle')
+                else:
+                    break
+
+            await browser.close()
         return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url, use_playwright=True)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1.job-title') or soup.select_one('h1')
+        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+        loc_elem = soup.select_one('span.job-location') or soup.select_one('span.location')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": "Honeywell",  # Ajustar según dominio si no es fijo
+            "skills": extract_skills(content),
+            "original_url": url
+        }
 
 class SAPScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -545,19 +620,20 @@ class SAPScraper(BaseScraper):
             if not content:
                 break
             soup = BeautifulSoup(content, "html.parser")
-            job_cards = soup.select(self.selectors.get("job_cards", ""))
+            job_cards = soup.select(self.selectors.get("job_cards", "div.job-item"))
             if not job_cards:
                 break
             tasks = []
             for card in job_cards:
                 url_elem = extract_field(str(card), [self.selectors["url"]], "href")
-                link = url_elem if url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem}"
+                link = url_elem if url_elem and url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem}"
                 if link not in seen_urls:
                     seen_urls.add(link)
                     tasks.append(self.get_job_details(link))
             details_list = await asyncio.gather(*tasks)
             for detail in details_list:
-                vacantes.append(JobListing(**detail))
+                if detail:
+                    vacantes.append(JobListing(**detail))
             page += 1
         return vacantes
 
@@ -621,7 +697,7 @@ class OracleScraper(BaseScraper):
                             description=job.get("description", "No disponible"),
                             location=job.get("location", {}).get("city", "Unknown"),
                             company=job.get("company", "Oracle Employer"),
-                            responsible=job.get("responsible"),
+                            responsible nostro=job.get("responsible"),
                             job_type=job.get("job_type"),
                             posted_date=job.get("posted_date"),
                         ))
@@ -649,23 +725,44 @@ class IndeedScraper(BaseScraper):
             for card in job_cards:
                 title = extract_field(str(card), [self.selectors["title"]]) or "No especificado"
                 url_elem = extract_field(str(card), [self.selectors["url"]], "href")
-                link = f"https://www.indeed.com{url_elem}" if url_elem else ""
-                if link not in seen_urls:
+                link = f"https://www.indeed.com{url_elem}" if url_elem and not url_elem.startswith("http") else url_elem
+                if link and link not in seen_urls:
                     seen_urls.add(link)
                     tasks.append(self.get_job_details(link))
             details_list = await asyncio.gather(*tasks)
             for detail in details_list:
-                vacantes.append(JobListing(
-                    title=title,
-                    location=detail.get("location", "Unknown"),
-                    company=detail.get("company", "Unknown"),
-                    url=link,
-                    description=detail.get("description", "No disponible"),
-                    skills=detail.get("skills", []),
-                    posted_date=detail.get("posted_date"),
-                ))
+                if detail:
+                    vacantes.append(JobListing(
+                        title=detail.get("title", "No especificado"),
+                        location=detail.get("location", "Unknown"),
+                        company=detail.get("company", "Unknown"),
+                        url=detail.get("original_url", ""),
+                        description=detail.get("description", "No disponible"),
+                        skills=detail.get("skills", []),
+                        posted_date=detail.get("posted_date"),
+                    ))
             page += 1
         return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one("h1.jobTitle") or soup.select_one("h1")
+        desc_elem = soup.select_one("div#jobDescriptionText") or soup.select_one("div.job-description")
+        loc_elem = soup.select_one("div.companyLocation") or soup.select_one("span.location")
+        comp_elem = soup.select_one("span.companyName") or soup.select_one("span.company")
+        date_elem = soup.select_one("span.date") or soup.select_one("span.posted-date")
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": comp_elem.get_text(strip=True) if comp_elem else "Unknown",
+            "posted_date": date_elem.get_text(strip=True) if date_elem else None,
+            "skills": extract_skills(content),
+            "original_url": url
+        }
     
 class GreenhouseScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -685,23 +782,44 @@ class GreenhouseScraper(BaseScraper):
             for card in job_cards:
                 title = extract_field(str(card), [self.selectors["title"]]) or "No especificado"
                 url_elem = extract_field(str(card), [self.selectors["url"]], "href")
-                link = url_elem if url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem}"
+                link = url_elem if url_elem and url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem}"
                 if link not in seen_urls:
                     seen_urls.add(link)
                     tasks.append(self.get_job_details(link))
             details_list = await asyncio.gather(*tasks)
             for detail in details_list:
-                vacantes.append(JobListing(
-                    title=title,
-                    location=detail.get("location", "Unknown"),
-                    company=detail.get("company", "Greenhouse Employer"),
-                    url=link,
-                    description=detail.get("description", "No disponible"),
-                    skills=detail.get("skills", []),
-                    posted_date=detail.get("posted_date"),
-                ))
+                if detail:
+                    vacantes.append(JobListing(
+                        title=detail.get("title", "No especificado"),
+                        location=detail.get("location", "Unknown"),
+                        company=detail.get("company", "Greenhouse Employer"),
+                        url=detail.get("original_url", ""),
+                        description=detail.get("description", "No disponible"),
+                        skills=detail.get("skills", []),
+                        posted_date=detail.get("posted_date"),
+                    ))
             page += 1
         return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one("h1.app-title") or soup.select_one("h1")
+        desc_elem = soup.select_one("div#content") or soup.select_one("div.job-description")
+        loc_elem = soup.select_one("div.location") or soup.select_one("span.location")
+        comp_elem = soup.select_one("span.company-name") or soup.select_one("span.company")
+        date_elem = soup.select_one("span.posted-date") or soup.select_one("time")
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": comp_elem.get_text(strip=True) if comp_elem else "Greenhouse Employer",
+            "posted_date": date_elem.get_text(strip=True) if date_elem else None,
+            "skills": extract_skills(content),
+            "original_url": url
+        }
     
 class AccentureScraper(BaseScraper): pass
 class ADPScraper(BaseScraper): pass
@@ -759,14 +877,14 @@ async def publish_to_internal_system(jobs: List[Dict], business_unit: BusinessUn
         logger.error(f"Error publishing: {e}")
         return False
 
-async def scrape_and_publish(domains: List[DominioScraping], max_pages: int = None) -> None:
+async def scrape_and_publish(domains: List[DominioScraping]) -> None:
     pipeline = ScrapingPipeline()
     metrics = ScrapingMetrics()
     tasks = []
     for domain in domains:
         registro = await sync_to_async(RegistroScraping.objects.create)(dominio=domain, estado='parcial')
-        scraper = SCRAPER_MAP.get(domain.plataforma, SCRAPER_MAP["default"])(domain)
-        tasks.append(process_domain(scraper, domain, registro, pipeline, metrics, max_pages))
+        scraper = await get_scraper(domain)
+        tasks.append(process_domain(scraper, domain, registro, pipeline, metrics))
     results = await asyncio.gather(*tasks)
     jobs_by_bu = {}
     for domain, jobs in results:
@@ -778,12 +896,12 @@ async def scrape_and_publish(domains: List[DominioScraping], max_pages: int = No
         await publish_to_internal_system(jobs, bu)
         metrics.jobs_scraped.inc(len(jobs))
 
-async def process_domain(scraper, domain: DominioScraping, registro: RegistroScraping, pipeline: ScrapingPipeline, metrics: ScrapingMetrics, max_pages: int = None) -> tuple:
+async def process_domain(scraper, domain: DominioScraping, registro: RegistroScraping, pipeline: ScrapingPipeline, metrics: ScrapingMetrics) -> tuple:
     try:
         async with asyncio.timeout(3600):
             async with scraper:
                 with metrics.scraping_duration.time():
-                    raw_jobs = await scraper.scrape(max_pages=max_pages)  # Pasar max_pages al scraper
+                    raw_jobs = await scraper.scrape()
                     processed_jobs = await pipeline.process([vars(job) for job in raw_jobs])
                     await save_vacantes(processed_jobs, domain)
                     registro.vacantes_encontradas = len(processed_jobs)
@@ -796,7 +914,7 @@ async def process_domain(scraper, domain: DominioScraping, registro: RegistroScr
         metrics.errors_total.inc()
         bu = await sync_to_async(BusinessUnit.objects.filter)(scraping_domains=domain).first()
         if bu and bu.admin_email:
-            from app.chatbot.integrations.services import send_email  # Importar aquí para evitar circularidad
+            from app.chatbot.integrations.services import send_email
             await send_email(
                 business_unit_name=bu.name,
                 subject=f"Scraping Error for {domain.dominio}",
@@ -818,7 +936,7 @@ async def run_all_scrapers() -> None:
 PLATFORM_SELECTORS = {
     "workday": {
         "job_cards": "a[data-automation-id='jobTitle']",
-        "title": "a[data-automation-id='jobTitle']",
+        "title": "h2[data-automation-id='jobTitle']",
         "url": "a[data-automation-id='jobTitle']",
         "description": "div[data-automation-id='jobPostingDescription']",
         "location": "div[data-automation-id='location']",
@@ -829,18 +947,18 @@ PLATFORM_SELECTORS = {
     },
     "linkedin": {
         "job_cards": "a.base-card__full-link",
-        "title": "span.job-title",
+        "title": "h1.topcard__title",
         "url": "a.base-card__full-link",
-        "description": "div.job-description",
-        "location": "span.location",
-        "company": "span.company",
-        "posted_date": "time",
+        "description": "div.description__text",
+        "location": "span.topcard__flavor--bullet",
+        "company": "a.topcard__org-name-link",
+        "posted_date": "span.posted-time-ago__text",
         "pagination_param": "start",
         "pagination_step": 25,
     },
     "indeed": {
         "job_cards": "div.job_seen_beacon",
-        "title": "h2.jobTitle",
+        "title": "h1.jobTitle",
         "url": "a.jcs-JobTitle",
         "description": "div#jobDescriptionText",
         "location": "div.companyLocation",
@@ -851,10 +969,10 @@ PLATFORM_SELECTORS = {
     },
     "greenhouse": {
         "job_cards": "div.opening",
-        "title": "a",
+        "title": "h1.app-title",
         "url": "a",
-        "description": "div.section-wrapper",
-        "location": "span.location",
+        "description": "div#content",
+        "location": "div.location",
         "company": "span.company-name",
         "posted_date": "span.posted-date",
         "pagination_param": "page",
@@ -883,10 +1001,10 @@ PLATFORM_SELECTORS = {
         "pagination_step": 1,
     },
     "phenom_people": {
-        "job_cards": "div.job-card",
-        "title": "h3",
-        "url": "a",
-        "description": "div.job-details",
+        "job_cards": "a.job-title-link",
+        "title": "h1.job-title",
+        "url": "a.job-title-link",
+        "description": "div.job-description",
         "location": "span.job-location",
         "company": "span.company-name",
         "posted_date": "span.posted-date",
@@ -993,3 +1111,10 @@ PLATFORM_SELECTORS = {
         "pagination_step": 1,
     }
 }
+
+# Comando para ejecutar scrapers manualmente
+class Command(BaseCommand):
+    help = 'Ejecuta el scraper para todos los dominios activos'
+
+    def handle(self, *args, **options):
+        asyncio.run(run_all_scrapers())

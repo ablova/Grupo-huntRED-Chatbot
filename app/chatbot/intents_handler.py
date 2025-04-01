@@ -182,6 +182,14 @@ def get_tos_url(business_unit: BusinessUnit) -> str:
     return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
 async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, text: str = "", chatbot=None) -> bool:
+    # Verificar que business_unit sea un BusinessUnit
+    from app.models import BusinessUnit  # Importar al inicio del archivo si no está
+    if not isinstance(business_unit, BusinessUnit):
+        logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}")
+        await send_message(platform, user_id, "Ups, algo salió mal. ¿Intentamos de nuevo?", "amigro")  # Fallback provisional
+        return False
+    
+    logger.info(f"[handle_known_intents] 🔎 Procesando intents: {intents}")
     try:
         if not intents:
             logger.info(f"[handle_known_intents] No se detectaron intents en: '{text}'")

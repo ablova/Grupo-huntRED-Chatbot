@@ -151,6 +151,7 @@ async def handle_text_message(message, sender_id, chatbot, business_unit, person
 
     if ENABLE_ADVANCED_PROCESSING:
         logger.info("Procesamiento avanzado habilitado. Usando ChatBotHandler.")
+        logger.info(f"[whatsapp.py] Enviando a process_message: business_unit={business_unit}, tipo={type(business_unit)}")
         await chatbot.process_message(
             platform='whatsapp',
             user_id=sender_id,
