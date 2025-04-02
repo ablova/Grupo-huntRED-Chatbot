@@ -19,10 +19,10 @@ from app.chatbot.utils import clean_text
 from app.chatbot.nlp import NLPProcessor
 from app.chatbot.integrations.services import send_email
 from app.utilidades.scraping import extract_field, validate_job_data, assign_business_unit, extract_skills
+from django.utils import timezone
 
+# Configuración de logging
 logger = logging.getLogger(__name__)
-
-# Configuración de logging profesional
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -43,23 +43,23 @@ DAYS_TO_PROCESS = 10
 DEFAULT_BATCH_SIZE = 10
 SLEEP_TIME = 2
 
-# Lista de remitentes válidos (ampliable)
+# Lista de remitentes válidos
 VALID_SENDERS = [
     'jobs-noreply@linkedin.com', 'jobalerts-noreply@linkedin.com', 'jobs-listings@linkedin.com',
     'alerts@glassdoor.com', 'noreply@glassdoor.com', 'TalentCommunity@talent.honeywell.com',
     'santander@myworkday.com'
 ]
 
-# Dominios permitidos para solicitudes HTTP (ampliable)
+# Dominios permitidos para solicitudes HTTP
 ALLOWED_DOMAINS = {
     "linkedin.com", "www.linkedin.com", "mx.linkedin.com", "*.linkedin.com",
     "glassdoor.com", "www.glassdoor.com", "*.glassdoor",
     "honeywell.com", "careers.honeywell.com", "*.honeywell.com",
     "myworkday.com", "santander.wd3.myworkdayjobs.com", "workday.com", "*.santander.com",
-    "indeed.com", "*.indeed.com", "computrabajo.com", "*.computrabajo.com"  # Añadidos para más fuentes
+    "indeed.com", "*.indeed.com", "computrabajo.com", "*.computrabajo.com"
 }
 
-# Palabras clave para identificar correos de empleo (ampliadas)
+# Palabras clave para identificar correos de empleo
 JOB_KEYWORDS = [
     'job', 'vacante', 'opportunity', 'empleo', 'position', 'opening', 'alert',
     'oportunidad', 'subdirector', 'director', 'trabajo', 'oferta laboral',
@@ -105,7 +105,6 @@ async def connect_to_email(email_account: str = EMAIL_ACCOUNT, retries: int = 3)
     return None
 
 async def email_scraper(email_account: str = "pablo@huntred.com", batch_size: int = 10, enable_move: bool = False):
-    # Conectar al servidor IMAP (asumimos que esta función ya existe y funciona)
     mail = await connect_to_email(email_account)
     if not mail:
         logger.error(f"No se pudo conectar al servidor IMAP para {email_account}")
@@ -114,11 +113,8 @@ async def email_scraper(email_account: str = "pablo@huntred.com", batch_size: in
     stats = {"emails_processed": 0, "total_vacancies": 0, "vacancies_created": 0, "errors": 0}
 
     try:
-        # Seleccionar la carpeta (ajusta esto si es necesario)
-        await mail.select("INBOX.Jobs")  # Verifica si esta es la carpeta correcta
-
-        # Filtro de fecha para buscar correos recientes
-        date_filter = (datetime.now() - timedelta(days=7)).strftime("%d-%b-%Y")
+        await mail.select("INBOX.Jobs")
+        date_filter = (datetime.now() - timedelta(days=DAYS_TO_PROCESS)).strftime("%d-%b-%Y")
         logger.debug(f"Buscando correos desde {date_filter}")
         resp, messages = await mail.search(None, f'SINCE {date_filter}')
         if resp != "OK":
@@ -126,29 +122,22 @@ async def email_scraper(email_account: str = "pablo@huntred.com", batch_size: in
             stats["errors"] += 1
             return stats
 
-        email_ids = messages[0].split()  # Lista de IDs en bytes, ej: [b'1', b'2', ...]
+        email_ids = messages[0].split()
         logger.info(f"Total de correos encontrados para {email_account}: {len(email_ids)}")
         if not email_ids:
             logger.warning("No se encontraron correos en el rango de fechas")
             return stats
 
-        # Procesar un lote de correos
         batch_ids = email_ids[:batch_size]
         logger.info(f"Procesando lote de {len(batch_ids)} correos")
 
         tasks = []
         for email_id_bytes in batch_ids:
-            email_id = email_id_bytes.decode()  # Convertir bytes a string
-            try:
-                resp, data = await mail.fetch(email_id, "(RFC822)")
-                if resp == "OK" and data and isinstance(data[0], tuple) and len(data[0]) > 1:
-                    message = email.message_from_bytes(data[0][1])
-                    tasks.append(process_job_alert_email(mail, email_id, message, stats, enable_move))
-                else:
-                    logger.error(f"No se pudo obtener el contenido del correo {email_id}: {resp}")
-                    stats["errors"] += 1
-            except Exception as e:
-                logger.error(f"Error al procesar el correo {email_id}: {e}")
+            email_id = email_id_bytes.decode()
+            message = await fetch_email(mail, email_id)
+            if message:
+                tasks.append(process_job_alert_email(mail, email_id, message, stats, enable_move))
+            else:
                 stats["errors"] += 1
 
         if tasks:
@@ -166,133 +155,25 @@ async def email_scraper(email_account: str = "pablo@huntred.com", batch_size: in
         await mail.logout()
         logger.info(f"Desconectado del servidor IMAP para {email_account}")
 
+async def fetch_email(mail, email_id):
+    resp, data = await mail.fetch(email_id, "(RFC822)")
+    if resp == "OK":
+        if data and isinstance(data[0], tuple) and len(data[0]) == 2:
+            raw_email = data[0][1]
+            if raw_email:
+                message = email.message_from_bytes(raw_email)
+                logger.info(f"Successfully fetched email {email_id}")
+                return message
+            else:
+                logger.error(f"Empty email content for {email_id}")
+        else:
+            logger.error(f"Unexpected data format for email {email_id}: {data}")
+    else:
+        logger.error(f"Fetch failed for email {email_id}: {resp}")
+    return None
+
 def is_job_email(subject: str) -> bool:
     return any(pattern.search(subject) for pattern in JOB_SUBJECT_PATTERNS)
-
-async def fetch_job_details(url: str, retries=3) -> Dict:
-    domain = urlparse(url).netloc.lower()
-    if not any(allowed in domain for allowed in ALLOWED_DOMAINS):
-        logger.warning(f"URL no permitida: {url}")
-        return {}
-    timeout = aiohttp.ClientTimeout(total=30)
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124'}
-    async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
-        for attempt in range(retries):
-            try:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        html = await response.text()
-                        details = {
-                            "title": extract_field(html, ["h1", "h2", "h3", "span.job-title", "a.job-title"]),
-                            "description": extract_field(html, ["div.job-description", "section.job-description", "div[id*=description]"]),
-                            "location": extract_field(html, ["span.location", "span.job-location", "div.companyLocation"]),
-                            "salary_range": extract_field(html, ["span.salary", "div.salary-range"]),
-                            "requirements": extract_requirements(html),
-                            "company_info": extract_field(html, ["div.company-info", "span.company-name"]),
-                            "employment_type": extract_field(html, ["span.employment-type", "div.employment-info"]),
-                            "experience_level": extract_field(html, ["span.experience-level", "div.experience"]),
-                            "posting_date": extract_field(html, ["span.posting-date", "time"]),
-                            "benefits": extract_benefits(html),
-                            "skills": await extract_skills(html),
-                            "original_url": url
-                        }
-                        logger.debug(f"Detalles obtenidos de {url}: {details}")
-                        return {k: v for k, v in details.items() if v}
-            except Exception as e:
-                logger.error(f"Error en intento {attempt + 1}/{retries} para {url}: {e}")
-                if attempt < retries - 1:
-                    await asyncio.sleep(2)
-    return {}
-
-def extract_requirements(html: str) -> Optional[List[str]]:
-    soup = BeautifulSoup(html, "html.parser")
-    req_selectors = [
-        ("div", {"class_": ["requirements", "qualifications"]}),
-        ("ul", {"class_": ["requirements-list", "qualifications-list"]}),
-        ("div", {"id": lambda x: x and "requirements" in x.lower()})
-    ]
-    requirements = []
-    for tag, attrs in req_selectors:
-        elements = soup.find_all(tag, **attrs)
-        for element in elements:
-            if element.find_all('li'):
-                requirements.extend([clean_text(li.text) for li in element.find_all('li')])
-            else:
-                requirements.append(clean_text(element.text))
-    return requirements if requirements else None
-
-def extract_benefits(html: str) -> Optional[List[str]]:
-    soup = BeautifulSoup(html, "html.parser")
-    benefits_selectors = [
-        ("div", {"class_": ["benefits", "perks"]}),
-        ("ul", {"class_": ["benefits-list", "perks-list"]})
-    ]
-    benefits = []
-    for tag, attrs in benefits_selectors:
-        elements = soup.find_all(tag, **attrs)
-        for element in elements:
-            if element.find_all('li'):
-                benefits.extend([clean_text(li.text) for li in element.find_all('li')])
-            else:
-                benefits.append(clean_text(element.text))
-    return benefits if benefits else None
-
-async def extract_vacancies_from_html(html: str, sender: str, plain_text: str = None) -> List[Dict]:
-    soup = BeautifulSoup(html, "html.parser")
-    job_listings = []
-    excluded_texts = ["sign in", "ayuda", "darse de baja", "help", "unsubscribe", "feed", "profile", "premium"]
-    excluded_domains = ["linkedin.com/help", "linkedin.com/comm/feed", "linkedin.com/comm/in/"]
-    job_containers = soup.find_all("a", href=True)
-    seen_urls = set()
-
-    for link in job_containers:
-        link_text = link.get_text(strip=True).lower()
-        href = link["href"].lower()
-        if any(excluded in link_text for excluded in excluded_texts) or any(domain in href for domain in excluded_domains):
-            continue
-        base_url = href.split("?")[0] if "?" in href else href
-        if base_url in seen_urls:
-            continue
-        seen_urls.add(base_url)
-
-        # Extraer cualquier enlace que parezca una oportunidad de empleo
-        if "http" in href and any(keyword in link_text for keyword in JOB_KEYWORDS):
-            job_title = link_text if link_text else "Unknown Job"
-            job_link = href if href.startswith("http") else f"https://{sender.split('@')[1]}{href}"
-            company_name = sender.split('@')[1].split('.')[0].capitalize() if '@' in sender else "Unknown Company"
-            details = await fetch_job_details(job_link)
-            job_listings.append({
-                "job_title": details.get("title", job_title),
-                "job_link": job_link,
-                "company_name": details.get("company", company_name),
-                "job_description": details.get("description", job_title),
-                "location": details.get("location", "Unknown"),
-                "business_unit": None
-            })
-
-    if not job_listings and plain_text:
-        job_listings.extend(extract_from_plain_text(plain_text))
-
-    logger.debug(f"Total de vacantes extraídas del HTML/texto: {len(job_listings)}")
-    return job_listings
-
-def extract_from_plain_text(plain_text: str) -> List[Dict]:
-    job_listings = []
-    lines = plain_text.split('\n')
-    current_job = {}
-    for line in lines:
-        line = line.strip()
-        if any(keyword in line.lower() for keyword in JOB_KEYWORDS):
-            if current_job:
-                job_listings.append(current_job)
-            current_job = {"job_title": line}
-        elif "http" in line and current_job:
-            current_job["job_link"] = line
-        elif current_job:
-            current_job["job_description"] = current_job.get("job_description", "") + " " + line
-    if current_job:
-        job_listings.append(current_job)
-    return job_listings
 
 async def process_job_alert_email(mail, email_id: str, message, stats: Dict[str, int], enable_move: bool = False):
     try:
@@ -301,9 +182,6 @@ async def process_job_alert_email(mail, email_id: str, message, stats: Dict[str,
         if not sender or not subject:
             logger.warning(f"Correo {email_id} sin remitente o asunto")
             stats["errors"] += 1
-            if enable_move:
-                await mail.copy(email_id, FOLDER_CONFIG["error_folder"])
-                await mail.store(email_id, "+FLAGS", "\\Deleted")
             return
 
         sender_email = parseaddr(sender)[1].lower().strip()
@@ -328,9 +206,6 @@ async def process_job_alert_email(mail, email_id: str, message, stats: Dict[str,
             if not body and not plain_text:
                 logger.warning(f"Correo {email_id} sin contenido procesable")
                 stats["errors"] += 1
-                if enable_move:
-                    await mail.copy(email_id, FOLDER_CONFIG["error_folder"])
-                    await mail.store(email_id, "+FLAGS", "\\Deleted")
                 return
 
             job_listings = await extract_vacancies_from_html(body or "", sender_email, plain_text)
@@ -343,7 +218,7 @@ async def process_job_alert_email(mail, email_id: str, message, stats: Dict[str,
                 description = job_data.get("job_description", "")
                 if description:
                     job_data["skills"] = extract_skills(description)
-                
+
                 business_unit_id = await assign_business_unit(job_data)
                 if business_unit_id:
                     logger.info(f"Asignada BusinessUnit ID: {business_unit_id} para {job_data['job_title']}")
@@ -366,22 +241,6 @@ async def process_job_alert_email(mail, email_id: str, message, stats: Dict[str,
     except Exception as e:
         logger.error(f"Error procesando correo {email_id}: {e}")
         stats["errors"] += 1
-        if enable_move:
-            await mail.copy(email_id, FOLDER_CONFIG["error_folder"])
-            await mail.store(email_id, "+FLAGS", "\\Deleted")
-        try:
-            bu = await sync_to_async(BusinessUnit.objects.get)(name="huntRED")
-            admin_email = await sync_to_async(lambda: bu.admin_email)() if bu else None
-            if bu and admin_email:
-                await send_email(
-                    business_unit_name=bu.name,
-                    subject=f"Email Scraper Error: {email_id}",
-                    to_email=admin_email,
-                    body=f"Error processing email {email_id}: {str(e)}",
-                    from_email="noreply@huntred.com"
-                )
-        except Exception as admin_e:
-            logger.error(f"Error enviando correo de error: {admin_e}")
 
 async def create_vacancy_from_email(job_data: Dict, business_unit_id: int) -> bool:
     try:
@@ -394,7 +253,7 @@ async def create_vacancy_from_email(job_data: Dict, business_unit_id: int) -> bo
                 "ubicacion": job_data["location"],
                 "descripcion": job_data["job_description"],
                 "business_unit": bu,
-                "fecha_publicacion": job_data.get("posting_date", now()),
+                "fecha_publicacion": job_data.get("posting_date", timezone.now()),
                 "skills_required": job_data.get("skills", []),
                 "contract_type": job_data.get("contract_type"),
                 "job_type": job_data.get("employment_type"),
@@ -412,3 +271,7 @@ async def create_vacancy_from_email(job_data: Dict, business_unit_id: int) -> bo
     except Exception as e:
         logger.error(f"Error creando vacante: {e}")
         return False
+
+# Ejemplo de ejecución
+if __name__ == "__main__":
+    asyncio.run(email_scraper())

@@ -106,6 +106,9 @@ class Configuracion(models.Model):
 class DominioScraping(models.Model):
     empresa = models.CharField(max_length=75, unique=True, blank=True, null=True)
     dominio = models.URLField(max_length=255, unique=True)
+    company_name = models.CharField(max_length=255, blank=True)
+    email_scraping_enabled = models.BooleanField(default=False)
+    valid_senders = models.JSONField(default=list)  # Lista de correos válidos
     plataforma = models.CharField(max_length=100, choices=PLATFORM_CHOICES, blank=True, null=True)
     estado = models.CharField(max_length=20, choices=[("definido", "Definido"), ("libre", "Indefinido")], default="libre")
     verificado = models.BooleanField(default=False)

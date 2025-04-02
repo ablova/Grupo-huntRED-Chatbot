@@ -81,7 +81,7 @@ class ConfiguracionAdmin(TokenMaskingMixin, admin.ModelAdmin):
     
 @admin.register(DominioScraping)
 class DominioScrapingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'empresa', 'plataforma', 'verificado', 'ultima_verificacion', 'estado')
+    list_display = ('id', 'empresa', 'plataforma', 'verificado', 'email_scraping_enabled', 'valid_senders', 'ultima_verificacion', 'estado')
     search_fields = ('empresa', 'dominio', 'plataforma')
     list_filter = ('estado', 'plataforma')
     ordering = ("-id",)
