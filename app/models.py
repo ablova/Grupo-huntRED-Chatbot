@@ -188,7 +188,6 @@ class DominioScraping(models.Model):
             self.full_clean()
         super().save(*args, **kwargs)
 
-
 class ConfiguracionScraping(models.Model):
     dominio = models.ForeignKey(DominioScraping, on_delete=models.CASCADE)
     campo = models.CharField(max_length=50)
@@ -349,6 +348,36 @@ class RegistroScraping(models.Model):
 
     def __str__(self):
         return f"Registro {self.dominio.empresa} - {self.estado} - {self.fecha_inicio}"
+
+
+class Worker(models.Model):
+    name = models.CharField(max_length=100)
+    whatsapp = models.CharField(max_length=20, blank=True, null=True)
+    company = models.CharField(max_length=100, blank=True, null=True)
+    img_company = models.CharField(max_length=500, blank=True, null=True)
+    job_id = models.CharField(max_length=100, blank=True, null=True)
+    url_name = models.CharField(max_length=100, blank=True, null=True)
+    salary = models.CharField(max_length=100, blank=True, null=True)
+    job_type = models.CharField(max_length=100, blank=True, null=True)
+    address = models.CharField(max_length=200, blank=True, null=True)
+    longitude = models.CharField(max_length=100, blank=True, null=True)
+    latitude = models.CharField(max_length=100, blank=True, null=True)
+    required_skills = models.TextField(blank=True, null=True)
+    experience_required = models.IntegerField(blank=True, null=True)
+    job_description = models.TextField(blank=True, null=True)
+
+    # Información adicional en JSON
+    metadata = models.JSONField(default=dict, blank=True, help_text="Información adicional del puesto: sectores, requerimientos, etc.")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['job_id']),
+            models.Index(fields=['company']),
+        ]
+
+    def __str__(self) -> str:
+        return str(self.name)
 
 class Vacante(models.Model):
     titulo = models.CharField(max_length=300)
@@ -518,27 +547,6 @@ class Person(models.Model):
         missing_fields = [field for field in required_fields if not getattr(self, field, None)]
         return not missing_fields
 
-class Division(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    skills = models.ManyToManyField('Skill', blank=True)
-
-    def __str__(self):
-        return self.name
-
-class Skill(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return self.name
-    
-class Badge(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField()
-    icon = models.ImageField(upload_to='badges/', null=True, blank=True)
-
-    def __str__(self):
-        return self.name
-
 class Application(models.Model):
     user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='applications')
     vacancy = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='applications')
@@ -559,10 +567,52 @@ class Application(models.Model):
     def __str__(self):
         return f"{self.user} - {self.vacancy} - {self.status}"
 
+class Interview(models.Model):
+    INTERVIEW_TYPE_CHOICES = [
+        ('presencial', 'Presencial'),
+        ('virtual', 'Virtual'),
+        ('panel', 'Panel'),
+    ]
+    person = models.ForeignKey('Person', on_delete=models.CASCADE)
+    interviewer = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='conducted_interviews', blank=True, null=True)
+    job = models.ForeignKey(Worker, on_delete=models.CASCADE)
+    interview_date = models.DateTimeField()
+    application_date = models.DateTimeField(auto_now_add=True)
+    slot = models.CharField(max_length=50)
+    candidate_latitude = models.CharField(max_length=100, blank=True, null=True)
+    candidate_longitude = models.CharField(max_length=100, blank=True, null=True)
+    location_verified = models.BooleanField(default=False)
+    interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPE_CHOICES, default='presencial')
+    candidate_confirmed = models.BooleanField(default=False)
+
+    def days_until_interview(self):
+        return (self.interview_date - timezone.now()).days
+
 class Invitacion(models.Model):
     referrer = models.ForeignKey(Person, related_name='invitaciones_enviadas', on_delete=models.CASCADE)
     invitado = models.ForeignKey(Person, related_name='invitaciones_recibidas', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+
+class Division(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    skills = models.ManyToManyField('Skill', blank=True)
+
+    def __str__(self):
+        return self.name
+
+class Skill(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+    
+class Badge(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    icon = models.ImageField(upload_to='badges/', null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 class MetaAPI(models.Model):
     business_unit = models.OneToOneField(
@@ -724,55 +774,6 @@ class Chat(models.Model):
 
     def __str__(self):
         return str(self.body)
-
-class Worker(models.Model):
-    name = models.CharField(max_length=100)
-    whatsapp = models.CharField(max_length=20, blank=True, null=True)
-    company = models.CharField(max_length=100, blank=True, null=True)
-    img_company = models.CharField(max_length=500, blank=True, null=True)
-    job_id = models.CharField(max_length=100, blank=True, null=True)
-    url_name = models.CharField(max_length=100, blank=True, null=True)
-    salary = models.CharField(max_length=100, blank=True, null=True)
-    job_type = models.CharField(max_length=100, blank=True, null=True)
-    address = models.CharField(max_length=200, blank=True, null=True)
-    longitude = models.CharField(max_length=100, blank=True, null=True)
-    latitude = models.CharField(max_length=100, blank=True, null=True)
-    required_skills = models.TextField(blank=True, null=True)
-    experience_required = models.IntegerField(blank=True, null=True)
-    job_description = models.TextField(blank=True, null=True)
-
-    # Información adicional en JSON
-    metadata = models.JSONField(default=dict, blank=True, help_text="Información adicional del puesto: sectores, requerimientos, etc.")
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['name']),
-            models.Index(fields=['job_id']),
-            models.Index(fields=['company']),
-        ]
-
-    def __str__(self) -> str:
-        return str(self.name)
-
-class Interview(models.Model):
-    INTERVIEW_TYPE_CHOICES = [
-        ('presencial', 'Presencial'),
-        ('virtual', 'Virtual'),
-    ]
-    person = models.ForeignKey('Person', on_delete=models.CASCADE)
-    interviewer = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='conducted_interviews', blank=True, null=True)
-    job = models.ForeignKey(Worker, on_delete=models.CASCADE)
-    interview_date = models.DateTimeField()
-    application_date = models.DateTimeField(auto_now_add=True)
-    slot = models.CharField(max_length=50)
-    candidate_latitude = models.CharField(max_length=100, blank=True, null=True)
-    candidate_longitude = models.CharField(max_length=100, blank=True, null=True)
-    location_verified = models.BooleanField(default=False)
-    interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPE_CHOICES, default='presencial')
-    candidate_confirmed = models.BooleanField(default=False)
-
-    def days_until_interview(self):
-        return (self.interview_date - timezone.now()).days
 
 class SmtpConfig(models.Model):
     host = models.CharField(max_length=255)

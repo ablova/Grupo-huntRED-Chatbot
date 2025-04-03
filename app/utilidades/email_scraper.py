@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 
 # Constantes
 IMAP_SERVER = env("IMAP_SERVER", default="mail.huntred.com")
-CONNECTION_TIMEOUT = 30
-BATCH_SIZE_DEFAULT = 20
+CONNECTION_TIMEOUT = 60
+BATCH_SIZE_DEFAULT = 5
 JOB_KEYWORDS = ["job", "vacante", "opportunity", "empleo", "position", "director", "analista", "gerente", "asesor"]
 EXCLUDED_TEXTS = ["unsubscribe", "manage", "help", "profile", "feed"]
 FOLDER_CONFIG = {
@@ -180,50 +180,148 @@ class EmailScraperV2:
         for old, new in replacements.items():
             title = title.replace(old, new)
         title = re.sub(r'\s+', ' ', title).strip()
-        return title.title()[:100]  # Truncar a 100 caracteres aquí también
+        return title.title()[:300]  # Truncar a 100 caracteres aquí también
 
     async def get_dominio_scraping(self, url: str) -> Optional[DominioScraping]:
         domain = urlparse(url).netloc
-        return await sync_to_async(DominioScraping.objects.filter(dominio__contains=domain).first)()
+        # Try exact match first, then fallback to contains
+        dominio = await sync_to_async(DominioScraping.objects.filter(dominio=domain).first)()
+        if not dominio:
+            dominio = await sync_to_async(DominioScraping.objects.filter(dominio__contains=domain).first)()
+        if dominio:
+            logger.debug(f"DominioScraping encontrado: {dominio.dominio} para {url}")
+        else:
+            logger.debug(f"No se encontró DominioScraping para {url}")
+        return dominio
 
     async def get_valid_senders(self) -> List[str]:
         dominios = await sync_to_async(list)(DominioScraping.objects.filter(email_scraping_enabled=True).only('valid_senders'))
         return list(set(sender for dominio in dominios for sender in (dominio.valid_senders or [])))
 
-    def extract_vacancies_from_html(self, html: str) -> List[Dict]:
+    async def extract_vacancies_from_html(self, html: str) -> List[Dict]:
         try:
             soup = BeautifulSoup(html, "html.parser")
             job_listings = []
-            for link in soup.find_all("a", href=True):
-                link_text = link.get_text(strip=True).lower()
-                href = link["href"].lower()
-                if any(excluded in link_text for excluded in EXCLUDED_TEXTS):
-                    continue
-                if href.startswith("https://https://"):
-                    href = href.replace("https://https://", "https://")
-                elif not href.startswith("http"):
-                    href = urljoin("https://santander.wd3.myworkdayjobs.com", href)
-                if any(keyword in link_text for keyword in JOB_KEYWORDS) or re.search(r"/job/", href):
-                    job_title = self.format_title(link.get_text(strip=True))
-                    job_link = href
-                    location = ""
-                    next_text = link.find_next(string=True)
-                    if next_text and "(" in next_text and ")" in next_text:
-                        location = re.search(r'\((.*?)\)', next_text).group(1)
-                    job_listings.append({
-                        "titulo": job_title,
-                        "url_original": job_link,
-                        "empresa": None,
-                        "ubicacion": location or "No especificada",
-                        "descripcion": "",
-                        "modalidad": None,
-                        "requisitos": "",
-                        "beneficios": "",
-                        "skills_required": [],
-                        "fecha_publicacion": timezone.now(),
-                        "dominio_origen": None,
-                        "business_unit": None
-                    })
+
+            # Crear una empresa por defecto
+            default_empresa, _ = await sync_to_async(Worker.objects.get_or_create)(
+                name="Unknown",
+                defaults={"company": "Unknown"}
+            )
+
+            # Buscar secciones de trabajo
+            job_sections = soup.find_all(['div', 'section'], class_=lambda x: x and any(term in x.lower() for term in ['job', 'vacancy', 'position', 'empleo', 'vacante']))
+            if not job_sections:
+                job_sections = [soup]  # Si no hay secciones específicas, usar todo el HTML
+
+            for section in job_sections:
+                # Buscar enlaces de trabajo
+                for link in section.find_all("a", href=True):
+                    link_text = link.get_text(strip=True).lower()
+                    href = link["href"].lower()
+                    
+                    if any(excluded in link_text for excluded in EXCLUDED_TEXTS):
+                        continue
+
+                    if href.startswith("https://https://"):
+                        href = href.replace("https://https://", "https://")
+                    elif not href.startswith("http"):
+                        dominio = await self.get_dominio_scraping(href)
+                        if dominio and dominio.base_url:
+                            href = urljoin(dominio.base_url, href)
+                        else:
+                            logger.warning(f"No se pudo determinar el dominio base para {href}")
+                            continue
+
+                    # Verificar si es un enlace de trabajo
+                    if any(keyword in link_text for keyword in JOB_KEYWORDS) or re.search(r"/job/", href):
+                        job_title = self.format_title(link.get_text(strip=True))
+                        job_link = href
+
+                        # Buscar contenedor padre que pueda tener más información
+                        job_container = link.find_parent(['div', 'section', 'article'])
+                        if not job_container:
+                            job_container = link.parent
+
+                        # Extraer ubicación
+                        location = ""
+                        location_element = job_container.find(['span', 'div'], class_=lambda x: x and any(term in x.lower() for term in ['location', 'ubicacion', 'lugar']))
+                        if location_element:
+                            location = location_element.get_text(strip=True)
+                        else:
+                            next_text = link.find_next(string=True)
+                            if next_text and "(" in next_text and ")" in next_text:
+                                location = re.search(r'\((.*?)\)', next_text).group(1)
+
+                        # Extraer descripción
+                        description = ""
+                        desc_element = job_container.find(['div', 'p'], class_=lambda x: x and any(term in x.lower() for term in ['description', 'descripcion', 'details', 'detalles']))
+                        if desc_element:
+                            description = desc_element.get_text(strip=True)
+
+                        # Extraer requisitos
+                        requirements = ""
+                        req_element = job_container.find(['div', 'ul'], class_=lambda x: x and any(term in x.lower() for term in ['requirements', 'requisitos', 'qualifications']))
+                        if req_element:
+                            requirements = req_element.get_text(strip=True)
+
+                        # Extraer modalidad
+                        modalidad = None
+                        modalidad_element = job_container.find(['span', 'div'], class_=lambda x: x and any(term in x.lower() for term in ['modalidad', 'type', 'jornada']))
+                        if modalidad_element:
+                            modalidad = modalidad_element.get_text(strip=True)
+                        else:
+                            # Intentar detectar modalidad del texto
+                            text_content = job_container.get_text().lower()
+                            if any(term in text_content for term in ['remoto', 'remote', 'teletrabajo']):
+                                modalidad = 'remoto'
+                            elif any(term in text_content for term in ['híbrido', 'hybrid', 'hibrido']):
+                                modalidad = 'hibrido'
+                            elif any(term in text_content for term in ['presencial', 'on-site', 'oficina']):
+                                modalidad = 'presencial'
+
+                        # Get DominioScraping instance for the URL
+                        dominio = await self.get_dominio_scraping(job_link)
+                        if dominio:
+                            company_name = dominio.empresa or dominio.company_name or "Unknown"
+                            empresa, created = await sync_to_async(Worker.objects.get_or_create)(
+                                name=company_name,
+                                defaults={"company": company_name}
+                            )
+                            dominio_origen = dominio
+                        else:
+                            empresa = default_empresa
+                            dominio_origen = None
+
+                        # Extraer skills requeridos
+                        skills = []
+                        skills_element = job_container.find(['div', 'ul'], class_=lambda x: x and any(term in x.lower() for term in ['skills', 'habilidades', 'competencias']))
+                        if skills_element:
+                            skills = [skill.strip() for skill in skills_element.get_text().split(',')]
+
+                        # Crear job_data con toda la información extraída
+                        job_data = {
+                            "titulo": job_title,
+                            "url_original": job_link,
+                            "empresa": empresa,
+                            "ubicacion": location or "No especificada",
+                            "descripcion": description or "",
+                            "modalidad": modalidad,
+                            "requisitos": requirements or "",
+                            "beneficios": "",  # Se enriquecerá más tarde
+                            "skills_required": skills,
+                            "fecha_publicacion": timezone.now(),
+                            "dominio_origen": dominio_origen,
+                            "business_unit": None
+                        }
+
+                        # Validar que los campos requeridos no sean None
+                        if not job_data["titulo"] or not job_data["url_original"] or not job_data["empresa"]:
+                            logger.warning(f"Vacante omitida - faltan campos requeridos: {job_data}")
+                            continue
+
+                        job_listings.append(job_data)
+
             logger.debug(f"Extraídas {len(job_listings)} vacantes de HTML")
             return job_listings
         except Exception as e:
@@ -250,6 +348,14 @@ class EmailScraperV2:
             await self.mail.store(email_id, "+FLAGS", "\\Deleted")
             return []
 
+        # Fallback empresa from sender domain
+        sender_domain = sender.split('@')[-1] if '@' in sender else "unknown"
+        # Desempaquetar explícitamente la tupla
+        fallback_empresa, _ = await sync_to_async(Worker.objects.get_or_create)(
+            name=sender_domain.capitalize(),
+            defaults={"company": sender_domain.capitalize()}
+        )
+
         body = None
         if message.is_multipart():
             for part in message.walk():
@@ -265,12 +371,17 @@ class EmailScraperV2:
             await self.mail.store(email_id, "+FLAGS", "\\Deleted")
             return []
 
-        job_listings = self.extract_vacancies_from_html(body)
+        job_listings = await self.extract_vacancies_from_html(body)
         if not job_listings:
             logger.info(f"No se encontraron vacantes en correo {email_id}")
             await self.mail.copy(email_id, FOLDER_CONFIG["parsed_folder"])
             await self.mail.store(email_id, "+FLAGS", "\\Deleted")
             return []
+
+        # Ensure empresa is set
+        for job in job_listings:
+            if job["empresa"] is None:
+                job["empresa"] = fallback_empresa
 
         enriched_jobs = await asyncio.gather(*(self.enrich_vacancy_from_url(job) for job in job_listings))
         logger.info(f"Extraídas y enriquecidas {len(enriched_jobs)} vacantes del correo {email_id}")
@@ -467,64 +578,90 @@ class EmailScraperV2:
 
     async def save_or_update_vacante(self, job_data: Dict, business_unit: BusinessUnit) -> bool:
         try:
-            truncated_title = job_data["titulo"][:100]
-            vacante, created = await sync_to_async(Vacante.objects.get_or_create)(
-                url_original=job_data["url_original"],
-                defaults={
-                    "titulo": truncated_title,
-                    "empresa": job_data["empresa"],
-                    "ubicacion": job_data["ubicacion"],
-                    "descripcion": job_data["descripcion"],
-                    "modalidad": job_data["modalidad"],
-                    "requisitos": job_data["requisitos"],
-                    "beneficios": job_data["beneficios"],
-                    "skills_required": job_data["skills_required"],
-                    "dominio_origen": job_data["dominio_origen"],
-                    "business_unit": business_unit,
-                    "fecha_publicacion": job_data["fecha_publicacion"],
-                    "activa": True
-                }
-            )
-            if not created:
-                vacante.titulo = truncated_title
-                vacante.empresa = job_data["empresa"]
-                vacante.ubicacion = job_data["ubicacion"]
-                vacante.descripcion = job_data["descripcion"] or vacante.descripcion
-                vacante.modalidad = job_data["modalidad"] or vacante.modalidad
-                vacante.requisitos = job_data["requisitos"] or vacante.requisitos
-                vacante.beneficios = job_data["beneficios"] or vacante.beneficios
-                vacante.skills_required = job_data["skills_required"] or vacante.skills_required
-                vacante.dominio_origen = job_data["dominio_origen"] or vacante.dominio_origen
-                vacante.business_unit = business_unit
-                vacante.fecha_publicacion = job_data["fecha_publicacion"]
-                vacante.activa = True
-                await sync_to_async(vacante.save)()
+            # Validar que tenemos los datos necesarios
+            if not job_data or not isinstance(job_data, dict):
+                logger.warning("job_data es None o no es un diccionario")
+                return False
 
-            worker, worker_created = await sync_to_async(Worker.objects.get_or_create)(
-                url_name=job_data["url_original"],
-                defaults={
-                    "name": truncated_title,
-                    "company": job_data["empresa"],
-                    "job_description": job_data["descripcion"],
-                    "address": job_data["ubicacion"],
-                    "required_skills": ", ".join(job_data["skills_required"]) if job_data["skills_required"] else "",
-                    "job_type": job_data["modalidad"]
-                }
-            )
-            if not worker_created:
-                worker.name = truncated_title
-                worker.company = job_data["empresa"]
-                worker.job_description = job_data["descripcion"] or worker.job_description
-                worker.address = job_data["ubicacion"]
-                worker.required_skills = ", ".join(job_data["skills_required"]) if job_data["skills_required"] else worker.required_skills
-                worker.job_type = job_data["modalidad"]
-                await sync_to_async(worker.save)()
+            # Validar que tenemos los campos requeridos
+            if not job_data.get("titulo") or not job_data.get("url_original"):
+                logger.warning(f"Faltan campos requeridos para la vacante {job_data.get('titulo', 'Unknown')}")
+                return False
 
-            action = "creada" if created else "actualizada"
-            logger.info(f"Vacante {action}: {vacante.titulo} | Worker {action}: {worker.name}")
-            return True
+            # Validar que tenemos una empresa válida
+            empresa = job_data.get("empresa")
+            if not empresa:
+                logger.warning(f"No se encontró empresa para la vacante {job_data.get('titulo', 'Unknown')}")
+                return False
+
+            # Logging para debug
+            logger.debug(f"Procesando vacante: {job_data.get('titulo')} | Empresa: {empresa}")
+
+            # Primero crear o actualizar el Worker
+            try:
+                # Asegurarnos de que empresa sea un string
+                empresa_name = empresa.name if hasattr(empresa, 'name') else str(empresa)
+                
+                worker, worker_created = await sync_to_async(Worker.objects.get_or_create)(
+                    name=empresa_name,
+                    defaults={
+                        "company": empresa_name,
+                        "job_description": job_data.get("descripcion", "")[:1000],
+                        "address": job_data.get("ubicacion", "")[:200],
+                        "required_skills": ", ".join(job_data.get("skills_required", []))[:500],
+                        "job_type": job_data.get("modalidad", "")[:50]
+                    }
+                )
+                
+                if not worker_created:
+                    # Actualizar campos existentes del Worker
+                    worker.company = empresa_name
+                    worker.job_description = job_data.get("descripcion", "")[:1000]
+                    worker.address = job_data.get("ubicacion", "")[:200]
+                    worker.required_skills = ", ".join(job_data.get("skills_required", []))[:500]
+                    worker.job_type = job_data.get("modalidad", "")[:50]
+                    await sync_to_async(worker.save)()
+            except Exception as e:
+                logger.error(f"Error al crear/actualizar Worker: {e}")
+                return False
+
+            # Truncar todos los campos que podrían exceder el límite
+            truncated_data = {
+                "titulo": job_data.get("titulo", "")[:300],
+                "empresa": worker,  # Ahora asignamos el objeto Worker
+                "ubicacion": job_data.get("ubicacion", "")[:300],
+                "descripcion": job_data.get("descripcion", "")[:3000],
+                "modalidad": job_data.get("modalidad", "")[:20] if job_data.get("modalidad") else None,
+                "requisitos": job_data.get("requisitos", "")[:1000],
+                "beneficios": job_data.get("beneficios", "")[:1000],
+                "skills_required": [skill[:100] for skill in job_data.get("skills_required", [])],
+                "dominio_origen": job_data.get("dominio_origen"),
+                "business_unit": business_unit,
+                "fecha_publicacion": job_data.get("fecha_publicacion", timezone.now()),
+                "activa": True
+            }
+
+            try:
+                vacante, created = await sync_to_async(Vacante.objects.get_or_create)(
+                    url_original=job_data["url_original"],
+                    defaults=truncated_data
+                )
+                
+                if not created:
+                    # Actualizar campos existentes con datos truncados
+                    for field, value in truncated_data.items():
+                        setattr(vacante, field, value)
+                    await sync_to_async(vacante.save)()
+
+                action = "creada" if created else "actualizada"
+                logger.info(f"Vacante {action}: {vacante.titulo} | Worker {action}: {worker.name}")
+                return True
+            except Exception as e:
+                logger.error(f"Error al crear/actualizar Vacante: {e}")
+                return False
+            
         except Exception as e:
-            logger.error(f"Error al guardar/actualizar vacante {job_data['titulo']}: {e}")
+            logger.error(f"Error al guardar/actualizar vacante {job_data.get('titulo', 'Unknown')}: {e}")
             return False
 
     async def run(self, batch_size: int = BATCH_SIZE_DEFAULT) -> None:
@@ -603,8 +740,9 @@ class EmailScraperV2:
         finally:
             try:
                 await self.mail.logout()
-            except:
-                pass
+            except asyncio.TimeoutError:
+                logger.warning("Timeout durante logout, conexión cerrada forzosamente")
+                self.mail = None
 
 async def assign_business_unit_async(job_title: str, job_description: str = None, salary_range=None, required_experience=None, location: str = None) -> Optional[int]:
     job_title_lower = job_title.lower()
@@ -778,7 +916,7 @@ if __name__ == "__main__":
     async def process_all_emails():
         scraper = EmailScraperV2(EMAIL_ACCOUNT, EMAIL_PASSWORD)
         batch_size = 3
-        pause_minutes = 2
+        pause_minutes = .5
 
         while True:
             if not await scraper.connect():
@@ -802,7 +940,7 @@ if __name__ == "__main__":
 
             if len(email_ids) > batch_size:
                 logger.info(f"Pausando {pause_minutes} minutos antes del siguiente lote...")
-                await asyncio.sleep(pause_minutes * 60)
+                await asyncio.sleep(pause_minutes * 30)
             else:
                 logger.info("Último lote procesado, finalizando...")
                 break
