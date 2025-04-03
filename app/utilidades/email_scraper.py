@@ -350,7 +350,7 @@ class EmailScraperV2:
 
         # Fallback empresa from sender domain
         sender_domain = sender.split('@')[-1] if '@' in sender else "unknown"
-        # Desempaquetar explícitamente la tupla
+        # Await the coroutine and unpack the tuple
         fallback_empresa, _ = await sync_to_async(Worker.objects.get_or_create)(
             name=sender_domain.capitalize(),
             defaults={"company": sender_domain.capitalize()}
