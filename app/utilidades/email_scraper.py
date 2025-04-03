@@ -15,11 +15,13 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 import aiohttp
 import environ
 from urllib.parse import urlparse, urljoin
-from app.chatbot.nlp import NLPProcessor
 
 # Configuración de entorno
 env = environ.Env()
 environ.Env.read_env(env_file='/home/pablo/.env')
+
+# Configuración de NLP
+ENABLE_NLP = env.bool("ENABLE_NLP", default=False)
 
 # Configuración de logging
 logging.basicConfig(
@@ -82,11 +84,17 @@ INDUSTRY_KEYWORDS = {
 }
 
 # Instancia global de NLPProcessor
-try:
-    NLP_PROCESSOR = NLPProcessor(language="es", mode="opportunity", analysis_depth="deep")
-except Exception as e:
-    logger.warning(f"No se pudo inicializar NLPProcessor: {e}")
-    NLP_PROCESSOR = None
+NLP_PROCESSOR = None
+if ENABLE_NLP:
+    try:
+        from app.chatbot.nlp import NLPProcessor
+        NLP_PROCESSOR = NLPProcessor(language="es", mode="opportunity", analysis_depth="deep")
+        logger.info("NLPProcessor inicializado correctamente")
+    except Exception as e:
+        logger.warning(f"No se pudo inicializar NLPProcessor: {e}")
+        NLP_PROCESSOR = None
+else:
+    logger.info("NLPProcessor desactivado por configuración")
 
 class EmailScraperV2:
     def __init__(self, email_account: str, password: str, imap_server: str = IMAP_SERVER):
@@ -287,115 +295,128 @@ class EmailScraperV2:
             "Upgrade-Insecure-Requests": "1"
         }
 
-        # Intentar con Playwright primero
-        try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-                    timeout=300000  # 300 segundos para lanzar el navegador
-                )
-                context = await browser.new_context(
-                    extra_http_headers=headers,
-                    viewport={'width': 1920, 'height': 1080}
-                )
-                if cookies:
-                    await context.add_cookies([{**cookie, "domain": urlparse(job_data["url_original"]).netloc} for cookie in cookies])
-                page = await context.new_page()
-                try:
-                    await page.goto(job_data["url_original"], wait_until="networkidle", timeout=60000)
-                    await page.wait_for_load_state("domcontentloaded", timeout=30000)
-
-                    selectors = [
-                        "div[data-automation-id='jobPostingDescription']",
-                        "div.job-description",
-                        "section#content",
-                        "div.job-details",
-                        "div.description",
-                        "div[class*='job-description']",
-                        "div[class*='description']"
-                    ]
-                    
-                    desc = None
-                    for selector in selectors:
-                        desc = await page.query_selector(selector)
-                        if desc:
-                            job_data["descripcion"] = await desc.inner_text()
-                            break
-                    
-                    if not job_data["descripcion"]:
-                        content = await page.content()
-                        soup = BeautifulSoup(content, "html.parser")
-                        job_data["descripcion"] = soup.get_text(strip=True)
-
-                    logger.debug(f"Descripción extraída para {job_data['titulo']}: {job_data['descripcion'][:100]}...")
-
-                    text = job_data["descripcion"].lower()
-                    if "remoto" in text or "remote" in text or "teletrabajo" in text:
-                        job_data["modalidad"] = "remoto"
-                    elif "híbrido" in text or "hybrid" in text or "hibrido" in text:
-                        job_data["modalidad"] = "hibrido"
-                    elif "presencial" in text or "on-site" in text or "oficina" in text:
-                        job_data["modalidad"] = "presencial"
-
-                    req_selectors = ["div.requirements", "ul.qualifications", "div[class*='requirements']", "div[class*='qualifications']"]
-                    ben_selectors = ["div.benefits", "section.perks", "div[class*='benefits']", "div[class*='perks']"]
-                    
-                    for selector in req_selectors:
-                        req = await page.query_selector(selector)
-                        if req:
-                            job_data["requisitos"] = await req.inner_text()
-                            break
-                            
-                    for selector in ben_selectors:
-                        ben = await page.query_selector(selector)
-                        if ben:
-                            job_data["beneficios"] = await ben.inner_text()
-                            break
-
-                    if NLP_PROCESSOR and job_data["descripcion"]:
-                        analysis = NLP_PROCESSOR.analyze_opportunity(job_data["descripcion"])
-                        job_data["skills_required"] = analysis["details"].get("skills", job_data["skills_required"])
-                        job_data["modalidad"] = analysis["details"].get("contract_type", job_data["modalidad"]) or job_data["modalidad"]
-
-                except PlaywrightTimeoutError as e:
-                    logger.warning(f"Timeout en Playwright para {job_data['url_original']}: {e}, intentando con aiohttp...")
-                    await page.close()
-                    await browser.close()
-                    return await self._enrich_with_aiohttp(job_data, headers, cookies)
-                except Exception as e:
-                    logger.warning(f"Error en Playwright para {job_data['url_original']}: {e}, intentando con aiohttp...")
-                    await page.close()
-                    await browser.close()
-                    return await self._enrich_with_aiohttp(job_data, headers, cookies)
-                finally:
-                    await page.close()
-                    await browser.close()
-
-        except Exception as e:
-            logger.warning(f"Fallo total en Playwright para {job_data['url_original']}: {e}, usando aiohttp como respaldo...")
-            return await self._enrich_with_aiohttp(job_data, headers, cookies)
-
-        if dominio:
-            job_data["empresa"] = dominio.company_name or "Santander"
-            job_data["dominio_origen"] = dominio
-        else:
-            job_data["empresa"] = "Santander"
-        return job_data
-
-    async def _enrich_with_aiohttp(self, job_data: Dict, headers: Dict, cookies: List[Dict]) -> Dict:
-        """Método de respaldo usando aiohttp si Playwright falla."""
+        # Intentar con aiohttp primero (más ligero)
         try:
             async with aiohttp.ClientSession(cookies=cookies, headers=headers) as session:
                 async with session.get(job_data["url_original"], timeout=aiohttp.ClientTimeout(total=30)) as response:
                     if response.status == 200:
                         html = await response.text()
                         soup = BeautifulSoup(html, "html.parser")
-                        desc = soup.select_one("div[data-automation-id='jobPostingDescription']") or \
-                               soup.select_one("div.job-description") or \
-                               soup.select_one("section#content")
-                        job_data["descripcion"] = desc.get_text(strip=True) if desc else soup.get_text(strip=True)
-                        logger.debug(f"Descripción extraída con aiohttp para {job_data['titulo']}: {job_data['descripcion'][:100]}...")
+                        
+                        # Intentar diferentes selectores para la descripción
+                        selectors = [
+                            "div[data-automation-id='jobPostingDescription']",
+                            "div.job-description",
+                            "section#content",
+                            "div.job-details",
+                            "div.description",
+                            "div[class*='job-description']",
+                            "div[class*='description']"
+                        ]
+                        
+                        desc = None
+                        for selector in selectors:
+                            desc = soup.select_one(selector)
+                            if desc:
+                                job_data["descripcion"] = desc.get_text(strip=True)
+                                break
+                        
+                        if not job_data["descripcion"]:
+                            job_data["descripcion"] = soup.get_text(strip=True)
+
+                        # Detectar modalidad
+                        text = job_data["descripcion"].lower()
+                        if "remoto" in text or "remote" in text or "teletrabajo" in text:
+                            job_data["modalidad"] = "remoto"
+                        elif "híbrido" in text or "hybrid" in text or "hibrido" in text:
+                            job_data["modalidad"] = "hibrido"
+                        elif "presencial" in text or "on-site" in text or "oficina" in text:
+                            job_data["modalidad"] = "presencial"
+
+                        # Detectar requisitos y beneficios
+                        req_selectors = ["div.requirements", "ul.qualifications", "div[class*='requirements']", "div[class*='qualifications']"]
+                        ben_selectors = ["div.benefits", "section.perks", "div[class*='benefits']", "div[class*='perks']"]
+                        
+                        for selector in req_selectors:
+                            req = soup.select_one(selector)
+                            if req:
+                                job_data["requisitos"] = req.get_text(strip=True)
+                                break
+                                
+                        for selector in ben_selectors:
+                            ben = soup.select_one(selector)
+                            if ben:
+                                job_data["beneficios"] = ben.get_text(strip=True)
+                                break
+
+                        # Procesar con NLP si está habilitado
+                        if NLP_PROCESSOR and job_data["descripcion"]:
+                            try:
+                                analysis = NLP_PROCESSOR.analyze_opportunity(job_data["descripcion"])
+                                job_data["skills_required"] = analysis["details"].get("skills", job_data["skills_required"])
+                                job_data["modalidad"] = analysis["details"].get("contract_type", job_data["modalidad"]) or job_data["modalidad"]
+                            except Exception as e:
+                                logger.warning(f"Error en procesamiento NLP para {job_data['url_original']}: {e}")
+                                job_data["skills_required"] = []
+
+                        # Limpiar memoria
+                        del html
+                        del soup
+                        del desc
+                        return job_data
+                    else:
+                        logger.warning(f"Error HTTP {response.status} al enriquecer {job_data['url_original']}")
+                        return job_data
+        except Exception as e:
+            logger.warning(f"Error con aiohttp para {job_data['url_original']}: {e}, intentando con Playwright...")
+            return await self._enrich_with_playwright(job_data, headers, cookies)
+
+    async def _enrich_with_playwright(self, job_data: Dict, headers: Dict, cookies: List[Dict]) -> Dict:
+        """Método de respaldo usando Playwright si aiohttp falla."""
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+                    timeout=300000
+                )
+                context = await browser.new_context(
+                    extra_http_headers=headers,
+                    viewport={'width': 1920, 'height': 1080}
+                )
+                
+                try:
+                    if cookies:
+                        await context.add_cookies([{**cookie, "domain": urlparse(job_data["url_original"]).netloc} for cookie in cookies])
+                    page = await context.new_page()
+                    
+                    try:
+                        await page.goto(job_data["url_original"], wait_until="networkidle", timeout=60000)
+                        await page.wait_for_load_state("domcontentloaded", timeout=30000)
+
+                        selectors = [
+                            "div[data-automation-id='jobPostingDescription']",
+                            "div.job-description",
+                            "section#content",
+                            "div.job-details",
+                            "div.description",
+                            "div[class*='job-description']",
+                            "div[class*='description']"
+                        ]
+                        
+                        desc = None
+                        for selector in selectors:
+                            desc = await page.query_selector(selector)
+                            if desc:
+                                job_data["descripcion"] = await desc.inner_text()
+                                break
+                        
+                        if not job_data["descripcion"]:
+                            content = await page.content()
+                            soup = BeautifulSoup(content, "html.parser")
+                            job_data["descripcion"] = soup.get_text(strip=True)
+                            del content
+                            del soup
 
                         text = job_data["descripcion"].lower()
                         if "remoto" in text or "remote" in text or "teletrabajo" in text:
@@ -405,19 +426,43 @@ class EmailScraperV2:
                         elif "presencial" in text or "on-site" in text or "oficina" in text:
                             job_data["modalidad"] = "presencial"
 
-                        req = soup.select_one("div.requirements") or soup.select_one("ul.qualifications")
-                        job_data["requisitos"] = req.get_text(strip=True) if req else ""
-                        ben = soup.select_one("div.benefits") or soup.select_one("section.perks")
-                        job_data["beneficios"] = ben.get_text(strip=True) if ben else ""
+                        req_selectors = ["div.requirements", "ul.qualifications", "div[class*='requirements']", "div[class*='qualifications']"]
+                        ben_selectors = ["div.benefits", "section.perks", "div[class*='benefits']", "div[class*='perks']"]
+                        
+                        for selector in req_selectors:
+                            req = await page.query_selector(selector)
+                            if req:
+                                job_data["requisitos"] = await req.inner_text()
+                                break
+                                
+                        for selector in ben_selectors:
+                            ben = await page.query_selector(selector)
+                            if ben:
+                                job_data["beneficios"] = await ben.inner_text()
+                                break
 
                         if NLP_PROCESSOR and job_data["descripcion"]:
-                            analysis = NLP_PROCESSOR.analyze_opportunity(job_data["descripcion"])
-                            job_data["skills_required"] = analysis["details"].get("skills", job_data["skills_required"])
-                            job_data["modalidad"] = analysis["details"].get("contract_type", job_data["modalidad"]) or job_data["modalidad"]
-                    else:
-                        logger.warning(f"Error HTTP {response.status} al enriquecer {job_data['url_original']}")
+                            try:
+                                analysis = NLP_PROCESSOR.analyze_opportunity(job_data["descripcion"])
+                                job_data["skills_required"] = analysis["details"].get("skills", job_data["skills_required"])
+                                job_data["modalidad"] = analysis["details"].get("contract_type", job_data["modalidad"]) or job_data["modalidad"]
+                            except Exception as e:
+                                logger.warning(f"Error en procesamiento NLP para {job_data['url_original']}: {e}")
+                                job_data["skills_required"] = []
+
+                    finally:
+                        await page.close()
+                        del page
+
+                finally:
+                    await context.close()
+                    await browser.close()
+                    del context
+                    del browser
+
         except Exception as e:
-            logger.error(f"Error con aiohttp para {job_data['url_original']}: {e}")
+            logger.error(f"Error con Playwright para {job_data['url_original']}: {e}")
+
         return job_data
 
     async def save_or_update_vacante(self, job_data: Dict, business_unit: BusinessUnit) -> bool:
@@ -732,8 +777,8 @@ if __name__ == "__main__":
 
     async def process_all_emails():
         scraper = EmailScraperV2(EMAIL_ACCOUNT, EMAIL_PASSWORD)
-        batch_size = 10
-        pause_minutes = 5
+        batch_size = 3
+        pause_minutes = 2
 
         while True:
             if not await scraper.connect():

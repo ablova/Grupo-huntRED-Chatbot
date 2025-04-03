@@ -352,7 +352,8 @@ class RegistroScraping(models.Model):
 
 class Vacante(models.Model):
     titulo = models.CharField(max_length=300)
-    empresa = models.CharField(max_length=200)
+    empresa = models.ForeignKey(Worker, on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)  # Relación con BusinessUnit
     salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     ubicacion = models.CharField(max_length=300, blank=True, null=True)
     descripcion = models.TextField(blank=True, null=True)
@@ -370,9 +371,7 @@ class Vacante(models.Model):
     fecha_publicacion = models.DateTimeField(null=True, blank=True)
     fecha_scraping = models.DateTimeField(auto_now_add=True)
     activa = models.BooleanField(default=True)
-    business_unit = models.ForeignKey(
-        BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True
-    )  # Relación con BusinessUnit
+    
     current_stage = models.ForeignKey(
         WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
     sentiment = models.CharField(max_length=20, blank=True, null=True)
