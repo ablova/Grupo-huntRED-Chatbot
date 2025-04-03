@@ -153,6 +153,13 @@ class DominioScrapingAdmin(admin.ModelAdmin):
             ejecutar_scraping.delay(dominio.id)
         self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
     
+    @admin.action(description="Ejecutar Email Scraping en JOBS para dominios seleccionados")
+    def ejecutar_email_scraper_action(self, request, queryset):
+        from app.tasks import execute_email_scraper
+        for dominio in queryset:
+            execute_email_scraper.delay(dominio.id)
+        self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
+    
     @admin.action(description="Marcar seleccionados como 'definidos'")
     def marcar_como_definido(self, request, queryset):
         queryset.update(estado="definido")
@@ -165,19 +172,72 @@ class DominioScrapingAdmin(admin.ModelAdmin):
 
 @admin.register(Vacante)
 class VacanteAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion')
+    list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'business_unit', 'fecha_publicacion')
     search_fields = ('titulo', 'empresa', 'ubicacion')
     list_filter = ('activa', 'modalidad', 'dominio_origen')
     actions = ['toggle_activa_status']
 
     fieldsets = (
         (None, {
-            'fields': ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion')
+            'fields': ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion', 'business_unit')
         }),
         ('Detalles Adicionales', {
-            'fields': ('descripcion', 'requisitos', 'salario')
+            'fields': ('descripcion', 'requisitos', 'salario', 'worker')
         }),
     )
+
+    # Para mostrar opciones de BusinessUnit y Worker existentes
+    autocomplete_fields = ['business_unit', 'worker']
+
+    def save_model(self, request, obj, form, change):
+        """
+        Sobrescribimos el método save_model para generar una descripción automáticamente
+        si no existe una descripción para la vacante usando GPTHandler.
+        """
+        from app.chatbot.gpt import GPTHandler  # Importamos el GPTHandler desde tu archivo
+        if not obj.descripcion:
+            # Generar descripción usando GPTHandler solo cuando sea necesario
+            prompt = (
+                f"Genera una descripción profesional para un puesto de trabajo con el título '{obj.titulo}' "
+                f"en la empresa '{obj.empresa}' ubicado en '{obj.ubicacion}' con modalidad '{obj.modalidad}'."
+            )
+            try:
+                # Instanciamos e inicializamos el GPTHandler solo aquí
+                gpt_handler = GPTHandler()
+                # Como initialize es asíncrono, usamos asyncio.run para ejecutarlo en un contexto síncrono
+                import asyncio
+                asyncio.run(gpt_handler.initialize())
+                # Usamos el método síncrono para obtener la descripción
+                description = gpt_handler.generate_response_sync(prompt, business_unit=obj.business_unit)
+                obj.descripcion = description
+            except Exception as e:
+                # En caso de error, asignamos un mensaje por defecto
+                obj.descripcion = "No se pudo generar la descripción automáticamente."
+                print(f"Error al generar descripción con GPT: {e}")
+
+        super().save_model(request, obj, form, change)
+
+    def toggle_activa_status(self, request, queryset):
+        """
+        Acción para alternar el estado activa/inactiva de las vacantes seleccionadas.
+        """
+        for vacante in queryset:
+            vacante.activa = not vacante.activa
+            vacante.save()
+        self.message_user(request, "El estado de las vacantes seleccionadas ha sido actualizado.")
+
+    toggle_activa_status.short_description = "Cambiar estado activa/inactiva"
+
+# Registramos BusinessUnit y Worker para que sean buscables en el admin
+@admin.register(BusinessUnit)
+class BusinessUnitAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description')
+    search_fields = ('name',)
+
+@admin.register(Worker)
+class WorkerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'company', 'job_id')
+    search_fields = ('name', 'company', 'job_id')
 
 @admin.register(RegistroScraping)
 class RegistroScrapingAdmin(admin.ModelAdmin):

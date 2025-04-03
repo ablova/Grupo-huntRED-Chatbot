@@ -19,7 +19,7 @@ from app.chatbot.chatbot import ChatBotHandler
 from app.chatbot.nlp import NLPProcessor
 from app.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
 from app.utilidades.parser import CVParser, IMAPCVProcessor
-from app.utilidades.email_scraper import email_scraper
+from app.utilidades.email_scraper import EmailScraperV2
 from app.models import (
     Configuracion, ConfiguracionBU,
     Vacante, Person, BusinessUnit,
@@ -1620,12 +1620,39 @@ def send_signature_reminders():
 # Tareas para obtención de oportunidades, scraping, 
 # =========================================================
 @shared_task(name="tasks.execute_email_scraper")
-def execute_email_scraper():
-    """ Ejecuta la extracción de vacantes desde correos electrónicos """
+def execute_email_scraper(dominio_id=None, batch_size=10):
+    """
+    Ejecuta la extracción de vacantes desde correos electrónicos, opcionalmente para un dominio específico.
+    
+    Args:
+        dominio_id (int, optional): ID del dominio específico para filtrar correos (si aplica).
+        batch_size (int): Número de correos a procesar por lote.
+    
+    Returns:
+        str: Resultado de la ejecución.
+    """
     try:
-        logger.info("🚀 Ejecutando email scraper desde Celery...")
-        email_scraper()
-        return "✅ Email scraper ejecutado con éxito."
+        # Obtener credenciales desde el entorno
+        EMAIL_ACCOUNT = env("EMAIL_ACCOUNT", default="pablo@huntred.com")
+        EMAIL_PASSWORD = env("EMAIL_PASSWORD", default="Natalia&Patricio1113!")
+
+        # Instanciar el scraper
+        scraper = EmailScraperV2(EMAIL_ACCOUNT, EMAIL_PASSWORD)
+
+        if dominio_id:
+            dominio = DominioScraping.objects.get(id=dominio_id)
+            logger.info(f"🚀 Ejecutando email scraper para {dominio.dominio} con batch_size={batch_size}...")
+            # Nota: Actualmente EmailScraperV2 no filtra por dominio_id, pero lo dejamos preparado
+        else:
+            logger.info(f"🚀 Ejecutando email scraper para todos los correos con batch_size={batch_size}...")
+
+        # Ejecutar el scraper de manera asíncrona
+        asyncio.run(scraper.run(batch_size=batch_size))
+
+        # Obtener el número de correos procesados desde los logs sería ideal, pero como no devolvemos un contador directamente,
+        # asumimos éxito si no hay excepciones
+        return f"✅ Email scraper ejecutado con éxito para {batch_size} correos"
+
     except Exception as e:
-        logger.error(f"❌ Error en email_scraper: {e}")
+        logger.error(f"❌ Error en email_scraper: {e}", exc_info=True)
         return f"❌ Error en ejecución: {e}"

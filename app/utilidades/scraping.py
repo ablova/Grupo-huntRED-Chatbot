@@ -16,7 +16,7 @@ from django.db import transaction
 from django.utils.timezone import now
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
-from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, Worker, USER_AGENTS
+from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, Worker, USER_AGENTS, WeightingModel
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from app.chatbot.utils import clean_text
 from app.utilidades.loader import DIVISION_SKILLS
@@ -26,6 +26,45 @@ from prometheus_client import Counter, Histogram, start_http_server
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# Constantes para assign_business_unit
+BUSINESS_UNITS_KEYWORDS = {
+    'huntRED®': {
+        'manager': 2, 'director': 3, 'leadership': 2, 'senior manager': 4, 'operations manager': 3,
+        'project manager': 3, 'head of': 4, 'gerente': 2, 'director de': 3, 'jefe de': 4, 'subdirector':3
+    },
+    'huntRED® Executive': {
+        'strategic': 3, 'board': 4, 'global': 3, 'vp': 4, 'president': 4, 'cfo': 5, 'ceo': 5, 'coo': 5, 'consejero':4,
+        'executive': 4, 'cto': 5, 'chief': 4, 'executive director': 5, 'senior vp': 5, 'vice president': 4,
+        'estrategico': 3, 'global': 3, 'presidente': 4, 'chief':4
+    },
+    'huntu': {
+        'trainee': 3, 'junior': 3, 'entry-level': 4, 'intern': 3, 'graduate': 3, 'developer': 2, 'engineer': 2,
+        'senior developer': 3, 'lead developer': 3, 'software engineer': 2, 'data analyst': 2, 'it specialist': 2,
+        'technical lead': 3, 'architect': 3, 'analyst': 2, 'specialist': 2, 'consultant': 2, 'programador': 2,
+        'ingeniero': 2, 'analista': 2, 'recié egresado': 2, 'practicante': 2, 'pasante': 2, 'becario': 2, 'líder': 2, 'coordinardor': 2, 
+    },
+    'amigro': {
+        'migration': 4, 'bilingual': 3, 'visa sponsorship': 4, 'temporary job': 3, 'worker': 2, 'operator': 2,
+        'constructor': 2, 'laborer': 2, 'assistant': 2, 'technician': 2, 'support': 2, 'seasonal': 2,
+        'entry-level': 2, 'no experience': 3, 'trabajador': 2, 'operador': 2, 'asistente': 2, 'migración': 4, 'ejecutivo': 2, 'auxiliar': 3, 'soporte': 3, 
+    }
+}
+
+SENIORITY_KEYWORDS = {
+    'junior': 1, 'entry-level': 1, 'mid-level': 2, 'senior': 3, 'lead': 3,
+    'manager': 4, 'director': 5, 'vp': 5, 'executive': 5, 'chief': 5, 'jefe': 4
+}
+
+INDUSTRY_KEYWORDS = {
+    'tech': {'developer', 'engineer', 'software', 'data', 'it', 'architect', 'programador', 'ingeniero'},
+    'management': {'manager', 'director', 'executive', 'leadership', 'gerente', 'jefe'},
+    'operations': {'operator', 'worker', 'constructor', 'technician', 'trabajador', 'operador'},
+    'strategy': {'strategic', 'global', 'board', 'president', 'estrategico'}
+}
+
+
 
 # Estructura de Datos
 @dataclass
@@ -126,44 +165,206 @@ def validate_job_data(job: JobListing) -> Optional[Dict]:
         "business_unit": assign_business_unit({"title": job.title, "description": job.description, "skills": job.skills, "location": job.location})
     }
 
-async def assign_business_unit(job: Dict) -> str:
-    from app.models import WeightingModel, BusinessUnit
-    title_lower = job["title"].lower()
-    desc_lower = job.get("description", "").lower()
-    skills = job.get("skills", [])
-    location = job.get("location", "").lower()
-    
+async def assign_business_unit(job_title, job_description=None, salary_range=None, required_experience=None, location=None):
+    """Determina la unidad de negocio para una vacante con pesos dinámicos."""
+    job_title_lower = job_title.lower()
+    job_desc_lower = job_description.lower() if job_description else ""
+    location_lower = location.lower() if location else ""
+
+    # Fetch all business units and their weights
     bu_candidates = await sync_to_async(list)(BusinessUnit.objects.all())
-    scores = {}
-    
+    scores = {bu.name: 0 for bu in bu_candidates}
+
+    # Seniority scoring
+    seniority_score = 0
+    for keyword, score in SENIORITY_KEYWORDS.items():
+        if keyword in job_title_lower:
+            seniority_score = max(seniority_score, score)
+
+    # Industry scoring
+    industry_scores = {ind: 0 for ind in INDUSTRY_KEYWORDS}
+    for ind, keywords in INDUSTRY_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword in job_title_lower or keyword in job_desc_lower:
+                industry_scores[ind] += 1
+    dominant_industry = max(industry_scores, key=industry_scores.get) if max(industry_scores.values()) > 0 else None
+
+    # Dynamic scoring with weights
     for bu in bu_candidates:
         weighting = WeightingModel(bu)
-        weights = weighting.get_weights("operativo")
-        score = 0
-        
-        keywords = {
-            "huntRED": {"subdirector", "director", "vp", "ceo", "presidente", "board", "consejero", "estratégico", "executive", "alta dirección", "gerente", "chief"},
-            "huntu": {"trainee", "junior", "recién egresado", "entry level", "practicante", "pasante", "becario", "líder", "coordinador", "analista", "senior", "lead"},
-            "amigro": {"migrante", "trabajador internacional", "operativo", "cajero", "auxiliar", "soporte", "campos agrícolas", "construcción", "servicio", "operador"},
-        }.get(bu.name, set())
-        if any(keyword in title_lower for keyword in keywords):
-            score += weights["hard_skills"] * 0.5
-        
-        if skills:
-            skill_overlap = len(set(skills) & set(DIVISION_SKILLS.get(bu.name, {}).get("skills", [])))
-            score += weights["hard_skills"] * (skill_overlap / max(len(skills), 1))
-        
-        if "remote" in location or "remoto" in desc_lower:
-            score += weights["ubicacion"] * 0.8
-        if "mexico" in location or "usa" in location:
-            score += weights["ubicacion"] * 0.5
-        
-        if "leadership" in desc_lower or "liderazgo" in desc_lower:
-            score += weights["soft_skills"] * 0.3
-        
-        scores[bu.name] = score
-    
-    return max(scores, key=scores.get, default="amigro")
+        weights = weighting.get_weights("operativo")  # Adjust level dynamically if needed
+
+        # Keyword scoring with weights
+        for keyword, weight in BUSINESS_UNITS_KEYWORDS.get(bu.name, {}).items():
+            if keyword in job_title_lower or (job_description and keyword in job_desc_lower):
+                scores[bu.name] += weight * weights["hard_skills"]
+
+        # Seniority adjustments
+        if seniority_score >= 5:  # Roles muy senior (ejecutivos)
+            if bu.name == 'huntRED® Executive':
+                scores[bu.name] += 4 * weights["personalidad"]
+            elif bu.name == 'huntRED®':
+                scores[bu.name] += 2 * weights["soft_skills"]
+        elif seniority_score >= 3:  # Roles de nivel medio a senior (gestión)
+            if bu.name == 'huntRED®':
+                scores[bu.name] += 3 * weights["soft_skills"]
+            elif bu.name == 'huntu':
+                scores[bu.name] += 1 * weights["hard_skills"]
+        elif seniority_score >= 1:  # Roles junior a intermedios (técnicos)
+            if bu.name == 'huntu':
+                scores[bu.name] += 2 * weights["hard_skills"]
+            elif bu.name == 'amigro':
+                scores[bu.name] += 1 * weights["ubicacion"]
+        else:  # Roles de nivel inicial o operativos
+            if bu.name == 'amigro':
+                scores[bu.name] += 3 * weights["ubicacion"]
+
+        # Industry adjustments
+        if dominant_industry:
+            if dominant_industry == 'tech':
+                if bu.name == 'huntu':
+                    scores[bu.name] += 3 * weights["hard_skills"] * industry_scores['tech']
+                elif bu.name == 'huntRED®':  # Para roles de gestión técnica
+                    scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['tech']
+            elif dominant_industry == 'management':
+                if bu.name == 'huntRED®':
+                    scores[bu.name] += 3 * weights["soft_skills"] * industry_scores['management']
+                elif bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 2 * weights["personalidad"] * industry_scores['management']
+            elif dominant_industry == 'operations':
+                if bu.name == 'amigro':
+                    scores[bu.name] += 3 * weights["ubicacion"] * industry_scores['operations']
+            elif dominant_industry == 'strategy':
+                if bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 3 * weights["personalidad"] * industry_scores['strategy']
+                elif bu.name == 'huntRED®':
+                    scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['strategy']
+
+        # Description-based adjustments
+        if job_description:
+            if any(term in job_desc_lower for term in ['migration', 'visa', 'bilingual', 'temporary', 'migración']):
+                if bu.name == 'amigro':
+                    scores[bu.name] += 4 * weights["ubicacion"]
+            if any(term in job_desc_lower for term in ['strategic', 'global', 'executive', 'board', 'estrategico']):
+                if bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 3 * weights["personalidad"]
+            if any(term in job_desc_lower for term in ['development', 'coding', 'software', 'data', 'programación']):
+                if bu.name == 'huntu':
+                    scores[bu.name] += 3 * weights["hard_skills"]
+            if any(term in job_desc_lower for term in ['operations', 'management', 'leadership', 'gerencia']):
+                if bu.name == 'huntRED®':
+                    scores[bu.name] += 3 * weights["soft_skills"]
+
+        # Salary range adjustments
+        if salary_range:
+            try:
+                if isinstance(salary_range, str):
+                    salary_range = salary_range.replace(',', '').replace('$', '').replace('k', '000')
+                    if '-' in salary_range:
+                        min_salary, max_salary = map(float, salary_range.split('-'))
+                    elif salary_range.isdigit():
+                        min_salary = max_salary = float(salary_range)
+                    else:
+                        min_salary = max_salary = 0
+                else:
+                    min_salary, max_salary = salary_range
+                avg_salary = (min_salary + max_salary) / 2
+                if avg_salary > 160000:
+                    if bu.name == 'huntRED® Executive':
+                        scores[bu.name] += 4 * weights["personalidad"]
+                    elif bu.name == 'huntRED®':
+                        scores[bu.name] += 2 * weights["soft_skills"]
+                elif avg_salary > 70000:
+                    if bu.name == 'huntRED®':
+                        scores[bu.name] += 3 * weights["soft_skills"]
+                    elif bu.name == 'huntu':
+                        scores[bu.name] += 2 * weights["hard_skills"]
+                elif avg_salary > 30000:
+                    if bu.name == 'huntu':
+                        scores[bu.name] += 2 * weights["hard_skills"]
+                    elif bu.name == 'amigro':
+                        scores[bu.name] += 1 * weights["ubicacion"]
+                else:
+                    if bu.name == 'amigro':
+                        scores[bu.name] += 3 * weights["ubicacion"]
+            except (ValueError, TypeError):
+                logger.warning(f"⚠️ No se pudo parsear rango salarial: {salary_range}")
+
+        # Experience adjustments
+        if required_experience is not None:
+            try:
+                exp_years = float(required_experience) if isinstance(required_experience, (int, str)) else 0
+                if exp_years >= 12:
+                    if bu.name == 'huntRED® Executive':
+                        scores[bu.name] += 3 * weights["personalidad"]
+                    elif bu.name == 'huntRED®':
+                        scores[bu.name] += 2 * weights["soft_skills"]
+                elif exp_years >= 7:
+                    if bu.name == 'huntRED®':
+                        scores[bu.name] += 3 * weights["soft_skills"]
+                    elif bu.name == 'huntu':
+                        scores[bu.name] += 2 * weights["hard_skills"]
+                elif exp_years >= 3:
+                    if bu.name == 'huntu':
+                        scores[bu.name] += 2 * weights["hard_skills"]
+                else:
+                    if bu.name == 'amigro':
+                        scores[bu.name] += 2 * weights["ubicacion"]
+                    elif bu.name == 'huntu':
+                        scores[bu.name] += 1 * weights["hard_skills"]
+            except ValueError:
+                logger.warning(f"⚠️ No se pudo parsear experiencia requerida: {required_experience}")
+
+        # Location adjustments
+        if location:
+            if any(term in location_lower for term in ['usa', 'europe', 'asia', 'mexico', 'latam', 'frontera', 'migración']):
+                if bu.name == 'amigro':
+                    scores[bu.name] += 3 * weights["ubicacion"]
+            if any(term in location_lower for term in ['silicon valley', 'new york', 'london']):
+                if bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 2 * weights["personalidad"]
+                elif bu.name == 'huntu':
+                    scores[bu.name] += 1 * weights["hard_skills"]
+
+    # Selección de la unidad de negocio
+    max_score = max(scores.values())
+    candidates = [bu for bu, score in scores.items() if score == max_score]
+    priority_order = ['huntRED® Executive', 'huntRED®', 'huntu', 'amigro']
+
+    if candidates:
+        if len(candidates) > 1 and dominant_industry:
+            if dominant_industry == 'strategy' and 'huntRED® Executive' in candidates:
+                chosen_bu = 'huntRED® Executive'
+            elif dominant_industry == 'management' and 'huntRED®' in candidates:
+                chosen_bu = 'huntRED®'
+            elif dominant_industry == 'tech' and 'huntu' in candidates:
+                chosen_bu = 'huntu'
+            elif dominant_industry == 'operations' and 'amigro' in candidates:
+                chosen_bu = 'amigro'
+            else:
+                for bu in priority_order:
+                    if bu in candidates:
+                        chosen_bu = bu
+                        break
+        else:
+            chosen_bu = candidates[0]
+    else:
+        chosen_bu = 'huntRED®'  # Default fallback
+
+    try:
+        bu_obj = await sync_to_async(BusinessUnit.objects.get)(name=chosen_bu)
+        logger.info(f"✅ Unidad de negocio asignada: {chosen_bu} (ID: {bu_obj.id}) para '{job_title}'")
+        return bu_obj.id
+    except BusinessUnit.DoesNotExist:
+        logger.warning(f"⚠️ Unidad de negocio '{chosen_bu}' no encontrada, usando huntRED® por defecto")
+        try:
+            default_bu = await sync_to_async(BusinessUnit.objects.get)(id=1)
+            logger.info(f"🔧 Asignada huntRED® por defecto (ID: {default_bu.id}) para '{job_title}'")
+            return default_bu.id
+        except BusinessUnit.DoesNotExist:
+            logger.error(f"❌ Unidad de negocio por defecto 'huntRED®' no encontrada en BD")
+            return None
+
 
 @transaction.atomic
 async def save_vacantes(jobs: List[Dict], dominio: DominioScraping):

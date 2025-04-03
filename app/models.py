@@ -8,6 +8,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from urllib.parse import urlparse
+from asgiref.sync import sync_to_async
 
 import requests
 import logging
@@ -292,7 +293,7 @@ class WeightingModel:
         Carga los pesos dinámicos desde la configuración de la unidad de negocio.
         """
         try:
-            config = ConfiguracionBU.objects.get(business_unit=self.business_unit)
+            config=ConfiguracionBU.objects.get(business_unit=self.business_unit)
             return {
                 "ubicacion": config.weight_location or 10,
                 "hard_skills": config.weight_hard_skills or 45,
