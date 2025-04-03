@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.models import Vacante, BusinessUnit, DominioScraping, Worker, ConfiguracionBU, USER_AGENTS
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 import aiohttp
 import environ
 from urllib.parse import urlparse, urljoin
@@ -287,26 +287,25 @@ class EmailScraperV2:
             "Upgrade-Insecure-Requests": "1"
         }
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-            )
-            context = await browser.new_context(
-                extra_http_headers=headers,
-                viewport={'width': 1920, 'height': 1080}
-            )
-            
-            try:
+        # Intentar con Playwright primero
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+                    timeout=300000  # 300 segundos para lanzar el navegador
+                )
+                context = await browser.new_context(
+                    extra_http_headers=headers,
+                    viewport={'width': 1920, 'height': 1080}
+                )
                 if cookies:
                     await context.add_cookies([{**cookie, "domain": urlparse(job_data["url_original"]).netloc} for cookie in cookies])
                 page = await context.new_page()
-                
                 try:
                     await page.goto(job_data["url_original"], wait_until="networkidle", timeout=60000)
                     await page.wait_for_load_state("domcontentloaded", timeout=30000)
-                    
-                    # Intentar diferentes selectores para la descripción
+
                     selectors = [
                         "div[data-automation-id='jobPostingDescription']",
                         "div.job-description",
@@ -321,19 +320,16 @@ class EmailScraperV2:
                     for selector in selectors:
                         desc = await page.query_selector(selector)
                         if desc:
+                            job_data["descripcion"] = await desc.inner_text()
                             break
                     
-                    if desc:
-                        job_data["descripcion"] = await desc.inner_text()
-                    else:
-                        # Si no se encuentra con selectores, intentar obtener todo el contenido
+                    if not job_data["descripcion"]:
                         content = await page.content()
                         soup = BeautifulSoup(content, "html.parser")
                         job_data["descripcion"] = soup.get_text(strip=True)
 
                     logger.debug(f"Descripción extraída para {job_data['titulo']}: {job_data['descripcion'][:100]}...")
 
-                    # Detectar modalidad
                     text = job_data["descripcion"].lower()
                     if "remoto" in text or "remote" in text or "teletrabajo" in text:
                         job_data["modalidad"] = "remoto"
@@ -342,7 +338,6 @@ class EmailScraperV2:
                     elif "presencial" in text or "on-site" in text or "oficina" in text:
                         job_data["modalidad"] = "presencial"
 
-                    # Detectar requisitos y beneficios
                     req_selectors = ["div.requirements", "ul.qualifications", "div[class*='requirements']", "div[class*='qualifications']"]
                     ben_selectors = ["div.benefits", "section.perks", "div[class*='benefits']", "div[class*='perks']"]
                     
@@ -362,27 +357,67 @@ class EmailScraperV2:
                         analysis = NLP_PROCESSOR.analyze_opportunity(job_data["descripcion"])
                         job_data["skills_required"] = analysis["details"].get("skills", job_data["skills_required"])
                         job_data["modalidad"] = analysis["details"].get("contract_type", job_data["modalidad"]) or job_data["modalidad"]
-                    else:
-                        logger.debug("NLP no disponible o descripción vacía")
 
+                except PlaywrightTimeoutError as e:
+                    logger.warning(f"Timeout en Playwright para {job_data['url_original']}: {e}, intentando con aiohttp...")
+                    await page.close()
+                    await browser.close()
+                    return await self._enrich_with_aiohttp(job_data, headers, cookies)
                 except Exception as e:
-                    logger.warning(f"Error al enriquecer {job_data['url_original']}: {e}")
+                    logger.warning(f"Error en Playwright para {job_data['url_original']}: {e}, intentando con aiohttp...")
+                    await page.close()
+                    await browser.close()
+                    return await self._enrich_with_aiohttp(job_data, headers, cookies)
                 finally:
                     await page.close()
-                    del page
+                    await browser.close()
 
-            finally:
-                await context.close()
-                await browser.close()
-                del context
-                del browser
+        except Exception as e:
+            logger.warning(f"Fallo total en Playwright para {job_data['url_original']}: {e}, usando aiohttp como respaldo...")
+            return await self._enrich_with_aiohttp(job_data, headers, cookies)
 
         if dominio:
             job_data["empresa"] = dominio.company_name or "Santander"
             job_data["dominio_origen"] = dominio
         else:
             job_data["empresa"] = "Santander"
-            
+        return job_data
+
+    async def _enrich_with_aiohttp(self, job_data: Dict, headers: Dict, cookies: List[Dict]) -> Dict:
+        """Método de respaldo usando aiohttp si Playwright falla."""
+        try:
+            async with aiohttp.ClientSession(cookies=cookies, headers=headers) as session:
+                async with session.get(job_data["url_original"], timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        html = await response.text()
+                        soup = BeautifulSoup(html, "html.parser")
+                        desc = soup.select_one("div[data-automation-id='jobPostingDescription']") or \
+                               soup.select_one("div.job-description") or \
+                               soup.select_one("section#content")
+                        job_data["descripcion"] = desc.get_text(strip=True) if desc else soup.get_text(strip=True)
+                        logger.debug(f"Descripción extraída con aiohttp para {job_data['titulo']}: {job_data['descripcion'][:100]}...")
+
+                        text = job_data["descripcion"].lower()
+                        if "remoto" in text or "remote" in text or "teletrabajo" in text:
+                            job_data["modalidad"] = "remoto"
+                        elif "híbrido" in text or "hybrid" in text or "hibrido" in text:
+                            job_data["modalidad"] = "hibrido"
+                        elif "presencial" in text or "on-site" in text or "oficina" in text:
+                            job_data["modalidad"] = "presencial"
+
+                        req = soup.select_one("div.requirements") or soup.select_one("ul.qualifications")
+                        job_data["requisitos"] = req.get_text(strip=True) if req else ""
+                        ben = soup.select_one("div.benefits") or soup.select_one("section.perks")
+                        job_data["beneficios"] = ben.get_text(strip=True) if ben else ""
+
+                        if NLP_PROCESSOR and job_data["descripcion"]:
+                            analysis = NLP_PROCESSOR.analyze_opportunity(job_data["descripcion"])
+                            job_data["skills_required"] = analysis["details"].get("skills", job_data["skills_required"])
+                            job_data["modalidad"] = analysis["details"].get("contract_type", job_data["modalidad"]) or job_data["modalidad"]
+                    else:
+                        logger.warning(f"Error HTTP {response.status} al enriquecer {job_data['url_original']}")
+        except Exception as e:
+            logger.error(f"Error con aiohttp para {job_data['url_original']}: {e}")
         return job_data
 
     async def save_or_update_vacante(self, job_data: Dict, business_unit: BusinessUnit) -> bool:
