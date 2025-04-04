@@ -461,12 +461,14 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
     location_lower = location.lower() if location else ""
 
     bu_candidates = await sync_to_async(list)(BusinessUnit.objects.all())
+    logger.debug(f"Unidades de negocio disponibles: {[bu.name for bu in bu_candidates]}")
     scores = {bu.name: 0 for bu in bu_candidates}
 
     seniority_score = 0
     for keyword, score in SENIORITY_KEYWORDS.items():
         if keyword in job_title_lower:
             seniority_score = max(seniority_score, score)
+    logger.debug(f"Puntuación de seniority: {seniority_score}")
 
     industry_scores = {ind: 0 for ind in INDUSTRY_KEYWORDS}
     for ind, keywords in INDUSTRY_KEYWORDS.items():
@@ -474,6 +476,7 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
             if keyword in job_title_lower or keyword in job_desc_lower:
                 industry_scores[ind] += 1
     dominant_industry = max(industry_scores, key=industry_scores.get) if max(industry_scores.values()) > 0 else None
+    logger.debug(f"Industria dominante: {dominant_industry}, puntajes: {industry_scores}")
 
     for bu in bu_candidates:
         try:
@@ -493,6 +496,7 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
                 "tipo_contrato": 5,
                 "personalidad": 10,
             }
+        logger.debug(f"Pesos para {bu.name}: {weights}")
 
         if seniority_score >= 5:
             weights["soft_skills"] = 45
@@ -515,12 +519,12 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
                 scores[bu.name] += weight * weights["hard_skills"]
 
         if seniority_score >= 5:
-            if bu.name == 'huntRED® Executive':
+            if bu.name == 'huntRED Executive':
                 scores[bu.name] += 4 * weights["personalidad"]
-            elif bu.name == 'huntRED®':
+            elif bu.name == 'huntRED':
                 scores[bu.name] += 2 * weights["soft_skills"]
         elif seniority_score >= 3:
-            if bu.name == 'huntRED®':
+            if bu.name == 'huntRED':
                 scores[bu.name] += 3 * weights["soft_skills"]
             elif bu.name == 'huntu':
                 scores[bu.name] += 1 * weights["hard_skills"]
@@ -537,12 +541,12 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
             if dominant_industry == 'tech':
                 if bu.name == 'huntu':
                     scores[bu.name] += 3 * weights["hard_skills"] * industry_scores['tech']
-                elif bu.name == 'huntRED®':
+                elif bu.name == 'huntRED':
                     scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['tech']
             elif dominant_industry == 'management':
-                if bu.name == 'huntRED®':
+                if bu.name == 'huntRED':
                     scores[bu.name] += 3 * weights["soft_skills"] * industry_scores['management']
-                elif bu.name == 'huntRED® Executive':
+                elif bu.name == 'huntRED Executive':
                     scores[bu.name] += 2 * weights["personalidad"] * industry_scores['management']
             elif dominant_industry == 'operations':
                 if bu.name == 'amigro':
@@ -550,7 +554,7 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
             elif dominant_industry == 'strategy':
                 if bu.name == 'huntRED® Executive':
                     scores[bu.name] += 3 * weights["personalidad"] * industry_scores['strategy']
-                elif bu.name == 'huntRED®':
+                elif bu.name == 'huntRED':
                     scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['strategy']
 
         if job_description:
@@ -558,13 +562,13 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
                 if bu.name == 'amigro':
                     scores[bu.name] += 4 * weights["ubicacion"]
             if any(term in job_desc_lower for term in ['strategic', 'global', 'executive', 'board', 'estrategico']):
-                if bu.name == 'huntRED® Executive':
+                if bu.name == 'huntRED Executive':
                     scores[bu.name] += 3 * weights["personalidad"]
             if any(term in job_desc_lower for term in ['development', 'coding', 'software', 'data', 'programación']):
                 if bu.name == 'huntu':
                     scores[bu.name] += 3 * weights["hard_skills"]
             if any(term in job_desc_lower for term in ['operations', 'management', 'leadership', 'gerencia']):
-                if bu.name == 'huntRED®':
+                if bu.name == 'huntRED':
                     scores[bu.name] += 3 * weights["soft_skills"]
 
         if location:
@@ -579,7 +583,8 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
 
     max_score = max(scores.values())
     candidates = [bu for bu, score in scores.items() if score == max_score]
-    priority_order = ['huntRED® Executive', 'huntRED®', 'huntu', 'amigro']
+    logger.debug(f"Puntuaciones finales: {scores}, candidatos: {candidates}")
+    priority_order = ['huntRED Executive', 'huntRED', 'huntu', 'amigro']
 
     if candidates:
         if len(candidates) > 1 and dominant_industry:
@@ -599,7 +604,7 @@ async def assign_business_unit_async(job_title: str, job_description: str = None
         else:
             chosen_bu = candidates[0]
     else:
-        chosen_bu = 'huntRED®'
+        chosen_bu = 'huntRED'
 
     try:
         bu_obj = await sync_to_async(BusinessUnit.objects.get)(name=chosen_bu)

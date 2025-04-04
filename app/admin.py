@@ -179,10 +179,10 @@ class VacanteAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion', 'business_unit')
+            'fields': ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion', 'business_unit', 'url_original')
         }),
         ('Detalles Adicionales', {
-            'fields': ('descripcion', 'requisitos', 'url_original', 'skills_required', 'salario')
+            'fields': ('descripcion', 'requisitos', 'skills_required', 'salario')
         }),
     )
     readonly_fields = ('fecha_scraping',)  # Display as read-only
