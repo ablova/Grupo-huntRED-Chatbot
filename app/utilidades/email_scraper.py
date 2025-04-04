@@ -15,7 +15,6 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.models import Vacante, BusinessUnit, DominioScraping, Worker, ConfiguracionBU, USER_AGENTS
-from app.chatbot.utils import assign_business_unit_async
 from playwright.async_api import async_playwright
 import aiohttp
 import environ
@@ -235,6 +234,7 @@ class EmailScraperV2:
             job_data["titulo"] = job_data["titulo"][:500]
 
             # Asignar la unidad de negocio usando assign_business_unit_async
+            from app.chatbot.utils import assign_business_unit_async
             business_unit_id = await assign_business_unit_async(
                 job_title=job_data["titulo"],
                 job_description=job_data.get("descripcion", ""),
