@@ -222,9 +222,10 @@ class EmailScraperV2:
         )
         return formatted_title[:300]  # Truncar a 300 caracteres
 
-    async def save_or_update_vacante(self, job_data: Dict) -> bool:
-        """Guarda o actualiza una vacante, asignando la unidad de negocio correcta."""
+    async def save_or_update_vacante(self, job_data: Dict, business_unit: BusinessUnit) -> bool:
+        """Guarda o actualiza una vacante, evitando duplicados por url_original o título+empresa."""
         try:
+            # Obtener o crear la empresa (Worker)
             worker_tuple = await sync_to_async(Worker.objects.get_or_create)(
                 name=job_data["empresa"].name, defaults={"company": job_data["empresa"].name}
             )
@@ -233,23 +234,38 @@ class EmailScraperV2:
             # Truncar el título a 500 caracteres
             job_data["titulo"] = job_data["titulo"][:500]
 
-            # Asignar la unidad de negocio usando assign_business_unit_async
+            # Normalizar el título para comparación
+            def normalize_title(title: str) -> str:
+                title = title.lower().strip()
+                # Eliminar caracteres especiales y espacios extra
+                title = re.sub(r"[^a-z0-9áéíóúñü ]", "", title)
+                title = re.sub(r"\s+", " ", title)
+                return title
+
+            normalized_title = normalize_title(job_data["titulo"])
+
+            # Asignar la unidad de negocio
             from app.chatbot.utils import assign_business_unit_async
             business_unit_id = await assign_business_unit_async(
                 job_title=job_data["titulo"],
                 job_description=job_data.get("descripcion", ""),
                 location=job_data.get("ubicacion", "")
             )
+            business_unit = await sync_to_async(BusinessUnit.objects.get)(
+                id=business_unit_id
+            ) if business_unit_id else await sync_to_async(BusinessUnit.objects.get)(name="huntRED®")
 
-            # Obtener la instancia de BusinessUnit usando el ID
-            if business_unit_id:
-                business_unit = await sync_to_async(BusinessUnit.objects.get)(id=business_unit_id)
-            else:
-                # Usar una unidad por defecto si no se encuentra (por ejemplo, 'huntRED®')
-                business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED®")
+            # Buscar vacante existente por url_original O por título normalizado + empresa
+            vacante = await sync_to_async(Vacante.objects.filter(
+                url_original=job_data["url_original"]
+            ).first)()
 
-            # Verificar si la vacante ya existe por url_original
-            vacante = await sync_to_async(Vacante.objects.filter(url_original=job_data["url_original"]).first)()
+            if not vacante:
+                # Si no se encuentra por URL, buscar por título normalizado + empresa
+                vacante = await sync_to_async(Vacante.objects.filter(
+                    titulo__iexact=job_data["titulo"],  # Usamos el título original para coincidencia exacta en BD
+                    empresa=worker
+                ).first)()
 
             if vacante:
                 # Si existe, actualizarla si hay cambios
@@ -265,7 +281,7 @@ class EmailScraperV2:
                     if getattr(vacante, key) != value:
                         setattr(vacante, key, value)
                         updated = True
-                vacante.business_unit = business_unit  # Actualizar la unidad de negocio
+                vacante.business_unit = business_unit
                 if updated:
                     await sync_to_async(vacante.save)()
                     logger.info(f"Vacante actualizada: {vacante.titulo}, intentos: {vacante.procesamiento_count}")
@@ -285,10 +301,10 @@ class EmailScraperV2:
                     requisitos=job_data["requisitos"][:1000],
                     beneficios=job_data["beneficios"][:1000],
                     skills_required=job_data["skills_required"],
-                    business_unit=business_unit,  # Asignar la unidad de negocio
+                    business_unit=business_unit,
                     fecha_publicacion=job_data["fecha_publicacion"],
                     activa=True,
-                    procesamiento_count=1  # Primer intento
+                    procesamiento_count=1
                 )
                 await sync_to_async(vacante.save)()
                 logger.info(f"Vacante creada: {vacante.titulo}, intentos: {vacante.procesamiento_count}")
@@ -441,6 +457,57 @@ class EmailScraperV2:
         logger.error(f"All attempts failed for {job_data['url_original']}, returning partial data")
         return job_data
 
+    async def move_email(self, email_id: str, folder: str):
+        try:
+            if await self.ensure_connection():
+                await self.mail.copy(email_id, folder)
+                await self.mail.store(email_id, "+FLAGS", "\\Deleted")
+                await self.mail.expunge()
+                logger.debug(f"Email {email_id} moved to {folder} and deleted from INBOX.Jobs")
+        except Exception as e:
+            logger.error(f"Error moving email {email_id} to {folder}: {e}")
+
+
+    async def process_email_batch(self, batch_size: int = BATCH_SIZE_DEFAULT):
+        """Procesa un lote de correos con manejo robusto de errores."""
+        if not await self.ensure_connection():
+            return
+
+        try:
+            resp, data = await self.mail.search("ALL")
+            if resp != "OK" or not data:
+                logger.error("Failed to search emails")
+                return
+            email_ids = data[0].decode().split()[:batch_size]
+            default_bu = await sync_to_async(BusinessUnit.objects.first)()
+
+            if not default_bu:
+                logger.error("Default BusinessUnit not found")
+                return
+
+            for email_id in email_ids:
+                job_listings = await self.process_job_alert_email(email_id)
+                self.stats["correos_procesados"] += 1
+                if not job_listings:
+                    await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
+                    continue
+
+                # Procesar cada vacante individualmente para no fallar el lote entero
+                successes = 0
+                for job in job_listings:
+                    if await self.save_or_update_vacante(job, default_bu):
+                        successes += 1
+
+                if successes == len(job_listings):
+                    await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
+                    self.stats["correos_exitosos"] += 1
+                else:
+                    await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                    self.stats["correos_error"] += 1
+                    logger.warning(f"Email {email_id} had {len(job_listings) - successes} failures out of {len(job_listings)} vacancies")
+        except Exception as e:
+            logger.error(f"Error in process_email_batch: {e}")
+
     async def process_job_alert_email(self, email_id: str) -> List[Dict]:
         message = await self.fetch_email(email_id)
         if not message:
@@ -474,16 +541,6 @@ class EmailScraperV2:
 
         self.stats["processed_emails"].append({"email_id": email_id, "subject": subject, "domain": domain})
         return [job for job in enriched_jobs if job]
-
-    async def move_email(self, email_id: str, folder: str):
-        try:
-            if await self.ensure_connection():
-                await self.mail.copy(email_id, folder)
-                await self.mail.store(email_id, "+FLAGS", "\\Deleted")
-                await self.mail.expunge()
-                logger.debug(f"Email {email_id} moved to {folder} and deleted from INBOX.Jobs")
-        except Exception as e:
-            logger.error(f"Error moving email {email_id} to {folder}: {e}")
 
 
     async def process_email_batch(self, batch_size: int = BATCH_SIZE_DEFAULT):

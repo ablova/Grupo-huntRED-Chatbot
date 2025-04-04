@@ -182,10 +182,10 @@ class VacanteAdmin(admin.ModelAdmin):
             'fields': ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion', 'business_unit')
         }),
         ('Detalles Adicionales', {
-            'fields': ('descripcion', 'requisitos', 'skills_required', 'salario')
+            'fields': ('descripcion', 'requisitos', 'url_original', 'skills_required', 'salario')
         }),
     )
-    readonly_fields = ('url_original', 'fecha_scraping',)  # Display as read-only
+    readonly_fields = ('fecha_scraping',)  # Display as read-only
 
     autocomplete_fields = ['business_unit', 'empresa']
 
