@@ -400,6 +400,8 @@ class Vacante(models.Model):
     fecha_publicacion = models.DateTimeField(null=True, blank=True)
     fecha_scraping = models.DateTimeField(auto_now_add=True)
     activa = models.BooleanField(default=True)
+    required_count = models.IntegerField(default=1)
+    procesamiento_count = models.IntegerField(default=0)
     
     current_stage = models.ForeignKey(
         WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')

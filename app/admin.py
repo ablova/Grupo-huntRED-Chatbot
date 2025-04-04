@@ -175,16 +175,17 @@ class VacanteAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'business_unit', 'fecha_publicacion')
     search_fields = ('titulo', 'empresa', 'ubicacion')
     list_filter = ('activa', 'modalidad', 'dominio_origen', 'business_unit')
-    actions = ['toggle_activa_status', 'change_business_unit']  # Añadí nueva acción
+    actions = ['toggle_activa_status', 'change_business_unit']
 
     fieldsets = (
         (None, {
             'fields': ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'fecha_publicacion', 'business_unit')
         }),
         ('Detalles Adicionales', {
-            'fields': ('url_original', 'descripcion', 'requisitos', 'skills_requiered', 'salario', 'fecha_publicacion','fecha_scraping')
+            'fields': ('descripcion', 'requisitos', 'skills_required', 'salario')
         }),
     )
+    readonly_fields = ('url_original', 'fecha_scraping',)  # Display as read-only
 
     autocomplete_fields = ['business_unit', 'empresa']
 
@@ -214,23 +215,20 @@ class VacanteAdmin(admin.ModelAdmin):
     toggle_activa_status.short_description = "Cambiar estado activa/inactiva"
 
     def change_business_unit(self, request, queryset):
-        # Obtener todas las BusinessUnits para mostrar en un formulario intermedio
         from django import forms
         from app.models import BusinessUnit
 
         class BusinessUnitForm(forms.Form):
             business_unit = forms.ModelChoiceField(queryset=BusinessUnit.objects.all(), label="Unidad de Negocio")
 
-        if request.POST.get('post'):  # Si se envió el formulario
+        if request.POST.get('post'):
             form = BusinessUnitForm(request.POST)
             if form.is_valid():
                 new_business_unit = form.cleaned_data['business_unit']
                 updated = queryset.update(business_unit=new_business_unit)
                 self.message_user(request, f"Se actualizó la unidad de negocio de {updated} vacantes a {new_business_unit}.")
-                # Redirigir a la lista de vacantes
                 return redirect(reverse('admin:app_vacante_changelist'))
         else:
-            # Mostrar formulario intermedio
             form = BusinessUnitForm()
             return self.render_change_form(request, context={'form': form, 'queryset': queryset}, add=False, change=True, form_url='')
 
