@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.models import Vacante, BusinessUnit, DominioScraping, Worker, ConfiguracionBU, USER_AGENTS
+from app.chatbot.utils import assign_business_unit_async
 from playwright.async_api import async_playwright
 import aiohttp
 import environ
@@ -141,7 +142,9 @@ class EmailScraperV2:
         self.stats = {
             "correos_procesados": 0, "correos_exitosos": 0, "correos_error": 0,
             "vacantes_extraidas": 0, "vacantes_guardadas": 0,
-            "processed_emails": []  # Track processed email details
+            "processed_emails": [],  # Track processed email details
+            "vacantes_completas": [],  # Nuevas listas para vacantes completas e incompletas
+            "vacantes_incompletas": []
         }
 
     async def connect(self) -> Optional[aioimaplib.IMAP4_SSL]:
@@ -185,25 +188,43 @@ class EmailScraperV2:
         return None
 
     def format_title(self, title: str) -> str:
-        """Formatea y trunca el título a 500 caracteres."""
-        # Reemplazos para normalizar términos comunes
         replacements = {
-            r"\bceo\b": "Chief Executive Officer", 
-            r"\bcto\b": "Chief Technology Officer",
-            r"\bgte\b": "Gerente", 
-            r"\bdir\b": "Director", 
-            r"\bing\b": "Ingeniero"
+            # **C-Level y Alta Dirección**
+            r"\bceo\b": "Chief Executive Officer",r"\bcoo\b": "Chief Operating Officer",r"\bcfo\b": "Chief Financial Officer",r"\bcto\b": "Chief Technology Officer",r"\bcmo\b": "Chief Marketing Officer",r"\bcio\b": "Chief Information Officer",r"\bvp\b": "Vicepresidente",
+            
+            # **Gerencias y Direcciones**
+            r"\bdir gral\b": "Director General",r"\bgte gral\b": "Gerente General",r"\bdir\b": "Director",r"\bgte\b": "Gerente",r"\bjefe\b": "Jefe",r"\bsup\b": "Supervisor",r"\bcoord\b": "Coordinador",
+            
+            # **Abreviaturas Profesionales**
+            r"\bing\b": "Ingeniero",r"\bing\.\b": "Ingeniero",r"\blic\b": "Licenciado",r"\bmtro\b": "Maestro",r"\bdr\b": "Doctor",r"\bprof\b": "Profesor",
+            
+            # **Especialistas y Cargos Intermedios**
+            r"\besp\b": "Especialista",r"\bconsult\b": "Consultor",r"\basist\b": "Asistente",r"\btec\b": "Técnico",r"\banal\b": "Analista",
+            
+            # **Áreas Funcionales**
+            r"\bit\b": "IT",r"\brrhh\b": "Recursos Humanos",r"\bmkt\b": "Marketing",r"\bfin\b": "Finanzas",r"\blog\b": "Logística",r"\bventas\b": "Ventas",r"\bcompras\b": "Compras",r"\bop\b": "Operaciones",r"\bproducc\b": "Producción",
+            
+            # **Nombres de Países y Ubicaciones**
+            r"\bmex\b": "México",r"\busa\b": "Estados Unidos",
         }
         title = title.lower()
+        # Aplicar reemplazos asegurando que sean palabras completas
         for pattern, replacement in replacements.items():
             title = re.sub(pattern, replacement, title)
-        # Eliminar caracteres no deseados y normalizar espacios
+        # Eliminar caracteres especiales innecesarios
         title = re.sub(r"[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ&\- ]", "", title)
-        # Capitalizar palabras y truncar a 500 caracteres
-        formatted_title = " ".join(word.capitalize() for word in title.split())
-        return formatted_title[:500]
+        # Normalizar espacios
+        title = re.sub(r"\s+", " ", title).strip()
+        # Capitalizar correctamente, manteniendo excepciones como "México", "IT", etc.
+        words = title.split()
+        formatted_title = " ".join(
+            word.capitalize() if word.lower() not in ["méxico", "it", "rrhh", "mkt"] else word
+            for word in words
+        )
+        return formatted_title[:300]  # Truncar a 300 caracteres
 
-    async def save_or_update_vacante(self, job_data: Dict, business_unit: BusinessUnit, required_count: int = 1) -> bool:
+    async def save_or_update_vacante(self, job_data: Dict) -> bool:
+        """Guarda o actualiza una vacante, asignando la unidad de negocio correcta."""
         try:
             worker_tuple = await sync_to_async(Worker.objects.get_or_create)(
                 name=job_data["empresa"].name, defaults={"company": job_data["empresa"].name}
@@ -213,27 +234,27 @@ class EmailScraperV2:
             # Truncar el título a 500 caracteres
             job_data["titulo"] = job_data["titulo"][:500]
 
-            vacante_tuple = await sync_to_async(Vacante.objects.get_or_create)(
-                url_original=job_data["url_original"],
-                defaults={
-                    "titulo": job_data["titulo"],
-                    "empresa": worker,
-                    "ubicacion": job_data["ubicacion"][:300],
-                    "descripcion": job_data["descripcion"][:3000],
-                    "modalidad": job_data["modalidad"],
-                    "requisitos": job_data["requisitos"][:1000],
-                    "beneficios": job_data["beneficios"][:1000],
-                    "skills_required": job_data["skills_required"],
-                    "business_unit": business_unit,
-                    "fecha_publicacion": job_data["fecha_publicacion"],
-                    "activa": True,
-                    "required_count": required_count,  # Establecer cuántas se requieren
-                    "procesamiento_count": 1  # Primer intento
-                }
+            # Asignar la unidad de negocio usando assign_business_unit_async
+            business_unit_id = await assign_business_unit_async(
+                job_title=job_data["titulo"],
+                job_description=job_data.get("descripcion", ""),
+                location=job_data.get("ubicacion", "")
             )
-            vacante = vacante_tuple[0]
-            if not vacante_tuple[1]:  # Si ya existe, actualizar
-                vacante.procesamiento_count += 1  # Incrementar contador de procesamiento
+
+            # Obtener la instancia de BusinessUnit usando el ID
+            if business_unit_id:
+                business_unit = await sync_to_async(BusinessUnit.objects.get)(id=business_unit_id)
+            else:
+                # Usar una unidad por defecto si no se encuentra (por ejemplo, 'huntRED®')
+                business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED®")
+
+            # Verificar si la vacante ya existe por url_original
+            vacante = await sync_to_async(Vacante.objects.filter(url_original=job_data["url_original"]).first)()
+
+            if vacante:
+                # Si existe, actualizarla si hay cambios
+                vacante.procesamiento_count += 1
+                updated = False
                 for key, value in job_data.items():
                     if key == "titulo":
                         value = str(value)[:500]
@@ -241,19 +262,40 @@ class EmailScraperV2:
                         value = str(value)[:1000]
                     elif key == "descripcion":
                         value = str(value)[:3000]
-                    setattr(vacante, key, value)
-                await sync_to_async(vacante.save)()
-                # Detectar duplicados
-                if vacante.procesamiento_count < 2:
-                    logger.warning(f"Posible duplicado detectado: {vacante.titulo}, procesamiento_count={vacante.procesamiento_count}")
+                    if getattr(vacante, key) != value:
+                        setattr(vacante, key, value)
+                        updated = True
+                vacante.business_unit = business_unit  # Actualizar la unidad de negocio
+                if updated:
+                    await sync_to_async(vacante.save)()
+                    logger.info(f"Vacante actualizada: {vacante.titulo}, intentos: {vacante.procesamiento_count}")
+                else:
+                    logger.info(f"Vacante ya está actualizada: {vacante.titulo}, intentos: {vacante.procesamiento_count}")
+                self.stats["vacantes_guardadas"] += 1
+                return True
             else:
-                logger.info(f"Vacante creada: {vacante.titulo}, required_count={required_count}")
-            
-            self.stats["vacantes_guardadas"] += 1
-            logger.info(f"Vacancy {'created' if vacante_tuple[1] else 'updated'}: {vacante.titulo}, attempts: {vacante.procesamiento_count}")
-            return True
+                # Si no existe, crear una nueva vacante
+                vacante = Vacante(
+                    url_original=job_data["url_original"],
+                    titulo=job_data["titulo"],
+                    empresa=worker,
+                    ubicacion=job_data["ubicacion"][:300],
+                    descripcion=job_data["descripcion"][:3000],
+                    modalidad=job_data["modalidad"],
+                    requisitos=job_data["requisitos"][:1000],
+                    beneficios=job_data["beneficios"][:1000],
+                    skills_required=job_data["skills_required"],
+                    business_unit=business_unit,  # Asignar la unidad de negocio
+                    fecha_publicacion=job_data["fecha_publicacion"],
+                    activa=True,
+                    procesamiento_count=1  # Primer intento
+                )
+                await sync_to_async(vacante.save)()
+                logger.info(f"Vacante creada: {vacante.titulo}, intentos: {vacante.procesamiento_count}")
+                self.stats["vacantes_guardadas"] += 1
+                return True
         except Exception as e:
-            logger.error(f"Error saving vacancy {job_data.get('titulo', 'Unknown')}: {e}")
+            logger.error(f"Error al guardar la vacante {job_data.get('titulo', 'Unknown')}: {e}")
             return False
 
     async def save_or_update_vacante(self, job_data: Dict, business_unit: BusinessUnit) -> bool:
@@ -423,6 +465,13 @@ class EmailScraperV2:
         self.stats["vacantes_extraidas"] += len(job_listings)
         enriched_jobs = await asyncio.gather(*(self.enrich_vacancy_from_url(job) for job in job_listings))
 
+        # Rastrear vacantes completas e incompletas
+        for job in enriched_jobs:
+            if job.get("descripcion") and job.get("modalidad"):  # Ejemplo de criterios para "completa"
+                self.stats["vacantes_completas"].append(job["titulo"])
+            else:
+                self.stats["vacantes_incompletas"].append(job["titulo"])
+
         self.stats["processed_emails"].append({"email_id": email_id, "subject": subject, "domain": domain})
         return [job for job in enriched_jobs if job]
 
@@ -448,11 +497,6 @@ class EmailScraperV2:
                 logger.error("Failed to search emails")
                 return
             email_ids = data[0].decode().split()[:batch_size]
-            default_bu = await sync_to_async(BusinessUnit.objects.first)()
-
-            if not default_bu:
-                logger.error("Default BusinessUnit not found")
-                return
 
             for email_id in email_ids:
                 job_listings = await self.process_job_alert_email(email_id)
@@ -461,10 +505,10 @@ class EmailScraperV2:
                     await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
                     continue
 
-                # Procesar cada vacante individualmente para no fallar el lote entero
+                # Procesar cada vacante individualmente
                 successes = 0
                 for job in job_listings:
-                    if await self.save_or_update_vacante(job, default_bu):
+                    if await self.save_or_update_vacante(job):  # Sin pasar default_bu
                         successes += 1
 
                 if successes == len(job_listings):
@@ -482,7 +526,10 @@ class EmailScraperV2:
             f"ID: {email['email_id']}, Subject: {email['subject'][:50]}, Domain: {email['domain']}"
             for email in self.stats["processed_emails"]
         )
+        vacantes_completas_info = "\n".join(self.stats["vacantes_completas"]) if self.stats["vacantes_completas"] else "Ninguna"
+        vacantes_incompletas_info = "\n".join(self.stats["vacantes_incompletas"]) if self.stats["vacantes_incompletas"] else "Ninguna"
         actions_info = "\n".join(actions_taken) if actions_taken else "No corrective actions taken."
+
         msg = MIMEText(
             f"Scraping Summary:\n"
             f"Emails processed: {self.stats['correos_procesados']}\n"
@@ -490,6 +537,8 @@ class EmailScraperV2:
             f"Emails with errors: {self.stats['correos_error']}\n"
             f"Vacancies extracted: {self.stats['vacantes_extraidas']}\n"
             f"Vacancies saved: {self.stats['vacantes_guardadas']}\n\n"
+            f"Vacantes completas:\n{vacantes_completas_info}\n\n"
+            f"Vacantes incompletas:\n{vacantes_incompletas_info}\n\n"
             f"Processed emails details:\n{processed_emails_info}\n\n"
             f"Issues detected and corrective actions:\n{actions_info}"
         )
@@ -502,9 +551,9 @@ class EmailScraperV2:
                 server.starttls()
                 server.login(self.email_account, self.password)
                 server.send_message(msg)
-                logging.info("📧 Summary sent to pablo@huntred.com")
+                logger.info("📧 Summary sent to pablo@huntred.com")
         except Exception as e:
-            logging.error(f"Error sending summary email: {e}")
+            logger.error(f"Error sending summary email: {e}")
 
 async def process_all_emails():
     scraper = EmailScraperV2()
@@ -513,51 +562,55 @@ async def process_all_emails():
 
     while True:
         if not await scraper.connect():
-            logging.error("Could not connect to IMAP server, stopping...")
+            logger.error("Could not connect to IMAP server, stopping...")
             break
 
         resp, data = await scraper.mail.search("ALL")
         if resp != "OK":
-            logging.error(f"Failed to search emails: {resp}")
+            logger.error(f"Failed to search emails: {resp}")
             break
 
         email_ids = data[0].decode().split()
         if not email_ids:
-            logging.info("No more emails in INBOX.Jobs, processing finished")
+            logger.info("No more emails in INBOX.Jobs, processing finished")
             break
 
         current_batch_size = min(batch_size, len(email_ids))
-        logging.info(f"Processing batch of {current_batch_size} emails out of {len(email_ids)} remaining")
+        logger.info(f"Processing batch of {current_batch_size} emails out of {len(email_ids)} remaining")
         await scraper.process_email_batch(batch_size=current_batch_size)
+
+        # Enviar resumen después de cada batch
+        await scraper.send_summary_email(health_monitor.actions_taken)
+
+        # Resetear estadísticas de vacantes para el próximo batch
+        scraper.stats["vacantes_completas"] = []
+        scraper.stats["vacantes_incompletas"] = []
 
         # Check health and apply corrective actions
         recommendations = await health_monitor.check_health()
         if recommendations.get("run_gc"):
             gc.collect()
-            logging.info("Executed gc.collect() to free memory")
+            logger.info("Executed gc.collect() to free memory")
         if recommendations.get("reduce_batch"):
             batch_size = max(1, batch_size // 2)
-            logging.info(f"Reduced batch_size to {batch_size} due to high CPU usage")
+            logger.info(f"Reduced batch_size to {batch_size} due to high CPU usage")
 
         # Cleanup after each batch
         try:
             await scraper.mail.logout()
         except asyncio.TimeoutError:
-            logging.warning("Timeout closing IMAP connection, forcing closure...")
+            logger.warning("Timeout closing IMAP connection, forcing closure...")
         except Exception as e:
-            logging.error(f"Unexpected error closing IMAP connection: {e}")
+            logger.error(f"Unexpected error closing IMAP connection: {e}")
         finally:
             scraper.mail = None
 
         if len(email_ids) > batch_size:
-            logging.info(f"Pausing {RETRY_DELAY} seconds before the next batch...")
+            logger.info(f"Pausing {RETRY_DELAY} seconds before the next batch...")
             await asyncio.sleep(RETRY_DELAY)
         else:
-            logging.info("Last batch processed, finishing...")
+            logger.info("Last batch processed, finishing...")
             break
-
-    # Send final summary with actions taken
-    await scraper.send_summary_email(health_monitor.actions_taken)
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ai_huntred.settings")

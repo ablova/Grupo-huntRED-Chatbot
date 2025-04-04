@@ -11,6 +11,7 @@ import asyncio
 import pandas as pd
 from datetime import datetime
 from app.models import GptApi
+from asgiref.sync import sync_to_async
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.conf import settings
@@ -19,6 +20,7 @@ from typing import Dict, List, Any, Optional
 from difflib import get_close_matches
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
 from app.chatbot.nlp import NLPProcessor
+
 
 # Variable global para la instancia de NLPProcessor
 logger = logging.getLogger(__name__)
@@ -417,5 +419,202 @@ def map_skill_to_database(llm_skill: str, database_skills: List[str], cutoff: fl
     return closest_match[0] if closest_match else None
 
 
+# Constantes para assign_business_unit
+BUSINESS_UNITS_KEYWORDS = {
+    'huntRED®': {
+        'manager': 2, 'director': 3, 'leadership': 2, 'senior manager': 4, 'operations manager': 3,
+        'project manager': 3, 'head of': 4, 'gerente': 2, 'director de': 3, 'jefe de': 4, 'subdirector': 3, 'dirección': 3, 'subdirección': 3
+    },
+    'huntRED® Executive': {
+        'strategic': 3, 'board': 4, 'global': 3, 'vp': 4, 'president': 4, 'cfo': 5, 'ceo': 5, 'coo': 5, 'consejero': 4,
+        'executive': 4, 'cto': 5, 'chief': 4, 'executive director': 5, 'senior vp': 5, 'vice president': 4,
+        'estrategico': 3, 'global': 3, 'presidente': 4, 'chief': 4
+    },
+    'huntu': {
+        'trainee': 3, 'junior': 3, 'entry-level': 4, 'intern': 3, 'graduate': 3, 'developer': 2, 'engineer': 2,
+        'senior developer': 3, 'lead developer': 3, 'software engineer': 2, 'data analyst': 2, 'it specialist': 2,
+        'technical lead': 3, 'architect': 3, 'analyst': 2, 'specialist': 2, 'consultant': 2, 'programador': 2,
+        'ingeniero': 2, 'analista': 2, 'recién egresado': 2, 'practicante': 2, 'pasante': 2, 'becario': 2, 'líder': 2, 'coordinador': 2
+    },
+    'amigro': {
+        'migration': 4, 'bilingual': 3, 'visa sponsorship': 4, 'temporary job': 3, 'worker': 2, 'operator': 2,
+        'constructor': 2, 'laborer': 2, 'assistant': 2, 'technician': 2, 'support': 2, 'seasonal': 2,
+        'entry-level': 2, 'no experience': 3, 'trabajador': 2, 'operador': 2, 'asistente': 2, 'migración': 4, 'ejecutivo': 2, 'auxiliar': 3, 'soporte': 3
+    }
+}
+
+SENIORITY_KEYWORDS = {
+    'junior': 1, 'entry-level': 1, 'mid-level': 2, 'senior': 3, 'lead': 3,
+    'manager': 4, 'director': 5, 'vp': 5, 'executive': 5, 'chief': 5, 'jefe': 4
+}
+
+INDUSTRY_KEYWORDS = {
+    'tech': {'developer', 'engineer', 'software', 'data', 'it', 'architect', 'programador', 'ingeniero'},
+    'management': {'manager', 'director', 'executive', 'leadership', 'gerente', 'jefe'},
+    'operations': {'operator', 'worker', 'constructor', 'technician', 'trabajador', 'operador'},
+    'strategy': {'strategic', 'global', 'board', 'president', 'estrategico'}
+}
+
+async def assign_business_unit_async(job_title: str, job_description: str = None, salary_range=None, required_experience=None, location: str = None) -> Optional[int]:
+    job_title_lower = job_title.lower()
+    job_desc_lower = job_description.lower() if job_description else ""
+    location_lower = location.lower() if location else ""
+
+    bu_candidates = await sync_to_async(list)(BusinessUnit.objects.all())
+    scores = {bu.name: 0 for bu in bu_candidates}
+
+    seniority_score = 0
+    for keyword, score in SENIORITY_KEYWORDS.items():
+        if keyword in job_title_lower:
+            seniority_score = max(seniority_score, score)
+
+    industry_scores = {ind: 0 for ind in INDUSTRY_KEYWORDS}
+    for ind, keywords in INDUSTRY_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword in job_title_lower or keyword in job_desc_lower:
+                industry_scores[ind] += 1
+    dominant_industry = max(industry_scores, key=industry_scores.get) if max(industry_scores.values()) > 0 else None
+
+    for bu in bu_candidates:
+        try:
+            config = await sync_to_async(ConfiguracionBU.objects.get)(business_unit=bu)
+            weights = {
+                "ubicacion": config.weight_location or 10,
+                "hard_skills": config.weight_hard_skills or 45,
+                "soft_skills": config.weight_soft_skills or 35,
+                "tipo_contrato": config.weight_contract or 10,
+                "personalidad": getattr(config, 'weight_personality', 15),
+            }
+        except ConfiguracionBU.DoesNotExist:
+            weights = {
+                "ubicacion": 5,
+                "hard_skills": 45,
+                "soft_skills": 35,
+                "tipo_contrato": 5,
+                "personalidad": 10,
+            }
+
+        if seniority_score >= 5:
+            weights["soft_skills"] = 45
+            weights["hard_skills"] = 30
+            weights["ubicacion"] = 10
+            weights["personalidad"] = 25
+        elif seniority_score >= 3:
+            weights["soft_skills"] = 40
+            weights["hard_skills"] = 40
+            weights["ubicacion"] = 10
+            weights["personalidad"] = 20
+        else:
+            weights["ubicacion"] = 15
+            weights["hard_skills"] = 50
+            weights["soft_skills"] = 25
+            weights["personalidad"] = 10
+
+        for keyword, weight in BUSINESS_UNITS_KEYWORDS.get(bu.name, {}).items():
+            if keyword in job_title_lower or (job_description and keyword in job_desc_lower):
+                scores[bu.name] += weight * weights["hard_skills"]
+
+        if seniority_score >= 5:
+            if bu.name == 'huntRED® Executive':
+                scores[bu.name] += 4 * weights["personalidad"]
+            elif bu.name == 'huntRED®':
+                scores[bu.name] += 2 * weights["soft_skills"]
+        elif seniority_score >= 3:
+            if bu.name == 'huntRED®':
+                scores[bu.name] += 3 * weights["soft_skills"]
+            elif bu.name == 'huntu':
+                scores[bu.name] += 1 * weights["hard_skills"]
+        elif seniority_score >= 1:
+            if bu.name == 'huntu':
+                scores[bu.name] += 2 * weights["hard_skills"]
+            elif bu.name == 'amigro':
+                scores[bu.name] += 1 * weights["ubicacion"]
+        else:
+            if bu.name == 'amigro':
+                scores[bu.name] += 3 * weights["ubicacion"]
+
+        if dominant_industry:
+            if dominant_industry == 'tech':
+                if bu.name == 'huntu':
+                    scores[bu.name] += 3 * weights["hard_skills"] * industry_scores['tech']
+                elif bu.name == 'huntRED®':
+                    scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['tech']
+            elif dominant_industry == 'management':
+                if bu.name == 'huntRED®':
+                    scores[bu.name] += 3 * weights["soft_skills"] * industry_scores['management']
+                elif bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 2 * weights["personalidad"] * industry_scores['management']
+            elif dominant_industry == 'operations':
+                if bu.name == 'amigro':
+                    scores[bu.name] += 3 * weights["ubicacion"] * industry_scores['operations']
+            elif dominant_industry == 'strategy':
+                if bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 3 * weights["personalidad"] * industry_scores['strategy']
+                elif bu.name == 'huntRED®':
+                    scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['strategy']
+
+        if job_description:
+            if any(term in job_desc_lower for term in ['migration', 'visa', 'bilingual', 'temporary', 'migración']):
+                if bu.name == 'amigro':
+                    scores[bu.name] += 4 * weights["ubicacion"]
+            if any(term in job_desc_lower for term in ['strategic', 'global', 'executive', 'board', 'estrategico']):
+                if bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 3 * weights["personalidad"]
+            if any(term in job_desc_lower for term in ['development', 'coding', 'software', 'data', 'programación']):
+                if bu.name == 'huntu':
+                    scores[bu.name] += 3 * weights["hard_skills"]
+            if any(term in job_desc_lower for term in ['operations', 'management', 'leadership', 'gerencia']):
+                if bu.name == 'huntRED®':
+                    scores[bu.name] += 3 * weights["soft_skills"]
+
+        if location:
+            if any(term in location_lower for term in ['usa', 'europe', 'asia', 'mexico', 'latam', 'frontera', 'migración']):
+                if bu.name == 'amigro':
+                    scores[bu.name] += 3 * weights["ubicacion"]
+            if any(term in location_lower for term in ['silicon valley', 'new york', 'london']):
+                if bu.name == 'huntRED® Executive':
+                    scores[bu.name] += 2 * weights["personalidad"]
+                elif bu.name == 'huntu':
+                    scores[bu.name] += 1 * weights["hard_skills"]
+
+    max_score = max(scores.values())
+    candidates = [bu for bu, score in scores.items() if score == max_score]
+    priority_order = ['huntRED® Executive', 'huntRED®', 'huntu', 'amigro']
+
+    if candidates:
+        if len(candidates) > 1 and dominant_industry:
+            if dominant_industry == 'strategy' and 'huntRED® Executive' in candidates:
+                chosen_bu = 'huntRED® Executive'
+            elif dominant_industry == 'management' and 'huntRED®' in candidates:
+                chosen_bu = 'huntRED®'
+            elif dominant_industry == 'tech' and 'huntu' in candidates:
+                chosen_bu = 'huntu'
+            elif dominant_industry == 'operations' and 'amigro' in candidates:
+                chosen_bu = 'amigro'
+            else:
+                for bu in priority_order:
+                    if bu in candidates:
+                        chosen_bu = bu
+                        break
+        else:
+            chosen_bu = candidates[0]
+    else:
+        chosen_bu = 'huntRED®'
+
+    try:
+        bu_obj = await sync_to_async(BusinessUnit.objects.get)(name=chosen_bu)
+        logger.info(f"✅ Unidad de negocio asignada: {chosen_bu} (ID: {bu_obj.id}) para '{job_title}'")
+        return bu_obj.id
+    except BusinessUnit.DoesNotExist:
+        logger.warning(f"⚠️ Unidad de negocio '{chosen_bu}' no encontrada, usando huntRED® por defecto")
+        try:
+            default_bu = await sync_to_async(BusinessUnit.objects.get)(id=1)
+            logger.info(f"🔧 Asignada huntRED® por defecto (ID: {default_bu.id}) para '{job_title}'")
+            return default_bu.id
+        except BusinessUnit.DoesNotExist:
+            logger.error(f"❌ Unidad de negocio por defecto 'huntRED®' no encontrada en BD")
+            return None
+
 from app.chatbot.nlp import NLPProcessor
 nlp_processor = NLPProcessor(language="es", mode="candidate")
+
