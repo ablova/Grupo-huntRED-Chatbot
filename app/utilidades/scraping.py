@@ -65,7 +65,6 @@ INDUSTRY_KEYWORDS = {
 }
 
 
-
 # Estructura de Datos
 @dataclass
 class JobListing:
@@ -165,7 +164,7 @@ def validate_job_data(job: JobListing) -> Optional[Dict]:
         "business_unit": assign_business_unit({"title": job.title, "description": job.description, "skills": job.skills, "location": job.location})
     }
 
-async def assign_business_unit(job_title, job_description=None, salary_range=None, required_experience=None, location=None):
+async def assign_business_unit(job_title: str, job_description: str = None, salary_range: str = None, required_experience: str = None, location: str = None) -> Optional[int]:
     """Determina la unidad de negocio para una vacante con pesos dinámicos."""
     job_title_lower = job_title.lower()
     job_desc_lower = job_description.lower() if job_description else ""
@@ -224,7 +223,7 @@ async def assign_business_unit(job_title, job_description=None, salary_range=Non
             if dominant_industry == 'tech':
                 if bu.name == 'huntu':
                     scores[bu.name] += 3 * weights["hard_skills"] * industry_scores['tech']
-                elif bu.name == 'huntRED®':  # Para roles de gestión técnica
+                elif bu.name == 'huntRED®':
                     scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['tech']
             elif dominant_industry == 'management':
                 if bu.name == 'huntRED®':
@@ -342,10 +341,7 @@ async def assign_business_unit(job_title, job_description=None, salary_range=Non
             elif dominant_industry == 'operations' and 'amigro' in candidates:
                 chosen_bu = 'amigro'
             else:
-                for bu in priority_order:
-                    if bu in candidates:
-                        chosen_bu = bu
-                        break
+                chosen_bu = next(bu for bu in priority_order if bu in candidates)
         else:
             chosen_bu = candidates[0]
     else:
@@ -358,13 +354,39 @@ async def assign_business_unit(job_title, job_description=None, salary_range=Non
     except BusinessUnit.DoesNotExist:
         logger.warning(f"⚠️ Unidad de negocio '{chosen_bu}' no encontrada, usando huntRED® por defecto")
         try:
-            default_bu = await sync_to_async(BusinessUnit.objects.get)(id=1)
+            default_bu = await sync_to_async(BusinessUnit.objects.get)(name='huntRED®')
             logger.info(f"🔧 Asignada huntRED® por defecto (ID: {default_bu.id}) para '{job_title}'")
             return default_bu.id
         except BusinessUnit.DoesNotExist:
             logger.error(f"❌ Unidad de negocio por defecto 'huntRED®' no encontrada en BD")
             return None
+        
+# Wrapper síncrono para assign_business_unit
+def assign_business_unit_sync(*args, **kwargs) -> Optional[int]:
+    return asyncio.run(assign_business_unit(*args, **kwargs))
 
+# Función genérica para enriquecer vacantes con GPT
+async def enrich_with_gpt(vacante, gpt_handler: GPTHandler) -> bool:
+    """Enriquece una vacante usando un modelo GPT configurado."""
+    prompt = (
+        f"Para el puesto '{vacante.titulo}' en {vacante.ubicacion}, genera una descripción con 10-12 actividades específicas, "
+        f"una lista de al menos 15 habilidades relevantes y un salario estimado en MXN. "
+        f"Devuelve un JSON con las claves: 'description' (texto), 'skills' (lista), 'salary' (dict con 'min' y 'max')."
+    )
+    response = await gpt_handler.generate_response(prompt)
+    try:
+        data = json.loads(response)
+        vacante.descripcion = data.get("description", "No disponible")
+        vacante.skills_required = data.get("skills", [])
+        vacante.salario = data.get("salary", {"min": None, "max": None})["min"]
+        vacante.modalidad = "Híbrido"  # Valor por defecto
+        vacante.beneficios = ""
+        vacante.procesamiento_count += 1
+        await sync_to_async(vacante.save)()  # Guardamos de forma asíncrona
+        return True
+    except json.JSONDecodeError:
+        logger.error(f"Respuesta de GPT no válida: {response}")
+        return False
 
 @transaction.atomic
 async def save_vacantes(jobs: List[Dict], dominio: DominioScraping):
@@ -686,7 +708,7 @@ class LinkedInScraper(BaseScraper):
                 url = f"{self.domain.dominio}&start={page * 25}"
                 logger.info(f"Scrapeando página {page}: {url}")
                 try:
-                    async with asyncio.timeout(60):
+                    async with asyncio.timeout(180):  # Timeout de 180 segundos
                         content = await self.fetch(url, use_playwright=True)
                 except asyncio.TimeoutError:
                     logger.error(f"Timeout al scrapear página {page}: {url}")
@@ -695,7 +717,7 @@ class LinkedInScraper(BaseScraper):
                     logger.info("No hay más contenido para scrapear.")
                     break
                 soup = BeautifulSoup(content, "html.parser")
-                job_cards = soup.select("a.base-card__full-link")
+                job_cards = soup.select("a.base-card__full-link, li.jobs-search-results__list-item a")
                 if not job_cards:
                     logger.info("No se encontraron más tarjetas de trabajo.")
                     break
@@ -717,6 +739,8 @@ class LinkedInScraper(BaseScraper):
                             description=detail.get("description", "No disponible"),
                             skills=detail.get("skills", []),
                             posted_date=detail.get("posted_date"),
+                            job_type=detail.get("job_type"),
+                            benefits=detail.get("benefits", []),
                         ))
                 page += 1
         logger.info(f"Scraping finalizado con {len(vacantes)} vacantes.")
@@ -727,21 +751,45 @@ class LinkedInScraper(BaseScraper):
         if not content:
             return {}
         soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one("h1.topcard__title") or soup.select_one("h1")
-        desc_elem = soup.select_one("div.description__text") or soup.select_one("div.job-description")
-        loc_elem = soup.select_one("span.topcard__flavor--bullet") or soup.select_one("span.location")
-        comp_elem = soup.select_one("a.topcard__org-name-link") or soup.select_one("span.company")
-        date_elem = soup.select_one("span.posted-time-ago__text") or soup.select_one("time")
+        title_elem = soup.select_one("h1.topcard__title, h1")
+        desc_elem = soup.select_one("div.description__text, div.show-more-less-html__markup, div.jobs-description-content__text")
+        loc_elem = soup.select_one("span.topcard__flavor--bullet, span.jobs-unified-top-card__bullet")
+        comp_elem = soup.select_one("a.topcard__org-name-link, span.jobs-unified-top-card__company-name")
+        date_elem = soup.select_one("span.posted-time-ago__text, span.jobs-unified-top-card__posted-date")
+        modality_elem = soup.select_one("span.jobs-unified-top-card__workplace-type")
+        benefits_elem = soup.select("div.jobs-description__details--benefits ul li")
+        
+        description = desc_elem.get_text(strip=True) if desc_elem else "No disponible"
+        skills = extract_skills(description)
+        
+        # Buscar enlace a descripción completa (como UCPath)
+        apply_link_elem = soup.select_one("a.jobs-apply-button, a[href*='marketpayjobs']")
+        external_details = {}
+        if apply_link_elem:
+            external_url = apply_link_elem.get("href")
+            if "marketpayjobs" in external_url:
+                external_content = await self.fetch(external_url, use_playwright=True)
+                if external_content:
+                    ext_soup = BeautifulSoup(external_content, "html.parser")
+                    ext_desc_elem = ext_soup.select_one("div.job-description, div#content")
+                    if ext_desc_elem:
+                        description = ext_desc_elem.get_text(strip=True)
+                        skills = extract_skills(description)
+                    ext_benefits_elem = ext_soup.select("div.benefits ul li")
+                    external_details["benefits"] = [elem.get_text(strip=True) for elem in ext_benefits_elem] if ext_benefits_elem else []
+
         return {
             "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "description": description,
             "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
             "company": comp_elem.get_text(strip=True) if comp_elem else "Unknown",
             "posted_date": date_elem.get_text(strip=True) if date_elem else None,
-            "skills": extract_skills(content),
-            "original_url": url
+            "skills": skills,
+            "original_url": url,
+            "job_type": modality_elem.get_text(strip=True) if modality_elem else None,  # Corrección aquí
+            "benefits": external_details.get("benefits", [b.get_text(strip=True) for b in benefits_elem]) if benefits_elem else [],
         }
-
+    
 class PhenomPeopleScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
         vacantes = []

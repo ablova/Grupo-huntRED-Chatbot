@@ -9,6 +9,8 @@ from django.template.loader import select_template
 from django.template.response import TemplateResponse
 from django import forms
 from django.core.mail import send_mail
+from app.chatbot.gpt import GPTHandler
+from app.utilidades.scraping import enrich_with_gpt
 
 
 # Utility Imports
@@ -169,13 +171,12 @@ class DominioScrapingAdmin(admin.ModelAdmin):
     def desactivar_dominios_invalidos(self, request, queryset):
         desactivados = queryset.update(estado="libre")
         self.message_user(request, f"{desactivados} dominios desactivados.")
-
 @admin.register(Vacante)
 class VacanteAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'business_unit', 'fecha_publicacion')
+    list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'business_unit', 'fecha_publicacion', 'url_original')
     search_fields = ('titulo', 'empresa', 'ubicacion')
     list_filter = ('activa', 'modalidad', 'dominio_origen', 'business_unit')
-    actions = ['toggle_activa_status', 'change_business_unit']
+    actions = ['toggle_activa_status', 'change_business_unit', 'enrich_with_gpt']
 
     fieldsets = (
         (None, {
@@ -185,8 +186,7 @@ class VacanteAdmin(admin.ModelAdmin):
             'fields': ('descripcion', 'requisitos', 'skills_required', 'salario')
         }),
     )
-    readonly_fields = ('fecha_scraping',)  # Display as read-only
-
+    readonly_fields = ('fecha_scraping',)
     autocomplete_fields = ['business_unit', 'empresa']
 
     def save_model(self, request, obj, form, change):
@@ -233,6 +233,22 @@ class VacanteAdmin(admin.ModelAdmin):
             return self.render_change_form(request, context={'form': form, 'queryset': queryset}, add=False, change=True, form_url='')
 
     change_business_unit.short_description = "Cambiar unidad de negocio"
+
+    def enrich_with_gpt(self, request, queryset):
+        """Acción para enriquecer vacantes sin descripción usando GPT."""
+        gpt_handler = GPTHandler()
+        async_to_sync(gpt_handler.initialize)()
+        for vacante in queryset:
+            if not vacante.descripcion or vacante.descripcion == "No disponible":
+                success = async_to_sync(enrich_with_gpt)(vacante, gpt_handler)
+                if success:
+                    self.message_user(request, f"Vacante '{vacante.titulo}' enriquecida con GPT.")
+                else:
+                    self.message_user(request, f"Error al enriquecer vacante '{vacante.titulo}' con GPT.")
+            else:
+                self.message_user(request, f"Vacante '{vacante.titulo}' ya tiene descripción, omitida.")
+    
+    enrich_with_gpt.short_description = "Enriquecer vacantes sin descripción con GPT"
 
 @admin.register(RegistroScraping)
 class RegistroScrapingAdmin(admin.ModelAdmin):
