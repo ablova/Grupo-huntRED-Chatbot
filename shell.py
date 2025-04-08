@@ -151,6 +151,10 @@ alias edit_parser='sudo rm /home/pablo/app/utilidades/parser.py && sudo nano /ho
 alias edit_vacantes='sudo rm /home/pablo/app/utilidades/vacantes.py && sudo nano /home/pablo/app/utilidades/vacantes.py'
 alias edit_linkedin='sudo rm /home/pablo/app/utilidades/linkedin.py && sudo nano /home/pablo/app/utilidades/linkedin.py'
 
+# === Alias para Utilidades ===
+alias edit_email='sudo rm /home/pablo/app/utilidades/email_scraper.py && sudo nano /home/pablo/app/utilidades/email_scraper.py'
+alias edit_salario='sudo rm /home/pablo/app/utilidades/salario.py && sudo nano /home/pablo/app/utilidades/salario.py'
+alias edit_scraping='sudo rm /home/pablo/app/utilidades/scraping.py && sudo nano /home/pablo/app/utilidades/scraping.py'
 # === Alias para chatbot e integraciones ===
 alias edit_chatbot='sudo rm /home/pablo/app/chatbot/chatbot.py && sudo nano /home/pablo/app/chatbot/chatbot.py'
 alias edit_nlp='sudo rm /home/pablo/app/chatbot/nlp.py && sudo nano /home/pablo/app/chatbot/nlp.py'

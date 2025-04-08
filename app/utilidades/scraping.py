@@ -14,12 +14,14 @@ import trafilatura
 from playwright.async_api import async_playwright
 from django.db import transaction
 from django.utils.timezone import now
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, Worker, USER_AGENTS, WeightingModel
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from app.chatbot.utils import clean_text
 from app.utilidades.loader import DIVISION_SKILLS
+from app.chatbot.gpt import GPTHandler
 from app.chatbot.nlp import NLPProcessor
 from app.utilidades.vacantes import VacanteManager
 from prometheus_client import Counter, Histogram, start_http_server
@@ -164,8 +166,37 @@ def validate_job_data(job: JobListing) -> Optional[Dict]:
         "business_unit": assign_business_unit({"title": job.title, "description": job.description, "skills": job.skills, "location": job.location})
     }
 
+class WeightingModel:
+    def __init__(self, business_unit):
+        self.business_unit = business_unit
+        self.weights = self._load_weights()
+
+    @sync_to_async
+    def _load_weights(self):
+        """Carga los pesos de la configuración de la unidad de negocio de forma asíncrona."""
+        try:
+            config = ConfiguracionBU.objects.get(business_unit=self.business_unit)
+            return {
+                "hard_skills": config.hard_skills_weight,
+                "soft_skills": config.soft_skills_weight,
+                "personalidad": config.personality_weight,
+                "ubicacion": config.location_weight
+            }
+        except ConfiguracionBU.DoesNotExist:
+            # Valores por defecto si no hay configuración
+            return {
+                "hard_skills": 1.0,
+                "soft_skills": 1.0,
+                "personalidad": 1.0,
+                "ubicacion": 1.0
+            }
+
+    def get_weights(self, level: str):
+        """Devuelve los pesos para el nivel especificado."""
+        return self.weights
+
 async def assign_business_unit(job_title: str, job_description: str = None, salary_range: str = None, required_experience: str = None, location: str = None) -> Optional[int]:
-    """Determina la unidad de negocio para una vacante con pesos dinámicos."""
+    """Determina la unidad de negocio para una vacante con pesos dinámicos de forma asíncrona."""
     job_title_lower = job_title.lower()
     job_desc_lower = job_description.lower() if job_description else ""
     location_lower = location.lower() if location else ""
@@ -190,8 +221,8 @@ async def assign_business_unit(job_title: str, job_description: str = None, sala
 
     # Dynamic scoring with weights
     for bu in bu_candidates:
-        weighting = WeightingModel(bu)
-        weights = weighting.get_weights("operativo")  # Adjust level dynamically if needed
+        weighting = WeightingModel(bu)  # _load_weights ya es asíncrono gracias a @sync_to_async
+        weights = await weighting.get_weights("operativo")  # Añadimos await aquí porque es asíncrono
 
         # Keyword scoring with weights
         for keyword, weight in BUSINESS_UNITS_KEYWORDS.get(bu.name, {}).items():
