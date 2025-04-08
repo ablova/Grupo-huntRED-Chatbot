@@ -1101,14 +1101,355 @@ class GreenhouseScraper(BaseScraper):
             "original_url": url
         }
     
-class AccentureScraper(BaseScraper): pass
-class ADPScraper(BaseScraper): pass
-class PeopleSoftScraper(BaseScraper): pass
-class Meta4Scraper(BaseScraper): pass
+class AccentureScraper(BaseScraper):
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        base_url = self.domain.dominio.rsplit('/', 1)[0]
+
+        while True:
+            url = f"{self.domain.dominio}?page={page}"
+            content = await self.fetch(url, use_playwright=True)  # Usar Playwright para JS
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select('div.cmp-teaser.card')
+            if not job_cards:
+                break
+
+            tasks = []
+            for card in job_cards:
+                title = card.select_one('h3.cmp-teaser__title').get_text(strip=True)
+                relative_url = card.select_one('a.cmp-teaser__title-link')['href']
+                full_url = f"{base_url}{relative_url}" if relative_url.startswith('/') else relative_url
+                if full_url not in seen_urls:
+                    seen_urls.add(full_url)
+                    tasks.append(self.get_job_details(full_url))
+
+            details_list = await asyncio.gather(*tasks)
+            vacantes.extend([JobListing(**detail) for detail in details_list if detail])
+            page += 1
+        return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url, use_playwright=True)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1.cmp-teaser__title') or soup.select_one('h1')
+        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+        loc_elem = soup.select_one('div.cmp-teaser-region, div.cmp-teaser-city')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": "Accenture",
+            "skills": self.extract_skills(content),
+            "url": url
+        }
+    
+class ADPScraper(BaseScraper):
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}/jobs?page={page}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            try:
+                data = json.loads(content)
+                jobs = data.get("jobList", [])
+                if not jobs:
+                    break
+                for job in jobs:
+                    url = job.get("detailUrl", "")
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        vacantes.append(JobListing(
+                            title=job.get("title", "No especificado"),
+                            url=url,
+                            description=job.get("description", "No disponible"),
+                            location=job.get("location", {}).get("city", "Unknown"),
+                            company=job.get("company", "ADP Employer")
+                        ))
+                page += 1
+            except json.JSONDecodeError:
+                break
+        return vacantes
+    
+class PeopleSoftScraper(BaseScraper):
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}/jobs?page={page}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select('div.job-card')
+            if not job_cards:
+                break
+            tasks = []
+            for card in job_cards:
+                title = card.find('h3').get_text(strip=True) if card.find('h3') else "No especificado"
+                url_elem = card.find('a', href=True)
+                link = url_elem['href'] if url_elem else ""
+                link = link if link.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{link}"
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    tasks.append(self.get_job_details(link))
+            details_list = await asyncio.gather(*tasks)
+            vacantes.extend([JobListing(**detail) for detail in details_list if detail])
+            page += 1
+        return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1') or soup.select_one('h2')
+        desc_elem = soup.select_one('div.job-desc') or soup.select_one('div.description')
+        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": "PeopleSoft Employer",
+            "skills": self.extract_skills(content),
+            "url": url
+        }
+    
+class GenericScraper(BaseScraper):  # Usar para Meta4, Cornerstone, UKG
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}/jobs?page={page}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select('div.job-item')  # Ajustar selector
+            if not job_cards:
+                break
+            tasks = []
+            for card in job_cards:
+                title = card.find('h3').get_text(strip=True) if card.find('h3') else "No especificado"
+                url_elem = card.find('a', href=True)
+                link = url_elem['href'] if url_elem else ""
+                link = link if link.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{link}"
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    tasks.append(self.get_job_details(link))
+            details_list = await asyncio.gather(*tasks)
+            vacantes.extend([JobListing(**detail) for detail in details_list if detail])
+            page += 1
+        return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1') or soup.select_one('h2')
+        desc_elem = soup.select_one('div.job-details') or soup.select_one('div.description')
+        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": self.__class__.__name__.replace("Scraper", " Employer"),
+            "skills": self.extract_skills(content),
+            "url": url
+        }
+    
 class CornerstoneScraper(BaseScraper): pass
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}/jobs?page={page}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select('div.job-item')  # Ajustar selector
+            if not job_cards:
+                break
+            tasks = []
+            for card in job_cards:
+                title = card.find('h3').get_text(strip=True) if card.find('h3') else "No especificado"
+                url_elem = card.find('a', href=True)
+                link = url_elem['href'] if url_elem else ""
+                link = link if link.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{link}"
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    tasks.append(self.get_job_details(link))
+            details_list = await asyncio.gather(*tasks)
+            vacantes.extend([JobListing(**detail) for detail in details_list if detail])
+            page += 1
+        return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1') or soup.select_one('h2')
+        desc_elem = soup.select_one('div.job-details') or soup.select_one('div.description')
+        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": self.__class__.__name__.replace("Scraper", " Employer"),
+            "skills": self.extract_skills(content),
+            "url": url
+        }
+
 class UKGScraper(BaseScraper): pass
-class GlassdoorScraper(BaseScraper): pass
-class ComputrabajoScraper(BaseScraper): pass
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}/jobs?page={page}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select('div.job-item')  # Ajustar selector
+            if not job_cards:
+                break
+            tasks = []
+            for card in job_cards:
+                title = card.find('h3').get_text(strip=True) if card.find('h3') else "No especificado"
+                url_elem = card.find('a', href=True)
+                link = url_elem['href'] if url_elem else ""
+                link = link if link.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{link}"
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    tasks.append(self.get_job_details(link))
+            details_list = await asyncio.gather(*tasks)
+            vacantes.extend([JobListing(**detail) for detail in details_list if detail])
+            page += 1
+        return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1') or soup.select_one('h2')
+        desc_elem = soup.select_one('div.job-details') or soup.select_one('div.description')
+        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": self.__class__.__name__.replace("Scraper", " Employer"),
+            "skills": self.extract_skills(content),
+            "url": url
+        }
+
+class GlassdoorScraper(BaseScraper):
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}?page={page}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select('li.react-job-listing')
+            if not job_cards:
+                break
+            tasks = []
+            for card in job_cards:
+                title = card.find('a', class_='jobLink').get_text(strip=True) if card.find('a', class_='jobLink') else "No especificado"
+                url_elem = card.find('a', class_='jobLink', href=True)
+                link = url_elem['href'] if url_elem else ""
+                link = link if link.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{link}"
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    tasks.append(self.get_job_details(link))
+            details_list = await asyncio.gather(*tasks)
+            vacantes.extend([JobListing(**detail) for detail in details_list if detail])
+            page += 1
+        return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1') or soup.select_one('h2')
+        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+        loc_elem = soup.select_one('span.jobLocation') or soup.select_one('span.location')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": "Glassdoor Employer",
+            "skills": self.extract_skills(content),
+            "url": url
+        }
+    
+class ComputrabajoScraper(BaseScraper):
+    async def scrape(self) -> List[JobListing]:
+        vacantes = []
+        page = 1
+        seen_urls = set()
+        while True:
+            url = f"{self.domain.dominio}?p={page}"
+            content = await self.fetch(url)
+            if not content:
+                break
+            soup = BeautifulSoup(content, "html.parser")
+            job_cards = soup.select('article.box_border')
+            if not job_cards:
+                break
+            tasks = []
+            for card in job_cards:
+                title = card.find('h1').get_text(strip=True) if card.find('h1') else "No especificado"
+                url_elem = card.find('a', class_='js-o-link', href=True)
+                link = url_elem['href'] if url_elem else ""
+                link = link if link.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{link}"
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    tasks.append(self.get_job_details(link))
+            details_list = await asyncio.gather(*tasks)
+            vacantes.extend([JobListing(**detail) for detail in details_list if detail])
+            page += 1
+        return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        content = await self.fetch(url)
+        if not content:
+            return {}
+        soup = BeautifulSoup(content, "html.parser")
+        title_elem = soup.select_one('h1') or soup.select_one('h2')
+        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+        return {
+            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+            "company": "Computrabajo Employer",
+            "skills": self.extract_skills(content),
+            "url": url
+        }
+    
 class FlexibleScraper(BaseScraper): pass
 
 # Mapeo de Scrapers

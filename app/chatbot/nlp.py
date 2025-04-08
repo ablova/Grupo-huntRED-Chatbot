@@ -356,7 +356,7 @@ class NLPProcessor:
             self.depth = analysis_depth
             self.language = language
             return
-
+        self.semaphore = asyncio.Semaphore(5)  # Limitar a 5 tareas concurrentes
         self.mode = mode
         self.depth = analysis_depth
         self.language = language

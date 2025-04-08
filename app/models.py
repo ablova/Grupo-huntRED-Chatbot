@@ -237,6 +237,12 @@ class BusinessUnit(models.Model):
         except ConfiguracionBU.DoesNotExist:
             pass
         return None
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not hasattr(self, 'configuracionbu'):  # Verifica si ya tiene configuración
+            ConfiguracionBU.objects.create(business_unit=self)
+            logger.info(f"Creada ConfiguracionBU por defecto para {self.name}")
 
 class ConfiguracionBU(models.Model):
     business_unit = models.OneToOneField(BusinessUnit, on_delete=models.CASCADE)

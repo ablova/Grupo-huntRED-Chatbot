@@ -1,4 +1,4 @@
-# /home/pablo/app/email_scraper_v2.py
+# /home/pablo/app/email_scraper.py
 
 import asyncio
 import aioimaplib
@@ -16,8 +16,8 @@ from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
 from django.utils import timezone
 from asgiref.sync import sync_to_async
-from app.models import Vacante, BusinessUnit, DominioScraping, Worker, USER_AGENTS
-from app.utilidades.scraping import ScrapingPipeline, get_scraper, JobListing, assign_business_unit
+from app.models import Vacante, BusinessUnit, ConfiguracionBU, DominioScraping, Worker, USER_AGENTS
+from app.utilidades.scraping import ScrapingPipeline, get_scraper, JobListing, assign_business_unit, assign_business_unit_sync
 from django.core.exceptions import ObjectDoesNotExist
 import aiohttp
 import environ
@@ -733,13 +733,28 @@ class EmailScraperV2:
                 logger.info("📧 Summary sent to pablo@huntred.com")
         except Exception as e:
             logger.error(f"Error sending summary email: {e}", exc_info=True)
+python
+
+Collapse
+
+Unwrap
+
+Copy
+import asyncio
+import gc
+import logging
+from prometheus_client import start_http_server
+
+# Suponiendo que estas constantes y clases están definidas en tu archivo
+from email_scraper_v2 import EmailScraperV2, SystemHealthMonitor, BATCH_SIZE_DEFAULT, MAX_ATTEMPTS, RETRY_DELAY, PROMETHEUS_PORT, logger
 
 async def process_all_emails():
-    scraper = EmailScraperV2()
+    scraper = EmailScraperV2()  # Asume que ya tiene los parámetros necesarios (imap_server, email_user, email_pass)
     health_monitor = SystemHealthMonitor(scraper)
-    batch_size = BATCH_SIZE_DEFAULT
+    batch_size = BATCH_SIZE_DEFAULT  # Tamaño inicial del lote
     attempt = 0
 
+    # Iniciar servidor Prometheus para métricas
     try:
         start_http_server(PROMETHEUS_PORT, registry=scraper.metrics.registry)
         logger.info("Prometheus server started on port 8001")
@@ -748,6 +763,7 @@ async def process_all_emails():
 
     while attempt < MAX_ATTEMPTS:
         attempt += 1
+        # Intentar conectar al servidor IMAP
         if not await scraper.connect():
             logger.error(f"Could not connect to IMAP server, attempt {attempt}/{MAX_ATTEMPTS}")
             if attempt == MAX_ATTEMPTS:
@@ -756,6 +772,7 @@ async def process_all_emails():
             await asyncio.sleep(RETRY_DELAY)
             continue
 
+        # Buscar todos los correos en la bandeja
         resp, data = await scraper.mail.search("ALL")
         if resp != "OK":
             logger.error(f"Failed to search emails: {resp}")
@@ -766,23 +783,38 @@ async def process_all_emails():
             logger.info("No more emails in INBOX.Jobs, processing finished")
             break
 
-        current_batch_size = min(batch_size, len(email_ids))
-        logger.info(f"Processing batch of {current_batch_size} emails out of {len(email_ids)} remaining")
-        await scraper.process_email_batch(batch_size=current_batch_size)
+        # Procesar correos en lotes dinámicos
+        for i in range(0, len(email_ids), batch_size):
+            # Verificar la salud del sistema antes de procesar cada lote
+            recommendations = await health_monitor.check_health()
+            if recommendations.get("reduce_batch"):
+                batch_size = max(1, batch_size // 2)
+                logger.info(f"Batch size reducido a {batch_size} debido a alta carga")
+            if recommendations.get("run_gc"):
+                gc.collect()
+                logger.info("Executed gc.collect() to free memory")
 
-        await scraper.send_summary_email(health_monitor.actions_taken)
+            # Definir el lote actual
+            current_batch_size = min(batch_size, len(email_ids) - i)
+            batch = email_ids[i:i + current_batch_size]
+            logger.info(f"Processing batch of {current_batch_size} emails out of {len(email_ids)} remaining")
 
-        scraper.stats["vacantes_completas"] = []
-        scraper.stats["vacantes_incompletas"] = []
+            # Procesar el lote de correos
+            await scraper.process_email_batch(batch_size=current_batch_size)
 
-        recommendations = await health_monitor.check_health()
-        if recommendations.get("run_gc"):
-            gc.collect()
-            logger.info("Executed gc.collect() to free memory")
-        if recommendations.get("reduce_batch"):
-            batch_size = max(1, batch_size // 2)
-            logger.info(f"Reduced batch_size to {batch_size} due to high CPU usage")
+            # Enviar resumen después de cada lote (opcional, puedes moverlo fuera del bucle si prefieres un único resumen)
+            await scraper.send_summary_email(health_monitor.actions_taken)
 
+            # Limpiar estadísticas parciales para evitar acumulación excesiva en memoria
+            scraper.stats["vacantes_completas"] = []
+            scraper.stats["vacantes_incompletas"] = []
+
+            # Pausar entre lotes si quedan más por procesar
+            if i + current_batch_size < len(email_ids):
+                logger.info(f"Pausing {RETRY_DELAY} seconds before the next batch...")
+                await asyncio.sleep(RETRY_DELAY)
+
+        # Cerrar la conexión IMAP al finalizar el procesamiento
         try:
             await scraper.mail.logout()
         except asyncio.TimeoutError:
@@ -792,13 +824,9 @@ async def process_all_emails():
         finally:
             scraper.mail = None
 
-        if len(email_ids) > batch_size:
-            logger.info(f"Pausing {RETRY_DELAY} seconds before the next batch...")
-            await asyncio.sleep(RETRY_DELAY)
-        else:
-            logger.info("Last batch processed, finishing...")
-            break
-
+        logger.info("Last batch processed, finishing...")
+        break  # Salir del bucle while si se procesaron todos los correos
+    
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ai_huntred.settings")
     import django
