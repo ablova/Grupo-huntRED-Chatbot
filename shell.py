@@ -326,7 +326,8 @@ print(response)
 from app.models import BusinessUnit
 
 # Obtén un objeto válido de BusinessUnit
-business_unit = BusinessUnit.objects.get(name="amigro")  # Ajusta según tus datos
+business_unit = BusinessUnit.objects.get(name="huntRED®")  # Ajusta según tus datos
+
 
 # Ejecuta nuevamente la prueba
 import asyncio
