@@ -16,41 +16,47 @@ from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
 from django.utils import timezone
 from asgiref.sync import sync_to_async
-from app.models import Vacante, BusinessUnit, DominioScraping, Worker
-from app.utilidades.scraping import ScrapingPipeline, get_scraper, JobListing
+from app.models import Vacante, BusinessUnit, DominioScraping, Worker, USER_AGENTS
+from app.utilidades.scraping import ScrapingPipeline, get_scraper, JobListing, assign_business_unit
 from django.core.exceptions import ObjectDoesNotExist
 import aiohttp
 import environ
 from urllib.parse import urlparse, urljoin
 import smtplib
 from email.mime.text import MIMEText
-from prometheus_client import Counter, Histogram, CollectorRegistry
+from prometheus_client import Counter, Histogram, CollectorRegistry, start_http_server
 
-# Configuración de entorno y logging (sin cambios)
+# Configuración de entorno
 env = environ.Env()
 environ.Env.read_env(env_file='/home/pablo/.env')
+
+# Configuración de logging
+log_file = f"/home/pablo/logs/email_scraper_{datetime.now().strftime('%Y%m%d')}.log"
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("/home/pablo/logs/email_scraper_v2.log"),
+        logging.FileHandler(log_file),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-# Constantes (sin cambios)
-IMAP_SERVER = "mail.huntred.com"
-EMAIL_ACCOUNT = "pablo@huntred.com"
-EMAIL_PASSWORD = "Natalia&Patricio1113!"
-SMTP_SERVER = "mail.huntred.com"
-SMTP_PORT = 587
-CONNECTION_TIMEOUT = 60
-BATCH_SIZE_DEFAULT = 15
-MAX_RETRIES = 3
-RETRY_DELAY = 5
-MAX_ATTEMPTS = 10
+# Configuración del servidor IMAP
+IMAP_SERVER = env("IMAP_SERVER", default="mail.huntred.com")
+EMAIL_ACCOUNT = env("EMAIL_ACCOUNT", default="pablo@huntred.com")
+EMAIL_PASSWORD = env("EMAIL_PASSWORD", default="Natalia&Patricio1113!")
+SMTP_SERVER = env("SMTP_SERVER", default="mail.huntred.com")
+SMTP_PORT = env.int("SMTP_PORT", default=587)
 
+# Configuración de timeouts y reintentos
+CONNECTION_TIMEOUT = env.int("CONNECTION_TIMEOUT", default=60)
+BATCH_SIZE_DEFAULT = env.int("BATCH_SIZE_DEFAULT", default=15)
+MAX_RETRIES = env.int("MAX_RETRIES", default=3)
+RETRY_DELAY = env.int("RETRY_DELAY", default=5)
+MAX_ATTEMPTS = env.int("MAX_ATTEMPTS", default=10)
+
+# Configuración de carpetas IMAP
 FOLDER_CONFIG = {
     "inbox": "INBOX",
     "jobs_folder": "INBOX.Jobs",
@@ -58,10 +64,45 @@ FOLDER_CONFIG = {
     "error_folder": "INBOX.Error",
 }
 
-JOB_KEYWORDS = ["job", "vacante", "opportunity", "empleo", "position", "director", "analista", "gerente", "asesor"]
-EXCLUDED_TEXTS = ["unsubscribe", "manage", "help", "profile", "feed"]
-DATA_MINIMIZATION = True
-LOG_DATA_PROCESSING = True
+# Palabras clave para identificar alertas de trabajo
+JOB_KEYWORDS = [
+    "job", "vacante", "opportunity", "empleo", "position", 
+    "director", "analista", "gerente", "asesor", "trabajo",
+    "career", "linkedin"
+]
+
+# Textos a excluir
+EXCLUDED_TEXTS = [
+    "unsubscribe", "manage", "help", "profile", "feed", 
+    "preferences", "settings", "account", "notification"
+]
+
+# Configuración de monitoreo
+DATA_MINIMIZATION = env.bool("DATA_MINIMIZATION", default=True)
+LOG_DATA_PROCESSING = env.bool("LOG_DATA_PROCESSING", default=True)
+
+# Configuración de métricas Prometheus
+PROMETHEUS_PORT = env.int("PROMETHEUS_PORT", default=8001)
+# Decorador para manejo de conexión IMAP
+def with_imap_connection(func):
+    @wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        retry_count = 0
+        while retry_count < MAX_RETRIES:
+            if await self.ensure_connection():
+                try:
+                    return await func(self, *args, **kwargs)
+                except (aioimaplib.IMAP4.abort, asyncio.TimeoutError, ConnectionError) as e:
+                    logger.warning(f"IMAP operation failed in {func.__name__}: {e}, retrying ({retry_count + 1}/{MAX_RETRIES})")
+                    retry_count += 1
+                    await asyncio.sleep(RETRY_DELAY)
+                    await self.reconnect()
+            else:
+                retry_count += 1
+                logger.error(f"No IMAP connection for {func.__name__}, retrying ({retry_count}/{MAX_RETRIES})")
+                await asyncio.sleep(RETRY_DELAY)
+        raise ConnectionError(f"Failed to execute {func.__name__} after {MAX_RETRIES} retries")
+    return wrapper
 
 class Metrics:
     def __init__(self):
@@ -77,31 +118,18 @@ class Metrics:
         )
 
 class SystemHealthMonitor:
-    # Sin cambios en esta clase
     def __init__(self, scraper):
         self.scraper = scraper
         self.start_time = time.time()
         self.last_check = self.start_time
         self.check_interval = 60
-        self.stats = {
-            "memory_usage": [],
-            "cpu_usage": [],
-            "error_rate": 0,
-            "success_rate": 0,
-            "connection_failures": 0,
-            "reconnection_attempts": 0,
-            "successful_reconnections": 0
-        }
+        self.stats = {"memory_usage": [], "cpu_usage": [], "error_rate": 0, "success_rate": 0, "connection_failures": 0}
         self.error_threshold = 0.3
         self.memory_threshold = 500
         self.cpu_threshold = 80
         self.actions_taken = []
-        self.stats_file = f"/home/pablo/logs/scraper_stats_{datetime.now().strftime('%Y%m%d_%H%M')}.log"
-        with open(self.stats_file, "w") as f:
-            f.write("timestamp,memory_mb,cpu_percent,errors,successes,connections,reconnects\n")
 
     async def check_health(self) -> Dict:
-        # Implementación sin cambios
         current_time = time.time()
         if current_time - self.last_check < self.check_interval:
             return {}
@@ -112,37 +140,28 @@ class SystemHealthMonitor:
         cpu_percent = process.cpu_percent(interval=1.0)
 
         total_processed = self.scraper.stats["correos_procesados"]
-        if total_processed > 0:
-            error_rate = self.scraper.stats["correos_error"] / total_processed
-            success_rate = self.scraper.stats["correos_exitosos"] / total_processed
-        else:
-            error_rate = success_rate = 0
+        error_rate = self.scraper.stats["correos_error"] / total_processed if total_processed > 0 else 0
+        success_rate = self.scraper.stats["correos_exitosos"] / total_processed if total_processed > 0 else 0
 
         self.stats["memory_usage"].append(memory_mb)
         self.stats["cpu_usage"].append(cpu_percent)
         self.stats["error_rate"] = error_rate
         self.stats["success_rate"] = success_rate
 
-        with open(self.stats_file, "a") as f:
-            f.write(f"{datetime.now().isoformat()},{memory_mb:.2f},{cpu_percent:.2f},"
-                    f"{self.scraper.stats['correos_error']},{self.scraper.stats['correos_exitosos']},"
-                    f"{self.stats['connection_failures']},{self.stats['reconnection_attempts']}\n")
-
         recommendations = {}
         if memory_mb > self.memory_threshold:
-            logging.warning(f"High memory usage: {memory_mb:.2f}MB > {self.memory_threshold}MB")
+            logger.warning(f"High memory usage: {memory_mb:.2f}MB")
             recommendations["run_gc"] = True
             self.actions_taken.append(f"High memory: {memory_mb:.2f}MB, running gc.collect()")
         if cpu_percent > self.cpu_threshold:
-            logging.warning(f"High CPU usage: {cpu_percent:.2f}% > {self.cpu_threshold}%")
+            logger.warning(f"High CPU usage: {cpu_percent:.2f}%")
             recommendations["reduce_batch"] = True
             self.actions_taken.append(f"High CPU: {cpu_percent:.2f}%, reducing batch_size")
         if error_rate > self.error_threshold:
-            logging.warning(f"High error rate: {error_rate:.2%} > {self.error_threshold:.2%}")
+            logger.warning(f"High error rate: {error_rate:.2%}")
             self.actions_taken.append(f"High error rate: {error_rate:.2%}")
-
         return recommendations
-
+    
 class EmailScraperV2:
     def __init__(self, email_account: str = EMAIL_ACCOUNT, password: str = EMAIL_PASSWORD, imap_server: str = IMAP_SERVER):
         self.email_account = email_account
@@ -160,8 +179,8 @@ class EmailScraperV2:
         self.pipeline = ScrapingPipeline()
         self.metrics = Metrics()
 
+    @with_imap_connection
     async def connect(self) -> Optional[aioimaplib.IMAP4_SSL]:
-        # Implementación sin cambios
         for attempt in range(MAX_RETRIES):
             try:
                 if self.mail:
@@ -173,23 +192,24 @@ class EmailScraperV2:
                 logger.info(f"✅ Connected to {self.imap_server}")
                 return self.mail
             except Exception as e:
-                logger.error(f"❌ Attempt {attempt + 1}/{MAX_RETRIES} failed: {e}")
+                logger.error(f"❌ Attempt {attempt + 1}/{MAX_RETRIES} failed: {e}", exc_info=True)
                 if attempt < MAX_RETRIES - 1:
                     await asyncio.sleep(RETRY_DELAY)
+        logger.error("Failed to connect to IMAP server after all retries")
         return None
 
     async def ensure_connection(self) -> bool:
-        # Implementación sin cambios
         try:
             if not self.mail:
                 return await self.connect() is not None
             await asyncio.wait_for(self.mail.noop(), timeout=CONNECTION_TIMEOUT)
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Connection check failed: {e}, attempting reconnect")
             return await self.connect() is not None
 
+    @with_imap_connection
     async def fetch_email(self, email_id: str) -> Optional[email.message.Message]:
-        # Implementación sin cambios
         for attempt in range(MAX_RETRIES):
             try:
                 if not await self.ensure_connection():
@@ -197,14 +217,15 @@ class EmailScraperV2:
                 resp, data = await asyncio.wait_for(self.mail.fetch(email_id, "(RFC822)"), timeout=CONNECTION_TIMEOUT)
                 if resp == "OK" and data and isinstance(data[1], (bytes, bytearray)):
                     return email.message_from_bytes(data[1])
+                logger.warning(f"Fetch failed for email {email_id}: resp={resp}")
             except Exception as e:
-                logger.error(f"Error fetching email {email_id}, attempt {attempt + 1}: {e}")
+                logger.error(f"Error fetching email {email_id}, attempt {attempt + 1}: {e}", exc_info=True)
                 if attempt < MAX_RETRIES - 1:
                     await asyncio.sleep(RETRY_DELAY)
         return None
 
-    def format_title(self, title: str combo) -> str:
-        # Implementación sin cambios
+    def format_title(self, title: str) -> str:
+        """Formatea el título de una vacante reemplazando abreviaturas y normalizando el texto."""
         replacements = {
             r"\bceo\b": "Chief Executive Officer", r"\bcoo\b": "Chief Operating Officer", r"\bcfo\b": "Chief Financial Officer",
             r"\bcto\b": "Chief Technology Officer", r"\bcmo\b": "Chief Marketing Officer", r"\bcio\b": "Chief Information Officer",
@@ -228,7 +249,6 @@ class EmailScraperV2:
         return formatted_title[:500]
 
     async def ratify_existing_vacancy(self, job_data: Dict) -> bool:
-        # Implementación sin cambios
         try:
             vacante = await sync_to_async(Vacante.objects.filter(url_original=job_data["url_original"]).first)()
             if not vacante:
@@ -254,106 +274,124 @@ class EmailScraperV2:
                 logger.info(f"Vacante ratificada: {vacante.titulo}, intentos: {vacante.procesamiento_count}")
             return True
         except Exception as e:
-            logger.error(f"Error ratificando vacante {job_data['titulo']}: {e}")
+            logger.error(f"Error ratificando vacante {job_data.get('titulo', 'Unknown')}: {e}", exc_info=True)
             return False
 
     async def scrape_vacancy_details_from_url(self, job_data: Dict) -> Dict:
+        """Extrae detalles de una vacante desde su URL."""
         url = job_data["url_original"]
         logger.debug(f"Scraping details from URL: {url}")
-        domain_obj = await self.get_dominio_scraping(url)
         
+        # Obtener configuración del dominio
+        domain_obj = await self.get_dominio_scraping(url)
         if not domain_obj:
-            logger.warning(f"No se encontró dominio para {url}, usando scraper por defecto")
+            logger.warning(f"No se encontró dominio para {url}, usando valores por defecto")
             domain_obj = DominioScraping(dominio=urlparse(url).netloc, plataforma="default")
 
         try:
-            scraper_class = await get_scraper(domain_obj)
-            async with scraper_class as scraper:
-                if domain_obj.cookies:
-                    valid_cookies = {k: str(v) for k, v in domain_obj.cookies.items() if v is not None}
-                    scraper.cookies.update(valid_cookies)
-                    logger.debug(f"Cookies aplicadas: {valid_cookies}")
-                
-                with self.metrics.scraping_duration.time():
-                    details = await scraper.get_job_details(url)
-                
-                if not details:
-                    logger.warning(f"No se obtuvieron detalles de {url}")
-                    return job_data
+            # Obtener HTML con cookies y headers del dominio
+            headers = domain_obj.headers or {"User-Agent": "Mozilla/5.0"}
+            cookies = {k: str(v) for k, v in (domain_obj.cookies or {}).items() if v is not None}
+            html = await self.fetch_html(url, cookies=cookies, headers=headers)
+            soup = BeautifulSoup(html, 'html.parser')
 
-                # Crear JobListing con valores por defecto si faltan datos
-                job_listing = JobListing(
-                    title=details.get("title", job_data.get("titulo", "Sin título")),
-                    location=details.get("location", job_data.get("ubicacion", "No especificada")),
-                    company=details.get("company", job_data["empresa"].name if job_data.get("empresa") else "Unknown"),
-                    description=details.get("description", job_data.get("descripcion", "")),
-                    skills=details.get("skills", job_data.get("skills_required", [])),
-                    posted_date=details.get("posted_date", job_data["fecha_publicacion"].isoformat()),
-                    url=url,
-                    salary=details.get("salary"),
-                    job_type=details.get("job_type", job_data.get("modalidad")),
-                    contract_type=details.get("contract_type"),
-                    benefits=details.get("benefits", [])
-                )
+            # Extraer detalles usando lógica específica del dominio
+            with self.metrics.scraping_duration.time():
+                details = self.extract_details(soup, domain_obj)
 
-                # Verificar que pipeline esté inicializado correctamente
-                if not hasattr(self.pipeline, 'process') or not callable(self.pipeline.process):
-                    logger.error("ScrapingPipeline no está correctamente inicializado")
-                    return job_data
-
-                processed_jobs = await self.pipeline.process([vars(job_listing)])
-                if not processed_jobs or not isinstance(processed_jobs, list):
-                    logger.warning(f"No se procesaron trabajos para {url}")
-                    return job_data
-
-                enriched_job = processed_jobs[0]
-                salario_raw = enriched_job.get("salary")
-                salario = None
-                if salario_raw is not None:
-                    try:
-                        salario = float(salario_raw)
-                    except (ValueError, TypeError):
-                        logger.debug(f"Salario no convertible a float: {salario_raw}")
-
-                # Actualizar job_data con manejo seguro de valores
-                job_data.update({
-                    "titulo": enriched_job.get("title", job_data.get("titulo", "Sin título"))[:500],
-                    "ubicacion": enriched_job.get("location", job_data.get("ubicacion", "No especificada"))[:300],
-                    "empresa": job_data.get("empresa") or await sync_to_async(Worker.objects.get_or_create)(
-                        name=enriched_job.get("company", "Unknown"), 
-                        defaults={"company": enriched_job.get("company", "Unknown")}
-                    )[0],
-                    "descripcion": enriched_job.get("description", "")[:3000],
-                    "modalidad": enriched_job.get("job_type", job_data.get("modalidad")),
-                    "requisitos": enriched_job.get("requirements", "")[:1000],
-                    "beneficios": ", ".join(enriched_job.get("benefits", []))[:1000],
-                    "skills_required": enriched_job.get("skills", []),
-                    "salario": salario,
-                    "fecha_publicacion": enriched_job.get("posted_date") or job_data["fecha_publicacion"]
-                })
-                
-                logger.debug(f"Enriched job data: {json.dumps(job_data, default=str)}")
-                self.metrics.vacantes_procesadas.inc(1)
+            if not details:
+                logger.warning(f"No se obtuvieron detalles de {url}")
                 return job_data
+
+            # Enriquecer job_data con los detalles extraídos
+            job_listing = JobListing(
+                title=details.get("title", job_data.get("titulo", "Sin título")),
+                location=details.get("location", job_data.get("ubicacion", "No especificada")),
+                company=details.get("company", job_data["empresa"].name if job_data.get("empresa") else "Unknown"),
+                description=details.get("description", job_data.get("descripcion", "")),
+                skills=details.get("skills", job_data.get("skills_required", [])),
+                posted_date=details.get("posted_date", job_data["fecha_publicacion"].isoformat()),
+                url=url,
+                salary=details.get("salary"),
+                job_type=details.get("job_type", job_data.get("modalidad")),
+                contract_type=details.get("contract_type"),
+                benefits=details.get("benefits", [])
+            )
+
+            # Procesar los datos en el pipeline
+            processed_jobs = await asyncio.wait_for(self.pipeline.process([vars(job_listing)]), timeout=30)
+            if not processed_jobs or not isinstance(processed_jobs, list):
+                logger.warning(f"No se procesaron trabajos para {url}")
+                return job_data
+
+            enriched_job = processed_jobs[0]
+            salario = None
+            if enriched_job.get("salary") is not None:
+                try:
+                    salario = float(enriched_job["salary"])
+                except (ValueError, TypeError):
+                    logger.debug(f"Salario no convertible a float: {enriched_job['salary']}")
+
+            # Actualizar job_data con los datos procesados
+            job_data.update({
+                "titulo": enriched_job.get("title", job_data.get("titulo", "Sin título"))[:500],
+                "ubicacion": enriched_job.get("location", job_data.get("ubicacion", "No especificada"))[:300],
+                "empresa": job_data.get("empresa") or await sync_to_async(Worker.objects.get_or_create)(
+                    name=enriched_job.get("company", "Unknown"),
+                    defaults={"company": enriched_job.get("company", "Unknown")}
+                )[0],
+                "descripcion": enriched_job.get("description", "")[:3000],
+                "modalidad": enriched_job.get("job_type", job_data.get("modalidad")),
+                "requisitos": enriched_job.get("requirements", "")[:1000],
+                "beneficios": ", ".join(enriched_job.get("benefits", []))[:1000],
+                "skills_required": enriched_job.get("skills", []),
+                "salario": salario,
+                "fecha_publicacion": enriched_job.get("posted_date") or job_data["fecha_publicacion"]
+            })
+
+            logger.debug(f"Enriched job data: {json.dumps(job_data, default=str)}")
+            self.metrics.vacantes_procesadas.inc(1)
+            return job_data
 
         except Exception as e:
             logger.error(f"Failed to scrape details from {url}: {e}", exc_info=True)
             self.metrics.scraping_errors.inc(1)
             return job_data
 
+    def extract_details(self, soup: BeautifulSoup, domain_obj) -> Dict:
+        """Extrae detalles específicos del HTML según el dominio."""
+        # Implementar lógica basada en selectores CSS/XPath almacenados en domain_obj
+        # Ejemplo:
+        selectors = domain_obj.selectors or {}
+        return {
+            "title": soup.select_one(selectors.get("title", "h1")).get_text(strip=True) if soup.select_one(selectors.get("title", "h1")) else None,
+            "location": soup.select_one(selectors.get("location")).get_text(strip=True) if soup.select_one(selectors.get("location")) else None,
+            "company": soup.select_one(selectors.get("company")).get_text(strip=True) if soup.select_one(selectors.get("company")) else None,
+            "description": soup.select_one(selectors.get("description")).get_text(strip=True) if soup.select_one(selectors.get("description")) else None,
+            # Añadir más campos según sea necesario
+        }
+
     async def save_or_update_vacante(self, job_data: Dict) -> bool:
+        """Guarda o actualiza una vacante en la base de datos."""
         try:
             logger.debug(f"Guardando vacante: {job_data.get('titulo', 'Sin título')}")
-            
-            business_unit_id = await assign_business_unit(
-                job_title=job_data.get("titulo", ""),
-                job_description=job_data.get("descripcion", ""),
-                location=job_data.get("ubicacion", "")
-            )
-            
-            business_unit = await sync_to_async(BusinessUnit.objects.get)(
-                id=business_unit_id) if business_unit_id else await sync_to_async(BusinessUnit.objects.get)(name="huntRED®")
 
+            # Asignar business_unit con manejo de errores
+            try:
+                business_unit_id = await asyncio.wait_for(
+                    assign_business_unit(
+                        job_title=job_data.get("titulo", ""),
+                        job_description=job_data.get("descripcion", ""),
+                        location=job_data.get("ubicacion", "")
+                    ),
+                    timeout=30
+                )
+                business_unit = await sync_to_async(BusinessUnit.objects.get)(id=business_unit_id)
+            except Exception as e:
+                logger.warning(f"Error asignando business_unit: {e}, usando default")
+                business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED®")
+
+            # Verificar si la vacante ya existe
             if await self.ratify_existing_vacancy(job_data):
                 return True
 
@@ -361,7 +399,7 @@ class EmailScraperV2:
                 logger.error(f"No se pudo asignar empresa para {job_data.get('titulo', 'Unknown')}")
                 return False
 
-            # Crear vacante con valores por defecto para campos opcionales
+            # Crear y guardar la vacante
             vacante = Vacante(
                 url_original=job_data["url_original"],
                 titulo=job_data["titulo"][:500],
@@ -372,7 +410,7 @@ class EmailScraperV2:
                 requisitos=job_data.get("requisitos", "")[:1000],
                 beneficios=job_data.get("beneficios", "")[:1000],
                 skills_required=job_data.get("skills_required", []),
-                salario=job_data.get("salario"),  # Puede ser None
+                salario=job_data.get("salario"),
                 business_unit=business_unit,
                 fecha_publicacion=job_data["fecha_publicacion"],
                 activa=True,
@@ -384,17 +422,19 @@ class EmailScraperV2:
             if LOG_DATA_PROCESSING:
                 logger.info(f"GDPR: Processed vacancy {vacante.titulo} at {datetime.now().isoformat()}")
             return True
+
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout guardando vacante {job_data.get('titulo', 'Unknown')}")
+            return False
         except Exception as e:
             logger.error(f"Error guardando vacante {job_data.get('titulo', 'Unknown')}: {e}", exc_info=True)
             return False
-
+        
     async def get_dominio_scraping(self, url: str) -> Optional[DominioScraping]:
-        # Implementación sin cambios
         domain = urlparse(url).netloc
         return await sync_to_async(DominioScraping.objects.filter(dominio__contains=domain).first)()
 
     async def extract_vacancies_from_html(self, html: str) -> List[Dict]:
-        # Implementación sin cambios
         soup = BeautifulSoup(html, "html.parser")
         job_listings = []
 
@@ -402,7 +442,7 @@ class EmailScraperV2:
             default_empresa = (await sync_to_async(Worker.objects.get_or_create)(name="Unknown", defaults={"company": "Unknown"}))[0]
             logger.debug(f"Default empresa obtenida: {default_empresa.name}")
         except Exception as e:
-            logger.error(f"Error al obtener/crear empresa por defecto: {e}")
+            logger.error(f"Error al obtener/crear empresa por defecto: {e}", exc_info=True)
             return []
 
         NON_JOB_TITLES = [
@@ -475,86 +515,182 @@ class EmailScraperV2:
         return job_listings
 
     async def process_email_batch(self, batch_size: int = BATCH_SIZE_DEFAULT):
-        # Implementación sin cambios
         if not await self.ensure_connection():
+            logger.error("No se pudo establecer conexión inicial con IMAP")
             return
 
         try:
-            resp, data = await self.mail.search("ALL")
+            resp, data = await asyncio.wait_for(self.mail.search("ALL"), timeout=CONNECTION_TIMEOUT)
             if resp != "OK" or not data or not isinstance(data[0], bytes):
-                logger.error(f"Failed to search emails: resp={resp}, data={data}")
+                logger.error(f"Error al buscar correos: resp={resp}, data={data}")
                 return
+
             email_ids = data[0].decode().split()[:batch_size]
             if not email_ids:
-                logger.info("No emails found in batch")
+                logger.info("No se encontraron correos para procesar")
                 return
 
-            for email_id in email_ids:
-                job_listings = await self.process_job_alert_email(email_id)
-                self.stats["correos_procesados"] += 1
-                if not job_listings:
-                    await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
-                    continue
+            sub_batch_size = 5
+            for i in range(0, len(email_ids), sub_batch_size):
+                sub_batch = email_ids[i:i + sub_batch_size]
+                logger.info(f"Procesando sub-lote {i//sub_batch_size + 1} de {(len(email_ids) + sub_batch_size - 1)//sub_batch_size}")
+                
+                for email_id in sub_batch:
+                    try:
+                        gc.collect()
+                        job_listings = await asyncio.wait_for(
+                            self.process_job_alert_email(email_id),
+                            timeout=600  # 10 minutos por correo
+                        )
+                        
+                        self.stats["correos_procesados"] += 1
+                        
+                        if not job_listings:
+                            await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
+                            logger.debug(f"Correo {email_id} sin vacantes, movido a Parsed")
+                            continue
 
-                successes = 0
-                for job in job_listings:
-                    if await self.save_or_update_vacante(job):
-                        successes += 1
+                        successes = 0
+                        for job in job_listings:
+                            try:
+                                if await self.save_or_update_vacante(job):
+                                    successes += 1
+                            except Exception as e:
+                                logger.error(f"Error guardando vacante del correo {email_id}: {e}")
+                                self.metrics.scraping_errors.inc(1)
 
-                if successes == len(job_listings):
-                    await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
-                    self.stats["correos_exitosos"] += 1
-                else:
-                    await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
-                    self.stats["correos_error"] += 1
-                    logger.warning(f"Email {email_id} had {len(job_listings) - successes} failures out of {len(job_listings)} vacancies")
+                        if successes == len(job_listings):
+                            await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
+                            self.stats["correos_exitosos"] += 1
+                            logger.info(f"✅ Correo {email_id} procesado exitosamente: {successes}/{len(job_listings)} vacantes")
+                        else:
+                            await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                            self.stats["correos_error"] += 1
+                            logger.warning(f"⚠️ Correo {email_id} con errores: {successes}/{len(job_listings)} vacantes")
+
+                    except asyncio.TimeoutError:
+                        logger.error(f"Timeout procesando correo {email_id}")
+                        await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                        self.stats["correos_error"] += 1
+                        self.metrics.scraping_errors.inc(1)
+                    except Exception as e:
+                        logger.error(f"Error procesando correo {email_id}: {e}", exc_info=True)
+                        await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                        self.stats["correos_error"] += 1
+                        self.metrics.scraping_errors.inc(1)
+                    
+                    await asyncio.sleep(1)
+                
+                if i + sub_batch_size < len(email_ids):
+                    logger.info(f"Pausa de {RETRY_DELAY} segundos entre sub-lotes...")
+                    await asyncio.sleep(RETRY_DELAY)
+
         except Exception as e:
-            logger.error(f"Unexpected error in process_email_batch: {e}", exc_info=True)
+            logger.error(f"Error inesperado en process_email_batch: {e}", exc_info=True)
             self.metrics.scraping_errors.inc(1)
 
     async def process_job_alert_email(self, email_id: str) -> List[Dict]:
-        # Implementación sin cambios
-        message = await self.fetch_email(email_id)
-        if not message:
-            await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
-            return []
+        """Procesa un correo electrónico para extraer vacantes"""
+        for attempt in range(MAX_RETRIES):
+            try:
+                message = await self.fetch_email(email_id)
+                if not message:
+                    logger.warning(f"No se pudo obtener el correo {email_id} en intento {attempt + 1}")
+                    if attempt == MAX_RETRIES - 1:
+                        await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                    continue
 
-        sender = message.get("From", "").lower()
-        subject = message.get("Subject", "").lower()
-        domain = sender.split('@')[-1] if '@' in sender else "unknown"
-        if not any(keyword in subject for keyword in JOB_KEYWORDS):
-            await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
-            return []
+                sender = message.get("From", "").lower()
+                subject = message.get("Subject", "").lower()
+                domain = sender.split('@')[-1] if '@' in sender else "unknown"
+                
+                # Verificar si es un correo de LinkedIn
+                is_linkedin = "linkedin" in sender or "linkedin" in subject
+                
+                # Verificar si es un correo válido para procesar
+                if not is_linkedin and not any(keyword in subject for keyword in JOB_KEYWORDS):
+                    logger.info(f"Correo {email_id} no es una alerta de trabajo válida")
+                    await self.move_email(email_id, FOLDER_CONFIG["parsed_folder"])
+                    return []
 
-        body = message.get_payload(decode=True).decode("utf-8", errors="ignore") if not message.is_multipart() else next(
-            (part.get_payload(decode=True).decode("utf-8", errors="ignore") for part in message.walk() if part.get_content_type() == "text/html"), None
-        )
-        if not body:
-            await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
-            return []
+                # Extraer cuerpo HTML
+                body = None
+                if message.is_multipart():
+                    for part in message.walk():
+                        if part.get_content_type() == "text/html":
+                            body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                            break
+                else:
+                    body = message.get_payload(decode=True).decode("utf-8", errors="ignore")
 
-        job_listings = await self.extract_vacancies_from_html(body)
-        if not isinstance(job_listings, list):
-            logger.error(f"extract_vacancies_from_html returned invalid data: {job_listings}")
-            return []
+                if not body:
+                    logger.warning(f"No se encontró contenido HTML en correo {email_id}")
+                    if attempt == MAX_RETRIES - 1:
+                        await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                    continue
 
-        self.stats["vacantes_extraidas"] += len(job_listings)
+                # Extraer vacantes
+                job_listings = await self.extract_vacancies_from_html(body)
+                if not isinstance(job_listings, list):
+                    logger.error(f"extract_vacancies_from_html retornó datos inválidos: {job_listings}")
+                    if attempt == MAX_RETRIES - 1:
+                        await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                    continue
+
+                self.stats["vacantes_extraidas"] += len(job_listings)
+                
+                # Enriquecer vacantes
+                enriched_jobs = await asyncio.gather(
+                    *(self.scrape_vacancy_details_from_url(job) for job in job_listings),
+                    return_exceptions=True
+                )
+
+                # Procesar resultados
+                valid_jobs = []
+                for i, job in enumerate(enriched_jobs):
+                    if isinstance(job, Exception):
+                        logger.error(f"Error enriqueciendo vacante {i+1} del correo {email_id}: {job}")
+                        self.metrics.scraping_errors.inc(1)
+                        if job_listings[i]:
+                            valid_jobs.append(job_listings[i])
+                    elif isinstance(job, dict):
+                        valid_jobs.append(job)
+                        if job.get("descripcion") and job.get("modalidad"):
+                            self.stats["vacantes_completas"].append(job["titulo"])
+                        else:
+                            self.stats["vacantes_incompletas"].append(job.get("titulo", "Sin título"))
+
+                # Registrar estadísticas
+                self.stats["processed_emails"].append({
+                    "email_id": email_id, 
+                    "subject": subject, 
+                    "domain": domain,
+                    "vacantes_encontradas": len(valid_jobs)
+                })
+                
+                if LOG_DATA_PROCESSING:
+                    logger.info(f"GDPR: Procesado correo {email_id} con asunto {subject} de {domain} en {datetime.now().isoformat()}")
+                
+                return valid_jobs
+
+            except asyncio.TimeoutError:
+                logger.error(f"Timeout procesando correo {email_id} en intento {attempt + 1}")
+                if attempt == MAX_RETRIES - 1:
+                    await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                    self.metrics.scraping_errors.inc(1)
+            except Exception as e:
+                logger.error(f"Error procesando correo {email_id} en intento {attempt + 1}: {e}", exc_info=True)
+                if attempt == MAX_RETRIES - 1:
+                    await self.move_email(email_id, FOLDER_CONFIG["error_folder"])
+                    self.metrics.scraping_errors.inc(1)
+            
+            if attempt < MAX_RETRIES - 1:
+                await asyncio.sleep(RETRY_DELAY)
         
-        enriched_jobs = await asyncio.gather(*(self.scrape_vacancy_details_from_url(job) for job in job_listings))
+        return []
 
-        for job in enriched_jobs:
-            if job.get("descripcion") and job.get("modalidad"):
-                self.stats["vacantes_completas"].append(job["titulo"])
-            else:
-                self.stats["vacantes_incompletas"].append(job["titulo"])
-
-        self.stats["processed_emails"].append({"email_id": email_id, "subject": subject, "domain": domain})
-        if LOG_DATA_PROCESSING:
-            logger.info(f"GDPR: Processed email {email_id} with subject {subject} from {domain} at {datetime.now().isoformat()}")
-        return [job for job in enriched_jobs if job]
-
+    @with_imap_connection
     async def move_email(self, email_id: str, folder: str):
-        # Implementación sin cambios
         try:
             if await self.ensure_connection():
                 await self.mail.copy(email_id, folder)
@@ -562,10 +698,9 @@ class EmailScraperV2:
                 await self.mail.expunge()
                 logger.debug(f"Email {email_id} moved to {folder} and deleted from INBOX.Jobs")
         except Exception as e:
-            logger.error(f"Error moving email {email_id} to {folder}: {e}")
+            logger.error(f"Error moving email {email_id} to {folder}: {e}", exc_info=True)
 
     async def send_summary_email(self, actions_taken: List[str]):
-        # Implementación sin cambios
         processed_emails_info = "\n".join(
             f"ID: {email['email_id']}, Subject: {email['subject'][:50]}, Domain: {email['domain']}"
             for email in self.stats["processed_emails"]
@@ -597,18 +732,16 @@ class EmailScraperV2:
                 server.send_message(msg)
                 logger.info("📧 Summary sent to pablo@huntred.com")
         except Exception as e:
-            logger.error(f"Error sending summary email: {e}")
+            logger.error(f"Error sending summary email: {e}", exc_info=True)
 
 async def process_all_emails():
-    # Implementación sin cambios
     scraper = EmailScraperV2()
     health_monitor = SystemHealthMonitor(scraper)
     batch_size = BATCH_SIZE_DEFAULT
     attempt = 0
 
     try:
-        from prometheus_client import start_http_server
-        start_http_server(8001, registry=scraper.metrics.registry)
+        start_http_server(PROMETHEUS_PORT, registry=scraper.metrics.registry)
         logger.info("Prometheus server started on port 8001")
     except OSError as e:
         logger.warning(f"Failed to start Prometheus server: {e}")
@@ -655,7 +788,7 @@ async def process_all_emails():
         except asyncio.TimeoutError:
             logger.warning("Timeout closing IMAP connection, forcing closure...")
         except Exception as e:
-            logger.error(f"Unexpected error closing IMAP connection: {e}")
+            logger.error(f"Unexpected error closing IMAP connection: {e}", exc_info=True)
         finally:
             scraper.mail = None
 

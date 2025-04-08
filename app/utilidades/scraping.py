@@ -17,7 +17,7 @@ from django.utils.timezone import now
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
-from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, Worker, USER_AGENTS, WeightingModel
+from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, ConfiguracionBU, Worker, USER_AGENTS, WeightingModel
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
 from app.chatbot.utils import clean_text
 from app.utilidades.loader import DIVISION_SKILLS
