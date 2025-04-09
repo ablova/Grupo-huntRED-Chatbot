@@ -217,6 +217,7 @@ def predict_top_candidates_task(vacancy_id, top_n=10):
 
 @shared_task
 async def sync_jobs_with_api():
+    logger.info(f"[{datetime.now().isoformat()}] Ejecutando tarea programada: sync_jobs_with_api")
     # Obtener todas las unidades de negocio con configuraciones
     business_units = await sync_to_async(list)(BusinessUnit.objects.prefetch_related('configuracionbu_set').all())
     

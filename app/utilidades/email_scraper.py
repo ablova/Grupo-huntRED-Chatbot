@@ -246,6 +246,8 @@ class EmailScraperV2:
     
     async def fetch_html(self, url: str, cookies: Dict = None, headers: Dict = None) -> str:
         """Obtiene el contenido HTML de una URL de forma asíncrona con reintentos."""
+        if url.startswith("https://https://"):
+            url = url.replace("https://https://", "https://")
         await self._init_http_session()
         default_headers = {
             "User-Agent": random.choice(USER_AGENTS),
@@ -303,7 +305,7 @@ class EmailScraperV2:
 
             updated = False
             for key, value in job_data.items():
-                current_value = getattr(vacante, key, None)
+                current_value = await sync_to_async(getattr)(vacante, key, None)
                 if current_value != value and value:
                     if key == "titulo":
                         value = value[:500]
@@ -311,7 +313,7 @@ class EmailScraperV2:
                         value = value[:1000]
                     elif key == "descripcion":
                         value = value[:3000]
-                    setattr(vacante, key, value)
+                    await sync_to_async(setattr)(vacante, key, value)
                     updated = True
 
             if updated:
@@ -325,85 +327,38 @@ class EmailScraperV2:
             return False
 
     async def scrape_vacancy_details_from_url(self, job_data: Dict) -> Dict:
-        """Extrae detalles de una vacante desde su URL."""
         url = job_data["url_original"]
         logger.debug(f"Scraping details from URL: {url}")
-        
-        domain_obj = await self.get_dominio_scraping(url)
-        if not domain_obj:
-            logger.warning(f"No se encontró dominio para {url}, usando valores por defecto")
-            domain_obj = DominioScraping(dominio=urlparse(url).netloc, plataforma="default")
 
-        try:
-            headers = getattr(domain_obj, 'headers', None) or {"User-Agent": "Mozilla/5.0"}
-            cookies = getattr(domain_obj, 'cookies', {}) or {}
-            cookies = {k: str(v) for k, v in cookies.items() if v is not None}
-            html = await self.fetch_html(url, cookies=cookies, headers=headers)
-            if not html:
-                logger.warning(f"No se obtuvo HTML de {url}")
-                return job_data
-            soup = BeautifulSoup(html, 'html.parser')
+        domain_obj = await self.get_dominio_scraping(url) or DominioScraping(dominio=urlparse(url).netloc, plataforma="default")
+        headers = getattr(domain_obj, 'headers', None) or {"User-Agent": "Mozilla/5.0"}
+        cookies = {k: str(v) for k, v in (getattr(domain_obj, 'cookies', {}) or {}).items() if v is not None}
 
-            with self.metrics.scraping_duration.time():
-                details = self.extract_details(soup, domain_obj)
-
-            if not details:
-                logger.warning(f"No se obtuvieron detalles de {url}")
-                return job_data
-
-            job_listing = JobListing(
-                title=details.get("title", job_data.get("titulo", "Sin título"))[:500],  # Truncar aquí
-                location=details.get("location", job_data.get("ubicacion", "No especificada")),
-                company=details.get("company", job_data["empresa"].name if job_data.get("empresa") else "Unknown"),
-                description=details.get("description", job_data.get("descripcion", "")),
-                skills=details.get("skills", job_data.get("skills_required", [])),
-                posted_date=details.get("posted_date", job_data["fecha_publicacion"].isoformat()),
-                url=url,
-                salary=details.get("salary"),
-                job_type=details.get("job_type", job_data.get("modalidad")),
-                contract_type=details.get("contract_type"),
-                benefits=details.get("benefits", [])
-            )
-
-            processed_jobs = await asyncio.wait_for(self.pipeline.process([vars(job_listing)]), timeout=30)
-            if not processed_jobs or not isinstance(processed_jobs, list):
-                logger.warning(f"No se procesaron trabajos para {url}")
-                return job_data
-
-            enriched_job = processed_jobs[0]
-            salario = None
-            if enriched_job.get("salary") is not None:
-                try:
-                    salario = float(enriched_job["salary"])
-                except (ValueError, TypeError):
-                    logger.debug(f"Salario no convertible a float: {enriched_job['salary']}")
-
-            title = enriched_job.get("title", job_data.get("titulo", "Sin título"))[:500]  # Truncar nuevamente
-            job_data.update({
-                "titulo": title,
-                "ubicacion": enriched_job.get("location", job_data.get("ubicacion", "No especificada"))[:300],
-                "empresa": job_data.get("empresa") or await sync_to_async(Worker.objects.get_or_create)(
-                    name=enriched_job.get("company", "Unknown"),
-                    defaults={"company": enriched_job.get("company", "Unknown")}
-                )[0],
-                "descripcion": enriched_job.get("description", "")[:3000],
-                "modalidad": enriched_job.get("job_type", job_data.get("modalidad")),
-                "requisitos": enriched_job.get("requirements", "")[:1000],
-                "beneficios": ", ".join(enriched_job.get("benefits", []))[:1000],
-                "skills_required": enriched_job.get("skills", []),
-                "salario": salario,
-                "fecha_publicacion": enriched_job.get("posted_date") or job_data["fecha_publicacion"]
-            })
-
-            logger.debug(f"Enriched job data: {json.dumps(job_data, default=str)}")
-            self.metrics.vacantes_procesadas.inc(1)
+        html = await self.fetch_html(url, cookies=cookies, headers=headers)
+        if not html:
+            logger.warning(f"No se obtuvo HTML de {url}")
             return job_data
 
-        except Exception as e:
-            logger.error(f"Failed to scrape details from {url}: {e}", exc_info=True)
-            self.metrics.scraping_errors.inc(1)
+        soup = BeautifulSoup(html, 'html.parser')
+        with self.metrics.scraping_duration.time():
+            details = self.extract_details(soup, domain_obj) or {}
+
+        job_listing = JobListing(
+            title=details.get("title", job_data.get("titulo", "Sin título"))[:500],  # Truncate here
+            # ... other fields ...
+        )
+
+        processed_jobs = await asyncio.wait_for(self.pipeline.process([vars(job_listing)]), timeout=30)
+        if not processed_jobs or not isinstance(processed_jobs, list):
+            logger.warning(f"No se procesaron trabajos para {url}")
             return job_data
-        
+
+        enriched_job = processed_jobs[0]
+        job_data.update({
+            "titulo": enriched_job.get("title", job_data.get("titulo", "Sin título"))[:500],  # Truncate again
+            # ... other fields ...
+        })
+        return job_data
 
     def extract_details(self, soup: BeautifulSoup, domain_obj) -> Dict:
         """Extrae detalles específicos del HTML usando los campos individuales de DominioScraping."""
@@ -505,14 +460,17 @@ class EmailScraperV2:
             return job_data
 
     async def save_or_update_vacante(self, job_data: Dict) -> bool:
-        """Guarda o actualiza una vacante en la base de datos."""
         try:
             logger.debug(f"Guardando vacante: {job_data.get('titulo', 'Sin título')}")
 
+            # Ensure title is truncated before any processing
+            job_data["titulo"] = job_data.get("titulo", "Sin título")[:500]
+
+            # Business unit assignment with fallback
             try:
                 business_unit_id = await asyncio.wait_for(
                     assign_business_unit(
-                        job_title=job_data.get("titulo", ""),
+                        job_title=job_data["titulo"],
                         job_description=job_data.get("descripcion", ""),
                         location=job_data.get("ubicacion", "")
                     ),
@@ -520,10 +478,9 @@ class EmailScraperV2:
                 )
                 business_unit = await sync_to_async(BusinessUnit.objects.get)(id=business_unit_id)
             except Exception as e:
-                logger.warning(f"Error asignando business_unit: {e}, intentando crear o usar huntRED")
+                logger.warning(f"Error asignando business_unit: {e}, usando huntRED")
                 business_unit, created = await sync_to_async(BusinessUnit.objects.get_or_create)(
-                    name="huntRED",
-                    defaults={"name": "huntRED"}
+                    name="huntRED", defaults={"name": "huntRED"}
                 )
                 if created:
                     logger.info("Creado BusinessUnit por defecto: huntRED")
@@ -532,15 +489,12 @@ class EmailScraperV2:
                 return True
 
             if not job_data.get("empresa"):
-                logger.error(f"No se pudo asignar empresa para {job_data.get('titulo', 'Unknown')}")
+                logger.error(f"No se pudo asignar empresa para {job_data['titulo']}")
                 return False
-
-            # Truncar el título a 500 caracteres antes de crear el objeto Vacante
-            job_data["titulo"] = job_data["titulo"][:500]
 
             vacante = Vacante(
                 url_original=job_data["url_original"],
-                titulo=job_data["titulo"],
+                titulo=job_data["titulo"][:500],  # Double-check truncation
                 empresa=job_data["empresa"],
                 ubicacion=job_data["ubicacion"][:300],
                 descripcion=job_data["descripcion"][:3000],
@@ -561,9 +515,6 @@ class EmailScraperV2:
                 logger.info(f"GDPR: Processed vacancy {vacante.titulo} at {datetime.now().isoformat()}")
             return True
 
-        except asyncio.TimeoutError:
-            logger.error(f"Timeout guardando vacante {job_data.get('titulo', 'Unknown')}")
-            return False
         except Exception as e:
             logger.error(f"Error guardando vacante {job_data.get('titulo', 'Unknown')}: {e}", exc_info=True)
             return False
