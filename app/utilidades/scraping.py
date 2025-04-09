@@ -194,24 +194,29 @@ class WeightingModel:
     def get_weights(self, level: str):
         """Devuelve los pesos para el nivel especificado."""
         return self.weights
-
+    
 async def assign_business_unit(job_title: str, job_description: str = None, salary_range: str = None, required_experience: str = None, location: str = None) -> Optional[int]:
     """Determina la unidad de negocio para una vacante con pesos dinámicos de forma asíncrona."""
+    # Normalize inputs for case-insensitive matching
     job_title_lower = job_title.lower()
     job_desc_lower = job_description.lower() if job_description else ""
     location_lower = location.lower() if location else ""
 
-    # Fetch all business units and their weights
+    # Fetch all business units asynchronously
     bu_candidates = await sync_to_async(list)(BusinessUnit.objects.all())
+    if not bu_candidates:
+        logger.error("❌ No se encontraron BusinessUnits en la base de datos")
+        return None
     scores = {bu.name: 0 for bu in bu_candidates}
 
-    # Seniority scoring
+    # Seniority scoring (optimized to avoid redundant checks)
     seniority_score = 0
     for keyword, score in SENIORITY_KEYWORDS.items():
         if keyword in job_title_lower:
             seniority_score = max(seniority_score, score)
+            break  # Early exit if a high score is found
 
-    # Industry scoring
+    # Industry scoring (single pass through keywords)
     industry_scores = {ind: 0 for ind in INDUSTRY_KEYWORDS}
     for ind, keywords in INDUSTRY_KEYWORDS.items():
         for keyword in keywords:
@@ -221,31 +226,38 @@ async def assign_business_unit(job_title: str, job_description: str = None, sala
 
     # Dynamic scoring with weights
     for bu in bu_candidates:
-        weighting = WeightingModel(bu)  # _load_weights ya es asíncrono gracias a @sync_to_async
-        weights = await weighting.get_weights("operativo")  # Añadimos await aquí porque es asíncrono
+        weighting = WeightingModel(bu)
+        # Determine position level dynamically based on seniority
+        position_level = (
+            "alta_direccion" if seniority_score >= 5 else
+            "gerencia_media" if seniority_score >= 3 else
+            "operativo" if seniority_score >= 1 else
+            "entry_level"
+        )
+        weights = weighting.get_weights(position_level)  # No await needed; sync method
 
-        # Keyword scoring with weights
+        # Keyword scoring
         for keyword, weight in BUSINESS_UNITS_KEYWORDS.get(bu.name, {}).items():
-            if keyword in job_title_lower or (job_description and keyword in job_desc_lower):
+            if keyword in job_title_lower or (job_desc_lower and keyword in job_desc_lower):
                 scores[bu.name] += weight * weights["hard_skills"]
 
         # Seniority adjustments
-        if seniority_score >= 5:  # Roles muy senior (ejecutivos)
+        if seniority_score >= 5:  # Very senior roles
             if bu.name == 'huntRED® Executive':
                 scores[bu.name] += 4 * weights["personalidad"]
             elif bu.name == 'huntRED®':
                 scores[bu.name] += 2 * weights["soft_skills"]
-        elif seniority_score >= 3:  # Roles de nivel medio a senior (gestión)
+        elif seniority_score >= 3:  # Mid-to-senior roles
             if bu.name == 'huntRED®':
                 scores[bu.name] += 3 * weights["soft_skills"]
             elif bu.name == 'huntu':
                 scores[bu.name] += 1 * weights["hard_skills"]
-        elif seniority_score >= 1:  # Roles junior a intermedios (técnicos)
+        elif seniority_score >= 1:  # Junior-to-mid roles
             if bu.name == 'huntu':
                 scores[bu.name] += 2 * weights["hard_skills"]
             elif bu.name == 'amigro':
                 scores[bu.name] += 1 * weights["ubicacion"]
-        else:  # Roles de nivel inicial o operativos
+        else:  # Entry-level or operational roles
             if bu.name == 'amigro':
                 scores[bu.name] += 3 * weights["ubicacion"]
 
@@ -271,7 +283,7 @@ async def assign_business_unit(job_title: str, job_description: str = None, sala
                     scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['strategy']
 
         # Description-based adjustments
-        if job_description:
+        if job_desc_lower:
             if any(term in job_desc_lower for term in ['migration', 'visa', 'bilingual', 'temporary', 'migración']):
                 if bu.name == 'amigro':
                     scores[bu.name] += 4 * weights["ubicacion"]
@@ -288,16 +300,13 @@ async def assign_business_unit(job_title: str, job_description: str = None, sala
         # Salary range adjustments
         if salary_range:
             try:
-                if isinstance(salary_range, str):
-                    salary_range = salary_range.replace(',', '').replace('$', '').replace('k', '000')
-                    if '-' in salary_range:
-                        min_salary, max_salary = map(float, salary_range.split('-'))
-                    elif salary_range.isdigit():
-                        min_salary = max_salary = float(salary_range)
-                    else:
-                        min_salary = max_salary = 0
+                salary = salary_range.replace(',', '').replace('$', '').replace('k', '000')
+                if '-' in salary:
+                    min_salary, max_salary = map(float, salary.split('-'))
+                elif salary.isdigit():
+                    min_salary = max_salary = float(salary)
                 else:
-                    min_salary, max_salary = salary_range
+                    min_salary = max_salary = 0
                 avg_salary = (min_salary + max_salary) / 2
                 if avg_salary > 160000:
                     if bu.name == 'huntRED® Executive':
@@ -321,9 +330,9 @@ async def assign_business_unit(job_title: str, job_description: str = None, sala
                 logger.warning(f"⚠️ No se pudo parsear rango salarial: {salary_range}")
 
         # Experience adjustments
-        if required_experience is not None:
+        if required_experience:
             try:
-                exp_years = float(required_experience) if isinstance(required_experience, (int, str)) else 0
+                exp_years = float(required_experience) if required_experience.isdigit() else 0
                 if exp_years >= 12:
                     if bu.name == 'huntRED® Executive':
                         scores[bu.name] += 3 * weights["personalidad"]
@@ -343,10 +352,10 @@ async def assign_business_unit(job_title: str, job_description: str = None, sala
                     elif bu.name == 'huntu':
                         scores[bu.name] += 1 * weights["hard_skills"]
             except ValueError:
-                logger.warning(f"⚠️ No se pudo parsear experiencia requerida: {required_experience}")
+                logger.warning(f"⚠️ No se pudo parsear experiencia: {required_experience}")
 
         # Location adjustments
-        if location:
+        if location_lower:
             if any(term in location_lower for term in ['usa', 'europe', 'asia', 'mexico', 'latam', 'frontera', 'migración']):
                 if bu.name == 'amigro':
                     scores[bu.name] += 3 * weights["ubicacion"]
@@ -356,46 +365,31 @@ async def assign_business_unit(job_title: str, job_description: str = None, sala
                 elif bu.name == 'huntu':
                     scores[bu.name] += 1 * weights["hard_skills"]
 
-    # Selección de la unidad de negocio
-    max_score = max(scores.values())
-    candidates = [bu for bu, score in scores.items() if score == max_score]
-    priority_order = ['huntRED® Executive', 'huntRED®', 'huntu', 'amigro']
-
-    if candidates:
-        if len(candidates) > 1 and dominant_industry:
-            if dominant_industry == 'strategy' and 'huntRED® Executive' in candidates:
-                chosen_bu = 'huntRED® Executive'
-            elif dominant_industry == 'management' and 'huntRED®' in candidates:
-                chosen_bu = 'huntRED®'
-            elif dominant_industry == 'tech' and 'huntu' in candidates:
-                chosen_bu = 'huntu'
-            elif dominant_industry == 'operations' and 'amigro' in candidates:
-                chosen_bu = 'amigro'
-            else:
-                chosen_bu = next(bu for bu in priority_order if bu in candidates)
-        else:
-            chosen_bu = candidates[0]
+    # Select the business unit with the highest score
+    max_score = max(scores.values(), default=0)
+    if max_score == 0:
+        chosen_bu = 'huntRED®'  # Fallback if no scoring applies
     else:
-        chosen_bu = 'huntRED®'  # Default fallback
+        candidates = [bu for bu, score in scores.items() if score == max_score]
+        priority_order = ['huntRED® Executive', 'huntRED®', 'huntu', 'amigro']
+        chosen_bu = next((bu for bu in priority_order if bu in candidates), candidates[0])
 
+    # Fetch the chosen business unit ID
     try:
         bu_obj = await sync_to_async(BusinessUnit.objects.get)(name=chosen_bu)
         logger.info(f"✅ Unidad de negocio asignada: {chosen_bu} (ID: {bu_obj.id}) para '{job_title}'")
         return bu_obj.id
     except BusinessUnit.DoesNotExist:
-        logger.warning(f"⚠️ Unidad de negocio '{chosen_bu}' no encontrada, usando huntRED® por defecto")
-        try:
-            default_bu = await sync_to_async(BusinessUnit.objects.get)(name='huntRED®')
-            logger.info(f"🔧 Asignada huntRED® por defecto (ID: {default_bu.id}) para '{job_title}'")
-            return default_bu.id
-        except BusinessUnit.DoesNotExist:
-            logger.error(f"❌ Unidad de negocio por defecto 'huntRED®' no encontrada en BD")
-            return None
-        
-# Wrapper síncrono para assign_business_unit
+        logger.warning(f"⚠️ Unidad de negocio '{chosen_bu}' no encontrada, usando huntRED®")
+        bu_obj, created = await sync_to_async(BusinessUnit.objects.get_or_create)(
+            name='huntRED®', defaults={'name': 'huntRED®'}
+        )
+        logger.info(f"🔧 Asignada huntRED® por defecto (ID: {bu_obj.id}) para '{job_title}'")
+        return bu_obj.id
+
+# Synchronous wrapper
 def assign_business_unit_sync(*args, **kwargs) -> Optional[int]:
     return asyncio.run(assign_business_unit(*args, **kwargs))
-
 # Función genérica para enriquecer vacantes con GPT
 async def enrich_with_gpt(vacante, gpt_handler: GPTHandler) -> bool:
     """Enriquece una vacante usando un modelo GPT configurado."""
