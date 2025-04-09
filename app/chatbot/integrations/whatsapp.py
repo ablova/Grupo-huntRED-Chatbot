@@ -104,13 +104,15 @@ async def handle_incoming_message(request):
 
         business_unit = whatsapp_api.business_unit
         chatbot = ChatBotHandler()
-
+        # Crear o obtener chat_state
         chat_state, _ = await sync_to_async(ChatState.objects.get_or_create)(
             user_id=user_id, business_unit=business_unit, defaults={'platform': 'whatsapp'}
         )
+        logger.info(f"[handle_incoming_message] chat_state creado/obtenido: tipo={type(chat_state)}, valor={chat_state}")
         person, _ = await sync_to_async(Person.objects.get_or_create)(
             phone=user_id, defaults={'nombre': 'Nuevo Usuario'}
         )
+        logger.info(f"[handle_incoming_message] Antes de process_message: chat_state={type(chat_state)}, business_unit={type(business_unit)}")
 
         current_person = await sync_to_async(lambda: chat_state.person)()
         if current_person != person:

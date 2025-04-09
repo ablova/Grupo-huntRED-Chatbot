@@ -68,30 +68,6 @@ def match_candidate_to_job(profile: Dict) -> List[str]:
 # Sesión persistente de requests
 s = requests.session()
 
-@shared_task
-async def sync_jobs_with_api():
-    async with aiohttp.ClientSession() as session:
-        async with session.get("https://amigro.org/wp-json/wp/v2/job-listings") as response:
-            api_jobs = await response.json()
-    
-    local_jobs = await sync_to_async(list)(Vacante.objects.all())
-    local_job_urls = {job.url_original: job for job in local_jobs if job.url_original}
-
-    for api_job in api_jobs:
-        job_url = api_job.get("link")
-        if job_url in local_job_urls:
-            local_job = local_job_urls[job_url]
-            local_job.titulo = api_job["title"]["rendered"]
-            local_job.descripcion = api_job["content"]["rendered"]
-            await sync_to_async(local_job.save)()
-        else:
-            await VacanteManager({
-                "business_unit": await sync_to_async(BusinessUnit.objects.get)(name="amigro"),
-                "job_title": api_job["title"]["rendered"],
-                "job_description": api_job["content"]["rendered"],
-                "company_name": api_job.get("meta", {}).get("_company_name", "Unknown")
-            }).create_job_listing()
-
 class VacanteManager:
     def __init__(self, job_data: Dict):
         """

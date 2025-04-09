@@ -181,14 +181,18 @@ def get_tos_url(business_unit: BusinessUnit) -> str:
     }
     return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
-async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, text: str = "", chatbot=None) -> bool:
-    # Verificar que business_unit sea un BusinessUnit
+async def handle_known_intents(intents: List[str], platform: str, user_id: str, text: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, chatbot=None) -> bool:
     if not isinstance(business_unit, BusinessUnit):
         logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Usando el de chat_state.")
-        business_unit = chat_state.business_unit  # Usar el business_unit del chat_state
+        business_unit = chat_state.business_unit  # Esto debería funcionar si chat_state es correcto
         if not isinstance(business_unit, BusinessUnit):
             await send_message(platform, user_id, "Ups, algo salió mal. ¿Intentamos de nuevo?", "default")
             return False
+    
+    if not isinstance(chat_state, ChatState):
+        logger.error(f"chat_state no es un ChatState, es {type(chat_state)}. Abortando.")
+        await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", business_unit.name.lower())
+        return False
     
     logger.info(f"[handle_known_intents] 🔎 Procesando intents: {intents} para BU: {business_unit.name}")
     try:

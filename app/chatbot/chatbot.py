@@ -86,7 +86,6 @@ class ChatBotHandler:
         # Log inicial para verificar que business_unit llega correctamente
         logger.info(f"[process_message] business_unit recibido: {business_unit}, tipo: {type(business_unit)}")
         
-        # Validar que business_unit sea una instancia de BusinessUnit
         if not isinstance(business_unit, BusinessUnit):
             logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Abortando.")
             await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "amigro")
@@ -108,25 +107,15 @@ class ChatBotHandler:
             bu_key = self.get_business_unit_key(business_unit)
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
 
-            # Detectar idioma desde el primer mensaje
-            try:
-                language = detect(text) if text else "es"  # Por defecto español
-                logger.info(f"Idioma detectado: {language}")
-            except Exception as e:
-                logger.error(f"Error detectando idioma: {e}")
-                language = "es"  # Fallback a español
+            language = detect(text) if text else "es"
+            logger.info(f"Idioma detectado: {language}")
             
-            # Extraer ubicación (WhatsApp-specific, si está disponible)
-            location = message.get("messages", [{}])[0].get("location", None) if platform == "whatsapp" else None
-            if location:
-                logger.info(f"Ubicación detectada: {location}")
-
             # 3. Obtener usuario y estado
             user, chat_state = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit)
-            chat_state.context["language"] = language  # Guardar idioma en el estado
-            if location:
-                chat_state.context["location"] = location  # Guardar ubicación si existe
+            logger.info(f"[process_message] chat_state después de _get_or_create: tipo={type(chat_state)}, valor={chat_state}")
+            chat_state.context["language"] = language
             await sync_to_async(chat_state.save)()
+            logger.info(f"[process_message] chat_state después de save: tipo={type(chat_state)}, valor={chat_state}")
 
             # 4. Verificar SPAM y silenciado
             if NLP_ENABLED and text and is_spam_message(user_id, text):
@@ -136,28 +125,22 @@ class ChatBotHandler:
                     return
                 await send_message(platform, user_id, "⚠️ Por favor, no envíes mensajes repetidos.", bu_key)
                 return
-            if cache.get(f"muted:{user_id}"):
-                await send_message(platform, user_id, "⚠️ Estás temporalmente silenciado. Espera un momento.", bu_key)
-                return
 
             # 5. Detectar y manejar intents
             if text:
                 intents = detect_intents(text)
                 logger.info(f"[process_message] Intents detectados: {intents}")
                 if intents:
-                    handled = await handle_known_intents(intents, platform, user_id, text, chat_state, business_unit, user, chatbot=self)
+                    logger.info(f"[process_message] Antes de handle_known_intents: chat_state={type(chat_state)}, business_unit={type(business_unit)}")
+                    handled = await handle_known_intents(intents, platform, user_id, text, chat_state, business_unit, user, self)
                     if handled:
-                        return None
+                        return None  # El handler del intent ya envió la respuesta
                 
-                # Fallback a NLP con manejo de errores
+                # Fallback a NLP
                 if NLP_ENABLED and self.nlp_processor:
                     try:
                         analysis = await self.nlp_processor.analyze(text, language=language)
-                        response = await self._generate_default_response(
-                            user, chat_state, text, 
-                            analysis.get("entities", []), 
-                            analysis.get("sentiment", {})
-                        )
+                        response = await self._generate_default_response(user, chat_state, text, analysis.get("entities", []), analysis.get("sentiment", {}))
                     except Exception as nlp_error:
                         logger.error(f"Error en análisis NLP: {nlp_error}")
                         response = "Ups, no pude procesar eso. ¿En qué más puedo ayudarte?"
@@ -269,6 +252,7 @@ class ChatBotHandler:
             business_unit=business_unit,
             defaults={'platform': platform, 'state': 'initial', 'context': {}}
         )
+        logger.info(f"[_get_or_create_user_and_chat_state] chat_state: tipo={type(chat_state)}, valor={chat_state}")
         current_person = await sync_to_async(lambda: chat_state.person)()
         if current_person != user or chat_state.platform != platform:
             chat_state.person = user
