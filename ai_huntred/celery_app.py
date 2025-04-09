@@ -150,6 +150,10 @@ SCHEDULE_DICT = {
         'task': 'app.tasks.process_batch_task',
         'schedule': crontab(minute=0, hour=2, day_of_week='1,3,5'),
     },
+    'Syncronizar Oportunidades Diario': {
+        'task': 'app.tasks.sync_jobs_with_api',
+        'schedule': crontab(minute=0, hour=5),  # Ejecuta a las 05:00 AM todos los días
+    },
 }
 
 @worker_ready.connect

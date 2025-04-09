@@ -85,6 +85,29 @@ LOG_DATA_PROCESSING = env.bool("LOG_DATA_PROCESSING", default=True)
 # Configuración de métricas Prometheus
 PROMETHEUS_PORT = env.int("PROMETHEUS_PORT", default=8001)
 
+# Decorador para manejar conexiones IMAP
+def with_imap_connection(func):
+    @wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        retry_count = 0
+        while retry_count < MAX_RETRIES:
+            if not self.mail or not await self.ensure_connection():
+                await self._basic_connect()
+            if self.mail:
+                try:
+                    return await func(self, *args, **kwargs)
+                except (aioimaplib.IMAP4.abort, asyncio.TimeoutError, ConnectionError) as e:
+                    logger.warning(f"IMAP operation failed in {func.__name__}: {e}, retrying ({retry_count + 1}/{MAX_RETRIES})")
+                    retry_count += 1
+                    await asyncio.sleep(RETRY_DELAY)
+                    self.mail = None
+            else:
+                retry_count += 1
+                logger.error(f"No IMAP connection for {func.__name__}, retrying ({retry_count}/{MAX_RETRIES})")
+                await asyncio.sleep(RETRY_DELAY)
+        raise ConnectionError(f"Failed to execute {func.__name__} after {MAX_RETRIES} retries")
+    return wrapper
+
 class Metrics:
     def __init__(self):
         self.registry = CollectorRegistry()
@@ -203,29 +226,6 @@ class EmailScraperV2:
         """Reintento de conexión explícito."""
         await self._basic_connect()
 
-    # Decorador ajustado para evitar recursión infinita
-    def with_imap_connection(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            retry_count = 0
-            while retry_count < MAX_RETRIES:
-                if not self.mail or not await self.ensure_connection():
-                    await self._basic_connect()  # Usar la conexión básica directamente
-                if self.mail:
-                    try:
-                        return await func(self, *args, **kwargs)
-                    except (aioimaplib.IMAP4.abort, asyncio.TimeoutError, ConnectionError) as e:
-                        logger.warning(f"IMAP operation failed in {func.__name__}: {e}, retrying ({retry_count + 1}/{MAX_RETRIES})")
-                        retry_count += 1
-                        await asyncio.sleep(RETRY_DELAY)
-                        self.mail = None  # Forzar reconexión en el próximo intento
-                else:
-                    retry_count += 1
-                    logger.error(f"No IMAP connection for {func.__name__}, retrying ({retry_count}/{MAX_RETRIES})")
-                    await asyncio.sleep(RETRY_DELAY)
-            raise ConnectionError(f"Failed to execute {func.__name__} after {MAX_RETRIES} retries")
-        return wrapper
-    
     @with_imap_connection
     async def fetch_email(self, email_id: str) -> Optional[email.message.Message]:
         for attempt in range(MAX_RETRIES):

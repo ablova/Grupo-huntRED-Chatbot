@@ -1270,7 +1270,7 @@ class GenericScraper(BaseScraper):  # Usar para Meta4, Cornerstone, UKG
             "url": url
         }
     
-class CornerstoneScraper(BaseScraper): pass
+class CornerstoneScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
         vacantes = []
         page = 1
@@ -1315,7 +1315,7 @@ class CornerstoneScraper(BaseScraper): pass
             "url": url
         }
 
-class UKGScraper(BaseScraper): pass
+class UKGScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
         vacantes = []
         page = 1
@@ -1465,7 +1465,6 @@ SCRAPER_MAP = {
     "sap_successfactors": SAPScraper,
     "adp": ADPScraper,
     "peoplesoft": PeopleSoftScraper,
-    "meta4": Meta4Scraper,
     "cornerstone": CornerstoneScraper,
     "ukg": UKGScraper,
     "glassdoor": GlassdoorScraper,

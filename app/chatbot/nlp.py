@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Cargar el Universal Sentence Encoder multilingüe
-# embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
+embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
 
 # Constantes
 CACHE_TIMEOUT = 600
@@ -735,13 +735,13 @@ class NLPProcessor:
             logger.error(f"Error obteniendo habilidades sugeridas: {e}", exc_info=True)
             return []
 
-    async def analyze(self, text: str) -> Dict:
+    async def analyze(self, text: str, language: str = "es") -> Dict:
         start_time = time.time()
         try:
             preprocessed = await self.preprocess(text)
             skills = await self.extract_skills(text)
             sentiment = self.analyze_sentiment(preprocessed["translated"])
-            intent = self.classify_intent(text) if self.depth == "quick" else {"intent": "unknown", "confidence": 0.0}
+            intent = await self.classify_intent(text) if self.depth == "quick" else {"intent": "unknown", "confidence": 0.0}
 
             result = {
                 "skills": skills["skills"],
@@ -753,7 +753,7 @@ class NLPProcessor:
                     "execution_time": time.time() - start_time,
                     "original_text": preprocessed["original"],
                     "translated_text": preprocessed["translated"],
-                    "detected_language": preprocessed["lang"]
+                    "detected_language": language or preprocessed["lang"]
                 }
             }
 

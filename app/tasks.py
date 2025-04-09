@@ -18,6 +18,7 @@ from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
 from app.chatbot.nlp import NLPProcessor
 from app.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
+from app.utilidades.vacantes import VacanteManager
 from app.utilidades.parser import CVParser, IMAPCVProcessor
 from app.utilidades.email_scraper import EmailScraperV2
 from app.models import (
@@ -212,6 +213,63 @@ def predict_top_candidates_task(vacancy_id, top_n=10):
     vacancy = Vacante.objects.get(id=vacancy_id)
     ml_system = MatchmakingLearningSystem(vacancy.business_unit)
     return ml_system.predict_top_candidates(vacancy, top_n)
+
+
+@shared_task
+async def sync_jobs_with_api():
+    # Obtener todas las unidades de negocio con configuraciones
+    business_units = await sync_to_async(list)(BusinessUnit.objects.prefetch_related('configuracionbu_set').all())
+    
+    async with aiohttp.ClientSession() as session:
+        for bu in business_units:
+            try:
+                # Obtener configuración específica
+                configuracion = await sync_to_async(lambda: ConfiguracionBU.objects.get(business_unit=bu))()
+                api_url = configuracion.dominio_rest_api or f"https://{configuracion.dominio_bu}/wp-json/wp/v2/job-listings"
+                headers = {
+                    "Authorization": f"Bearer {configuracion.jwt_token}",
+                    "Content-Type": "application/json"
+                }
+
+                # Consultar vacantes del REST_API
+                async with session.get(api_url, headers=headers) as response:
+                    if response.status != 200:
+                        logger.error(f"Error al consultar API para {bu.name}: {response.status}")
+                        continue
+                    api_jobs = await response.json()
+
+                # Sincronizar con base local
+                local_jobs = await sync_to_async(list)(Vacante.objects.filter(business_unit=bu))
+                local_job_urls = {job.url_original: job for job in local_jobs if job.url_original}
+
+                for api_job in api_jobs:
+                    job_url = api_job.get("link")
+                    if job_url in local_job_urls:
+                        # Actualizar vacante existente
+                        local_job = local_job_urls[job_url]
+                        local_job.titulo = api_job["title"]["rendered"]
+                        local_job.descripcion = api_job["content"]["rendered"]
+                        # Actualizar otros campos según sea necesario
+                        await sync_to_async(local_job.save)()
+                        logger.info(f"Vacante actualizada para {bu.name}: {local_job.titulo}")
+                    else:
+                        # Crear nueva vacante
+                        manager = VacanteManager({
+                            "business_unit": bu,
+                            "job_title": api_job["title"]["rendered"],
+                            "job_description": api_job["content"]["rendered"],
+                            "company_name": api_job.get("meta", {}).get("_company_name", "Unknown"),
+                            "job_link": job_url  # Para evitar duplicados
+                        })
+                        await manager.initialize()
+                        await manager.create_job_listing()
+                        logger.info(f"Vacante creada para {bu.name}: {api_job['title']['rendered']}")
+
+            except Exception as e:
+                logger.error(f"Error sincronizando vacantes para {bu.name}: {e}", exc_info=True)
+                continue
+
+    logger.info("Sincronización de vacantes completada para todas las unidades de negocio.")
 # =========================================================
 # Tareas relacionadas con el scraping programado
 # =========================================================

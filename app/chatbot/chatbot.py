@@ -145,9 +145,9 @@ class ChatBotHandler:
                 intents = detect_intents(text)
                 logger.info(f"[process_message] Intents detectados: {intents}")
                 if intents:
-                    handled = await handle_known_intents(intents, platform, user_id, text, chat_state, business_unit, self)
+                    handled = await handle_known_intents(intents, platform, user_id, text, chat_state, business_unit, user, chatbot=self)
                     if handled:
-                        return None  # El handler del intent ya envió la respuesta
+                        return None
                 
                 # Fallback a NLP con manejo de errores
                 if NLP_ENABLED and self.nlp_processor:

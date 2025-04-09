@@ -68,6 +68,30 @@ def match_candidate_to_job(profile: Dict) -> List[str]:
 # Sesión persistente de requests
 s = requests.session()
 
+@shared_task
+async def sync_jobs_with_api():
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://amigro.org/wp-json/wp/v2/job-listings") as response:
+            api_jobs = await response.json()
+    
+    local_jobs = await sync_to_async(list)(Vacante.objects.all())
+    local_job_urls = {job.url_original: job for job in local_jobs if job.url_original}
+
+    for api_job in api_jobs:
+        job_url = api_job.get("link")
+        if job_url in local_job_urls:
+            local_job = local_job_urls[job_url]
+            local_job.titulo = api_job["title"]["rendered"]
+            local_job.descripcion = api_job["content"]["rendered"]
+            await sync_to_async(local_job.save)()
+        else:
+            await VacanteManager({
+                "business_unit": await sync_to_async(BusinessUnit.objects.get)(name="amigro"),
+                "job_title": api_job["title"]["rendered"],
+                "job_description": api_job["content"]["rendered"],
+                "company_name": api_job.get("meta", {}).get("_company_name", "Unknown")
+            }).create_job_listing()
+
 class VacanteManager:
     def __init__(self, job_data: Dict):
         """
@@ -583,6 +607,32 @@ class VacanteManager:
         matches.sort(key=lambda x: x[1], reverse=True)
         
         return matches
+    
+    async def match_person_with_jobs(self, person, limit=5):
+        local_jobs = await sync_to_async(list)(Vacante.objects.filter(business_unit=person.chat_state.business_unit))
+        api_jobs = await self.fetch_latest_jobs(limit)
+        
+        combined_jobs = local_jobs + [
+            Vacante(titulo=j["title"]["rendered"], descripcion=j["content"]["rendered"], business_unit=person.chat_state.business_unit)
+            for j in api_jobs
+        ]
+        
+        person_skills = person.skills.split(",") if person.skills else []
+        person_emb = embed([", ".join(person_skills)]).numpy()[0] if person_skills else None
+        matches = []
+
+        for job in combined_jobs:
+            job_skills = job.requisitos.split(",") if job.requisitos else []
+            job_emb = embed([", ".join(job_skills)]).numpy()[0] if job_skills else None
+            
+            skill_score = cosine_similarity([person_emb], [job_emb])[0][0] * 50 if person_emb and job_emb else 0
+            location_score = 20 if job.ubicacion in person.metadata.get("desired_locations", []) else 0
+            salary_score = 30 if job.salario >= person.salary_data.get("expected_salary", 0) else 0
+            
+            total_score = skill_score + location_score + salary_score
+            matches.append({"job": job, "score": total_score})
+        
+        return sorted(matches, key=lambda x: x["score"], reverse=True)[:limit]
 
     def calculate_match_score(person, vacante, weights):
         """
