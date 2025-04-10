@@ -3,7 +3,7 @@ import re
 import logging
 from typing import List, Dict, Any, Optional
 from asgiref.sync import sync_to_async
-from app.models import ChatState, Person, BusinessUnit
+from app.models import ChatState, Person, BusinessUnit, ConfiguracionBU
 from app.chatbot.integrations.services import send_message, send_options, send_menu
 from django.core.cache import cache
 from django.utils import timezone
@@ -182,10 +182,13 @@ def get_tos_url(business_unit: BusinessUnit) -> str:
     return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
 async def handle_known_intents(intents: List[str], platform: str, user_id: str, text: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, chatbot=None) -> bool:
+    logger.info(f"[handle_known_intents] Entrada: intents={intents}, chat_state={type(chat_state)}, business_unit={type(business_unit)}")
+    
     if not isinstance(business_unit, BusinessUnit):
-        logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Usando el de chat_state.")
-        business_unit = chat_state.business_unit  # Esto debería funcionar si chat_state es correcto
+        logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Intentando usar el de chat_state.")
+        business_unit = getattr(chat_state, 'business_unit', None)
         if not isinstance(business_unit, BusinessUnit):
+            logger.error("No se pudo recuperar un BusinessUnit válido.")
             await send_message(platform, user_id, "Ups, algo salió mal. ¿Intentamos de nuevo?", "default")
             return False
     
@@ -195,6 +198,8 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         return False
     
     logger.info(f"[handle_known_intents] 🔎 Procesando intents: {intents} para BU: {business_unit.name}")
+    bu_name_lower = business_unit.name.lower()  # Definido antes del try
+    
     try:
         if not intents:
             logger.info(f"[handle_known_intents] No se detectaron intents en: '{text}'")
@@ -205,11 +210,10 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         cached_response = cache.get(cache_key)
 
         if cached_response:
-            await send_message(platform, user_id, cached_response, business_unit.name.lower())
+            await send_message(platform, user_id, cached_response, bu_name_lower)
             logger.info(f"[handle_known_intents] Respuesta obtenida de caché: '{cached_response}'")
             return True
 
-        # Obtener configuración específica de la unidad de negocio
         configuracion = await sync_to_async(lambda: ConfiguracionBU.objects.get(business_unit=business_unit))()
         bu_name_lower = business_unit.name.lower()
 

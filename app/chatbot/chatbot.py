@@ -10,7 +10,7 @@ from django.core.cache import cache
 import time
 
 from app.models import (
-    ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, Vacante,
+    ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, ConfiguracionBU, Vacante,
     WhatsAppAPI, EnhancedNetworkGamificationProfile, ConfiguracionBU
 )
 from app.chatbot.integrations.services import (
@@ -88,7 +88,7 @@ class ChatBotHandler:
         
         if not isinstance(business_unit, BusinessUnit):
             logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Abortando.")
-            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "amigro")
+            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
             return
         
         try:
@@ -107,7 +107,7 @@ class ChatBotHandler:
             bu_key = self.get_business_unit_key(business_unit)
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
 
-            language = detect(text) if text else "es"
+            language = detect(text) if text and len(text) > 5 and any(c.isalpha() for c in text) else "es"  # Solo usa detect para textos largos
             logger.info(f"Idioma detectado: {language}")
             
             # 3. Obtener usuario y estado

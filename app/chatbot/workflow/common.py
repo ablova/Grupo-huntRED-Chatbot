@@ -2,6 +2,7 @@
 import logging
 import re
 from forex_python.converter import CurrencyRates
+from app.chatbot.workflow.profile_questions import get_questions  # Importar las preguntas
 from django.core.files.storage import default_storage
 from app.utilidades.signature.pdf_generator import (
     generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
@@ -47,51 +48,17 @@ def obtener_explicaciones_metodos(bu_name: str) -> dict:
     """Devuelve las explicaciones de los métodos según la unidad de negocio."""
     return EXPLICACIONES_METODOS.get(bu_name.lower(), EXPLICACIONES_METODOS["default"])
 
-async def iniciar_creacion_perfil(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
-    """Inicia la creación del perfil ofreciendo tres opciones al usuario."""
-    bu_name = unidad_negocio.name.lower()
-
-    if estado_chat.state != "asking_profile_method":
-        explicaciones = obtener_explicaciones_metodos(bu_name)
-        mensaje = (
-            "¿Cómo prefieres crear tu perfil?\n\n"
-            f"**Dinámico**: {explicaciones['dynamic']}\n"
-            f"**Formulario**: {explicaciones['template']}\n"
-            f"**CV**: {explicaciones['cv']}\n\n"
-            "Selecciona una opción:"
-        )
-        botones = [
-            {"title": "Dinámico", "payload": "profile_dynamic"},
-            {"title": "Formulario", "payload": "profile_template"},
-            {"title": "CV", "payload": "profile_cv"}
-        ]
-        await send_message(plataforma, user_id, mensaje, unidad_negocio.name.lower())
-        await send_options(plataforma, user_id, "Elige una opción:", botones, unidad_negocio.name.lower())
-        estado_chat.state = "asking_profile_method"
-        await sync_to_async(estado_chat.save)()
-
 async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
-    """Inicia el flujo conversacional básico para la creación del perfil."""
     bu_name = unidad_negocio.name.lower()
+    preguntas = get_questions(bu_name)  # Obtener preguntas según la unidad
+    current_question = estado_chat.context.get("current_question", "nombre")
 
-    if not persona.nombre or persona.nombre == "Nuevo Usuario":
-        await send_message(plataforma, user_id, "¡Hola! ¿Cuál es tu nombre?", bu_name)
-        estado_chat.state = "waiting_for_nombre"
-        await sync_to_async(estado_chat.save)()
-        return
-    if not persona.apellido_paterno:
-        await send_message(plataforma, user_id, f"Gracias, {persona.nombre}. ¿Cuál es tu apellido paterno?", bu_name)
-        estado_chat.state = "waiting_for_apellido_paterno"
-        await sync_to_async(estado_chat.save)()
-        return
-    if not persona.email:
-        await send_message(plataforma, user_id, "¿Cuál es tu correo electrónico?", bu_name)
-        estado_chat.state = "waiting_for_email"
-        await sync_to_async(estado_chat.save)()
-        return
-    if not persona.phone:
-        await send_message(plataforma, user_id, "Por último, ¿cuál es tu número de teléfono? (ej. +525534567890)", bu_name)
-        estado_chat.state = "waiting_for_phone"
+    while current_question in preguntas:
+        question_data = preguntas[current_question]
+        question_text = question_data["question"].format(**persona.__dict__)
+        await send_message(plataforma, user_id, question_text, bu_name)
+        estado_chat.state = f"waiting_for_{current_question}"
+        estado_chat.context["current_question"] = question_data["next"]
         await sync_to_async(estado_chat.save)()
         return
 
@@ -110,6 +77,44 @@ async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_ne
         await send_message(plataforma, user_id, recap_message, bu_name)
         estado_chat.state = "profile_complete_pending_confirmation"
         await sync_to_async(estado_chat.save)()
+
+async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler=None):
+    bu_name = unidad_negocio.name.lower()
+    preguntas = get_questions(bu_name)
+    current_question = estado_chat.state.replace("waiting_for_", "")
+
+    if current_question in preguntas:
+        question_data = preguntas[current_question]
+        if not question_data["validation"](texto):
+            await send_message(plataforma, user_id, "Por favor, dame una respuesta válida.", bu_name)
+            return True
+
+        # Guardar la respuesta en el objeto persona
+        if current_question in ["nombre", "apellido_paterno", "email", "phone"]:
+            setattr(persona, current_question, texto)
+        elif current_question == "work_experience":
+            persona.metadata["work_experience"] = texto
+        elif current_question == "skills":
+            from app.chatbot.nlp import NLPProcessor
+            nlp = NLPProcessor()
+            skills = await nlp.extract_skills(texto)
+            persona.metadata["skills"] = skills if skills else texto.split(", ")
+
+        await sync_to_async(persona.save)()
+
+        # Avanzar a la siguiente pregunta
+        next_question = estado_chat.context.get("current_question")
+        if next_question:
+            await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        else:
+            recap_message = await obtener_resumen_perfil(persona)
+            await send_message(plataforma, user_id, recap_message, bu_name)
+            estado_chat.state = "profile_complete_pending_confirmation"
+            await sync_to_async(estado_chat.save)()
+        return True
+
+    return False
+
 
 async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler=None):
     bu_name = unidad_negocio.name.lower()
