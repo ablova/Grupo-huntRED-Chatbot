@@ -98,9 +98,15 @@ class Configuracion(models.Model):
     test_phone_number = models.CharField(max_length=15, default='+525518490291', help_text='Número de teléfono para pruebas y reportes de ejecución')
     test_email = models.EmailField(max_length=50, default='pablo@huntred.com', help_text='Email para pruebas y reportes de ejecución')
     default_platform = models.CharField(max_length=20, default='whatsapp', choices=COMUNICATION_CHOICES, help_text='Plataforma de pruebas por defecto')
+    ntfy_topic = models.CharField(max_length=100,blank=True,null=True,default=None,help_text="Tema de ntfy.sh para notificaciones generales. Si no se define, usa NTFY_DEFAULT_TOPIC de settings.")
     notification_hour = models.TimeField(blank=True, null=True, help_text='Hora para enviar notificaciones diarias de pruebas')
     is_test_mode = models.BooleanField(default=True, help_text='Indicador de modo de pruebas')
 
+    def get_ntfy_topic(self):
+        """Devuelve el tema de ntfy.sh para el administrador general."""
+        from django.conf import settings
+        return self.ntfy_topic or settings.NTFY_DEFAULT_TOPIC
+    
     def __str__(self):
         return "Configuración General del Sistema"
 
@@ -208,10 +214,23 @@ class BusinessUnit(models.Model):
     scraping_domains = models.ManyToManyField(
         DominioScraping, related_name="business_units", blank=True
     )
+    ntfy_topic = models.CharField(max_length=100,blank=True,null=True,default=None,help_text="Tema de ntfy.sh específico para esta unidad de negocio. Si no se define, usa el tema general.")
 
     def __str__(self):
         return dict(BUSINESS_UNIT_CHOICES).get(self.name, self.name)
-    
+    def get_ntfy_topic(self):
+        """Devuelve el tema de ntfy.sh para esta unidad de negocio."""
+        from django.conf import settings
+        return self.ntfy_topic or Configuracion.objects.first().get_ntfy_topic() or settings.NTFY_DEFAULT_TOPIC
+
+    def get_notification_recipients(self):
+        """Devuelve los destinatarios de notificaciones (teléfono y correo del admin)."""
+        recipients = {}
+        if self.admin_phone:
+            recipients['phone'] = self.admin_phone
+        if self.admin_email:
+            recipients['email'] = self.admin_email
+        return recipients
     def get_email_template_path(self):
         """
         Retorna la ruta de la plantilla de email basada en el nombre de la BusinessUnit.
@@ -287,6 +306,7 @@ class ConfiguracionBU(models.Model):
             'use_tls': self.smtp_use_tls,
             'use_ssl': self.smtp_use_ssl
         }
+    
     
 class WeightingModel:
     def __init__(self, business_unit):

@@ -158,6 +158,9 @@ python-docx
 pytz
 PyYAML
 redis
+tensorflow
+tensorflow-text 
+tensorflow-hub
 regex
 reportlab
 requests
@@ -190,8 +193,7 @@ stopwords
 tenacity
 tensorboard
 tensorboard-data-server
-tensorflow @ file:///home/pablo/tensorflow_shim
-tensorflow_cpu
+tensorflow 
 termcolor
 tf_keras
 thinc

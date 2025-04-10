@@ -1,3 +1,5 @@
+gcloud compute ssh grupo-huntred --project=grupo-huntred --zone=us-central1-a
+
 import asyncio
 from app.chatbot.integrations.services import send_message
 mensaje = "Por otro lado ya es un proceso que tiene mucho retraso y si no fuera tuyo, estaría persiguiendo al consultor para saber que sucede. En mi scoreboard sale ya -35 días por lo que si a mi ya me urge resolverlo. Si es la única forma que sale pronto demosle."

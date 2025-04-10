@@ -42,7 +42,13 @@ sentry_sdk.init(
     send_default_pii=env.bool('SENTRY_SEND_PII', default=False),  # Desactivado por defecto por privacidad
     debug=env.bool('SENTRY_DEBUG', default=False),
 )
-
+# Configuración de ntfy.sh
+# Configuración de ntfy.sh
+NTFY_ENABLED = env.bool('NTFY_ENABLED', default=False)
+NTFY_DEFAULT_TOPIC = env('NTFY_DEFAULT_TOPIC', default='huntred_notifications')
+NTFY_USERNAME = env('NTFY_USERNAME', default=None)
+NTFY_PASSWORD = env('NTFY_PASSWORD', default=None)
+NTFY_API_TOKEN = env('NTFY_API', default=None)  # Token API, si aplica
 #Configuración TENSORFLOW
 # Configuración estática de hilos
 tf.config.threading.set_intra_op_parallelism_threads(2)  # Ajusta según tus necesidades

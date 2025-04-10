@@ -22,22 +22,16 @@ from app.utilidades.vacantes import VacanteManager
 from app.utilidades.parser import CVParser, IMAPCVProcessor
 from app.utilidades.email_scraper import EmailScraperV2
 from app.models import (
-    Configuracion, ConfiguracionBU,
-    Vacante, Person, BusinessUnit,
-    DominioScraping, RegistroScraping,
-    Interview, Application,
+    Configuracion, ConfiguracionBU, Vacante, Person, BusinessUnit,
+    DominioScraping, RegistroScraping, Interview, Application,
 )
 from app.utilidades.linkedin import (
-    process_api_data,
-    fetch_member_profile,
-    process_csv,
-    slow_scrape_from_csv,
-    scrape_linkedin_profile,
-    deduplicate_candidates,
+    process_api_data, fetch_member_profile,
+    process_csv, slow_scrape_from_csv,
+    scrape_linkedin_profile, deduplicate_candidates,
 )
 from app.chatbot.workflow.amigro import (
-    generate_candidate_summary_task,
-    send_migration_docs_task,
+    generate_candidate_summary_task, send_migration_docs_task,
     follow_up_migration_task
 )
 from app.utilidades.scraping import (
@@ -56,9 +50,103 @@ logger = logging.getLogger(__name__)
 def add(x, y):
     return x + y
 
+
+
 # =========================================================
 # Tareas relacionadas con notificaciones
 # =========================================================
+# Función auxiliar para enviar notificaciones a ntfy.sh
+def send_ntfy_notification(topic, message, image_url=None):
+    """Envía una notificación a ntfy.sh si está habilitado, con soporte para imágenes."""
+    if not settings.NTFY_ENABLED:
+        logger.info("Notificaciones ntfy.sh desactivadas en settings.")
+        return
+
+    url = f'https://ntfy.sh/{topic}'  # Cambia a tu servidor auto-hospedado si aplica
+    headers = {}
+    data = message.encode('utf-8')
+
+    # Autenticación: Priorizar token API si existe, sino usar usuario/contraseña
+    if settings.NTFY_API_TOKEN:
+        headers['Authorization'] = f'Bearer {settings.NTFY_API_TOKEN}'
+    elif settings.NTFY_USERNAME and settings.NTFY_PASSWORD:
+        headers['Authorization'] = f'Basic {requests.auth._basic_auth_str(settings.NTFY_USERNAME, settings.NTFY_PASSWORD)}'
+
+    # Añadir imagen si se proporciona
+    if image_url:
+        headers['Attach'] = image_url  # URL de la imagen
+
+    try:
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            logger.info(f"Notificación enviada a {topic}: {message}" + (f" con imagen {image_url}" if image_url else ""))
+        else:
+            logger.error(f"Fallo al enviar notificación a {topic}: {response.status_code} - {response.text}")
+    except Exception as e:
+        logger.error(f"Error enviando notificación a {topic}: {str(e)}")
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
+def send_linkedin_login_link(self, recipient_email, business_unit_id=None):
+    """Envía un enlace de inicio de sesión de LinkedIn y notifica a los administradores."""
+    try:
+        # Obtener la unidad de negocio (si aplica)
+        business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else None
+        bu_name = business_unit.name if business_unit else "Grupo huntRED®"
+
+        # Obtener la URL de la imagen desde ConfiguracionBU
+        image_url = None
+        if business_unit:
+            try:
+                config_bu = business_unit.configuracionbu
+                image_url = config_bu.logo_url if config_bu and config_bu.logo_url else "https://huntred.com/logo.png"
+            except BusinessUnit.configuracionbu.RelatedObjectDoesNotExist:
+                image_url = "https://huntred.com/logo.png"  # Valor por defecto si no hay ConfiguracionBU
+        else:
+            # Si no hay unidad de negocio, usar un logo por defecto
+            image_url = "https://huntred.com/logo.png"
+
+        # Contenido del correo
+        subject = "Inicia sesión en LinkedIn con este enlace"
+        body = (
+            "Hemos enviado un enlace de inicio de sesión único a tu correo principal.\n\n"
+            "Haz clic en el enlace para iniciar sesión en tu cuenta de LinkedIn al instante.\n\n"
+            "¿Nuevo en LinkedIn? Únete ahora\n\n"
+            "Al hacer clic en Continuar, aceptas el Acuerdo de usuario, la Política de privacidad "
+            "y la Política de cookies de LinkedIn."
+        )
+
+        # Enviar el correo
+        asyncio.run(send_email(
+            business_unit_name=bu_name,
+            subject=subject,
+            destinatario=recipient_email,
+            body=body
+        ))
+        logger.info(f"Correo con enlace enviado a {recipient_email} para {bu_name}")
+
+        # Preparar mensaje de notificación
+        timestamp = timezone.now().isoformat()
+        notification_message = f"Enlace de inicio de sesión enviado a {recipient_email} a las {timestamp}"
+
+        # Notificar al administrador de la unidad de negocio (si existe)
+        if business_unit:
+            bu_topic = business_unit.get_ntfy_topic()
+            send_ntfy_notification(bu_topic, notification_message, image_url=image_url)
+
+        # Notificar al administrador general
+        config = Configuracion.objects.first()
+        if config:
+            general_topic = config.get_ntfy_topic()
+            # Usar el logo por defecto para el administrador general si no se especifica otro
+            send_ntfy_notification(general_topic, notification_message, image_url=image_url)
+
+    except BusinessUnit.DoesNotExist:
+        logger.error(f"Unidad de negocio con ID {business_unit_id} no encontrada.")
+        self.retry(exc=Exception("Unidad de negocio no encontrada"))
+    except Exception as e:
+        logger.error(f"Error enviando enlace a {recipient_email}: {str(e)}")
+        self.retry(exc=e)
+
 def get_business_unit(business_unit_id=None, default_name="amigro"):
     if business_unit_id:
         return BusinessUnit.objects.filter(id=business_unit_id).first()
