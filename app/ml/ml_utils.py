@@ -1,7 +1,7 @@
 # /home/pablo/app/ml/ml_utils.py
 
 from typing import List, Dict
-from app.chatbot.nlp import NLPProcessor
+from app.chatbot.chatbot import nlp_processor as NLPProcessor
 import logging
 logger = logging.getLogger(__name__)
 

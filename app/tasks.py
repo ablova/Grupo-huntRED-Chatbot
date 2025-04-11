@@ -16,7 +16,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
-from app.chatbot.nlp import NLPProcessor
+from app.chatbot.chatbot import nlp_processor as NLPProcessor
 from app.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
 from app.utilidades.vacantes import VacanteManager
 from app.utilidades.parser import CVParser, IMAPCVProcessor
@@ -594,7 +594,7 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
-from app.chatbot.nlp import NLPProcessor
+from app.chatbot.chatbot import nlp_processor as NLPProcessor
 from app.utilidades.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish

@@ -2,9 +2,9 @@ import os
 import datetime
 from fpdf import FPDF
 from django.core.files.storage import default_storage
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 from PyPDF2 import PdfMerger
+import matplotlib.pyplot as plt
+import numpy as np
 
 class PDF(FPDF):
     def __init__(self):
@@ -30,19 +30,13 @@ class PDF(FPDF):
         """Pie de página con título del documento, Grupo huntRED® - Página X y fecha de creación."""
         self.set_y(-15)
         self.set_font("SFPRODISPLAY", "", 8)
-
-        # Título del documento a la izquierda
         self.cell(70, 10, self.title, align="L")
-
-        # Grupo huntRED® - Página X al centro
         self.cell(60, 10, f"Grupo huntRED® - Página {self.page_no()}", align="C")
-
-        # Fecha de creación a la derecha
         creation_date = datetime.datetime.today().strftime("%d/%m/%Y")
         self.cell(70, 10, creation_date, align="R")
 
     def set_business_unit(self, business_unit):
-        """Establece la unidad de negocio para usar su logo"""
+        """Establece la unidad de negocio para usar su logo."""
         self.business_unit = business_unit
 
     def add_signature(self, candidate):
@@ -56,10 +50,33 @@ class PDF(FPDF):
             self.cell(200, 10, "Firma Digital No Disponible", ln=True, align="C")
             self.ln(20)
 
+def generate_personality_graph(candidate):
+    """Genera un gráfico de radar para los resultados de personalidad."""
+    traits = list(candidate.metadata['personality_results'].keys())
+    scores = list(candidate.metadata['personality_results'].values())
+    
+    # Crear gráfico de radar
+    num_traits = len(traits)
+    angles = np.linspace(0, 2 * np.pi, num_traits, endpoint=False).tolist()
+    angles += angles[:1]  # Cerrar el círculo
+    scores += scores[:1]  # Repetir el primer valor para cerrar
+    
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(projection='polar'))
+    ax.plot(angles, scores, linewidth=2, linestyle='solid', color='blue')
+    ax.fill(angles, scores, 'blue', alpha=0.3)  # Relleno suave
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(traits, fontsize=10)
+    ax.set_title('Resultados de Personalidad', size=14, pad=20)
+    ax.set_ylim(0, 5)  # Escala de 0 a 5 (ajustar según tus necesidades)
+    
+    # Guardar como imagen temporal
+    graph_path = f"/tmp/{candidate.id}_personality_graph.png"
+    plt.savefig(graph_path, bbox_inches='tight')
+    plt.close()
+    return graph_path
+
 def generate_candidate_summary(candidate):
-    """
-    Genera un resumen del candidato en PDF.
-    """
+    """Genera un resumen del candidato en PDF."""
     pdf = PDF()
     pdf.set_business_unit("huntred")
     pdf.title = "Resumen del Candidato"
@@ -83,7 +100,7 @@ def generate_candidate_summary(candidate):
 
 def generate_cv_pdf(candidate, business_unit):
     """
-    Genera un CV en PDF para el candidato, incluyendo su información profesional.
+    Genera un CV en PDF para el candidato, incluyendo su información profesional y resultados de personalidad.
     Si el candidato ha subido un CV en huntRED® o huntu, se adjunta al final.
     """
     pdf = PDF()
@@ -93,6 +110,9 @@ def generate_cv_pdf(candidate, business_unit):
     pdf.set_font("SFPRODISPLAY", "", 12)
 
     # Datos personales
+    pdf.set_font("SFPRODISPLAY", "B", 12)
+    pdf.cell(200, 10, "Datos Personales", ln=True)
+    pdf.set_font("SFPRODISPLAY", "", 12)
     pdf.cell(200, 10, f"Nombre: {candidate.full_name}", ln=True)
     pdf.cell(200, 10, f"Fecha de Nacimiento: {candidate.birth_date}", ln=True)
     pdf.cell(200, 10, f"Nacionalidad: {candidate.nationality}", ln=True)
@@ -101,7 +121,7 @@ def generate_cv_pdf(candidate, business_unit):
     pdf.cell(200, 10, f"Dirección: {candidate.address}", ln=True)
     pdf.ln(10)
 
-    # Resumen profesional (si existe)
+    # Resumen profesional
     if candidate.professional_summary:
         pdf.set_font("SFPRODISPLAY", "B", 12)
         pdf.cell(200, 10, "Resumen Profesional", ln=True)
@@ -113,23 +133,19 @@ def generate_cv_pdf(candidate, business_unit):
     pdf.set_font("SFPRODISPLAY", "B", 12)
     pdf.cell(200, 10, "Experiencia Laboral", ln=True)
     pdf.set_font("SFPRODISPLAY", "", 12)
-
     for job in candidate.work_experience:
         pdf.cell(200, 10, f"{job.company} - {job.position}", ln=True)
         pdf.cell(200, 10, f"Periodo: {job.start_date} - {job.end_date}", ln=True)
         pdf.multi_cell(200, 10, f"Responsabilidades: {job.responsibilities}")
         pdf.ln(5)
-
     pdf.ln(10)
 
     # Educación y certificaciones
     pdf.set_font("SFPRODISPLAY", "B", 12)
     pdf.cell(200, 10, "Educación y Certificaciones", ln=True)
     pdf.set_font("SFPRODISPLAY", "", 12)
-
     for edu in candidate.education:
         pdf.cell(200, 10, f"{edu.institution} - {edu.degree} ({edu.year_completed})", ln=True)
-    
     pdf.ln(10)
 
     # Habilidades técnicas y blandas
@@ -153,7 +169,31 @@ def generate_cv_pdf(candidate, business_unit):
         pdf.multi_cell(200, 10, ", ".join(candidate.languages))
         pdf.ln(10)
 
-    # Integración del CV Original si existe en huntRED® o huntu
+    # Resultados de personalidad
+    if hasattr(candidate, 'metadata') and 'personality_results' in candidate.metadata:
+        pdf.add_page()  # Nueva página para resultados
+        pdf.set_font("SFPRODISPLAY", "B", 12)
+        pdf.cell(200, 10, "Resultados de Prueba de Personalidad", ln=True)
+        pdf.set_font("SFPRODISPLAY", "", 12)
+
+        # Generar y añadir gráfico
+        try:
+            graph_path = generate_personality_graph(candidate)
+            pdf.image(graph_path, x=10, y=pdf.get_y() + 10, w=180)
+            pdf.ln(100)  # Espacio para el gráfico
+            
+            # Detalles textuales
+            for trait, score in candidate.metadata['personality_results'].items():
+                pdf.cell(200, 10, f"{trait.capitalize()}: {score:.2f}", ln=True)
+            pdf.ln(10)
+            
+            # Limpiar archivo temporal
+            if os.path.exists(graph_path):
+                os.remove(graph_path)
+        except Exception as e:
+            pdf.cell(200, 10, f"Error al generar gráfico de personalidad: {e}", ln=True)
+
+    # Integración del CV original
     if business_unit in ["huntred", "huntu"] and candidate.cv_file:
         original_cv_path = f"/home/pablo/app/media/cv/{candidate.cv_file}"
         if os.path.exists(original_cv_path):
@@ -215,8 +255,6 @@ def generate_contract_pdf(candidate, client, job_position, business_unit):
 def merge_signed_documents(contract_path, signed_path):
     """
     Combina los documentos firmados en un solo PDF final.
-    - `contract_path`: PDF original generado.
-    - `signed_path`: Ruta donde se guardará el documento firmado final.
     """
     merger = PdfMerger()
 
@@ -233,7 +271,6 @@ def merge_signed_documents(contract_path, signed_path):
             if os.path.exists(signed_file):
                 merger.append(signed_file)
 
-        # Guardar el documento final firmado
         merger.write(signed_path)
         merger.close()
 
@@ -244,25 +281,45 @@ def merge_signed_documents(contract_path, signed_path):
 
     except Exception as e:
         return f"Error al combinar documentos firmados: {e}"
-    
 
-def generate_personality_report(persona, unidad_negocio):
-    report_path = f"/tmp/{persona.id}_personality_report.pdf"
-    c = canvas.Canvas(report_path, pagesize=letter)
-    
+def generate_personality_report(candidate, unidad_negocio):
+    """
+    Genera un reporte independiente de personalidad con gráfico de radar.
+    """
+    pdf = PDF()
+    pdf.set_business_unit(unidad_negocio)
+    pdf.title = f"Reporte de Personalidad - {candidate.full_name}"
+    pdf.add_page()
+    pdf.set_font("SFPRODISPLAY", "", 12)
+
     # Título
-    c.setFont("Helvetica", 16)
-    c.drawString(100, 750, f"Reporte de Personalidad para {persona.nombre}")
-    
-    # Logo de la unidad de negocio (asegúrate de tener el path correcto)
-    logo_path = unidad_negocio.logo_path  # Debe ser un atributo del modelo BusinessUnit
-    if os.path.exists(logo_path):
-        c.drawImage(logo_path, 400, 700, width=100, height=100)
-    
-    # Resultados (ejemplo)
-    c.setFont("Helvetica", 12)
-    c.drawString(100, 700, f"Prueba completada: {persona.personality_test_type}")
-    c.drawString(100, 680, "Resultados: [Aquí irían los resultados procesados]")
-    
-    c.save()
+    pdf.cell(200, 10, f"Reporte de Personalidad para {candidate.full_name}", ln=True)
+    pdf.ln(10)
+
+    # Resultados de personalidad
+    if hasattr(candidate, 'metadata') and 'personality_results' in candidate.metadata:
+        pdf.set_font("SFPRODISPLAY", "B", 12)
+        pdf.cell(200, 10, "Resultados de Prueba de Personalidad", ln=True)
+        pdf.set_font("SFPRODISPLAY", "", 12)
+
+        # Generar y añadir gráfico
+        try:
+            graph_path = generate_personality_graph(candidate)
+            pdf.image(graph_path, x=10, y=pdf.get_y() + 10, w=180)
+            pdf.ln(100)  # Espacio para el gráfico
+            
+            # Detalles textuales
+            for trait, score in candidate.metadata['personality_results'].items():
+                pdf.cell(200, 10, f"{trait.capitalize()}: {score:.2f}", ln=True)
+            pdf.ln(10)
+            
+            # Limpiar archivo temporal
+            if os.path.exists(graph_path):
+                os.remove(graph_path)
+        except Exception as e:
+            pdf.cell(200, 10, f"Error al generar gráfico de personalidad: {e}", ln=True)
+
+    # Guardar el reporte
+    report_path = f"/tmp/{candidate.id}_personality_report.pdf"
+    pdf.output(report_path)
     return report_path

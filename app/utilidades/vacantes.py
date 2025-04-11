@@ -17,6 +17,7 @@ from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
+from app.chatbot.chatbot import nlp_processor as NLPProcessor
 from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
 #from app.chatbot.integrations.whatsapp import registro_amigro, nueva_posicion_amigro #Importaciones locales
 from app.chatbot.integrations.services import send_email, send_message

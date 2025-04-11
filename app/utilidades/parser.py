@@ -16,7 +16,7 @@ from docx import Document
 from asgiref.sync import sync_to_async
 
 # Project imports
-from app.chatbot.nlp import NLPProcessor
+from app.chatbot.chatbot import nlp_processor as NLPProcessorGlobal
 from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill
 from app.chatbot.integrations.services import send_email
 
@@ -24,15 +24,10 @@ from app.chatbot.integrations.services import send_email
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Verificación para saltar carga pesada durante migraciones
-SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
-
-# Inicialización condicional
-if not SKIP_HEAVY_INIT:
-    NLP_PROCESSOR_ES = NLPProcessor(language="es", mode="candidate")  # Sin analysis_depth por ahora
-else:
-    NLP_PROCESSOR_ES = None  # O un objeto dummy si es necesario
-
+# Diccionario global para almacenar instancias de NLPProcessor por idioma
+NLP_PROCESSORS = {
+    'es': NLPProcessorGlobal  # Instancia global para español
+}
 # Global cache for division skills
 DIVISION_SKILLS_CACHE = None
 
@@ -294,15 +289,27 @@ class CVParser:
 
     def parse(self, text: str) -> Dict:
         """Procesa el texto del CV usando NLPProcessor con detección de idioma."""
+        # Validación inicial
         if not text or len(text.strip()) < 10:
             logger.warning("⚠️ Texto demasiado corto para análisis")
             return {}
 
+        # Detectar idioma
         detected_lang = detect_language(text)
+
+        # Verificar si ya existe una instancia para el idioma detectado
         if detected_lang not in NLP_PROCESSORS:
-            NLP_PROCESSORS[detected_lang] = NLPProcessor(language=detected_lang, mode="candidate", analysis_depth="deep")
+            # Crear una nueva instancia para el idioma detectado
+            NLP_PROCESSORS[detected_lang] = NLPProcessorGlobal.__class__(
+                language=detected_lang, 
+                mode="candidate", 
+                analysis_depth="deep"
+            )
+        
+        # Obtener la instancia correspondiente
         nlp_processor = NLP_PROCESSORS[detected_lang]
 
+        # Procesar el texto
         try:
             analysis = nlp_processor.analyze(text)
             skills = analysis.get("skills", {"technical": [], "soft": [], "tools": [], "certifications": []})

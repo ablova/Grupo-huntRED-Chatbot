@@ -38,6 +38,9 @@ USE_MODEL = None
 
 # Verificación para saltar carga pesada durante migraciones
 SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
+if not SKIP_HEAVY_INIT:
+    load_use_model()
+    initialize_skill_embeddings()
 
 def ensure_directory_permissions(path, mode=0o770):
     """Asegura permisos correctos para un directorio."""
@@ -158,11 +161,11 @@ def translate_text(text: str) -> str:
         return text
 
 class NLPProcessor:
-    def __init__(self, mode: str = "candidate", language: str = "es"):
+    def __init__(self, mode: str = "candidate", language: str = "es", analysis_depth: str = "quick"):
         self.mode = mode
         self.language = language
-        logger.info(f"NLPProcessor inicializado: modo={mode}, idioma={language}")
-        # No cargar modelo ni embeddings aquí
+        self.analysis_depth = analysis_depth
+        logger.info(f"NLPProcessor inicializado: modo={mode}, idioma={language}, profundidad={analysis_depth}")
 
     async def preprocess(self, text: str) -> Dict[str, str]:
         if SKIP_HEAVY_INIT:
@@ -195,13 +198,23 @@ class NLPProcessor:
         text_emb = self.get_text_embedding(preprocessed["translated"])
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
 
+        # Ajustar el umbral según analysis_depth
+        if self.analysis_depth == "quick":
+            threshold = 0.7  # Menor precisión, más rápido
+        elif self.analysis_depth == "deep":
+            threshold = 0.8  # Equilibrio entre precisión y velocidad
+        elif self.analysis_depth == "intense":
+            threshold = 0.9  # Mayor precisión, más lento
+        else:
+            threshold = MODEL_CONFIG['SIMILARITY_THRESHOLD']
+
         for skill, emb in SKILL_EMBEDDINGS.items():
             similarity = cosine_similarity([text_emb], [emb])[0][0]
-            if similarity > MODEL_CONFIG['SIMILARITY_THRESHOLD']:
+            if similarity > threshold:
                 skill_dict = {"original": skill, "translated": skill, "lang": "en", "embedding": emb.tolist()}
                 self._classify_skill(skill_dict, skills)
         
-        logger.info(f"Habilidades extraídas en {time.time() - start_time:.2f}s")
+        logger.info(f"Habilidades extraídas en {time.time() - start_time:.2f}s (profundidad: {self.analysis_depth})")
         del text_emb
         gc.collect()
         return skills
@@ -240,8 +253,17 @@ class NLPProcessor:
         preprocessed = await self.preprocess(text)
         skills = await self.extract_skills(text)
         sentiment = self.analyze_sentiment(preprocessed["translated"])
+
+        # Ajustar según el modo
+        if self.mode == "candidate":
+            # Podrías añadir lógica para priorizar habilidades personales
+            pass
+        elif self.mode == "opportunity":
+            # Podrías añadir lógica para priorizar requisitos de vacantes
+            pass
+
         execution_time = time.time() - start_time
-        logger.info(f"Análisis completado en {execution_time:.2f}s")
+        logger.info(f"Análisis completado en {execution_time:.2f}s (modo: {self.mode})")
         return {
             "skills": skills,
             "sentiment": sentiment,
