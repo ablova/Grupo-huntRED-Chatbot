@@ -66,47 +66,62 @@ class MatchmakingLearningSystem:
         return apps
 
     def prepare_training_data(self):
-        applications = self._get_applications()
+        from app.models import Application
+        from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+        apps = Application.objects.filter(
+            vacancy__business_unit=self.business_unit,
+            status__in=['hired', 'rejected']  # Ajustado para consistencia
+        ).select_related('person', 'vacancy')
         data = []
-        for app in applications:
+        for app in apps:
             if not app.vacancy:
-                logger.warning(f"Aplicación sin vacante: {app.id}")
                 continue
-            try:
-                features = {
-                    'experience_years': app.person.experience_years or 0,
-                    'hard_skills_match': self._calculate_hard_skills_match(app),
-                    'soft_skills_match': self._calculate_soft_skills_match(app),
-                    'salary_alignment': self._calculate_salary_alignment(app),
-                    'age': self._calculate_age(app.person),
-                    'is_successful': 1 if app.status == 'contratado' else 0
-                }
-                data.append(features)
-            except Exception as e:
-                logger.error(f"Error procesando aplicación {app.id}: {e}")
-                continue
-
+            data.append({
+                'experience_years': app.person.experience_years or 0,
+                'hard_skills_match': calculate_match_percentage(app.person.skills, app.vacancy.skills_required),
+                'soft_skills_match': calculate_match_percentage(
+                    app.person.metadata.get('soft_skills', []),
+                    app.vacancy.metadata.get('soft_skills', [])
+                ),
+                'salary_alignment': calculate_alignment_percentage(
+                    app.person.salary_data.get('current_salary', 0),
+                    app.vacancy.salario or 0
+                ),
+                'age': (timezone.now().date() - app.person.fecha_nacimiento).days / 365
+                    if app.person.fecha_nacimiento else 0,
+                'openness': app.person.openness,
+                'conscientiousness': app.person.conscientiousness,
+                'extraversion': app.person.extraversion,
+                'agreeableness': app.person.agreeableness,
+                'neuroticism': app.person.neuroticism,
+                'success_label': 1 if app.status == 'hired' else 0
+            })
         df = pd.DataFrame(data)
-        if df.empty:
-            raise ValueError("No hay datos válidos para entrenar el modelo.")
-        logger.info(f"Datos preparados para entrenamiento: {len(df)} registros.")
+        logger.info(f"Datos preparados para {self.business_unit}: {len(df)} registros.")
         return df
 
     def train_model(self, df, test_size=0.2):
-        from app.ml.ml_opt import configure_tensorflow_based_on_load
         from sklearn.model_selection import train_test_split
-        from sklearn.metrics import classification_report, precision_score, recall_score, f1_score
-        configure_tensorflow_based_on_load()
+        from sklearn.metrics import classification_report
+        from sklearn.pipeline import Pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.ensemble import RandomForestClassifier
+        from joblib import dump
+
         if os.path.exists(self.model_file):
             logger.info("Modelo ya entrenado, omitiendo entrenamiento.")
             return
-        self.load_model()
-        X = df.drop(columns=["is_successful"])
-        y = df["is_successful"]
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=42
-        )
+        # Definir el pipeline si no está ya definido
+        if not hasattr(self, 'pipeline'):
+            self.pipeline = Pipeline([
+                ('scaler', StandardScaler()),
+                ('classifier', RandomForestClassifier(random_state=42))
+            ])
+
+        X = df.drop(columns=["success_label"])
+        y = df["success_label"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
         self.pipeline.fit(X_train, y_train)
         dump(self.pipeline, self.model_file)
@@ -115,97 +130,82 @@ class MatchmakingLearningSystem:
         y_pred = self.pipeline.predict(X_test)
         report = classification_report(y_test, y_pred)
         logger.info(f"Reporte de clasificación:\n{report}")
-        logger.info(f"Precisión: {precision_score(y_test, y_pred, zero_division=0):.2f}")
-        logger.info(f"Recall: {recall_score(y_test, y_pred, zero_division=0):.2f}")
-        logger.info(f"F1-Score: {f1_score(y_test, y_pred, zero_division=0):.2f}")
-
-        gc.collect()
 
     def predict_candidate_success(self, person, vacancy):
+        from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
         self.load_model()
-        if not self._loaded_model:
+        if not self.pipeline:
             raise FileNotFoundError("El modelo no está entrenado.")
 
         features = {
             'experience_years': person.experience_years or 0,
-            'hard_skills_match': self._calculate_hard_skills_match_mock(person, vacancy),
-            'soft_skills_match': self._calculate_soft_skills_match_mock(person, vacancy),
-            'salary_alignment': self._calculate_salary_alignment_mock(person, vacancy),
-            'age': self._calculate_age(person)
+            'hard_skills_match': calculate_match_percentage(person.skills, vacancy.skills_required),
+            'soft_skills_match': calculate_match_percentage(
+                person.metadata.get("soft_skills", []),
+                vacancy.metadata.get("soft_skills", [])
+            ),
+            'salary_alignment': calculate_alignment_percentage(
+                person.salary_data.get("current_salary", 0),
+                vacancy.salario or 0
+            ),
+            'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
+                if person.fecha_nacimiento else 0,
+            'openness': person.openness,
+            'conscientiousness': person.conscientiousness,
+            'extraversion': person.extraversion,
+            'agreeableness': person.agreeableness,
+            'neuroticism': person.neuroticism
         }
-        array = np.array(list(features.values())).reshape(1, -1)
-        proba = self._loaded_model.predict_proba(array)[0][1]
-        logger.info(f"Predicción de éxito para {person}: {proba:.2f}")
+
+        X = pd.DataFrame([features])
+        proba = self.pipeline.predict_proba(X)[0][1]  # Probabilidad de éxito (clase 'hired')
+        logger.info(f"Probabilidad de éxito para {person} en '{vacancy.titulo}': {proba:.2f}")
         return proba
 
     def predict_all_active_matches(self, person, batch_size=50):
         from app.models import Vacante
         from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
         self.load_model()
-        if not self._loaded_model:
+        if not self.pipeline:
             raise FileNotFoundError("El modelo no está entrenado.")
 
         bu = person.current_stage.business_unit if person.current_stage else None
         if not bu:
-            logger.info(f"No se encontró BU para la persona {person.id}")
             return []
 
-        active_vacancies = Vacante.objects.select_related('business_unit').filter(
-            activa=True, business_unit=bu
-        )
+        active_vacancies = Vacante.objects.filter(activa=True, business_unit=bu)
         if not active_vacancies.exists():
-            logger.info(f"No hay vacantes activas para BU {bu.id}")
             return []
 
-        results = []
-        total_vacancies = active_vacancies.count()
-        logger.info(f"Procesando {total_vacancies} vacantes para persona {person.id}")
+        features_list = []
+        for vacante in active_vacancies:
+            features = {
+                'experience_years': person.experience_years or 0,
+                'hard_skills_match': calculate_match_percentage(person.skills, vacante.skills_required),
+                'soft_skills_match': calculate_match_percentage(
+                    person.metadata.get("soft_skills", []),
+                    vacante.metadata.get("soft_skills", [])
+                ),
+                'salary_alignment': calculate_alignment_percentage(
+                    person.salary_data.get("current_salary", 0),
+                    vacante.salario or 0
+                ),
+                'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
+                    if person.fecha_nacimiento else 0,
+                'openness': person.openness,
+                'conscientiousness': person.conscientiousness,
+                'extraversion': person.extraversion,
+                'agreeableness': person.agreeableness,
+                'neuroticism': person.neuroticism
+            }
+            features_list.append(features)
 
-        for i in range(0, total_vacancies, batch_size):
-            batch = active_vacancies[i:i + batch_size]
-            batch_results = []
-
-            for vacante in batch:
-                cache_key = f"match_{person.id}_{vacante.id}"
-                cached_result = cache.get(cache_key)
-                
-                if cached_result is not None:
-                    batch_results.append(cached_result)
-                    continue
-
-                try:
-                    features = {
-                        'experience_years': person.experience_years or 0,
-                        'hard_skills_match': calculate_match_percentage(person.skills, vacante.skills_required),
-                        'soft_skills_match': calculate_match_percentage(
-                            person.metadata.get('soft_skills', []),
-                            vacante.metadata.get('soft_skills', [])
-                        ),
-                        'salary_alignment': calculate_alignment_percentage(
-                            person.salary_data.get('current_salary', 0),
-                            vacante.salario or 0
-                        ),
-                        'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
-                            if person.fecha_nacimiento else 0
-                    }
-                    
-                    X = pd.DataFrame([features])
-                    X_scaled = self.scaler.transform(X)
-                    prediction = (self._loaded_model.predict(X_scaled).flatten() * 100)[0]
-                    result = {
-                        "vacante": vacante.titulo,
-                        "empresa": vacante.empresa,
-                        "score": round(prediction, 2)
-                    }
-                    
-                    cache.set(cache_key, result, timeout=3600)
-                    batch_results.append(result)
-                except Exception as e:
-                    logger.warning(f"Error procesando vacante {vacante.id}: {str(e)}")
-                    continue
-
-            results.extend(batch_results)
-
+        X = pd.DataFrame(features_list)
+        predictions = (self.pipeline.predict_proba(X)[:, 1] * 100).tolist()  # Probabilidad en porcentaje
+        results = [
+            {"vacante": v.titulo, "empresa": v.empresa.name if v.empresa else 'N/A', "score": round(p, 2)}
+            for v, p in zip(active_vacancies, predictions)
+        ]
         return sorted(results, key=lambda x: x["score"], reverse=True)
 
     async def predict_top_candidates(self, vacancy=None, limit=5):
@@ -320,6 +320,25 @@ class MatchmakingLearningSystem:
         cur_sal = person.salary_data.get('current_salary', 0)
         off_sal = vacancy.salario or 0
         return calculate_alignment_percentage(cur_sal, off_sal)
+    
+    def calculate_personality_similarity(self, person, vacancy):
+        # Obtener rasgos del candidato (suponiendo que están en person.personality_traits como dict)
+        candidate_traits = person.personality_traits or {}
+        # Generar rasgos deseados si no están definidos
+        desired_traits = vacancy.rasgos_deseados or generate_desired_traits(vacancy.skills_required or [])
+        
+        if not desired_traits:
+            return 0.0
+        
+        similarity = 0.0
+        trait_count = 0
+        for trait, desired_value in desired_traits.items():
+            candidate_value = candidate_traits.get(trait, 0)
+            # Normalizar la diferencia (asumiendo escala de 0 a 5)
+            similarity += 1 - abs(candidate_value - desired_value) / 5
+            trait_count += 1
+        
+        return similarity / trait_count if trait_count > 0 else 0.0
 
     def recommend_skill_improvements(self, person):
         skill_gaps = self._identify_skill_gaps()
@@ -489,7 +508,12 @@ class GrupohuntREDMLPipeline:
                 ),
                 'age': (timezone.now().date() - app.person.fecha_nacimiento).days / 365
                        if app.person.fecha_nacimiento else 0,
-                'success_label': 1 if app.status == 'contratado' else 0
+                'openness': app.person.openness,
+                'conscientiousness': app.person.conscientiousness,
+                'extraversion': app.person.extraversion,
+                'agreeableness': app.person.agreeableness,
+                'neuroticism': app.person.neuroticism,
+                'success_label': 1 if app.status == 'hired' else 0
             })
         df = pd.DataFrame(data)
         logger.info(f"Datos preparados para {self.business_unit}: {len(df)} registros.")
@@ -564,6 +588,7 @@ class GrupohuntREDMLPipeline:
             ),
             'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
                    if person.fecha_nacimiento else 0
+            
         }]
         X = pd.DataFrame(features)
         X_scaled = self.scaler.transform(X)

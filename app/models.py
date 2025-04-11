@@ -433,6 +433,7 @@ class Vacante(models.Model):
         WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
     sentiment = models.CharField(max_length=20, blank=True, null=True)
     job_classification = models.CharField(max_length=100, blank=True, null=True)
+    requiere_prueba_personalidad = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ['titulo', 'empresa', 'url_original']
@@ -556,6 +557,12 @@ class Person(models.Model):
     badges = models.ManyToManyField('Badge', blank=True)
     current_stage = models.ForeignKey(
         WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, related_name='candidatos')
+    
+    openness = models.FloatField(default=0)
+    conscientiousness = models.FloatField(default=0)
+    extraversion = models.FloatField(default=0)
+    agreeableness = models.FloatField(default=0)
+    neuroticism = models.FloatField(default=0)
 
     def __str__(self):
         nombre_completo = f"{self.nombre} {self.apellido_paterno or ''} {self.apellido_materno or ''}".strip()

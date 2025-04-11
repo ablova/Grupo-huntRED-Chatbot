@@ -63,6 +63,11 @@ INTENT_PATTERNS = {
         "responses": ["¡Perfecto! Envíame tu CV en PDF o Word para cargarlo."],
         "priority": 18
     },
+    "prueba_personalidad": {
+        "patterns": [r"\bprueba_personalidad\b"],
+        "responses": ["¡Vamos a iniciar tu prueba de personalidad! Esto te ayudará a conocer mejor tu perfil profesional."],
+        "priority": 20  # Prioridad ajustable según tu lógica
+    },  
     "contacto": {
         "patterns": [r"\bcontacto\b"],
         "responses": ["Te conectaré con un reclutador. Espera un momento."],
@@ -262,6 +267,11 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
             elif primary_intent == "upload_cv":
                 chat_state.state = "waiting_for_cv"
                 await sync_to_async(chat_state.save)()
+            elif primary_intent == "prueba_personalidad":
+                # Iniciar la prueba de personalidad
+                from app.chatbot.workflow.common import iniciar_prueba_personalidad
+                await iniciar_prueba_personalidad(platform, user_id, business_unit, chat_state, user, "tipi")
+                return True
             elif primary_intent == "show_menu":
                 await send_menu(platform, user_id, business_unit)
             elif primary_intent == "solicitar_ayuda_postulacion":
