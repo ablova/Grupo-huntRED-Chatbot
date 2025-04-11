@@ -1,6 +1,7 @@
 # Ubicación: /home/pablo/app/utilidades/vacantes.py
 
 import requests
+import sys
 import logging
 import aiohttp
 import numpy as np
@@ -24,11 +25,17 @@ from app.chatbot.utils import prioritize_interests, get_positions_by_skills
 #import chainlit as cl
 #from some_ml_model import match_candidate_to_job  # Tu modelo personalizado
 
+
 # Configuración del logger En el módulo utilidades
 logger = logging.getLogger(__name__)
-# Cargar el modelo Universal Sentence Encoder (multilingüe)
-embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/3")
+# Verificación para saltar carga pesada durante migraciones
+SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
 
+# Carga del modelo solo si no estamos en migración
+if not SKIP_HEAVY_INIT:
+    embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
+else:
+    embed = None  # O un objeto dummy si es necesario en otras partes del código
 def main(message: str) -> None:
     """
     Función principal para procesar mensajes y sugerir vacantes.

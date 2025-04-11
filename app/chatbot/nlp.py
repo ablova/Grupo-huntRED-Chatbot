@@ -17,6 +17,7 @@ import os
 import pickle
 import gc
 from filelock import FileLock
+import sys
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +35,9 @@ LOCK_FILE = "/home/pablo/skills_data/nlp_init.lock"
 # Variables globales (sin inicialización automática)
 SKILL_EMBEDDINGS = {}
 USE_MODEL = None
+
+# Verificación para saltar carga pesada durante migraciones
+SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
 
 def ensure_directory_permissions(path, mode=0o770):
     """Asegura permisos correctos para un directorio."""
@@ -55,6 +59,9 @@ def ensure_directory_permissions(path, mode=0o770):
 def load_use_model(model_url="https://tfhub.dev/google/universal-sentence-encoder/4", cache_dir="/home/pablo/tfhub_cache"):
     """Carga el modelo Universal Sentence Encoder con manejo robusto."""
     global USE_MODEL
+    if SKIP_HEAVY_INIT:
+        logger.info("Saltando carga del modelo durante migración")
+        return
     if USE_MODEL is not None:
         logger.info("Modelo ya cargado, reutilizando instancia")
         return
@@ -86,9 +93,12 @@ def load_use_model(model_url="https://tfhub.dev/google/universal-sentence-encode
             logger.error(f"Error crítico al cargar el modelo: {str(e)}")
             raise RuntimeError(f"No se pudo cargar el modelo de TF Hub: {str(e)}")
 
-def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size=10):
+def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size=20):
     """Carga embeddings desde caché o genera en lotes pequeños."""
     global SKILL_EMBEDDINGS
+    if SKIP_HEAVY_INIT:
+        logger.info("Saltando inicialización de embeddings durante migración")
+        return
     if USE_MODEL is None:
         load_use_model()
     
@@ -138,6 +148,8 @@ def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size=10):
 @lru_cache(maxsize=1000)
 def translate_text(text: str) -> str:
     """Traducción con caché."""
+    if SKIP_HEAVY_INIT:
+        return text  # No traducir durante migraciones
     try:
         translator = GoogleTranslator(source='auto', target='en')
         return translator.translate(text)
@@ -150,13 +162,11 @@ class NLPProcessor:
         self.mode = mode
         self.language = language
         logger.info(f"NLPProcessor inicializado: modo={mode}, idioma={language}")
-        # Cargar modelo y embeddings solo cuando se necesiten
-        if not USE_MODEL:
-            load_use_model()
-        if not SKILL_EMBEDDINGS:
-            initialize_skill_embeddings()
+        # No cargar modelo ni embeddings aquí
 
     async def preprocess(self, text: str) -> Dict[str, str]:
+        if SKIP_HEAVY_INIT:
+            return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
         start_time = time.time()
         lang = await sync_to_async(detect)(text)
         translated = translate_text(text) if lang != "en" else text
@@ -164,14 +174,22 @@ class NLPProcessor:
         return {"original": text.lower(), "translated": translated.lower(), "lang": lang}
 
     def get_text_embedding(self, text: str) -> np.ndarray:
+        if SKIP_HEAVY_INIT:
+            return np.zeros(512)  # Devolver embedding dummy durante migraciones
         if USE_MODEL is None:
-            raise RuntimeError("Modelo USE no está cargado.")
+            load_use_model()
         embedding = USE_MODEL([text]).numpy()[0]
         tf.keras.backend.clear_session()
         gc.collect()
         return embedding
 
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
+        if SKIP_HEAVY_INIT:
+            return {"technical": [], "soft": [], "tools": [], "certifications": []}
+        if USE_MODEL is None:
+            load_use_model()
+        if not SKILL_EMBEDDINGS:
+            initialize_skill_embeddings()
         start_time = time.time()
         preprocessed = await self.preprocess(text)
         text_emb = self.get_text_embedding(preprocessed["translated"])
@@ -200,11 +218,24 @@ class NLPProcessor:
             skills["tools"].append(skill_dict)
 
     def analyze_sentiment(self, text: str) -> str:
+        if SKIP_HEAVY_INIT:
+            return "neutral"
         blob = TextBlob(text)
         polarity = blob.sentiment.polarity
         return "positive" if polarity > 0.05 else "negative" if polarity < -0.05 else "neutral"
 
     async def analyze(self, text: str) -> Dict:
+        if SKIP_HEAVY_INIT:
+            return {
+                "skills": {"technical": [], "soft": [], "tools": [], "certifications": []},
+                "sentiment": "neutral",
+                "metadata": {
+                    "execution_time": 0.0,
+                    "original_text": text.lower(),
+                    "translated_text": text.lower(),
+                    "detected_language": "unknown"
+                }
+            }
         start_time = time.time()
         preprocessed = await self.preprocess(text)
         skills = await self.extract_skills(text)
@@ -223,6 +254,8 @@ class NLPProcessor:
         }
 
     async def analyze_batch(self, texts: List[str]) -> List[Dict]:
+        if SKIP_HEAVY_INIT:
+            return [{"skills": {"technical": [], "soft": [], "tools": [], "certifications": []}, "sentiment": "neutral", "metadata": {"execution_time": 0.0, "original_text": text.lower(), "translated_text": text.lower(), "detected_language": "unknown"}} for text in texts]
         start_time = time.time()
         tasks = [self.analyze(text) for text in texts]
         results = await asyncio.gather(*tasks)
@@ -231,6 +264,9 @@ class NLPProcessor:
 
 async def load_esco_skills():
     """Carga habilidades de ESCO en segundo plano."""
+    if SKIP_HEAVY_INIT:
+        logger.info("Saltando carga de habilidades ESCO durante migración")
+        return
     with FileLock(LOCK_FILE):
         logger.info("Cargando habilidades de ESCO en segundo plano...")
         initialize_skill_embeddings("esco_skills", batch_size=5)

@@ -2,6 +2,8 @@ import os
 import datetime
 from fpdf import FPDF
 from django.core.files.storage import default_storage
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from PyPDF2 import PdfMerger
 
 class PDF(FPDF):
@@ -242,3 +244,25 @@ def merge_signed_documents(contract_path, signed_path):
 
     except Exception as e:
         return f"Error al combinar documentos firmados: {e}"
+    
+
+def generate_personality_report(persona, unidad_negocio):
+    report_path = f"/tmp/{persona.id}_personality_report.pdf"
+    c = canvas.Canvas(report_path, pagesize=letter)
+    
+    # Título
+    c.setFont("Helvetica", 16)
+    c.drawString(100, 750, f"Reporte de Personalidad para {persona.nombre}")
+    
+    # Logo de la unidad de negocio (asegúrate de tener el path correcto)
+    logo_path = unidad_negocio.logo_path  # Debe ser un atributo del modelo BusinessUnit
+    if os.path.exists(logo_path):
+        c.drawImage(logo_path, 400, 700, width=100, height=100)
+    
+    # Resultados (ejemplo)
+    c.setFont("Helvetica", 12)
+    c.drawString(100, 700, f"Prueba completada: {persona.personality_test_type}")
+    c.drawString(100, 680, "Resultados: [Aquí irían los resultados procesados]")
+    
+    c.save()
+    return report_path

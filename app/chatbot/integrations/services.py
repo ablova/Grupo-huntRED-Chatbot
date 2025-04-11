@@ -40,7 +40,7 @@ MENU_OPTIONS_BY_BU = {
         {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
         {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
         {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
-        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
         {"title": "🤝 Invitar Grupo", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
         {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
         {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
@@ -55,7 +55,7 @@ MENU_OPTIONS_BY_BU = {
         {"title": "📊 Ver Vacantes", "payload": "ver_vacantes", "description": "Lista de empleos disponibles."},
         {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
         {"title": "📅 Agendar Entrevista", "payload": "agendar_entrevista", "description": "Programa una entrevista."},
-        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
         {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
         {"title": "🤝 Recomendar a huntRED®", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
         {"title": "❓ Ayuda", "payload": "ayuda", "description": "Soporte general."},
@@ -66,7 +66,7 @@ MENU_OPTIONS_BY_BU = {
         {"title": "🔍 Explorar Vacantes", "payload": "explorar_vacantes", "description": "Descubre oportunidades únicas."},
         {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Actualiza tu información."},
         {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
-        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
         {"title": "🧑‍🏫 Asesoría Profesional", "payload": "asesoria_profesional", "description": "Recibe orientación."},
         {"title": "🤝 Programa de Mentores", "payload": "mentores", "description": "Conéctate con mentores."},
         {"title": "🤝 Invitar a huntU®", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
@@ -113,7 +113,7 @@ MENU_OPTIONS_BY_STATE = {
         "profile_complete": [
             {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
             {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
             {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
@@ -123,7 +123,7 @@ MENU_OPTIONS_BY_STATE = {
             {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
             {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
             {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
             {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
@@ -133,7 +133,7 @@ MENU_OPTIONS_BY_STATE = {
             {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
             {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
             {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
             {"title": "📅 Reagendar Entrevista", "payload": "reagendar_entrevista", "description": "Modifica tu cita de entrevista."},
             {"title": "📩 Enviar Recordatorio", "payload": "recordatorio_entrevista", "description": "Solicita un recordatorio."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
@@ -145,7 +145,7 @@ MENU_OPTIONS_BY_STATE = {
             {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
             {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
             {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
             {"title": "📝 Enviar Feedback", "payload": "enviar_feedback", "description": "Comparte tu experiencia de la entrevista."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
@@ -156,7 +156,7 @@ MENU_OPTIONS_BY_STATE = {
             {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
             {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
             {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
             {"title": "📜 Ver Oferta", "payload": "ver_oferta", "description": "Consulta los detalles de tu oferta."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
@@ -184,7 +184,7 @@ MENU_OPTIONS_BY_STATE = {
         "idle": [
             {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
             {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."}
+            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
             {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},

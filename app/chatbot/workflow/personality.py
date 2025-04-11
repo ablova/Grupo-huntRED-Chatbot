@@ -1,6 +1,6 @@
 # /home/pablo/app/chatbot/workflow/personality.py
 import random
-
+from django.core.cache import cache
 # Estructura de preguntas por prueba y dominio
 TEST_QUESTIONS = {
     'huntBigFive': {
@@ -124,9 +124,13 @@ TEST_QUESTIONS = {
 
 def get_questions_personality(test_type, domain='general'):
     """Devuelve las preguntas según el tipo de prueba y dominio."""
-    if test_type == 'huntNEO':  # Reutiliza huntBigFive
-        return TEST_QUESTIONS['huntBigFive'].get(domain, TEST_QUESTIONS['huntBigFive']['general'])
-    return TEST_QUESTIONS.get(test_type, {}).get(domain, TEST_QUESTIONS.get(test_type, {}).get('general', {}))
+    cache_key = f"questions_{test_type}_{domain}"
+    questions = cache.get(cache_key)
+    if not questions:
+        # Suponiendo que TEST_QUESTIONS es un diccionario con las preguntas
+        questions = TEST_QUESTIONS.get(test_type, {}).get(domain, {})
+        cache.set(cache_key, questions, timeout=3600)  # 1 hora de caché
+    return questions
 
 def get_random_tipi_questions(domain='general'):
     """Selecciona preguntas aleatorias para huntTIPI."""

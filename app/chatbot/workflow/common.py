@@ -13,7 +13,8 @@ from app.utilidades.salario import (
     calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
     obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
 )
-from app.chatbot.integrations.services import send_email, send_message, send_options, send_image
+from app.chatbot.integrations.services import send_email, send_message, send_options, send_image, send_email, GamificationService
+from app.utilidades.signature.pdf_generator import generate_personality_report #Para crear el PDF e integrarlo al CV
 from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState
 from django.conf import settings
 from urllib.parse import urlparse
@@ -22,29 +23,11 @@ from app.chatbot.workflow.personality import TEST_QUESTIONS, get_questions_perso
 
 logger = logging.getLogger(__name__)
 
-# Diccionario de explicaciones para los métodos de creación de perfil
-EXPLICACIONES_METODOS = {
-    "default": {
-        "dynamic": "Te haré preguntas una por una para completar tu perfil paso a paso.",
-        "template": "Te enviaré un formulario inteligente para que llenes tus datos de una vez (solo en WhatsApp).",
-        "cv": "Envía tu CV y extraeré automáticamente la información para tu perfil."
-    },
-    "amigro": {
-        "dynamic": "Ideal si prefieres una conversación guiada sobre tu situación migratoria y experiencia.",
-        "template": "Perfecto si quieres ingresar tus datos rápidamente en un solo paso (solo en WhatsApp).",
-        "cv": "Si ya tienes un CV, puedo analizarlo para ahorrarte tiempo."
-    },
-    "huntu": {
-        "dynamic": "Te guiaré para destacar tus habilidades como recién egresado.",
-        "template": "Llena un formulario rápido para enfocarte en tus logros académicos (solo en WhatsApp).",
-        "cv": "Envía tu CV y lo adaptaré a las oportunidades para jóvenes profesionales."
-    },
-    "huntred": {
-        "dynamic": "Te ayudaré a detallar tu experiencia profesional paso a paso.",
-        "template": "Ingresa tus datos clave en un formulario rápido (solo en WhatsApp).",
-        "cv": "Sube tu CV y lo analizaré para encontrar las mejores vacantes ejecutivas."
-    }
-}
+
+
+# =========================================================
+# Ejecución de Pruebas
+# =========================================================
 
 PRUEBAS_POR_UNIDAD = {
     'amigro': [
@@ -65,6 +48,7 @@ PRUEBAS_POR_UNIDAD = {
     ]
 }
 # Funciones Genéricas para Pruebas
+
 async def iniciar_prueba(plataforma: str, user_id: str, test_type: str, domain: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
     """Inicia una prueba de personalidad genérica."""
     if not questions:
@@ -203,6 +187,29 @@ async def finalizar_prueba(plataforma: str, user_id: str, test_type: str, estado
             setattr(persona, {'extraversion': 'extraversion', 'agreeableness': 'agreeableness', 'conscientiousness': 'conscientiousness', 'neuroticism': 'neuroticism', 'openness': 'openness'}[trait], score)
     await sync_to_async(persona.save)()
     await send_message(plataforma, user_id, f'¡Gracias por completar la prueba {test_type}! Tus resultados han sido guardados.', unidad_negocio.name.lower())
+    
+    # Generar y enviar reporte
+    report_path = generate_personality_report(persona, unidad_negocio)
+    await send_image(plataforma, user_id, "Aquí está tu reporte de personalidad", report_path, unidad_negocio.name)
+    
+    # Notificación por email con el reporte adjunto
+    email_body = f"Hola {persona.nombre},<br>Has completado la prueba {test_type} con {unidad_negocio.name}. ¡Gracias por participar!<br>Adjunto encontrarás tu reporte de personalidad en PDF.<br>Saludos,<br>Equipo {unidad_negocio.name}"
+    await send_email(
+        subject=f"Prueba de Personalidad Completada - {unidad_negocio.name}",
+        to_email=persona.email,
+        body=email_body,
+        business_unit_name=unidad_negocio.name,
+        attachments=[report_path]
+    )
+    # Limpiar archivo temporal
+    import os
+    os.remove(report_path)
+
+    # Gamificación: otorgar puntos
+    gamification_service = GamificationService()
+    await gamification_service.award_points(persona, f"prueba_{test_type}", points=100)
+    
+    # Actualizar estado y notificar
     estado_chat.state = 'idle'
     await sync_to_async(estado_chat.save)()
     
@@ -236,79 +243,249 @@ async def finalizar_prueba(plataforma: str, user_id: str, test_type: str, estado
         return True
 
     return False
-    
+
+async def ofrecer_prueba_personalidad(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, mensaje_base: str = ""):
+    """Ofrece una prueba de personalidad al usuario."""
+    bu_name = unidad_negocio.name.lower()
+    pruebas = PRUEBAS_POR_UNIDAD.get(bu_name, [])
+    if pruebas:
+        mensaje = mensaje_base + f"Para {bu_name}, te recomendamos:\n" + "\n".join(
+            [f"{i+1}. {p['nombre']} - {p['descripcion']}" for i, p in enumerate(pruebas)]
+        ) + "\nResponde con el número de la prueba o 'No' para omitir."
+    else:
+        mensaje = "¡Perfil completo! 🎉\nPronto te contactaremos con oportunidades."
+        estado_chat.state = "completed"
+    await send_message(plataforma, user_id, mensaje, bu_name)
+    if pruebas:
+        estado_chat.state = "offering_personality_test"
+    await sync_to_async(estado_chat.save)()
+ 
+
+
+# =========================================================
+# Creación de Perfil 
+# =========================================================
+# Diccionario de explicaciones para los métodos de creación de perfil
+EXPLICACIONES_METODOS = {
+    "default": {
+        "dynamic": "Te haré preguntas una por una para completar tu perfil paso a paso.",
+        "template": "Te enviaré un formulario inteligente para que llenes tus datos de una vez (solo en WhatsApp).",
+        "cv": "Envía tu CV y extraeré automáticamente la información para tu perfil."
+    },
+    "amigro": {
+        "dynamic": "Ideal si prefieres una conversación guiada sobre tu situación migratoria y experiencia.",
+        "template": "Perfecto si quieres ingresar tus datos rápidamente en un solo paso (solo en WhatsApp).",
+        "cv": "Si ya tienes un CV, puedo analizarlo para ahorrarte tiempo."
+    },
+    "huntu": {
+        "dynamic": "Te guiaré para destacar tus habilidades como recién egresado.",
+        "template": "Llena un formulario rápido para enfocarte en tus logros académicos (solo en WhatsApp).",
+        "cv": "Envía tu CV y lo adaptaré a las oportunidades para jóvenes profesionales."
+    },
+    "huntred": {
+        "dynamic": "Te ayudaré a detallar tu experiencia profesional paso a paso.",
+        "template": "Ingresa tus datos clave en un formulario rápido (solo en WhatsApp).",
+        "cv": "Sube tu CV y lo analizaré para encontrar las mejores vacantes ejecutivas."
+    }
+}
+
 def obtener_explicaciones_metodos(bu_name: str) -> dict:
     """Devuelve las explicaciones de los métodos según la unidad de negocio."""
     return EXPLICACIONES_METODOS.get(bu_name.lower(), EXPLICACIONES_METODOS["default"])
 
 async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Inicia o continúa el perfil conversacional (simplificado para este ejemplo)."""
     bu_name = unidad_negocio.name.lower()
-    preguntas = get_questions(bu_name)  # Obtener preguntas según la unidad
-    current_question = estado_chat.context.get("current_question", "nombre")
+    mensaje = "¡Perfil completo! 🎉\nRealizar una prueba de personalidad puede destacar tu perfil.\n"
+    await ofrecer_prueba_personalidad(plataforma, user_id, unidad_negocio, estado_chat, persona, mensaje)
 
-    while current_question in preguntas:
-        question_data = preguntas[current_question]
-        question_text = question_data["question"].format(**persona.__dict__)
-        await send_message(plataforma, user_id, question_text, bu_name)
-        estado_chat.state = f"waiting_for_{current_question}"
-        estado_chat.context["current_question"] = question_data["next"]
-        await sync_to_async(estado_chat.save)()
-        return
-
-    # Delegar a workflows específicos por unidad de negocio
-    if bu_name == "amigro":
-        from app.chatbot.workflow.amigro import continuar_perfil_amigro
-        await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
-    elif bu_name == "huntu":
-        from app.chatbot.workflow.huntu import continuar_perfil_huntu
-        await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
-    elif bu_name == "huntred":
-        from app.chatbot.workflow.huntred import continuar_perfil_huntu
-        await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
+async def iniciar_creacion_perfil(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Inicia el proceso de creación de perfil, ofreciendo opciones según la unidad de negocio."""
+    bu_name = unidad_negocio.name.lower()
+    explicaciones = obtener_explicaciones_metodos(bu_name)
+    
+    # Opciones por unidad de negocio
+    if bu_name in ["huntred", "huntred_executive", "huntu"]:
+        opciones = [
+            "1. Dinámico: " + explicaciones["dynamic"],
+            "2. Template: " + explicaciones["template"] + " (solo WhatsApp)",
+            "3. CV: " + explicaciones["cv"],
+            "4. LinkedIn: Vincula tu perfil de LinkedIn para una creación rápida."
+        ]
+    elif bu_name == "amigro":
+        opciones = [
+            "1. Dinámico: " + explicaciones["dynamic"],
+            "2. Template: " + explicaciones["template"] + " (solo WhatsApp)"
+        ]
     else:
-        recap_message = await obtener_resumen_perfil(persona)
-        await send_message(plataforma, user_id, recap_message, bu_name)
-        estado_chat.state = "profile_complete_pending_confirmation"
-        await sync_to_async(estado_chat.save)()
-
-async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler=None):
-    """
-    Maneja las respuestas del usuario en el flujo de creación o actualización de perfiles,
-    incluyendo selección de métodos de perfil, ejecución de pruebas de personalidad y validación de datos.
-
-    Args:
-        plataforma (str): Plataforma de comunicación (e.g., "whatsapp").
-        user_id (str): Identificador del usuario.
-        texto (str): Respuesta del usuario.
-        unidad_negocio (BusinessUnit): Objeto que representa la unidad de negocio.
-        estado_chat (ChatState): Estado actual de la conversación.
-        persona (Person): Objeto que representa el perfil del usuario.
-        gpt_handler (optional): Manejador de GPT si está habilitado.
-
-    Returns:
-        bool: True si la respuesta fue manejada, False si no.
-    """
-    bu_name = unidad_negocio.name.lower()
-    GPT_ENABLED = settings.GPT_ENABLED  # Configurado en settings.py
-
-    # Normalizar texto de entrada
-    texto = texto.strip().lower()
-
-    # Estado inicial: selección del método de perfil
-    if estado_chat.state == "asking_profile_method":
-        explicaciones = obtener_explicaciones_metodos(bu_name)
         opciones = [
             "1. Dinámico: " + explicaciones["dynamic"],
             "2. Template: " + explicaciones["template"] + " (solo WhatsApp)",
             "3. CV: " + explicaciones["cv"]
         ]
-        mensaje = "Elige cómo crear tu perfil:\n" + "\n".join(opciones)
-        await send_message(plataforma, user_id, mensaje, bu_name)
-        estado_chat.state = "selecting_profile_method"
-        await sync_to_async(estado_chat.save)()
-        return True
+    
+    mensaje = "Elige cómo crear tu perfil:\n" + "\n".join(opciones)
+    await send_message(plataforma, user_id, mensaje, bu_name)
+    estado_chat.state = "selecting_profile_method"
+    await sync_to_async(estado_chat.save)()
 
-    # Manejo de la selección del método
+async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler=None):
+    """Maneja la respuesta del usuario según el estado del chat."""
+    bu_name = unidad_negocio.name.lower()
+    GPT_ENABLED = settings.GPT_ENABLED
+    
+    texto = texto.strip()
+    texto_lower = texto.lower()
+    
+    # Manejo de estados de validación específicos de campo
+    if estado_chat.state.startswith("waiting_for_"):
+        field = estado_chat.state.replace("waiting_for_", "")
+        
+        if field == "phone":
+            try:
+                # Parsear y validar el número de teléfono
+                parsed_phone = phonenumbers.parse(texto, "MX")  # Ajusta "MX" según el país
+                if not phonenumbers.is_valid_number(parsed_phone):
+                    raise ValueError("Número de teléfono no válido")
+                # Formatear a E.164
+                texto = phonenumbers.format_number(parsed_phone, phonenumbers.PhoneNumberFormat.E164)
+                persona.phone = texto
+                logger.info(f"Teléfono válido registrado para {user_id}: {texto}")
+                
+                # Continuar con el siguiente campo o estado
+                await send_message(plataforma, user_id, f"¡Teléfono registrado correctamente!", bu_name)
+                estado_chat.state = estado_chat.context.get('next_field', 'profile_in_progress')
+                await sync_to_async(estado_chat.save)()
+                return await continuar_registro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            except Exception as e:
+                logger.warning(f"Invalid phone number for {user_id}: {texto} - Error: {str(e)}")
+                await send_message(plataforma, user_id, "El número de teléfono no es válido. Usa el formato internacional, como '+521234567890'.", bu_name)
+                return True
+        
+        elif field == "email":
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", texto):
+                logger.warning(f"Invalid email for {user_id}: {texto}")
+                await send_message(plataforma, user_id, "Por favor, ingresa un email válido.", bu_name)
+                return True
+            persona.email = texto
+            logger.info(f"Email válido registrado para {user_id}: {texto}")
+            
+            # Continuar con el siguiente campo o estado
+            await send_message(plataforma, user_id, f"¡Email registrado correctamente!", bu_name)
+            estado_chat.state = estado_chat.context.get('next_field', 'profile_in_progress')
+            await sync_to_async(estado_chat.save)()
+            return await continuar_registro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        
+        elif field == "name":
+            if len(texto.split()) < 2:
+                logger.warning(f"Invalid name for {user_id}: {texto} - Missing last name")
+                await send_message(plataforma, user_id, "Por favor, ingresa tu nombre completo (nombre y apellido).", bu_name)
+                return True
+            persona.name = texto
+            logger.info(f"Nombre registrado para {user_id}: {texto}")
+            
+            # Continuar con el siguiente campo
+            await send_message(plataforma, user_id, f"¡Nombre registrado correctamente!", bu_name)
+            estado_chat.state = estado_chat.context.get('next_field', 'profile_in_progress')
+            await sync_to_async(estado_chat.save)()
+            return await continuar_registro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+        
+        elif field == "cv":
+            # Procesar el CV adjunto
+            parser = CVParser(unidad_negocio)
+            try:
+                from pathlib import Path
+                file_path = Path(texto)  # En un caso real, esto vendría de un upload
+                cv_text = parser.extract_text_from_file(file_path)
+                if cv_text:
+                    parsed_data = parser.parse(cv_text)
+                    if parsed_data:
+                        for key, value in parsed_data.items():
+                            if key in ["email", "phone"] and value:
+                                # Validar email y teléfono antes de guardarlos
+                                if key == "email" and re.match(r"[^@]+@[^@]+\.[^@]+", value):
+                                    setattr(persona, key, value)
+                                elif key == "phone":
+                                    try:
+                                        parsed_phone = phonenumbers.parse(value, "MX")
+                                        if phonenumbers.is_valid_number(parsed_phone):
+                                            formatted_phone = phonenumbers.format_number(parsed_phone, phonenumbers.PhoneNumberFormat.E164)
+                                            setattr(persona, key, formatted_phone)
+                                    except:
+                                        pass  # No guardamos números inválidos del CV
+                            elif key == "skills":
+                                persona.metadata["skills"] = value
+                            elif key == "experience":
+                                persona.metadata["experience"] = value
+                            elif key == "education":
+                                persona.metadata["education"] = value
+                        persona.cv_file = str(file_path)
+                        persona.cv_parsed = True
+                        persona.cv_analysis = parsed_data
+                        persona.metadata["last_cv_update"] = now().isoformat()
+                        await sync_to_async(persona.save)()
+                        await send_message(plataforma, user_id, "Tu CV ha sido procesado y tu perfil actualizado.", bu_name)
+                        estado_chat.state = "offering_personality_test"
+                        await sync_to_async(estado_chat.save)()
+                        await ofrecer_prueba_personalidad(plataforma, user_id, unidad_negocio, estado_chat, persona)
+                    else:
+                        await send_message(plataforma, user_id, "No se pudo extraer información de tu CV. Intenta con otro método.", bu_name)
+                        estado_chat.state = "selecting_profile_method"
+                        await sync_to_async(estado_chat.save)()
+                else:
+                    await send_message(plataforma, user_id, "No se pudo leer tu CV. Asegúrate de enviar un PDF o Word válido.", bu_name)
+            except Exception as e:
+                logger.error(f"Error processing CV for {user_id}: {str(e)}")
+                await send_message(plataforma, user_id, f"Error procesando tu CV: {str(e)}. Intenta de nuevo.", bu_name)
+                estado_chat.state = "selecting_profile_method"
+                await sync_to_async(estado_chat.save)()
+            return True
+        
+        elif field == "linkedin":
+            # Procesar la URL de LinkedIn
+            linkedin_url = texto
+            if not re.match(r"^https?://([a-z]{2,3}\.)?linkedin\.com/.*", linkedin_url, re.IGNORECASE):
+                logger.warning(f"Invalid LinkedIn URL for {user_id}: {linkedin_url}")
+                await send_message(plataforma, user_id, "Por favor, proporciona una URL válida de LinkedIn (ej: https://linkedin.com/in/tu-perfil).", bu_name)
+                return True
+                
+            try:
+                scraped_data = await scrape_linkedin_profile(linkedin_url, bu_name)
+                if scraped_data:
+                    # Validar datos obtenidos del scraping
+                    if "email" in scraped_data and scraped_data["email"]:
+                        if re.match(r"[^@]+@[^@]+\.[^@]+", scraped_data["email"]):
+                            persona.email = scraped_data["email"]
+                    if "phone" in scraped_data and scraped_data["phone"]:
+                        try:
+                            parsed_phone = phonenumbers.parse(scraped_data["phone"], "MX")
+                            if phonenumbers.is_valid_number(parsed_phone):
+                                persona.phone = phonenumbers.format_number(parsed_phone, phonenumbers.PhoneNumberFormat.E164)
+                        except:
+                            pass  # Ignoramos números inválidos
+                            
+                    update_person_from_scrape(persona, scraped_data)
+                    persona.metadata["linkedin_url"] = linkedin_url
+                    await sync_to_async(persona.save)()
+                    await send_message(plataforma, user_id, "Tu perfil de LinkedIn ha sido procesado y tu perfil actualizado.", bu_name)
+                    estado_chat.state = "offering_personality_test"
+                    await sync_to_async(estado_chat.save)()
+                    await ofrecer_prueba_personalidad(plataforma, user_id, unidad_negocio, estado_chat, persona)
+                else:
+                    await send_message(plataforma, user_id, "No se pudo procesar tu perfil de LinkedIn. Intenta con otro método.", bu_name)
+                    estado_chat.state = "selecting_profile_method"
+                    await sync_to_async(estado_chat.save)()
+            except Exception as e:
+                logger.error(f"Error processing LinkedIn for {user_id}: {str(e)}")
+                await send_message(plataforma, user_id, f"Error procesando LinkedIn: {str(e)}. Intenta de nuevo.", bu_name)
+                estado_chat.state = "selecting_profile_method"
+                await sync_to_async(estado_chat.save)()
+            return True
+        
+        # Manejar otros campos específicos que requieran validación
+        return True
+    
+    # Resto de la lógica original
     elif estado_chat.state == "selecting_profile_method":
         try:
             seleccion = int(texto)
@@ -317,108 +494,101 @@ async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, un
                 await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
             elif seleccion == 2 and plataforma == "whatsapp":  # Template
                 template_name = f"registro_{bu_name}"
-                try:
-                    await send_whatsapp_template(user_id, template_name, unidad_negocio)
-                    estado_chat.state = "waiting_for_template_response"
-                    await sync_to_async(estado_chat.save)()
-                except Exception as e:
-                    logger.warning(f"No se pudo enviar template {template_name}: {e}. Usando flujo conversacional.")
-                    await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
-            elif seleccion == 3:  # CV
+                await send_whatsapp_template(user_id, template_name, unidad_negocio)
+                estado_chat.state = "waiting_for_template_response"
+                await sync_to_async(estado_chat.save)()
+            elif seleccion == 3 and bu_name != "amigro":  # CV
                 await send_message(plataforma, user_id, "Por favor, envía tu CV como archivo adjunto (PDF o Word).", bu_name)
                 estado_chat.state = "waiting_for_cv"
                 await sync_to_async(estado_chat.save)()
+            elif seleccion == 4 and bu_name in ["huntred", "huntred_executive", "huntu"]:  # LinkedIn
+                await send_message(plataforma, user_id, "Proporciona la URL de tu perfil de LinkedIn.", bu_name)
+                estado_chat.state = "waiting_for_linkedin"
+                await sync_to_async(estado_chat.save)()
             else:
-                await send_message(plataforma, user_id, "Selecciona una opción válida (1-3).", bu_name)
-        except ValueError:
-            await send_message(plataforma, user_id, "Por favor, responde con un número (1-3).", bu_name)
-        return True
-
-    # Manejo de selección de pruebas de personalidad
-    elif estado_chat.state == "selecting_test":
-        pruebas_disponibles = PRUEBAS_POR_UNIDAD.get(bu_name, [])
-        if not pruebas_disponibles:
-            await send_message(plataforma, user_id, "No hay pruebas disponibles para tu unidad de negocio.", bu_name)
-            estado_chat.state = "idle"
-            await sync_to_async(estado_chat.save)()
-            return True
-        try:
-            seleccion = int(texto) - 1
-            if 0 <= seleccion < len(pruebas_disponibles):
-                test_name = pruebas_disponibles[seleccion]['nombre']
-                await iniciar_prueba(plataforma, user_id, test_name, "general", unidad_negocio, estado_chat, persona)
-            else:
-                await send_message(plataforma, user_id, "Selección inválida. Elige un número de la lista.", bu_name)
+                await send_message(plataforma, user_id, "Selecciona una opción válida.", bu_name)
         except ValueError:
             await send_message(plataforma, user_id, "Por favor, responde con un número válido.", bu_name)
         return True
-
-    # Manejo de respuestas durante una prueba
-    elif await manejar_respuesta_prueba(plataforma, user_id, texto, unidad_negocio, estado_chat, persona):
-        return True
-
-    # Manejo de campos específicos del perfil
-    elif estado_chat.state.startswith("waiting_for_"):
-        field = estado_chat.state.replace("waiting_for_", "")
-        if not texto:
-            await send_message(plataforma, user_id, "Por favor, proporciona una respuesta válida.", bu_name)
-            return True
-
-        # Usar GPT si está habilitado
-        if GPT_ENABLED and gpt_handler and estado_chat.context.get('use_gpt', False):
-            await procesar_respuesta_con_gpt(plataforma, user_id, texto, unidad_negocio, estado_chat, persona, gpt_handler)
-            return True
-
-        # Validaciones específicas
-        if field == "email" and not re.match(r"[^@]+@[^@]+\.[^@]+", texto):
-            await send_message(plataforma, user_id, "Por favor, ingresa un email válido (ej. usuario@dominio.com).", bu_name)
-            return True
-        elif field == "phone" and not re.match(r"^\+\d{10,15}$", texto):
-            await send_message(plataforma, user_id, "Por favor, usa el formato '+521234567890'.", bu_name)
-            return True
-        elif field in ["nombre", "apellido_paterno", "nacionalidad"] and not re.match(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$", texto):
-            await send_message(plataforma, user_id, f"El {field} solo debe contener letras.", bu_name)
-            return True
-
-        # Guardar el valor
-        try:
-            setattr(persona, field, texto.capitalize() if field in ["nombre", "apellido_paterno"] else texto)
-            await sync_to_async(persona.save)()
-            await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
-        except Exception as e:
-            logger.error(f"Error al guardar {field} para {user_id}: {e}")
-            await send_message(plataforma, user_id, "Ocurrió un error al guardar tu información. Intenta de nuevo.", bu_name)
-        return True
-
-    # Confirmación del perfil
-    elif estado_chat.state == "profile_complete_pending_confirmation":
-        if texto == "sí" or texto == "si":
-            await send_message(plataforma, user_id, "¡Perfil confirmado! ¿Deseas realizar una prueba de personalidad?", bu_name)
-            pruebas = PRUEBAS_POR_UNIDAD.get(bu_name, [])
-            if pruebas:
-                mensaje = "Selecciona una prueba:\n" + "\n".join([f"{i+1}. {p['nombre']} - {p['descripcion']}" for i, p in enumerate(pruebas)])
-                await send_message(plataforma, user_id, mensaje, bu_name)
-                estado_chat.state = "selecting_test"
-            else:
-                estado_chat.state = "idle"
+    
+    elif estado_chat.state == "offering_personality_test":
+        if texto_lower == "no":
+            await send_message(plataforma, user_id, "¡Perfil completo! 🎉 Pronto te contactaremos con oportunidades.", bu_name)
+            estado_chat.state = "completed"
             await sync_to_async(estado_chat.save)()
-        elif texto == "no":
-            await send_message(plataforma, user_id, "Por favor, corrige la información incorrecta.", bu_name)
-            await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
-            await send_message(plataforma, user_id, "Responde 'Sí' o 'No'.", bu_name)
+            try:
+                seleccion = int(texto) - 1
+                pruebas = PRUEBAS_POR_UNIDAD.get(bu_name, [])
+                if 0 <= seleccion < len(pruebas):
+                    prueba = pruebas[seleccion]["nombre"]
+                    await send_message(plataforma, user_id, f"Has elegido {prueba}. Te enviaremos el enlace pronto.", bu_name)
+                    estado_chat.state = "completed"
+                    await sync_to_async(estado_chat.save)()
+                else:
+                    await send_message(plataforma, user_id, "Selecciona una opción válida o 'No' para omitir.", bu_name)
+            except ValueError:
+                await send_message(plataforma, user_id, "Responde con un número válido o 'No'.", bu_name)
         return True
-
-    # Manejo de CV (pendiente de implementación completa)
-    elif estado_chat.state == "waiting_for_cv":
-        # Aquí deberías procesar el archivo adjunto, extraer datos y guardarlos en persona
-        await send_message(plataforma, user_id, "Procesando tu CV... (funcionalidad pendiente).", bu_name)
-        estado_chat.state = "idle"
-        await sync_to_async(estado_chat.save)()
-        return True
-
+    
+    # Corrección de datos
+    elif texto.startswith("corregir "):
+        campo = texto.split(" ")[1]
+        campos_validos = ["nombre", "apellido_paterno", "email", "phone"]
+        if campo in campos_validos:
+            estado_chat.state = f"waiting_for_{campo}"
+            await sync_to_async(estado_chat.save)()
+            await send_message(plataforma, user_id, f"Por favor, ingresa tu nuevo {campo}.", bu_name)
+            return True
+        else:
+            await send_message(plataforma, user_id, "Campo no válido. Usa: nombre, apellido_paterno, email o phone.", bu_name)
+            return True
     return False
 
+async def continuar_registro(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Determina y ejecuta el siguiente paso en el proceso de registro."""
+    bu_name = unidad_negocio.name.lower()
+    
+    # Verificar qué información falta
+    campos_faltantes = []
+    
+    if not persona.email:
+        campos_faltantes.append("email")
+    if not persona.phone:
+        campos_faltantes.append("phone")
+    if not persona.name:
+        campos_faltantes.append("name")
+    
+    if campos_faltantes:
+        # Selecciona el primer campo faltante
+        next_field = campos_faltantes[0]
+        estado_chat.state = f"waiting_for_{next_field}"
+        
+        # Guarda el campo siguiente si hay más de uno
+        if len(campos_faltantes) > 1:
+            estado_chat.context['next_field'] = f"waiting_for_{campos_faltantes[1]}"
+        else:
+            estado_chat.context['next_field'] = "profile_completed"
+        
+        await sync_to_async(estado_chat.save)()
+        
+        # Solicita el siguiente campo
+        messages = {
+            "name": "Por favor, ingresa tu nombre completo (nombre y apellido).",
+            "email": "Por favor, ingresa tu dirección de correo electrónico.",
+            "phone": "Por favor, ingresa tu número de teléfono con formato internacional (ej: +521234567890)."
+        }
+        
+        await send_message(plataforma, user_id, messages[next_field], bu_name)
+        return True
+    
+    # Si ya están todos los campos básicos, ofrecer prueba de personalidad
+    await send_message(plataforma, user_id, "¡Perfil básico completado! 🎉", bu_name)
+    estado_chat.state = "offering_personality_test"
+    await sync_to_async(estado_chat.save)()
+    await ofrecer_prueba_personalidad(plataforma, user_id, unidad_negocio, estado_chat, persona)
+    return True
+  
 async def procesar_respuesta_con_gpt(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler):
     """Procesa respuestas en el flujo dinámico usando GPT."""
     bu_name = unidad_negocio.name.lower()

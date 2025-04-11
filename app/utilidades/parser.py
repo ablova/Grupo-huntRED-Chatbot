@@ -1,4 +1,5 @@
 # /home/pablo/app/utilidades/parser.py
+import sys
 import logging
 import unicodedata
 import email
@@ -23,11 +24,14 @@ from app.chatbot.integrations.services import send_email
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Global NLPProcessor for Spanish CVs (default language)
-NLP_PROCESSOR_ES = NLPProcessor(language="es", mode="candidate", analysis_depth="deep")
+# Verificación para saltar carga pesada durante migraciones
+SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
 
-# Dictionary to cache NLPProcessor instances by language
-NLP_PROCESSORS = {"es": NLP_PROCESSOR_ES}
+# Inicialización condicional
+if not SKIP_HEAVY_INIT:
+    NLP_PROCESSOR_ES = NLPProcessor(language="es", mode="candidate")  # Sin analysis_depth por ahora
+else:
+    NLP_PROCESSOR_ES = None  # O un objeto dummy si es necesario
 
 # Global cache for division skills
 DIVISION_SKILLS_CACHE = None

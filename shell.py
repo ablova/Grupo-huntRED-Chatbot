@@ -1370,3 +1370,6 @@ def process_linkedin_data(csv_path="linkedin_data.csv"):
 if __name__ == "__main__":
     process_linkedin_data()
 
+python -c "from app.chatbot.nlp import NLPProcessor; nlp = NLPProcessor(); print(asyncio.run(nlp.analyze('Tengo experiencia en Python')))"
+nohup python /home/pablo/app/chatbot/generate_embeddings.py > /home/pablo/logs/generate_embeddings.log 2>&1 &
+
