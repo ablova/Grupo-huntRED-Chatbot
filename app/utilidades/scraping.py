@@ -22,7 +22,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_l
 from app.chatbot.utils import clean_text
 from app.utilidades.loader import DIVISION_SKILLS
 from app.chatbot.gpt import GPTHandler
-from app.chatbot.chatbot import nlp_processor as NLPProcessor
+from app.chatbot.nlp import NLPProcessor
 from app.utilidades.vacantes import VacanteManager
 from prometheus_client import Counter, Histogram, start_http_server
 import logging

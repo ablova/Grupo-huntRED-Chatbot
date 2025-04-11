@@ -16,7 +16,7 @@ from docx import Document
 from asgiref.sync import sync_to_async
 
 # Project imports
-from app.chatbot.chatbot import nlp_processor as NLPProcessorGlobal
+
 from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill
 from app.chatbot.integrations.services import send_email
 
@@ -24,10 +24,7 @@ from app.chatbot.integrations.services import send_email
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Diccionario global para almacenar instancias de NLPProcessor por idioma
-NLP_PROCESSORS = {
-    'es': NLPProcessorGlobal  # Instancia global para español
-}
+
 # Global cache for division skills
 DIVISION_SKILLS_CACHE = None
 
@@ -289,6 +286,11 @@ class CVParser:
 
     def parse(self, text: str) -> Dict:
         """Procesa el texto del CV usando NLPProcessor con detección de idioma."""
+        # Diccionario global para almacenar instancias de NLPProcessor por idioma
+        from app.chatbot.chatbot import nlp_processor as NLPProcessorGlobal
+        NLP_PROCESSORS = {
+            'es': NLPProcessorGlobal  # Instancia global para español
+        }
         # Validación inicial
         if not text or len(text.strip()) < 10:
             logger.warning("⚠️ Texto demasiado corto para análisis")

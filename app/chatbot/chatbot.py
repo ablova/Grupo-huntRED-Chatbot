@@ -41,7 +41,7 @@ NLP_ENABLED = True
 
 # Instancia global de NLPProcessor
 if NLP_ENABLED:
-    from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
+    
     from app.chatbot.nlp import NLPProcessor
     nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
     logger.info("✅ NLPProcessor inicializado globalmente desde chatbot")
@@ -120,6 +120,7 @@ class ChatBotHandler:
 
             # 4. Verificar SPAM y silenciado
             if NLP_ENABLED and text and is_spam_message(user_id, text):
+                from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
                 if is_user_spamming(user_id):
                     cache.set(f"muted:{user_id}", True, timeout=60)
                     await send_message(platform, user_id, "⚠️ Demasiados mensajes similares, espera un momento.", bu_key)

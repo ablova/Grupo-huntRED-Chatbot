@@ -18,7 +18,6 @@ import pickle
 import gc
 from filelock import FileLock
 import sys
-
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,19 +27,15 @@ FILE_PATHS = {
     "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
     "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
 }
-MODEL_CONFIG = {'SIMILARITY_THRESHOLD': 0.8}
 EMBEDDINGS_CACHE = "/home/pablo/skills_data/embeddings_cache.pkl"
 LOCK_FILE = "/home/pablo/skills_data/nlp_init.lock"
 
-# Variables globales (sin inicialización automática)
+# Variables globales
 SKILL_EMBEDDINGS = {}
 USE_MODEL = None
 
 # Verificación para saltar carga pesada durante migraciones
 SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
-if not SKIP_HEAVY_INIT:
-    load_use_model()
-    initialize_skill_embeddings()
 
 def ensure_directory_permissions(path, mode=0o770):
     """Asegura permisos correctos para un directorio."""
@@ -59,6 +54,7 @@ def ensure_directory_permissions(path, mode=0o770):
             os.chmod(os.path.join(root, f), 0o660)
             os.chown(os.path.join(root, f), os.getuid(), 1004)
 
+# Definición de funciones
 def load_use_model(model_url="https://tfhub.dev/google/universal-sentence-encoder/4", cache_dir="/home/pablo/tfhub_cache"):
     """Carga el modelo Universal Sentence Encoder con manejo robusto."""
     global USE_MODEL
@@ -147,6 +143,17 @@ def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size=20):
         except Exception as e:
             logger.error(f"Error al inicializar embeddings de {catalog}: {str(e)}")
             raise
+    cache_version = "v1.0"  # Versión del modelo o formato
+    if os.path.exists(EMBEDDINGS_CACHE):
+        with open(EMBEDDINGS_CACHE, "rb") as f:
+            data = pickle.load(f)
+            if data.get("version") == cache_version:
+                SKILL_EMBEDDINGS.update(data["embeddings"])
+            else:
+                logger.warning("Versión de caché incompatible, regenerando...")
+    # Guardar con versión
+    with open(EMBEDDINGS_CACHE, "wb") as f:
+        pickle.dump({"version": cache_version, "embeddings": SKILL_EMBEDDINGS}, f)
 
 @lru_cache(maxsize=1000)
 def translate_text(text: str) -> str:
@@ -296,6 +303,10 @@ async def load_esco_skills():
         tf.keras.backend.clear_session()
         gc.collect()
 
+def initialize_nlp():
+    if not SKIP_HEAVY_INIT:
+        load_use_model()
+        initialize_skill_embeddings()
 # Sin inicialización automática al importar
 if __name__ == "__main__":
     nlp = NLPProcessor()
