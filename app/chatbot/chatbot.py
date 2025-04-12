@@ -118,9 +118,9 @@ class ChatBotHandler:
             await sync_to_async(chat_state.save)()
             logger.info(f"[process_message] chat_state después de save: tipo={type(chat_state)}, valor={chat_state}")
 
+            from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
             # 4. Verificar SPAM y silenciado
             if NLP_ENABLED and text and is_spam_message(user_id, text):
-                from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
                 if is_user_spamming(user_id):
                     cache.set(f"muted:{user_id}", True, timeout=60)
                     await send_message(platform, user_id, "⚠️ Demasiados mensajes similares, espera un momento.", bu_key)
@@ -133,19 +133,22 @@ class ChatBotHandler:
                 intents = detect_intents(text)
                 logger.info(f"[process_message] Intents detectados: {intents}")
                 if intents:
-                    logger.info(f"[process_message] Antes de handle_known_intents: chat_state={type(chat_state)}, business_unit={type(business_unit)}")
-                    handled = await handle_known_intents(intents, platform, user_id, text, chat_state, business_unit, user, self)
+                    handled = await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user, text, self)
                     if handled:
                         return None  # El handler del intent ya envió la respuesta
-                
-                # Fallback a NLP
+                ## Fallback a NLP con manejo robusto
                 if NLP_ENABLED and self.nlp_processor:
                     try:
-                        analysis = await self.nlp_processor.analyze(text, language=language)
-                        response = await self._generate_default_response(user, chat_state, text, analysis.get("entities", []), analysis.get("sentiment", {}))
+                        analysis = await self.nlp_processor.analyze(text)  # Eliminar el argumento 'language'
+                        response = await self._generate_default_response(
+                            user, chat_state, text, 
+                            analysis.get("entities", []), 
+                            analysis.get("sentiment", {})
+                        )
                     except Exception as nlp_error:
                         logger.error(f"Error en análisis NLP: {nlp_error}")
-                        response = "Ups, no pude procesar eso. ¿En qué más puedo ayudarte?"
+                        # Usar el texto directamente como fallback si NLP falla
+                        response = f"No entendí bien, pero parece que dijiste '{text}'. ¿En qué más puedo ayudarte?"
                     await send_message(platform, user_id, response, bu_key)
                     return response
 
@@ -555,7 +558,7 @@ class ChatBotHandler:
         start_idx = page * jobs_per_page
         end_idx = min(start_idx + jobs_per_page, total_jobs)
         
-        response = f"Aquí tienes algunas vacantes recomendadas (página {page + 1}):\n"
+        response = f"Encontré {total_jobs} vacantes. Aquí tienes algunas (página {page + 1} de {total_jobs // jobs_per_page + 1}):\n"
         job_options = []
         for idx, job in enumerate(filtered_jobs[start_idx:end_idx], start=start_idx + 1):
             salary = f"${job.get('salary', 'N/A')}" if job.get('salary') else "N/A"

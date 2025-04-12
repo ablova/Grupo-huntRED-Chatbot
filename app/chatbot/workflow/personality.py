@@ -48,7 +48,7 @@ TEST_QUESTIONS = {
             'neuroticismo': [{'text': '¿Te estresas ante clientes difíciles?', 'options': ['1 - Nada', '2 - Poco', '3 - Neutral', '4 - Bastante', '5 - Mucho']}],
         },
     },
-    'huntDISC': {
+    'DISC': {
         'general': [
             {'text': 'Selecciona lo que más te describe: a) Decisivo, b) Amigable, c) Paciente, d) Detallista', 'options': ['a', 'b', 'c', 'd']},
             {'text': '¿Qué prefieres? a) Liderar, b) Socializar, c) Colaborar, d) Analizar', 'options': ['a', 'b', 'c', 'd']},
@@ -63,7 +63,7 @@ TEST_QUESTIONS = {
             {'text': 'Con clientes, ¿qué haces? a) Resolver rápido, b) Ser cálido, c) Paciencia, d) Detalles correctos', 'options': ['a', 'b', 'c', 'd']},
         ],
     },
-    'hunt16PF': {
+    '16PF': {
         'general': {
             'calidez': [{'text': '¿Disfrutas hacer sentir bienvenidas a las personas?', 'options': ['1 - Nada', '2 - Poco', '3 - Neutral', '4 - Bastante', '5 - Mucho']}],
             'estabilidad': [{'text': '¿Mantienes la calma bajo presión?', 'options': ['1 - Nada', '2 - Poco', '3 - Neutral', '4 - Bastante', '5 - Mucho']}],
@@ -82,13 +82,13 @@ TEST_QUESTIONS = {
             'estabilidad': [{'text': '¿Sigues tranquilo con clientes exigentes?', 'options': ['1 - Nada', '2 - Poco', '3 - Neutral', '4 - Bastante', '5 - Mucho']}],
         },
     },
-    'huntNEO': {
+    'NEO': {
         'general': {},  # Reutiliza huntBigFive['general'] por solapamiento
         'consumer': {},  # Reutiliza huntBigFive['consumer']
         'pharma': {},    # Reutiliza huntBigFive['pharma']
         'service': {},   # Reutiliza huntBigFive['service']
     },
-    'huntMBTI': {
+    'MBTI': {
         'general': [
             {'text': '¿Prefieres pasar tiempo con muchas personas o estar solo/a?', 'options': ['1 - Muchas personas (E)', '2 - Neutral', '3 - Solo/a (I)']},
             {'text': '¿Te enfocas más en los detalles concretos o en las posibilidades futuras?', 'options': ['1 - Detalles (S)', '2 - Neutral', '3 - Posibilidades (N)']},
@@ -96,7 +96,7 @@ TEST_QUESTIONS = {
             {'text': '¿Prefieres tener un plan estructurado o mantener tus opciones abiertas?', 'options': ['1 - Plan (J)', '2 - Neutral', '3 - Opciones abiertas (P)']},
         ],
     },
-    'huntTIPI': {
+    'TIPI': {
         'general': {
             'extraversion': [
                 {'text': 'Me veo como: Extrovertido, entusiasta.', 'reverse': False},
@@ -133,10 +133,10 @@ def get_questions_personality(test_type, domain='general'):
     return questions
 
 def get_random_tipi_questions(domain='general'):
-    """Selecciona preguntas aleatorias para huntTIPI."""
+    """Selecciona preguntas aleatorias para TIPI."""
     selected_questions = {}
-    for trait in TEST_QUESTIONS['huntTIPI']['general']:
-        direct = [q for q in TEST_QUESTIONS['huntTIPI']['general'][trait] if not q['reverse']]
-        reverse = [q for q in TEST_QUESTIONS['huntTIPI']['general'][trait] if q['reverse']]
+    for trait in TEST_QUESTIONS['TIPI']['general']:
+        direct = [q for q in TEST_QUESTIONS['TIPI']['general'][trait] if not q['reverse']]
+        reverse = [q for q in TEST_QUESTIONS['TIPI']['general'][trait] if q['reverse']]
         selected_questions[trait] = [random.choice(direct), random.choice(reverse)]
     return selected_questions

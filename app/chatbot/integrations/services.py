@@ -33,6 +33,7 @@ CACHE_TIMEOUT = 600  # 10 minutos
 whatsapp_semaphore = asyncio.Semaphore(10)
 
 
+
 # En services.py No pueden ser más de 10, por envio.
 MENU_OPTIONS_BY_BU = {
     "amigro": [
@@ -103,7 +104,7 @@ MENU_OPTIONS_BY_STATE = {
             {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
         ],
         "profile_in_progress": [
-            {"title": "📝 Continuar Perfil", "payload": "actualizar_perfil", "description": "Sigue completando tu perfil."},
+            {"title": "📝 Crear Perfil", "payload": "actualizar_perfil", "description": "Sigue completando tu perfil."},
             {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
@@ -194,6 +195,15 @@ MENU_OPTIONS_BY_STATE = {
     "default": MENU_OPTIONS_BY_BU["default"]  # Fallback para otras unidades
 }
 
+def get_greeting_by_time() -> str:
+    hour = datetime.now().hour
+    if 5 <= hour < 12:
+        return "🌅 Buenos días"
+    elif 12 <= hour < 19:
+        return "🌇 Buenas tardes"
+    else:
+        return "🌙 Buenas noches"
+    
 class Button:
     def __init__(self, title: str, payload: Optional[str] = None, url: Optional[str] = None):
         self.title = title
@@ -402,7 +412,7 @@ class MessageService:
                 options_by_state = MENU_OPTIONS_BY_STATE.get(bu_name, MENU_OPTIONS_BY_STATE["default"])
                 options = options_by_state.get(state, options_by_state["initial"])
                 
-                message = f"📍 *Menú de {bu_name}*\nSelecciona una opción:"
+                message = f"📱📋  *Menú de {bu_name}*\nSelecciona una opción:"
                 simplified_options = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
                 cache.set(cache_key, (message, simplified_options), timeout=CACHE_TIMEOUT)
 

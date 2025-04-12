@@ -190,8 +190,9 @@ async def handle_interactive_message(message, sender_id, chatbot, business_unit,
     if interactive_type == 'button_reply':
         selection = interactive.get('button_reply', {})
         selected_id = selection.get('id', 'Sin ID')
-        selected_text = selection.get('title', 'Sin texto')
-        logger.info(f"Botón seleccionado: {selected_text} (ID: {selected_id})")
+        #selected_text = selection.get('title', 'Sin texto')
+        #logger.info(f"Botón seleccionado: {selected_text} (ID: {selected_id})")
+        logger.info(f"Botón seleccionado: {selection.get('title', 'Sin texto')} (ID: {selected_id})")
 
         # Construir un mensaje en el formato esperado por ChatBotHandler
         message_for_chatbot = {
@@ -210,8 +211,9 @@ async def handle_interactive_message(message, sender_id, chatbot, business_unit,
     elif interactive_type == 'list_reply':
         selection = interactive.get('list_reply', {})
         selected_id = selection.get('id', 'Sin ID')
-        selected_text = selection.get('title', 'Sin texto')
-        logger.info(f"Lista seleccionada: {selected_text} (ID: {selected_id})")
+        #selected_text = selection.get('title', 'Sin texto')
+        #logger.info(f"Lista seleccionada: {selected_text} (ID: {selected_id})")
+        logger.info(f"Lista seleccionada: {selection.get('title', 'Sin texto')} (ID: {selected_id})")
 
         # Similar para listas, si aplica
         message_for_chatbot = {

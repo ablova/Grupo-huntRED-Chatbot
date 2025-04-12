@@ -31,24 +31,33 @@ logger = logging.getLogger(__name__)
 
 PRUEBAS_POR_UNIDAD = {
     'amigro': [
-        {'nombre': 'huntTIPI', 'descripcion': 'Prueba breve para conocer tus rasgos de personalidad.'},
-        {'nombre': 'huntDISC', 'descripcion': 'Evalúa cómo te comportas en el trabajo.'}
+        {'nombre': 'TIPI', 'descripcion': 'Prueba breve para conocer tus rasgos de personalidad.'},
+        {'nombre': 'DISC', 'descripcion': 'Evalúa cómo te comportas en el trabajo.'}
     ],
     'huntu': [
         {'nombre': 'huntBigFive', 'descripcion': 'Explora tu personalidad y potencial profesional.'},
-        {'nombre': 'huntMBTI', 'descripcion': 'Descubre tus preferencias laborales.'}
+        {'nombre': 'MBTI', 'descripcion': 'Descubre tus preferencias laborales.'}
     ],
     'huntred': [
-        {'nombre': 'hunt16PF', 'descripcion': 'Análisis detallado de tu personalidad y liderazgo.'},
-        {'nombre': 'huntNEO', 'descripcion': 'Evalúa rasgos clave para la gestión.'}
+        {'nombre': '16PF', 'descripcion': 'Análisis detallado de tu personalidad y liderazgo.'},
+        {'nombre': 'NEO', 'descripcion': 'Evalúa rasgos clave para la gestión.'}
     ],
     'huntred_executive': [
-        {'nombre': 'huntDISC', 'descripcion': 'Evalúa tu estilo de liderazgo y toma de decisiones.'},
+        {'nombre': 'DISC', 'descripcion': 'Evalúa tu estilo de liderazgo y toma de decisiones.'},
         {'nombre': 'huntBigFive', 'descripcion': 'Analiza tu personalidad con enfoque en liderazgo estratégico.'}
     ]
 }
 # Funciones Genéricas para Pruebas
 
+async def iniciar_prueba_personalidad(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, test_type: str):
+    try:
+        async with asyncio.timeout(5):  # Timeout de 5 segundos
+            domain = get_business_unit_domain(unidad_negocio)
+            await iniciar_prueba(plataforma, user_id, test_type, domain, unidad_negocio, estado_chat, persona)
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout al iniciar prueba {test_type} para user_id={user_id}")
+        await send_message(plataforma, user_id, "Lo siento, tardé demasiado en iniciar la prueba. Intenta de nuevo.", unidad_negocio.name.lower())
+ 
 async def iniciar_prueba(plataforma: str, user_id: str, test_type: str, domain: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
     """Inicia una prueba de personalidad genérica."""
     if not questions:
@@ -64,38 +73,38 @@ async def iniciar_prueba(plataforma: str, user_id: str, test_type: str, domain: 
     await sync_to_async(estado_chat.save)()
 
     questions = get_questions_personality(test_type, domain)
-    if test_type == 'huntTIPI':
+    if test_type == 'TIPI':
         questions = get_random_tipi_questions(domain)
-    first_step = list(questions.keys())[0] if test_type in ['huntBigFive', 'hunt16PF', 'huntNEO'] else None
+    first_step = list(questions.keys())[0] if test_type in ['huntBigFive', '16PF', 'NEO'] else None
     estado_chat.context['current_step_key'] = first_step
 
     await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
-
+       
 async def enviar_pregunta(plataforma: str, user_id: str, test_type: str, domain: str, estado_chat: ChatState, unidad_negocio: BusinessUnit):
     """Envía la siguiente pregunta según el tipo de prueba."""
     questions = get_questions_personalitys(test_type, domain)
-    if test_type == 'huntTIPI':
+    if test_type == 'TIPI':
         questions = get_random_tipi_questions(domain)
     step = estado_chat.context['current_step']
     step_key = estado_chat.context.get('current_step_key')
 
-    if test_type in ['huntBigFive', 'hunt16PF', 'huntNEO']:
+    if test_type in ['huntBigFive', '16PF', 'NEO']:
         trait_questions = questions[step_key]
         if step < len(trait_questions):
             question = trait_questions[step]['text']
             options = trait_questions[step]['options']
             await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
-    elif test_type == 'huntDISC':
+    elif test_type == 'DISC':
         if step < len(questions):
             question = questions[step]['text']
             options = questions[step]['options']
             await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
-    elif test_type == 'huntMBTI':
+    elif test_type == 'MBTI':
         if step < len(questions):
             question = questions[step]['text']
             options = questions[step]['options']
             await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
-    elif test_type == 'huntTIPI':
+    elif test_type == 'TIPI':
         trait = list(questions.keys())[step // 2]
         q_idx = step % 2
         question = questions[trait][q_idx]['text']
@@ -110,16 +119,16 @@ async def manejar_respuesta_prueba(plataforma: str, user_id: str, texto: str, un
 
     domain = estado_chat.context['domain']
     questions = get_questions_personality(test_type, domain)
-    if test_type == 'huntTIPI':
+    if test_type == 'TIPI':
         questions = get_random_tipi_questions(domain)
     step = estado_chat.context['current_step']
     step_key = estado_chat.context.get('current_step_key')
 
     # Validar respuesta
-    valid_range = range(1, 6) if test_type in ['huntBigFive', 'hunt16PF', 'huntNEO'] else range(1, 4) if test_type == 'huntMBTI' else range(1, 8) if test_type == 'huntTIPI' else None
-    options = ['a', 'b', 'c', 'd'] if test_type == 'huntDISC' else None
+    valid_range = range(1, 6) if test_type in ['huntBigFive', '16PF', 'NEO'] else range(1, 4) if test_type == 'MBTI' else range(1, 8) if test_type == 'TIPI' else None
+    options = ['a', 'b', 'c', 'd'] if test_type == 'DISC' else None
     try:
-        respuesta = texto.lower() if test_type == 'huntDISC' else int(texto)
+        respuesta = texto.lower() if test_type == 'DISC' else int(texto)
         if (valid_range and respuesta not in valid_range) or (options and respuesta not in options):
             await send_message(plataforma, user_id, f'Por favor, responde con una opción válida.', unidad_negocio.name.lower())
             return True
@@ -128,7 +137,7 @@ async def manejar_respuesta_prueba(plataforma: str, user_id: str, texto: str, un
         return True
 
     # Guardar respuesta
-    if test_type in ['huntBigFive', 'hunt16PF', 'huntNEO']:
+    if test_type in ['huntBigFive', '16PF', 'NEO']:
         if step_key not in estado_chat.context['answers']:
             estado_chat.context['answers'][step_key] = []
         estado_chat.context['answers'][step_key].append(respuesta)
@@ -137,7 +146,7 @@ async def manejar_respuesta_prueba(plataforma: str, user_id: str, texto: str, un
 
     # Avanzar
     estado_chat.context['current_step'] += 1
-    if test_type in ['huntBigFive', 'hunt16PF', 'huntNEO']:
+    if test_type in ['huntBigFive', '16PF', 'NEO']:
         trait_questions = questions[step_key]
         if estado_chat.context['current_step'] < len(trait_questions):
             await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
@@ -151,7 +160,7 @@ async def manejar_respuesta_prueba(plataforma: str, user_id: str, texto: str, un
             else:
                 await finalizar_prueba(plataforma, user_id, test_type, estado_chat, persona, unidad_negocio)
     else:
-        if estado_chat.context['current_step'] < (len(questions) if test_type in ['huntDISC', 'huntMBTI'] else len(questions) * 2):
+        if estado_chat.context['current_step'] < (len(questions) if test_type in ['DISC', 'MBTI'] else len(questions) * 2):
             await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
         else:
             await finalizar_prueba(plataforma, user_id, test_type, estado_chat, persona, unidad_negocio)
@@ -161,11 +170,11 @@ async def manejar_respuesta_prueba(plataforma: str, user_id: str, texto: str, un
 async def finalizar_prueba(plataforma: str, user_id: str, test_type: str, estado_chat: ChatState, persona: Person, unidad_negocio: BusinessUnit):
     """Calcula y guarda los resultados de la prueba."""
     answers = estado_chat.context.get('answers', {})
-    if test_type == 'huntBigFive' or test_type == 'huntNEO':
+    if test_type == 'huntBigFive' or test_type == 'NEO':
         for trait, responses in answers.items():
             score = sum(responses) / len(responses)
             setattr(persona, {'apertura': 'openness', 'conciencia': 'conscientiousness', 'extraversion': 'extraversion', 'amabilidad': 'agreeableness', 'neuroticismo': 'neuroticism'}[trait], score)
-    elif test_type == 'huntDISC':
+    elif test_type == 'DISC':
         d, i, s, c = 0, 0, 0, 0
         for ans in answers.values():
             if ans == 'a': d += 1
@@ -173,14 +182,14 @@ async def finalizar_prueba(plataforma: str, user_id: str, test_type: str, estado
             elif ans == 'c': s += 1
             elif ans == 'd': c += 1
         persona.metadata['disc'] = f'D{d}I{i}S{s}C{c}'
-    elif test_type == 'hunt16PF':
+    elif test_type == '16PF':
         for trait, responses in answers.items():
             score = sum(responses) / len(responses)
             persona.metadata[f'16pf_{trait}'] = score
-    elif test_type == 'huntMBTI':
+    elif test_type == 'MBTI':
         ei = sum(answers[0:2]) / 2; sn = sum(answers[2:4]) / 2; tf = sum(answers[4:6]) / 2; jp = sum(answers[6:8]) / 2
         persona.mbti_type = ('E' if ei < 2 else 'I') + ('S' if sn < 2 else 'N') + ('T' if tf < 2 else 'F') + ('J' if jp < 2 else 'P')
-    elif test_type == 'huntTIPI':
+    elif test_type == 'TIPI':
         for idx, trait in enumerate(['extraversion', 'agreeableness', 'conscientiousness', 'neuroticism', 'openness']):
             direct = answers[idx * 2]; reverse = 8 - answers[idx * 2 + 1]
             score = (direct + reverse) / 2

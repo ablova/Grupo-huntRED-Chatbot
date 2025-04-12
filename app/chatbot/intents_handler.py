@@ -1,6 +1,7 @@
 # /home/pablo/app/chatbot/intents_handler.py
 import re
 import logging
+import asyncio
 from typing import List, Dict, Any, Optional
 from asgiref.sync import sync_to_async
 from app.models import ChatState, Person, BusinessUnit, ConfiguracionBU
@@ -8,7 +9,7 @@ from app.chatbot.integrations.services import send_message, send_options, send_m
 from django.core.cache import cache
 from django.utils import timezone
 import random
-from app.chatbot.workflow.common import calcular_salario_chatbot
+from app.chatbot.workflow.common import calcular_salario_chatbot, iniciar_creacion_perfil, iniciar_perfil_conversacional, iniciar_prueba
 
 logger = logging.getLogger(__name__)
 
@@ -157,24 +158,36 @@ main_options = [
     {"title": "💼 Ver Vacantes", "payload": "show_jobs"},
     {"title": "📄 Subir CV", "payload": "upload_cv"},
     {"title": "📋 Ver Menú", "payload": "show_menu"},
-    {"title": "📝 Actualizar Perfil", "payload": "actualizar_perfil"},
+    {"title": "📝 Crear o Actualizar Perfil", "payload": "actualizar_perfil"},
     {"title": "📞 Contactar Reclutador", "payload": "solicitar_contacto_reclutador"}
 ]
 
 def detect_intents(text: str) -> List[str]:
-    """Detecta intents en el texto, ordenados por prioridad."""
+    """Detecta intents en el texto, incluyendo payloads exactos, ordenados por prioridad."""
     if not text:
         return []
     text = text.lower().strip()
     detected_intents = []
+    
+    # Primero, verificar si el texto coincide exactamente con un intent conocido (payloads)
     for intent, data in INTENT_PATTERNS.items():
-        for pattern in data['patterns']:
-            if re.search(pattern, text):
-                detected_intents.append((intent, data.get('priority', 100)))
-                break  # Evita duplicados del mismo intent
+        if text == intent:  # Coincidencia exacta para payloads como 'actualizar_perfil'
+            detected_intents.append((intent, data.get('priority', 100)))
+            logger.debug(f"[detect_intents] Intent exacto detectado: {intent}")
+            break
+    
+    # Si no hay coincidencia exacta, buscar patrones regex
+    if not detected_intents:
+        for intent, data in INTENT_PATTERNS.items():
+            for pattern in data['patterns']:
+                if re.search(pattern, text):
+                    detected_intents.append((intent, data.get('priority', 100)))
+                    break  # Evita duplicados del mismo intent
+    
     detected_intents.sort(key=lambda x: x[1])
-    logger.debug(f"[detect_intents] Intents detectados: {[intent for intent, _ in detected_intents]}")
-    return [intent for intent, _ in detected_intents]
+    intents_list = [intent for intent, _ in detected_intents]
+    logger.debug(f"[detect_intents] Intents detectados: {intents_list}")
+    return intents_list
 
 def get_tos_url(business_unit: BusinessUnit) -> str:
     tos_urls = {
@@ -222,12 +235,14 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         configuracion = await sync_to_async(lambda: ConfiguracionBU.objects.get(business_unit=business_unit))()
         bu_name_lower = business_unit.name.lower()
 
+        # INTENTS ORGANIZADOS POR FLUJO DE RECLUTAMIENTO
         if primary_intent in INTENT_PATTERNS:
             responses = INTENT_PATTERNS[primary_intent]['responses']
             response = random.choice(responses)
-            await send_message(platform, user_id, response, bu_name_lower)
+            await send_message(platform, user_id, response, business_unit.name.lower())
             cache.set(cache_key, response, timeout=600)
 
+            # 1. INICIO Y PRESENTACIÓN
             if primary_intent == "start_command":
                 await send_menu(platform, user_id, business_unit)
             elif primary_intent == "saludo":
@@ -235,7 +250,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 for msg in bu_responses:
                     await send_message(platform, user_id, msg, bu_name_lower)
                 if chatbot and not chatbot.is_profile_complete(user, business_unit):
-                    tos_url = get_tos_url(business_unit)  # Ya es dinámico por BU
+                    tos_url = get_tos_url(business_unit)
                     await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", bu_name_lower)
                     await send_options(platform, user_id, "¿Aceptas los Términos de Servicio?", 
                                        [{"title": "Sí", "payload": "tos_accept"}, {"title": "No", "payload": "tos_reject"}],
@@ -248,13 +263,35 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                 await sync_to_async(chat_state.save)()
                 await send_menu(platform, user_id, business_unit)
                 return True
-            elif primary_intent == "travel_in_group":
-                if chatbot:
-                    await chatbot.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
-                else:
-                    logger.error("Chatbot instance not provided for travel_in_group intent")
-                    await send_message(platform, user_id, "Ups, algo salió mal al intentar invitar a alguien. Intenta de nuevo.", bu_name_lower)
+            elif primary_intent == "show_menu":
+                await send_menu(platform, user_id, business_unit)
+                
+            # 2. CREACIÓN Y GESTIÓN DE PERFIL
+            elif primary_intent == "actualizar_perfil":
+                chat_state.state = "profile_in_progress"
+                await sync_to_async(chat_state.save)()
+                await chatbot.start_profile_creation(platform, user_id, business_unit, chat_state, user)
                 return True
+            elif primary_intent == "mi_perfil":
+                if not user.profile_complete:
+                    await send_message(platform, user_id, "Primero necesitas crear un perfil. ¿Deseas hacerlo ahora?", business_unit.name.lower())
+                    await send_options(platform, user_id, "Selecciona una opción:", 
+                                    [{"title": "Sí", "payload": "actualizar_perfil"}, {"title": "No", "payload": "no_action"}],
+                                    business_unit.name.lower())
+                else:
+                    await send_message(platform, user_id, "¿Qué deseas actualizar? Puedes decirme: nombre, email, teléfono, habilidades, experiencia o salario esperado.", business_unit.name.lower())
+                    chat_state.state = "waiting_for_profile_field"
+                    await sync_to_async(chat_state.save)()
+                return True
+            elif primary_intent == "upload_cv" or primary_intent == "cargar_cv":
+                chat_state.state = "waiting_for_cv"
+                await sync_to_async(chat_state.save)()
+            elif primary_intent == "prueba_personalidad":
+                from app.chatbot.workflow.common import iniciar_prueba_personalidad
+                await iniciar_prueba_personalidad(platform, user_id, business_unit, chat_state, user, "tipi")
+                return True
+                
+            # 3. BÚSQUEDA DE VACANTES
             elif primary_intent == "show_jobs":
                 from app.utilidades.vacantes import VacanteManager
                 manager = VacanteManager({"business_unit": business_unit})
@@ -264,16 +301,14 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                     await present_job_listings(platform, user_id, [j["job"] for j in jobs], business_unit, chat_state)
                 else:
                     await send_message(platform, user_id, "No encontré vacantes para tu perfil aún. ¿Quieres subir tu CV para mejorar las recomendaciones?", bu_name_lower)
-            elif primary_intent == "upload_cv":
-                chat_state.state = "waiting_for_cv"
-                await sync_to_async(chat_state.save)()
-            elif primary_intent == "prueba_personalidad":
-                # Iniciar la prueba de personalidad
-                from app.chatbot.workflow.common import iniciar_prueba_personalidad
-                await iniciar_prueba_personalidad(platform, user_id, business_unit, chat_state, user, "tipi")
+            elif primary_intent == "ver_vacantes":
+                from app.utilidades.vacantes import VacanteManager
+                jobs = await sync_to_async(VacanteManager.match_person_with_jobs)(user)
+                if jobs:
+                    await present_job_listings(platform, user_id, jobs, business_unit, chat_state)
+                else:
+                    await send_message(platform, user_id, "No encontré vacantes para tu perfil aún. ¿Quieres subir tu CV para mejorar las recomendaciones?", business_unit.name.lower())
                 return True
-            elif primary_intent == "show_menu":
-                await send_menu(platform, user_id, business_unit)
             elif primary_intent == "solicitar_ayuda_postulacion":
                 await send_options(platform, user_id, "¿En qué parte necesitas ayuda?", 
                                    [{"title": "Buscar Vacante", "payload": "show_jobs"}, {"title": "Aplicar", "payload": "apply_job"}],
@@ -281,10 +316,12 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
             elif primary_intent == "consultar_estado_postulacion":
                 chat_state.state = "waiting_for_status_email"
                 await sync_to_async(chat_state.save)()
-            elif primary_intent == "solicitar_tips_entrevista":
-                await send_options(platform, user_id, "¿Quieres más tips o practicar una entrevista?", 
-                                   [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
+            elif primary_intent == "busqueda_impacto":
+                await send_options(platform, user_id, "¿Qué tipo de impacto buscas?", 
+                                   [{"title": "Social", "payload": "impact_social"}, {"title": "Ambiental", "payload": "impact_environmental"}],
                                    bu_name_lower)
+                                   
+            # 4. INFORMACIÓN SALARIAL
             elif primary_intent == "calcular_salario":
                 response = await calcular_salario_chatbot(platform, user_id, text, bu_name_lower)
                 if response:
@@ -297,33 +334,85 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
             elif primary_intent == "consultar_sueldo_mercado":
                 chat_state.state = "waiting_for_salary_position"
                 await sync_to_async(chat_state.save)()
-            elif primary_intent == "actualizar_perfil":
-                chat_state.state = "waiting_for_profile_field"
-                await sync_to_async(chat_state.save)()
-            elif primary_intent == "cargar_cv":
-                chat_state.state = "waiting_for_cv"
-                await sync_to_async(chat_state.save)()
-            elif primary_intent == "contacto":
-                admin_phone = configuracion.telefono_bu or "525518490291"  # Usar teléfono configurado
-                await send_message(platform, admin_phone, f"Un candidato ({user_id}) requiere asistencia especial.", bu_name_lower)
+                
+            # 5. PREPARACIÓN PARA ENTREVISTAS
+            elif primary_intent == "solicitar_tips_entrevista":
+                await send_options(platform, user_id, "¿Quieres más tips o practicar una entrevista?", 
+                                   [{"title": "Más Tips", "payload": "more_tips"}, {"title": "Practicar", "payload": "practice_interview"}],
+                                   bu_name_lower)
+                                   
+            # 6. APOYO GRUPAL Y SOCIAL
+            elif primary_intent == "travel_in_group":
+                if chatbot:
+                    await chatbot.handle_group_invitation_input(platform, user_id, text, chat_state, business_unit, user)
+                else:
+                    logger.error("Chatbot instance not provided for travel_in_group intent")
+                    await send_message(platform, user_id, "Ups, algo salió mal al intentar invitar a alguien. Intenta de nuevo.", bu_name_lower)
+                return True
+                
+            # 7. CONTACTO Y AYUDA
+            elif primary_intent == "contacto" or primary_intent == "solicitar_contacto_reclutador":
+                configuracion = await sync_to_async(lambda: ConfiguracionBU.objects.get(business_unit=business_unit))()
+                admin_phone = configuracion.telefono_bu or "525518490291"
+                
+                # Recopilar información disponible del candidato
+                candidate_info = {}
+                
+                if user.nombre:
+                    candidate_info["Nombre"] = f"{user.nombre} {user.apellido_paterno or ''} {user.apellido_materno or ''}".strip()
+                if user.nacionalidad:
+                    candidate_info["Nacionalidad"] = user.nacionalidad
+                if user.email:
+                    candidate_info["Email"] = user.email
+                if user.phone:
+                    candidate_info["Teléfono"] = user.phone
+                if user.preferred_language:
+                    candidate_info["Idioma Preferido"] = user.preferred_language
+                if user.job_search_status:
+                    candidate_info["Estado de Búsqueda"] = user.job_search_status
+                if user.desired_job_types:
+                    candidate_info["Tipos de Empleo Deseados"] = user.desired_job_types
+                if user.skills:
+                    candidate_info["Habilidades"] = user.skills
+                if user.experience_years is not None:
+                    candidate_info["Años de Experiencia"] = user.experience_years
+                if user.salary_data and "expected_salary" in user.salary_data:
+                    candidate_info["Salario Esperado"] = user.salary_data["expected_salary"]
+                if user.metadata and "desired_locations" in user.metadata:
+                    candidate_info["Ubicación Deseada"] = user.metadata["desired_locations"]
+                candidate_info["Estado del Perfil"] = "Completo" if user.is_profile_complete() else "Incompleto"
+                
+                # Verificar si faltan datos críticos
+                if not user.phone and not user.email:
+                    await send_message(platform, user_id, "Para contactarte, necesitamos al menos tu teléfono o email. Por favor, proporciónalos.", bu_name_lower)
+                    return False
+                
+                # Formatear el mensaje con la información disponible
+                recap_message = "Información del candidato que requiere asistencia:\n"
+                for key, value in candidate_info.items():
+                    recap_message += f"{key}: {value}\n"
+                
+                # Enviar el mensaje al administrador
+                await send_message(platform, admin_phone, recap_message, bu_name_lower)
+                
+                # Confirmar al candidato
                 await send_message(platform, user_id, "Un reclutador te contactará pronto.", bu_name_lower)
+                return True
             elif primary_intent == "ayuda":
                 await send_options(platform, user_id, "¿Qué necesitas?", 
                                    [{"title": "Cómo usar el bot", "payload": "help_usage"}, {"title": "FAQ", "payload": "help_faq"}],
                                    bu_name_lower)
+            elif primary_intent == "help_usage":
+                await send_message(platform, user_id, "Aquí te explico cómo usar el bot: [instrucciones detalladas].", business_unit.name.lower())
+                return True
+            elif primary_intent == "help_faq":
+                await send_message(platform, user_id, "Preguntas frecuentes: [lista de FAQs].", business_unit.name.lower())
+                return True
             elif primary_intent == "retry_conversation":
                 chat_state.state = "initial"
                 chat_state.context = {}
                 await sync_to_async(chat_state.save)()
                 await send_menu(platform, user_id, business_unit)
-            elif primary_intent == "solicitar_contacto_reclutador":
-                admin_phone = configuracion.telefono_bu or "525518490291"
-                await send_message(platform, admin_phone, f"Un candidato ({user_id}) requiere asistencia especial.", bu_name_lower)
-                await send_message(platform, user_id, "Un reclutador te contactará pronto.", bu_name_lower)
-            elif primary_intent == "busqueda_impacto":
-                await send_options(platform, user_id, "¿Qué tipo de impacto buscas?", 
-                                   [{"title": "Social", "payload": "impact_social"}, {"title": "Ambiental", "payload": "impact_environmental"}],
-                                   bu_name_lower)
 
             logger.info(f"[handle_known_intents] Intent manejado: {primary_intent}")
             return True
@@ -345,6 +434,21 @@ async def handle_document_upload(
     chat_state: ChatState
 ) -> None:
     """Maneja la carga de documentos como CVs."""
+    import requests
+    from django.core.exceptions import ValidationError
+    
+    # Verificar tamaño del archivo
+    response = requests.head(file_url)
+    file_size = int(response.headers.get('Content-Length', 0)) / 1024 / 1024  # Tamaño en MB
+    if file_size > 5:  # Límite de 5 MB
+        await send_message(platform, user_id, "El archivo es demasiado grande (máximo 5 MB). Por favor, reduce su tamaño y vuelve a intentarlo.", business_unit.name.lower())
+        return
+    
+    # Validar tipo de archivo
+    valid_types = ['pdf', 'application/pdf', 'doc', 'docx', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    if file_type.lower() not in valid_types:
+        await send_message(platform, user_id, f"No puedo procesar archivos de tipo {file_type}. Usa PDF o Word.", business_unit.name.lower())
+        return
     from app.utilidades.parser import parse_document
     
     await send_message(platform, user_id, "Estoy procesando tu documento. Esto tomará unos momentos...", business_unit.name.lower())
