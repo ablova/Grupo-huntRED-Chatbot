@@ -1,12 +1,10 @@
 # /home/pablo/ai_huntred/settings.py
-
 import os
 from pathlib import Path
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 import environ
 import logging
-import tensorflow as tf
 
 # Configuración de entorno
 env = environ.Env()
@@ -18,19 +16,19 @@ ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(STATIC_ROOT, exist_ok=True)
-os.makedirs(MEDIA_ROOT, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True, mode=0o770)
+os.makedirs(STATIC_ROOT, exist_ok=True, mode=0o770)
+os.makedirs(MEDIA_ROOT, exist_ok=True, mode=0o770)
 
 # Seguridad y entorno
-SECRET_KEY = env('DJANGO_SECRET_KEY', default='tu-secret-key-por-defecto')  # ¡Cambia esto en producción!
+SECRET_KEY = env('DJANGO_SECRET_KEY', default='tu-secret-key-por-defecto')
 DEBUG = env.bool('DJANGO_DEBUG', default=False)
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'ai.huntred.com', '34.57.227.244'])
 APPEND_SLASH = False
-SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0  # HSTS solo en producción
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_SSL_REDIRECT = not DEBUG  # Redirección SSL en producción
+SECURE_SSL_REDIRECT = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 
@@ -39,23 +37,16 @@ sentry_sdk.init(
     dsn=env('SENTRY_DSN', default=''),
     integrations=[DjangoIntegration()],
     traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=0.2),
-    send_default_pii=env.bool('SENTRY_SEND_PII', default=False),  # Desactivado por defecto por privacidad
+    send_default_pii=env.bool('SENTRY_SEND_PII', default=False),
     debug=env.bool('SENTRY_DEBUG', default=False),
 )
-# Configuración de ntfy.sh
+
 # Configuración de ntfy.sh
 NTFY_ENABLED = env.bool('NTFY_ENABLED', default=False)
 NTFY_DEFAULT_TOPIC = env('NTFY_DEFAULT_TOPIC', default='huntred_notifications')
 NTFY_USERNAME = env('NTFY_USERNAME', default=None)
 NTFY_PASSWORD = env('NTFY_PASSWORD', default=None)
-NTFY_API_TOKEN = env('NTFY_API', default=None)  # Token API, si aplica
-#Configuración TENSORFLOW
-# Configuración estática de hilos
-tf.config.threading.set_intra_op_parallelism_threads(2)  # Ajusta según tus necesidades
-tf.config.threading.set_inter_op_parallelism_threads(1)  # Ajusta según tus necesidades
-
-# Configuración de memoria (opcional, útil si usas GPU en el futuro)
-tf.config.set_soft_device_placement(True)
+NTFY_API_TOKEN = env('NTFY_API', default=None)
 
 # Aplicaciones instaladas
 INSTALLED_APPS = [
@@ -64,12 +55,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic',  # Antes de staticfiles
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'django_celery_beat',
     'django_celery_results',
-    'debug_toolbar',  # Solo en desarrollo
-    'silk',  # Para perfilado
+    'debug_toolbar',
+    'silk',
     'corsheaders',
     'rest_framework',
     'django_filters',
@@ -85,7 +76,7 @@ INSTALLED_APPS = [
 # Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Para archivos estáticos
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -93,11 +84,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',  # Solo en desarrollo
-    'silk.middleware.SilkyMiddleware',  # Perfilado
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'silk.middleware.SilkyMiddleware',
 ]
 
-# Configuración específica para desarrollo
 if DEBUG:
     INTERNAL_IPS = ['127.0.0.1']
 else:
@@ -111,7 +101,7 @@ CACHES = {
         'LOCATION': env('REDIS_URL', default='redis://127.0.0.1:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'MAX_CONNECTIONS': 100,
+            'MAX_CONNECTIONS': 50,  # Reducido para evitar sobrecarga
             'TIMEOUT': 86400,
         }
     }
@@ -140,10 +130,10 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = env('TIMEZONE', default='America/Mexico_City')
 CELERY_ENABLE_UTC = True
-CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)  # Aumentado para mejor rendimiento
+CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
 CELERYD_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_ACKS_LATE = True
-CELERY_WORKER_MAX_MEMORY_PER_CHILD = 150000  # 150MB
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 150000
 CELERYD_MAX_TASKS_PER_CHILD = 10
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
@@ -185,7 +175,7 @@ USE_TZ = True
 STATIC_URL = env('STATIC_URL', default='/static/')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # Compresión para producción
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = env('MEDIA_URL', default='/media/')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -229,18 +219,18 @@ LOGGING = {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'app.log'),
             'formatter': 'verbose',
-            'maxBytes': 10 * 1024 * 1024,  # 10MB
+            'maxBytes': 10 * 1024 * 1024,
             'backupCount': 3,
             'level': 'DEBUG' if DEBUG else 'INFO',
         },
     },
     'loggers': {
         'django': {'handlers': ['console', 'app_file'], 'level': 'INFO', 'propagate': False},
-        'app': {'handlers': ['app_file'], 'level': 'INFO', 'propagate': False},
+        'app': {'handlers': ['console', 'app_file'], 'level': 'INFO', 'propagate': False},
+        'app.chatbot': {'handlers': ['console', 'app_file'], 'level': 'INFO', 'propagate': False},
     },
 }
 
-# Tu backend dinámico de email (sin cambios significativos, pero ajustado para consistencia)
 def get_email_backend(business_unit):
     from django.apps import apps
     BusinessUnit = apps.get_model('app', 'BusinessUnit')

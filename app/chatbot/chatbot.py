@@ -540,42 +540,47 @@ class ChatBotHandler:
                 await self.store_bot_message(session, "¿Sigues ahí?")
                 logger.info(f"Mensaje de inactividad enviado a {session.user_id}")
 
-    async def present_job_listings(self, platform: str, user_id: str, jobs: List[Dict[str, Any]], 
-                                   business_unit: BusinessUnit, chat_state: ChatState, page: int = 0, 
-                                   jobs_per_page: int = 3, filters: Dict[str, Any] = None) -> None:
-        filters = filters or {}
-        filtered_jobs = jobs
-        if 'location' in filters:
-            filtered_jobs = [job for job in filtered_jobs if filters['location'].lower() in job.get('location', '').lower()]
-        if 'min_salary' in filters:
-            filtered_jobs = [job for job in filtered_jobs if float(job.get('salary', 0)) >= filters['min_salary']]
-        
-        if not filtered_jobs:
-            await send_message(platform, user_id, "No encontré vacantes que coincidan con tus filtros.", self.get_business_unit_key(business_unit))
-            return
-        
-        total_jobs = len(filtered_jobs)
-        start_idx = page * jobs_per_page
-        end_idx = min(start_idx + jobs_per_page, total_jobs)
-        
-        response = f"Encontré {total_jobs} vacantes. Aquí tienes algunas (página {page + 1} de {total_jobs // jobs_per_page + 1}):\n"
-        job_options = []
-        for idx, job in enumerate(filtered_jobs[start_idx:end_idx], start=start_idx + 1):
-            salary = f"${job.get('salary', 'N/A')}" if job.get('salary') else "N/A"
-            location = job.get('location', 'No especificada')
-            response += f"{idx}. {job['title']} en {job.get('company', 'N/A')} ({location}, Salario: {salary})\n"
-            job_options.append({"title": f"Vacante {idx}", "payload": f"job_{idx}"})
-        
-        navigation_options = []
-        if start_idx > 0:
-            navigation_options.append({"title": "⬅️ Anterior", "payload": f"jobs_page_{page - 1}"})
-        if end_idx < total_jobs:
-            navigation_options.append({"title": "➡️ Siguiente", "payload": f"jobs_page_{page + 1}"})
-        
-        all_options = job_options + navigation_options
-        await send_message(platform, user_id, response, self.get_business_unit_key(business_unit), options=all_options if all_options else None)
-        chat_state.context['current_jobs_page'] = page
-        await sync_to_async(chat_state.save)()
+    async def present_job_listings(platform: str, user_id: str, jobs: List[Dict[str, Any]], 
+                               business_unit: BusinessUnit, chat_state: ChatState, page: int = 0, 
+                               jobs_per_page: int = 3, filters: Dict[str, Any] = None) -> None:
+        try:
+            async with asyncio.timeout(10):  # Timeout de 10 segundos
+                filters = filters or {}
+                filtered_jobs = jobs
+                if 'location' in filters:
+                    filtered_jobs = [job for job in filtered_jobs if filters['location'].lower() in job.get('location', '').lower()]
+                if 'min_salary' in filters:
+                    filtered_jobs = [job for job in filtered_jobs if float(job.get('salary', 0)) >= filters['min_salary']]
+                
+                if not filtered_jobs:
+                    await send_message(platform, user_id, "No encontré vacantes que coincidan con tus filtros.", business_unit.name.lower())
+                    return
+                
+                total_jobs = len(filtered_jobs)
+                start_idx = page * jobs_per_page
+                end_idx = min(start_idx + jobs_per_page, total_jobs)
+                
+                response = f"Encontré {total_jobs} vacantes. Aquí tienes algunas (página {page + 1} de {total_jobs // jobs_per_page + 1}):\n"
+                job_options = []
+                for idx, job in enumerate(filtered_jobs[start_idx:end_idx], start=start_idx + 1):
+                    salary = f"${job.get('salary', 'N/A')}" if job.get('salary') else "N/A"
+                    location = job.get('location', 'No especificada')
+                    response += f"{idx}. {job['title']} en {job.get('company', 'N/A')} ({location}, Salario: {salary})\n"
+                    job_options.append({"title": f"Vacante {idx}", "payload": f"job_{idx}"})
+                
+                navigation_options = []
+                if start_idx > 0:
+                    navigation_options.append({"title": "⬅️ Anterior", "payload": f"jobs_page_{page - 1}"})
+                if end_idx < total_jobs:
+                    navigation_options.append({"title": "➡️ Siguiente", "payload": f"jobs_page_{page + 1}"})
+                
+                all_options = job_options + navigation_options
+                await send_message(platform, user_id, response, business_unit.name.lower(), options=all_options if all_options else None)
+                chat_state.context['current_jobs_page'] = page
+                await sync_to_async(chat_state.save)()
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout al presentar vacantes para user_id={user_id}")
+            await send_message(platform, user_id, "Lo siento, tardé demasiado en mostrar las vacantes. Intenta de nuevo.", business_unit.name.lower())
 
     async def send_profile_completion_email(self, user_id: str, context: dict):
         try:

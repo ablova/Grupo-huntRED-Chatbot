@@ -1,5 +1,4 @@
 # /home/pablo/app/ml/ml_opt.py
-
 import os
 import psutil
 import tensorflow as tf
@@ -7,60 +6,63 @@ import logging
 from app.ml.ml_config import ML_CONFIG
 from app.chatbot.migration_check import skip_on_migrate
 
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/home/pablo/logs/ml_opt.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
-# Variable global para controlar si la configuración inicial ya se realizó
+# Variable global para controlar configuración inicial
 TF_CONFIG_INITIALIZED = False
 
-def check_system_load(threshold=70):
-    """
-    Verifica la carga de la CPU. Retorna True si la carga es menor al umbral.
-    """
+def check_system_load(threshold: float = 70) -> bool:
+    """Verifica la carga de la CPU."""
     cpu_load = psutil.cpu_percent(interval=1)
     logger.info(f"Carga actual de la CPU: {cpu_load}%")
     return cpu_load < threshold
 
 @skip_on_migrate
-def configure_tensorflow():
-    """Configura TensorFlow solo cuando no estamos migrando"""
+def configure_tensorflow() -> None:
+    """Configura TensorFlow solo cuando no estamos migrando."""
+    global TF_CONFIG_INITIALIZED
+    if TF_CONFIG_INITIALIZED:
+        logger.info("Configuración de TensorFlow ya aplicada, omitiendo.")
+        return
     try:
+        # Deshabilitar GPU explícitamente
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        logger.info("GPU deshabilitada para evitar conflictos.")
+
         # Configuración de memoria
         tf.config.set_soft_device_placement(True)
-        for gpu in tf.config.list_physical_devices('GPU'):
-            tf.config.experimental.set_memory_growth(gpu, True)
-        
+        logger.info("Soft device placement habilitado.")
+
         # Configuración de hilos
-        tf.config.threading.set_intra_op_parallelism_threads(
-            ML_CONFIG['TENSORFLOW_THREADS']['INTRA_OP']
-        )
-        tf.config.threading.set_inter_op_parallelism_threads(
-            ML_CONFIG['TENSORFLOW_THREADS']['INTER_OP']
-        )
-        
-        logger.info("Configuración de TensorFlow aplicada correctamente")
-    except Exception as e:
-        logger.error(f"Error configurando TensorFlow: {e}")
+        intra_threads = ML_CONFIG.get('TENSORFLOW_THREADS', {}).get('INTRA_OP', 1)
+        inter_threads = ML_CONFIG.get('TENSORFLOW_THREADS', {}).get('INTER_OP', 1)
+        tf.config.threading.set_intra_op_parallelism_threads(intra_threads)
+        tf.config.threading.set_inter_op_parallelism_threads(inter_threads)
+        logger.info(f"Hilos configurados: intra={intra_threads}, inter={inter_threads}")
 
-def configure_tensorflow_based_on_load():
-    """
-    Configura TensorFlow según la carga del sistema, incluyendo hilos y uso de memoria.
-    """
-    global TF_CONFIG_INITIALIZED
+        # Habilitar XLA
+        tf.config.optimizer.set_jit(True)
+        logger.info("Compilación XLA habilitada.")
 
-    # Configuración inicial de memoria (solo se ejecuta una vez)
-    if not TF_CONFIG_INITIALIZED:
-        tf.config.set_soft_device_placement(True)
-        for gpu in tf.config.experimental.list_physical_devices('GPU'):
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logger.info("Configuración de memoria de TensorFlow aplicada: soft device placement y memory growth habilitados")
         TF_CONFIG_INITIALIZED = True
+        logger.info("Configuración de TensorFlow aplicada correctamente.")
+    except Exception as e:
+        logger.error(f"Error configurando TensorFlow: {str(e)}")
 
-    # Configuración de hilos según la carga de la CPU
-    cpu_load = psutil.cpu_percent(interval=1)
-    try:
-        max_threads = os.cpu_count() or 4  # Default a 4 si no se detecta
-    except AttributeError as e:
-        logger.error(f"Error al obtener el número de CPUs: {e}. Usando valor por defecto.")
+def configure_tensorflow_based_on_load() -> None:
+    """Configura TensorFlow según la carga del sistema."""
+    global TF_CONFIG_INITIALIZED
+    if not TF_CONFIG_INITIALIZED:
+        configure_tensorflow()
         max_threads = 4  # Valor por defecto si os.cpu_count() falla
 
 #    if cpu_load < 30:
