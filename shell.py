@@ -2,7 +2,7 @@ gcloud compute ssh grupo-huntred --project=grupo-huntred --zone=us-central1-a
 
 import asyncio
 from app.chatbot.integrations.services import send_message
-mensaje = "Por otro lado ya es un proceso que tiene mucho retraso y si no fuera tuyo, estaría persiguiendo al consultor para saber que sucede. En mi scoreboard sale ya -35 días por lo que si a mi ya me urge resolverlo. Si es la única forma que sale pronto demosle."
+mensaje = "Por lo que verá refrejado los 18,245+IVa = 21,165 en 2 cargos uno de los 18245 y otro por el IVA en tu siguiente corte, pero que pueden hacer un descuento del 5% si lo realizamos antes del viernes, es decir quedaría en 17330+IVA 2773." 
 await send_message("whatsapp", "525518490291", mensaje, "amigro")
 
 # Sincronizacion GIT
@@ -1379,3 +1379,53 @@ sleep 10
 python /home/pablo/app/chatbot/generate_embeddings.py > /home/pablo/logs/generate_embeddings.log 2>&1
 echo "Generando y procesando los embeddings"
 
+
+# Establecer ACLs para permisos de grupo y usuarios específicos
+sudo setfacl -R -m g:ai_huntred:rwx /home/pablo/
+sudo setfacl -R -d -m g:ai_huntred:rwx /home/pablo/
+sudo setfacl -R -m u:pablo:rwx /home/pablo/
+sudo setfacl -R -d -m u:pablo:rwx /home/pablo/
+sudo setfacl -R -m u:pablollh:rwx /home/pablo/
+sudo setfacl -R -d -m u:pablollh:rwx /home/pablo/
+sudo setfacl -R -m u:www-data:rwx /home/pablo/
+sudo setfacl -R -d -m u:www-data:rwx /home/pablo/
+sudo setfacl -R -m u:root:rwx /home/pablo/
+sudo setfacl -R -d -m u:root:rwx /home/pablo/
+getfacl /home/pablo/logs
+getfacl /home/pablo/staticfiles
+getfacl /home/pablo/media
+getfacl /home/pablo/app/models/ml_models
+
+
+
+# Corregir propietario y grupo (por si algo cambió)
+sudo chown -R pablo:ai_huntred /home/pablo/
+
+# Corregir permisos de directorios
+sudo find /home/pablo/ -type d -exec chmod 775 {} \;
+
+# Corregir permisos de archivos
+sudo find /home/pablo/ -type f -exec chmod 664 {} \;
+
+# Asegurar permisos de ejecución para el entorno virtual
+sudo chmod -R u+x /home/pablo/venv/bin/
+
+# Asegurar permisos para logs principales
+sudo touch /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
+sudo chown pablo:ai_huntred /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
+sudo chmod 664 /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
+
+# Eliminar archivos de log con nombres extraños (opcional, revisa primero)
+sudo rm -f /home/pablo/logs/'*.log'
+sudo find /home/pablo/logs -name "email_scraper_*.log" -exec rm -f {} \;
+sudo find /home/pablo/logs -name "*.log" -not -name "app.log" -not -name "gunicorn.log" -not -name "celery.log" -not -name "permissions.log" -exec rm -f {} \;
+
+sudo chown pablo:ai_huntred /home/pablo/app/models/ml_models
+sudo chmod 775 /home/pablo/app/models/ml_models
+sudo setfacl -m g:ai_huntred:rwx /home/pablo/app/models/ml_models
+sudo setfacl -d -m g:ai_huntred:rwx /home/pablo/app/models/ml_models
+
+ls -l /home/pablo/logs
+ls -l /home/pablo/staticfiles
+ls -l /home/pablo/media
+ls -l /home/pablo/app/models/ml_models

@@ -22,9 +22,13 @@ TF_CONFIG_INITIALIZED = False
 
 def check_system_load(threshold: float = 70) -> bool:
     """Verifica la carga de la CPU."""
-    cpu_load = psutil.cpu_percent(interval=1)
-    logger.info(f"Carga actual de la CPU: {cpu_load}%")
-    return cpu_load < threshold
+    try:
+        cpu_load = psutil.cpu_percent(interval=1)
+        logger.info(f"Carga actual de la CPU: {cpu_load}%")
+        return cpu_load < threshold
+    except Exception as e:
+        logger.warning(f"Error verificando carga de CPU: {str(e)}")
+        return True  # Asumir carga baja si falla
 
 @skip_on_migrate
 def configure_tensorflow() -> None:
@@ -34,13 +38,15 @@ def configure_tensorflow() -> None:
         logger.info("Configuración de TensorFlow ya aplicada, omitiendo.")
         return
     try:
-        # Deshabilitar GPU explícitamente
+        # Deshabilitar GPU completamente
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
         logger.info("GPU deshabilitada para evitar conflictos.")
 
         # Configuración de memoria
         tf.config.set_soft_device_placement(True)
-        logger.info("Soft device placement habilitado.")
+        tf.keras.backend.set_floatx('float32')
+        logger.info("Soft device placement y float32 habilitados.")
 
         # Configuración de hilos
         intra_threads = ML_CONFIG.get('TENSORFLOW_THREADS', {}).get('INTRA_OP', 1)
@@ -60,10 +66,13 @@ def configure_tensorflow() -> None:
 
 def configure_tensorflow_based_on_load() -> None:
     """Configura TensorFlow según la carga del sistema."""
-    global TF_CONFIG_INITIALIZED
-    if not TF_CONFIG_INITIALIZED:
+    if check_system_load():
         configure_tensorflow()
-        max_threads = 4  # Valor por defecto si os.cpu_count() falla
+    else:
+        logger.info("Carga alta, usando configuración mínima de TensorFlow.")
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+        tf.config.threading.set_inter_op_parallelism_threads(1)
 
 #    if cpu_load < 30:
 #        # Baja carga: más hilos

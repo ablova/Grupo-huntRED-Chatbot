@@ -482,7 +482,7 @@ class VacanteManager:
         except Exception as e:
             logger.warning("OpenAI falló, usando spaCy")
             import spacy
-            nlp = spacy.load("es_core_news_sm")
+            nlp = spacy.load("es_core_news_md")
             doc = nlp(job_description)
             tags = list(set([ent.text for ent in doc.ents]))
         return tags

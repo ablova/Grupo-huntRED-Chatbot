@@ -1,21 +1,23 @@
-# /home/pablo/app/utilidades/report_generator.py
-
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Image, Paragraph, Table, TableStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
-from PyPDF2 import PdfMerger
+from pypdf import PdfMerger
 import os
 import requests
 import tempfile
 from django.conf import settings
 import logging
 
-# En el módulo utilidades
+# Logger setup
 logger = logging.getLogger(__name__)
 
+# Register the SF Pro Display font
+pdfmetrics.registerFont(TTFont('SFProDisplay', '/home/pablo/app/media/fonts/SFPRODISPLAY.ttf'))
 
 def generate_analysis_page(group_logo_url, division_logo_url, analysis_data, output_path):
     """
@@ -30,33 +32,34 @@ def generate_analysis_page(group_logo_url, division_logo_url, analysis_data, out
             width, height = A4
             styles = getSampleStyleSheet()
 
-            # Añadir los logos
+            # Add group logo or placeholder text
             if group_logo_path and os.path.exists(group_logo_path):
                 c.drawImage(group_logo_path, 10*mm, height - 30*mm, width=40*mm, preserveAspectRatio=True, mask='auto')
             else:
-                c.setFont("Helvetica-Bold", 12)
+                c.setFont("SFProDisplay", 12)
                 c.drawString(10*mm, height - 30*mm, "Logo Grupo huntRED® No Disponible")
 
+            # Add division logo or placeholder text
             if division_logo_path and os.path.exists(division_logo_path):
                 c.drawImage(division_logo_path, width - 50*mm, height - 30*mm, width=40*mm, preserveAspectRatio=True, mask='auto')
             else:
-                c.setFont("Helvetica-Bold", 12)
+                c.setFont("SFProDisplay", 12)
                 c.drawString(width - 50*mm, height - 30*mm, "Logo División No Disponible")
 
-            # Título
-            c.setFont("Helvetica-Bold", 16)
+            # Title
+            c.setFont("SFProDisplay", 16)
             c.drawCentredString(width / 2, height - 50*mm, "Reporte de Análisis de Candidatos")
 
-            # Secciones de análisis
+            # Analysis sections
             y_position = height - 60*mm
             for section, content in analysis_data.items():
-                # Título de la sección
-                c.setFont("Helvetica-Bold", 14)
+                # Section title
+                c.setFont("SFProDisplay", 14)
                 c.drawString(20*mm, y_position, f"{section.capitalize()}:")
                 y_position -= 10*mm
 
-                # Contenido
-                c.setFont("Helvetica", 12)
+                # Section content
+                c.setFont("SFProDisplay", 12)
                 if isinstance(content, list):
                     text = "\n".join(content)
                 else:
@@ -66,13 +69,12 @@ def generate_analysis_page(group_logo_url, division_logo_url, analysis_data, out
                 c.drawText(text_object)
                 y_position -= 15*mm
 
+                # Page break if needed
                 if y_position < 30*mm:
                     c.showPage()
                     y_position = height - 30*mm
 
             c.save()
-
-            # Limpieza automática del directorio temporal
             logger.info(f"Reporte de análisis generado en {output_path}")
 
     except Exception as e:
@@ -88,11 +90,11 @@ def generate_main_candidate_report(candidates, output_path):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     
-    # Título del reporte
-    c.setFont("Helvetica-Bold", 16)
+    # Report title
+    c.setFont("SFProDisplay", 16)
     c.drawCentredString(width / 2, height - 30*mm, "Listado de Candidatos")
     
-    # Tabla de candidatos
+    # Candidate table
     data = [["Nombre", "Email", "Teléfono", "Skills", "Divisiones"]]
     
     for person in candidates:
@@ -106,15 +108,15 @@ def generate_main_candidate_report(candidates, output_path):
     table = Table(data, colWidths=[50*mm, 50*mm, 30*mm, 60*mm, 60*mm])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.grey),
-        ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
-        ('ALIGN',(0,0),(-1,-1),'LEFT'),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('FONTNAME', (0,0), (-1,0), 'SFProDisplay'),
         ('FONTSIZE', (0,0), (-1,0), 12),
         ('BOTTOMPADDING', (0,0), (-1,0), 12),
         ('GRID', (0,0), (-1,-1), 0.5, colors.black),
     ]))
     
-    # Calcular altura de la tabla
+    # Draw the table
     table.wrapOn(c, width, height)
     table.drawOn(c, 20*mm, height - 40*mm - (len(data) * 6 * mm))
     
@@ -122,7 +124,7 @@ def generate_main_candidate_report(candidates, output_path):
 
 def merge_pdfs(main_pdf_path, analysis_pdf_path, output_pdf_path):
     """
-    Fusiona el reporte principal con la página de análisis.
+    Fusiona el reporte principal con la página de análisis usando pypdf.
     
     :param main_pdf_path: Ruta al reporte principal de candidatos.
     :param analysis_pdf_path: Ruta al PDF de análisis.
@@ -130,13 +132,8 @@ def merge_pdfs(main_pdf_path, analysis_pdf_path, output_pdf_path):
     """
     merger = PdfMerger()
     
-    # Añadir el reporte principal
     merger.append(main_pdf_path)
-    
-    # Añadir la página de análisis
     merger.append(analysis_pdf_path)
-    
-    # Guardar el PDF final
     merger.write(output_pdf_path)
     merger.close()
 

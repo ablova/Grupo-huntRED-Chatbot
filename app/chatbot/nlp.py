@@ -4,6 +4,7 @@ import logging
 import time
 import json
 import numpy as np
+import spacy
 from typing import Dict, List
 from asgiref.sync import sync_to_async
 from langdetect import detect
@@ -39,7 +40,7 @@ EMBEDDINGS_CACHE = "/home/pablo/skills_data/embeddings_cache.pkl"
 LOCK_FILE = "/home/pablo/skills_data/nlp_init.lock"
 MODEL_CONFIG = {
     'SIMILARITY_THRESHOLD': 0.75,
-    'CACHE_VERSION': 'v1.1'  # Actualizar versión para forzar regeneración si es necesario
+    'CACHE_VERSION': 'v1.3'  # Actualizado para forzar regeneración si es necesario
 }
 
 # Variables globales
@@ -59,16 +60,10 @@ def ensure_directory_permissions(path: str, mode: int = 0o770) -> None:
         for root, dirs, files in os.walk(path):
             for d in dirs:
                 os.chmod(os.path.join(root, d), mode)
-                try:
-                    os.chown(os.path.join(root, d), os.getuid(), 1004)
-                except Exception:
-                    pass
+                os.chown(os.path.join(root, d), os.getuid(), 1004)
             for f in files:
                 os.chmod(os.path.join(root, f), 0o660)
-                try:
-                    os.chown(os.path.join(root, f), os.getuid(), 1004)
-                except Exception:
-                    pass
+                os.chown(os.path.join(root, f), os.getuid(), 1004)
         logger.debug(f"Permisos asegurados para {path}")
     except Exception as e:
         logger.warning(f"No se pudo configurar permisos para {path}: {str(e)}")
@@ -91,18 +86,22 @@ def load_use_model(model_url: str = "https://tfhub.dev/google/universal-sentence
             return
 
         try:
-            # Configuración optimizada para CPU
-            os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Deshabilitar GPU
-            tf.config.threading.set_intra_op_parallelism_threads(1)
-            tf.config.threading.set_inter_op_parallelism_threads(1)
+            # Deshabilitar GPU completamente
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+            logger.info("GPU deshabilitada explícitamente para TensorFlow")
+
+            # Configuración inicial estática para evitar conflictos
             tf.config.set_soft_device_placement(True)
-            tf.config.optimizer.set_jit(True)  # Habilitar XLA
+            tf.config.optimizer.set_jit(True)  # Habilitar XLA para optimización
 
             os.environ["TFHUB_CACHE_DIR"] = cache_dir
             logger.info(f"Cargando modelo desde {model_url} con caché en {cache_dir}")
+
+            # Limitar uso de memoria
+            tf.keras.backend.set_floatx('float32')
             USE_MODEL = hub.KerasLayer(model_url, input_shape=[], dtype=tf.string, trainable=False)
 
-            # Validar modelo
+            # Validar modelo con entrada mínima
             test_input = tf.constant(["test"])
             test_embedding = USE_MODEL(test_input).numpy()
             logger.info(f"Modelo cargado y validado: dimensión {test_embedding.shape}")
@@ -151,16 +150,16 @@ def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size: int =
                 batch = skill_names[i:i + batch_size]
                 translated_batch = [translate_text(name) for name in batch]
                 batch_tensor = tf.constant(translated_batch)
-                embeddings = USE_MODEL(batch_tensor).numpy()
+                embeddings = USE_MODEL(batch_tensor).numpy().astype(np.float32)
                 SKILL_EMBEDDINGS.update({translated.lower(): emb for translated, emb in zip(translated_batch, embeddings)})
 
+                logger.debug(f"Procesado lote {i//batch_size + 1}/{len(skill_names)//batch_size + 1}")
                 del batch, translated_batch, batch_tensor, embeddings
                 tf.keras.backend.clear_session()
                 gc.collect()
 
             logger.info(f"Embeddings de {catalog} cargados en {time.time() - start_time:.2f}s, total: {len(SKILL_EMBEDDINGS)}")
 
-            # Guardar en caché con versión
             with open(EMBEDDINGS_CACHE, "wb") as f:
                 pickle.dump({"version": MODEL_CONFIG['CACHE_VERSION'], "embeddings": SKILL_EMBEDDINGS}, f)
             os.chmod(EMBEDDINGS_CACHE, 0o660)
@@ -181,7 +180,7 @@ def translate_text(text: str) -> str:
         translator = GoogleTranslator(source='auto', target='en')
         return translator.translate(text)
     except Exception as e:
-        logger.error(f"Error en traducción: {str(e)}")
+        logger.warning(f"Error en traducción: {str(e)}")
         return text
 
 class NLPProcessor:
@@ -190,35 +189,37 @@ class NLPProcessor:
         self.language = language
         self.analysis_depth = analysis_depth
         logger.info(f"NLPProcessor inicializado: modo={mode}, idioma={language}, profundidad={analysis_depth}")
+        self.nlp = spacy.load("es_core_news_md" if language == "es" else "en_core_web_md")
 
     async def preprocess(self, text: str) -> Dict[str, str]:
         if SKIP_HEAVY_INIT:
             return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
         start_time = time.time()
         try:
-            lang = await sync_to_async(detect)(text)
+            # Simplificar detección de idioma para textos cortos
+            lang = await sync_to_async(detect)(text) if len(text) > 10 else self.language
             translated = translate_text(text) if lang != "en" else text
             logger.info(f"Texto preprocesado en {time.time() - start_time:.2f}s")
             return {"original": text.lower(), "translated": translated.lower(), "lang": lang}
         except Exception as e:
-            logger.error(f"Error en preprocesamiento: {str(e)}")
+            logger.warning(f"Error en preprocesamiento: {str(e)}")
             return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
 
     def get_text_embedding(self, text: str) -> np.ndarray:
         if SKIP_HEAVY_INIT:
-            return np.zeros(512)
+            return np.zeros(512, dtype=np.float32)
         if USE_MODEL is None:
             load_use_model()
         try:
-            embedding = USE_MODEL([text]).numpy()[0]
+            embedding = USE_MODEL([text]).numpy()[0].astype(np.float32)
             tf.keras.backend.clear_session()
             gc.collect()
             return embedding
         except Exception as e:
-            logger.error(f"Error generando embedding: {str(e)}")
-            return np.zeros(512)
+            logger.warning(f"Error generando embedding: {str(e)}")
+            return np.zeros(512, dtype=np.float32)
 
-    async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, str]]]:
+    async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, any]]]:
         if SKIP_HEAVY_INIT:
             return {"technical": [], "soft": [], "tools": [], "certifications": []}
         if USE_MODEL is None:
@@ -231,7 +232,6 @@ class NLPProcessor:
             text_emb = self.get_text_embedding(preprocessed["translated"])
             skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
 
-            # Ajustar umbral dinámicamente
             threshold = {
                 "quick": 0.7,
                 "deep": 0.8,
@@ -249,7 +249,7 @@ class NLPProcessor:
             gc.collect()
             return skills
         except Exception as e:
-            logger.error(f"Error extrayendo habilidades: {str(e)}")
+            logger.warning(f"Error extrayendo habilidades: {str(e)}")
             return {"technical": [], "soft": [], "tools": [], "certifications": []}
 
     def _classify_skill(self, skill_dict: Dict, skills: Dict) -> None:
@@ -271,7 +271,7 @@ class NLPProcessor:
             polarity = blob.sentiment.polarity
             return "positive" if polarity > 0.05 else "negative" if polarity < -0.05 else "neutral"
         except Exception as e:
-            logger.error(f"Error en análisis de sentimiento: {str(e)}")
+            logger.warning(f"Error en análisis de sentimiento: {str(e)}")
             return "neutral"
 
     async def analyze(self, text: str) -> Dict:
@@ -291,11 +291,6 @@ class NLPProcessor:
             preprocessed = await self.preprocess(text)
             skills = await self.extract_skills(text)
             sentiment = self.analyze_sentiment(preprocessed["translated"])
-
-            if self.mode == "candidate":
-                pass  # Lógica futura para candidatos
-            elif self.mode == "opportunity":
-                pass  # Lógica futura para oportunidades
 
             execution_time = time.time() - start_time
             logger.info(f"Análisis completado en {execution_time:.2f}s (modo: {self.mode})")

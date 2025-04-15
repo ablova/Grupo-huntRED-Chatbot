@@ -16,9 +16,21 @@ ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-os.makedirs(LOG_DIR, exist_ok=True, mode=0o770)
-os.makedirs(STATIC_ROOT, exist_ok=True, mode=0o770)
-os.makedirs(MEDIA_ROOT, exist_ok=True, mode=0o770)
+
+# Asegurar permisos al crear directorios
+def ensure_dir(directory: str, mode: int = 0o770) -> None:
+    if not os.path.exists(directory):
+        os.makedirs(directory, mode=mode)
+    try:
+        os.chmod(directory, mode)
+        os.chown(directory, os.getuid(), 1004)  # GID de ai_huntred
+    except Exception as e:
+        logging.warning(f"No se pudo configurar permisos para {directory}: {str(e)}")
+
+ensure_dir(LOG_DIR)
+ensure_dir(STATIC_ROOT)
+ensure_dir(MEDIA_ROOT)
+ensure_dir(ML_MODELS_DIR)
 
 # Seguridad y entorno
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='tu-secret-key-por-defecto')
@@ -101,7 +113,7 @@ CACHES = {
         'LOCATION': env('REDIS_URL', default='redis://127.0.0.1:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'MAX_CONNECTIONS': 50,  # Reducido para evitar sobrecarga
+            'MAX_CONNECTIONS': 50,
             'TIMEOUT': 86400,
         }
     }
@@ -211,23 +223,73 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'verbose': {'format': '{asctime} {levelname} {name} {message}', 'style': '{'},
+        'verbose': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
-        'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose', 'level': 'DEBUG' if DEBUG else 'INFO'},
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+            'level': 'DEBUG' if DEBUG else 'INFO',
+        },
         'app_file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOG_DIR, 'app.log'),
             'formatter': 'verbose',
-            'maxBytes': 10 * 1024 * 1024,
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 3,
             'level': 'DEBUG' if DEBUG else 'INFO',
         },
+        'gunicorn_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'gunicorn.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 3,
+            'level': 'INFO',
+        },
+        'celery_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'celery.log'),
+            'formatter': 'verbose',
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 3,
+            'level': 'INFO',
+        },
     },
     'loggers': {
-        'django': {'handlers': ['console', 'app_file'], 'level': 'INFO', 'propagate': False},
-        'app': {'handlers': ['console', 'app_file'], 'level': 'INFO', 'propagate': False},
-        'app.chatbot': {'handlers': ['console', 'app_file'], 'level': 'INFO', 'propagate': False},
+        'django': {
+            'handlers': ['console', 'app_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app': {
+            'handlers': ['console', 'app_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.chatbot': {
+            'handlers': ['console', 'app_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'app.utilidades': {
+            'handlers': ['console', 'app_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'gunicorn': {
+            'handlers': ['console', 'gunicorn_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console', 'celery_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
