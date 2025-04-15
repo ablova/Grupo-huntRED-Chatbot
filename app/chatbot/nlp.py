@@ -1,4 +1,5 @@
-# 📌 Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
+# /home/pablo/app/chatbot/nlp.py
+
 import asyncio
 import logging
 import time
@@ -43,30 +44,12 @@ MODEL_CONFIG = {
     'CACHE_VERSION': 'v1.3'  # Actualizado para forzar regeneración si es necesario
 }
 
-# Variables globales
-SKILL_EMBEDDINGS = {}
+# Variables globales (inicializadas bajo demanda)
+SKILL_EMBEDDINGS = None
 USE_MODEL = None
 
 # Verificación para saltar carga pesada durante migraciones
 SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
-
-def ensure_directory_permissions(path: str, mode: int = 0o770) -> None:
-    """Asegura permisos correctos para un directorio y sus archivos."""
-    try:
-        if not os.path.exists(path):
-            os.makedirs(path, mode=mode)
-        os.chmod(path, mode)
-        os.chown(path, os.getuid(), 1004)  # GID de ai_huntred
-        for root, dirs, files in os.walk(path):
-            for d in dirs:
-                os.chmod(os.path.join(root, d), mode)
-                os.chown(os.path.join(root, d), os.getuid(), 1004)
-            for f in files:
-                os.chmod(os.path.join(root, f), 0o660)
-                os.chown(os.path.join(root, f), os.getuid(), 1004)
-        logger.debug(f"Permisos asegurados para {path}")
-    except Exception as e:
-        logger.warning(f"No se pudo configurar permisos para {path}: {str(e)}")
 
 def load_use_model(model_url: str = "https://tfhub.dev/google/universal-sentence-encoder/4",
                   cache_dir: str = "/home/pablo/tfhub_cache") -> None:
@@ -79,8 +62,6 @@ def load_use_model(model_url: str = "https://tfhub.dev/google/universal-sentence
         logger.info("Modelo ya cargado, reutilizando instancia")
         return
 
-    ensure_directory_permissions(os.path.dirname(LOCK_FILE))
-    ensure_directory_permissions(cache_dir)
     with FileLock(LOCK_FILE):
         if USE_MODEL is not None:
             return
@@ -119,11 +100,17 @@ def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size: int =
     if SKIP_HEAVY_INIT:
         logger.info("Saltando inicialización de embeddings durante migración")
         return
+    if SKILL_EMBEDDINGS is not None:
+        logger.info("Embeddings ya cargados, reutilizando instancia")
+        return
     if USE_MODEL is None:
         load_use_model()
 
-    ensure_directory_permissions(os.path.dirname(EMBEDDINGS_CACHE))
     with FileLock(LOCK_FILE):
+        if SKILL_EMBEDDINGS is not None:
+            return
+
+        SKILL_EMBEDDINGS = {}
         # Verificar caché
         if os.path.exists(EMBEDDINGS_CACHE):
             try:
@@ -162,8 +149,6 @@ def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size: int =
 
             with open(EMBEDDINGS_CACHE, "wb") as f:
                 pickle.dump({"version": MODEL_CONFIG['CACHE_VERSION'], "embeddings": SKILL_EMBEDDINGS}, f)
-            os.chmod(EMBEDDINGS_CACHE, 0o660)
-            os.chown(EMBEDDINGS_CACHE, os.getuid(), 1004)
 
             del skill_names, skills_data
             gc.collect()
@@ -189,7 +174,20 @@ class NLPProcessor:
         self.language = language
         self.analysis_depth = analysis_depth
         logger.info(f"NLPProcessor inicializado: modo={mode}, idioma={language}, profundidad={analysis_depth}")
-        self.nlp = spacy.load("es_core_news_md" if language == "es" else "en_core_web_md")
+        self.nlp = None  # Diferir carga de spaCy
+
+    def _load_spacy(self):
+        """Carga spaCy bajo demanda."""
+        if self.nlp is None:
+            if SKIP_HEAVY_INIT:
+                logger.info("Saltando carga de spaCy durante migración")
+                return
+            try:
+                self.nlp = spacy.load("es_core_news_md" if self.language == "es" else "en_core_web_md")
+                logger.debug("Modelo spaCy cargado bajo demanda")
+            except Exception as e:
+                logger.error(f"Error cargando spaCy: {str(e)}")
+                raise
 
     async def preprocess(self, text: str) -> Dict[str, str]:
         if SKIP_HEAVY_INIT:
@@ -208,6 +206,7 @@ class NLPProcessor:
     def get_text_embedding(self, text: str) -> np.ndarray:
         if SKIP_HEAVY_INIT:
             return np.zeros(512, dtype=np.float32)
+        global USE_MODEL
         if USE_MODEL is None:
             load_use_model()
         try:
@@ -222,9 +221,8 @@ class NLPProcessor:
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, any]]]:
         if SKIP_HEAVY_INIT:
             return {"technical": [], "soft": [], "tools": [], "certifications": []}
-        if USE_MODEL is None:
-            load_use_model()
-        if not SKILL_EMBEDDINGS:
+        global SKILL_EMBEDDINGS
+        if SKILL_EMBEDDINGS is None:
             initialize_skill_embeddings()
         start_time = time.time()
         try:
@@ -265,6 +263,9 @@ class NLPProcessor:
 
     def analyze_sentiment(self, text: str) -> str:
         if SKIP_HEAVY_INIT:
+            return "neutral"
+        self._load_spacy()
+        if self.nlp is None:
             return "neutral"
         try:
             blob = TextBlob(text)

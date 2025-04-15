@@ -4,6 +4,7 @@ import asyncio
 from app.chatbot.integrations.services import send_message
 mensaje = "Por lo que verá refrejado los 18,245+IVa = 21,165 en 2 cargos uno de los 18245 y otro por el IVA en tu siguiente corte, pero que pueden hacer un descuento del 5% si lo realizamos antes del viernes, es decir quedaría en 17330+IVA 2773." 
 await send_message("whatsapp", "525518490291", mensaje, "amigro")
+python -c "import asyncio; from app.chatbot.integrations.services import send_message; async def main(): await send_message('whatsapp', '525518490291', 'Por lo que verá refrejado los 18,245+IVa = 21,165 en 2 cargos uno de los 18245 y otro por el IVA en tu siguiente corte, pero que pueden hacer un descuento del 5% si lo realizamos antes del viernes, es decir quedaría en 17330+IVA 2773.', 'amigro'); asyncio.run(main())"
 
 # Sincronizacion GIT
 cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
@@ -1379,26 +1380,7 @@ sleep 10
 python /home/pablo/app/chatbot/generate_embeddings.py > /home/pablo/logs/generate_embeddings.log 2>&1
 echo "Generando y procesando los embeddings"
 
-
-# Establecer ACLs para permisos de grupo y usuarios específicos
-sudo setfacl -R -m g:ai_huntred:rwx /home/pablo/
-sudo setfacl -R -d -m g:ai_huntred:rwx /home/pablo/
-sudo setfacl -R -m u:pablo:rwx /home/pablo/
-sudo setfacl -R -d -m u:pablo:rwx /home/pablo/
-sudo setfacl -R -m u:pablollh:rwx /home/pablo/
-sudo setfacl -R -d -m u:pablollh:rwx /home/pablo/
-sudo setfacl -R -m u:www-data:rwx /home/pablo/
-sudo setfacl -R -d -m u:www-data:rwx /home/pablo/
-sudo setfacl -R -m u:root:rwx /home/pablo/
-sudo setfacl -R -d -m u:root:rwx /home/pablo/
-getfacl /home/pablo/logs
-getfacl /home/pablo/staticfiles
-getfacl /home/pablo/media
-getfacl /home/pablo/app/models/ml_models
-
-
-
-# Corregir propietario y grupo (por si algo cambió)
+# Corregir propietario y grupo
 sudo chown -R pablo:ai_huntred /home/pablo/
 
 # Corregir permisos de directorios
@@ -1415,17 +1397,19 @@ sudo touch /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/lo
 sudo chown pablo:ai_huntred /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
 sudo chmod 664 /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
 
-# Eliminar archivos de log con nombres extraños (opcional, revisa primero)
+# Limpiar archivos de log innecesarios
 sudo rm -f /home/pablo/logs/'*.log'
 sudo find /home/pablo/logs -name "email_scraper_*.log" -exec rm -f {} \;
 sudo find /home/pablo/logs -name "*.log" -not -name "app.log" -not -name "gunicorn.log" -not -name "celery.log" -not -name "permissions.log" -exec rm -f {} \;
 
+# Asegurar permisos para ml_models
 sudo chown pablo:ai_huntred /home/pablo/app/models/ml_models
 sudo chmod 775 /home/pablo/app/models/ml_models
 sudo setfacl -m g:ai_huntred:rwx /home/pablo/app/models/ml_models
 sudo setfacl -d -m g:ai_huntred:rwx /home/pablo/app/models/ml_models
 
-ls -l /home/pablo/logs
-ls -l /home/pablo/staticfiles
-ls -l /home/pablo/media
-ls -l /home/pablo/app/models/ml_models
+ls -l /home/pablo/
+ls -l /home/pablo/logs /home/pablo/staticfiles /home/pablo/media /home/pablo/app/models/ml_models
+getfacl /home/pablo/logs /home/pablo/staticfiles /home/pablo/media /home/pablo/app/models/ml_models
+
+

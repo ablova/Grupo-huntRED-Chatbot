@@ -1,4 +1,5 @@
 # /home/pablo/ai_huntred/settings.py
+
 import os
 from pathlib import Path
 import sentry_sdk
@@ -17,20 +18,11 @@ LOG_DIR = os.path.join(BASE_DIR, 'logs')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Asegurar permisos al crear directorios
-def ensure_dir(directory: str, mode: int = 0o770) -> None:
-    if not os.path.exists(directory):
-        os.makedirs(directory, mode=mode)
-    try:
-        os.chmod(directory, mode)
-        os.chown(directory, os.getuid(), 1004)  # GID de ai_huntred
-    except Exception as e:
-        logging.warning(f"No se pudo configurar permisos para {directory}: {str(e)}")
-
-ensure_dir(LOG_DIR)
-ensure_dir(STATIC_ROOT)
-ensure_dir(MEDIA_ROOT)
-ensure_dir(ML_MODELS_DIR)
+# Asegurar que los directorios existan (sin ajustar permisos)
+os.makedirs(LOG_DIR, exist_ok=True)
+os.makedirs(STATIC_ROOT, exist_ok=True)
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+os.makedirs(ML_MODELS_DIR, exist_ok=True)
 
 # Seguridad y entorno
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='tu-secret-key-por-defecto')
