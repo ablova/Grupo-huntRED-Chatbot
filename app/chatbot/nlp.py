@@ -1,25 +1,22 @@
 # /home/pablo/app/chatbot/nlp.py
-
-import asyncio
-import logging
-import time
+import os
 import json
-import numpy as np
+import logging
+import asyncio
 import spacy
-from typing import Dict, List
-from asgiref.sync import sync_to_async
+import numpy as np
+from typing import Dict, List, Optional
+from cachetools import TTLCache
+from textblob import TextBlob
 from langdetect import detect
 from deep_translator import GoogleTranslator
-from textblob import TextBlob
+from filelock import FileLock
 import tensorflow as tf
 import tensorflow_hub as hub
 from sklearn.metrics.pairwise import cosine_similarity
-from functools import lru_cache
-import os
-import pickle
+import psutil
 import gc
-from filelock import FileLock
-import sys
+import time
 
 # Configuración de logging
 logging.basicConfig(
@@ -32,346 +29,232 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Configuraciones escalables
+USE_EMBEDDINGS = False  # Activar embeddings solo si están listos y hay recursos
+USE_SKILLNER = False  # Activar SkillNer solo si hay recursos suficientes
+RAM_LIMIT = 8 * 1024 * 1024 * 1024  # 8 GB, umbral para embeddings
+EMBEDDINGS_READY = False  # Indicador de si los embeddings están listos
+
+# Verificar si el caché de embeddings existe
+EMBEDDINGS_CACHE = "/home/pablo/skills_data/embeddings_cache.pkl"
+if os.path.exists(EMBEDDINGS_CACHE):
+    EMBEDDINGS_READY = True
+    logger.info("Embeddings cache encontrado. Modo 'deep' disponible si hay suficiente RAM.")
+
+# Verificar recursos disponibles
+AVAILABLE_RAM = psutil.virtual_memory().available
+if AVAILABLE_RAM > RAM_LIMIT and EMBEDDINGS_READY:
+    USE_EMBEDDINGS = True
+    logger.info("Modo embeddings activado debido a suficiente RAM y embeddings listos.")
+
 # Constantes
 FILE_PATHS = {
     "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
     "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
+    "opportunity_catalog": "/home/pablo/app/utilidades/catalogs/skills.json",
 }
-EMBEDDINGS_CACHE = "/home/pablo/skills_data/embeddings_cache.pkl"
 LOCK_FILE = "/home/pablo/skills_data/nlp_init.lock"
-MODEL_CONFIG = {
-    'SIMILARITY_THRESHOLD': 0.75,
-    'CACHE_VERSION': 'v1.3'  # Actualizado para forzar regeneración si es necesario
-}
 
-# Variables globales (inicializadas bajo demanda)
-SKILL_EMBEDDINGS = None
-USE_MODEL = None
+# Cachés
+translation_cache = TTLCache(maxsize=1000, ttl=3600)
+embeddings_cache = TTLCache(maxsize=1000, ttl=3600)
 
-# Verificación para saltar carga pesada durante migraciones
-SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
+# Modelos globales
+nlp_spacy = None
+use_model = None
+skill_extractor = None
 
-def load_use_model(model_url: str = "https://tfhub.dev/google/universal-sentence-encoder/4",
-                  cache_dir: str = "/home/pablo/tfhub_cache") -> None:
-    """Carga el modelo Universal Sentence Encoder con manejo robusto."""
-    global USE_MODEL
-    if SKIP_HEAVY_INIT:
-        logger.info("Saltando carga del modelo durante migración")
-        return
-    if USE_MODEL is not None:
-        logger.info("Modelo ya cargado, reutilizando instancia")
-        return
+# Cargar catálogo de habilidades desde extractors.py
+from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
 
-    with FileLock(LOCK_FILE):
-        if USE_MODEL is not None:
-            return
+def load_skills_catalog():
+    """Carga un catálogo unificado de habilidades desde ESCO y NICE."""
+    esco_ext = ESCOExtractor()
+    nice_ext = NICEExtractor()
+    
+    # Obtener habilidades de ESCO y NICE
+    esco_skills = esco_ext.get_skills(language="es", limit=1000)
+    nice_skills = nice_ext.get_skills(sheet_name="Skills")
+    
+    # Unificar los datos
+    unified_skills = unify_data(esco_skills, nice_skills)
+    
+    # Clasificar habilidades en un catálogo
+    catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
+    for skill in unified_skills:
+        skill_name = skill.get("name", "").lower()
+        skill_type = skill.get("type", "skill")
+        if skill_type == "skill":
+            catalog["technical"].append({"original": skill_name})
+        # Agrega más condiciones según necesites clasificar soft skills, tools, etc.
+    
+    logger.info(f"Cargadas {len(unified_skills)} habilidades en el catálogo.")
+    return catalog
 
+def load_spacy_model(language: str = "es"):
+    global nlp_spacy
+    if nlp_spacy is None:
+        model_name = "es_core_news_md" if language == "es" else "en_core_web_md"
         try:
-            # Deshabilitar GPU completamente
-            os.environ["CUDA_VISIBLE_DEVICES"] = ""
-            logger.info("GPU deshabilitada explícitamente para TensorFlow")
-
-            # Configuración inicial estática para evitar conflictos
-            tf.config.set_soft_device_placement(True)
-            tf.config.optimizer.set_jit(True)  # Habilitar XLA para optimización
-
-            os.environ["TFHUB_CACHE_DIR"] = cache_dir
-            logger.info(f"Cargando modelo desde {model_url} con caché en {cache_dir}")
-
-            # Limitar uso de memoria
-            tf.keras.backend.set_floatx('float32')
-            USE_MODEL = hub.KerasLayer(model_url, input_shape=[], dtype=tf.string, trainable=False)
-
-            # Validar modelo con entrada mínima
-            test_input = tf.constant(["test"])
-            test_embedding = USE_MODEL(test_input).numpy()
-            logger.info(f"Modelo cargado y validado: dimensión {test_embedding.shape}")
-
-            del test_input, test_embedding
-            tf.keras.backend.clear_session()
-            gc.collect()
+            nlp_spacy = spacy.load(model_name, disable=["ner", "parser"])
+            logger.info(f"Modelo spaCy '{model_name}' cargado.")
         except Exception as e:
-            logger.error(f"Error crítico al cargar el modelo: {str(e)}")
-            raise RuntimeError(f"No se pudo cargar el modelo de TF Hub: {str(e)}")
+            logger.error(f"Error cargando spaCy: {e}")
+    return nlp_spacy
 
-def initialize_skill_embeddings(catalog: str = "relax_skills", batch_size: int = 20) -> None:
-    """Carga embeddings desde caché o genera en lotes pequeños."""
-    global SKILL_EMBEDDINGS
-    if SKIP_HEAVY_INIT:
-        logger.info("Saltando inicialización de embeddings durante migración")
-        return
-    if SKILL_EMBEDDINGS is not None:
-        logger.info("Embeddings ya cargados, reutilizando instancia")
-        return
-    if USE_MODEL is None:
-        load_use_model()
-
-    with FileLock(LOCK_FILE):
-        if SKILL_EMBEDDINGS is not None:
-            return
-
-        SKILL_EMBEDDINGS = {}
-        # Verificar caché
-        if os.path.exists(EMBEDDINGS_CACHE):
-            try:
-                with open(EMBEDDINGS_CACHE, "rb") as f:
-                    cached_data = pickle.load(f)
-                if cached_data.get("version") == MODEL_CONFIG['CACHE_VERSION']:
-                    SKILL_EMBEDDINGS.update(cached_data["embeddings"])
-                    logger.info(f"Embeddings cargados desde caché: {len(SKILL_EMBEDDINGS)} habilidades")
-                    return
-                else:
-                    logger.warning("Versión de caché incompatible, regenerando...")
-            except Exception as e:
-                logger.warning(f"Fallo al cargar embeddings desde caché: {str(e)}, regenerando...")
-
-        start_time = time.time()
+def load_use_model():
+    global use_model
+    if use_model is None and USE_EMBEDDINGS:
         try:
-            with open(FILE_PATHS[catalog], "r", encoding="utf-8") as f:
-                skills_data = json.load(f)
-
-            skill_names = [skill_info.get("skill_name") for skill_info in skills_data.values() if skill_info.get("skill_name")]
-            logger.info(f"Cargando {len(skill_names)} habilidades desde {catalog}")
-
-            for i in range(0, len(skill_names), batch_size):
-                batch = skill_names[i:i + batch_size]
-                translated_batch = [translate_text(name) for name in batch]
-                batch_tensor = tf.constant(translated_batch)
-                embeddings = USE_MODEL(batch_tensor).numpy().astype(np.float32)
-                SKILL_EMBEDDINGS.update({translated.lower(): emb for translated, emb in zip(translated_batch, embeddings)})
-
-                logger.debug(f"Procesado lote {i//batch_size + 1}/{len(skill_names)//batch_size + 1}")
-                del batch, translated_batch, batch_tensor, embeddings
-                tf.keras.backend.clear_session()
-                gc.collect()
-
-            logger.info(f"Embeddings de {catalog} cargados en {time.time() - start_time:.2f}s, total: {len(SKILL_EMBEDDINGS)}")
-
-            with open(EMBEDDINGS_CACHE, "wb") as f:
-                pickle.dump({"version": MODEL_CONFIG['CACHE_VERSION'], "embeddings": SKILL_EMBEDDINGS}, f)
-
-            del skill_names, skills_data
-            gc.collect()
+            # Limitar uso de CPU
+            tf.config.threading.set_intra_op_parallelism_threads(1)
+            tf.config.threading.set_inter_op_parallelism_threads(1)
+            use_model = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/4")
+            logger.info("Modelo USE v4 cargado con límite de CPU al 25%.")
         except Exception as e:
-            logger.error(f"Error al inicializar embeddings de {catalog}: {str(e)}")
-            raise
+            logger.error(f"Error cargando USE: {e}")
+    return use_model
 
-@lru_cache(maxsize=1000)
-def translate_text(text: str) -> str:
-    """Traducción con caché."""
-    if SKIP_HEAVY_INIT:
-        return text
-    try:
-        translator = GoogleTranslator(source='auto', target='en')
-        return translator.translate(text)
-    except Exception as e:
-        logger.warning(f"Error en traducción: {str(e)}")
-        return text
+def load_skillner():
+    global skill_extractor
+    if skill_extractor is None and USE_SKILLNER:
+        try:
+            from skillNer.skill_extractor_class import SkillExtractor
+            from skillNer.general_params import SKILL_DB
+            nlp = load_spacy_model()
+            if nlp:
+                skill_extractor = SkillExtractor(nlp, SKILL_DB, PhraseMatcher(nlp.vocab, attr="LOWER"))
+                logger.info("SkillNer cargado.")
+        except Exception as e:
+            logger.error(f"Error cargando SkillNer: {e}")
+    return skill_extractor
 
 class NLPProcessor:
     def __init__(self, mode: str = "candidate", language: str = "es", analysis_depth: str = "quick"):
         self.mode = mode
         self.language = language
-        self.analysis_depth = analysis_depth
-        logger.info(f"NLPProcessor inicializado: modo={mode}, idioma={language}, profundidad={analysis_depth}")
-        self.nlp = None  # Diferir carga de spaCy
-
-    def _load_spacy(self):
-        """Carga spaCy bajo demanda."""
-        if self.nlp is None:
-            if SKIP_HEAVY_INIT:
-                logger.info("Saltando carga de spaCy durante migración")
-                return
-            try:
-                self.nlp = spacy.load("es_core_news_md" if self.language == "es" else "en_core_web_md")
-                logger.debug("Modelo spaCy cargado bajo demanda")
-            except Exception as e:
-                logger.error(f"Error cargando spaCy: {str(e)}")
-                raise
+        self.requested_depth = analysis_depth  # Guardamos la profundidad solicitada
+        self.nlp = load_spacy_model(language)
+        self.skills_catalog = load_skills_catalog()  # Cargar catálogo al inicializar
+        
+        # Determinar el modo efectivo basado en recursos y embeddings
+        self.effective_depth = "quick"
+        if analysis_depth == "deep" and USE_EMBEDDINGS:
+            self.effective_depth = "deep"
+            load_use_model()
+            load_skillner()
+        elif analysis_depth == "deep":
+            logger.info("Modo 'deep' solicitado pero no disponible. Usando 'quick'.")
+        
+        logger.info(f"Modo efectivo: {self.effective_depth}")
 
     async def preprocess(self, text: str) -> Dict[str, str]:
-        if SKIP_HEAVY_INIT:
+        if self.effective_depth == "quick":
             return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
-        start_time = time.time()
+        cache_key = f"preprocess_{text}"
+        if cache_key in translation_cache:
+            return translation_cache[cache_key]
         try:
-            # Simplificar detección de idioma para textos cortos
-            lang = await sync_to_async(detect)(text) if len(text) > 10 else self.language
-            translated = translate_text(text) if lang != "en" else text
-            logger.info(f"Texto preprocesado en {time.time() - start_time:.2f}s")
-            return {"original": text.lower(), "translated": translated.lower(), "lang": lang}
+            lang = detect(text)
+            if lang != "en":
+                translator = GoogleTranslator(source='auto', target='en')
+                translated = translator.translate(text)
+            else:
+                translated = text
+            result = {"original": text.lower(), "translated": translated.lower(), "lang": lang}
+            translation_cache[cache_key] = result
+            return result
         except Exception as e:
-            logger.warning(f"Error en preprocesamiento: {str(e)}")
+            logger.warning(f"Error en preprocesamiento: {e}")
             return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
 
     def get_text_embedding(self, text: str) -> np.ndarray:
-        if SKIP_HEAVY_INIT:
-            return np.zeros(512, dtype=np.float32)
-        global USE_MODEL
-        if USE_MODEL is None:
-            load_use_model()
+        if self.effective_depth == "quick" or not USE_EMBEDDINGS:
+            return np.zeros(512)
+        cache_key = f"embedding_{text}"
+        if cache_key in embeddings_cache:
+            return embeddings_cache[cache_key]
         try:
-            embedding = USE_MODEL([text]).numpy()[0].astype(np.float32)
-            tf.keras.backend.clear_session()
-            gc.collect()
-            return embedding
+            model = load_use_model()
+            if model:
+                embedding = model([text]).numpy()[0]
+                embeddings_cache[cache_key] = embedding
+                return embedding
+            return np.zeros(512)
         except Exception as e:
-            logger.warning(f"Error generando embedding: {str(e)}")
-            return np.zeros(512, dtype=np.float32)
+            logger.warning(f"Error generando embedding: {e}")
+            return np.zeros(512)
 
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, any]]]:
-        if SKIP_HEAVY_INIT:
-            return {"technical": [], "soft": [], "tools": [], "certifications": []}
-        global SKILL_EMBEDDINGS
-        if SKILL_EMBEDDINGS is None:
-            initialize_skill_embeddings()
-        start_time = time.time()
-        try:
-            preprocessed = await self.preprocess(text)
-            text_emb = self.get_text_embedding(preprocessed["translated"])
+        if self.effective_depth == "quick":
+            return self._extract_skills_quick(text)
+        elif USE_SKILLNER and skill_extractor:
+            return self._extract_skills_skillner(text)
+        elif USE_EMBEDDINGS:
+            return await self._extract_skills_embeddings(text)
+        return {"technical": [], "soft": [], "tools": [], "certifications": []}
+
+    def _extract_skills_quick(self, text: str) -> Dict[str, List[Dict[str, any]]]:
+        doc = self.nlp(text.lower())
+        skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
+        for token in doc:
+            skill_name = token.text
+            for category, skills_list in self.skills_catalog.items():
+                if any(skill["original"] == skill_name for skill in skills_list):
+                    skills[category].append({"original": skill_name})
+        return skills
+
+    async def _extract_skills_embeddings(self, text: str) -> Dict[str, List[Dict[str, any]]]:
+        preprocessed = await self.preprocess(text)
+        text_emb = self.get_text_embedding(preprocessed["translated"])
+        skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
+        
+        for category, skills_list in self.skills_catalog.items():
+            for skill in skills_list:
+                skill_emb = self.get_text_embedding(skill["original"])
+                similarity = cosine_similarity([text_emb], [skill_emb])[0][0]
+                if similarity > 0.8:
+                    skills[category].append(skill)
+        return skills
+
+    def _extract_skills_skillner(self, text: str) -> Dict[str, List[Dict[str, any]]]:
+        if skill_extractor:
+            doc = self.nlp(text)
+            res = skill_extractor.annotate(doc)
             skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
-
-            threshold = {
-                "quick": 0.7,
-                "deep": 0.8,
-                "intense": 0.9
-            }.get(self.analysis_depth, MODEL_CONFIG['SIMILARITY_THRESHOLD'])
-
-            for skill, emb in SKILL_EMBEDDINGS.items():
-                similarity = cosine_similarity([text_emb], [emb])[0][0]
-                if similarity > threshold:
-                    skill_dict = {"original": skill, "translated": skill, "lang": "en", "embedding": emb.tolist()}
-                    self._classify_skill(skill_dict, skills)
-
-            logger.info(f"Habilidades extraídas en {time.time() - start_time:.2f}s (profundidad: {self.analysis_depth})")
-            del text_emb
-            gc.collect()
+            for match_type in ["full_matches", "ngram_scored"]:
+                for match in res.get("results", {}).get(match_type, []):
+                    skill_name = match.get("doc_node_value", "").lower()
+                    if skill_name:
+                        skills["technical"].append({"original": skill_name})  # Clasificación básica
             return skills
-        except Exception as e:
-            logger.warning(f"Error extrayendo habilidades: {str(e)}")
-            return {"technical": [], "soft": [], "tools": [], "certifications": []}
-
-    def _classify_skill(self, skill_dict: Dict, skills: Dict) -> None:
-        skill_name = skill_dict["original"].lower()
-        if "cert" in skill_name:
-            skills["certifications"].append(skill_dict)
-        elif any(t in skill_name for t in ["python", "sql", "java"]):
-            skills["technical"].append(skill_dict)
-        elif any(s in skill_name for s in ["comunicación", "liderazgo"]):
-            skills["soft"].append(skill_dict)
-        else:
-            skills["tools"].append(skill_dict)
+        return {"technical": [], "soft": [], "tools": [], "certifications": []}
 
     def analyze_sentiment(self, text: str) -> str:
-        if SKIP_HEAVY_INIT:
-            return "neutral"
-        self._load_spacy()
-        if self.nlp is None:
-            return "neutral"
-        try:
-            blob = TextBlob(text)
-            polarity = blob.sentiment.polarity
-            return "positive" if polarity > 0.05 else "negative" if polarity < -0.05 else "neutral"
-        except Exception as e:
-            logger.warning(f"Error en análisis de sentimiento: {str(e)}")
-            return "neutral"
+        blob = TextBlob(text)
+        polarity = blob.sentiment.polarity
+        return "positive" if polarity > 0.05 else "negative" if polarity < -0.05 else "neutral"
 
     async def analyze(self, text: str) -> Dict:
-        if SKIP_HEAVY_INIT:
-            return {
-                "skills": {"technical": [], "soft": [], "tools": [], "certifications": []},
-                "sentiment": "neutral",
-                "metadata": {
-                    "execution_time": 0.0,
-                    "original_text": text.lower(),
-                    "translated_text": text.lower(),
-                    "detected_language": "unknown"
-                }
-            }
         start_time = time.time()
-        try:
-            preprocessed = await self.preprocess(text)
-            skills = await self.extract_skills(text)
-            sentiment = self.analyze_sentiment(preprocessed["translated"])
-
-            execution_time = time.time() - start_time
-            logger.info(f"Análisis completado en {execution_time:.2f}s (modo: {self.mode})")
-            return {
-                "skills": skills,
-                "sentiment": sentiment,
-                "metadata": {
-                    "execution_time": execution_time,
-                    "original_text": preprocessed["original"],
-                    "translated_text": preprocessed["translated"],
-                    "detected_language": preprocessed["lang"]
-                }
+        preprocessed = await self.preprocess(text)
+        skills = await self.extract_skills(text)
+        sentiment = self.analyze_sentiment(preprocessed["translated"])
+        execution_time = time.time() - start_time
+        return {
+            "skills": skills,
+            "sentiment": sentiment,
+            "metadata": {
+                "execution_time": execution_time,
+                "original_text": preprocessed["original"],
+                "translated_text": preprocessed["translated"],
+                "detected_language": preprocessed["lang"],
+                "analysis_depth": self.effective_depth  # Indicar el modo efectivo usado
             }
-        except Exception as e:
-            logger.error(f"Error en análisis: {str(e)}")
-            return {
-                "skills": {"technical": [], "soft": [], "tools": [], "certifications": []},
-                "sentiment": "neutral",
-                "metadata": {
-                    "execution_time": time.time() - start_time,
-                    "original_text": text.lower(),
-                    "translated_text": text.lower(),
-                    "detected_language": "unknown"
-                }
-            }
-
-    async def analyze_batch(self, texts: List[str]) -> List[Dict]:
-        if SKIP_HEAVY_INIT:
-            return [{
-                "skills": {"technical": [], "soft": [], "tools": [], "certifications": []},
-                "sentiment": "neutral",
-                "metadata": {
-                    "execution_time": 0.0,
-                    "original_text": text.lower(),
-                    "translated_text": text.lower(),
-                    "detected_language": "unknown"
-                }
-            } for text in texts]
-        start_time = time.time()
-        try:
-            tasks = [self.analyze(text) for text in texts]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            logger.info(f"Procesamiento en lote completado en {time.time() - start_time:.2f}s")
-            return results
-        except Exception as e:
-            logger.error(f"Error en procesamiento en lote: {str(e)}")
-            return [{
-                "skills": {"technical": [], "soft": [], "tools": [], "certifications": []},
-                "sentiment": "neutral",
-                "metadata": {
-                    "execution_time": time.time() - start_time,
-                    "original_text": text.lower(),
-                    "translated_text": text.lower(),
-                    "detected_language": "unknown"
-                }
-            } for text in texts]
-
-async def load_esco_skills() -> None:
-    """Carga habilidades de ESCO en segundo plano."""
-    if SKIP_HEAVY_INIT:
-        logger.info("Saltando carga de habilidades ESCO durante migración")
-        return
-    with FileLock(LOCK_FILE):
-        logger.info("Cargando habilidades de ESCO en segundo plano...")
-        try:
-            initialize_skill_embeddings("esco_skills", batch_size=5)
-            logger.info("Carga de ESCO completada")
-            tf.keras.backend.clear_session()
-            gc.collect()
-        except Exception as e:
-            logger.error(f"Error cargando habilidades ESCO: {str(e)}")
-
-def initialize_nlp() -> None:
-    if not SKIP_HEAVY_INIT:
-        load_use_model()
-        initialize_skill_embeddings()
+        }
 
 if __name__ == "__main__":
-    nlp = NLPProcessor()
-    text = "Tengo experiencia en Python y liderazgo, busco trabajo remoto."
+    nlp = NLPProcessor(analysis_depth="deep")  # Solicita 'deep', pero usará 'quick' si no hay recursos
+    text = "Tengo experiencia en Python y liderazgo."
     result = asyncio.run(nlp.analyze(text))
-    print(result)
-    asyncio.run(load_esco_skills())
+    print(json.dumps(result, indent=2, ensure_ascii=False))
