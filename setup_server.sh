@@ -4,12 +4,14 @@
 # Descripción:
 #   Despliega una aplicación Django en una VM Ubuntu 22.04 LTS limpia:
 #   - Crea grupo 'ai_huntred' y usuario 'pablollh'.
-#   - Instala y configura Django, Gunicorn, PostgreSQL, Redis, Nginx, Celery, y (opcional) Certbot SSL.
+#   - Instala la última versión estable de Git (LTS) usando el PPA oficial.
+#   - Instala y configura Django, Gunicorn, PostgreSQL, Redis, Nginx, Celery, y Certbot SSL.
 #   - Purga y reinstala PostgreSQL/Redis; crea DB, corre migraciones, carga datos iniciales.
 #   - Configura Redis para systemd y optimiza uso de CPU.
 #   - Clona el repositorio Grupo-huntRED-Chatbot en /home/pablollh con autenticación.
-#   - Instala requirements en un entorno virtual.
+#   - Instala requirements en un entorno virtual, incluyendo sentry-sdk.
 #   - Configura Gunicorn, Nginx, Celery, y crea un superusuario para Django admin.
+#   - Configura HTTPS para ai.huntred.com con Certbot.
 #   - Añade alias personalizados al entorno del usuario.
 #
 # *** ADVERTENCIA: Este script PURGA y REINSTALA todo en la VM ***
@@ -21,30 +23,28 @@
 #   gcloud compute instances create grupo-huntred \
 #       --project=grupo-huntred \
 #       --zone=us-central1-a \
-#       --machine-type=e2-medium \
+#       --machine-type=e2-standard-4 \
 #       --network-interface=address=ip-chatbot-huntred,network-tier=PREMIUM \
 #       --image-family=ubuntu-2204-lts \
 #       --image-project=ubuntu-os-cloud \
-#       --boot-disk-size=20GB \
+#       --boot-disk-size=30GB \
 #       --boot-disk-type=pd-ssd \
 #       --tags=http-server,https-server \
 #       --metadata=startup-script='#!/bin/bash
 #         apt-get update
 #         apt-get install -y python3 python3-pip python3-venv git
-#    gcloud compute ssh grupo-huntred --project=grupo-huntred --zone=us-central1-a   
 #       '
 #
 # Uso:
 #   1) Subir a la VM: scp setup_server.sh pablollh@34.57.227.244:/home/pablollh/
 #   2) Dar permisos: sudo chmod +x /home/pablollh/setup_server.sh
 #   3) Ejecutar: sudo /home/pablollh/setup_server.sh
-# nano setup_server.sh && sudo chmod +x /home/pablollh/setup_server.sh && sudo /home/pablollh/setup_server.sh
 #
 # Notas:
 #   - Configurado para usuario 'pablollh' y grupo 'ai_huntred'.
-#   - Usa e2-medium (4 GB RAM) con disco de 20 GB.
+#   - Usa e2-standard-4 (16 GB RAM) con disco de 30 GB para manejar picos de CPU.
+#   - Requiere que ai.huntred.com resuelva a 34.57.227.244 para HTTPS.
 #   - Incluye swap de 4 GB para mitigar problemas de memoria.
-#   - Certbot es opcional y requiere que el dominio apunte a la VM (34.57.227.244).
 ############################################################################################
 
 set -euo pipefail
@@ -111,6 +111,13 @@ apt-get autoremove -y
 apt-get install -y software-properties-common curl git htop ncdu fail2ban logrotate \
     build-essential python3-dev python3-pip python3-venv libpq-dev \
     libblas-dev liblapack-dev gfortran libjpeg-dev zlib1g-dev libffi-dev libssl-dev
+
+# Instalar la última versión estable de Git
+echo "Instalando Git LTS..."
+add-apt-repository ppa:git-core/ppa -y
+apt-get update -y
+apt-get install -y git
+git --version
 
 ################################
 echo "==========================================================="
@@ -262,8 +269,8 @@ fi
 su - "$APP_USER" -c "source $VENV_DIR/bin/activate && \
     python -m pip install --upgrade pip && \
     pip install wheel && \
-    pip install django gunicorn psycopg2-binary redis celery django-celery-beat django-celery-results && \
-    cd $PROJECT_DIR && [ -f requirements.txt ] && pip install -r requirements.txt || true"
+    pip install django gunicorn psycopg2-binary redis celery django-celery-beat django-celery-results sentry-sdk && \
+    cd $PROJECT_DIR && [ -f requirements.txt ] && pip install -r requirements.txt --no-deps || true"
 
 chown -R "$APP_USER:$MAIN_GROUP" "$VENV_DIR"
 chmod -R 775 "$VENV_DIR"
@@ -328,10 +335,11 @@ sleep 2
 
 rm -f "$NGINX_LINK" || true
 
+# Configurar Nginx con un bloque HTTP inicial
 cat > "$NGINX_SITE" <<EOF
 server {
     listen 80;
-    server_name $DOMAIN 127.0.0.1 localhost;
+    server_name $DOMAIN 127.0.0.1 localhost 34.57.227.244;
 
     location = /favicon.ico {
         access_log off;
@@ -366,11 +374,15 @@ EOF
 ln -sf "$NGINX_SITE" "$NGINX_LINK"
 nginx -t && systemctl restart nginx
 
-# Certbot (opcional)
-if [ "$DOMAIN" != "localhost" ] && nslookup "$DOMAIN" >/dev/null 2>&1; then
-    certbot --nginx -d "$DOMAIN" -m "$EMAIL" --agree-tos --non-interactive --redirect || echo "Certbot falló, verifica DNS."
+# Verificar resolución DNS y ejecutar Certbot
+echo "Verificando resolución DNS para $DOMAIN..."
+if nslookup "$DOMAIN" >/dev/null 2>&1; then
+    echo "Dominio $DOMAIN resuelve correctamente. Configurando HTTPS con Certbot..."
+    certbot --nginx -d "$DOMAIN" -m "$EMAIL" --agree-tos --non-interactive --redirect || {
+        echo "Certbot falló, verifica la configuración DNS o ejecuta manualmente: certbot --nginx -d $DOMAIN"
+    }
 else
-    echo "Omitiendo Certbot: dominio no resuelve o es localhost."
+    echo "Advertencia: $DOMAIN no resuelve. Certbot no se ejecutará. Configura el registro DNS A para $DOMAIN a 34.57.227.244 y ejecuta manualmente: certbot --nginx -d $DOMAIN"
 fi
 
 ################################
@@ -417,9 +429,9 @@ THROTTLE_ANON=100/day
 THROTTLE_USER=1000/day
 CORS_ALLOW_ALL_ORIGINS=True
 CORS_ALLOW_CREDENTIALS=False
-SECURE_SSL_REDIRECT=False
-SESSION_COOKIE_SECURE=False
-CSRF_COOKIE_SECURE=False
+SECURE_SSL_REDIRECT=True
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
 GIT_USER=ablova@gmail.com
 GIT_PASSWORD=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
 ENDENV"
@@ -441,149 +453,8 @@ su - "$APP_USER" -c "
 su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && \
     python manage.py migrate --noinput && \
     python manage.py collectstatic --noinput && \
-    python manage.py loaddata $PROJECT_DIR/app/fixtures/initial_data.json && \
+    python manage.py loaddata /home/pablollh/app/fixtures/initial_data.json && \
     echo 'from django.contrib.auth.models import User; User.objects.create_superuser(\"admin\", \"admin@huntred.com\", \"admin123\")' | python manage.py shell"
 
 # Ajustar permisos finales
-chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
-chmod -R 775 "$PROJECT_DIR"
-
-systemctl restart gunicorn celery nginx
-
-################################
-echo "==========================================================="
-echo " [11/11] CONFIGURANDO ALIAS Y ENTORNO "
-echo "==========================================================="
-sleep 2
-
-# Añadir alias a .bashrc
-su - "$APP_USER" -c "cat >> /home/$APP_USER/.bashrc << 'EOF'
-# === Activar colores en la terminal ===
-export LS_OPTIONS='--color=auto'
-alias ls='ls \$LS_OPTIONS'
-alias ll='ls -la \$LS_OPTIONS'
-alias grep='grep --color=auto'
-
-# === Personalizar el prompt (PS1) con colores ===
-export PS1=\"\\[\033[1;32m\\]\u@\h:\\[\033[1;34m\\]\w\\[\033[1;36m\\]\$ \\[\033[0m\\]\"
-
-# === Alias generales ===
-alias iniciar='cd /home/pablollh && source venv/bin/activate'
-alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt autoremove -y'
-
-# === Alias para edición rápida de archivos principales ===
-alias edit_ai_urls='sudo nano /home/pablollh/ai_huntred/urls.py'
-alias edit_settings='sudo nano /home/pablollh/ai_huntred/settings.py'
-alias edit_celery='sudo nano /home/pablollh/ai_huntred/celery.py'
-
-alias edit_models='sudo nano /home/pablollh/app/models.py'
-alias edit_tasks='sudo nano /home/pablollh/app/tasks.py'
-alias edit_admin='sudo nano /home/pablollh/app/admin.py'
-alias edit_urls='sudo nano /home/pablollh/app/urls.py'
-alias edit_signal='sudo nano /home/pablollh/app/signal.py'
-alias edit_monitoring='sudo nano /home/pablollh/app/monitoring.py'
-
-# === Alias para edición de archivos en utilidades ===
-alias edit_catalogs='sudo nano /home/pablollh/app/utilidades/catalogs.py'
-alias edit_loader='sudo nano /home/pablollh/app/utilidades/loader.py'
-alias edit_calendar='sudo nano /home/pablollh/app/utilidades/google_calendar.py'
-alias edit_reports='sudo nano /home/pablollh/app/utilidades/report_generator.py'
-alias edit_parser='sudo nano /home/pablollh/app/utilidades/parser.py'
-alias edit_vacantes='sudo nano /home/pablollh/app/utilidades/vacantes.py'
-alias edit_linkedin='sudo nano /home/pablollh/app/utilidades/linkedin.py'
-
-# === Alias para Utilidades ===
-alias edit_email='sudo nano /home/pablollh/app/utilidades/email_scraper.py'
-alias edit_salario='sudo nano /home/pablollh/app/utilidades/salario.py'
-alias edit_scraping='sudo nano /home/pablollh/app/utilidades/scraping.py'
-
-# === Alias para chatbot e integraciones ===
-alias edit_chatbot='sudo nano /home/pablollh/app/chatbot/chatbot.py'
-alias edit_nlp='sudo nano /home/pablollh/app/chatbot/nlp.py'
-alias edit_gpt='sudo nano /home/pablollh/app/chatbot/gpt.py'
-alias edit_utils='sudo nano /home/pablollh/app/chatbot/utils.py'
-alias edit_intent='sudo nano /home/pablollh/app/chatbot/intents_handler.py'
-alias edit_whatsapp='sudo nano /home/pablollh/app/chatbot/integrations/whatsapp.py'
-alias edit_telegram='sudo nano /home/pablollh/app/chatbot/integrations/telegram.py'
-alias edit_messenger='sudo nano /home/pablollh/app/chatbot/integrations/messenger.py'
-alias edit_instagram='sudo nano /home/pablollh/app/chatbot/integrations/instagram.py'
-alias edit_services='sudo nano /home/pablollh/app/chatbot/integrations/services.py'
-alias edit_common='sudo nano /home/pablollh/app/chatbot/workflow/common.py'
-alias edit_amigro='sudo nano /home/pablollh/app/chatbot/workflow/amigro.py'
-alias edit_executive='sudo nano /home/pablollh/app/chatbot/workflow/executive.py'
-alias edit_huntred='sudo nano /home/pablollh/app/chatbot/workflow/huntred.py'
-alias edit_huntu='sudo nano /home/pablollh/app/chatbot/workflow/huntu.py'
-
-# === Alias para edición de views ===
-alias edit_views='sudo nano /home/pablollh/app/views.py'
-alias edit_candidatos_views='sudo nano /home/pablollh/app/views/candidatos_views.py'
-alias edit_vacantes_views='sudo nano /home/pablollh/app/views/vacantes_views.py'
-alias edit_clientes_views='sudo nano /home/pablollh/app/views/clientes_views.py'
-alias edit_chatbot_views='sudo nano /home/pablollh/app/views/chatbot_views.py'
-alias edit_utilidades_views='sudo nano /home/pablollh/app/views/utilidades_views.py'
-alias edit_integraciones_views='sudo nano /home/pablollh/app/views/integraciones_views.py'
-alias edit_auth_views='sudo nano /home/pablollh/app/views/auth_views.py'
-
-alias edit_forms='sudo nano /home/pablollh/app/forms.py'
-alias edit_serializers='sudo nano /home/pablollh/app/serializers.py'
-alias edit_permissions='sudo nano /home/pablollh/app/permissions.py'
-alias edit_middlewares='sudo nano /home/pablollh/app/middleware.py'
-
-# === Alias para logs y procesos en segundo plano ===
-alias logs_celery='sudo journalctl -u celery -f'
-alias logs_gunicorn='sudo journalctl -u gunicorn -f'
-alias logs_nginx='sudo journalctl -u nginx -f'
-alias logs_all='sudo tail -f /home/pablollh/logs/*.log'
-
-# === Alias generales ===
-alias reload_aliases='source ~/.bashrc'
-alias rserver='sudo systemctl restart gunicorn nginx'
-alias check_logs='tail -f /home/pablollh/logs/*.log'
-alias clear_logs='sudo rm -rf /home/pablollh/logs/*.log && touch /home/pablollh/logs/empty.log'
-alias edit_env='sudo nano /home/pablollh/.env'
-alias edit_alias='nano ~/.bashrc'
-
-# === Alias para gestión del sistema ===
-alias migrate='python /home/pablollh/manage.py migrate'
-alias makemigrations='python /home/pablollh/manage.py makemigrations'
-alias collectstatic='python /home/pablollh/manage.py collectstatic --noinput'
-alias shell='python /home/pablollh/manage.py shell'
-alias monitor_django='python /home/pablollh/manage.py runprofileserver'
-alias inspect_model='python /home/pablollh/manage.py inspectdb'
-alias restart_celery='sudo systemctl restart celery'
-alias restart_gunicorn='sudo systemctl restart gunicorn'
-alias restart_nginx='sudo systemctl restart nginx'
-alias smart_reload='cd /home/pablollh && python manage.py check && (systemctl is-active --quiet celery && sudo systemctl restart celery) && (systemctl is-active --quiet gunicorn && sudo systemctl restart gunicorn)'
-alias restart_all='sudo systemctl restart gunicorn celery nginx'
-alias up_git='sudo truncate -s 0 /home/pablollh/logs/*.log && sudo truncate -s 0 /var/log/nginx/access.log && sudo truncate -s 0 /var/log/nginx/error.log && sudo truncate -s 0 /var/log/syslog && sudo truncate -s 0 /var/log/auth.log && sudo truncate -s 0 /var/log/dmesg && sudo truncate -s 0 /var/log/kern.log && sudo logrotate -f /etc/logrotate.conf && sudo journalctl --vacuum-time=1s && sudo journalctl --vacuum-size=50M && sleep 5'
-alias up2_git='cd /home/pablollh && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
-alias zombie='sudo kill -9 \$(ps -ef | grep \"systemctl.*less\" | awk \"{print \$2,\$3}\" | tr \" \" \"\n\" | sort -u) && sudo find /var/log -type f -size +10M'
-alias rmem='sudo sysctl vm.drop_caches=3 && sudo rm -rf /tmp/* && sudo journalctl --vacuum-time=10m && sleep 40 && swapon --show && sudo swapon -a'
-EOF"
-
-# Asegurar permisos correctos para .bashrc
-chown "$APP_USER:$APP_USER" "/home/$APP_USER/.bashrc"
-chmod 644 "/home/$APP_USER/.bashrc"
-
-# Cargar los alias en la sesión actual
-su - "$APP_USER" -c "source /home/$APP_USER/.bashrc"
-
-echo "Alias y entorno configurados para el usuario $APP_USER."
-
-echo "==========================================================="
-echo "DEPLOY FINALIZADO."
-echo "==========================================================="
-echo "Verifica con:"
-echo "  systemctl status gunicorn"
-echo "  systemctl status celery"
-echo "  systemctl status nginx"
-echo "  systemctl status redis-server"
-echo "  systemctl status postgresql"
-echo "  curl -I http://$DOMAIN"
-echo
-echo "Admin: http://$DOMAIN/admin/ (usuario: admin, contraseña: admin123)"
-echo "Chatbot: Prueba enviando un mensaje al webhook (verifica configuración de WhatsApp)."
-echo "Silk: http://$DOMAIN/silk/ (usa el mismo usuario admin)"
-echo
-echo "Si Certbot funcionó, usa HTTPS: https://$DOMAIN"
-echo "==========================================================="
+chown -R "$APP shortage: No space left on device

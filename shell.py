@@ -65,15 +65,15 @@ sudo swapon -a && sleep 5 && sudo swapoff -a && sleep 5 && sudo swapon -a
 # Eliminar procesos Zombie
 sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | sort -u)
 
-sudo chown -R pablo:ai_huntred /home/pablo && \
-sudo find /home/pablo -type d -exec chmod 755 {} \; && \
-sudo find /home/pablo -type f -exec chmod 644 {} \; && \
+sudo chown -R pablo:ai_huntred /home/pablollh && \
+sudo find /home/pablollh -type d -exec chmod 755 {} \; && \
+sudo find /home/pablollh -type f -exec chmod 644 {} \; && \
 sudo chmod -R 775 /home/pablollh/media && \
 sudo chmod -R 775 /home/pablollh/static && \
 sudo chmod -R 775 /home/pablollh/logs && \
 sudo chmod 640 /home/pablollh/*/settings.py && \
 sudo chmod 640 /home/pablollh/.env && \
-sudo find /home/pablo -name '*.sh' -exec chmod 755 {} \; && \
+sudo find /home/pablollh -name '*.sh' -exec chmod 755 {} \; && \
 sudo chmod 755 /home/pablollh/manage.py && \
 echo 'Permisos corregidos correctamente'
 
@@ -130,7 +130,7 @@ alias grep='grep --color=auto'
 export PS1="\[\033[1;32m\]\u@\h:\[\033[1;34m\]\w\[\033[1;36m\]\$ \[\033[0m\]"
 
 # === Alias generales ===
-alias iniciar='cd /home/pablo && source venv/bin/activate'
+alias iniciar='cd /home/pablollh && source venv/bin/activate'
 alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt autoremove -y'
 
 # === Alias para edición rápida de archivos principales ===
@@ -214,10 +214,10 @@ alias inspect_model='python /home/pablollh/manage.py inspectdb'
 alias restart_celery='sudo systemctl restart celery'
 alias restart_gunicorn='sudo systemctl restart gunicorn'
 alias restart_nginx='sudo systemctl restart nginx'
-alias smart_reload='cd /home/pablo && python manage.py check && (systemctl is-active --quiet celery && sudo systemctl restart celery) && (systemctl is-active --quiet gunicorn && sudo systemctl restart gunicorn)'
+alias smart_reload='cd /home/pablollh && python manage.py check && (systemctl is-active --quiet celery && sudo systemctl restart celery) && (systemctl is-active --quiet gunicorn && sudo systemctl restart gunicorn)'
 alias restart_all='sudo systemctl restart gunicorn nginx celery-worker celery-beat celery-ml celery-scraping'
 alias up_git='sudo truncate -s 0 /home/pablollh/logs/*.log && sudo truncate -s 0 /var/log/nginx/access.log && sudo truncate -s 0 /var/log/nginx/error.log && sudo truncate -s 0 /var/log/syslog && sudo truncate -s 0 /var/log/auth.log && sudo truncate -s 0 /var/log/dmesg && sudo truncate -s 0 /var/log/kern.log && sudo logrotate -f /etc/logrotate.conf && sudo journalctl --vacuum-time=1s && sudo journalctl --vacuum-size=50M && sleep 5'
-alias up2_git='cd /home/pablo && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
+alias up2_git='cd /home/pablollh && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
 alias zombie='sudo kill -9 $(ps -ef | grep "systemctl.*less" | awk "{print \$2,\$3}" | tr " " "\n" | sort -u) && sudo find /var/log -type f -size +10M'
 alias rmem='sudo sysctl vm.drop_caches=3 && sudo rm -rf /tmp/* && sudo journalctl --vacuum-time=10m && sleep 40 && swapon --show && sudo swapon -a'
 

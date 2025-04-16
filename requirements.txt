@@ -71,7 +71,7 @@ fonttools
 forex-python
 frozenlist
 fsspec
-futures
+# futures
 gast
 geographiclib
 geopy
