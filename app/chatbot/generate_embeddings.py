@@ -1,4 +1,3 @@
-# /home/pablo/app/chatbot/generate_embeddings.py
 import logging
 import os
 import time
@@ -7,6 +6,7 @@ import gc
 import numpy as np
 import tensorflow as tf
 import sys
+import pickle
 
 # Agregar la raíz del proyecto al PYTHONPATH
 project_root = "/home/pablo"

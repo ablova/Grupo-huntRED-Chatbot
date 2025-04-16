@@ -31,9 +31,11 @@ logger = logging.getLogger(__name__)
 
 # Configuraciones escalables
 USE_EMBEDDINGS = False  # Activar embeddings solo si están listos y hay recursos
-USE_SKILLNER = False  # Activar SkillNer solo si hay recursos suficientes
+USE_SKILLNER = False    # Activar SkillNer solo si hay recursos suficientes
 RAM_LIMIT = 8 * 1024 * 1024 * 1024  # 8 GB, umbral para embeddings
 EMBEDDINGS_READY = False  # Indicador de si los embeddings están listos
+# Configuraciones escalables
+DISABLE_EXTRACTORS = True  # Deshabilitar extractors.py temporalmente
 
 # Verificar si el caché de embeddings existe
 EMBEDDINGS_CACHE = "/home/pablo/skills_data/embeddings_cache.pkl"
@@ -67,29 +69,35 @@ skill_extractor = None
 # Cargar catálogo de habilidades desde extractors.py
 from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
 
+# Cargar catálogo de habilidades con respaldo
 def load_skills_catalog():
-    """Carga un catálogo unificado de habilidades desde ESCO y NICE."""
-    esco_ext = ESCOExtractor()
-    nice_ext = NICEExtractor()
-    
-    # Obtener habilidades de ESCO y NICE
-    esco_skills = esco_ext.get_skills(language="es", limit=1000)
-    nice_skills = nice_ext.get_skills(sheet_name="Skills")
-    
-    # Unificar los datos
-    unified_skills = unify_data(esco_skills, nice_skills)
-    
-    # Clasificar habilidades en un catálogo
-    catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
-    for skill in unified_skills:
-        skill_name = skill.get("name", "").lower()
-        skill_type = skill.get("type", "skill")
-        if skill_type == "skill":
-            catalog["technical"].append({"original": skill_name})
-        # Agrega más condiciones según necesites clasificar soft skills, tools, etc.
-    
-    logger.info(f"Cargadas {len(unified_skills)} habilidades en el catálogo.")
-    return catalog
+    """Carga un catálogo de habilidades, usando un respaldo local si DISABLE_EXTRACTORS es True."""
+    if DISABLE_EXTRACTORS:
+        try:
+            with open("/home/pablo/skills_data/skill_db_relax_20.json", "r") as f:  #O puede ser /home/pablo/app/utilidades/catalogs/skills.json
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error cargando respaldo: {e}, usando catálogo vacío.")
+            return {"technical": [], "soft": [], "tools": [], "certifications": []}
+    else:
+        try:
+            from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
+            esco_ext = ESCOExtractor()
+            nice_ext = NICEExtractor()
+            esco_skills = esco_ext.get_skills(language="es", limit=100)
+            nice_skills = nice_ext.get_skills(sheet_name="Skills")
+            unified_skills = unify_data(esco_skills, nice_skills)
+            catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
+            for skill in unified_skills:
+                skill_name = skill.get("name", "").lower()
+                skill_type = skill.get("type", "skill")
+                if skill_type == "skill":
+                    catalog["technical"].append({"original": skill_name})
+            logger.info(f"Cargadas {len(unified_skills)} habilidades en el catálogo.")
+            return catalog
+        except Exception as e:
+            logger.error(f"Error cargando catálogo: {e}, usando catálogo vacío.")
+            return {"technical": [], "soft": [], "tools": [], "certifications": []}
 
 def load_spacy_model(language: str = "es"):
     global nlp_spacy

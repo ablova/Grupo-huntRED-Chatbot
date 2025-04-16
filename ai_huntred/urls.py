@@ -44,6 +44,7 @@ urlpatterns = [
     path('sentry-debug/', trigger_error, name='sentry_debug'),
     # Rutas de la aplicación principal
     path('', include('app.urls')),
+    path('silk/', include('silk.urls', namespace='silk')),
 ]
 
 # Soporte condicional para Grappelli
