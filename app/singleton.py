@@ -1,4 +1,4 @@
-# /home/pablo/app/singleton.py
+# /home/pablollh/app/singleton.py
 def singleton(cls):
     instances = dict()
 

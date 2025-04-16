@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/pablo/app/models.py
+# Ubicación del archivo: /home/pablollh/app/models.py
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField

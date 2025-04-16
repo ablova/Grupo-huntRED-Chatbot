@@ -1,4 +1,4 @@
-# /home/pablo/app/chatbot/nlp.py
+# /home/pablollh/app/chatbot/nlp.py
 import os
 import json
 import logging
@@ -53,7 +53,7 @@ if AVAILABLE_RAM > RAM_LIMIT and EMBEDDINGS_READY:
 FILE_PATHS = {
     "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
     "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
-    "opportunity_catalog": "/home/pablo/app/utilidades/catalogs/skills.json",
+    "opportunity_catalog": "/home/pablollh/app/utilidades/catalogs/skills.json",
 }
 LOCK_FILE = "/home/pablo/skills_data/nlp_init.lock"
 
@@ -74,7 +74,7 @@ def load_skills_catalog():
     """Carga un catálogo de habilidades, usando un respaldo local si DISABLE_EXTRACTORS es True."""
     if DISABLE_EXTRACTORS:
         try:
-            with open("/home/pablo/skills_data/skill_db_relax_20.json", "r") as f:  #O puede ser /home/pablo/app/utilidades/catalogs/skills.json
+            with open("/home/pablo/skills_data/skill_db_relax_20.json", "r") as f:  #O puede ser /home/pablollh/app/utilidades/catalogs/skills.json
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error cargando respaldo: {e}, usando catálogo vacío.")

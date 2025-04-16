@@ -1,4 +1,4 @@
-# /home/pablo/ai_huntred/settings.py
+# /home/pablollh/ai_huntred/settings.py
 
 import os
 from pathlib import Path
@@ -91,6 +91,10 @@ MIDDLEWARE = [
     'debug_toolbar.middleware.DebugToolbarMiddleware',
     'silk.middleware.SilkyMiddleware',
 ]
+
+SILKY_AUTHENTICATION = True  # Requiere login
+SILKY_AUTHORISATION = True  # Requiere permisos de staff
+SILKY_PERMISSIONS = lambda user: user.is_superuser  # Solo superusuarios
 
 if DEBUG:
     INTERNAL_IPS = ['127.0.0.1']

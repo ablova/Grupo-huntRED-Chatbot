@@ -1,4 +1,4 @@
-# /home/pablo/app/chatbot/workflow/executive.py
+# /home/pablollh/app/chatbot/workflow/executive.py
 import logging
 from celery import shared_task
 from app.models import Person, Vacante, BusinessUnit, Application

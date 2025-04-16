@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/admin.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/admin.py
 
 from django.contrib import admin
 from app.sexsi.models import ConsentAgreement, PaymentTransaction, SexsiConfig

@@ -1,4 +1,4 @@
-# Ubicación: /home/pablo/app/chatbot/integrations/telegram.py
+# Ubicación: /home/pablollh/app/chatbot/integrations/telegram.py
 import logging
 import json
 import httpx

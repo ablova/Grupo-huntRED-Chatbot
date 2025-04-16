@@ -1,4 +1,4 @@
-# 📌 Ubicación en servidor: /home/pablo/app/chatbot/extractors.py
+# 📌 Ubicación en servidor: /home/pablollh/app/chatbot/extractors.py
 import os
 import rdflib 
 import requests

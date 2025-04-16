@@ -308,7 +308,7 @@ async def handle_incoming_message(request):
         return JsonResponse({'error': f"Error inesperado: {e}"}, status=500)
 
 
-        sudo rm /home/pablo/app/chatbot.py && sudo nano /home/pablo/app/chatbot.py && sudo systemctl restart gunicorn nginx && sudo truncate -s 0 /home/pablo/logs/*.log
+        sudo rm /home/pablollh/app/chatbot.py && sudo nano /home/pablollh/app/chatbot.py && sudo systemctl restart gunicorn nginx && sudo truncate -s 0 /home/pablo/logs/*.log
 
 
 POR SI NO JALA LA VERSION BRINDADA.

@@ -1,4 +1,4 @@
-# 📌 Ubicación en servidor: /home/pablo/app/chatbot/nlp.py
+# 📌 Ubicación en servidor: /home/pablollh/app/chatbot/nlp.py
 
 
 import os
@@ -965,7 +965,7 @@ if __name__ == "__main__":
 
 
     _______________
-    # /home/pablo/app/chatbot/nlp.py
+    # /home/pablollh/app/chatbot/nlp.py
 import time
 import psutil
 import os
@@ -1015,7 +1015,7 @@ MODEL_LANGUAGES = {
 
 # Directorios de catálogos
 CATALOG_BASE_PATH = "/home/pablo/skills_data"
-UTILITIES_CATALOG_PATH = "/home/pablo/app/utilidades/catalogs"
+UTILITIES_CATALOG_PATH = "/home/pablollh/app/utilidades/catalogs"
 
 CATALOGS = {
     "global": {"esco": os.path.join(CATALOG_BASE_PATH, "ESCO_occup_skills.json")},
@@ -1257,7 +1257,7 @@ if __name__ == "__main__":
     ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
     ________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
 
-# /home/pablo/app/chatbot/nlp.py
+# /home/pablollh/app/chatbot/nlp.py
 import os
 import json
 import time
@@ -1305,7 +1305,7 @@ FILE_PATHS = {
     "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
     "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
     "tabiya_skills": "/home/pablo/skills_data/tabiya/tabiya-esco-v1.1.1/csv/skills.csv",
-    "opportunity_catalog": "/home/pablo/app/utilidades/catalogs/skills.json",
+    "opportunity_catalog": "/home/pablollh/app/utilidades/catalogs/skills.json",
     "intents": "/home/pablo/chatbot_data/intents.json"
 }
 

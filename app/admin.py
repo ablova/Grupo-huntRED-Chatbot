@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/pablo/app/admin.py
+# Ubicación del archivo: /home/pablollh/app/admin.py
 
 # Django Core Imports
 from django.contrib import admin, messages

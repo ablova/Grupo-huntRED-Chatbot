@@ -1,4 +1,4 @@
-# /home/pablo/ai_huntred/settings/production.py
+# /home/pablollh/ai_huntred/settings/production.py
 from .settings import *
 
 # Production-specific settings

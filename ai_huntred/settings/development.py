@@ -1,4 +1,4 @@
-# /home/pablo/ai_huntred/settings/development.py
+# /home/pablollh/ai_huntred/settings/development.py
 from ..settings import *
 
 DEBUG = True

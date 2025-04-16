@@ -1,4 +1,4 @@
-# /home/pablo/app/utilidades/signature/pdf_generator.py
+# /home/pablollh/app/utilidades/signature/pdf_generator.py
 import os
 import datetime
 from reportlab.lib.pagesizes import A4
@@ -48,7 +48,7 @@ def draw_footer(c, page_num, title):
 
 def add_signature(c, candidate, y_position):
     """Añade la firma electrónica si está disponible."""
-    signature_path = f"/home/pablo/app/media/firma_{candidate.id}.png"
+    signature_path = f"/home/pablollh/app/media/firma_{candidate.id}.png"
     if os.path.exists(signature_path):
         c.drawImage(signature_path, 60*mm, y_position, width=90*mm, preserveAspectRatio=True)
         return y_position - 25*mm
@@ -223,7 +223,7 @@ def generate_cv_pdf(candidate, business_unit):
     
     # Integración del CV original (nueva página)
     if business_unit in ["huntred", "huntu"] and candidate.cv_file:
-        original_cv_path = f"/home/pablo/app/media/cv/{candidate.cv_file}"
+        original_cv_path = f"/home/pablollh/app/media/cv/{candidate.cv_file}"
         if os.path.exists(original_cv_path):
             c.showPage()
             page_num += 1

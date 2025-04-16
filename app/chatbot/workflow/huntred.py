@@ -1,4 +1,4 @@
-# /home/pablo/app/chatbot/workflow/huntred.py
+# /home/pablollh/app/chatbot/workflow/huntred.py
 import logging
 from celery import shared_task
 from app.models import Person, Vacante, BusinessUnit, Application

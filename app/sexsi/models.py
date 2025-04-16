@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/models.py
+# Ubicacion SEXSI -- /home/pablollh/app/sexsi/models.py
 
 from django.db import models
 from django.utils.timezone import now, timedelta

@@ -17,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Register the SF Pro Display font
-pdfmetrics.registerFont(TTFont('SFProDisplay', '/home/pablo/app/media/fonts/SFPRODISPLAY.ttf'))
+pdfmetrics.registerFont(TTFont('SFProDisplay', '/home/pablollh/app/media/fonts/SFPRODISPLAY.ttf'))
 
 def generate_analysis_page(group_logo_url, division_logo_url, analysis_data, output_path):
     """

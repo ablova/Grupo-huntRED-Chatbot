@@ -1,4 +1,4 @@
-# /home/pablo/ai_huntred/wsgi.py
+# /home/pablollh/ai_huntred/wsgi.py
 """
 WSGI config for ai_huntred project.
 

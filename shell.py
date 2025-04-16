@@ -45,10 +45,10 @@ pip freeze | cut -d= -f1 > requirements.txt
 df -h &&
 free -h &&
 sudo du -h / | sort -h | tail -n 20 &&
-sudo du -sh /home/pablo/* | sort -h | tail -n 20 &&
 sudo du -sh /home/pablollh/* | sort -h | tail -n 20 &&
-sudo du -sh /home/pablo/venv/lib/python3.12/site-packages/* | sort -h | tail -n 20 &&
-sudo du -sh /home/pablo/skills_data/* | sort -h | tail -n 20 && 
+sudo du -sh /home/pablollh/* | sort -h | tail -n 20 &&
+sudo du -sh /home/pablollh/venv/lib/python3.12/site-packages/* | sort -h | tail -n 20 &&
+sudo du -sh /home/pablollh/skills_data/* | sort -h | tail -n 20 && 
 swapon --show &&
 sudo swapoff -a &&
 iotop &&
@@ -68,30 +68,30 @@ sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | so
 sudo chown -R pablo:ai_huntred /home/pablo && \
 sudo find /home/pablo -type d -exec chmod 755 {} \; && \
 sudo find /home/pablo -type f -exec chmod 644 {} \; && \
-sudo chmod -R 775 /home/pablo/media && \
-sudo chmod -R 775 /home/pablo/static && \
-sudo chmod -R 775 /home/pablo/logs && \
-sudo chmod 640 /home/pablo/*/settings.py && \
-sudo chmod 640 /home/pablo/.env && \
+sudo chmod -R 775 /home/pablollh/media && \
+sudo chmod -R 775 /home/pablollh/static && \
+sudo chmod -R 775 /home/pablollh/logs && \
+sudo chmod 640 /home/pablollh/*/settings.py && \
+sudo chmod 640 /home/pablollh/.env && \
 sudo find /home/pablo -name '*.sh' -exec chmod 755 {} \; && \
-sudo chmod 755 /home/pablo/manage.py && \
+sudo chmod 755 /home/pablollh/manage.py && \
 echo 'Permisos corregidos correctamente'
 
 
 
 # Elimina archivos __pycache__ y .pyc
-sudo find /home/pablo/venv -name "__pycache__" -type d -exec sudo rm -rf {} +
-sudo find /home/pablo/venv -name "*.pyc" -delete
-sudo find /home/pablo/venv -name "*.pyo" -delete
-sudo find /home/pablo/venv -name "*.pyd" -delete
+sudo find /home/pablollh/venv -name "__pycache__" -type d -exec sudo rm -rf {} +
+sudo find /home/pablollh/venv -name "*.pyc" -delete
+sudo find /home/pablollh/venv -name "*.pyo" -delete
+sudo find /home/pablollh/venv -name "*.pyd" -delete
 
 # Elimina directorios de tests que vienen con los paquetes
-sudo find /home/pablo/venv -path "*/tests*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablollh/venv -path "*/tests*" -type d -exec sudo rm -rf {} +
 
 # Elimina documentación
-sudo find /home/pablo/venv -path "*/doc*" -type d -exec sudo rm -rf {} +
-sudo find /home/pablo/venv -path "*/docs*" -type d -exec sudo rm -rf {} +
-sudo find /home/pablo/venv -path "*/examples*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablollh/venv -path "*/doc*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablollh/venv -path "*/docs*" -type d -exec sudo rm -rf {} +
+sudo find /home/pablollh/venv -path "*/examples*" -type d -exec sudo rm -rf {} +
 
 # List top memory-consuming processes
 ps aux --sort=-%mem | head -n 15
@@ -134,89 +134,89 @@ alias iniciar='cd /home/pablo && source venv/bin/activate'
 alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt autoremove -y'
 
 # === Alias para edición rápida de archivos principales ===
-alias edit_ai_urls='sudo rm /home/pablo/ai_huntred/urls.py && sudo nano /home/pablo/ai_huntred/urls.py'
-alias edit_settings='sudo rm /home/pablo/ai_huntred/settings.py && sudo nano /home/pablo/ai_huntred/settings.py'
-alias edit_celery='sudo rm /home/pablo/ai_huntred/celery.py && sudo nano /home/pablo/ai_huntred/celery.py'
+alias edit_ai_urls='sudo rm /home/pablollh/ai_huntred/urls.py && sudo nano /home/pablollh/ai_huntred/urls.py'
+alias edit_settings='sudo rm /home/pablollh/ai_huntred/settings.py && sudo nano /home/pablollh/ai_huntred/settings.py'
+alias edit_celery='sudo rm /home/pablollh/ai_huntred/celery.py && sudo nano /home/pablollh/ai_huntred/celery.py'
 
-alias edit_models='sudo rm /home/pablo/app/models.py && sudo nano /home/pablo/app/models.py'
-alias edit_tasks='sudo rm /home/pablo/app/tasks.py && sudo nano /home/pablo/app/tasks.py'
-alias edit_admin='sudo rm /home/pablo/app/admin.py && sudo nano /home/pablo/app/admin.py'
-alias edit_urls='sudo rm /home/pablo/app/urls.py && sudo nano /home/pablo/app/urls.py'
-alias edit_signal='sudo rm /home/pablo/app/signal.py && sudo nano /home/pablo/app/signal.py'
-alias edit_monitoring='sudo rm /home/pablo/app/monitoring.py && sudo nano /home/pablo/app/monitoring.py'
+alias edit_models='sudo rm /home/pablollh/app/models.py && sudo nano /home/pablollh/app/models.py'
+alias edit_tasks='sudo rm /home/pablollh/app/tasks.py && sudo nano /home/pablollh/app/tasks.py'
+alias edit_admin='sudo rm /home/pablollh/app/admin.py && sudo nano /home/pablollh/app/admin.py'
+alias edit_urls='sudo rm /home/pablollh/app/urls.py && sudo nano /home/pablollh/app/urls.py'
+alias edit_signal='sudo rm /home/pablollh/app/signal.py && sudo nano /home/pablollh/app/signal.py'
+alias edit_monitoring='sudo rm /home/pablollh/app/monitoring.py && sudo nano /home/pablollh/app/monitoring.py'
 
 # === Alias para edición de archivos en utilidades ===
-alias edit_catalogs='sudo rm /home/pablo/app/utilidades/catalogs.py && sudo nano /home/pablo/app/utilidades/catalogs.py'
-alias edit_loader='sudo rm /home/pablo/app/utilidades/loader.py && sudo nano /home/pablo/app/utilidades/loader.py'
-alias edit_calendar='sudo rm /home/pablo/app/utilidades/google_calendar.py && sudo nano /home/pablo/app/utilidades/google_calendar.py'
-alias edit_reports='sudo rm /home/pablo/app/utilidades/report_generator.py && sudo nano /home/pablo/app/utilidades/report_generator.py'
-alias edit_parser='sudo rm /home/pablo/app/utilidades/parser.py && sudo nano /home/pablo/app/utilidades/parser.py'
-alias edit_vacantes='sudo rm /home/pablo/app/utilidades/vacantes.py && sudo nano /home/pablo/app/utilidades/vacantes.py'
-alias edit_linkedin='sudo rm /home/pablo/app/utilidades/linkedin.py && sudo nano /home/pablo/app/utilidades/linkedin.py'
+alias edit_catalogs='sudo rm /home/pablollh/app/utilidades/catalogs.py && sudo nano /home/pablollh/app/utilidades/catalogs.py'
+alias edit_loader='sudo rm /home/pablollh/app/utilidades/loader.py && sudo nano /home/pablollh/app/utilidades/loader.py'
+alias edit_calendar='sudo rm /home/pablollh/app/utilidades/google_calendar.py && sudo nano /home/pablollh/app/utilidades/google_calendar.py'
+alias edit_reports='sudo rm /home/pablollh/app/utilidades/report_generator.py && sudo nano /home/pablollh/app/utilidades/report_generator.py'
+alias edit_parser='sudo rm /home/pablollh/app/utilidades/parser.py && sudo nano /home/pablollh/app/utilidades/parser.py'
+alias edit_vacantes='sudo rm /home/pablollh/app/utilidades/vacantes.py && sudo nano /home/pablollh/app/utilidades/vacantes.py'
+alias edit_linkedin='sudo rm /home/pablollh/app/utilidades/linkedin.py && sudo nano /home/pablollh/app/utilidades/linkedin.py'
 
 # === Alias para Utilidades ===
-alias edit_email='sudo rm /home/pablo/app/utilidades/email_scraper.py && sudo nano /home/pablo/app/utilidades/email_scraper.py'
-alias edit_salario='sudo rm /home/pablo/app/utilidades/salario.py && sudo nano /home/pablo/app/utilidades/salario.py'
-alias edit_scraping='sudo rm /home/pablo/app/utilidades/scraping.py && sudo nano /home/pablo/app/utilidades/scraping.py'
+alias edit_email='sudo rm /home/pablollh/app/utilidades/email_scraper.py && sudo nano /home/pablollh/app/utilidades/email_scraper.py'
+alias edit_salario='sudo rm /home/pablollh/app/utilidades/salario.py && sudo nano /home/pablollh/app/utilidades/salario.py'
+alias edit_scraping='sudo rm /home/pablollh/app/utilidades/scraping.py && sudo nano /home/pablollh/app/utilidades/scraping.py'
 # === Alias para chatbot e integraciones ===
-alias edit_chatbot='sudo rm /home/pablo/app/chatbot/chatbot.py && sudo nano /home/pablo/app/chatbot/chatbot.py'
-alias edit_nlp='sudo rm /home/pablo/app/chatbot/nlp.py && sudo nano /home/pablo/app/chatbot/nlp.py'
-alias edit_gpt='sudo rm /home/pablo/app/chatbot/gpt.py && sudo nano /home/pablo/app/chatbot/gpt.py'
-alias utils='sudo rm /home/pablo/app/chatbot/utils.py && sudo nano /home/pablo/app/chatbot/utils.py'
-alias edit_intent='sudo rm /home/pablo/app/chatbot/intents_handles.py && sudo nano /home/pablo/app/chatbot/intents_handler.py'
-alias edit_whatsapp='sudo rm /home/pablo/app/chatbot/integrations/whatsapp.py && sudo nano /home/pablo/app/chatbot/integrations/whatsapp.py'
-alias edit_telegram='sudo rm /home/pablo/app/chatbot/integrations/telegram.py && sudo nano /home/pablo/app/chatbot/integrations/telegram.py'
-alias edit_messenger='sudo rm /home/pablo/app/chatbot/integrations/messenger.py && sudo nano /home/pablo/app/chatbot/integrations/messenger.py'
-alias edit_instagram='sudo rm /home/pablo/app/chatbot/integrations/instagram.py && sudo nano /home/pablo/app/chatbot/integrations/instagram.py'
-alias edit_services='sudo rm /home/pablo/app/chatbot/integrations/services.py && sudo nano /home/pablo/app/chatbot/integrations/services.py'
-alias edit_common='sudo rm /home/pablo/app/chatbot/workflow/common.py && sudo nano /home/pablo/app/chatbot/workflow/common.py'
-alias edit_amigro='sudo rm /home/pablo/app/chatbot/workflow/amigro.py && sudo nano /home/pablo/app/chatbot/workflow/amigro.py'
-alias edit_executive='sudo rm /home/pablo/app/chatbot/workflow/executive.py && sudo nano /home/pablo/app/chatbot/workflow/executive.py'
-alias edit_huntred='sudo rm /home/pablo/app/chatbot/workflow/huntred.py && sudo nano /home/pablo/app/chatbot/workflow/huntred.py'
-alias edit_huntu='sudo rm /home/pablo/app/chatbot/workflow/huntu.py && sudo nano /home/pablo/app/chatbot/workflow/huntu.py'
+alias edit_chatbot='sudo rm /home/pablollh/app/chatbot/chatbot.py && sudo nano /home/pablollh/app/chatbot/chatbot.py'
+alias edit_nlp='sudo rm /home/pablollh/app/chatbot/nlp.py && sudo nano /home/pablollh/app/chatbot/nlp.py'
+alias edit_gpt='sudo rm /home/pablollh/app/chatbot/gpt.py && sudo nano /home/pablollh/app/chatbot/gpt.py'
+alias utils='sudo rm /home/pablollh/app/chatbot/utils.py && sudo nano /home/pablollh/app/chatbot/utils.py'
+alias edit_intent='sudo rm /home/pablollh/app/chatbot/intents_handles.py && sudo nano /home/pablollh/app/chatbot/intents_handler.py'
+alias edit_whatsapp='sudo rm /home/pablollh/app/chatbot/integrations/whatsapp.py && sudo nano /home/pablollh/app/chatbot/integrations/whatsapp.py'
+alias edit_telegram='sudo rm /home/pablollh/app/chatbot/integrations/telegram.py && sudo nano /home/pablollh/app/chatbot/integrations/telegram.py'
+alias edit_messenger='sudo rm /home/pablollh/app/chatbot/integrations/messenger.py && sudo nano /home/pablollh/app/chatbot/integrations/messenger.py'
+alias edit_instagram='sudo rm /home/pablollh/app/chatbot/integrations/instagram.py && sudo nano /home/pablollh/app/chatbot/integrations/instagram.py'
+alias edit_services='sudo rm /home/pablollh/app/chatbot/integrations/services.py && sudo nano /home/pablollh/app/chatbot/integrations/services.py'
+alias edit_common='sudo rm /home/pablollh/app/chatbot/workflow/common.py && sudo nano /home/pablollh/app/chatbot/workflow/common.py'
+alias edit_amigro='sudo rm /home/pablollh/app/chatbot/workflow/amigro.py && sudo nano /home/pablollh/app/chatbot/workflow/amigro.py'
+alias edit_executive='sudo rm /home/pablollh/app/chatbot/workflow/executive.py && sudo nano /home/pablollh/app/chatbot/workflow/executive.py'
+alias edit_huntred='sudo rm /home/pablollh/app/chatbot/workflow/huntred.py && sudo nano /home/pablollh/app/chatbot/workflow/huntred.py'
+alias edit_huntu='sudo rm /home/pablollh/app/chatbot/workflow/huntu.py && sudo nano /home/pablollh/app/chatbot/workflow/huntu.py'
 
 # === Alias para edición de views ===
-alias edit_views='sudo rm /home/pablo/app/views.py && sudo nano /home/pablo/app/views.py'
-alias edit_candidatos_views='sudo rm /home/pablo/app/views/candidatos_views.py && sudo nano /home/pablo/app/views/candidatos_views.py'
-alias edit_vacantes_views='sudo rm /home/pablo/app/views/vacantes_views.py && sudo nano /home/pablo/app/views/vacantes_views.py'
-alias edit_clientes_views='sudo rm /home/pablo/app/views/clientes_views.py && sudo nano /home/pablo/app/views/clientes_views.py'
-alias edit_chatbot_views='sudo rm /home/pablo/app/views/chatbot_views.py && sudo nano /home/pablo/app/views/chatbot_views.py'
-alias edit_utilidades_views='sudo rm /home/pablo/app/views/utilidades_views.py && sudo nano /home/pablo/app/views/utilidades_views.py'
-alias edit_integraciones_views='sudo rm /home/pablo/app/views/integraciones_views.py && sudo nano /home/pablo/app/views/integraciones_views.py'
-alias edit_auth_views='sudo rm /home/pablo/app/views/auth_views.py && sudo nano /home/pablo/app/views/auth_views.py'
+alias edit_views='sudo rm /home/pablollh/app/views.py && sudo nano /home/pablollh/app/views.py'
+alias edit_candidatos_views='sudo rm /home/pablollh/app/views/candidatos_views.py && sudo nano /home/pablollh/app/views/candidatos_views.py'
+alias edit_vacantes_views='sudo rm /home/pablollh/app/views/vacantes_views.py && sudo nano /home/pablollh/app/views/vacantes_views.py'
+alias edit_clientes_views='sudo rm /home/pablollh/app/views/clientes_views.py && sudo nano /home/pablollh/app/views/clientes_views.py'
+alias edit_chatbot_views='sudo rm /home/pablollh/app/views/chatbot_views.py && sudo nano /home/pablollh/app/views/chatbot_views.py'
+alias edit_utilidades_views='sudo rm /home/pablollh/app/views/utilidades_views.py && sudo nano /home/pablollh/app/views/utilidades_views.py'
+alias edit_integraciones_views='sudo rm /home/pablollh/app/views/integraciones_views.py && sudo nano /home/pablollh/app/views/integraciones_views.py'
+alias edit_auth_views='sudo rm /home/pablollh/app/views/auth_views.py && sudo nano /home/pablollh/app/views/auth_views.py'
 
-alias edit_forms='sudo rm /home/pablo/app/forms.py && sudo nano /home/pablo/app/forms.py'
-alias edit_serializers='sudo rm /home/pablo/app/serializers.py && sudo nano /home/pablo/app/serializers.py'
-alias edit_permissions='sudo rm /home/pablo/app/permissions.py && sudo nano /home/pablo/app/permissions.py'
-alias edit_middlewares='sudo rm /home/pablo/app/middleware.py && sudo nano /home/pablo/app/middleware.py'
+alias edit_forms='sudo rm /home/pablollh/app/forms.py && sudo nano /home/pablollh/app/forms.py'
+alias edit_serializers='sudo rm /home/pablollh/app/serializers.py && sudo nano /home/pablollh/app/serializers.py'
+alias edit_permissions='sudo rm /home/pablollh/app/permissions.py && sudo nano /home/pablollh/app/permissions.py'
+alias edit_middlewares='sudo rm /home/pablollh/app/middleware.py && sudo nano /home/pablollh/app/middleware.py'
 
 # === Alias para logs y procesos en segundo plano ===
 alias logs_celery='sudo journalctl -u celery -f'
 alias logs_gunicorn='sudo journalctl -u gunicorn -f'
 alias logs_nginx='sudo journalctl -u nginx -f'
-alias logs_all='sudo tail -f /home/pablo/logs/*.log'
+alias logs_all='sudo tail -f /home/pablollh/logs/*.log'
 
 # === Alias generales ===
 alias reload_aliases='source ~/.bashrc'
 alias rserver='sudo systemctl restart gunicorn nginx'
-alias check_logs='tail -f /home/pablo/logs/*.log'
-alias clear_logs='sudo rm -rf /home/pablo/logs/*.log && touch /home/pablo/logs/empty.log'
-alias edit_env='sudo nano /home/pablo/.env'
+alias check_logs='tail -f /home/pablollh/logs/*.log'
+alias clear_logs='sudo rm -rf /home/pablollh/logs/*.log && touch /home/pablollh/logs/empty.log'
+alias edit_env='sudo nano /home/pablollh/.env'
 alias edit_alias='nano ~/.bashrc'
 
 # === Alias para gestión del sistema ===
-alias migrate='python /home/pablo/manage.py migrate'
-alias makemigrations='python /home/pablo/manage.py makemigrations'
-alias collectstatic='python /home/pablo/manage.py collectstatic --noinput'
-alias shell='python /home/pablo/manage.py shell'
-alias monitor_django='python /home/pablo/manage.py runprofileserver'
-alias inspect_model='python /home/pablo/manage.py inspectdb'
+alias migrate='python /home/pablollh/manage.py migrate'
+alias makemigrations='python /home/pablollh/manage.py makemigrations'
+alias collectstatic='python /home/pablollh/manage.py collectstatic --noinput'
+alias shell='python /home/pablollh/manage.py shell'
+alias monitor_django='python /home/pablollh/manage.py runprofileserver'
+alias inspect_model='python /home/pablollh/manage.py inspectdb'
 alias restart_celery='sudo systemctl restart celery'
 alias restart_gunicorn='sudo systemctl restart gunicorn'
 alias restart_nginx='sudo systemctl restart nginx'
 alias smart_reload='cd /home/pablo && python manage.py check && (systemctl is-active --quiet celery && sudo systemctl restart celery) && (systemctl is-active --quiet gunicorn && sudo systemctl restart gunicorn)'
 alias restart_all='sudo systemctl restart gunicorn nginx celery-worker celery-beat celery-ml celery-scraping'
-alias up_git='sudo truncate -s 0 /home/pablo/logs/*.log && sudo truncate -s 0 /var/log/nginx/access.log && sudo truncate -s 0 /var/log/nginx/error.log && sudo truncate -s 0 /var/log/syslog && sudo truncate -s 0 /var/log/auth.log && sudo truncate -s 0 /var/log/dmesg && sudo truncate -s 0 /var/log/kern.log && sudo logrotate -f /etc/logrotate.conf && sudo journalctl --vacuum-time=1s && sudo journalctl --vacuum-size=50M && sleep 5'
+alias up_git='sudo truncate -s 0 /home/pablollh/logs/*.log && sudo truncate -s 0 /var/log/nginx/access.log && sudo truncate -s 0 /var/log/nginx/error.log && sudo truncate -s 0 /var/log/syslog && sudo truncate -s 0 /var/log/auth.log && sudo truncate -s 0 /var/log/dmesg && sudo truncate -s 0 /var/log/kern.log && sudo logrotate -f /etc/logrotate.conf && sudo journalctl --vacuum-time=1s && sudo journalctl --vacuum-size=50M && sleep 5'
 alias up2_git='cd /home/pablo && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
 alias zombie='sudo kill -9 $(ps -ef | grep "systemctl.*less" | awk "{print \$2,\$3}" | tr " " "\n" | sort -u) && sudo find /var/log -type f -size +10M'
 alias rmem='sudo sysctl vm.drop_caches=3 && sudo rm -rf /tmp/* && sudo journalctl --vacuum-time=10m && sleep 40 && swapon --show && sudo swapon -a'
@@ -425,7 +425,7 @@ from app.models import BusinessUnit
 business_unit = BusinessUnit.objects.get(id=1)
 
 # Ejecutar la función
-process_csv('/home/pablo/connections.csv', business_unit)
+process_csv('/home/pablollh/connections.csv', business_unit)
 
 
 ### PROCESAR CON LINKEDIN
@@ -487,7 +487,7 @@ from app.models import Person, BusinessUnit
 import csv
 
 # Ruta al archivo connections.csv
-csv_path = "/home/pablo/connections.csv"
+csv_path = "/home/pablollh/connections.csv"
 
 # Leer las URLs desde el archivo
 with open(csv_path, 'r', encoding='utf-8-sig') as f:
@@ -929,7 +929,7 @@ async def main():
 asyncio.run(main())
 
 
-# /home/pablo/app/utilidades/salario.py
+# /home/pablollh/app/utilidades/salario.py
 # Paquetes de importación
 import requests  # Para obtener tipos de cambio desde una API externa
 
@@ -1213,8 +1213,8 @@ if __name__ == "__main__":
     asyncio.run(ejecutar_pruebas_detalladas())
 
 
-nohup python /home/pablo/nlp_pruebas_optimizadas.py &> /home/pablo/logs/nlp_pruebas_optimizadas.out & 
-nohup python /home/pablo/nlp_pruebas.py &> /home/pablo/logs/nlp_pruebas.out &
+nohup python /home/pablollh/nlp_pruebas_optimizadas.py &> /home/pablollh/logs/nlp_pruebas_optimizadas.out & 
+nohup python /home/pablollh/nlp_pruebas.py &> /home/pablollh/logs/nlp_pruebas.out &
 
 import asyncio
 from app.chatbot.gpt import GPTHandler
@@ -1377,39 +1377,39 @@ time python manage.py migrate && echo "Migracion Lista"
 sleep 10
 python -c "import asyncio; from app.chatbot.nlp import NLPProcessor; nlp = NLPProcessor(); print(asyncio.run(nlp.analyze('Tengo experiencia en Python')))" && echo "Prueba NLP Ejecutada"
 sleep 10
-python /home/pablo/app/chatbot/generate_embeddings.py > /home/pablo/logs/generate_embeddings.log 2>&1
+python /home/pablollh/app/chatbot/generate_embeddings.py > /home/pablollh/logs/generate_embeddings.log 2>&1
 echo "Generando y procesando los embeddings"
 
 # Corregir propietario y grupo
-sudo chown -R pablo:ai_huntred /home/pablo/
+sudo chown -R pablo:ai_huntred /home/pablollh/
 
 # Corregir permisos de directorios
-sudo find /home/pablo/ -type d -exec chmod 775 {} \;
+sudo find /home/pablollh/ -type d -exec chmod 775 {} \;
 
 # Corregir permisos de archivos
-sudo find /home/pablo/ -type f -exec chmod 664 {} \;
+sudo find /home/pablollh/ -type f -exec chmod 664 {} \;
 
 # Asegurar permisos de ejecución para el entorno virtual
-sudo chmod -R u+x /home/pablo/venv/bin/
+sudo chmod -R u+x /home/pablollh/venv/bin/
 
 # Asegurar permisos para logs principales
-sudo touch /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
-sudo chown pablo:ai_huntred /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
-sudo chmod 664 /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
+sudo touch /home/pablollh/logs/app.log /home/pablollh/logs/gunicorn.log /home/pablollh/logs/celery.log
+sudo chown pablo:ai_huntred /home/pablollh/logs/app.log /home/pablollh/logs/gunicorn.log /home/pablollh/logs/celery.log
+sudo chmod 664 /home/pablollh/logs/app.log /home/pablollh/logs/gunicorn.log /home/pablollh/logs/celery.log
 
 # Limpiar archivos de log innecesarios
-sudo rm -f /home/pablo/logs/'*.log'
-sudo find /home/pablo/logs -name "email_scraper_*.log" -exec rm -f {} \;
-sudo find /home/pablo/logs -name "*.log" -not -name "app.log" -not -name "gunicorn.log" -not -name "celery.log" -not -name "permissions.log" -exec rm -f {} \;
+sudo rm -f /home/pablollh/logs/'*.log'
+sudo find /home/pablollh/logs -name "email_scraper_*.log" -exec rm -f {} \;
+sudo find /home/pablollh/logs -name "*.log" -not -name "app.log" -not -name "gunicorn.log" -not -name "celery.log" -not -name "permissions.log" -exec rm -f {} \;
 
 # Asegurar permisos para ml_models
-sudo chown pablo:ai_huntred /home/pablo/app/models/ml_models
-sudo chmod 775 /home/pablo/app/models/ml_models
-sudo setfacl -m g:ai_huntred:rwx /home/pablo/app/models/ml_models
-sudo setfacl -d -m g:ai_huntred:rwx /home/pablo/app/models/ml_models
+sudo chown pablo:ai_huntred /home/pablollh/app/models/ml_models
+sudo chmod 775 /home/pablollh/app/models/ml_models
+sudo setfacl -m g:ai_huntred:rwx /home/pablollh/app/models/ml_models
+sudo setfacl -d -m g:ai_huntred:rwx /home/pablollh/app/models/ml_models
 
-ls -l /home/pablo/
-ls -l /home/pablo/logs /home/pablo/staticfiles /home/pablo/media /home/pablo/app/models/ml_models
-getfacl /home/pablo/logs /home/pablo/staticfiles /home/pablo/media /home/pablo/app/models/ml_models
+ls -l /home/pablollh/
+ls -l /home/pablollh/logs /home/pablollh/staticfiles /home/pablollh/media /home/pablollh/app/models/ml_models
+getfacl /home/pablollh/logs /home/pablollh/staticfiles /home/pablollh/media /home/pablollh/app/models/ml_models
 
 

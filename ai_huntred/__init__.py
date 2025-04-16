@@ -1,4 +1,4 @@
-# Ubicación del archivo: /home/pablo/ai_huntred/tasks/__init__.py
+# Ubicación del archivo: /home/pablollh/ai_huntred/tasks/__init__.py
 # Inicialización de tareas para la aplicación ai_huntred.
 
 from __future__ import absolute_import, unicode_literals

@@ -39,7 +39,7 @@ CATALOG_PATHS = {
     "global": {"esco": "/home/pablo/skills_data/ESCO_occup_skills.json"},
     "es": {
         "skills_relax": "/home/pablo/skills_data/skill_db_relax_20_pretty.json",
-        "skills_opportunities": "/home/pablo/app/utilidades/catalogs/skills.json"
+        "skills_opportunities": "/home/pablollh/app/utilidades/catalogs/skills.json"
     }
 }
 COMBINED_SKILLS_FILE = "/home/pablo/skills_data/skills_combined.json"
