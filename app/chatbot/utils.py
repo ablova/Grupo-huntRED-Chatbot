@@ -19,7 +19,7 @@ from itsdangerous import URLSafeTimedSerializer
 from typing import Dict, List, Any, Optional
 from difflib import get_close_matches
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
-from app.chatbot.chatbot import nlp_processor as NLPProcessor
+from app.chatbot.nlp import NLPProcessor
 
 
 # Variable global para la instancia de NLPProcessor

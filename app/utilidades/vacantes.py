@@ -1,5 +1,4 @@
-# Ubicación: /home/pablollh/app/utilidades/vacantes.py
-
+# /home/pablollh/app/utilidades/vacantes.py
 import requests
 import sys
 import logging
@@ -17,18 +16,15 @@ from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
-from app.chatbot.chatbot import nlp_processor as NLPProcessor
+from app.chatbot.utils import get_nlp_processor  # Importar desde utils.py
 from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
-#from app.chatbot.integrations.whatsapp import registro_amigro, nueva_posicion_amigro #Importaciones locales
 from app.chatbot.integrations.services import send_email, send_message
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.chatbot.utils import prioritize_interests, get_positions_by_skills
-#import chainlit as cl
-#from some_ml_model import match_candidate_to_job  # Tu modelo personalizado
 
-
-# Configuración del logger En el módulo utilidades
+# Configuración del logger
 logger = logging.getLogger(__name__)
+
 # Verificación para saltar carga pesada durante migraciones
 SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
 
@@ -36,7 +32,9 @@ SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
 if not SKIP_HEAVY_INIT:
     embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
 else:
-    embed = None  # O un objeto dummy si es necesario en otras partes del código
+    embed = None
+
+
 def main(message: str) -> None:
     """
     Función principal para procesar mensajes y sugerir vacantes.

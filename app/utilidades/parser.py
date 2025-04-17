@@ -14,6 +14,8 @@ from contextlib import ExitStack
 from django.utils.timezone import now
 from docx import Document
 from asgiref.sync import sync_to_async
+from app.chatbot.utils import get_nlp_processor  # Reemplazar importación
+from app.chatbot.nlp import NLPProcessor  # Importar la clase para instanciar por idioma
 
 # Project imports
 
@@ -248,6 +250,54 @@ class CVParser:
         self.business_unit = business_unit
         self.DIVISION_SKILLS = load_division_skills()
 
+    def parse(self, text: str) -> Dict:
+        """Procesa el texto del CV usando NLPProcessor con detección de idioma."""
+        NLP_PROCESSORS = {}  # Diccionario para almacenar instancias por idioma
+        # Validación inicial
+        if not text or len(text.strip()) < 10:
+            logger.warning("⚠️ Texto demasiado corto para análisis")
+            return {}
+
+        # Detectar idioma
+        detected_lang = detect_language(text)
+
+        # Verificar si ya existe una instancia para el idioma detectado
+        if detected_lang not in NLP_PROCESSORS:
+            # Usar la instancia global para español, o crear una nueva para otros idiomas
+            if detected_lang == 'es':
+                NLP_PROCESSORS[detected_lang] = get_nlp_processor()
+            else:
+                NLP_PROCESSORS[detected_lang] = NLPProcessor(
+                    language=detected_lang, mode="candidate", analysis_depth="deep"
+                )
+        
+        # Obtener la instancia correspondiente
+        nlp_processor = NLP_PROCESSORS[detected_lang]
+        if nlp_processor is None:
+            logger.error("No se pudo obtener NLPProcessor")
+            return {}
+
+        # Procesar el texto
+        try:
+            analysis = nlp_processor.analyze(text)
+            skills = analysis.get("skills", {"technical": [], "soft": [], "tools": [], "certifications": []})
+            entities = {
+                "email": "",
+                "phone": "",
+            }
+            return {
+                "email": entities["email"],
+                "phone": entities["phone"],
+                "skills": skills,
+                "experience": analysis.get("experience", []),
+                "education": analysis.get("education", []),
+                "sentiment": analysis.get("sentiment", "neutral"),
+                "experience_level": analysis.get("experience_level", {})
+            }
+        except Exception as e:
+            logger.error(f"❌ Error analizando texto del CV: {e}")
+            return {}
+
     def extract_attachments(self, message) -> List[Dict]:
         """Extrae adjuntos de un mensaje de correo."""
         attachments = []
@@ -283,54 +333,6 @@ class CVParser:
         except Exception as e:
             logger.error(f"❌ Error extrayendo texto de {file_path}: {e}")
             return None
-
-    def parse(self, text: str) -> Dict:
-        """Procesa el texto del CV usando NLPProcessor con detección de idioma."""
-        # Diccionario global para almacenar instancias de NLPProcessor por idioma
-        from app.chatbot.chatbot import nlp_processor as NLPProcessorGlobal
-        NLP_PROCESSORS = {
-            'es': NLPProcessorGlobal  # Instancia global para español
-        }
-        # Validación inicial
-        if not text or len(text.strip()) < 10:
-            logger.warning("⚠️ Texto demasiado corto para análisis")
-            return {}
-
-        # Detectar idioma
-        detected_lang = detect_language(text)
-
-        # Verificar si ya existe una instancia para el idioma detectado
-        if detected_lang not in NLP_PROCESSORS:
-            # Crear una nueva instancia para el idioma detectado
-            NLP_PROCESSORS[detected_lang] = NLPProcessorGlobal.__class__(
-                language=detected_lang, 
-                mode="candidate", 
-                analysis_depth="deep"
-            )
-        
-        # Obtener la instancia correspondiente
-        nlp_processor = NLP_PROCESSORS[detected_lang]
-
-        # Procesar el texto
-        try:
-            analysis = nlp_processor.analyze(text)
-            skills = analysis.get("skills", {"technical": [], "soft": [], "tools": [], "certifications": []})
-            entities = {
-                "email": "",
-                "phone": "",
-            }  # Simplificación: asumimos que NLPProcessor no extrae email/phone directamente
-            return {
-                "email": entities["email"],
-                "phone": entities["phone"],
-                "skills": skills,
-                "experience": analysis.get("experience", []),
-                "education": analysis.get("education", []),
-                "sentiment": analysis.get("sentiment", "neutral"),
-                "experience_level": analysis.get("experience_level", {})
-            }
-        except Exception as e:
-            logger.error(f"❌ Error analizando texto del CV: {e}")
-            return {}
 
     async def _update_candidate(self, candidate: Person, parsed_data: Dict, file_path: Path):
         """Actualiza un candidato existente de forma asíncrona."""

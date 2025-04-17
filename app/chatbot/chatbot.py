@@ -39,13 +39,6 @@ GPT_ENABLED = True
 ML_ENABLED = True
 NLP_ENABLED = True
 
-# Instancia global de NLPProcessor
-if NLP_ENABLED:
-    
-    from app.chatbot.nlp import NLPProcessor
-    nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
-    logger.info("✅ NLPProcessor inicializado globalmente desde chatbot")
-
 class ChatBotHandler:
     def __init__(self):
         self.gpt_handler = GPTHandler()
@@ -68,10 +61,13 @@ class ChatBotHandler:
             ]
         }
         try:
-            self.nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
+            from app.chatbot.utils import get_nlp_processor
+            self.nlp_processor = get_nlp_processor() if NLP_ENABLED else None
         except Exception as e:
             logger.error(f"Error inicializando NLPProcessor: {e}")
-            self.nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick') if NLP_ENABLED else None
+            self.nlp_processor = None
+        if self.nlp_processor:
+            logger.info("✅ NLPProcessor inicializado en ChatBotHandler")
 
     def get_business_unit_key(self, business_unit) -> str:
         """Obtiene una clave segura para el business unit."""

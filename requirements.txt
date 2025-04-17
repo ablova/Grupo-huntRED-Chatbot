@@ -153,7 +153,7 @@ prometheus_client
 prompt_toolkit
 propcache
 proto-plus
-protobuf
+protobuf<6.0.0
 psutil
 psycopg2-binary
 ptyprocess
@@ -250,3 +250,5 @@ wrapt
 xxhash
 yarl
 zopfli
+exceptiongroup
+rdflib

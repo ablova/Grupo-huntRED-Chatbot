@@ -18,7 +18,7 @@ from playwright.async_api import async_playwright
 from playwright.sync_api import sync_playwright
 from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
-from app.chatbot.chatbot import nlp_processor as NLPProcessor
+from app.chatbot.utils import get_nlp_processor  # Importar desde utils.py
 from app.utilidades.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
@@ -44,7 +44,10 @@ CATALOGS_BASE_PATH = "/home/pablollh/app/utilidades/catalogs"
 # =========================================================
 
 def extract_skills(text: str, unit: str) -> List[str]:
-    nlp = NLPProcessor(language="es", mode="candidate", analysis_depth="deep")
+    nlp = get_nlp_processor()  # Usar instancia singleton
+    if nlp is None:
+        logger.error(f"No se pudo obtener NLPProcessor para unidad {unit}")
+        return []
     skills_dict = nlp.extract_skills(text)
     skills = list(set(skills_dict["technical"] + skills_dict["soft"] + skills_dict["certifications"] + skills_dict["tools"]))
     logger.info(f"Habilidades extraídas (deep) para {unit}: {skills}")

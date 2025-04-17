@@ -906,6 +906,11 @@ def get_business_unit_domain(business_unit):
 
 async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_name):
     data = parsear_mensaje(mensaje)
+    required_keys = ['moneda', 'tipo', 'frecuencia']
+    if not all(key in data for key in required_keys):
+        response = "Faltan datos requeridos (moneda, tipo, frecuencia)."
+        await send_message(platform, user_id, response, business_unit_name)
+        return response
     if 'salario_bruto' not in data and 'salario_neto' not in data:
         response = "Por favor, proporciona un salario válido (ej. 'salario bruto = 20k MXN mensual')."
         await send_message(platform, user_id, response, business_unit_name)
@@ -988,13 +993,12 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     subsidio = 0.0  # Pendiente de implementar si deseas lógica específica
 
     # Construir mensaje con formato mejorado
-    msg = f"🤔 *Con base en el salario:* `{mensaje}`\n\n"
-    msg += "```\n"
+    msg = f"🤔 Con base en el salario: {mensaje}\n\n"
     msg += f"💰 Bruto Mensual : {salario_bruto_orig:>10,.2f} {data['moneda']} ({salario_bruto_mxn:,.2f} MXN)\n"
     msg += f"🏠 Neto Mensual  : {salario_neto_orig:>10,.2f} {data['moneda']} ({salario_neto_mxn:,.2f} MXN)\n"
-    msg += "```\n"
-    msg += "📊 *Detalles del cálculo:*\n"
-    msg += "```\n"
+    msg += "\n"
+    msg += "📊 Detalles del cálculo:\n"
+    msg += "\n"
     msg += f"🏛️ ISR            : {isr:>10,.2f} MXN\n"
     msg += f"🏥 IMSS           : {imss:>10,.2f} MXN\n"
     msg += f"🏡 Infonavit      : {infonavit_descuento:>10,.2f} MXN\n"
@@ -1005,18 +1009,23 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
         msg += f"🎟️ Vales (exento): {monto_vales:>10,.2f} MXN\n"
     if data['bono'] > 0:
         msg += f"🎁 Bono Mensual  : {bono_mensual_orig:>10,.2f} {data['moneda']} ({bono_mensual_mxn:,.2f} MXN)\n"
-    msg += "```\n"
+    msg += "\n"
 
     # Leyenda si hay valores asumidos en 0
     campos_no_provistos = []
-    if not incluye_prestaciones or monto_vales == 0: campos_no_provistos.append("Vales")
-    if not fondo_ahorro: campos_no_provistos.append("Fondo de Ahorro")
-    if credito_infonavit == 0: campos_no_provistos.append("Infonavit")
-    if pension_alimenticia == 0: campos_no_provistos.append("Pensión Alimenticia")
-    if not aplicar_subsidio or subsidio == 0: campos_no_provistos.append("Subsidio al Empleo")
-    
+    if not incluye_prestaciones or monto_vales == 0:
+        campos_no_provistos.append("Vales")
+    if not fondo_ahorro:
+        campos_no_provistos.append("Fondo de Ahorro")
+    if credito_infonavit == 0:
+        campos_no_provistos.append("Infonavit")
+    if pension_alimenticia == 0:
+        campos_no_provistos.append("Pensión Alimenticia")
+    if not aplicar_subsidio or subsidio == 0:
+        campos_no_provistos.append("Subsidio al Empleo")
+
     if campos_no_provistos:
-        msg += f"📝 *Nota:* Basado en los datos provistos, los valores de {', '.join(campos_no_provistos)} se calculan en 0.\n"
+        msg += f"📝 Nota: Basado en los datos provistos, los valores de {', '.join(campos_no_provistos)} se calculan en 0.\n"
 
     # Comparativa bidireccional
     pais_origen = {'MXN': 'México', 'USD': 'USA', 'NIO': 'Nicaragua', 'COP': 'Colombia', 'ARS': 'Argentina', 'BRL': 'Brasil'}.get(data['moneda'], 'Otro')
@@ -1033,35 +1042,31 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
     adjustment_bigmac_orig = DATOS_BIGMAC.get(pais_origen, 5.0) / DATOS_BIGMAC['México']
 
     # Construir tabla comparativa dinámica
-    msg += "\n🌍 *Comparativa Salario Neto:*\n"
-    msg += "```\n"
+    coli_part = f"{salario_neto_orig * adjustment_coli_orig:>10,.2f} {data['moneda']}" if data['moneda'] != 'MXN' else ''
+    ppa_part = f"{salario_neto_orig * adjustment_ppa_orig:>10,.2f} {data['moneda']}" if data['moneda'] != 'MXN' else ''
+    bigmac_part = f"{salario_neto_orig * adjustment_bigmac_orig:>10,.2f} {data['moneda']}" if data['moneda'] != 'MXN' else ''
+
+    msg += "\n🌍 Comparativa Salario Neto:\n"
+    msg += "\n"
     msg += f"{'':<15} {'🇲🇽 México':<15} {(f'🌎 {pais_origen}' if data['moneda'] != 'MXN' else ''):<15}\n"
     msg += f"{'-' * 15} {'-' * 15} {'-' * 15 if data['moneda'] != 'MXN' else ''}\n"
-    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_coli_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_ppa_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
-    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {(f'{salario_neto_orig * adjustment_bigmac_orig:>10,.2f} {data['moneda']}' if data['moneda'] != 'MXN' else '')}\n"
-    msg += "```\n"
+    msg += f"📊 COLI         {salario_neto_mxn * adjustment_coli_mx:>10,.2f} MXN {coli_part}\n"
+    msg += f"⚖️ PPA          {salario_neto_mxn * adjustment_ppa_mx:>10,.2f} MXN {ppa_part}\n"
+    msg += f"🍔 BigMac Index {salario_neto_mxn * adjustment_bigmac_mx:>10,.2f} MXN {bigmac_part}\n"
+    msg += "\n"
 
     # Obtener el dominio desde ConfiguracionBU de manera asíncrona
     try:
         business_unit = await sync_to_async(BusinessUnit.objects.get)(name=business_unit_name)
         config = await sync_to_async(lambda: business_unit.configuracionbu)()
-        if config and config.dominio_bu:
-            parsed_url = urlparse(config.dominio_bu)
-            domain = parsed_url.netloc or parsed_url.path  # Extrae el dominio limpio
-            domain = domain.replace('www.', '')  # Elimina 'www.' si existe
-        else:
-            domain = "huntred.com"  # Dominio por defecto si no hay configuración
-    except BusinessUnit.DoesNotExist:
-        domain = "huntred.com"  # Dominio por defecto si la unidad no existe
-    except ConfiguracionBU.DoesNotExist:
-        domain = "huntred.com"  # Dominio por defecto si no hay ConfiguracionBU
-    except Exception as e:
+        domain = urlparse(config.dominio_bu).netloc or urlparse(config.dominio_bu).path
+        domain = domain.replace('www.', '')
+    except (BusinessUnit.DoesNotExist, ConfiguracionBU.DoesNotExist, AttributeError) as e:
         logger.error(f"Error al obtener dominio para {business_unit_name}: {e}")
-        domain = "huntred.com"  # Fallback en caso de error inesperado
+        domain = "huntred.com"
 
     # Añadir referencia dinámica
-    msg += f"\n📚 *Referencia:* https://{domain}/salario/"
+    msg += f"\n📚 Referencia: https://{domain}/salario/"
 
     await send_message(platform, user_id, msg, business_unit_name)
     return msg

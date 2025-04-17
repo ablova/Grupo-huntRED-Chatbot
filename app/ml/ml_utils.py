@@ -1,16 +1,18 @@
 # /home/pablollh/app/ml/ml_utils.py
 
 from typing import List, Dict
-from app.chatbot.chatbot import nlp_processor as NLPProcessor
+from app.chatbot.utils import get_nlp_processor  # Reemplazar importación
 import logging
 logger = logging.getLogger(__name__)
-
 
 def calculate_match_percentage(candidate_skills: List[str], required_skills: List[str], classifier=None) -> float:
     if not required_skills:
         return 0.0
     if classifier is None:
-        classifier = NLPProcessor(mode="candidate", analysis_depth="deep")
+        classifier = get_nlp_processor()  # Usar instancia singleton
+        if classifier is None:
+            logger.error("No se pudo obtener NLPProcessor")
+            return 0.0
     candidate_skills_text = " ".join(candidate_skills)
     required_skills_text = " ".join(required_skills)
     classified_candidate = classifier.analyze(candidate_skills_text)["skills"]
