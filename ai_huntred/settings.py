@@ -119,8 +119,8 @@ CACHES = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME', default='ai_huntred'),
-        'USER': env('DB_USER', default='postgres'),
+        'NAME': env('DB_NAME', default='g_huntred_ai_db'),
+        'USER': env('DB_USER', default='g_huntred_pablo'),
         'PASSWORD': env('DB_PASSWORD', default=''),
         'HOST': env('DB_HOST', default='localhost'),
         'PORT': env('DB_PORT', default='5432'),

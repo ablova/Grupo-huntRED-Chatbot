@@ -57,14 +57,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Asegurar permisos del archivo de log
-try:
-    if os.path.exists(log_file):
-        os.chmod(log_file, 0o660)
-        os.chown(log_file, os.getuid(), 1004)
-except Exception as e:
-    logger.warning(f"No se pudo configurar permisos para {log_file}: {str(e)}")
-
 # Configuración del servidor IMAP
 IMAP_SERVER = env("IMAP_SERVER", default="mail.huntred.com")
 EMAIL_ACCOUNT = env("EMAIL_ACCOUNT", default="pablo@huntred.com")
