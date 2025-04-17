@@ -11,7 +11,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/home/pablo/logs/ml_opt.log'),
+        logging.FileHandler('/home/pablollh/logs/ml_opt.log'),
         logging.StreamHandler()
     ]
 )

@@ -1,4 +1,4 @@
-# /home/pablo/app/tasks.py
+# /home/pablollh/app/tasks.py
 
 import logging
 import asyncio
@@ -215,7 +215,7 @@ def train_ml_task(self, business_unit_id=None):
             logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
             pipeline = GrupohuntREDMLPipeline(business_unit=bu.name)
             try:
-                df = pd.read_csv('/home/pablo/app/model/training_data.csv')
+                df = pd.read_csv('/home/pablollh/app/model/training_data.csv')
                 X_train, X_test, y_train, y_test = pipeline.preprocess_data(df)
                 pipeline.build_model(input_dim=X_train.shape[1])
                 pipeline.train_model(X_train, y_train, X_test, y_test)
@@ -243,7 +243,7 @@ def ejecutar_ml(self):
             logger.info(f"📊 Entrenando modelo para BU: {bu.name}")
             pipeline = GrupohuntREDMLPipeline(bu.name)
             # 1) Cargar CSV con pandas, ya que 'pipeline.load_data()' no existe
-            df = pd.read_csv('/home/pablo/app/model/training_data.csv')
+            df = pd.read_csv('/home/pablollh/app/model/training_data.csv')
             # 2) Preprocesar
             X_train, X_test, y_train, y_test = pipeline.preprocess_data(df)
             # 3) build_model con el input_dim necesario
@@ -278,7 +278,7 @@ def train_matchmaking_model_task(self, business_unit_id=None):
 
         pipeline = GrupohuntREDMLPipeline(bu.name)
         # Si quieres leer un CSV arbitrario
-        df = pd.read_csv('/home/pablo/app/model/training_data.csv') 
+        df = pd.read_csv('/home/pablollh/app/model/training_data.csv') 
         # Y luego:
         X_train, X_test, y_train, y_test = pipeline.preprocess_data(df)
         pipeline.build_model(input_dim=X_train.shape[1])  
@@ -604,7 +604,7 @@ def process_linkedin_api_data_task(member_ids: list):
     logger.info("Datos vía API LinkedIn completado.")
 
 @shared_task
-def process_linkedin_csv_task(csv_path: str = "/home/pablo/connections.csv"):
+def process_linkedin_csv_task(csv_path: str = "/home/pablollh/connections.csv"):
     """
     Procesa el CSV de conexiones de LinkedIn.
     """
@@ -637,7 +637,7 @@ def scrape_single_profile_task(profile_url: str):
     return data
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def process_csv_and_scrape_task(self, csv_path: str = "/home/pablo/connections.csv"):
+def process_csv_and_scrape_task(self, csv_path: str = "/home/pablollh/connections.csv"):
     """
     Procesa el archivo CSV y ejecuta scraping de los perfiles.
     Al finalizar, se ejecuta la función de deduplicación para eliminar candidatos duplicados.

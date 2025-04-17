@@ -57,9 +57,9 @@ Algunas rutas y funciones son ejemplos; ajusta a tu estructura de proyecto.
 """
 
 CONFIG = {
-    "OUTPUT_DIR": "/home/pablo/skills_data",
+    "OUTPUT_DIR": "/home/pablollh/skills_data",
     "COMBINED_DB_PATH": os.path.join("OUTPUT_DIR", "combined_skills.json"),
-    "CACHE_DB_PATH": "/home/pablo/cache/skill_cache.db"
+    "CACHE_DB_PATH": "/home/pablollh/cache/skill_cache.db"
 }
 
 # Diccionario de modelos por idioma
@@ -100,7 +100,7 @@ def load_skill_dbs() -> dict:
     """
     Carga la base de datos de habilidades desde un archivo JSON o devuelve un diccionario vacío si no existe.
     """
-    db_path = CONFIG.get("COMBINED_DB_PATH", "/home/pablo/skills_data/combined_skills.json")
+    db_path = CONFIG.get("COMBINED_DB_PATH", "/home/pablollh/skills_data/combined_skills.json")
 
     if not os.path.exists(db_path):
         logger.warning(f"⚠️ {db_path} no existe. Devolviendo base de datos vacía.")
@@ -996,7 +996,7 @@ except ImportError:
     TRANSFORMERS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
-log_file = '/home/pablo/logs/nlp.log'
+log_file = '/home/pablollh/logs/nlp.log'
 try:
     handler = logging.FileHandler(log_file)
     handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s'))
@@ -1014,7 +1014,7 @@ MODEL_LANGUAGES = {
 }
 
 # Directorios de catálogos
-CATALOG_BASE_PATH = "/home/pablo/skills_data"
+CATALOG_BASE_PATH = "/home/pablollh/skills_data"
 UTILITIES_CATALOG_PATH = "/home/pablollh/app/utilidades/catalogs"
 
 CATALOGS = {
@@ -1286,7 +1286,7 @@ from app.chatbot.migration_check import skip_on_migrate
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[logging.FileHandler('/home/pablo/logs/nlp.log'), logging.StreamHandler()]
+    handlers=[logging.FileHandler('/home/pablollh/logs/nlp.log'), logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
@@ -1302,11 +1302,11 @@ RETRY_ATTEMPTS = 3
 
 # Rutas de archivos
 FILE_PATHS = {
-    "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
-    "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
-    "tabiya_skills": "/home/pablo/skills_data/tabiya/tabiya-esco-v1.1.1/csv/skills.csv",
+    "relax_skills": "/home/pablollh/skills_data/skill_db_relax_20.json",
+    "esco_skills": "/home/pablollh/skills_data/ESCO_occup_skills.json",
+    "tabiya_skills": "/home/pablollh/skills_data/tabiya/tabiya-esco-v1.1.1/csv/skills.csv",
     "opportunity_catalog": "/home/pablollh/app/utilidades/catalogs/skills.json",
-    "intents": "/home/pablo/chatbot_data/intents.json"
+    "intents": "/home/pablollh/chatbot_data/intents.json"
 }
 
 # Configuraciones

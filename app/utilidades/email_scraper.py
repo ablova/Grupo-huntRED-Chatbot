@@ -29,10 +29,10 @@ from prometheus_client import Counter, Histogram, CollectorRegistry, start_http_
 
 # Configuración de entorno
 env = environ.Env()
-environ.Env.read_env(env_file='/home/pablo/.env')
+environ.Env.read_env(env_file='/home/pablollh/.env')
 
 # Configuración de logging
-log_dir = "/home/pablo/logs"
+log_dir = "/home/pablollh/logs"
 log_file = os.path.join(log_dir, f"email_scraper_{datetime.now().strftime('%Y%m%d')}.log")
 
 # Asegurar que el directorio de logs exista y tenga permisos correctos

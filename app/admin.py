@@ -761,7 +761,7 @@ class TaskExecutionAdmin(admin.ModelAdmin):
                 train_ml_task.delay()
                 messages.success(request, "Entrenamiento de ML iniciado")
             elif task_name == 'process_csv':
-                csv_path = "/home/pablo/connections.csv"  # Ajusta esta ruta
+                csv_path = "/home/pablollh/connections.csv"  # Ajusta esta ruta
                 process_linkedin_csv_task.delay(csv_path)
                 messages.success(request, "Procesamiento de CSV LinkedIn iniciado")
         except Exception as e:

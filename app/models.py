@@ -867,7 +867,7 @@ class UserInteractionLog(models.Model):
     # Configuraciones adicionales
 #    folder_location = models.CharField(max_length=255, help_text="Nombre del folder en Mega.nz")
 #    image_prefix = models.CharField(max_length=50, help_text='ML_')
-#    local_directory = models.CharField(max_length=255, default='/home/pablo/media', help_text="Directorio local temporal para imágenes")
+#    local_directory = models.CharField(max_length=255, default='/home/pablollh/media', help_text="Directorio local temporal para imágenes")
 
     # Contador de imágenes
 #    image_counter = models.PositiveIntegerField(default=1)

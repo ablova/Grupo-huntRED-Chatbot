@@ -27,7 +27,7 @@ git config --global user.email "ablova@gmail.com"
 
 #Ejecutar desde el SERVIDOR Donde se realizará el clonado
 # Truncar logs antes de iniciar el despliegue
-sudo truncate -s 0 /home/pablo/logs/*.log &&
+sudo truncate -s 0 /home/pablollh/logs/*.log &&
 sudo truncate -s 0 /var/log/nginx/access.log &&
 sudo truncate -s 0 /var/log/nginx/error.log &&
 sudo truncate -s 0 /var/log/syslog &&
@@ -48,10 +48,10 @@ git clean -fd &&
 git log -1 &&
 sudo systemctl restart gunicorn nginx &&
 python manage.py makemigrations && python manage.py collectstatic && python manage.py migrate && python manage.py shell 
-mkdir -p /home/pablo/logs &&
-touch /home/pablo/logs/debug.log && 
-chmod 664 /home/pablo/logs/debug.log &&
-chown pablo:pablo /home/pablo/logs/debug.log
+mkdir -p /home/pablollh/logs &&
+touch /home/pablollh/logs/debug.log && 
+chmod 664 /home/pablollh/logs/debug.log &&
+chown pablo:pablo /home/pablollh/logs/debug.log
 
 
 python manage.py makemigrations &&
@@ -60,13 +60,13 @@ python manage.py collectstatic &&
 sudo systemctl restart gunicorn nginx celery &&
 sudo journalctl -u gunicorn &&
 sudo journalctl -u nginx
-cd /home/pablo/logs && cat debug.log
+cd /home/pablollh/logs && cat debug.log
 # Ver solo errores nuevos del sistema (e.g., gunicorn o nginx)
 sudo journalctl -u gunicorn -p err --since "10 minutes ago" -f
 sudo journalctl -u nginx -p err --since "10 minutes ago" -f
 
 # Filtrar errores recientes en logs específicos
-grep "ERROR" /home/pablo/logs/error.log
+grep "ERROR" /home/pablollh/logs/error.log
 grep "ERROR" /var/log/nginx/error.log
 
 
@@ -308,7 +308,7 @@ async def handle_incoming_message(request):
         return JsonResponse({'error': f"Error inesperado: {e}"}, status=500)
 
 
-        sudo rm /home/pablollh/app/chatbot.py && sudo nano /home/pablollh/app/chatbot.py && sudo systemctl restart gunicorn nginx && sudo truncate -s 0 /home/pablo/logs/*.log
+        sudo rm /home/pablollh/app/chatbot.py && sudo nano /home/pablollh/app/chatbot.py && sudo systemctl restart gunicorn nginx && sudo truncate -s 0 /home/pablollh/logs/*.log
 
 
 POR SI NO JALA LA VERSION BRINDADA.
