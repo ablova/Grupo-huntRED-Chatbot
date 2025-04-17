@@ -1,4 +1,4 @@
-# /home/pablollh/app/apps.py
+# /home/pablo/app/apps.py
 import os
 import logging
 from django.apps import AppConfig as DjangoAppConfig

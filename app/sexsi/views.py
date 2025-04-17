@@ -1,4 +1,4 @@
- # Ubicacion SEXSI -- /home/pablollh/app/sexsi/views.py
+ # Ubicacion SEXSI -- /home/pablo/app/sexsi/views.py
 import paypalrestsdk
 from django.shortcuts import redirect
 from django.views.generic import ListView

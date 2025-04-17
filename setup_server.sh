@@ -3,16 +3,18 @@
 # Nombre: setup_server.sh
 # Descripción:
 #   Despliega una aplicación Django en una VM Ubuntu 22.04 LTS limpia:
-#   - Crea grupo 'ai_huntred' y usuario 'pablollh'.
+#   - Crea grupo 'ai_huntred' y usuario 'pablo'.
 #   - Instala la última versión estable de Git (LTS) usando el PPA oficial.
 #   - Instala y configura Django, Gunicorn, PostgreSQL, Redis, Nginx, Celery, y Certbot SSL.
 #   - Purga y reinstala PostgreSQL/Redis; crea DB, corre migraciones, carga datos iniciales.
 #   - Configura Redis para systemd y optimiza uso de CPU.
-#   - Clona el repositorio Grupo-huntRED-Chatbot en /home/pablollh con autenticación.
+#   - Clona el repositorio Grupo-huntRED-Chatbot en /home/pablo con autenticación.
 #   - Instala requirements en un entorno virtual, incluyendo sentry-sdk.
 #   - Configura Gunicorn, Nginx, Celery, y crea un superusuario para Django admin.
 #   - Configura HTTPS para ai.huntred.com con Certbot.
 #   - Añade alias personalizados al entorno del usuario.
+#
+#     gcloud compute ssh pablo@grupo-huntred --zone=us-central1-a --project=grupo-huntred 
 #
 # *** ADVERTENCIA: Este script PURGA y REINSTALA todo en la VM ***
 # Úsalo para levantar la infraestructura desde cero.
@@ -39,12 +41,12 @@
 #    '
 #
 # Uso:
-#   1) Subir a la VM: scp setup_server.sh pablollh@34.57.227.244:/home/pablollh/
-#   2) Dar permisos: sudo chmod +x /home/pablollh/setup_server.sh
-#   3) Ejecutar: sudo /home/pablollh/setup_server.sh
-#   sudo nano setup_server.sh && sudo chmod +x /home/pablollh/setup_server.sh && sudo /home/pablollh/setup_server.sh
+#   1) Subir a la VM: scp setup_server.sh pablo@34.57.227.244:/home/pablo/
+#   2) Dar permisos: sudo chmod +x /home/pablo/setup_server.sh
+#   3) Ejecutar: sudo /home/pablo/setup_server.sh
+#   sudo nano setup_server.sh && sudo chmod +x /home/pablo/setup_server.sh && sudo /home/pablo/setup_server.sh
 # Notas:
-#   - Configurado para usuario 'pablollh' y grupo 'ai_huntred'.
+#   - Configurado para usuario 'pablo' y grupo 'ai_huntred'.
 #   - Usa e2-standard-4 (16 GB RAM) con disco de 30 GB para manejar picos de CPU.
 #   - Requiere que ai.huntred.com resuelva a 34.57.227.244 para HTTPS.
 #   - Incluye swap de 4 GB para mitigar problemas de memoria.
@@ -58,10 +60,10 @@ set -euo pipefail
 
 # == Grupo y usuario ==
 MAIN_GROUP="ai_huntred"
-APP_USER="pablollh"
+APP_USER="pablo"
 
 # == Proyecto ==
-PROJECT_DIR="/home/pablollh"
+PROJECT_DIR="/home/pablo"
 APP_NAME="ai_huntred"
 REPO_URL="https://ablova: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@github.com/ablova/Grupo-huntRED-Chatbot.git"
 TEMP_CLONE_DIR="/tmp/repo_clone"
@@ -136,7 +138,7 @@ else
     echo "Grupo '$MAIN_GROUP' ya existe."
 fi
 
-# Crear usuario pablollh si no existe
+# Crear usuario pablo si no existe
 if ! id "$APP_USER" >/dev/null 2>&1; then
     useradd -m -s /bin/bash -g "$MAIN_GROUP" "$APP_USER"
     echo "Usuario '$APP_USER' creado."
@@ -361,14 +363,6 @@ server {
         access_log off;
     }
 
-    location / {
-        include proxy_params;
-        proxy_pass http://unix:$GUNICORN_SOCKET;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_read_timeout 120;
-    }
 
     client_max_body_size 10M;
 }
@@ -456,7 +450,7 @@ su - "$APP_USER" -c "
 su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && \
     python manage.py migrate --noinput && \
     python manage.py collectstatic --noinput && \
-    python manage.py loaddata /home/pablollh/app/fixtures/initial_data.json && \
+    python manage.py loaddata /home/pablo/app/fixtures/initial_data.json && \
     echo 'from django.contrib.auth.models import User; User.objects.create_superuser(\"admin\", \"admin@huntred.com\", \"admin123\")' | python manage.py shell"
 
 # Ajustar permisos finales
@@ -483,95 +477,95 @@ alias grep='grep --color=auto'
 export PS1=\"\\[\033[1;32m\\]\u@\h:\\[\033[1;34m\\]\w\\[\033[1;36m\\]\$ \\[\033[0m\\]\"
 
 # === Alias generales ===
-alias iniciar='cd /home/pablollh && source venv/bin/activate'
+alias iniciar='cd /home/pablo && source venv/bin/activate'
 alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt autoremove -y'
 
 # === Alias para edición rápida de archivos principales ===
-alias edit_ai_urls='sudo nano /home/pablollh/ai_huntred/urls.py'
-alias edit_settings='sudo nano /home/pablollh/ai_huntred/settings.py'
-alias edit_celery='sudo nano /home/pablollh/ai_huntred/celery.py'
+alias edit_ai_urls='sudo nano /home/pablo/ai_huntred/urls.py'
+alias edit_settings='sudo nano /home/pablo/ai_huntred/settings.py'
+alias edit_celery='sudo nano /home/pablo/ai_huntred/celery.py'
 
-alias edit_models='sudo nano /home/pablollh/app/models.py'
-alias edit_tasks='sudo nano /home/pablollh/app/tasks.py'
-alias edit_admin='sudo nano /home/pablollh/app/admin.py'
-alias edit_urls='sudo nano /home/pablollh/app/urls.py'
-alias edit_signal='sudo nano /home/pablollh/app/signal.py'
-alias edit_monitoring='sudo nano /home/pablollh/app/monitoring.py'
+alias edit_models='sudo nano /home/pablo/app/models.py'
+alias edit_tasks='sudo nano /home/pablo/app/tasks.py'
+alias edit_admin='sudo nano /home/pablo/app/admin.py'
+alias edit_urls='sudo nano /home/pablo/app/urls.py'
+alias edit_signal='sudo nano /home/pablo/app/signal.py'
+alias edit_monitoring='sudo nano /home/pablo/app/monitoring.py'
 
 # === Alias para edición de archivos en utilidades ===
-alias edit_catalogs='sudo nano /home/pablollh/app/utilidades/catalogs.py'
-alias edit_loader='sudo nano /home/pablollh/app/utilidades/loader.py'
-alias edit_calendar='sudo nano /home/pablollh/app/utilidades/google_calendar.py'
-alias edit_reports='sudo nano /home/pablollh/app/utilidades/report_generator.py'
-alias edit_parser='sudo nano /home/pablollh/app/utilidades/parser.py'
-alias edit_vacantes='sudo nano /home/pablollh/app/utilidades/vacantes.py'
-alias edit_linkedin='sudo nano /home/pablollh/app/utilidades/linkedin.py'
+alias edit_catalogs='sudo nano /home/pablo/app/utilidades/catalogs.py'
+alias edit_loader='sudo nano /home/pablo/app/utilidades/loader.py'
+alias edit_calendar='sudo nano /home/pablo/app/utilidades/google_calendar.py'
+alias edit_reports='sudo nano /home/pablo/app/utilidades/report_generator.py'
+alias edit_parser='sudo nano /home/pablo/app/utilidades/parser.py'
+alias edit_vacantes='sudo nano /home/pablo/app/utilidades/vacantes.py'
+alias edit_linkedin='sudo nano /home/pablo/app/utilidades/linkedin.py'
 
 # === Alias para Utilidades ===
-alias edit_email='sudo nano /home/pablollh/app/utilidades/email_scraper.py'
-alias edit_salario='sudo nano /home/pablollh/app/utilidades/salario.py'
-alias edit_scraping='sudo nano /home/pablollh/app/utilidades/scraping.py'
+alias edit_email='sudo nano /home/pablo/app/utilidades/email_scraper.py'
+alias edit_salario='sudo nano /home/pablo/app/utilidades/salario.py'
+alias edit_scraping='sudo nano /home/pablo/app/utilidades/scraping.py'
 
 # === Alias para chatbot e integraciones ===
-alias edit_chatbot='sudo nano /home/pablollh/app/chatbot/chatbot.py'
-alias edit_nlp='sudo nano /home/pablollh/app/chatbot/nlp.py'
-alias edit_gpt='sudo nano /home/pablollh/app/chatbot/gpt.py'
-alias edit_utils='sudo nano /home/pablollh/app/chatbot/utils.py'
-alias edit_intent='sudo nano /home/pablollh/app/chatbot/intents_handler.py'
-alias edit_whatsapp='sudo nano /home/pablollh/app/chatbot/integrations/whatsapp.py'
-alias edit_telegram='sudo nano /home/pablollh/app/chatbot/integrations/telegram.py'
-alias edit_messenger='sudo nano /home/pablollh/app/chatbot/integrations/messenger.py'
-alias edit_instagram='sudo nano /home/pablollh/app/chatbot/integrations/instagram.py'
-alias edit_services='sudo nano /home/pablollh/app/chatbot/integrations/services.py'
-alias edit_common='sudo nano /home/pablollh/app/chatbot/workflow/common.py'
-alias edit_amigro='sudo nano /home/pablollh/app/chatbot/workflow/amigro.py'
-alias edit_executive='sudo nano /home/pablollh/app/chatbot/workflow/executive.py'
-alias edit_huntred='sudo nano /home/pablollh/app/chatbot/workflow/huntred.py'
-alias edit_huntu='sudo nano /home/pablollh/app/chatbot/workflow/huntu.py'
+alias edit_chatbot='sudo nano /home/pablo/app/chatbot/chatbot.py'
+alias edit_nlp='sudo nano /home/pablo/app/chatbot/nlp.py'
+alias edit_gpt='sudo nano /home/pablo/app/chatbot/gpt.py'
+alias edit_utils='sudo nano /home/pablo/app/chatbot/utils.py'
+alias edit_intent='sudo nano /home/pablo/app/chatbot/intents_handler.py'
+alias edit_whatsapp='sudo nano /home/pablo/app/chatbot/integrations/whatsapp.py'
+alias edit_telegram='sudo nano /home/pablo/app/chatbot/integrations/telegram.py'
+alias edit_messenger='sudo nano /home/pablo/app/chatbot/integrations/messenger.py'
+alias edit_instagram='sudo nano /home/pablo/app/chatbot/integrations/instagram.py'
+alias edit_services='sudo nano /home/pablo/app/chatbot/integrations/services.py'
+alias edit_common='sudo nano /home/pablo/app/chatbot/workflow/common.py'
+alias edit_amigro='sudo nano /home/pablo/app/chatbot/workflow/amigro.py'
+alias edit_executive='sudo nano /home/pablo/app/chatbot/workflow/executive.py'
+alias edit_huntred='sudo nano /home/pablo/app/chatbot/workflow/huntred.py'
+alias edit_huntu='sudo nano /home/pablo/app/chatbot/workflow/huntu.py'
 
 # === Alias para edición de views ===
-alias edit_views='sudo nano /home/pablollh/app/views.py'
-alias edit_candidatos_views='sudo nano /home/pablollh/app/views/candidatos_views.py'
-alias edit_vacantes_views='sudo nano /home/pablollh/app/views/vacantes_views.py'
-alias edit_clientes_views='sudo nano /home/pablollh/app/views/clientes_views.py'
-alias edit_chatbot_views='sudo nano /home/pablollh/app/views/chatbot_views.py'
-alias edit_utilidades_views='sudo nano /home/pablollh/app/views/utilidades_views.py'
-alias edit_integraciones_views='sudo nano /home/pablollh/app/views/integraciones_views.py'
-alias edit_auth_views='sudo nano /home/pablollh/app/views/auth_views.py'
+alias edit_views='sudo nano /home/pablo/app/views.py'
+alias edit_candidatos_views='sudo nano /home/pablo/app/views/candidatos_views.py'
+alias edit_vacantes_views='sudo nano /home/pablo/app/views/vacantes_views.py'
+alias edit_clientes_views='sudo nano /home/pablo/app/views/clientes_views.py'
+alias edit_chatbot_views='sudo nano /home/pablo/app/views/chatbot_views.py'
+alias edit_utilidades_views='sudo nano /home/pablo/app/views/utilidades_views.py'
+alias edit_integraciones_views='sudo nano /home/pablo/app/views/integraciones_views.py'
+alias edit_auth_views='sudo nano /home/pablo/app/views/auth_views.py'
 
-alias edit_forms='sudo nano /home/pablollh/app/forms.py'
-alias edit_serializers='sudo nano /home/pablollh/app/serializers.py'
-alias edit_permissions='sudo nano /home/pablollh/app/permissions.py'
-alias edit_middlewares='sudo nano /home/pablollh/app/middleware.py'
+alias edit_forms='sudo nano /home/pablo/app/forms.py'
+alias edit_serializers='sudo nano /home/pablo/app/serializers.py'
+alias edit_permissions='sudo nano /home/pablo/app/permissions.py'
+alias edit_middlewares='sudo nano /home/pablo/app/middleware.py'
 
 # === Alias para logs y procesos en segundo plano ===
 alias logs_celery='sudo journalctl -u celery -f'
 alias logs_gunicorn='sudo journalctl -u gunicorn -f'
 alias logs_nginx='sudo journalctl -u nginx -f'
-alias logs_all='sudo tail -f /home/pablollh/logs/*.log'
+alias logs_all='sudo tail -f /home/pablo/logs/*.log'
 
 # === Alias generales ===
 alias reload_aliases='source ~/.bashrc'
 alias rserver='sudo systemctl restart gunicorn nginx'
-alias check_logs='tail -f /home/pablollh/logs/*.log'
-alias clear_logs='sudo rm -rf /home/pablollh/logs/*.log && touch /home/pablollh/logs/empty.log'
-alias edit_env='sudo nano /home/pablollh/.env'
+alias check_logs='tail -f /home/pablo/logs/*.log'
+alias clear_logs='sudo rm -rf /home/pablo/logs/*.log && touch /home/pablo/logs/empty.log'
+alias edit_env='sudo nano /home/pablo/.env'
 alias edit_alias='nano ~/.bashrc'
 
 # === Alias para gestión del sistema ===
-alias migrate='python /home/pablollh/manage.py migrate'
-alias makemigrations='python /home/pablollh/manage.py makemigrations'
-alias collectstatic='python /home/pablollh/manage.py collectstatic --noinput'
-alias shell='python /home/pablollh/manage.py shell'
-alias monitor_django='python /home/pablollh/manage.py runprofileserver'
-alias inspect_model='python /home/pablollh/manage.py inspectdb'
+alias migrate='python /home/pablo/manage.py migrate'
+alias makemigrations='python /home/pablo/manage.py makemigrations'
+alias collectstatic='python /home/pablo/manage.py collectstatic --noinput'
+alias shell='python /home/pablo/manage.py shell'
+alias monitor_django='python /home/pablo/manage.py runprofileserver'
+alias inspect_model='python /home/pablo/manage.py inspectdb'
 alias restart_celery='sudo systemctl restart celery'
 alias restart_gunicorn='sudo systemctl restart gunicorn'
 alias restart_nginx='sudo systemctl restart nginx'
-alias smart_reload='cd /home/pablollh && python manage.py check && (systemctl is-active --quiet celery && sudo systemctl restart celery) && (systemctl is-active --quiet gunicorn && sudo systemctl restart gunicorn)'
+alias smart_reload='cd /home/pablo && python manage.py check && (systemctl is-active --quiet celery && sudo systemctl restart celery) && (systemctl is-active --quiet gunicorn && sudo systemctl restart gunicorn)'
 alias restart_all='sudo systemctl restart gunicorn celery nginx'
-alias up_git='sudo truncate -s 0 /home/pablollh/logs/*.log && sudo truncate -s 0 /var/log/nginx/access.log && sudo truncate -s 0 /var/log/nginx/error.log && sudo truncate -s 0 /var/log/syslog && sudo truncate -s 0 /var/log/auth.log && sudo truncate -s 0 /var/log/dmesg && sudo truncate -s 0 /var/log/kern.log && sudo logrotate -f /etc/logrotate.conf && sudo journalctl --vacuum-time=1s && sudo journalctl --vacuum-size=50M && sleep 5'
-alias up2_git='cd /home/pablollh && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
+alias up_git='sudo truncate -s 0 /home/pablo/logs/*.log && sudo truncate -s 0 /var/log/nginx/access.log && sudo truncate -s 0 /var/log/nginx/error.log && sudo truncate -s 0 /var/log/syslog && sudo truncate -s 0 /var/log/auth.log && sudo truncate -s 0 /var/log/dmesg && sudo truncate -s 0 /var/log/kern.log && sudo logrotate -f /etc/logrotate.conf && sudo journalctl --vacuum-time=1s && sudo journalctl --vacuum-size=50M && sleep 5'
+alias up2_git='cd /home/pablo && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
 alias zombie='sudo kill -9 \$(ps -ef | grep \"systemctl.*less\" | awk \"{print \$2,\$3}\" | tr \" \" \"\n\" | sort -u) && sudo find /var/log -type f -size +10M'
 alias rmem='sudo sysctl vm.drop_caches=3 && sudo rm -rf /tmp/* && sudo journalctl --vacuum-time=10m && sleep 40 && swapon --show && sudo swapon -a'
 EOF"

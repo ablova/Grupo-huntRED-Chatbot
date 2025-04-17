@@ -17,7 +17,7 @@ from app.chatbot.nlp import load_use_model, ensure_directory_permissions, transl
 from filelock import FileLock
 
 # Configuración de logging
-log_dir = "/home/pablollh/logs"
+log_dir = "/home/pablo/logs"
 log_file = os.path.join(log_dir, "generate_embeddings.log")
 
 # Asegurar permisos del directorio de logs
@@ -134,8 +134,8 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
 if __name__ == "__main__":
     try:
         logger.info("Iniciando generación de embeddings")
-        ensure_directory_permissions("/home/pablollh/skills_data")
-        ensure_directory_permissions("/home/pablollh/tfhub_cache")
+        ensure_directory_permissions("/home/pablo/skills_data")
+        ensure_directory_permissions("/home/pablo/tfhub_cache")
         
         # Cargar el modelo
         start_time = time.time()

@@ -1,4 +1,4 @@
-# /home/pablollh/app/views/dashboard_views.py
+# /home/pablo/app/views/dashboard_views.py
 
 from django.shortcuts import render
 #from ratelimit.decorators import ratelimit

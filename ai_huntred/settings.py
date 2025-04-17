@@ -1,4 +1,4 @@
-# /home/pablollh/ai_huntred/settings.py
+# /home/pablo/ai_huntred/settings.py
 
 import os
 from pathlib import Path

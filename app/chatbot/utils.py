@@ -1,4 +1,4 @@
-# Ubicación en servidor: /home/pablollh/app/chatbot/utils.py
+# Ubicación en servidor: /home/pablo/app/chatbot/utils.py
 
 import math
 import os

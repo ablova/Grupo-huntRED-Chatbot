@@ -1,4 +1,4 @@
-# /home/pablollh/app/utilidades/linkedin.py
+# /home/pablo/app/utilidades/linkedin.py
 import logging
 import os
 import csv
@@ -37,7 +37,7 @@ LINKEDIN_API_BASE = "https://api.linkedin.com/v2"
 MIN_DELAY = 8
 MAX_DELAY = 18
 # Ruta base de los catálogos
-CATALOGS_BASE_PATH = "/home/pablollh/app/utilidades/catalogs"
+CATALOGS_BASE_PATH = "/home/pablo/app/utilidades/catalogs"
 
 # =========================================================
 # Clase para manejar habilidades y divisiones
@@ -638,7 +638,7 @@ async def scrape_linkedin_profile(link_url: str, unit: str) -> Dict:
             )
             
             # Ruta para almacenar cookies autenticadas
-            cookies_file = "/home/pablollh/skills_data/linkedin_cookies.json"
+            cookies_file = "/home/pablo/skills_data/linkedin_cookies.json"
             
             # Verificar si hay cookies guardadas y válidas
             if os.path.exists(cookies_file):

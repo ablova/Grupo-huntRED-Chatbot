@@ -1,4 +1,4 @@
-# /home/pablollh/app/utilidades/salario.py
+# /home/pablo/app/utilidades/salario.py
 # Paquetes de importación
 import requests  # Para obtener tipos de cambio desde una API externa
 

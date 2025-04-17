@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablollh/app/sexsi/tests.py
+# Ubicacion SEXSI -- /home/pablo/app/sexsi/tests.py
 
 from django.test import TestCase, Client
 from django.contrib.auth.models import User

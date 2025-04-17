@@ -36,13 +36,13 @@ except ImportError:
 
 # Rutas a los catálogos
 CATALOG_PATHS = {
-    "global": {"esco": "/home/pablollh/skills_data/ESCO_occup_skills.json"},
+    "global": {"esco": "/home/pablo/skills_data/ESCO_occup_skills.json"},
     "es": {
-        "skills_relax": "/home/pablollh/skills_data/skill_db_relax_20_pretty.json",
-        "skills_opportunities": "/home/pablollh/app/utilidades/catalogs/skills.json"
+        "skills_relax": "/home/pablo/skills_data/skill_db_relax_20_pretty.json",
+        "skills_opportunities": "/home/pablo/app/utilidades/catalogs/skills.json"
     }
 }
-COMBINED_SKILLS_FILE = "/home/pablollh/skills_data/skills_combined.json"
+COMBINED_SKILLS_FILE = "/home/pablo/skills_data/skills_combined.json"
 
 # Lista de textos de prueba
 texts = [
@@ -208,8 +208,8 @@ class BaseNLPProcessor:
         self.skill_cache = TTLCache(maxsize=1000, ttl=3600 if mode == 'quick' else 7200)
         self.use_full_transformers = torch.cuda.is_available() and psutil.virtual_memory().available > 8 * 1024 * 1024 * 1024  # 8GB libres
         if mode == 'deep' and TRANSFORMERS_AVAILABLE:
-            self.linkedin_ner = advanced_model_manager.get_ner_pipeline("/home/pablollh/skills_data/algiraldohe_lm-ner-linkedin-skills-recognition")
-            self.ihk_ner = advanced_model_manager.get_ner_pipeline("/home/pablollh/skills_data/ihk_skillner")
+            self.linkedin_ner = advanced_model_manager.get_ner_pipeline("/home/pablo/skills_data/algiraldohe_lm-ner-linkedin-skills-recognition")
+            self.ihk_ner = advanced_model_manager.get_ner_pipeline("/home/pablo/skills_data/ihk_skillner")
         else:
             self.linkedin_ner = None
             self.ihk_ner = None

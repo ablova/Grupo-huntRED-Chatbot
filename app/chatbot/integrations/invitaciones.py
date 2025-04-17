@@ -1,4 +1,4 @@
-# /home/pablollh/app/chatbot/integrations/invitaciones.py
+# /home/pablo/app/chatbot/integrations/invitaciones.py
 
 import uuid
 from django.conf import settings

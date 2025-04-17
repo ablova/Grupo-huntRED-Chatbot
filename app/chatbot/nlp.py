@@ -1,4 +1,4 @@
-# /home/pablollh/app/chatbot/nlp.py
+# /home/pablo/app/chatbot/nlp.py
 import os
 import json
 import logging
@@ -23,7 +23,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/home/pablollh/logs/nlp.log'),
+        logging.FileHandler('/home/pablo/logs/nlp.log'),
         logging.StreamHandler()
     ]
 )
@@ -38,7 +38,7 @@ EMBEDDINGS_READY = False  # Indicador de si los embeddings están listos
 DISABLE_EXTRACTORS = True  # Deshabilitar extractors.py temporalmente
 
 # Verificar si el caché de embeddings existe
-EMBEDDINGS_CACHE = "/home/pablollh/skills_data/embeddings_cache.pkl"
+EMBEDDINGS_CACHE = "/home/pablo/skills_data/embeddings_cache.pkl"
 if os.path.exists(EMBEDDINGS_CACHE):
     EMBEDDINGS_READY = True
     logger.info("Embeddings cache encontrado. Modo 'deep' disponible si hay suficiente RAM.")
@@ -51,11 +51,11 @@ if AVAILABLE_RAM > RAM_LIMIT and EMBEDDINGS_READY:
 
 # Constantes
 FILE_PATHS = {
-    "relax_skills": "/home/pablollh/skills_data/skill_db_relax_20.json",
-    "esco_skills": "/home/pablollh/skills_data/ESCO_occup_skills.json",
-    "opportunity_catalog": "/home/pablollh/app/utilidades/catalogs/skills.json",
+    "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
+    "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
+    "opportunity_catalog": "/home/pablo/app/utilidades/catalogs/skills.json",
 }
-LOCK_FILE = "/home/pablollh/skills_data/nlp_init.lock"
+LOCK_FILE = "/home/pablo/skills_data/nlp_init.lock"
 
 # Cachés
 translation_cache = TTLCache(maxsize=1000, ttl=3600)
@@ -75,7 +75,7 @@ def load_skills_catalog():
     """Carga un catálogo de habilidades, usando un respaldo local si DISABLE_EXTRACTORS es True."""
     if DISABLE_EXTRACTORS:
         try:
-            with open("/home/pablollh/skills_data/skill_db_relax_20.json", "r") as f:  #O puede ser /home/pablollh/app/utilidades/catalogs/skills.json
+            with open("/home/pablo/skills_data/skill_db_relax_20.json", "r") as f:  #O puede ser /home/pablo/app/utilidades/catalogs/skills.json
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error cargando respaldo: {e}, usando catálogo vacío.")

@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablollh/app/sexsi/signals.py
+# Ubicacion SEXSI -- /home/pablo/app/sexsi/signals.py
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver

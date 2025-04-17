@@ -1,6 +1,6 @@
-# Ubicación: /home/pablollh/app/tests.py
+# Ubicación: /home/pablo/app/tests.py
 
-# /home/pablollh/app/tests.py
+# /home/pablo/app/tests.py
 import pytest
 import asyncio
 from datetime import datetime, timedelta
