@@ -5,7 +5,6 @@ import logging
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from pathlib import Path
-from django.core.exceptions import ImproperlyConfigured
 
 # Desactivar CUDA y optimizaciones innecesarias
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
@@ -22,21 +21,28 @@ env_file = os.path.join(BASE_DIR, '.env')
 
 # Verificar archivo .env
 if not os.path.exists(env_file):
+    logger.error(f"Environment file not found: {env_file}")
     raise FileNotFoundError(f"Environment file not found: {env_file}")
 if not os.access(env_file, os.R_OK):
+    logger.error(f"Environment file not readable: {env_file}")
     raise PermissionError(f"Environment file not readable: {env_file}")
 
 # Cargar .env
 environ.Env.read_env(env_file)
 logger.info(f"Successfully loaded environment variables from {env_file}")
 
-# Configuración de base de datos desde .env
+# Seguridad y entorno
+SECRET_KEY = env('DJANGO_SECRET_KEY', default='hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48')
+DEBUG = env.bool('DJANGO_DEBUG', default=False)
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['ai.huntred.com', '127.0.0.1', 'localhost', '34.57.227.244'])
+
+# Configuración de base de datos
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': env('DB_NAME', default='g_huntred_ai_db'),
         'USER': env('DB_USER', default='g_huntred_pablo'),
-        'PASSWORD': env('DB_PASSWORD', default=''),
+        'PASSWORD': env('DB_PASSWORD', default='Natalia&Patricio1113!'),
         'HOST': env('DB_HOST', default='localhost'),
         'PORT': env('DB_PORT', default='5432'),
         'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=60),
@@ -45,13 +51,9 @@ DATABASES = {
         },
     }
 }
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Seguridad y entorno
-SECRET_KEY = env('DJANGO_SECRET_KEY', default='tu-secret-key-por-defecto')
-DEBUG = env.bool('DJANGO_DEBUG', default=False)
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'ai.huntred.com', '34.57.227.244'])
-
-# Aplicaciones instaladas (optimizadas para producción)
+# Aplicaciones instaladas
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -73,7 +75,7 @@ INSTALLED_APPS = [
     'app.milkyleak',
 ]
 
-# Middleware (sin debug_toolbar ni silk en producción)
+# Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -85,6 +87,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Seguridad para HTTPS
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+X_FRAME_OPTIONS = 'DENY'
 
 # Configuración de URLs y plantillas
 ROOT_URLCONF = 'ai_huntred.urls'
@@ -104,6 +115,7 @@ TEMPLATES = [
     },
 ]
 WSGI_APPLICATION = 'ai_huntred.wsgi.application'
+ASGI_APPLICATION = 'ai_huntred.asgi.application'
 
 # Internacionalización
 LANGUAGE_CODE = env('LANGUAGE_CODE', default='es-mx')
@@ -118,7 +130,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Configuración de logging simplificada
+# Configuración de logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -132,6 +144,16 @@ LOGGING = {
             'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
             'level': 'INFO',
         },
+        'gunicorn_file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'gunicorn.log'),
+            'level': 'INFO',
+        },
+        'celery_file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'celery.log'),
+            'level': 'INFO',
+        },
     },
     'loggers': {
         'django': {
@@ -140,6 +162,14 @@ LOGGING = {
         },
         'app': {
             'handlers': ['console', 'file'],
+            'level': 'INFO',
+        },
+        'gunicorn': {
+            'handlers': ['console', 'gunicorn_file'],
+            'level': 'INFO',
+        },
+        'celery': {
+            'handlers': ['console', 'celery_file'],
             'level': 'INFO',
         },
     },
@@ -152,8 +182,9 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'America/Mexico_City'
+CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
 
-# Sentry (opcional)
+# Sentry
 if env('SENTRY_DSN', default=None):
     sentry_sdk.init(
         dsn=env('SENTRY_DSN'),
@@ -161,6 +192,40 @@ if env('SENTRY_DSN', default=None):
         traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=0.2),
         send_default_pii=env.bool('SENTRY_SEND_PII', default=False),
     )
+
+# Email
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST', default='mail.huntred.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='hola@huntred.com')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='Natalia&Patricio1113!')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Grupo huntRED® <hola@huntred.com>')
+
+# REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': env('THROTTLE_ANON', default='100/day'),
+        'user': env('THROTTLE_USER', default='1000/day'),
+    },
+}
+
+# CORS
+CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
+CORS_ALLOW_CREDENTIALS = env.bool('CORS_ALLOW_CREDENTIALS', default=False)
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[]) if not CORS_ALLOW_ALL_ORIGINS else []
+
+
 # Dynamic Email Backend
 def get_email_backend(business_unit):
     from django.apps import apps

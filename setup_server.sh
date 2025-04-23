@@ -32,7 +32,7 @@
 #    --image-project=ubuntu-os-cloud \
 #    --boot-disk-size=30GB \
 #    --boot-disk-type=pd-ssd \
-#    --tags=http-server,https-server,ssh-server \
+#    --tags=http-server,https-server,ssh-server,allow-ssh,default-allow-health-check \
 #    --service-account=472786450192-compute@developer.gserviceaccount.com \
 #    --shielded-secure-boot \
 #    --labels=entorno=produccion,proyecto=inteligencia-artificial-grupo-huntred \
@@ -58,7 +58,6 @@
 ############################################################################################
 
 set -euo pipefail
-
 
 ################################
 ##        CONFIGURACIONES     ##
@@ -88,7 +87,7 @@ DB_CONNECT_TIMEOUT=10
 PY_VERSION="python3"
 VENV_DIR="$PROJECT_DIR/venv"
 CELERY_SERVICE="/etc/systemd/system/celery.service"
-SWAP_SIZE="4G"
+SWAP_SIZE="8G"
 LOG_DIR="$PROJECT_DIR/logs"
 STATIC_DIR="$PROJECT_DIR/staticfiles"
 MEDIA_DIR="$PROJECT_DIR/media"
@@ -97,7 +96,38 @@ GUNICORN_LOG_DIR="/var/log/gunicorn"
 GUNICORN_ACCESS_LOG="$GUNICORN_LOG_DIR/access.log"
 GUNICORN_ERROR_LOG="$GUNICORN_LOG_DIR/error.log"
 
+# Crear grupo ai_huntred si no existe
+if ! getent group "$MAIN_GROUP" >/dev/null; then
+    groupadd "$MAIN_GROUP"
+    echo "Grupo $MAIN_GROUP creado."
+else
+    echo "Grupo $MAIN_GROUP ya existe."
+fi
 
+# Asegurar que pablo y pablollh estén en el grupo ai_huntred
+if id "$APP_USER" >/dev/null 2>&1 && ! groups "$APP_USER" | grep -q "$MAIN_GROUP"; then
+    usermod -aG "$MAIN_GROUP" "$APP_USER"
+    echo "$APP_USER añadido a $MAIN_GROUP."
+fi
+if id "$SECONDARY_USER" >/dev/null 2>&1 && ! groups "$SECONDARY_USER" | grep -q "$MAIN_GROUP"; then
+    usermod -aG "$MAIN_GROUP" "$SECONDARY_USER"
+    echo "$SECONDARY_USER añadido a $MAIN_GROUP."
+fi
+
+# Validar y crear directorios esenciales
+ESSENTIAL_DIRS=("$LOG_DIR" "$STATIC_DIR" "$MEDIA_DIR" "$TFHUB_CACHE" "$GUNICORN_LOG_DIR" "/home/pablo/skills_data")
+for dir in "${ESSENTIAL_DIRS[@]}"; do
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir"
+        chown "$APP_USER:$MAIN_GROUP" "$dir"
+        chmod 775 "$dir"
+        echo "Directorio $dir creado con permisos correctos."
+    else
+        chown "$APP_USER:$MAIN_GROUP" "$dir"
+        chmod 775 "$dir"
+        echo "Permisos de $dir validados y ajustados."
+    fi
+done
 
 # Initialize status file
 STATUS_FILE="/home/pablo/setup_status.conf"
@@ -115,91 +145,61 @@ PART_9_RUN=enabled
 PART_10_RUN=enabled
 PART_11_RUN=enabled
 PART_12_RUN=enabled
-PART_13_RUN=enabled
 EOF
-    chmod 664 "$STATUS_FILE"
     chown "$APP_USER:$MAIN_GROUP" "$STATUS_FILE"
-    echo "Status file $STATUS_FILE created with default statuses."
+    chmod 664 "$STATUS_FILE"
+    echo "Status file $STATUS_FILE creado."
 else
-    echo "Status file $STATUS_FILE already exists."
+    echo "Status file $STATUS_FILE ya existe."
 fi
 
 # Source status file
 if [ -f "$STATUS_FILE" ]; then
     source "$STATUS_FILE"
-    echo "Status file $STATUS_FILE loaded."
+    echo "Status file $STATUS_FILE cargado."
 else
-    echo "Error: Status file $STATUS_FILE not found."
+    echo "Error: Status file $STATUS_FILE no encontrado."
     exit 1
 fi
 
 ################################
 echo "==========================================================="
-echo " [1/13] ACTUALIZANDO Y PREPARANDO LA VM "
+echo " [1/12] ACTUALIZANDO Y PREPARANDO LA VM "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_1_RUN:-enabled}" != "disabled" ]; then
-    # Check if required packages, including weasyprint dependencies, are installed
-    if ! dpkg -l | grep -q "git-lfs" || ! dpkg -l | grep -q "python3-venv" || ! dpkg -l | grep -q "libpango-1.0-0" || ! dpkg -l | grep -q "libpangocairo-1.0-0" || ! dpkg -l | grep -q "libcairo2" || ! dpkg -l | grep -q "libgdk-pixbuf-2.0-0"; then
-        apt-get update -y
-        apt-get upgrade -y
-        apt-get autoremove -y
-        apt-get install -y software-properties-common curl git git-lfs htop ncdu fail2ban logrotate \
-            build-essential python3-dev python3-pip python3-venv libpq-dev \
-            libblas-dev liblapack-dev gfortran libjpeg-dev zlib1g-dev libffi-dev libssl-dev \
-            libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
-        add-apt-repository ppa:git-core/ppa -y
-        apt-get update -y
-        apt-get install -y git git-lfs
-        git lfs install
-        echo "Paquetes instalados, incluyendo dependencias de weasyprint."
-    else
-        echo "Paquetes ya instalados, incluyendo dependencias de weasyprint."
-    fi
+    apt-get update -y
+    apt-get upgrade -y
+    apt-get autoremove -y
+    apt-get install -y software-properties-common curl git git-lfs htop ncdu fail2ban logrotate \
+        build-essential python3-dev python3-pip python3-venv libpq-dev \
+        libblas-dev liblapack-dev gfortran libjpeg-dev zlib1g-dev libffi-dev libssl-dev \
+        libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
+    add-apt-repository ppa:git-core/ppa -y
+    apt-get update -y
+    apt-get install -y git git-lfs
+    git lfs install
+    echo "Paquetes instalados."
 
-    # Create group early
-    if ! getent group "$MAIN_GROUP" >/dev/null; then
-        groupadd "$MAIN_GROUP"
-        echo "Grupo $MAIN_GROUP creado."
-    else
-        echo "Grupo $MAIN_GROUP ya existe."
-    fi
-
-    # Create Gunicorn log directory
-    if [ ! -d "$GUNICORN_LOG_DIR" ]; then
-        mkdir -p "$GUNICORN_LOG_DIR"
-        chown "$APP_USER:$MAIN_GROUP" "$GUNICORN_LOG_DIR"
-        chmod 775 "$GUNICORN_LOG_DIR"
-        echo "Directorio $GUNICORN_LOG_DIR creado."
-    else
-        echo "Directorio $GUNICORN_LOG_DIR ya existe."
-    fi
-
-    # Mark step as complete
     echo "PART_1_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [1/13] completado."
+    echo "Paso [1/12] completado."
 else
-    echo "Paso [1/13] ya completado, omitiendo."
+    echo "Paso [1/12] ya completado, omitiendo."
 fi
+
 ################################
 echo "==========================================================="
-echo " [2/13] CONFIGURANDO SSH Y FIREWALL "
+echo " [2/12] CONFIGURANDO SSH Y FIREWALL "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_2_RUN:-enabled}" != "disabled" ]; then
-    # Check if openssh-server is installed
-    if ! dpkg -l | grep -q "openssh-server"; then
-        apt-get install -y openssh-server
-        systemctl enable ssh
-        systemctl start ssh
-        echo "OpenSSH instalado y configurado."
-    else
-        echo "OpenSSH ya instalado."
-    fi
+    apt-get install -y openssh-server
+    systemctl enable ssh
+    systemctl start ssh
+    echo "OpenSSH instalado y configurado."
 
-    # Check if sshd_config is set
     if [ ! -f "/etc/ssh/sshd_config.d/ai_huntred.conf" ]; then
         cat > /etc/ssh/sshd_config.d/ai_huntred.conf <<EOF
 Port 22
@@ -214,7 +214,6 @@ EOF
         echo "sshd_config ya configurado."
     fi
 
-    # Setup SSH keys for pablo
     if [ ! -d "/home/$APP_USER/.ssh" ]; then
         mkdir -p /home/$APP_USER/.ssh
         chown $APP_USER:$MAIN_GROUP /home/$APP_USER/.ssh
@@ -224,18 +223,15 @@ EOF
         echo "Directorio SSH para $APP_USER ya existe."
     fi
 
-    # Mark step as complete
     echo "PART_2_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [2/13] completado."
-    echo "Nota: Asegúrate de que la regla de firewall 'allow-ssh' esté creada manualmente desde tu máquina local con:"
-    echo "gcloud compute firewall-rules create allow-ssh --project=grupo-huntred --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:22 --source-ranges=0.0.0.0/0 --target-tags=ssh-server"
+    echo "Paso [2/12] completado."
 else
-    echo "Paso [2/13] ya completado, omitiendo."
+    echo "Paso [2/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [3/13] CREANDO USUARIOS Y GRUPOS "
+echo " [3/12] CREANDO USUARIOS Y GRUPOS "
 echo "==========================================================="
 sleep 2
 
@@ -247,7 +243,6 @@ if [ "${PART_3_RUN:-enabled}" != "disabled" ]; then
         echo "Usuario $APP_USER ya existe."
     fi
 
-    # Add pablollh to ai_huntred group and sudoers
     if id "$SECONDARY_USER" >/dev/null 2>&1 && ! groups "$SECONDARY_USER" | grep -q "$MAIN_GROUP"; then
         usermod -aG "$MAIN_GROUP" "$SECONDARY_USER"
         echo "$SECONDARY_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$SECONDARY_USER
@@ -272,16 +267,15 @@ if [ "${PART_3_RUN:-enabled}" != "disabled" ]; then
         echo "Sudoers ya configurado para $APP_USER."
     fi
 
-    # Mark step as complete
     echo "PART_3_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [3/13] completado."
+    echo "Paso [3/12] completado."
 else
-    echo "Paso [3/13] ya completado, omitiendo."
+    echo "Paso [3/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [4/13] CONFIGURANDO SWAP "
+echo " [4/12] CONFIGURANDO SWAP "
 echo "==========================================================="
 sleep 2
 
@@ -297,82 +291,65 @@ if [ "${PART_4_RUN:-enabled}" != "disabled" ]; then
         echo "Swap file ya existe."
     fi
 
-    # Mark step as complete
     echo "PART_4_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [4/13] completado."
+    echo "Paso [4/12] completado."
 else
-    echo "Paso [4/13] ya completado, omitiendo."
+    echo "Paso [4/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [5/13] INSTALANDO POSTGRESQL, REDIS, NGINX, CERTBOT "
+echo " [5/12] INSTALANDO POSTGRESQL, REDIS, NGINX, CERTBOT "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_5_RUN:-enabled}" != "disabled" ]; then
-    if ! dpkg -l | grep -q "postgresql" || ! dpkg -l | grep -q "redis-server" || ! dpkg -l | grep -q "nginx" || ! dpkg -l | grep -q "certbot"; then
-        apt-get install -y postgresql postgresql-contrib redis-server nginx certbot python3-certbot-nginx
-        echo "Paquetes PostgreSQL, Redis, Nginx, Certbot instalados."
-    else
-        echo "Paquetes PostgreSQL, Redis, Nginx, Certbot ya instalados."
-    fi
+    apt-get install -y postgresql postgresql-contrib redis-server nginx certbot python3-certbot-nginx
+    echo "Paquetes PostgreSQL, Redis, Nginx, Certbot instalados."
 
-    # Mark step as complete
     echo "PART_5_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [5/13] completado."
+    echo "Paso [5/12] completado."
 else
-    echo "Paso [5/13] ya completado, omitiendo."
+    echo "Paso [5/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [6/13] CONFIGURANDO POSTGRESQL Y REDIS "
+echo " [6/12] CONFIGURANDO POSTGRESQL Y REDIS "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_6_RUN:-enabled}" != "disabled" ]; then
-    # Check PostgreSQL
-    if ! sudo -u postgres psql -lqt | grep -q "$DB_NAME"; then
-        systemctl enable postgresql
-        systemctl start postgresql
-        sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME" || true
-        sudo -u postgres psql -c "DROP ROLE IF EXISTS $DB_USER" || true
-        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME"
-        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD'"
-        sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER"
-        sudo -u postgres psql -d $DB_NAME -c "GRANT ALL ON SCHEMA public TO $DB_USER"
-        sudo -u postgres psql -d $DB_NAME -c "ALTER SCHEMA public OWNER TO $DB_USER"
-        sudo -u postgres psql -d $DB_NAME -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USER"
-        sudo -u postgres psql -d $DB_NAME -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DB_USER"
-        echo "Base de datos $DB_NAME configurada."
-    else
-        echo "Base de datos $DB_NAME ya configurada."
-    fi
+    systemctl enable postgresql
+    systemctl start postgresql
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME" || true
+    sudo -u postgres psql -c "DROP ROLE IF EXISTS $DB_USER" || true
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME"
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD'"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER"
+    sudo -u postgres psql -d $DB_NAME -c "GRANT ALL ON SCHEMA public TO $DB_USER"
+    sudo -u postgres psql -d $DB_NAME -c "ALTER SCHEMA public OWNER TO $DB_USER"
+    sudo -u postgres psql -d $DB_NAME -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USER"
+    sudo -u postgres psql -d $DB_NAME -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DB_USER"
+    echo "Base de datos $DB_NAME configurada."
 
-    # Check Redis
-    if ! grep -q "maxmemory 512mb" /etc/redis/redis.conf; then
-        sed -i 's/^supervised .*/supervised systemd/' /etc/redis/redis.conf
-        sed -i 's/^daemonize .*/daemonize no/' /etc/redis/redis.conf
-        echo "maxmemory 512mb" >> /etc/redis/redis.conf
-        echo "maxmemory-policy allkeys-lru" >> /etc/redis/redis.conf
-        systemctl enable redis-server
-        systemctl restart redis-server
-        echo "Redis configurado."
-    else
-        echo "Redis ya configurado."
-    fi
+    sed -i 's/^supervised .*/supervised systemd/' /etc/redis/redis.conf
+    sed -i 's/^daemonize .*/daemonize no/' /etc/redis/redis.conf
+    echo "maxmemory 512mb" >> /etc/redis/redis.conf
+    echo "maxmemory-policy allkeys-lru" >> /etc/redis/redis.conf
+    systemctl enable redis-server
+    systemctl restart redis-server
+    echo "Redis configurado."
 
-    # Mark step as complete
     echo "PART_6_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [6/13] completado."
+    echo "Paso [6/12] completado."
 else
-    echo "Paso [6/13] ya completado, omitiendo."
+    echo "Paso [6/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [7/13] CLONANDO REPOSITORIO "
+echo " [7/12] CLONANDO REPOSITORIO "
 echo "==========================================================="
 sleep 2
 
@@ -398,7 +375,8 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
 
         chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
         chmod -R 775 "$PROJECT_DIR"
-        echo "Repositorio clonado."
+        find "$PROJECT_DIR" -type f -exec chmod 664 {} \;
+        echo "Repositorio clonado y permisos ajustados."
     else
         echo "Repositorio ya existe, verificando actualizaciones..."
         su - "$APP_USER" -c "cd $PROJECT_DIR && git fetch"
@@ -410,12 +388,9 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
         fi
     fi
 
-    # Download SkillNER skills_processed.json
     SKILL_JSON="/home/pablo/skills_data/skill_db_relax_20.json"
     SKILL_URL="https://raw.githubusercontent.com/AnasAito/SkillNER/master/buckets/skills_processed.json"
-    # Check if file is missing or older than 24 hours
     if [ ! -f "$SKILL_JSON" ] || [ "$(find "$SKILL_JSON" -mtime +1 2>/dev/null)" ]; then
-        echo "Descargando $SKILL_URL..."
         mkdir -p /home/pablo/skills_data
         wget "$SKILL_URL" -O "$SKILL_JSON"
         chown "$APP_USER:$MAIN_GROUP" "$SKILL_JSON"
@@ -425,30 +400,19 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
         echo "Archivo $SKILL_JSON ya existe y está actualizado."
     fi
 
-    # Mark step as complete
     echo "PART_7_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [7/13] completado."
+    echo "Paso [7/12] completado."
 else
-    echo "Paso [7/13] ya completado, omitiendo."
+    echo "Paso [7/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [8/13] CREANDO ENTORNO VIRTUAL "
+echo " [8/12] CREANDO ENTORNO VIRTUAL "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_8_RUN:-enabled}" != "disabled" ]; then
-    # Ensure ai_huntred group exists
-    if ! getent group "$MAIN_GROUP" >/dev/null; then
-        groupadd "$MAIN_GROUP"
-    fi
-
-    # Add pablollh to ai_huntred group
-    if id "$SECONDARY_USER" >/dev/null 2>&1 && ! groups "$SECONDARY_USER" | grep -q "$MAIN_GROUP"; then
-        usermod -aG "$MAIN_GROUP" "$SECONDARY_USER"
-    fi
-
     if [ ! -d "$VENV_DIR" ]; then
         su - "$APP_USER" -c "$PY_VERSION -m venv $VENV_DIR"
         echo "Entorno virtual creado."
@@ -456,67 +420,70 @@ if [ "${PART_8_RUN:-enabled}" != "disabled" ]; then
         echo "Entorno virtual ya existe."
     fi
 
-    # Fix virtual environment permissions
     chown -R "$APP_USER:$MAIN_GROUP" "$VENV_DIR"
     chmod -R 775 "$VENV_DIR"
 
-    # Check if key dependencies are installed
-    if ! su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip show django spacy tensorflow-cpu >/dev/null 2>&1"; then
-        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && \
-            pip install --upgrade pip && \
-            pip install wheel django gunicorn psycopg2-binary redis celery django-celery-beat django-celery-results sentry-sdk tensorflow-cpu spacy && \
-            python -m spacy download es_core_news_md && \
-            cd $PROJECT_DIR && [ -f requirements.txt ] && pip install -r requirements.txt --no-deps"
-        echo "Dependencias instaladas."
-    else
-        echo "Dependencias ya instaladas."
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && \
+        pip install --upgrade pip && \
+        pip install wheel django gunicorn psycopg2-binary redis celery django-celery-beat django-celery-results sentry-sdk tensorflow-cpu==2.16.1 spacy==3.7.4 protobuf>=5.26.1 && \
+        python -m spacy download es_core_news_md==3.7.0 && \
+        cd $PROJECT_DIR && [ -f requirements.txt ] && pip install -r requirements.txt --no-deps"
+    echo "Dependencias instaladas."
+
+    REINSTALL_DEPS="${REINSTALL_DEPS:-no}"
+    if [ "$REINSTALL_DEPS" == "yes" ]; then
+        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip uninstall -y tensorflow-cpu spacy tf-keras tensorflow-text"
+        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip install tensorflow-cpu==2.16.1 spacy==3.7.4 protobuf>=5.26.1"
+        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && python -m spacy download es_core_news_md==3.7.0"
+        echo "Dependencias reinstaladas."
     fi
 
-    # Re-apply permissions
-    chown -R "$APP_USER:$MAIN_GROUP" "$VENV_DIR"
-    chmod -R 775 "$VENV_DIR"
-
-    # Check if ml_opt.py uses configure_tensorflow()
     if ! grep -q "configure_tensorflow()" "$PROJECT_DIR/app/ml/ml_opt.py"; then
         echo "Advertencia: ml_opt.py no usa configure_tensorflow(). Verifica manualmente."
     else
         echo "ml_opt.py ya configurado con configure_tensorflow()."
     fi
 
-    # Mark step as complete
     echo "PART_8_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [8/13] completado."
+    echo "Paso [8/12] completado."
 else
-    echo "Paso [8/13] ya completado, omitiendo."
+    echo "Paso [8/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [9/13] CONFIGURANDO GUNICORN Y CELERY "
+echo " [9/12] CONFIGURANDO GUNICORN Y CELERY "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_9_RUN:-enabled}" != "disabled" ]; then
-    # Ensure ai_huntred group exists
-    if ! getent group "$MAIN_GROUP" >/dev/null; then
-        groupadd "$MAIN_GROUP"
+    if [ ! -f "/home/$APP_USER/run_gunicorn.sh" ]; then
+        cat > /home/$APP_USER/run_gunicorn.sh <<EOF
+#!/bin/bash
+source $VENV_DIR/bin/activate
+exec gunicorn --workers 1 --bind unix:$GUNICORN_SOCKET --timeout 120 \
+    --access-logfile $GUNICORN_ACCESS_LOG --error-logfile $GUNICORN_ERROR_LOG $APP_NAME.wsgi:application
+EOF
+        chmod +x /home/$APP_USER/run_gunicorn.sh
+        chown $APP_USER:$MAIN_GROUP /home/$APP_USER/run_gunicorn.sh
+        echo "Script wrapper para Gunicorn creado."
+    else
+        echo "Script wrapper para Gunicorn ya existe."
     fi
 
-    # Add pablollh to ai_huntred group and sudoers
-    if id "$SECONDARY_USER" >/dev/null 2>&1 && ! groups "$SECONDARY_USER" | grep -q "$MAIN_GROUP"; then
-        usermod -aG "$MAIN_GROUP" "$SECONDARY_USER"
-        echo "$SECONDARY_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$SECONDARY_USER
-        chmod 440 /etc/sudoers.d/$SECONDARY_USER
+    if [ ! -f "/home/$APP_USER/run_celery.sh" ]; then
+        cat > /home/$APP_USER/run_celery.sh <<EOF
+#!/bin/bash
+source $VENV_DIR/bin/activate
+exec celery -A $APP_NAME worker --loglevel=info --concurrency=2
+EOF
+        chmod +x /home/$APP_USER/run_celery.sh
+        chown $APP_USER:$MAIN_GROUP /home/$APP_USER/run_celery.sh
+        echo "Script wrapper para Celery creado."
+    else
+        echo "Script wrapper para Celery ya existe."
     fi
 
-    # Create Gunicorn log directory
-    if [ ! -d "$GUNICORN_LOG_DIR" ]; then
-        mkdir -p "$GUNICORN_LOG_DIR"
-        chown "$APP_USER:$MAIN_GROUP" "$GUNICORN_LOG_DIR"
-        chmod 775 "$GUNICORN_LOG_DIR"
-    fi
-
-    # Create Gunicorn service file
     if [ ! -f "$GUNICORN_SERVICE" ]; then
         cat > "$GUNICORN_SERVICE" <<EOF
 [Unit]
@@ -529,8 +496,7 @@ Group=$MAIN_GROUP
 WorkingDirectory=$PROJECT_DIR
 Environment="PYTHONPATH=$PROJECT_DIR"
 Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
-ExecStart=$VENV_DIR/bin/gunicorn --workers 1 --bind unix:$GUNICORN_SOCKET --timeout 120 \
-    --access-logfile $GUNICORN_ACCESS_LOG --error-logfile $GUNICORN_ERROR_LOG $APP_NAME.wsgi:application
+ExecStart=/home/$APP_USER/run_gunicorn.sh
 Restart=always
 RestartSec=5
 
@@ -542,7 +508,6 @@ EOF
         echo "Servicio Gunicorn ya existe."
     fi
 
-    # Create Celery service file
     if [ ! -f "$CELERY_SERVICE" ]; then
         cat > "$CELERY_SERVICE" <<EOF
 [Unit]
@@ -557,7 +522,7 @@ Environment="PYTHONPATH=$PROJECT_DIR"
 Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
 Environment="TFHUB_CACHE_DIR=$TFHUB_CACHE"
 Environment="TF_CPP_MIN_LOG_LEVEL=2"
-ExecStart=$VENV_DIR/bin/celery -A $APP_NAME worker --loglevel=info --concurrency=2
+ExecStart=/home/$APP_USER/run_celery.sh
 Restart=always
 RestartSec=5
 
@@ -569,7 +534,6 @@ EOF
         echo "Servicio Celery ya existe."
     fi
 
-    # Create log truncation script
     if [ ! -f "/home/$APP_USER/truncate_logs.sh" ]; then
         cat > /home/$APP_USER/truncate_logs.sh <<EOF
 #!/bin/bash
@@ -584,48 +548,50 @@ EOF
         echo "Script de truncado de logs ya existe."
     fi
 
-    # Set permissions for service files
     if [ -f "$GUNICORN_SERVICE" ] && [ -f "$CELERY_SERVICE" ]; then
         chown root:root "$GUNICORN_SERVICE" "$CELERY_SERVICE"
         chmod 644 "$GUNICORN_SERVICE" "$CELERY_SERVICE"
     fi
 
-    # Start services if not running
-    if ! systemctl is-active --quiet gunicorn || ! systemctl is-active --quiet celery; then
-        systemctl daemon-reload
-        systemctl enable gunicorn celery
-        systemctl restart gunicorn celery || {
-            echo "Error starting Gunicorn/Celery services. Check logs: tail -n 100 $GUNICORN_ERROR_LOG"
-            exit 1
-        }
-        echo "Servicios Gunicorn y Celery iniciados."
-    else
-        echo "Servicios Gunicorn y Celery ya están corriendo."
+    if [ -f "$GUNICORN_ACCESS_LOG" ] && [ -f "$GUNICORN_ERROR_LOG" ]; then
+        chown "$APP_USER:$MAIN_GROUP" "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
+        chmod 664 "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
+        echo "Permisos de logs de Gunicorn ajustados."
     fi
 
-    # Mark step as complete
+    systemctl daemon-reload
+    systemctl enable gunicorn celery
+    for service in gunicorn celery; do
+        if ! systemctl is-active --quiet "$service"; then
+            systemctl restart "$service"
+            sleep 2
+            if ! systemctl is-active --quiet "$service"; then
+                echo "Error: El servicio $service no se pudo iniciar. Revisa los logs."
+                exit 1
+            fi
+            echo "Servicio $service reiniciado con éxito."
+        else
+            echo "Servicio $service ya está corriendo."
+        fi
+    done
+
     echo "PART_9_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [9/13] completado."
+    echo "Paso [9/12] completado."
 else
-    echo "Paso [9/13] ya completado, omitiendo."
+    echo "Paso [9/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [10/13] CONFIGURANDO NGINX AND CERTBOT "
+echo " [10/12] CONFIGURANDO NGINX AND CERTBOT "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_10_RUN:-enabled}" != "disabled" ]; then
-    # Remove default and existing site configs
-    if [ -f "$NGINX_LINK" ] || [ -f "/etc/nginx/sites-enabled/default" ]; then
-        rm -f "$NGINX_LINK" /etc/nginx/sites-enabled/default
-        echo "Configuraciones previas de Nginx eliminadas."
-    fi
+    rm -f "$NGINX_LINK" /etc/nginx/sites-enabled/default
+    echo "Configuraciones previas de Nginx eliminadas."
 
-    # Create HTTP-only Nginx config
-    if [ ! -f "$NGINX_SITE" ] || ! grep -q "listen 80;" "$NGINX_SITE"; then
-        cat > "$NGINX_SITE" <<EOF
+    cat > "$NGINX_SITE" <<EOF
 server {
     listen 80;
     server_name $DOMAIN 127.0.0.1 localhost 34.57.227.244;
@@ -654,80 +620,35 @@ server {
     client_max_body_size 10M;
 }
 EOF
-        ln -sf "$NGINX_SITE" "$NGINX_LINK"
-        nginx -t && systemctl restart nginx || {
-            echo "Error: Nginx configuration test failed. Check /var/log/nginx/error.log"
-            exit 1
-        }
-        echo "Configuración HTTP de Nginx creada."
-    else
-        echo "Configuración HTTP de Nginx ya existe."
-    fi
+    ln -sf "$NGINX_SITE" "$NGINX_LINK"
+    nginx -t && systemctl restart nginx || {
+        echo "Error: Nginx configuration test failed. Check /var/log/nginx/error.log"
+        exit 1
+    }
+    echo "Configuración HTTP de Nginx creada."
 
-    echo "Advertencia: Certbot no se ejecutará debido a límites de emisión de certificados de Let's Encrypt."
-    echo "No se encontró certificado válido para $DOMAIN. Configurando HTTP-only."
-    echo "Espera hasta 2025-04-18 01:19:06 UTC y ejecuta manualmente: sudo certbot --nginx -d $DOMAIN"
-    echo "Consulta https://letsencrypt.org/docs/rate-limits/ para más detalles."
+    echo "Advertencia: Certbot no se ejecutará debido a límites de Let's Encrypt."
+    echo "Espera hasta 2025-04-18 01:19:06 UTC y ejecuta: sudo certbot --nginx -d $DOMAIN"
 
-    # Mark step as complete
     echo "PART_10_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [10/13] completado."
+    echo "Paso [10/12] completado."
 else
-    echo "Paso [10/13] ya completado, omitiendo."
+    echo "Paso [10/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [11/13] MIGRACIONES DJANGO Y CONFIGURACIÓN "
+echo " [11/12] MIGRACIONES DJANGO Y CONFIGURACIÓN "
 echo "==========================================================="
 sleep 2
 
-# Force this step to run by resetting PART_11_RUN
-echo "PART_11_RUN=enabled" >> "$STATUS_FILE"
-source "$STATUS_FILE"
-
 if [ "${PART_11_RUN:-enabled}" != "disabled" ]; then
-    # Create directories
-    for dir in "$LOG_DIR" "$STATIC_DIR" "$MEDIA_DIR" "$TFHUB_CACHE" "/home/pablo/skills_data"; do
-        if [ ! -d "$dir" ]; then
-            mkdir -p "$dir"
-            chown "$APP_USER:$MAIN_GROUP" "$dir"
-            chmod 775 "$dir"
-            echo "Directorio $dir creado."
-        else
-            echo "Directorio $dir ya existe."
-        fi
-    done
-
-    # Ensure log directory permissions
-    chown -R "$APP_USER:$MAIN_GROUP" "$LOG_DIR"
-    chmod -R 775 "$LOG_DIR"
-    find "$LOG_DIR" -type f -exec chmod 664 {} \;
-    echo "Permisos de $LOG_DIR ajustados."
-
-    # Ensure pablollh is in ai_huntred group
-    if id "$SECONDARY_USER" >/dev/null 2>&1 && ! groups "$SECONDARY_USER" | grep -q "$MAIN_GROUP"; then
-        usermod -aG "$MAIN_GROUP" "$SECONDARY_USER"
-        echo "$SECONDARY_USER añadido a $MAIN_GROUP."
+    if [ -f "$PROJECT_DIR/.env" ]; then
+        chown "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR/.env"
+        chmod 660 "$PROJECT_DIR/.env"
+        echo "Permisos de .env validados y ajustados."
     else
-        echo "$SECONDARY_USER ya en $MAIN_GROUP o no existe."
-    fi
-
-    # Create empty skill_db_relax_20.json if missing
-    SKILL_JSON="/home/pablo/skills_data/skill_db_relax_20.json"
-    if [ ! -f "$SKILL_JSON" ]; then
-        echo "{}" > "$SKILL_JSON"
-        chown "$APP_USER:$MAIN_GROUP" "$SKILL_JSON"
-        chmod 664 "$SKILL_JSON"
-        echo "Archivo $SKILL_JSON creado vacío."
-    else
-        echo "Archivo $SKILL_JSON ya existe."
-    fi
-
-    # Create .env file
-    if [ ! -f "$PROJECT_DIR/.env" ]; then
-        echo "Creando archivo .env..."
-        su - "$APP_USER" -c "cat > $PROJECT_DIR/.env <<ENDENV
+        su - "$APP_USER" -c "cat > $PROJECT_DIR/.env <<EOF
 DJANGO_SECRET_KEY=$SECRET_KEY
 DJANGO_DEBUG=True
 DJANGO_ALLOWED_HOSTS=$DOMAIN,127.0.0.1,localhost,34.57.227.244
@@ -766,17 +687,13 @@ GIT_USER=ablova@gmail.com
 GIT_PASSWORD=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
 TF_CPP_MIN_LOG_LEVEL=2
 CUDA_VISIBLE_DEVICES=
-ENDENV"
-        chmod 600 "$PROJECT_DIR/.env"
+EOF"
         chown "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR/.env"
-        echo ".env creado."
-    else
-        echo ".env ya existe."
+        chmod 660 "$PROJECT_DIR/.env"
+        echo ".env creado con permisos correctos."
     fi
 
-    # Configure Git credentials
     if [ ! -f "/home/$APP_USER/.git-credentials" ]; then
-        echo "Configurando credenciales de Git..."
         su - "$APP_USER" -c "
             git config --global credential.helper store
             echo 'https://ablova@gmail.com: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@github.com' > ~/.git-credentials
@@ -789,7 +706,6 @@ ENDENV"
         echo "Credenciales de Git ya configuradas."
     fi
 
-    # Run Django commands with time and echo, setting CUDA_VISIBLE_DEVICES and skipping NLP init
     export CUDA_VISIBLE_DEVICES=""
     export SKIP_NLP_INIT=1
     echo "Ejecutando makemigrations..."
@@ -800,7 +716,7 @@ ENDENV"
     time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py migrate --noinput"
     echo "migrate completado."
 
-    unset SKIP_NLP_INIT  # Allow NLP init for collectstatic
+    unset SKIP_NLP_INIT
     echo "Ejecutando collectstatic..."
     time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py collectstatic --noinput"
     echo "collectstatic completado."
@@ -814,52 +730,37 @@ ENDENV"
         echo 'from django.contrib.auth.models import User; User.objects.create_superuser(\"admin\", \"admin@huntred.com\", \"admin123\")' | python manage.py shell"
     echo "Superusuario creado."
 
-    # Set project directory permissions
     chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
     chmod -R 775 "$PROJECT_DIR"
+    find "$PROJECT_DIR" -type f -exec chmod 664 {} \;
 
-    # Restart services
-    systemctl restart gunicorn celery nginx
-    echo "Servicios Gunicorn, Celery y Nginx reiniciados."
+    for service in gunicorn celery nginx; do
+        if ! systemctl is-active --quiet "$service"; then
+            systemctl restart "$service"
+            sleep 2
+            if ! systemctl is-active --quiet "$service"; then
+                echo "Error: El servicio $service no se pudo iniciar. Revisa los logs."
+                exit 1
+            fi
+            echo "Servicio $service reiniciado con éxito."
+        else
+            echo "Servicio $service ya está corriendo."
+        fi
+    done
 
-    # Mark step as complete
     echo "PART_11_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [11/13] completado."
+    echo "Paso [11/12] completado."
 else
-    echo "Paso [11/13] ya completado, omitiendo."
+    echo "Paso [11/12] ya completado, omitiendo."
 fi
 
 ################################
 echo "==========================================================="
-echo " [12/13] AJUSTANDO EMAIL SCRAPER "
+echo " [12/12] CONFIGURANDO ALIAS Y ENTORNO "
 echo "==========================================================="
 sleep 2
 
 if [ "${PART_12_RUN:-enabled}" != "disabled" ]; then
-    # Fix email_scraper.py to avoid chown
-    if grep -q "os.chown" "$PROJECT_DIR/app/utilidades/email_scraper.py"; then
-        su - "$APP_USER" -c "sed -i 's/os.chown(log_dir, os.getuid(), 1004)//' $PROJECT_DIR/app/utilidades/email_scraper.py"
-        su - "$APP_USER" -c "sed -i 's/os.chown(log_file, os.getuid(), 1004)//' $PROJECT_DIR/app/utilidades/email_scraper.py"
-        echo "email_scraper.py ajustado."
-    else
-        echo "email_scraper.py ya ajustado."
-    fi
-
-    # Mark step as complete
-    echo "PART_12_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [12/13] completado."
-else
-    echo "Paso [12/13] ya completado, omitiendo."
-fi
-
-################################
-echo "==========================================================="
-echo " [13/13] CONFIGURANDO ALIAS Y ENTORNO "
-echo "==========================================================="
-sleep 2
-
-if [ "${PART_13_RUN:-enabled}" != "disabled" ]; then
-    # Create .bashrc with aliases
     if ! grep -q "alias iniciar" "/home/$APP_USER/.bashrc"; then
         su - "$APP_USER" -c "cat >> /home/$APP_USER/.bashrc << 'EOF'
 export LS_OPTIONS='--color=auto'
@@ -940,20 +841,22 @@ alias up_git='sudo truncate -s 0 $LOG_DIR/*.log $GUNICORN_LOG_DIR/*.log /var/log
 alias up2_git='cd /home/pablo && source venv/bin/activate && git fetch origin && git reset --hard origin/main && git clean -fd && git status && git log -1 && sleep 10 && sudo systemctl restart gunicorn nginx && python manage.py makemigrations && python manage.py migrate'
 alias zombie='sudo kill -9 \$(ps -ef | grep \"systemctl.*less\" | awk \"{print \$2,\$3}\" | tr \" \" \"\n\" | sort -u) && sudo find /var/log -type f -size +10M'
 alias rmem='sudo sysctl vm.drop_caches=3 && sudo rm -rf /tmp/* && sudo journalctl --vacuum-time=10m && sleep 40 && swapon --show && sudo swapon -a'
+export TF_ENABLE_ONEDNN_OPTS=0
+export TF_CPP_MIN_LOG_LEVEL=2
+export CUDA_VISIBLE_DEVICES=""
 EOF"
         chown "$APP_USER:$APP_USER" "/home/$APP_USER/.bashrc"
         chmod 644 "/home/$APP_USER/.bashrc"
         su - "$APP_USER" -c "source /home/$APP_USER/.bashrc"
-        echo ".bashrc configurado con alias."
+        echo ".bashrc configurado con alias y variables de entorno."
     else
         echo ".bashrc ya configurado con alias."
     fi
 
-    # Mark step as complete
-    echo "PART_13_RUN=disabled" >> "$STATUS_FILE"
-    echo "Paso [13/13] completado."
+    echo "PART_12_RUN=disabled" >> "$STATUS_FILE"
+    echo "Paso [12/12] completado."
 else
-    echo "Paso [13/13] ya completado, omitiendo."
+    echo "Paso [12/12] ya completado, omitiendo."
 fi
 
 echo "==========================================================="
