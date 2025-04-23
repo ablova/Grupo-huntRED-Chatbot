@@ -7,6 +7,7 @@ from celery import Celery
 from celery.schedules import crontab
 from celery.signals import worker_ready
 from django.db.utils import OperationalError
+from django.apps import apps
 
 logger = logging.getLogger("app.tasks")
 
@@ -19,25 +20,10 @@ app = Celery('ai_huntred')
 def configure_tensorflow():
     try:
         import tensorflow as tf
-        tf.config.set_visible_devices([], 'GPU')
-        if hasattr(tf.config, "experimental"):
-            gpus = tf.config.experimental.list_physical_devices('GPU')
-            if gpus:
-                try:
-                    tf.config.experimental.set_memory_growth(gpus[0], True)
-                    tf.config.set_logical_device_configuration(
-                        gpus[0],
-                        [tf.config.LogicalDeviceConfiguration(memory_limit=1000)]
-                    )
-                    logger.info("✅ GPU detectada. Limitada a 1GB RAM.")
-                except Exception as e:
-                    logger.warning(f"⚠️ No se pudo configurar la memoria de la GPU: {str(e)}")
-            else:
-                logger.warning("⚠️ No GPU detectada. TensorFlow correrá en CPU.")
-        else:
-            logger.warning("⚠️ TensorFlow no tiene el módulo 'config'. Se ejecutará en CPU.")
+        tf.config.set_visible_devices([], 'GPU')  # Disable GPU
+        logger.info("✅ TensorFlow configured to run on CPU.")
     except ImportError:
-        logger.warning("⚠️ TensorFlow no está instalado.")
+        logger.warning("⚠️ TensorFlow not installed.")
 
 app.conf.update(
     broker_url='redis://127.0.0.1:6379/0',
@@ -152,7 +138,7 @@ SCHEDULE_DICT = {
     },
     'Syncronizar Oportunidades Diario': {
         'task': 'app.tasks.sync_jobs_with_api',
-        'schedule': crontab(minute=0, hour=5),  # Ejecuta a las 05:00 AM todos los días
+        'schedule': crontab(minute=0, hour=5),
     },
 }
 
@@ -163,22 +149,29 @@ def setup_periodic_tasks(sender, **kwargs):
         logger.info("Skipping periodic task setup for admin commands.")
         return
 
-    from django.apps import apps
     import time
-    for attempt in range(2):
-        if apps.ready:
-            break
-        logger.warning(f"⏳ Django not ready on attempt {attempt+1}. Waiting...")
-        time.sleep(8)
+    max_attempts = 4  # Increased retries
+    for attempt in range(max_attempts):
+        try:
+            # Check app registry and database connectivity
+            if apps.apps_ready and apps.models_ready and apps.ready:
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")  # Test database
+                logger.info("Django app registry and database are fully ready")
+                break
+            logger.warning(f"⏳ Django not ready on attempt {attempt+1} (apps_ready={apps.apps_ready}, models_ready={apps.models_ready}, ready={apps.ready})")
+            time.sleep(20)  # Increased delay
+        except Exception as e:
+            logger.warning(f"⚠️ Error checking Django readiness on attempt {attempt+1}: {e}")
+            time.sleep(20)
     
-    if not apps.ready:
+    if not (apps.apps_ready and apps.models_ready and apps.ready):
         logger.error("❌ Django still not ready after retries. Scheduling will be handled by beat service.")
         return
     
-    # Usa app directamente en lugar de sender
     app.conf.beat_schedule = SCHEDULE_DICT
     
-    max_attempts = 3
     for attempt in range(max_attempts):
         try:
             from django_celery_beat.models import CrontabSchedule, PeriodicTask
@@ -204,10 +197,10 @@ def setup_periodic_tasks(sender, **kwargs):
                     )
                 logger.info(f"✅ Successfully registered {len(SCHEDULE_DICT)} periodic tasks")
                 break
-        except OperationalError:
-            logger.warning(f"⚠️ Database not available on attempt {attempt+1}/{max_attempts}")
+        except OperationalError as e:
+            logger.warning(f"⚠️ Database not available on attempt {attempt+1}/{max_attempts}: {e}")
             if attempt < max_attempts - 1:
-                time.sleep(10)
+                time.sleep(20)
         except Exception as e:
             logger.error(f"❌ Error registering periodic tasks: {str(e)}")
             break
@@ -242,3 +235,5 @@ app.conf.task_annotations.update({
         'soft_time_limit': 4800,
     },
 })
+
+configure_tensorflow()

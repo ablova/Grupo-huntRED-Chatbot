@@ -1,10 +1,9 @@
 # /home/pablo/app/apps.py
 import os
+import sys
 import logging
 from django.apps import AppConfig as DjangoAppConfig
 from django.conf import settings
-from django.core.cache import cache
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -13,19 +12,21 @@ class AppConfig(DjangoAppConfig):
     name = 'app'
 
     def ready(self):
+        # Evitar ejecución en comandos de gestión como migrate, makemigrations, etc.
+        if any(arg in sys.argv for arg in ['migrate', 'makemigrations', 'collectstatic']):
+            return
+        
+        # Importar signals solo si no es un comando de migración
         import app.signals
-        if any(arg in os.sys.argv for arg in ['runserver', 'migrate', 'collectstatic', 'makemigrations']):
-            return
-        if 'gunicorn' in os.environ.get('SERVER_SOFTWARE', '') or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
+        
+        # Configurar TensorFlow solo si es necesario (por ejemplo, en runserver o celery)
+        if 'runserver' in sys.argv or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
+            from app.ml.ml_opt import configure_tensorflow
+            configure_tensorflow()
+        
+        # Registrar handlers solo en entornos de ejecución
+        if 'runserver' in sys.argv or 'gunicorn' in os.environ.get('SERVER_SOFTWARE', ''):
             self.register_startup_handlers()
-
-        if 'migrate' in sys.argv or 'makemigrations' in sys.argv:
-            # Evitar cargar ML durante migraciones
-            return
-
-        # Importar solo si no estamos migrando
-        from app.ml.ml_opt import configure_tensorflow
-        configure_tensorflow()
 
     def register_startup_handlers(self):
         from django.core.signals import request_started
@@ -67,9 +68,9 @@ class AppConfig(DjangoAppConfig):
                 setattr(settings, key, value)
 
     def _setup_periodic_tasks(self, **kwargs):
-        from ai_huntred.celery_app import app  # Importa app en lugar de la función directamente
+        from ai_huntred.celery_app import app
         try:
-            app.on_after_configure.connect(setup_periodic_tasks)  # Usa la función definida en celery.py
+            app.on_after_configure.connect(setup_periodic_tasks)
             logger.info("Periodic tasks registered successfully")
         except Exception as e:
             logger.error(f"Error registering periodic tasks: {e}")

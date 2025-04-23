@@ -35,18 +35,8 @@ environ.Env.read_env(env_file='/home/pablo/.env')
 log_dir = "/home/pablo/logs"
 log_file = os.path.join(log_dir, f"email_scraper_{datetime.now().strftime('%Y%m%d')}.log")
 
-# Asegurar que el directorio de logs exista y tenga permisos correctos
-def ensure_log_directory():
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir, mode=0o770)
-    try:
-        os.chmod(log_dir, 0o770)
-        os.chown(log_dir, os.getuid(), 1004)  # GID de ai_huntred
-    except Exception as e:
-        logging.warning(f"No se pudo configurar permisos para {log_dir}: {str(e)}")
 
 # Configurar logging
-ensure_log_directory()
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

@@ -688,7 +688,7 @@ source "$STATUS_FILE"
 
 if [ "${PART_11_RUN:-enabled}" != "disabled" ]; then
     # Create directories
-    for dir in "$LOG_DIR" "$STATIC_DIR" "$MEDIA_DIR" "$TFHUB_CACHE"; do
+    for dir in "$LOG_DIR" "$STATIC_DIR" "$MEDIA_DIR" "$TFHUB_CACHE" "/home/pablo/skills_data"; do
         if [ ! -d "$dir" ]; then
             mkdir -p "$dir"
             chown "$APP_USER:$MAIN_GROUP" "$dir"
@@ -698,6 +698,31 @@ if [ "${PART_11_RUN:-enabled}" != "disabled" ]; then
             echo "Directorio $dir ya existe."
         fi
     done
+
+    # Ensure log directory permissions
+    chown -R "$APP_USER:$MAIN_GROUP" "$LOG_DIR"
+    chmod -R 775 "$LOG_DIR"
+    find "$LOG_DIR" -type f -exec chmod 664 {} \;
+    echo "Permisos de $LOG_DIR ajustados."
+
+    # Ensure pablollh is in ai_huntred group
+    if id "$SECONDARY_USER" >/dev/null 2>&1 && ! groups "$SECONDARY_USER" | grep -q "$MAIN_GROUP"; then
+        usermod -aG "$MAIN_GROUP" "$SECONDARY_USER"
+        echo "$SECONDARY_USER añadido a $MAIN_GROUP."
+    else
+        echo "$SECONDARY_USER ya en $MAIN_GROUP o no existe."
+    fi
+
+    # Create empty skill_db_relax_20.json if missing
+    SKILL_JSON="/home/pablo/skills_data/skill_db_relax_20.json"
+    if [ ! -f "$SKILL_JSON" ]; then
+        echo "{}" > "$SKILL_JSON"
+        chown "$APP_USER:$MAIN_GROUP" "$SKILL_JSON"
+        chmod 664 "$SKILL_JSON"
+        echo "Archivo $SKILL_JSON creado vacío."
+    else
+        echo "Archivo $SKILL_JSON ya existe."
+    fi
 
     # Create .env file
     if [ ! -f "$PROJECT_DIR/.env" ]; then
@@ -764,7 +789,9 @@ ENDENV"
         echo "Credenciales de Git ya configuradas."
     fi
 
-    # Run Django commands with time and echo
+    # Run Django commands with time and echo, setting CUDA_VISIBLE_DEVICES and skipping NLP init
+    export CUDA_VISIBLE_DEVICES=""
+    export SKIP_NLP_INIT=1
     echo "Ejecutando makemigrations..."
     time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py makemigrations --noinput"
     echo "makemigrations completado."
@@ -773,6 +800,7 @@ ENDENV"
     time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py migrate --noinput"
     echo "migrate completado."
 
+    unset SKIP_NLP_INIT  # Allow NLP init for collectstatic
     echo "Ejecutando collectstatic..."
     time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py collectstatic --noinput"
     echo "collectstatic completado."
@@ -783,7 +811,7 @@ ENDENV"
 
     echo "Creando superusuario..."
     time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && \
-        echo 'from django.contrib.auth.models import User; User.objects.create_superuser(\"PabloLLH\", \"pablo@huntred.com\", \"Natalia&Patricio1113!\")' | python manage.py shell"
+        echo 'from django.contrib.auth.models import User; User.objects.create_superuser(\"admin\", \"admin@huntred.com\", \"admin123\")' | python manage.py shell"
     echo "Superusuario creado."
 
     # Set project directory permissions
