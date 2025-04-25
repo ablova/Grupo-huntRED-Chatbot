@@ -304,61 +304,49 @@ def predict_top_candidates_task(vacancy_id, top_n=10):
 
 
 @shared_task
-async def sync_jobs_with_api():
+def sync_jobs_with_api():
     logger.info(f"[{datetime.now().isoformat()}] Ejecutando tarea programada: sync_jobs_with_api")
-    # Obtener todas las unidades de negocio con configuraciones
-    business_units = await sync_to_async(list)(BusinessUnit.objects.prefetch_related('configuracionbu_set').all())
-    
-    async with aiohttp.ClientSession() as session:
-        for bu in business_units:
-            try:
-                # Obtener configuración específica
-                configuracion = await sync_to_async(lambda: ConfiguracionBU.objects.get(business_unit=bu))()
-                api_url = configuracion.dominio_rest_api or f"https://{configuracion.dominio_bu}/wp-json/wp/v2/job-listings"
-                headers = {
-                    "Authorization": f"Bearer {configuracion.jwt_token}",
-                    "Content-Type": "application/json"
-                }
-
-                # Consultar vacantes del REST_API
-                async with session.get(api_url, headers=headers) as response:
-                    if response.status != 200:
-                        logger.error(f"Error al consultar API para {bu.name}: {response.status}")
-                        continue
-                    api_jobs = await response.json()
-
-                # Sincronizar con base local
-                local_jobs = await sync_to_async(list)(Vacante.objects.filter(business_unit=bu))
-                local_job_urls = {job.url_original: job for job in local_jobs if job.url_original}
-
-                for api_job in api_jobs:
-                    job_url = api_job.get("link")
-                    if job_url in local_job_urls:
-                        # Actualizar vacante existente
-                        local_job = local_job_urls[job_url]
-                        local_job.titulo = api_job["title"]["rendered"]
-                        local_job.descripcion = api_job["content"]["rendered"]
-                        # Actualizar otros campos según sea necesario
-                        await sync_to_async(local_job.save)()
-                        logger.info(f"Vacante actualizada para {bu.name}: {local_job.titulo}")
-                    else:
-                        # Crear nueva vacante
-                        manager = VacanteManager({
-                            "business_unit": bu,
-                            "job_title": api_job["title"]["rendered"],
-                            "job_description": api_job["content"]["rendered"],
-                            "company_name": api_job.get("meta", {}).get("_company_name", "Unknown"),
-                            "job_link": job_url  # Para evitar duplicados
-                        })
-                        await manager.initialize()
-                        await manager.create_job_listing()
-                        logger.info(f"Vacante creada para {bu.name}: {api_job['title']['rendered']}")
-
-            except Exception as e:
-                logger.error(f"Error sincronizando vacantes para {bu.name}: {e}", exc_info=True)
-                continue
-
+    business_units = BusinessUnit.objects.prefetch_related('configuracionbu_set').all()
+    for bu in business_units:
+        try:
+            configuracion = ConfiguracionBU.objects.get(business_unit=bu)
+            api_url = configuracion.dominio_rest_api or f"https://{configuracion.dominio_bu}/wp-json/wp/v2/job-listings"
+            headers = {
+                "Authorization": f"Bearer {configuracion.jwt_token}",
+                "Content-Type": "application/json"
+            }
+            with aiohttp.ClientSession() as session:
+                response = async_to_sync(session.get)(api_url, headers=headers)
+                if response.status != 200:
+                    logger.error(f"Error al consultar API para {bu.name}: {response.status}")
+                    continue
+                api_jobs = response.json()
+            local_jobs = Vacante.objects.filter(business_unit=bu)
+            local_job_urls = {job.url_original: job for job in local_jobs if job.url_original}
+            for api_job in api_jobs:
+                job_url = api_job.get("link")
+                if job_url in local_job_urls:
+                    local_job = local_job_urls[job_url]
+                    local_job.titulo = api_job["title"]["rendered"]
+                    local_job.descripcion = api_job["content"]["rendered"]
+                    local_job.save()
+                    logger.info(f"Vacante actualizada para {bu.name}: {local_job.titulo}")
+                else:
+                    manager = VacanteManager({
+                        "business_unit": bu,
+                        "job_title": api_job["title"]["rendered"],
+                        "job_description": api_job["content"]["rendered"],
+                        "company_name": api_job.get("meta", {}).get("_company_name", "Unknown"),
+                        "job_link": job_url
+                    })
+                    manager.initialize()
+                    manager.create_job_listing()
+                    logger.info(f"Vacante creada para {bu.name}: {api_job['title']['rendered']}")
+        except Exception as e:
+            logger.error(f"Error sincronizando vacantes para {bu.name}: {e}", exc_info=True)
+            continue
     logger.info("Sincronización de vacantes completada para todas las unidades de negocio.")
+    
 # =========================================================
 # Tareas relacionadas con el scraping programado
 # =========================================================
@@ -572,8 +560,10 @@ def trigger_amigro_workflows(candidate_id):
 # =========================================================
 @shared_task
 def process_batch_task():
+    logger.info("Procesando lote de usuarios recientes.")
     from app.chatbot.nlp import process_recent_users_batch
     process_recent_users_batch()
+    return "Lote procesado"
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
@@ -638,28 +628,32 @@ def scrape_single_profile_task(profile_url: str):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def process_csv_and_scrape_task(self, csv_path: str = "/home/pablo/connections.csv"):
-    """
-    Procesa el archivo CSV y ejecuta scraping de los perfiles.
-    Al finalizar, se ejecuta la función de deduplicación para eliminar candidatos duplicados.
-    """
     try:
         bu = BusinessUnit.objects.filter(name='huntRED').first()
         if not bu:
             raise Exception("No se encontró la BU huntRED.")
 
         logger.info("🚀 Iniciando procesamiento del CSV.")
-        process_csv(csv_path, bu)  # Procesa el CSV utilizando update_or_create
+        async_to_sync(process_csv)(csv_path, bu)
 
-        # Opcional: Ejecutar deduplicación luego de procesar el CSV
+        logger.info("🧹 Iniciando deduplicación.")
         duplicates = deduplicate_candidates()
         logger.info(f"🧹 Deduplicación completada. Total duplicados eliminados: {len(duplicates)}")
 
         logger.info("🔍 Iniciando scraping de perfiles.")
-        scrape_linkedin_profile()  # Suponiendo que esta función se encarga de scraping de perfiles pendientes
+        persons = Person.objects.filter(linkedin_url__isnull=False)
+        for person in persons:
+            try:
+                scraped_data = async_to_sync(scrape_linkedin_profile)(person.linkedin_url, bu.name.lower())
+                update_person_from_scrape(person, scraped_data)
+                logger.info(f"Perfil scrapeado: {person.nombre} {person.apellido_paterno}")
+            except Exception as e:
+                logger.error(f"Error scrapeando {person.linkedin_url}: {e}")
+                continue
 
         logger.info("✅ Proceso completo de CSV y scraping finalizado.")
     except Exception as e:
-        logger.error(f"❌ Error en el flujo combinado: {e}")
+        logger.error(f"❌ Error en el flujo combinado: {e}", exc_info=True)
         self.retry(exc=e)
         
 @shared_task(bind=True, max_retries=3, default_retry_delay=300, queue='notifications')
@@ -936,7 +930,7 @@ def enviar_reporte_diario(self):
             asyncio.run(send_email(
                 business_unit_name="Grupo huntRED®",
                 subject="📈 Reporte Diario Scraping",
-                destinatario=configuracion.test_email,
+                to=configuracion.test_email,
                 body=mensaje,
                 html=True
             ))

@@ -314,6 +314,7 @@ async def process_csv(csv_path: str, business_unit: BusinessUnit):
             email = row.get('Email Address', '').strip() or None
             phone_number = row.get('Phone', '').strip() or None
 
+            logger.debug(f"Procesando registro {count}: {fn} {ln} ({email})")
             candidate_data = {
                 'nombre': fn,
                 'apellido_paterno': ln,

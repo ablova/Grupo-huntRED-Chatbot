@@ -12,14 +12,12 @@ from django.apps import apps
 
 logger = logging.getLogger("app.tasks")
 
-# Configurar Django solo si no está en un comando de gestión
 if not any(arg in sys.argv for arg in ['migrate', 'makemigrations', 'collectstatic']):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
     django.setup()
 
 app = Celery('ai_huntred')
 
-# Rest of the file remains unchanged
 app.conf.update(
     broker_url='redis://127.0.0.1:6379/0',
     result_backend='redis://127.0.0.1:6379/0',
