@@ -6,8 +6,13 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from pathlib import Path
 
-# Desactivar CUDA y optimizaciones innecesarias
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
+# Configuración temprana de TensorFlow
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+
+# Resto del archivo...
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 

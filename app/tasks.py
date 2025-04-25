@@ -50,8 +50,6 @@ logger = logging.getLogger(__name__)
 def add(x, y):
     return x + y
 
-
-
 # =========================================================
 # Tareas relacionadas con notificaciones
 # =========================================================
@@ -346,7 +344,7 @@ def sync_jobs_with_api():
             logger.error(f"Error sincronizando vacantes para {bu.name}: {e}", exc_info=True)
             continue
     logger.info("Sincronización de vacantes completada para todas las unidades de negocio.")
-    
+
 # =========================================================
 # Tareas relacionadas con el scraping programado
 # =========================================================
