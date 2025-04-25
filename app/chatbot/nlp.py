@@ -1,4 +1,4 @@
-# /home/pablo/app/chatbot/nlp.py
+# Ubicación del archivo: /home/pablo/app/chatbot/nlp.py
 import os
 import json
 import logging
@@ -13,10 +13,14 @@ from deep_translator import GoogleTranslator
 from filelock import FileLock
 import tensorflow as tf
 import tensorflow_hub as hub
-from sklearn.metrics.pairwise import cosine_similarity
+import spacy
+import asyncio
+from collections import defaultdict
 import psutil
 import gc
 import time
+import sys
+sys.path.append('/home/pablo')  # Temporal hasta configurar PYTHONPATH
 
 # Configuración de logging
 logging.basicConfig(
@@ -27,33 +31,38 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('nlp')
+
+# Intentar importar TensorFlow y TensorFlow Hub
+try:
+    import tensorflow as tf
+    import tensorflow_hub as hub
+    TF_AVAILABLE = True
+    logger.info(f"TensorFlow {tf.__version__} y TensorFlow Hub importados correctamente.")
+except ImportError as e:
+    logger.error(f"Error importando TensorFlow o TensorFlow Hub: {e}")
+    TF_AVAILABLE = False
+    tf = None
+    hub = None
 
 # Configuraciones escalables
-USE_EMBEDDINGS = False  # Activar embeddings solo si están listos y hay recursos
-USE_SKILLNER = False    # Activar SkillNer solo si hay recursos suficientes
-RAM_LIMIT = 8 * 1024 * 1024 * 1024  # 8 GB, umbral para embeddings
-EMBEDDINGS_READY = False  # Indicador de si los embeddings están listos
-# Configuraciones escalables
-DISABLE_EXTRACTORS = True  # Deshabilitar extractors.py temporalmente
+USE_EMBEDDINGS = True if TF_AVAILABLE else False
+USE_SKILLNER = False
+RAM_LIMIT = 8 * 1024 * 1024 * 1024  # 8 GB
+EMBEDDINGS_READY = False
 
-# Verificar si el caché de embeddings existe
+# Verificar caché de embeddings
 EMBEDDINGS_CACHE = "/home/pablo/skills_data/embeddings_cache.pkl"
 if os.path.exists(EMBEDDINGS_CACHE):
     EMBEDDINGS_READY = True
-    logger.info("Embeddings cache encontrado. Modo 'deep' disponible si hay suficiente RAM.")
-
-# Verificar recursos disponibles
-AVAILABLE_RAM = psutil.virtual_memory().available
-if AVAILABLE_RAM > RAM_LIMIT and EMBEDDINGS_READY:
-    USE_EMBEDDINGS = True
-    logger.info("Modo embeddings activado debido a suficiente RAM y embeddings listos.")
+    logger.info("Embeddings cache encontrado.")
 
 # Constantes
 FILE_PATHS = {
-    "relax_skills": "/home/pablo/skills_data/skill_db_relax_20.json",
-    "esco_skills": "/home/pablo/skills_data/ESCO_occup_skills.json",
-    "opportunity_catalog": "/home/pablo/app/utilidades/catalogs/skills.json",
+    "candidate_quick": "/home/pablo/skills_data/skill_db_relax_20.json",
+    "candidate_deep": "/home/pablo/skills_data/ESCO_occup_skills.json",
+    "opportunity_quick": "/home/pablo/app/utilidades/catalogs/skills.json",
+    "opportunity_deep": "/home/pablo/skills_data/ESCO_occup_skills.json",
 }
 LOCK_FILE = "/home/pablo/skills_data/nlp_init.lock"
 
@@ -66,39 +75,115 @@ nlp_spacy = None
 use_model = None
 skill_extractor = None
 
-# Cargar catálogo de habilidades desde extractors.py
-from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
+# Cargar extractors
+try:
+    from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
+except ImportError as e:
+    logger.error(f"Error importando extractors: {e}")
+    ESCOExtractor = None
+    NICEExtractor = None
+    unify_data = None
 
+def load_skills_catalog(mode: str, analysis_depth: str) -> Dict[str, List[Dict[str, str]]]:
+    """Carga un catálogo de habilidades según el modo y nivel de procesamiento."""
+    catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
+    key = f"{mode}_{analysis_depth}"
 
-# Cargar catálogo de habilidades con respaldo
-def load_skills_catalog():
-    """Carga un catálogo de habilidades, usando un respaldo local si DISABLE_EXTRACTORS es True."""
-    if DISABLE_EXTRACTORS:
+    if key == "candidate_quick":
         try:
-            with open("/home/pablo/skills_data/skill_db_relax_20.json", "r") as f:  #O puede ser /home/pablo/app/utilidades/catalogs/skills.json
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"Error cargando respaldo: {e}, usando catálogo vacío.")
-            return {"technical": [], "soft": [], "tools": [], "certifications": []}
-    else:
-        try:
-            from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
-            esco_ext = ESCOExtractor()
-            nice_ext = NICEExtractor()
-            esco_skills = esco_ext.get_skills(language="es", limit=100)
-            nice_skills = nice_ext.get_skills(sheet_name="Skills")
-            unified_skills = unify_data(esco_skills, nice_skills)
-            catalog = {"technical": [], "soft": [], "tools": [], "certifications": []}
-            for skill in unified_skills:
-                skill_name = skill.get("name", "").lower()
-                skill_type = skill.get("type", "skill")
-                if skill_type == "skill":
-                    catalog["technical"].append({"original": skill_name})
-            logger.info(f"Cargadas {len(unified_skills)} habilidades en el catálogo.")
+            with open(FILE_PATHS["candidate_quick"], "r") as f:
+                data = json.load(f)
+                type_mapping = {
+                    "Hard Skill": "technical",
+                    "Soft Skill": "soft",
+                    "Tool": "tools",
+                    "Certification": "certifications"
+                }
+                for skill_id, skill_data in data.items():
+                    skill_type = skill_data.get("skill_type", "Hard Skill")
+                    category = type_mapping.get(skill_type, "technical")
+                    skill_cleaned = skill_data.get("skill_cleaned", skill_data.get("skill_name", "")).lower()
+                    if skill_cleaned:
+                        catalog[category].append({"original": skill_cleaned})
+            total_skills = sum(len(v) for v in catalog.values())
+            logger.info(f"Cargadas {total_skills} habilidades desde skill_db_relax_20.json (candidate_quick)")
             return catalog
         except Exception as e:
-            logger.error(f"Error cargando catálogo: {e}, usando catálogo vacío.")
-            return {"technical": [], "soft": [], "tools": [], "certifications": []}
+            logger.error(f"Error cargando skill_db_relax_20.json: {e}, usando catálogo vacío.")
+            return catalog
+
+    elif key == "candidate_deep":
+        try:
+            with open(FILE_PATHS["candidate_deep"], "r") as f:
+                data = json.load(f)
+                skill_count = 0
+                for occupation, occ_data in data.items():
+                    logger.debug(f"Ocupación: {occupation}, campos disponibles: {list(occ_data.keys())}")
+                    for skill_field in ["hasEssentialSkill", "hasOptionalSkill"]:
+                        for skill in occ_data.get(skill_field, []):
+                            skill_name = skill.get("title", "").lower()
+                            if skill_name:
+                                catalog["technical"].append({"original": skill_name})
+                                skill_count += 1
+                                logger.debug(f"Habilidad encontrada: {skill_name}")
+                    # Limitar para pruebas iniciales
+                    if skill_count >= 10000:
+                        break
+                total_skills = sum(len(v) for v in catalog.values())
+                logger.info(f"Cargadas {total_skills} habilidades desde ESCO_occup_skills.json (candidate_deep)")
+                return catalog
+        except Exception as e:
+            logger.error(f"Error cargando ESCO_occup_skills.json: {e}, usando catálogo vacío.")
+            return catalog
+
+    elif key == "opportunity_quick":
+        try:
+            with open(FILE_PATHS["opportunity_quick"], "r") as f:
+                data = json.load(f)
+                for role_group, roles in data.items():
+                    for role, categories in roles.items():
+                        for category, skills in categories.items():
+                            target_category = {
+                                "Habilidades Técnicas": "technical",
+                                "Habilidades Blandas": "soft",
+                                "Herramientas": "tools",
+                                "Certificaciones": "certifications"
+                            }.get(category, "technical")
+                            for skill in skills:
+                                catalog[target_category].append({"original": skill.lower(), "role": role})
+                total_skills = sum(len(v) for v in catalog.values())
+                logger.info(f"Cargadas {total_skills} habilidades desde skills.json (opportunity_quick)")
+                return catalog
+        except Exception as e:
+            logger.error(f"Error cargando skills.json: {e}, usando catálogo vacío.")
+            return catalog
+
+    elif key == "opportunity_deep":
+        try:
+            with open(FILE_PATHS["opportunity_deep"], "r") as f:
+                data = json.load(f)
+                skill_count = 0
+                for occupation, occ_data in data.items():
+                    role = occ_data.get("preferredLabel", {}).get("es", occupation).lower()
+                    logger.debug(f"Ocupación: {occupation}, campos disponibles: {list(occ_data.keys())}")
+                    for skill_field in ["hasEssentialSkill", "hasOptionalSkill"]:
+                        for skill in occ_data.get(skill_field, []):
+                            skill_name = skill.get("title", "").lower()
+                            if skill_name:
+                                catalog["technical"].append({"original": skill_name, "role": role})
+                                skill_count += 1
+                                logger.debug(f"Habilidad encontrada: {skill_name}")
+                    # Limitar para pruebas iniciales
+                    if skill_count >= 10000:
+                        break
+                total_skills = sum(len(v) for v in catalog.values())
+                logger.info(f"Cargadas {total_skills} habilidades desde ESCO_occup_skills.json (opportunity_deep)")
+                return catalog
+        except Exception as e:
+            logger.error(f"Error cargando ESCO_occup_skills.json: {e}, usando catálogo vacío.")
+            return catalog
+
+    return catalog
 
 def load_spacy_model(language: str = "es"):
     global nlp_spacy
@@ -113,48 +198,48 @@ def load_spacy_model(language: str = "es"):
 
 def load_use_model():
     global use_model
-    if use_model is None and USE_EMBEDDINGS:
+    if use_model is None and USE_EMBEDDINGS and TF_AVAILABLE:
         try:
-            # Limitar uso de CPU
+            model_path = "/home/pablo/tfhub_cache/use_multilingual_4/use4"
+            logger.debug(f"Intentando cargar modelo desde: {model_path}")
             tf.config.threading.set_intra_op_parallelism_threads(1)
             tf.config.threading.set_inter_op_parallelism_threads(1)
-            use_model = hub.load("https://tfhub.dev/google/universal-sentence-encoder-multilingual/4")
+            use_model = hub.load(model_path)
             logger.info("Modelo USE v4 cargado con límite de CPU al 25%.")
         except Exception as e:
-            logger.error(f"Error cargando USE: {e}")
+            logger.error(f"Error cargando USE desde {model_path}: {e}", exc_info=True)
+            use_model = None
+    else:
+        logger.debug(f"Estado inicial: use_model={use_model}, USE_EMBEDDINGS={USE_EMBEDDINGS}, TF_AVAILABLE={TF_AVAILABLE}")
     return use_model
 
-def load_skillner():
-    global skill_extractor
-    if skill_extractor is None and USE_SKILLNER:
-        try:
-            from skillNer.skill_extractor_class import SkillExtractor
-            from skillNer.general_params import SKILL_DB
-            nlp = load_spacy_model()
-            if nlp:
-                skill_extractor = SkillExtractor(nlp, SKILL_DB, PhraseMatcher(nlp.vocab, attr="LOWER"))
-                logger.info("SkillNer cargado.")
-        except Exception as e:
-            logger.error(f"Error cargando SkillNer: {e}")
-    return skill_extractor
+def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return np.dot(a, b) / (norm_a * norm_b)
 
 class NLPProcessor:
     def __init__(self, mode: str = "candidate", language: str = "es", analysis_depth: str = "quick"):
         self.mode = mode
         self.language = language
-        self.requested_depth = analysis_depth  # Guardamos la profundidad solicitada
+        self.requested_depth = analysis_depth
         self.nlp = load_spacy_model(language)
-        self.skills_catalog = load_skills_catalog()  # Cargar catálogo al inicializar
-        
-        # Determinar el modo efectivo basado en recursos y embeddings
-        self.effective_depth = "quick"
-        if analysis_depth == "deep" and USE_EMBEDDINGS:
-            self.effective_depth = "deep"
-            load_use_model()
-            load_skillner()
-        elif analysis_depth == "deep":
-            logger.info("Modo 'deep' solicitado pero no disponible. Usando 'quick'.")
-        
+        self.skills_catalog = load_skills_catalog(mode, analysis_depth)
+        self.skill_sets = {
+            category: set(skill["original"].lower() for skill in skills_list if isinstance(skill, dict) and skill.get("original"))
+            for category, skills_list in self.skills_catalog.items()
+        }
+        self.effective_depth = analysis_depth
+        if analysis_depth == "deep" and not (USE_EMBEDDINGS and TF_AVAILABLE):
+            logger.info("Modo 'deep' solicitado pero embeddings no disponibles. Usando 'quick'.")
+            self.effective_depth = "quick"
+            self.skills_catalog = load_skills_catalog(mode, "quick")
+            self.skill_sets = {
+                category: set(skill["original"].lower() for skill in skills_list if isinstance(skill, dict) and skill.get("original"))
+                for category, skills_list in self.skills_catalog.items()
+            }
         logger.info(f"Modo efectivo: {self.effective_depth}")
 
     async def preprocess(self, text: str) -> Dict[str, str]:
@@ -178,7 +263,7 @@ class NLPProcessor:
             return {"original": text.lower(), "translated": text.lower(), "lang": "unknown"}
 
     def get_text_embedding(self, text: str) -> np.ndarray:
-        if self.effective_depth == "quick" or not USE_EMBEDDINGS:
+        if self.effective_depth != "deep" or not USE_EMBEDDINGS:
             return np.zeros(512)
         cache_key = f"embedding_{text}"
         if cache_key in embeddings_cache:
@@ -197,10 +282,8 @@ class NLPProcessor:
     async def extract_skills(self, text: str) -> Dict[str, List[Dict[str, any]]]:
         if self.effective_depth == "quick":
             return self._extract_skills_quick(text)
-        elif USE_SKILLNER and skill_extractor:
-            return self._extract_skills_skillner(text)
-        elif USE_EMBEDDINGS:
-            return await self._extract_skills_embeddings(text)
+        elif self.effective_depth == "deep":
+            return await self._extract_skills_deep(text)
         return {"technical": [], "soft": [], "tools": [], "certifications": []}
 
     def _extract_skills_quick(self, text: str) -> Dict[str, List[Dict[str, any]]]:
@@ -208,49 +291,53 @@ class NLPProcessor:
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
         for token in doc:
             skill_name = token.text
-            for category, skills_list in self.skills_catalog.items():
-                if any(skill["original"] == skill_name for skill in skills_list):
-                    skills[category].append({"original": skill_name})
+            for category, skill_set in self.skill_sets.items():
+                if skill_name in skill_set:
+                    skills[category].append({"original": skill_name, "role": self.skills_catalog[category][0].get("role", "") if self.mode == "opportunity" else ""})
         return skills
 
-    async def _extract_skills_embeddings(self, text: str) -> Dict[str, List[Dict[str, any]]]:
+    async def _extract_skills_deep(self, text: str) -> Dict[str, List[Dict[str, any]]]:
         preprocessed = await self.preprocess(text)
         text_emb = self.get_text_embedding(preprocessed["translated"])
         skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
-        
         for category, skills_list in self.skills_catalog.items():
             for skill in skills_list:
-                skill_emb = self.get_text_embedding(skill["original"])
-                similarity = cosine_similarity([text_emb], [skill_emb])[0][0]
-                if similarity > 0.8:
-                    skills[category].append(skill)
+                skill_name = skill.get("original", "")
+                if skill_name:
+                    skill_emb = self.get_text_embedding(skill_name)
+                    similarity = cosine_similarity(text_emb, skill_emb)
+                    if similarity > 0.8:
+                        skills[category].append({"original": skill_name, "role": skill.get("role", "") if self.mode == "opportunity" else ""})
         return skills
-
-    def _extract_skills_skillner(self, text: str) -> Dict[str, List[Dict[str, any]]]:
-        if skill_extractor:
-            doc = self.nlp(text)
-            res = skill_extractor.annotate(doc)
-            skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
-            for match_type in ["full_matches", "ngram_scored"]:
-                for match in res.get("results", {}).get(match_type, []):
-                    skill_name = match.get("doc_node_value", "").lower()
-                    if skill_name:
-                        skills["technical"].append({"original": skill_name})  # Clasificación básica
-            return skills
-        return {"technical": [], "soft": [], "tools": [], "certifications": []}
 
     def analyze_sentiment(self, text: str) -> str:
         blob = TextBlob(text)
         polarity = blob.sentiment.polarity
         return "positive" if polarity > 0.05 else "negative" if polarity < -0.05 else "neutral"
 
+    def infer_opportunities(self, skills: Dict[str, List[Dict[str, any]]]) -> List[Dict[str, any]]:
+        if self.mode != "opportunity":
+            return []
+        opportunities = []
+        role_skills_count = {}
+        for category, skill_list in skills.items():
+            for skill in skill_list:
+                role = skill.get("role", "")
+                if role:
+                    role_skills_count[role] = role_skills_count.get(role, 0) + 1
+        for role, count in role_skills_count.items():
+            if count >= 3:
+                opportunities.append({"role": role, "confidence": count / max(role_skills_count.values(), 1)})
+        return sorted(opportunities, key=lambda x: x["confidence"], reverse=True)
+
     async def analyze(self, text: str) -> Dict:
         start_time = time.time()
         preprocessed = await self.preprocess(text)
         skills = await self.extract_skills(text)
         sentiment = self.analyze_sentiment(preprocessed["translated"])
+        opportunities = self.infer_opportunities(skills) if self.mode == "opportunity" else []
         execution_time = time.time() - start_time
-        return {
+        result = {
             "skills": skills,
             "sentiment": sentiment,
             "metadata": {
@@ -258,12 +345,21 @@ class NLPProcessor:
                 "original_text": preprocessed["original"],
                 "translated_text": preprocessed["translated"],
                 "detected_language": preprocessed["lang"],
-                "analysis_depth": self.effective_depth  # Indicar el modo efectivo usado
+                "analysis_depth": self.effective_depth
             }
         }
+        if opportunities:
+            result["opportunities"] = opportunities
+        return result
 
 if __name__ == "__main__":
-    nlp = NLPProcessor(analysis_depth="deep")  # Solicita 'deep', pero usará 'quick' si no hay recursos
-    text = "Tengo experiencia en Python y liderazgo."
-    result = asyncio.run(nlp.analyze(text))
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    async def test_nlp():
+        for mode in ["candidate", "opportunity"]:
+            for depth in ["quick", "deep"]:
+                print(f"\nProbando modo: {mode}, profundidad: {depth}")
+                nlp = NLPProcessor(mode=mode, analysis_depth=depth)
+                text = "Tengo experiencia en Python, liderazgo, y gestión de proyectos."
+                result = await nlp.analyze(text)
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+
+    asyncio.run(test_nlp())

@@ -7,7 +7,7 @@ from asgiref.sync import sync_to_async
 from app.models import SlackAPI, BusinessUnit
 from app.chatbot.chatbot import ChatBotHandler
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('chatbot')
 
 async def send_slack_message(channel_id: str, message: str, bot_token: str) -> bool:
     """Envía un mensaje de texto a un canal de Slack."""

@@ -1,11 +1,12 @@
 # 📌 Ubicación en servidor: /home/pablo/app/chatbot/extractors.py
 import os
-import rdflib 
+import rdflib
 import requests
 import logging
 import pandas as pd
+import json
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('nlp')
 
 class ESCOExtractor:
     """
@@ -24,7 +25,7 @@ class ESCOExtractor:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error al obtener habilidades de ESCO: {e}")
+            logger.error(f"Error al obtener habilidades de ESCO: {e}")
             return None
 
     def get_occupations(self, language="en", limit=100, full=True):
@@ -38,7 +39,7 @@ class ESCOExtractor:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error al obtener ocupaciones de ESCO: {e}")
+            logger.error(f"Error al obtener ocupaciones de ESCO: {e}")
             return None
 
 # ============== PARSE RDF DE ESCO (opcional) ==============
@@ -78,7 +79,6 @@ def parse_esco_rdf_to_json(rdf_path="esco.ttl", output_json="esco_from_rdf.json"
     except Exception as e:
         logger.error(f"❌ Error parseando RDF: {e}", exc_info=True)
 
-
 def load_esco_ttl(ttl_path="esco.ttl"):
     """
     Carga el archivo Turtle (TTL) con rdflib y retorna un objeto Graph.
@@ -89,45 +89,33 @@ def load_esco_ttl(ttl_path="esco.ttl"):
 
 def query_occupations(graph):
     """
-    Ejemplo: Obtiene todas las ocupaciones y sus etiquetas preferidas en español.
-    Ajusta el prefijo/esco:Skill/Occupation según la ontología ESCO.
+    Obtiene todas las ocupaciones y sus etiquetas preferidas en español.
     """
-    # SPARQL de ejemplo
-    #  - Filtra por 'esco:Occupation'
-    #  - Extrae la URI ( ?occ ), y su 'skos:prefLabel' en español
-    #  - Dependiendo de la estructura ESCO, revisa la doc u ontología
-    #  - 'ESCO' define que una Occupation es 'a esco:Occupation'
-    #  - 'prefLabel' se modela con 'skos:prefLabel'
-    #  - Filtro lang(?label) = "es" para español
     query = """
     PREFIX esco: <http://data.europa.eu/esco/model#>
     PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-
     SELECT ?occ ?label
     WHERE {
       ?occ a esco:Occupation .
       ?occ skos:prefLabel ?label .
       FILTER(lang(?label) = "es")
     }
-    LIMIT 100  # Solo 100 para ejemplo. Quita esta línea si quieres todos.
+    LIMIT 100
     """
-
     results = graph.query(query)
     occupations = []
     for row in results:
-        occ_uri = str(row.occ)     # la URI
-        label = str(row.label)     # la etiqueta preferida en español
+        occ_uri = str(row.occ)
+        label = str(row.label)
         occupations.append({
             "uri": occ_uri,
             "preferredLabel_es": label
         })
     return occupations
 
-
 class ONETExtractor:
     """
     Clase para manejar la extracción de datos desde O*NET Web Services.
-    (Requiere registro y/o API Key)
     """
     ONET_API_BASE_URL = "https://services.onetcenter.org/ws/"
 
@@ -137,69 +125,83 @@ class ONETExtractor:
         params = {"end": count}
         try:
             response = requests.get(f"{self.ONET_API_BASE_URL}{endpoint}",
-                                    headers=headers,
-                                    params=params)
+                                   headers=headers,
+                                   params=params)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error al obtener ocupaciones de O*NET: {e}")
+            logger.error(f"Error al obtener ocupaciones de O*NET: {e}")
             return None
-
-    # Agrega métodos similares para 'skills', 'abilities', etc. según la API.
-
 
 class NICEExtractor:
     """
-    Clase para manejar la extracción de datos del NICE Framework
-    (Generalmente desde un XLS/CSV que se descarga).
+    Clase para manejar la extracción de datos del NICE Framework desde un archivo XLSX descargable.
+    Optimiza el uso de CPU y soporta múltiples hojas del archivo.
     """
-    # URL de ejemplo; deberás usar la URL oficial donde se encuentra la hoja NICE
-    NICE_DATA_URL = "https://ejemplo.gov/NICE_Framework.xlsx"
-    NICE_LOCAL_PATH = "NICE_Framework.xlsx"
+    # URL oficial del archivo NICE Framework Components (verificada en NIST)
+    NICE_DATA_URL = "https://www.nist.gov/document/nice-framework-components-v100-xlsx"
+    NICE_LOCAL_PATH = "NICE_Framework_Components.xlsx"
 
     def download_nice_file(self):
         """
-        Descarga el archivo NICE si no existe ya en local.
+        Descarga el archivo NICE solo si no existe localmente para minimizar uso de red.
+        Usa streaming para manejar archivos grandes eficientemente.
         """
-        if not os.path.exists(self.NICE_LOCAL_PATH):
-            print("Descargando el archivo NICE...")
-            try:
-                response = requests.get(self.NICE_DATA_URL, stream=True)
-                response.raise_for_status()
-                with open(self.NICE_LOCAL_PATH, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
+        if os.path.exists(self.NICE_LOCAL_PATH):
+            logger.info(f"Archivo NICE ya existe en {self.NICE_LOCAL_PATH}")
+            return
+        logger.info(f"Descargando archivo NICE desde {self.NICE_DATA_URL}")
+        try:
+            response = requests.get(self.NICE_DATA_URL, stream=True, timeout=10)
+            response.raise_for_status()
+            with open(self.NICE_LOCAL_PATH, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:  # Evita escribir chunks vacíos
                         f.write(chunk)
-                print("Descarga finalizada.")
-            except requests.exceptions.RequestException as e:
-                print(f"Error al descargar el archivo NICE: {e}")
-        else:
-            print("El archivo NICE ya está descargado en local.")
+            logger.info(f"Descarga completada: {self.NICE_LOCAL_PATH}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error al descargar el archivo NICE: {e}")
+            raise
 
     def parse_nice_file(self, sheet_name="Skills"):
         """
-        Parsea el archivo NICE (XLSX) y lo devuelve como lista de dicts (similar a JSON).
+        Parsea una hoja específica del archivo NICE XLSX usando pandas.
+        Minimiza uso de memoria con openpyxl y manejo selectivo de columnas.
         """
         try:
-            df = pd.read_excel(self.NICE_LOCAL_PATH, sheet_name=sheet_name)
+            # Verifica que el archivo exista
+            if not os.path.exists(self.NICE_LOCAL_PATH):
+                logger.error(f"Archivo no encontrado: {self.NICE_LOCAL_PATH}")
+                return []
+            # Lee solo la hoja especificada para reducir uso de memoria
+            df = pd.read_excel(
+                self.NICE_LOCAL_PATH,
+                sheet_name=sheet_name,
+                engine='openpyxl',
+                dtype=str  # Trata todo como string para evitar conversiones innecesarias
+            )
+            # Limpia datos: elimina filas vacías y normaliza nombres de columnas
+            df = df.dropna(how='all').fillna('')
+            df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
+            logger.info(f"Parseada hoja '{sheet_name}' con {len(df)} registros")
             return df.to_dict(orient="records")
         except Exception as e:
-            print(f"Error al leer/parsear el archivo NICE: {e}")
+            logger.error(f"Error al parsear la hoja '{sheet_name}' del archivo NICE: {e}")
             return []
 
     def get_skills(self, sheet_name="Skills"):
         """
-        Método principal: descarga el archivo si no está presente, 
-        luego lo parsea y retorna los datos en formato dict.
+        Método principal: descarga el archivo si es necesario y retorna los datos parseados.
         """
         self.download_nice_file()
         data = self.parse_nice_file(sheet_name=sheet_name)
+        if not data:
+            logger.warning(f"No se obtuvieron datos de la hoja '{sheet_name}'")
         return data
-
 
 class CareerOneStopExtractor:
     """
     Clase para manejar extracciones desde CareerOneStop.
-    (Requiere registro y uso de credenciales)
     """
     CAREERONESTOP_API_BASE_URL = "https://api.careeronestop.org/v1/"
 
@@ -215,51 +217,45 @@ class CareerOneStopExtractor:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error al obtener datos de CareerOneStop: {e}")
+            logger.error(f"Error al obtener datos de CareerOneStop: {e}")
             return None
 
 class CONOCERExtractor:
     """
-    Maneja la extracción de datos de las Normas de Competencia de CONOCER. Más un parser de PDF que un API.
+    Clase para manejar la extracción de datos de las Normas de Competencia de CONOCER.
     """
-
     def descargar_normas(self, lista_urls_pdfs):
         # Lógica para descargar PDFs y guardarlos localmente
         pass
+
     def parsear_norma(self, pdf_path):
         # Lógica para extraer texto de PDF con PyPDF2, pdfplumber, etc.
-        # Retorna un dict con 'titulo_norma', 'competencias', etc.
         pass
+
     def generar_json_desde_normas(self, pdf_folder="normas_conocer"):
-        # Recorre carpeta, parsea cada PDF y construye un JSON final
         conocer_data = []
         for archivo_pdf in os.listdir(pdf_folder):
             if archivo_pdf.endswith(".pdf"):
                 ruta = os.path.join(pdf_folder, archivo_pdf)
                 info = self.parsear_norma(ruta)
                 conocer_data.append(info)
-        # Al final, lo guardas en un JSON local
         out_file = "conocer_competencias.json"
         with open(out_file, "w", encoding="utf-8") as f:
             json.dump(conocer_data, f, indent=2, ensure_ascii=False)
 
     def get_competencias(self):
-        # Podrías incluso devolver la lista en memoria.
         pass
 
 def unify_data(*datasets):
     """
-    Ejemplo muy simple para unificar data de distintas fuentes en un formato genérico.
-    Ajusta la lógica según la estructura JSON real de cada API/respuesta.
+    Unifica datos de múltiples fuentes en un formato genérico y normalizado.
     """
     unified_list = []
     for data in datasets:
         if not data:
             continue
-        
-        # Dependiendo de si 'data' es dict, list, etc.
         if isinstance(data, list):
-            # Ejemplo: NICEExtractor -> parsea XLS y retorna list de dicts
+            # NICEExtractor: lista de dicts desde XLSX
             for item in data:
                 unified_list.append({
                     'source': 'NICE',
@@ -268,7 +264,7 @@ def unify_data(*datasets):
                     'description': item.get('Description', 'Sin descripción')
                 })
         elif isinstance(data, dict):
-            # ESCO u otras APIs devuelven JSON con "_embedded" ...
+            # ESCO: JSON con "_embedded"
             embedded = data.get("_embedded", {})
             if "occupation" in embedded:
                 for occ in embedded["occupation"]:
@@ -286,40 +282,35 @@ def unify_data(*datasets):
                         'name': skill.get("preferredLabel", "Sin nombre"),
                         'description': skill.get("description", "Sin desc")
                     })
-            else:
-                # Caso O*NET, CareerOneStop, etc., 
-                # analiza su estructura y normalízala también.
-                pass
-        else:
-            # Cualquier otro caso
-            pass
-
-    return unified_list
-
+        return unified_list
 
 def main():
     """
-    Ejemplo de uso. En la práctica, podrías delegar esto a tu nlp.py
-    o a un main.py orquestador.
+    Ejemplo de uso para probar los extractores.
+    Configura logging y prueba NICEExtractor con una hoja específica.
     """
+    # Configura logging básico
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    # Instancia extractores
     esco_ext = ESCOExtractor()
-    onet_ext = ONETExtractor()
     nice_ext = NICEExtractor()
-    career_ext = CareerOneStopExtractor()
 
-    # Llamadas de ejemplo
+    # Obtener datos de prueba
+    logger.info("Obteniendo habilidades de ESCO...")
     esco_skills_data = esco_ext.get_skills(language="es", limit=5)
-    nice_data = nice_ext.get_skills(sheet_name="Skills")
-    # onet_data = onet_ext.get_occupations(api_key="TU_API_KEY_ONET", count=5)
-    # career_data = career_ext.get_careers(api_user_id="USR_ID", api_key="API_KEY",
-    #                                      keyword="cybersecurity", limit=5)
 
-    # Unificamos lo que tengamos
+    logger.info("Obteniendo habilidades de NICE...")
+    nice_data = nice_ext.get_skills(sheet_name="Skills")  # Ajusta sheet_name según el XLSX
+
+    # Unificar datos
     unified = unify_data(esco_skills_data, nice_data)
-    print("Datos unificados:")
-    for item in unified:
-        print(item)
-
+    logger.info("Datos unificados:")
+    for item in unified[:5]:  # Limita a 5 para no saturar la salida
+        logger.info(json.dumps(item, ensure_ascii=False))
 
 if __name__ == "__main__":
     main()

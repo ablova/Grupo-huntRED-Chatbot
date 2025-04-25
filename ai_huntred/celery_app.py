@@ -19,6 +19,7 @@ if not any(arg in sys.argv for arg in ['migrate', 'makemigrations', 'collectstat
 
 app = Celery('ai_huntred')
 
+# Rest of the file remains unchanged
 app.conf.update(
     broker_url='redis://127.0.0.1:6379/0',
     result_backend='redis://127.0.0.1:6379/0',

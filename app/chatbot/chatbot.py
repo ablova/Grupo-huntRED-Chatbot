@@ -30,7 +30,7 @@ from app.utilidades.parser import CVParser
 from app.chatbot.gpt import GPTHandler
 from app.chatbot.intents_handler import detect_intents, handle_known_intents, get_tos_url
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('chatbot')
 
 # Configuración simplificada en el mismo archivo
 CACHE_ENABLED = True

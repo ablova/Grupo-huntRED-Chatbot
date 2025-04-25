@@ -6,7 +6,7 @@ from app.models import VerificationCode
 from app.chatbot.integrations.services import send_email  # Asegúrate de que esta función esté correctamente implementada
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('chatbot')
 
 
 def generar_codigo_verificacion(person):

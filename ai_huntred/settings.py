@@ -52,6 +52,10 @@ DATABASES = {
     }
 }
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+WAIT_FOR_DB = {
+    'RETRIES': 30,
+    'DELAY': 1,
+}
 
 # Aplicaciones instaladas
 INSTALLED_APPS = [
@@ -73,6 +77,8 @@ INSTALLED_APPS = [
     'app.utilidades',
     'app.sexsi',
     'app.milkyleak',
+    'silk',
+#    'django_wait_for_db',  # Debe estar aquí
 ]
 
 # Middleware
@@ -87,6 +93,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Silk Configuration
+SILKY_PYTHON_PROFILER = True
+SILKY_AUTHENTICATION = True
+SILKY_AUTHORISATION = True
+SILKY_PERMISSIONS = lambda user: user.is_superuser
+SILKY_META = True
+SILKY_INTERCEPT_PERCENT = 100  # Profile all requests
+SILKY_MAX_RECORDED_REQUESTS = 10000
 
 # Seguridad para HTTPS
 SECURE_SSL_REDIRECT = not DEBUG
@@ -130,47 +145,98 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Configuración de logging
+# Directorios
+ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Create directories (permissions set manually)
+for directory in [LOG_DIR, STATIC_ROOT, MEDIA_ROOT, ML_MODELS_DIR]:
+    os.makedirs(directory, exist_ok=True)
+    logger.debug(f"Ensured directory exists: {directory}")
+
+# Ubicación del archivo: /home/pablo/ai_huntred/settings.py
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'level': 'INFO',
+            'formatter': 'simple',
         },
-        'file': {
+        'app_file': {
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
-            'level': 'INFO',
+            'level': 'DEBUG',  # Más detalle para depuración
+            'formatter': 'verbose',
+        },
+        'chatbot_file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'chatbot.log'),
+            'level': 'DEBUG',
+            'formatter': 'verbose',
+        },
+        'celery_file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'celery.log'),
+            'level': 'DEBUG',
+            'formatter': 'verbose',
         },
         'gunicorn_file': {
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'gunicorn.log'),
             'level': 'INFO',
+            'formatter': 'verbose',
         },
-        'celery_file': {
+        'nlp_file': {
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'celery.log'),
-            'level': 'INFO',
+            'filename': os.path.join(BASE_DIR, 'logs', 'nlp.log'),
+            'level': 'DEBUG',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console', 'app_file'],
             'level': 'INFO',
+            'propagate': False,
         },
         'app': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
+            'handlers': ['console', 'app_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'chatbot': {
+            'handlers': ['console', 'chatbot_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console', 'celery_file'],
+            'level': 'DEBUG',
+            'propagate': False,
         },
         'gunicorn': {
             'handlers': ['console', 'gunicorn_file'],
             'level': 'INFO',
+            'propagate': False,
         },
-        'celery': {
-            'handlers': ['console', 'celery_file'],
-            'level': 'INFO',
+        'nlp': {
+            'handlers': ['console', 'nlp_file'],
+            'level': 'DEBUG',
+            'propagate': False,
         },
     },
 }

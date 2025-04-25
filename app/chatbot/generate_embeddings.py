@@ -1,3 +1,4 @@
+# Ubicación: /home/pablo/app/chatbot/generate_embeddings.py
 import logging
 import os
 import time
@@ -7,20 +8,28 @@ import numpy as np
 import tensorflow as tf
 import sys
 import pickle
-
+import django
+os.environ['DJANGO_SETTINGS_MODULE'] = 'ai_huntred.settings'
+django.setup()
 # Agregar la raíz del proyecto al PYTHONPATH
 project_root = "/home/pablo"
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from app.chatbot.nlp import load_use_model, ensure_directory_permissions, translate_text, FILE_PATHS, EMBEDDINGS_CACHE, MODEL_CONFIG
-from filelock import FileLock
+from app.chatbot.nlp import load_use_model, FILE_PATHS, EMBEDDINGS_CACHE
 
 # Configuración de logging
 log_dir = "/home/pablo/logs"
 log_file = os.path.join(log_dir, "generate_embeddings.log")
 
-# Asegurar permisos del directorio de logs
+def ensure_directory_permissions(directory):
+    try:
+        os.makedirs(directory, exist_ok=True)
+        os.chmod(directory, 0o775)
+        os.chown(directory, os.getuid(), 1004)  # Grupo ai_huntred
+    except Exception as e:
+        logger.warning(f"No se pudo configurar permisos para {directory}: {str(e)}")
+
 try:
     ensure_directory_permissions(log_dir)
 except Exception as e:
@@ -34,7 +43,12 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('nlp')
+
+# Configuración del modelo
+MODEL_CONFIG = {'CACHE_VERSION': '1.0'}
+SKILL_EMBEDDINGS = {}
+USE_MODEL = None
 
 def track_progress(catalog: str, batch_size: int, total_skills: int, current_batch: int, start_time: float) -> None:
     """Muestra el progreso de la generación de embeddings."""
@@ -44,13 +58,17 @@ def track_progress(catalog: str, batch_size: int, total_skills: int, current_bat
     eta = (elapsed / (current_batch + 1)) * (batches_total - current_batch - 1) if current_batch > 0 else 0
     logger.info(f"Procesando {catalog}: Lote {current_batch + 1}/{batches_total} ({progress:.1f}%), ETA: {eta:.0f}s, Memoria usada: {os.popen('free -m').readlines()[1].split()[2]} MB")
 
+def translate_text(text: str) -> str:
+    """Función de traducción de respaldo."""
+    return text  # Simplificado; implementar traducción si es necesario
+
 def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: str) -> bool:
     """Genera embeddings con seguimiento de progreso y manejo de memoria optimizado."""
     global SKILL_EMBEDDINGS, USE_MODEL
-    from app.chatbot.nlp import SKILL_EMBEDDINGS, USE_MODEL
     cache_key = f"{catalog}_partial"
 
     # Verificar si ya está completo
+    cached_data = None
     if os.path.exists(embeddings_cache):
         try:
             with open(embeddings_cache, "rb") as f:
@@ -65,12 +83,26 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
     # Cargar datos
     try:
         with open(FILE_PATHS[catalog], "r", encoding="utf-8") as f:
-            skills_data = json.load(f)
+            data = json.load(f)
     except Exception as e:
         logger.error(f"No se pudo leer {FILE_PATHS[catalog]}: {str(e)}")
         return False
 
-    skill_names = [skill_info.get("skill_name") for skill_info in skills_data.values() if skill_info.get("skill_name")]
+    # Ajustar según el catálogo
+    if catalog == "candidate_quick":
+        skill_names = [skill_info.get("skill_cleaned", skill_info.get("skill_name", "")) for skill_info in data.values() if skill_info.get("skill_name")]
+    elif catalog == "candidate_deep":
+        skill_names = []
+        for occupation, occ_data in data.items():
+            for skill_field in ["hasEssentialSkill", "hasOptionalSkill"]:
+                for skill in occ_data.get(skill_field, []):
+                    skill_name = skill.get("title", "").lower()
+                    if skill_name:
+                        skill_names.append(skill_name)
+    else:
+        logger.error(f"Catálogo no reconocido: {catalog}")
+        return False
+
     total_skills = len(skill_names)
     logger.info(f"Total de habilidades en {catalog}: {total_skills}")
 
@@ -90,6 +122,12 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
     # Generar embeddings
     batch_start_time = time.time()
     try:
+        # Asegurar que el modelo esté cargado
+        USE_MODEL = load_use_model()
+        if USE_MODEL is None:
+            logger.error(f"No se pudo cargar el modelo para {catalog}")
+            return False
+
         for i in range(start_index, total_skills, batch_size):
             batch = skill_names[i:i + batch_size]
             translated_batch = [translate_text(name) for name in batch]
@@ -114,7 +152,7 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
         with open(embeddings_cache, "wb") as f:
             cached_data = {
                 "version": MODEL_CONFIG['CACHE_VERSION'],
-                "catalogs": cached_data.get("catalogs", []) + [catalog] if os.path.exists(embeddings_cache) else [catalog],
+                "catalogs": cached_data.get("catalogs", []) + [catalog] if cached_data else [catalog],
                 "embeddings": SKILL_EMBEDDINGS
             }
             pickle.dump(cached_data, f)
@@ -144,7 +182,7 @@ if __name__ == "__main__":
 
         # Procesar catálogos con lotes pequeños
         success = True
-        for catalog, batch_size in [("relax_skills", 5), ("esco_skills", 5)]:
+        for catalog, batch_size in [("candidate_quick", 5), ("candidate_deep", 5)]:
             logger.info(f"Generando embeddings para {catalog} con batch_size={batch_size}")
             start_time = time.time()
             if not initialize_with_progress(catalog, batch_size, EMBEDDINGS_CACHE):

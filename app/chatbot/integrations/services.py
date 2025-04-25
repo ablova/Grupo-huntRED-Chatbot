@@ -24,7 +24,7 @@ from app.models import (
 )
 import tracemalloc
 tracemalloc.start()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('chatbot')
 
 # Constantes globales
 MAX_RETRIES = 3

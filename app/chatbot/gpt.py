@@ -13,7 +13,7 @@ import json
 import requests
 import google.generativeai as genai
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('chatbot')
 
 GPT_DEFAULTS = {
     "max_tokens": 150,

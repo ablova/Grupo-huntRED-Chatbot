@@ -23,7 +23,7 @@ from app.chatbot.nlp import NLPProcessor
 
 
 # Variable global para la instancia de NLPProcessor
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('nlp')
 _nlp_processor_instance: Optional[NLPProcessor] = None
 
 def get_nlp_processor() -> Optional[NLPProcessor]:

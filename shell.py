@@ -162,7 +162,7 @@ alias edit_scraping='sudo rm /home/pablo/app/utilidades/scraping.py && sudo nano
 alias edit_chatbot='sudo rm /home/pablo/app/chatbot/chatbot.py && sudo nano /home/pablo/app/chatbot/chatbot.py'
 alias edit_nlp='sudo rm /home/pablo/app/chatbot/nlp.py && sudo nano /home/pablo/app/chatbot/nlp.py'
 alias edit_gpt='sudo rm /home/pablo/app/chatbot/gpt.py && sudo nano /home/pablo/app/chatbot/gpt.py'
-alias utils='sudo rm /home/pablo/app/chatbot/utils.py && sudo nano /home/pablo/app/chatbot/utils.py'
+alias edit_utils='sudo rm /home/pablo/app/chatbot/utils.py && sudo nano /home/pablo/app/chatbot/utils.py'
 alias edit_intent='sudo rm /home/pablo/app/chatbot/intents_handles.py && sudo nano /home/pablo/app/chatbot/intents_handler.py'
 alias edit_whatsapp='sudo rm /home/pablo/app/chatbot/integrations/whatsapp.py && sudo nano /home/pablo/app/chatbot/integrations/whatsapp.py'
 alias edit_telegram='sudo rm /home/pablo/app/chatbot/integrations/telegram.py && sudo nano /home/pablo/app/chatbot/integrations/telegram.py'
@@ -195,6 +195,7 @@ alias logs_celery='sudo journalctl -u celery -f'
 alias logs_gunicorn='sudo journalctl -u gunicorn -f'
 alias logs_nginx='sudo journalctl -u nginx -f'
 alias logs_all='sudo tail -f /home/pablo/logs/*.log'
+alias d_logs='sudo truncate -s 0 /home/pablo/logs/*.log && logs_all'
 
 # === Alias generales ===
 alias reload_aliases='source ~/.bashrc'

@@ -425,16 +425,16 @@ if [ "${PART_8_RUN:-enabled}" != "disabled" ]; then
 
     su - "$APP_USER" -c "source $VENV_DIR/bin/activate && \
         pip install --upgrade pip && \
-        pip install wheel django gunicorn psycopg2-binary redis celery django-celery-beat django-celery-results sentry-sdk tensorflow-cpu==2.16.1 spacy==3.7.4 protobuf>=5.26.1 && \
-        python -m spacy download es_core_news_md==3.7.0 && \
+        pip install wheel django gunicorn psycopg2-binary redis celery django-celery-beat django-celery-results sentry-sdk spacy&& \
+        python -m spacy download es_core_news_md && \
         cd $PROJECT_DIR && [ -f requirements.txt ] && pip install -r requirements.txt --no-deps"
     echo "Dependencias instaladas."
 
     REINSTALL_DEPS="${REINSTALL_DEPS:-no}"
     if [ "$REINSTALL_DEPS" == "yes" ]; then
-        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip uninstall -y tensorflow-cpu spacy tf-keras tensorflow-text"
-        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip install tensorflow-cpu==2.16.1 spacy==3.7.4 protobuf>=5.26.1"
-        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && python -m spacy download es_core_news_md==3.7.0"
+    #    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip uninstall -y tensorflow-cpu spacy tf-keras tensorflow-text"
+        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip install protobuf>=5.26.1"
+        su - "$APP_USER" -c "source $VENV_DIR/bin/activate && python -m spacy download es_core_news_md==3.8.0"
         echo "Dependencias reinstaladas."
     fi
 
@@ -727,7 +727,7 @@ EOF"
 
     echo "Creando superusuario..."
     time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && \
-        echo 'from django.contrib.auth.models import User; User.objects.create_superuser(\"admin\", \"admin@huntred.com\", \"admin123\")' | python manage.py shell"
+        echo 'from django.contrib.auth.models import User; User.objects.create_superuser(\"PabloLLH\", \"pablo@huntred.com\", \"Natalia&Patricio1113!\")' | python manage.py shell"
     echo "Superusuario creado."
 
     chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"

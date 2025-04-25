@@ -958,7 +958,7 @@ class ModelTrainingLog(models.Model):
 
 class QuarterlyInsight(models.Model):
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
-    insights_data = JSONField()
+    insights_data = models.JSONField(null=True, blank=True)  # Cambia a nullable si aplica
     created_at = models.DateTimeField(auto_now_add=True)
 
 class MigrantSupportPlatform(models.Model):

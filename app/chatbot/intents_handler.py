@@ -11,7 +11,7 @@ from django.utils import timezone
 import random
 from app.chatbot.workflow.common import calcular_salario_chatbot, iniciar_creacion_perfil, iniciar_perfil_conversacional, iniciar_prueba
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('chatbot')
 
 # Cache para almacenar respuestas previas (mensaje -> respuesta)
 response_cache = {}
