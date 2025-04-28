@@ -481,3 +481,29 @@ async def test_telegram_buttons():
         print("❌ Business Unit no encontrado")
     except Exception as e:
         print(f"❌ Error en la prueba de botones: {str(e)}")
+
+async def fetch_telegram_user_data(user_id: str, api_instance: TelegramAPI) -> Dict[str, Any]:
+    """
+    Fetch user data from Telegram Bot API.
+    """
+    try:
+        url = f"https://api.telegram.org/bot{api_instance.api_key}/getChat"
+        params = {"chat_id": user_id}
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json().get('result', {})
+                return {
+                    'nombre': data.get('first_name', ''),
+                    'apellido_paterno': data.get('last_name', ''),
+                    'metadata': {
+                        'username': data.get('username', ''),
+                        'bio': data.get('bio', '')
+                    }
+                }
+            else:
+                logger.error(f"Error fetching Telegram user data: {response.text}")
+                return {}
+    except Exception as e:
+        logger.error(f"Exception in fetch_telegram_user_data: {e}", exc_info=True)
+        return {}

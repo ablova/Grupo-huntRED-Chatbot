@@ -406,6 +406,7 @@ asyncio.run(test_interactive_with_gpt())
 
 import asyncio
 from app.chatbot.gpt import GPTHandler
+from app.models import BusinessUnit, WhatsAppAPI
 
 async def test_gpt():
     gpt_handler = GPTHandler()
@@ -1227,7 +1228,7 @@ async def list_configs():
     configs = await sync_to_async(lambda: list(GptApi.objects.select_related('provider').all()))()
     for config in configs:
         provider_name = await sync_to_async(lambda: config.provider.name)()
-        print(f"Model: {config.model}, Provider: {provider_name}, Active: {config.is_active}")
+        print(f"ID: {config.id}, Model: {config.model}, Provider: {provider_name}, Active: {config.is_active}")
 
 # Activar Grok
 @sync_to_async
@@ -1311,7 +1312,9 @@ if __name__ == "__main__":
     parser = CVParser(config)
     asyncio.run(parser.process_emails())
 
-
+from app.models import Person
+count = Person.objects.filter(linkedin_url__isnull=False).count()
+print(f"Perfiles con linkedin_url: {count}")
 
 import asyncio
 import logging

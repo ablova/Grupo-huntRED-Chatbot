@@ -188,3 +188,30 @@ async def send_messenger_image(user_id: str, image_url: str, caption: str, acces
 
     logger.info(f"✅ Imagen enviada a {user_id} en Messenger.")
     
+async def fetch_messenger_user_data(user_id: str, api_instance: MessengerAPI) -> Dict[str, Any]:
+    """
+    Fetch user data from Facebook Messenger (Graph API).
+    """
+    try:
+        url = f"https://graph.facebook.com/v13.0/{user_id}"
+        params = {
+            "fields": "first_name,last_name,email,locale",
+            "access_token": api_instance.page_access_token
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'nombre': data.get('first_name', ''),
+                    'apellido_paterno': data.get('last_name', ''),
+                    'email': data.get('email', ''),
+                    'preferred_language': data.get('locale', 'es_MX').replace('_', '_'),
+                    'metadata': {}
+                }
+            else:
+                logger.error(f"Error fetching Messenger user data: {response.text}")
+                return {}
+    except Exception as e:
+        logger.error(f"Exception in fetch_messenger_user_data: {e}", exc_info=True)
+        return {}

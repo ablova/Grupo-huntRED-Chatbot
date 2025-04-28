@@ -1,42 +1,34 @@
 # /home/pablo/ai_huntred/settings.py
+
 import os
 import environ
-import logging
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from pathlib import Path
-
-# Configuración temprana de TensorFlow
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
 import tensorflow as tf
+
+# --- Configuración temprana de TensorFlow ---
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
 tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
-
-# Resto del archivo...
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-# Inicializar logger
-logger = logging.getLogger(__name__)
-
-# Configuración de entorno
+# --- Configuración de entorno ---
 env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 env_file = os.path.join(BASE_DIR, '.env')
 
-# Verificar archivo .env
+# Validar existencia del archivo .env (sin usar logger aún)
 if not os.path.exists(env_file):
-    logger.error(f"Environment file not found: {env_file}")
     raise FileNotFoundError(f"Environment file not found: {env_file}")
 if not os.access(env_file, os.R_OK):
-    logger.error(f"Environment file not readable: {env_file}")
     raise PermissionError(f"Environment file not readable: {env_file}")
 
-# Cargar .env
+# Cargar variables de entorno
 environ.Env.read_env(env_file)
-logger.info(f"Successfully loaded environment variables from {env_file}")
 
-# Seguridad y entorno
+# --- Seguridad y entorno ---
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48')
 DEBUG = env.bool('DJANGO_DEBUG', default=False)
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['ai.huntred.com', '127.0.0.1', 'localhost', '34.57.227.244'])

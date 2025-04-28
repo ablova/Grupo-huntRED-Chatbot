@@ -80,13 +80,23 @@ def validate_skill_in_unit(skill: str, unit_name: str) -> bool:
             all_skills.extend(attributes.get("Habilidades Blandas", []))
     return skill.lower() in [s.lower() for s in all_skills]
 
-def get_all_skills_for_unit(unit_name: str) -> list:
-    skills = get_skills_for_unit(unit_name)
+def get_all_skills_for_unit(unit_name):
     all_skills = []
+    skills = load_skills_for_unit(unit_name)  # Asegúrate de que esta función devuelva el formato correcto
+    if not isinstance(skills, dict):
+        logger.error(f"Skills para {unit_name} no es un diccionario: {skills}")
+        return []
+
     for division, roles in skills.items():
+        if not isinstance(roles, dict):
+            logger.warning(f"Roles en {division} no es un diccionario: {roles}")
+            continue
         for role, attributes in roles.items():
-            all_skills.extend(attributes.get("Habilidades Técnicas", []))
-            all_skills.extend(attributes.get("Habilidades Blandas", []))
+            if isinstance(attributes, dict):
+                all_skills.extend(attributes.get("Habilidades Técnicas", []))
+                all_skills.extend(attributes.get("Habilidades Blandas", []))
+            else:
+                logger.warning(f"Atributos para {role} no es un diccionario: {attributes}")
     return list(set(all_skills))
 
 def map_skill_to_database(skill, database_skills):

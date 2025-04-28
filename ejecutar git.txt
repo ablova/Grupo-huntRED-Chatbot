@@ -39,7 +39,7 @@ sudo logrotate -f /etc/logrotate.conf
 sudo journalctl --vacuum-time=1s
 sudo journalctl --vacuum-size=2M
 
-journalctl -p 4 -xb
+#journalctl -p 4 -xb
 cd /home/pablo && source venv/bin/activate &&
 git fetch origin &&
 git reset --hard origin/main &&

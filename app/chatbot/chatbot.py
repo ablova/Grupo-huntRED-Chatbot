@@ -34,7 +34,7 @@ logger = logging.getLogger('chatbot')
 
 # Configuración simplificada en el mismo archivo
 CACHE_ENABLED = True
-CACHE_TIMEOUT = 600  # 10 minutos
+CACHE_TIMEOUT = 600  # 10 minutos 
 GPT_ENABLED = True
 ML_ENABLED = True
 NLP_ENABLED = True
@@ -227,14 +227,6 @@ class ChatBotHandler:
         )
         return chat_state
 
-    async def get_or_create_user(self, user_id: str, platform: str) -> Tuple[Person, bool]:
-        """Obtiene o crea un usuario basado en el user_id y la plataforma."""
-        user, created = await sync_to_async(Person.objects.get_or_create)(
-            phone=user_id,
-            defaults={'nombre': f"Usuario_{user_id}", 'platform': platform}
-        )
-        return user, created
-
     def _extract_message_content(self, message: dict) -> Tuple[str, Optional[dict]]:
         text = ""
         attachment = None
@@ -246,22 +238,40 @@ class ChatBotHandler:
             attachment = message["attachment"]
         return text, attachment
 
-    async def _get_or_create_user_and_chat_state(self, user_id: str, platform: str, business_unit: BusinessUnit) -> Tuple[Person, ChatState]:
-        user, _ = await self.get_or_create_user(user_id, platform)
-        chat_state, created = await sync_to_async(ChatState.objects.get_or_create)(
+    async def get_or_create_user(self, user_id: str, platform: str, business_unit: BusinessUnit):
+        message_service = MessageService(business_unit)
+        user_data = await message_service.fetch_user_data(platform, user_id)
+
+        # Normalizar el identificador del usuario según la plataforma
+        phone = user_id if platform == "whatsapp" else f"{platform}:{user_id}"
+
+        defaults = {
+            "nombre": user_data.get("nombre", ""),
+            "apellido_paterno": user_data.get("apellido_paterno", ""),
+            "metadata": user_data.get("metadata", {})
+        }
+
+        user, created = await sync_to_async(Person.objects.get_or_create)(
+            phone=phone,
+            defaults=defaults
+        )
+
+        if not created and user_data:
+            # Opcional: actualizar datos si cambian
+            await sync_to_async(user.update)(**defaults)
+
+        return user, created
+    
+    async def _get_or_create_user_and_chat_state(self, user_id: str, platform: str, business_unit: BusinessUnit):
+        user, created = await self.get_or_create_user(user_id, platform, business_unit)
+        
+        chat_state, chat_created = await sync_to_async(ChatState.objects.get_or_create)(
             user_id=user_id,
             business_unit=business_unit,
-            defaults={'platform': platform, 'state': 'initial', 'context': {}}
+            defaults={"platform": platform, "person": user}
         )
-        logger.info(f"[_get_or_create_user_and_chat_state] chat_state: tipo={type(chat_state)}, valor={chat_state}")
-        current_person = await sync_to_async(lambda: chat_state.person)()
-        if current_person != user or chat_state.platform != platform:
-            chat_state.person = user
-            chat_state.platform = platform
-            await sync_to_async(chat_state.save)()
-        user.number_interaction += 1
-        await sync_to_async(user.save)()
-        return user, chat_state
+        
+        return user, chat_state, created or chat_created
 
     async def _generate_default_response(self, user: Person, chat_state: ChatState, text: str, entities: List, sentiment: Dict) -> str:
         if not GPT_ENABLED:

@@ -124,3 +124,32 @@ async def slack_webhook(request):
     except Exception as e:
         logger.error(f"❌ Error en webhook de Slack: {str(e)}", exc_info=True)
         return JsonResponse({"status": "error", "message": "Error interno del servidor"}, status=500)
+    
+async def fetch_slack_user_data(user_id: str, api_instance: SlackAPI) -> Dict[str, Any]:
+    """
+    Fetch user data from Slack API.
+    """
+    try:
+        url = "https://slack.com/api/users.info"
+        headers = {"Authorization": f"Bearer {api_instance.bot_token}"}
+        params = {"user": user_id}
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, params=params)
+            if response.status_code == 200:
+                data = response.json().get("user", {})
+                nombre = data.get("real_name", "").split(" ")[0]
+                apellido = " ".join(data.get("real_name", "").split(" ")[1:]) if len(data.get("real_name", "").split(" ")) > 1 else ""
+                return {
+                    'nombre': nombre,
+                    'apellido_paterno': apellido,
+                    'metadata': {
+                        'username': data.get("name", ""),
+                        'email': data.get("profile", {}).get("email", "")
+                    }
+                }
+            else:
+                logger.error(f"Error fetching Slack user data: {response.text}")
+                return {}
+    except Exception as e:
+        logger.error(f"Exception in fetch_slack_user_data: {e}", exc_info=True)
+        return {}

@@ -626,6 +626,49 @@ class MessageService:
             logger.error(f"Error enviando opciones Slack: {e}", exc_info=True)
             return False
         
+    async def fetch_user_data(self, platform: str, user_id: str) -> Dict[str, any]:
+        api_instance = await self.get_api_instance(platform)
+        if not api_instance:
+            logger.error(f"No se encontró instancia de API para {platform}")
+            return {}
+
+        # Mapa de funciones de fetch por plataforma
+        fetch_functions = {
+            "whatsapp": self.fetch_whatsapp_user_data,
+            "telegram": self.fetch_telegram_user_data,
+            "slack": self.fetch_slack_user_data,
+            "instagram": self.fetch_instagram_user_data,
+            "messenger": self.fetch_messenger_user_data,
+        }
+
+        fetch_func = fetch_functions.get(platform)
+        if not fetch_func:
+            logger.error(f"No hay función de fetch definida para {platform}")
+            return {}
+
+        return await fetch_func(user_id, api_instance)
+
+    # Ejemplo de implementación específica
+    async def fetch_slack_user_data(self, user_id: str, api_instance: SlackAPI) -> Dict[str, any]:
+        from app.chatbot.integrations.slack import fetch_slack_user_data
+        return await fetch_slack_user_data(user_id, api_instance.bot_token)
+
+    async def fetch_telegram_user_data(self, user_id: str, api_instance: TelegramAPI) -> Dict[str, any]:
+        from app.chatbot.integrations.telegram import fetch_telegram_user_data
+        return await fetch_telegram_user_data(user_id, api_instance.api_key)
+
+    async def fetch_whatsapp_user_data(self, user_id: str, api_instance: WhatsAppAPI) -> Dict[str, any]:
+        from app.chatbot.integrations.whatsapp import fetch_whatsapp_user_data
+        return await fetch_whatsapp_user_data(user_id, api_instance.api_token)
+    
+    async def fetch_instagram_user_data(self, user_id: str, api_instance: InstagramAPI) -> Dict[str, any]:
+        from app.chatbot.integrations.instagram import fetch_instagram_user_data
+        return await fetch_instagram_user_data(user_id, api_instance.api_key)
+
+    async def fetch_messenger_user_data(self, user_id: str, api_instance: MessengerAPI) -> Dict[str, any]:
+        from app.chatbot.integrations.messenger import fetch_messenger_user_data
+        return await fetch_messenger_user_data(user_id, api_instance.api_token)
+
 class EmailService:
     def __init__(self, business_unit: BusinessUnit):
         self.business_unit = business_unit

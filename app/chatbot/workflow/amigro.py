@@ -14,8 +14,11 @@ logger = logging.getLogger(__name__)
 # Diccionario de países frecuentes basado en volumen histórico de migración a México
 PAISES_FRECUENTES = [
     {"title": "El Salvador", "payload": "El Salvador"},
+    {"title": "Cuba", "payload": "Cuba"},
+    {"title": "Belice", "payload": "Belice"},
     {"title": "Guatemala", "payload": "Guatemala"},
     {"title": "Honduras", "payload": "Honduras"},
+    {"title": "Venezuela", "payload": "Venezuela"},
     {"title": "Estados Unidos", "payload": "Estados Unidos"},
     {"title": "Otros", "payload": "otros_pais"}
 ]

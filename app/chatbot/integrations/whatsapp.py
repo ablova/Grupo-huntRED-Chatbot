@@ -514,3 +514,27 @@ async def send_whatsapp_decision_buttons(user_id: str, message: str, buttons: Li
     except Exception as e:
         logger.error(f"❌ Error en send_whatsapp_decision_buttons: {e}", exc_info=True)
         return False, None
+    
+async def fetch_whatsapp_user_data(user_id: str, api_instance: WhatsAppAPI) -> Dict[str, Any]:
+    """
+    Fetch user data from WhatsApp Business API.
+    Requiere acceso a WhatsApp Business API y un token válido.
+    """
+    try:
+        url = f"https://graph.facebook.com/{api_instance.v_api}/{user_id}" #No se porque aqui pone user_id y no phoneID porque no se si viene estandarizado ya.
+        headers = {"Authorization": f"Bearer {api_instance.api_token}"}
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'nombre': data.get('name', ''),
+                    'metadata': {'profile_pic': data.get('profile_picture_url', '')},
+                    'preferred_language': data.get('language', 'es_MX')
+                }
+            else:
+                logger.error(f"Error fetching WhatsApp user data: {response.text}")
+                return {}
+    except Exception as e:
+        logger.error(f"Exception in fetch_whatsapp_user_data: {e}", exc_info=True)
+        return {}

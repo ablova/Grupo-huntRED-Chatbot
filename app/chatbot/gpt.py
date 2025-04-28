@@ -308,3 +308,12 @@ async def get_handler(config: GptApi) -> BaseHandler:
     if handler_class:
         return handler_class(config)
     raise ValueError(f"Proveedor no soportado: {provider_key}")        
+
+async def test_provider(self, provider_name: str, prompt: str = "Test prompt") -> str:
+        """Prueba un proveedor específico."""
+        gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact=provider_name).first())()
+        if not gpt_api:
+            return f"Proveedor {provider_name} no encontrado."
+        temp_handler = await get_handler(gpt_api)
+        await temp_handler.initialize()
+        return await temp_handler.generate_response(prompt)

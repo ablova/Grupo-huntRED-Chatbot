@@ -1057,10 +1057,16 @@ async def calcular_salario_chatbot(platform, user_id, mensaje, business_unit_nam
 
     # Obtener el dominio desde ConfiguracionBU de manera asíncrona
     try:
-        business_unit = await sync_to_async(BusinessUnit.objects.get)(name=business_unit_name)
+        business_unit = await sync_to_async(BusinessUnit.objects.get)(name__iexact=business_unit_name)
         config = await sync_to_async(lambda: business_unit.configuracionbu)()
         domain = urlparse(config.dominio_bu).netloc or urlparse(config.dominio_bu).path
+        
+        # Asegurarse de que domain sea un string
+        if isinstance(domain, bytes):
+            domain = domain.decode('utf-8')
         domain = domain.replace('www.', '')
+        
+        # Resto del código...
     except (BusinessUnit.DoesNotExist, ConfiguracionBU.DoesNotExist, AttributeError) as e:
         logger.error(f"Error al obtener dominio para {business_unit_name}: {e}")
         domain = "huntred.com"

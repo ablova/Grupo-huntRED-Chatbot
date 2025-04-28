@@ -181,3 +181,31 @@ async def send_instagram_buttons(user_id: str, message: str, buttons: List[Dict]
     logger.error(f"[send_instagram_buttons] Falló el envío a {user_id} tras {attempt} intentos.")
     logger.info(f"✅ Botones enviados a {user_id} en Instagram")
     return True
+
+async def fetch_instagram_user_data(user_id: str, api_instance: InstagramAPI) -> Dict[str, Any]:
+    """
+    Fetch user data from Instagram API (Graph API).
+    """
+    try:
+        url = f"https://graph.instagram.com/{user_id}"
+        params = {
+            "fields": "username,full_name",
+            "access_token": api_instance.access_token
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                nombre = data.get('full_name', '').split(' ')[0]
+                apellido = ' '.join(data.get('full_name', '').split(' ')[1:]) if len(data.get('full_name', '').split(' ')) > 1 else ''
+                return {
+                    'nombre': nombre,
+                    'apellido_paterno': apellido,
+                    'metadata': {'username': data.get('username', '')}
+                }
+            else:
+                logger.error(f"Error fetching Instagram user data: {response.text}")
+                return {}
+    except Exception as e:
+        logger.error(f"Exception in fetch_instagram_user_data: {e}", exc_info=True)
+        return {}
