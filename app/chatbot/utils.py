@@ -344,10 +344,14 @@ def is_spam_message(user_id: str, text: str) -> bool:
     Returns:
         bool: True si el mensaje es considerado SPAM, False en caso contrario.
     """
-    if not text:
+    if not text or not isinstance(text, str):
         return False
 
-    text_cleaned = re.sub(r'\W+', '', text.lower().strip())  # Limpiar caracteres especiales
+    # Limpiar texto de manera más robusta
+    text_cleaned = re.sub(r'\s+', ' ', re.sub(r'[^\w\s]', '', text.lower().strip()))
+    if not text_cleaned:
+        return False
+
     cache_key = f"spam_check:{user_id}"
     user_messages = cache.get(cache_key, [])
 

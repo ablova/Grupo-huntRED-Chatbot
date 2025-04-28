@@ -9,7 +9,7 @@ from app.chatbot.integrations.services import send_message, send_options, send_m
 from django.core.cache import cache
 from django.utils import timezone
 import random
-from app.chatbot.workflow.common import calcular_salario_chatbot, iniciar_creacion_perfil, iniciar_perfil_conversacional, iniciar_prueba
+from app.chatbot.workflow.common import calcular_salario_chatbot, iniciar_creacion_perfil, iniciar_perfil_conversacional, iniciar_prueba, send_welcome_message
 
 logger = logging.getLogger('chatbot')
 

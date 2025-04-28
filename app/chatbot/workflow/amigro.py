@@ -35,7 +35,15 @@ ESTATUS_MIGRATORIO = [
 async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
     """Continúa el flujo conversacional para Amigro con campos específicos e interactivos."""
     bu_name = unidad_negocio.name.lower()
-
+    # Asegurar que metadata sea un diccionario
+    if not isinstance(persona.metadata, dict):
+        persona.metadata = {}
+        await sync_to_async(persona.save)()
+        
+    if estado_chat.state == "waiting_for_tipo_candidato":
+        if estado_chat.context.get('tipo_candidato') not in ["mexicano", "extranjero"]:
+            await send_message(plataforma, user_id, "Por favor, selecciona 'Mexicano' o 'Extranjero'.", bu_name)
+            return
     # Preguntar si es mexicano o extranjero
     if not estado_chat.context.get('tipo_candidato'):
         mensaje = "¿Eres mexicano regresando a México o extranjero ingresando a México?"

@@ -11,9 +11,12 @@ from asgiref.sync import sync_to_async, async_to_sync
 from django.core.cache import cache
 from django.db import DatabaseError
 from django.conf import settings
-
+from tenacity import retry, stop_after_attempt, wait_exponential
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import TelegramAPI, BusinessUnit
+from prometheus_client import Histogram
+
+webhook_latency = Histogram('webhook_processing_seconds', 'Tiempo de procesamiento de webhooks', ['platform'])
 
 logger = logging.getLogger('chatbot')
 
@@ -126,16 +129,19 @@ async def confirm_telegram_callback(callback_query_id: str, telegram_api: Telegr
         logger.error(f"❌ Error al confirmar callback de Telegram: {str(e)}", exc_info=True)
         return False
 
-def set_telegram_webhook(api_key, webhook_url):
+async def set_telegram_webhook(api_key: str, webhook_url: str) -> Dict[str, Any]:
     url = f"https://api.telegram.org/bot{api_key}/setWebhook"
-    response = requests.post(url, json={"url": webhook_url})
-    return response.json()
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+        response = await client.post(url, json={"url": webhook_url})
+        response.raise_for_status()
+        return response.json()
 # -------------------------------
 # ✅ 2. WEBHOOK Y PROCESAMIENTO DE MENSAJES
 # -------------------------------
 @csrf_exempt
 async def telegram_webhook(request, bot_name: str):
     logger.debug(f"🔔 Iniciando telegram_webhook para {bot_name} con método {request.method}")
+    with webhook_latency.labels(platform='telegram').time():
     if request.method == "GET":
         logger.info("Respondiendo a GET con mensaje de webhook activo")
         return JsonResponse({"status": "success", "message": "Webhook activo"}, status=200)

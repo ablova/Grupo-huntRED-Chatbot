@@ -13,7 +13,7 @@ from app.utilidades.salario import (
     calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
     obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
 )
-from app.chatbot.integrations.services import send_email, send_message, send_options, send_image, send_email, GamificationService
+from app.chatbot.integrations.services import send_menu, send_email, send_message, send_options, send_image, send_email, GamificationService
 from app.utilidades.signature.pdf_generator import generate_personality_report #Para crear el PDF e integrarlo al CV
 from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState
 from django.conf import settings

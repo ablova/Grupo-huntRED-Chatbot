@@ -1383,23 +1383,26 @@ python -c "import asyncio; from app.chatbot.nlp import NLPProcessor; nlp = NLPPr
 sleep 10
 python /home/pablo/app/chatbot/generate_embeddings.py > /home/pablo/logs/generate_embeddings.log 2>&1
 echo "Generando y procesando los embeddings"
+# Definir usuario y grupo
+USER=pablollh
+GROUP=ai_huntred
 
-# Corregir propietario y grupo
-sudo chown -R pablo:ai_huntred /home/pablo/
+# Proyecto
+sudo chown -R pablollh:ai_huntred /home/pablo/ai_huntred
+sudo find /home/pablo/ai_huntred -type d -exec chmod 750 {} \;
+sudo find /home/pablo/ai_huntred -type f -exec chmod 640 {} \;
 
-# Corregir permisos de directorios
-sudo find /home/pablo/ -type d -exec chmod 775 {} \;
-
-# Corregir permisos de archivos
-sudo find /home/pablo/ -type f -exec chmod 664 {} \;
-
-# Asegurar permisos de ejecución para el entorno virtual
+# Entorno virtual
+sudo chown -R pablollh:ai_huntred /home/pablo/venv
+sudo find /home/pablo/venv -type d -exec chmod 750 {} \;
+sudo find /home/pablo/venv -type f -exec chmod 640 {} \;
 sudo chmod -R u+x /home/pablo/venv/bin/
-
-# Asegurar permisos para logs principales
-sudo touch /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
-sudo chown pablo:ai_huntred /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
-sudo chmod 664 /home/pablo/logs/app.log /home/pablo/logs/gunicorn.log /home/pablo/logs/celery.log
+sudo chmod -R 770 /home/pablo/logs
+sudo find /home/pablo/logs -type f -exec chmod 660 {} \;
+sudo rm -f /home/pablo/gunicorn.sock
+sudo touch /home/pablo/gunicorn.sock
+sudo chmod 660 /home/pablo/gunicorn.sock
+sudo mkdir -p /home/pablo/ai_huntred/static /home/pablo/ai_huntred/media
 
 # Limpiar archivos de log innecesarios
 sudo rm -f /home/pablo/logs/'*.log'

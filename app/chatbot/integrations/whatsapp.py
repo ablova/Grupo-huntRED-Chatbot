@@ -20,6 +20,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import Person, ChatState, BusinessUnit, WhatsAppAPI, Template
 from app.chatbot.integrations.services import send_message
+from prometheus_client import Histogram
+
+webhook_latency = Histogram('webhook_processing_seconds', 'Tiempo de procesamiento de webhooks', ['platform'])
 
 # Configuración del logger para trazabilidad y depuración
 logger = logging.getLogger('chatbot')
@@ -45,6 +48,7 @@ async def whatsapp_webhook(request):
     Returns:
         JsonResponse: Estado de la operación (éxito o error).
     """
+    with webhook_latency.labels(platform='whatsapp').time():
     try:
         if request.method != "POST":
             logger.warning(f"Método no permitido: {request.method}")
@@ -381,7 +385,7 @@ async def send_whatsapp_message(
     buttons: Optional[List[dict]] = None,
     phone_id: Optional[str] = None,
     business_unit: Optional[BusinessUnit] = None
-):
+) -> bool:
     """
     Envía un mensaje de texto a un usuario en WhatsApp, con soporte para botones.
 
@@ -396,6 +400,15 @@ async def send_whatsapp_message(
         bool: True si el mensaje se envió correctamente, False en caso contrario.
     """
     try:
+        # Validar parámetros de entrada
+        if not user_id or not isinstance(user_id, str):
+            logger.error("[send_whatsapp_message] user_id inválido")
+            return False
+        if not message or not isinstance(message, str):
+            logger.error("[send_whatsapp_message] message inválido o vacío")
+            return False
+
+        # Obtener configuración de WhatsAppAPI
         whatsapp_api = None
         if business_unit:
             whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
@@ -409,12 +422,23 @@ async def send_whatsapp_message(
             logger.error("[send_whatsapp_message] Falta phone_id o api_token válido")
             return False
 
+        if not phone_id or not api_token:
+            logger.error("[send_whatsapp_message] phone_id o api_token no proporcionados")
+            return False
+
+        # Validar longitud del mensaje (límite de WhatsApp: 4096 caracteres)
+        if len(message) > 4096:
+            logger.warning(f"[send_whatsapp_message] Mensaje demasiado largo para {user_id}, truncando a 4093 caracteres")
+            message = message[:4093] + "..."
+
+        # Preparar URL y encabezados
         url = build_whatsapp_url(whatsapp_api)
         headers = {
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json"
         }
 
+        # Construir payload base
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -423,25 +447,37 @@ async def send_whatsapp_message(
             "text": {"body": message}
         }
 
+        # Manejar botones
         if buttons:
-            formatted_buttons = [
-                {
-                    "type": "reply",
-                    "reply": {
-                        "id": btn.get('payload', 'btn_id'),
-                        "title": btn.get('title', '')[:20]
-                    }
-                }
-                for btn in buttons
+            # Validar estructura de los botones
+            valid_buttons = [
+                btn for btn in buttons
+                if isinstance(btn, dict) and btn.get('title') and btn.get('payload')
             ]
-            logger.debug(f"Botones formateados: {formatted_buttons}")
-            payload["type"] = "interactive"
-            payload["interactive"] = {
-                "type": "button",
-                "body": {"text": message},
-                "action": {"buttons": formatted_buttons}
-            }
+            if not valid_buttons:
+                logger.warning(f"[send_whatsapp_message] No se encontraron botones válidos para {user_id}")
+                payload["type"] = "text"  # Enviar como texto plano si no hay botones válidos
+            else:
+                # Nota: No truncamos botones aquí porque send_smart_options maneja listas grandes
+                formatted_buttons = [
+                    {
+                        "type": "reply",
+                        "reply": {
+                            "id": btn.get('payload', f'btn_id_{i}'),
+                            "title": btn.get('title', '')[:20]  # Límite de 20 caracteres por título
+                        }
+                    }
+                    for i, btn in enumerate(valid_buttons)
+                ]
+                logger.debug(f"Botones formateados: {formatted_buttons}")
+                payload["type"] = "interactive"
+                payload["interactive"] = {
+                    "type": "button",
+                    "body": {"text": message},
+                    "action": {"buttons": formatted_buttons}
+                }
 
+        # Enviar solicitud
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
@@ -449,8 +485,14 @@ async def send_whatsapp_message(
         logger.info(f"[send_whatsapp_message] Mensaje enviado a {user_id}")
         return True
 
+    except httpx.HTTPStatusError as e:
+        logger.error(f"[send_whatsapp_message] Error HTTP: {e.response.status_code} - {e.response.text}")
+        return False
+    except httpx.RequestException as e:
+        logger.error(f"[send_whatsapp_message] Error de red: {str(e)}")
+        return False
     except Exception as e:
-        logger.error(f"[send_whatsapp_message] Error inesperado: {e}", exc_info=True)
+        logger.error(f"[send_whatsapp_message] Error inesperado: {str(e)}", exc_info=True)
         return False
 
 @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
@@ -645,31 +687,54 @@ async def fetch_whatsapp_user_data(user_id: str, api_instance: WhatsAppAPI, payl
         Dict[str, Any]: Diccionario con datos del usuario (nombre, apellido_paterno, metadata, preferred_language).
     """
     try:
+        # Validar api_instance
         if not isinstance(api_instance, WhatsAppAPI) or not hasattr(api_instance, 'api_token') or not api_instance.api_token:
             logger.error(f"[fetch_whatsapp_user_data] api_instance no es válido, recibido: {type(api_instance)}")
-            return {}
+            return {
+                'nombre': '',
+                'apellido_paterno': '',
+                'metadata': {},
+                'preferred_language': 'es_MX'
+            }
+
+        # Validar payload
+        if payload is None or not isinstance(payload, dict):
+            logger.warning(f"[fetch_whatsapp_user_data] Payload inválido o ausente para user_id: {user_id}")
+            return {
+                'nombre': '',
+                'apellido_paterno': '',
+                'metadata': {},
+                'preferred_language': 'es_MX'
+            }
 
         # Extraer datos del payload si está disponible
-        if payload and "entry" in payload:
-            contacts = payload.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {}).get("contacts", [])
-            if contacts:
-                profile_name = contacts[0].get("profile", {}).get("name", "")
-                nombre = profile_name.split(" ")[0] if profile_name else ""
-                apellido = " ".join(profile_name.split(" ")[1:]) if len(profile_name.split(" ")) > 1 else ""
-                return {
-                    'nombre': nombre,
-                    'apellido_paterno': apellido,
-                    'metadata': {},
-                    'preferred_language': 'es_MX'  # WhatsApp no proporciona el idioma
-                }
+        if "entry" not in payload:
+            logger.warning(f"[fetch_whatsapp_user_data] Clave 'entry' no encontrada en el payload para user_id: {user_id}")
+            return {
+                'nombre': '',
+                'apellido_paterno': '',
+                'metadata': {},
+                'preferred_language': 'es_MX'
+            }
 
-        # Fallback si no hay datos en el payload
-        logger.warning(f"[fetch_whatsapp_user_data] No se encontraron datos de contacto en el payload para user_id: {user_id}")
+        contacts = payload.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {}).get("contacts", [])
+        if not contacts:
+            logger.warning(f"[fetch_whatsapp_user_data] No se encontraron contactos en el payload para user_id: {user_id}")
+            return {
+                'nombre': '',
+                'apellido_paterno': '',
+                'metadata': {},
+                'preferred_language': 'es_MX'
+            }
+
+        profile_name = contacts[0].get("profile", {}).get("name", "")
+        nombre = profile_name.split(" ")[0] if profile_name else ""
+        apellido = " ".join(profile_name.split(" ")[1:]) if len(profile_name.split(" ")) > 1 else ""
         return {
-            'nombre': '',
-            'apellido_paterno': '',
+            'nombre': nombre,
+            'apellido_paterno': apellido,
             'metadata': {},
-            'preferred_language': 'es_MX'
+            'preferred_language': 'es_MX'  # WhatsApp no proporciona el idioma
         }
 
     except Exception as e:
@@ -680,7 +745,6 @@ async def fetch_whatsapp_user_data(user_id: str, api_instance: WhatsAppAPI, payl
             'metadata': {},
             'preferred_language': 'es_MX'
         }
-
 # ------------------------------------------------------------------------------
 # Utilidades Adicionales
 # ------------------------------------------------------------------------------

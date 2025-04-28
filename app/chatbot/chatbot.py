@@ -82,11 +82,23 @@ class ChatBotHandler:
         """Procesa mensajes entrantes de forma robusta y validada."""
         # Log inicial para verificar que business_unit llega correctamente
         logger.info(f"[process_message] business_unit recibido: {business_unit}, tipo: {type(business_unit)}")
-        
+        # Validar business_unit
         if not isinstance(business_unit, BusinessUnit):
-            logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Abortando.")
+            logger.error(f"[handle_known_intents] business_unit no es un BusinessUnit, es {type(business_unit)}")
             await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
-            return
+            return False
+        
+        # Validar chat_state
+        if not isinstance(chat_state, ChatState):
+            logger.error(f"[handle_known_intents] chat_state no es un ChatState, es {type(chat_state)}")
+            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
+            return False
+        
+        # Validar chat_state.person
+        if not hasattr(chat_state, 'person') or chat_state.person is None:
+            logger.error(f"[handle_known_intents] chat_state.person no está asignado para user_id: {user_id}. Esto no debería ocurrir.")
+            await send_message(platform, user_id, "No se encontró tu perfil. Por favor, inicia de nuevo.", business_unit.name.lower())
+            return False
         
         try:
             logger.info(f"Procesando mensaje de {user_id} en {platform} para {business_unit.name}")
@@ -103,6 +115,11 @@ class ChatBotHandler:
             text, attachment = self._extract_message_content(message)
             bu_key = self.get_business_unit_key(business_unit)
             logger.info(f"[process_message] 📩 Mensaje recibido de {user_id} en {platform} para BU: {bu_key}: {text or 'attachment'}")
+
+            if not text and not attachment:
+                logger.warning(f"[process_message] Mensaje vacío recibido de user_id: {user_id}, platform: {platform}")
+                await send_message(platform, user_id, "Por favor, envía un mensaje válido o un archivo.", bu_key)
+                return
 
             language = detect(text) if text and len(text) > 5 and any(c.isalpha() for c in text) else "es"  # Solo usa detect para textos largos
             logger.info(f"Idioma detectado: {language}")
@@ -170,7 +187,12 @@ class ChatBotHandler:
 
             # 9. Procesar adjuntos si existen
             if attachment:
-                response = await self.handle_cv_upload(user, attachment.get("url", ""))
+                url = attachment.get("url")
+                if not url or not isinstance(url, str) or not url.strip():
+                    logger.warning(f"[process_message] Adjunto sin URL válida para user_id: {user_id}, platform: {platform}")
+                    await send_message(platform, user_id, "No se pudo procesar el adjunto. Asegúrate de enviar un archivo válido.", bu_key)
+                    return
+                response = await self.handle_cv_upload(user, url)
                 await send_message(platform, user_id, response, bu_key)
                 await self.store_bot_message(chat_state, response)
                 return
@@ -267,7 +289,7 @@ class ChatBotHandler:
     async def _get_or_create_user_and_chat_state(self, user_id: str, platform: str, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
         user, created = await self.get_or_create_user(user_id, platform, business_unit, payload)
         
-        chat_state, chat_created = await sync_to_async(ChatState.objects.get_or_create)(
+        chat_state, chat_created = await sync_to_async(ChatState.objects.select_related('person', 'business_unit').get_or_create)(
             user_id=user_id,
             business_unit=business_unit,
             defaults={"platform": platform, "person": user}
@@ -708,9 +730,22 @@ class ChatBotHandler:
         await sync_to_async(chat_state.save)()
 
     async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person):
-        """Handle TOS acceptance explicitly for text responses."""
         bu_key = self.get_business_unit_key(business_unit)
+        attempts = chat_state.context.get('tos_attempts', 0)
+        
         if text.lower() in ["no", "nope"]:
             await send_message(platform, user_id, "Entendido, pero necesitas aceptar los TOS para continuar. ¿Alguna duda?", bu_key)
-        elif text.lower() not in ["sí", "si"]:
-            await send_message(platform, user_id, "Por favor, responde 'Sí' o 'No' para aceptar o rechazar los Términos de Servicio.", bu_key)
+            chat_state.context['tos_attempts'] = attempts + 1
+        elif text.lower() in ["sí", "si"]:
+            user.tos_accepted = True
+            await sync_to_async(user.save)()
+            await send_message(platform, user_id, "¡Gracias por aceptar los TOS! Continuemos.", bu_key)
+            chat_state.context.pop('tos_attempts', None)
+        else:
+            chat_state.context['tos_attempts'] = attempts + 1
+            if attempts >= 3:
+                await send_message(platform, user_id, "Demasiados intentos inválidos. Por favor, contacta a soporte.", bu_key)
+                chat_state.state = "idle"
+            else:
+                await send_message(platform, user_id, "Por favor, responde 'Sí' o 'No' para aceptar o rechazar los Términos de Servicio.", bu_key)
+        await sync_to_async(chat_state.save)()
