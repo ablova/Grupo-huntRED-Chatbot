@@ -11,7 +11,7 @@ from asgiref.sync import sync_to_async
 from app.models import MessengerAPI, MetaAPI, BusinessUnit, ChatState, Person
 from app.chatbot.integrations.services import send_message
 from app.chatbot.chatbot import ChatBotHandler
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger('chatbot')
 
@@ -188,11 +188,11 @@ async def send_messenger_image(user_id: str, image_url: str, caption: str, acces
 
     logger.info(f"✅ Imagen enviada a {user_id} en Messenger.")
     
-async def fetch_messenger_user_data(user_id: str, api_instance: MessengerAPI) -> Dict[str, Any]:
-    """
-    Fetch user data from Facebook Messenger (Graph API).
-    """
+async def fetch_messenger_user_data(user_id: str, api_instance: MessengerAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
+        if not isinstance(api_instance, MessengerAPI) or not hasattr(api_instance, 'page_access_token') or not api_instance.page_access_token:
+            logger.error(f"api_instance no es válido, recibido: {type(api_instance)}")
+            return {}
         url = f"https://graph.facebook.com/v13.0/{user_id}"
         params = {
             "fields": "first_name,last_name,email,locale",

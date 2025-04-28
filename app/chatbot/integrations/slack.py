@@ -125,11 +125,11 @@ async def slack_webhook(request):
         logger.error(f"❌ Error en webhook de Slack: {str(e)}", exc_info=True)
         return JsonResponse({"status": "error", "message": "Error interno del servidor"}, status=500)
     
-async def fetch_slack_user_data(user_id: str, api_instance: SlackAPI) -> Dict[str, Any]:
-    """
-    Fetch user data from Slack API.
-    """
+async def fetch_slack_user_data(user_id: str, api_instance: SlackAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
+        if not isinstance(api_instance, SlackAPI) or not hasattr(api_instance, 'bot_token') or not api_instance.bot_token:
+            logger.error(f"api_instance no es válido, recibido: {type(api_instance)}")
+            return {}
         url = "https://slack.com/api/users.info"
         headers = {"Authorization": f"Bearer {api_instance.bot_token}"}
         params = {"user": user_id}

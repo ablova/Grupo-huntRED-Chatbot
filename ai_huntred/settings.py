@@ -1,6 +1,7 @@
 # /home/pablo/ai_huntred/settings.py
 
 import os
+import logging
 import environ
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -151,7 +152,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Create directories (permissions set manually)
 for directory in [LOG_DIR, STATIC_ROOT, MEDIA_ROOT, ML_MODELS_DIR]:
     os.makedirs(directory, exist_ok=True)
-    logger.debug(f"Ensured directory exists: {directory}")
+    #logger.debug(f"Ensured directory exists: {directory}")
 
 # Ubicación del archivo: /home/pablo/ai_huntred/settings.py
 LOGGING = {

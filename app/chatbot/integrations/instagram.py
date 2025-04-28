@@ -8,7 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from asgiref.sync import sync_to_async
 from app.models import InstagramAPI, MetaAPI, BusinessUnit, ChatState, Person
 from app.chatbot.chatbot import ChatBotHandler
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger('chatbot')
 
@@ -182,11 +182,11 @@ async def send_instagram_buttons(user_id: str, message: str, buttons: List[Dict]
     logger.info(f"✅ Botones enviados a {user_id} en Instagram")
     return True
 
-async def fetch_instagram_user_data(user_id: str, api_instance: InstagramAPI) -> Dict[str, Any]:
-    """
-    Fetch user data from Instagram API (Graph API).
-    """
+async def fetch_instagram_user_data(user_id: str, api_instance: InstagramAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
+        if not isinstance(api_instance, InstagramAPI) or not hasattr(api_instance, 'access_token') or not api_instance.access_token:
+            logger.error(f"api_instance no es válido, recibido: {type(api_instance)}")
+            return {}
         url = f"https://graph.instagram.com/{user_id}"
         params = {
             "fields": "username,full_name",

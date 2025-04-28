@@ -78,7 +78,7 @@ class ChatBotHandler:
             logger.error(f"Error obteniendo business unit key: {e}")
         return 'default'
 
-    async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit):
+    async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
         """Procesa mensajes entrantes de forma robusta y validada."""
         # Log inicial para verificar que business_unit llega correctamente
         logger.info(f"[process_message] business_unit recibido: {business_unit}, tipo: {type(business_unit)}")
@@ -108,7 +108,7 @@ class ChatBotHandler:
             logger.info(f"Idioma detectado: {language}")
             
             # 3. Obtener usuario y estado
-            user, chat_state = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit)
+            user, chat_state, _ = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit, payload)
             logger.info(f"[process_message] chat_state después de _get_or_create: tipo={type(chat_state)}, valor={chat_state}")
             chat_state.context["language"] = language
             await sync_to_async(chat_state.save)()
@@ -129,7 +129,7 @@ class ChatBotHandler:
                 intents = detect_intents(text)
                 logger.info(f"[process_message] Intents detectados: {intents}")
                 if intents:
-                    handled = await handle_known_intents(intents, platform, user_id, chat_state, business_unit, user, text, self)
+                    handled = await handle_known_intents(intents, platform, user_id, chat_state, business_unit, text, self)
                     if handled:
                         return None  # El handler del intent ya envió la respuesta
                 ## Fallback a NLP con manejo robusto
@@ -238,11 +238,11 @@ class ChatBotHandler:
             attachment = message["attachment"]
         return text, attachment
 
-    async def get_or_create_user(self, user_id: str, platform: str, business_unit: BusinessUnit):
+    async def get_or_create_user(self, user_id: str, platform: str, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
+        from app.chatbot.integrations.services import MessageService
         message_service = MessageService(business_unit)
-        user_data = await message_service.fetch_user_data(platform, user_id)
+        user_data = await message_service.fetch_user_data(platform, user_id, payload)
 
-        # Normalizar el identificador del usuario según la plataforma
         phone = user_id if platform == "whatsapp" else f"{platform}:{user_id}"
 
         defaults = {
@@ -257,13 +257,15 @@ class ChatBotHandler:
         )
 
         if not created and user_data:
-            # Opcional: actualizar datos si cambian
-            await sync_to_async(user.update)(**defaults)
+            user.nombre = defaults["nombre"]
+            user.apellido_paterno = defaults["apellido_paterno"]
+            user.metadata = defaults["metadata"]
+            await sync_to_async(user.save)()
 
         return user, created
     
-    async def _get_or_create_user_and_chat_state(self, user_id: str, platform: str, business_unit: BusinessUnit):
-        user, created = await self.get_or_create_user(user_id, platform, business_unit)
+    async def _get_or_create_user_and_chat_state(self, user_id: str, platform: str, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
+        user, created = await self.get_or_create_user(user_id, platform, business_unit, payload)
         
         chat_state, chat_created = await sync_to_async(ChatState.objects.get_or_create)(
             user_id=user_id,

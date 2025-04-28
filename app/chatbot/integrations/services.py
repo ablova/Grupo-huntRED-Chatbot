@@ -225,62 +225,112 @@ class MessageService:
 
     async def get_api_instance(self, platform: str):
         """Obtiene o cachea la instancia de API para la plataforma especificada."""
+        if not platform or not isinstance(platform, str):
+            logger.error(f"Plataforma inválida: {platform}")
+            return None
+            
         cache_key = f"api_instance:{platform}:{self.business_unit.id}"
         
         # Verificar si ya está en memoria
-        if platform not in self._api_instances:
-            # Intentar obtener del caché primero
+        if platform in self._api_instances:
+            if self._api_instances[platform] is not None and not isinstance(self._api_instances[platform], str):
+                return self._api_instances[platform]
+        
+        # Intentar obtener del caché
+        try:
             cached_api = cache.get(cache_key)
             if cached_api is not None:
-                self._api_instances[platform] = cached_api
-            else:
-                # Mapeo de plataformas a modelos
-                model_mapping = {
-                    'whatsapp': WhatsAppAPI,
-                    'telegram': TelegramAPI,
-                    'messenger': MessengerAPI,
-                    'instagram': InstagramAPI,
-                    'slack': SlackAPI
-                }
-                model_class = model_mapping.get(platform)
-                if not model_class:
-                    logger.error(f"Plataforma no soportada: {platform}")
-                    return None
-
-                try:
-                    # Obtener la instancia de la base de datos de forma asíncrona
-                    api_instance = await sync_to_async(model_class.objects.filter(
-                        business_unit=self.business_unit,
-                        is_active=True
-                    ).select_related('business_unit').first)()
-
-                    if not api_instance:
-                        logger.warning(f"No se encontró configuración activa para {platform} en BU {self.business_unit.name}")
-                        self._api_instances[platform] = None
+                if isinstance(cached_api, str):
+                    logger.warning(f"Caché corrupto para {platform}: se encontró string en lugar de objeto")
+                    cache.delete(cache_key)
+                else:
+                    required_attrs = {
+                        'whatsapp': ['phoneID', 'api_token', 'v_api'],
+                        'telegram': ['api_key'],
+                        'messenger': ['page_access_token'],
+                        'instagram': ['access_token'],
+                        'slack': ['bot_token']
+                    }
+                    
+                    is_valid = True
+                    for attr in required_attrs.get(platform, []):
+                        if not hasattr(cached_api, attr) or not getattr(cached_api, attr):
+                            logger.warning(f"Objeto en caché para {platform} no tiene atributo válido: {attr}")
+                            is_valid = False
+                            break
+                    
+                    if is_valid:
+                        self._api_instances[platform] = cached_api
+                        logger.debug(f"API para {platform} recuperada del caché correctamente")
+                        return cached_api
                     else:
-                        # Validar atributos requeridos según la plataforma
-                        required_attrs = {
-                            'whatsapp': ['phoneID', 'api_token'],
-                            'telegram': ['api_key'],
-                            'messenger': ['page_access_token'],
-                            'instagram': ['access_token'],
-                            'slack': ['bot_token']
-                        }
-                        for attr in required_attrs.get(platform, []):
-                            if not hasattr(api_instance, attr) or not getattr(api_instance, attr):
-                                logger.error(f"Configuración incompleta para {platform} en BU {self.business_unit.name}: {attr} faltante")
-                                self._api_instances[platform] = None
-                                break
-                        else:
-                            # Si todo está correcto, almacenar en memoria y caché
-                            self._api_instances[platform] = api_instance
-                            cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
-                except Exception as e:
-                    logger.error(f"Error al obtener instancia de API para {platform}: {e}", exc_info=True)
-                    self._api_instances[platform] = None
+                        cache.delete(cache_key)
+        except Exception as e:
+            logger.warning(f"Error al recuperar del caché para {platform}: {e}")
+        
+        # Cargar desde la base de datos
+        model_mapping = {
+            'whatsapp': WhatsAppAPI,
+            'telegram': TelegramAPI,
+            'messenger': MessengerAPI,
+            'instagram': InstagramAPI,
+            'slack': SlackAPI
+        }
+        
+        model_class = model_mapping.get(platform)
+        if not model_class:
+            logger.error(f"Plataforma no soportada: {platform}")
+            self._api_instances[platform] = None
+            return None
 
-        return self._api_instances[platform]
-    
+        try:
+            # Usar consulta asíncrona nativa de Django
+            api_instance = await model_class.objects.filter(
+                business_unit=self.business_unit, is_active=True
+            ).afirst()
+
+            if not api_instance:
+                logger.warning(f"No se encontró configuración activa para {platform} en BU {self.business_unit.name}")
+                self._api_instances[platform] = None
+                return None
+            
+            # Validar atributos requeridos según la plataforma
+            required_attrs = {
+                'whatsapp': ['phoneID', 'api_token', 'v_api'],
+                'telegram': ['api_key'],
+                'messenger': ['page_access_token'],
+                'instagram': ['access_token'],
+                'slack': ['bot_token']
+            }
+            
+            missing_attrs = []
+            for attr in required_attrs.get(platform, []):
+                if not hasattr(api_instance, attr):
+                    missing_attrs.append(f"{attr} (atributo no existe)")
+                elif not getattr(api_instance, attr):
+                    missing_attrs.append(f"{attr} (valor vacío)")
+            
+            if missing_attrs:
+                logger.error(f"Configuración incompleta para {platform} en BU {self.business_unit.name}: {', '.join(missing_attrs)}")
+                self._api_instances[platform] = None
+                return None
+            
+            # Todo está correcto, almacenar en memoria y caché
+            self._api_instances[platform] = api_instance
+            
+            try:
+                cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
+                logger.debug(f"API para {platform} almacenada en caché correctamente")
+            except Exception as e:
+                logger.warning(f"Error al guardar en caché para {platform}: {e}")
+            
+            return api_instance
+            
+        except Exception as e:
+            logger.error(f"Error al obtener instancia de API para {platform}: {e}", exc_info=True)
+            self._api_instances[platform] = None
+            return None
+        
     async def send_platform_message(
         self,
         platform: str,
@@ -626,13 +676,18 @@ class MessageService:
             logger.error(f"Error enviando opciones Slack: {e}", exc_info=True)
             return False
         
-    async def fetch_user_data(self, platform: str, user_id: str) -> Dict[str, any]:
+    async def fetch_user_data(self, platform: str, user_id: str, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        cache_key = f"user_data:{platform}:{user_id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.debug(f"Datos de usuario para {platform}:{user_id} obtenidos del caché")
+            return cached_data
+
         api_instance = await self.get_api_instance(platform)
         if not api_instance:
             logger.error(f"No se encontró instancia de API para {platform}")
             return {}
 
-        # Mapa de funciones de fetch por plataforma
         fetch_functions = {
             "whatsapp": self.fetch_whatsapp_user_data,
             "telegram": self.fetch_telegram_user_data,
@@ -646,28 +701,35 @@ class MessageService:
             logger.error(f"No hay función de fetch definida para {platform}")
             return {}
 
-        return await fetch_func(user_id, api_instance)
+        try:
+            data = await fetch_func(user_id, api_instance, payload)
+            cache.set(cache_key, data, timeout=3600)
+            return data
+        except Exception as e:
+            logger.error(f"Error al obtener datos de usuario para {platform}:{user_id}: {e}", exc_info=True)
+            return {}
 
     # Ejemplo de implementación específica
-    async def fetch_slack_user_data(self, user_id: str, api_instance: SlackAPI) -> Dict[str, any]:
+    @retry(stop=stop_after_attempt(3))
+    async def fetch_slack_user_data(self, user_id: str, api_instance: SlackAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
         from app.chatbot.integrations.slack import fetch_slack_user_data
-        return await fetch_slack_user_data(user_id, api_instance.bot_token)
-
-    async def fetch_telegram_user_data(self, user_id: str, api_instance: TelegramAPI) -> Dict[str, any]:
+        return await fetch_slack_user_data(user_id, api_instance, payload)
+    @retry(stop=stop_after_attempt(3))
+    async def fetch_telegram_user_data(self, user_id: str, api_instance: TelegramAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
         from app.chatbot.integrations.telegram import fetch_telegram_user_data
-        return await fetch_telegram_user_data(user_id, api_instance.api_key)
-
-    async def fetch_whatsapp_user_data(self, user_id: str, api_instance: WhatsAppAPI) -> Dict[str, any]:
+        return await fetch_telegram_user_data(user_id, api_instance, payload)
+    @retry(stop=stop_after_attempt(3))
+    async def fetch_whatsapp_user_data(self, user_id: str, api_instance: WhatsAppAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
         from app.chatbot.integrations.whatsapp import fetch_whatsapp_user_data
-        return await fetch_whatsapp_user_data(user_id, api_instance.api_token)
-    
-    async def fetch_instagram_user_data(self, user_id: str, api_instance: InstagramAPI) -> Dict[str, any]:
+        return await fetch_whatsapp_user_data(user_id, api_instance, payload)
+    @retry(stop=stop_after_attempt(3))
+    async def fetch_instagram_user_data(self, user_id: str, api_instance: InstagramAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
         from app.chatbot.integrations.instagram import fetch_instagram_user_data
-        return await fetch_instagram_user_data(user_id, api_instance.api_key)
-
-    async def fetch_messenger_user_data(self, user_id: str, api_instance: MessengerAPI) -> Dict[str, any]:
+        return await fetch_instagram_user_data(user_id, api_instance, payload)
+    @retry(stop=stop_after_attempt(3))
+    async def fetch_messenger_user_data(self, user_id: str, api_instance: MessengerAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
         from app.chatbot.integrations.messenger import fetch_messenger_user_data
-        return await fetch_messenger_user_data(user_id, api_instance.api_token)
+        return await fetch_messenger_user_data(user_id, api_instance, payload)
 
 class EmailService:
     def __init__(self, business_unit: BusinessUnit):

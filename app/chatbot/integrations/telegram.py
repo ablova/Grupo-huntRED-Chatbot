@@ -234,6 +234,7 @@ async def telegram_webhook(request, bot_name: str):
 # -------------------------------
 # ✅ 3. ENVÍO DE MENSAJES Y BOTONES
 # -------------------------------
+@retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
 async def send_telegram_message(chat_id: int, message: str, telegram_api: TelegramAPI, business_unit_name: str) -> bool:
     """Envía un mensaje de texto a un usuario en Telegram."""
     if not message or not message.strip():
@@ -482,11 +483,11 @@ async def test_telegram_buttons():
     except Exception as e:
         print(f"❌ Error en la prueba de botones: {str(e)}")
 
-async def fetch_telegram_user_data(user_id: str, api_instance: TelegramAPI) -> Dict[str, Any]:
-    """
-    Fetch user data from Telegram Bot API.
-    """
+async def fetch_telegram_user_data(user_id: str, api_instance: TelegramAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
+        if not isinstance(api_instance, TelegramAPI) or not hasattr(api_instance, 'api_key') or not api_instance.api_key:
+            logger.error(f"api_instance no es válido, recibido: {type(api_instance)}")
+            return {}
         url = f"https://api.telegram.org/bot{api_instance.api_key}/getChat"
         params = {"chat_id": user_id}
         async with httpx.AsyncClient() as client:

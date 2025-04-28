@@ -240,7 +240,7 @@ def get_tos_url(business_unit: BusinessUnit) -> str:
     }
     return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
-async def handle_known_intents(intents: List[str], platform: str, user_id: str, text: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person, chatbot=None) -> bool:
+async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, text: str, handler=None) -> bool:
     logger.info(f"[handle_known_intents] Procesando intents: {intents} para BU: {business_unit.name}")
     
     # Validación inicial de tipos
@@ -288,7 +288,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         elif primary_intent == "saludo":
             from app.chatbot.workflow.common import send_welcome_message
             await send_welcome_message(user_id, platform, business_unit)
-            if not chatbot.is_profile_complete(user, business_unit):
+            if not handler.is_profile_complete(chat_state.person, business_unit):
                 tos_url = get_tos_url(business_unit)
                 await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", bu_name_lower)
                 await send_options(platform, user_id, "¿Aceptas los Términos de Servicio?",
@@ -296,6 +296,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
                                    bu_name_lower)
             return True
         elif primary_intent == "tos_accept":
+            user = chat_state.person
             user.tos_accepted = True
             await sync_to_async(user.save)()
             chat_state.state = "profile_in_progress"
@@ -395,6 +396,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
 
         # 7. CONTACTO Y AYUDA
         elif primary_intent in ["contacto", "solicitar_contacto_reclutador"]:
+            user = chat_state.person
             admin_phone = configuracion.telefono_bu or "525518490291"
             candidate_info = {
                 "Nombre": f"{user.nombre or ''} {user.apellido_paterno or ''} {user.apellido_materno or ''}".strip(),
