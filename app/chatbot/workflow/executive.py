@@ -13,7 +13,7 @@ from app.chatbot.workflow.common import (
 
 logger = logging.getLogger(__name__)
 
-async def iniciar_flujo_huntred_executive(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, 
+async def iniciar_flujo_executive(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, 
                                         estado_chat: ChatState, persona: Person):
     """
     Inicia el flujo conversacional para HuntRED Executive.
@@ -31,7 +31,7 @@ async def iniciar_flujo_huntred_executive(plataforma: str, user_id: str, unidad_
                       bu_name)
     await iniciar_creacion_perfil(plataforma, user_id, unidad_negocio, estado_chat, persona)
 
-async def continuar_perfil_huntred_executive(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, 
+async def continuar_perfil_executive(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, 
                                            estado_chat: ChatState, persona: Person):
     """
     Continúa el flujo conversacional para completar el perfil en HuntRED Executive.
@@ -60,7 +60,7 @@ async def continuar_perfil_huntred_executive(plataforma: str, user_id: str, unid
     estado_chat.state = "completed"
     await sync_to_async(estado_chat.save)()
 
-async def manejar_respuesta_huntred_executive(plataforma: str, user_id: str, texto: str, 
+async def manejar_respuesta_executive(plataforma: str, user_id: str, texto: str, 
                                             unidad_negocio: BusinessUnit, estado_chat: ChatState, 
                                             persona: Person) -> bool:
     """
@@ -92,7 +92,7 @@ async def is_profile_basic_complete(persona: Person) -> bool:
     required_fields = ['nombre', 'email', 'phone']
     return all(getattr(persona, field, None) for field in required_fields)
 
-async def is_profile_complete_huntred_executive(persona: Person) -> bool:
+async def is_profile_complete_executive(persona: Person) -> bool:
     """
     Verifica si el perfil está completo para HuntRED Executive.
     
@@ -105,7 +105,7 @@ async def is_profile_complete_huntred_executive(persona: Person) -> bool:
     return await is_profile_basic_complete(persona)
 
 @shared_task
-def process_huntred_executive_candidate(person_id: int):
+def process_executive_candidate(person_id: int):
     """
     Procesa un candidato de HuntRED Executive, generando contratos.
     

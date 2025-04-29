@@ -3,6 +3,8 @@
 # Ignorar el entorno virtual
 venv/
 tfhub_cache/
+app/models/
+setup_status.conf
 
 __pycache__
 *.pyc

@@ -3,7 +3,7 @@ import logging
 from typing import List
 from celery import shared_task
 from asgiref.sync import sync_to_async
-from app.models import Person, Application, BusinessUnit, ChatState
+from app.models import Person, Application, BusinessUnit, ChatState, Division
 from app.utilidades.signature.pdf_generator import generate_contract_pdf
 from app.utilidades.signature.digital_sign import request_digital_signature
 from app.chatbot.integrations.services import send_message, send_options
@@ -25,7 +25,44 @@ NIVELES_GERENCIALES = [
     {"title": "Managing Director", "payload": "managing_director"},
     {"title": "Otro", "payload": "otro_nivel"}
 ]
+# Función para obtener divisiones dinámicamente desde app_division
+async def get_division_options() -> List[dict]:
+    """
+    Obtiene las divisiones desde la tabla app_division y las formatea como opciones.
+    Usa caché para optimizar el rendimiento.
+    
+    Returns:
+        List[dict]: Lista de opciones con title y payload.
+    """
+    cache_key = "huntred_division_options"
+    cached_options = cache.get(cache_key)
+    
+    if cached_options:
+        logger.debug("Divisiones obtenidas desde caché")
+        return cached_options
 
+    try:
+        # Consulta asíncrona a la tabla app_division
+        divisions = await sync_to_async(list)(Division.objects.values('name'))
+        options = [
+            {
+                "title": division['name'],
+                "payload": re.sub(r'[^\w]', '_', division['name'].lower()).strip('_')
+            }
+            for division in divisions
+        ]
+        # Agregar opción "Otro"
+        options.append({"title": "Otro", "payload": "otro_division"})
+        
+        # Almacenar en caché por 1 hora
+        cache.set(cache_key, options, timeout=3600)
+        logger.info(f"Divisiones cargadas desde app_division: {[opt['title'] for opt in options]}")
+        return options
+    except Exception as e:
+        logger.error(f"Error al cargar divisiones: {e}", exc_info=True)
+        # Fallback en caso de error
+        return [{"title": "Otro", "payload": "otra_division"}]
+    
 async def iniciar_flujo_huntred(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, 
                               estado_chat: ChatState, persona: Person):
     """
@@ -67,7 +104,15 @@ async def continuar_perfil_huntred(plataforma: str, user_id: str, unidad_negocio
     if not await is_profile_basic_complete(persona):
         await continuar_registro(plataforma, user_id, unidad_negocio, estado_chat, persona)
         return
-
+    # Preguntar división de interés
+    if "division_interes" not in persona.metadata:
+        if estado_chat.state != "waiting_for_division_interes":
+            division_options = await get_division_options()
+            await send_message(plataforma, user_id, "¿En qué división te interesa trabajar? Selecciona una opción:", bu_name)
+            await send_options(plataforma, user_id, "Elige una división:", division_options, bu_name)
+            estado_chat.state = "waiting_for_division_interes"
+            await sync_to_async(estado_chat.save)()
+        return
     # Preguntar nivel gerencial
     if "nivel_gerencial" not in persona.metadata:
         if estado_chat.state != "waiting_for_nivel_gerencial":

@@ -16,8 +16,6 @@ from app.chatbot.chatbot import ChatBotHandler
 from app.models import TelegramAPI, BusinessUnit
 from prometheus_client import Histogram
 
-webhook_latency = Histogram('webhook_processing_seconds', 'Tiempo de procesamiento de webhooks', ['platform'])
-
 logger = logging.getLogger('chatbot')
 
 CACHE_TIMEOUT = 600  # 10 minutos
