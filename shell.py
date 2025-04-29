@@ -131,7 +131,7 @@ export PS1="\[\033[1;32m\]\u@\h:\[\033[1;34m\]\w\[\033[1;36m\]\$ \[\033[0m\]"
 
 # === Alias generales ===
 alias iniciar='cd /home/pablo && source venv/bin/activate'
-alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt autoremove -y'
+alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt-get autoremove -y && sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt-get clean -y && sudo apt clean -y'
 
 # === Alias para edición rápida de archivos principales ===
 alias edit_ai_urls='sudo rm /home/pablo/ai_huntred/urls.py && sudo nano /home/pablo/ai_huntred/urls.py'
@@ -163,7 +163,7 @@ alias edit_chatbot='sudo rm /home/pablo/app/chatbot/chatbot.py && sudo nano /hom
 alias edit_nlp='sudo rm /home/pablo/app/chatbot/nlp.py && sudo nano /home/pablo/app/chatbot/nlp.py'
 alias edit_gpt='sudo rm /home/pablo/app/chatbot/gpt.py && sudo nano /home/pablo/app/chatbot/gpt.py'
 alias edit_utils='sudo rm /home/pablo/app/chatbot/utils.py && sudo nano /home/pablo/app/chatbot/utils.py'
-alias edit_intent='sudo rm /home/pablo/app/chatbot/intents_handles.py && sudo nano /home/pablo/app/chatbot/intents_handler.py'
+alias edit_intents='sudo rm /home/pablo/app/chatbot/intents_handler.py && sudo nano /home/pablo/app/chatbot/intents_handler.py'
 alias edit_whatsapp='sudo rm /home/pablo/app/chatbot/integrations/whatsapp.py && sudo nano /home/pablo/app/chatbot/integrations/whatsapp.py'
 alias edit_telegram='sudo rm /home/pablo/app/chatbot/integrations/telegram.py && sudo nano /home/pablo/app/chatbot/integrations/telegram.py'
 alias edit_messenger='sudo rm /home/pablo/app/chatbot/integrations/messenger.py && sudo nano /home/pablo/app/chatbot/integrations/messenger.py'

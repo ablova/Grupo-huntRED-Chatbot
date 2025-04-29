@@ -22,7 +22,6 @@ from app.models import Person, ChatState, BusinessUnit, WhatsAppAPI, Template
 from app.chatbot.integrations.services import send_message
 from prometheus_client import Histogram
 
-webhook_latency = Histogram('webhook_processing_seconds', 'Tiempo de procesamiento de webhooks', ['platform'])
 
 # Configuración del logger para trazabilidad y depuración
 logger = logging.getLogger('chatbot')
@@ -49,25 +48,25 @@ async def whatsapp_webhook(request):
         JsonResponse: Estado de la operación (éxito o error).
     """
     with webhook_latency.labels(platform='whatsapp').time():
-    try:
-        if request.method != "POST":
-            logger.warning(f"Método no permitido: {request.method}")
-            return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
+        try:
+            if request.method != "POST":
+                logger.warning(f"Método no permitido: {request.method}")
+                return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
 
-        payload = json.loads(request.body.decode("utf-8"))
-        if "entry" not in payload:
-            logger.error("[whatsapp_webhook] Error: 'entry' no encontrado en el payload")
-            return JsonResponse({"status": "error", "message": "Formato de payload inválido"}, status=400)
+            payload = json.loads(request.body.decode("utf-8"))
+            if "entry" not in payload:
+                logger.error("[whatsapp_webhook] Error: 'entry' no encontrado en el payload")
+                return JsonResponse({"status": "error", "message": "Formato de payload inválido"}, status=400)
 
-        await handle_incoming_message(payload)
-        return JsonResponse({"status": "success"}, status=200)
+            await handle_incoming_message(payload)
+            return JsonResponse({"status": "success"}, status=200)
 
-    except json.JSONDecodeError:
-        logger.error("[whatsapp_webhook] Error: JSON mal formado recibido")
-        return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
-    except Exception as e:
-        logger.error(f"[whatsapp_webhook] Error inesperado: {e}", exc_info=True)
-        return JsonResponse({"status": "error", "message": "Error interno"}, status=500)
+        except json.JSONDecodeError:
+            logger.error("[whatsapp_webhook] Error: JSON mal formado recibido")
+            return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
+        except Exception as e:
+            logger.error(f"[whatsapp_webhook] Error inesperado: {e}", exc_info=True)
+            return JsonResponse({"status": "error", "message": "Error interno"}, status=500)
 
 # ------------------------------------------------------------------------------
 # Procesamiento del Mensaje Entrante

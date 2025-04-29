@@ -17,12 +17,13 @@
 #
 # Uso:
 #   1) Subir: scp setup_server.sh pablo@34.57.227.244:/home/pablo/
-#   2) Permisos: sudo chmod +x /home/pablo/setup_server.sh
+#   2) Permisos: sudo nano /home/pablo/setup_server.sh && sudo chmod +x /home/pablo/setup_server.sh && sudo /home/pablo/setup_server.sh
 #   3) Ejecutar: sudo /home/pablo/setup_server.sh
 #   4) Forzar paso: Edita /home/pablo/setup_status.conf (e.g., PART_7_RUN=enabled)
 #
 # Antes, elimina y recrea la VM (si necesario):
-# gcloud compute instances delete grupo-huntred --project=grupo-huntred --zone=us-central1-a --quiet
+# gcloud compute instances delete grupo-huntred --project=grupo-huntred --zone=us-central1-a --quiet 
+# sleep 5
 # gcloud compute instances create grupo-huntred \
 #    --project=grupo-huntred \
 #    --zone=us-central1-a \
@@ -48,7 +49,8 @@
 #        chown -R pablo:pablo /home/pablo /var/log/gunicorn
 #        chmod 700 /home/pablo/.ssh
 #    '
-#
+#  sleep 10
+#  gcloud compute ssh grupo-huntred --zone=us-central1-a --project=grupo-huntred
 # Notas:
 #   - Configurado para usuario 'pablo' y grupo 'ai_huntred', accesible por 'pablollh'.
 #   - DB_USER='g_huntred_pablo' no se cambia.
@@ -57,6 +59,7 @@
 #   - Usa setup_status.conf para omitir pasos completados (PART_X_RUN=disabled).
 ############################################################################################
 
+
 set -euo pipefail
 
 ################################
@@ -64,8 +67,8 @@ set -euo pipefail
 ################################
 
 MAIN_GROUP="ai_huntred"
-APP_USER="pablo"
-SECONDARY_USER="pablollh"
+APP_USER="pablollh"
+SECONDARY_USER="pablo"
 PROJECT_DIR="/home/pablo"
 APP_NAME="ai_huntred"
 REPO_URL="https://ablova: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@github.com/ablova/Grupo-huntRED-Chatbot.git"
@@ -93,9 +96,8 @@ STATIC_DIR="$PROJECT_DIR/staticfiles"
 MEDIA_DIR="$PROJECT_DIR/media"
 TFHUB_CACHE="$PROJECT_DIR/tfhub_cache"
 SKILLS_DATA="$PROJECT_DIR/skills_data"
-GUNICORN_LOG_DIR="/var/log/gunicorn"
-GUNICORN_ACCESS_LOG="$GUNICORN_LOG_DIR/access.log"
-GUNICORN_ERROR_LOG="$GUNICORN_LOG_DIR/error.log"
+GUNICORN_ACCESS_LOG="$LOG_DIR/gunicorn_access.log"
+GUNICORN_ERROR_LOG="$LOG_DIR/gunicorn_error.log"
 STATUS_FILE="$PROJECT_DIR/setup_status.conf"
 
 # Crear grupo ai_huntred si no existe
@@ -115,16 +117,16 @@ for user in "$APP_USER" "$SECONDARY_USER"; do
 done
 
 # Validar y crear directorios esenciales
-ESSENTIAL_DIRS=("$LOG_DIR" "$STATIC_DIR" "$MEDIA_DIR" "$TFHUB_CACHE" "$SKILLS_DATA" "$GUNICORN_LOG_DIR")
+ESSENTIAL_DIRS=("$LOG_DIR" "$STATIC_DIR" "$MEDIA_DIR" "$TFHUB_CACHE" "$SKILLS_DATA")
 for dir in "${ESSENTIAL_DIRS[@]}"; do
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir"
         chown "$APP_USER:$MAIN_GROUP" "$dir"
-        chmod 775 "$dir"
+        chmod 770 "$dir"
         echo "Directorio $dir creado con permisos correctos."
     else
         chown "$APP_USER:$MAIN_GROUP" "$dir"
-        chmod 775 "$dir"
+        chmod 770 "$dir"
         echo "Permisos de $dir validados y ajustados."
     fi
 done
@@ -146,7 +148,7 @@ PART_11_RUN=enabled
 PART_12_RUN=enabled
 EOF
     chown "$APP_USER:$MAIN_GROUP" "$STATUS_FILE"
-    chmod 664 "$STATUS_FILE"
+    chmod 660 "$STATUS_FILE"
     echo "Status file $STATUS_FILE creado."
 else
     echo "Status file $STATUS_FILE ya existe."
@@ -171,26 +173,34 @@ if [ "${PART_1_RUN:-enabled}" != "disabled" ]; then
     apt-get update -y
     apt-get upgrade -y
     apt-get autoremove -y
+    apt update -y 
+    apt upgrade -y  
+    apt autoremove -y 
+    apt-get clean -y 
+    apt clean -y 
     apt-get install -y software-properties-common curl git git-lfs htop ncdu fail2ban logrotate \
         build-essential python3-dev python3-pip python3-venv libpq-dev \
         libblas-dev liblapack-dev gfortran libjpeg-dev zlib1g-dev libffi-dev libssl-dev \
-        libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
+        libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0 graphviz
     add-apt-repository ppa:git-core/ppa -y
     apt-get update -y
     apt-get install -y git git-lfs
     git lfs install
     echo "Paquetes instalados."
 
+    # Instalar python-dotenv y django-silk
+    pip3 install python-dotenv django-silk || echo "Advertencia: No se pudo instalar python-dotenv o django-silk"
+
     # Configure logrotate globally
     cat > /etc/logrotate.d/ai_huntred <<EOF
-$LOG_DIR/*.log $GUNICORN_LOG_DIR/*.log {
+$LOG_DIR/*.log {
     daily
     rotate 7
     compress
     delaycompress
     missingok
     notifempty
-    create 664 $APP_USER $MAIN_GROUP
+    create 660 $APP_USER $MAIN_GROUP
     sharedscripts
     postrotate
         systemctl restart gunicorn > /dev/null 2>&1 || true
@@ -203,7 +213,7 @@ $LOG_DIR/*.log $GUNICORN_LOG_DIR/*.log {
     delaycompress
     missingok
     notifempty
-    create 644 root root
+    create 640 root root
     sharedscripts
     postrotate
         systemctl restart nginx > /dev/null 2>&1 || true
@@ -402,7 +412,7 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
     if [ ! -d "$PROJECT_DIR/.git" ]; then
         mkdir -p "$PROJECT_DIR"
         chown "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
-        chmod 775 "$PROJECT_DIR"
+        chmod 770 "$PROJECT_DIR"
 
         if [ -f "$PROJECT_DIR/setup_server.sh" ]; then
             mv "$PROJECT_DIR/setup_server.sh" /tmp/setup_server.sh
@@ -415,12 +425,42 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
         if [ -f "/tmp/setup_server.sh" ]; then
             mv /tmp/setup_server.sh "$PROJECT_DIR/setup_server.sh"
             chown "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR/setup_server.sh"
-            chmod 775 "$PROJECT_DIR/setup_server.sh"
+            chmod 770 "$PROJECT_DIR/setup_server.sh"
         fi
 
+        # Ajustar permisos del proyecto
         chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
-        chmod -R 775 "$PROJECT_DIR"
-        find "$PROJECT_DIR" -type f -exec chmod 664 {} \;
+        chmod -R 770 "$PROJECT_DIR"
+        find "$PROJECT_DIR" -type f -exec chmod 660 {} \;
+        find "$PROJECT_DIR" -type f -name "*.sh" -exec chmod 770 {} \;
+        find "$PROJECT_DIR" -type f -name "manage.py" -exec chmod 770 {} \;
+
+        # Asegurar permisos de logs
+        mkdir -p "$LOG_DIR"
+        chown -R "$APP_USER:$MAIN_GROUP" "$LOG_DIR"
+        chmod -R 770 "$LOG_DIR"
+        find "$LOG_DIR" -type f -exec chmod 660 {} \;
+        touch "$LOG_DIR/nlp.log" "$LOG_DIR/app.log" "$LOG_DIR/celery.log" "$LOG_DIR/chatbot.log" "$LOG_DIR/gunicorn_access.log" "$LOG_DIR/gunicorn_error.log"
+        chown "$APP_USER:$MAIN_GROUP" "$LOG_DIR/nlp.log" "$LOG_DIR/app.log" "$LOG_DIR/celery.log" "$LOG_DIR/chatbot.log" "$LOG_DIR/gunicorn_access.log" "$LOG_DIR/gunicorn_error.log"
+        chmod 660 "$LOG_DIR/nlp.log" "$LOG_DIR/app.log" "$LOG_DIR/celery.log" "$LOG_DIR/chatbot.log" "$LOG_DIR/gunicorn_access.log" "$LOG_DIR/gunicorn_error.log"
+
+        # Asegurar permisos de staticfiles y media
+        mkdir -p "$STATIC_DIR" "$MEDIA_DIR"
+        chown -R "$APP_USER:$MAIN_GROUP" "$STATIC_DIR" "$MEDIA_DIR"
+        chmod -R 770 "$STATIC_DIR" "$MEDIA_DIR"
+        find "$STATIC_DIR" -type f -exec chmod 660 {} \;
+        find "$MEDIA_DIR" -type f -exec chmod 660 {} \;
+
+        # Crear gunicorn.sock con permisos correctos
+        #touch "$GUNICORN_SOCKET"
+        #chown "$APP_USER:$MAIN_GROUP" "$GUNICORN_SOCKET"
+        #chmod 660 "$GUNICORN_SOCKET"
+        # Eliminar cualquier archivo gunicorn.sock existente para evitar conflictos
+        if [ -f "$GUNICORN_SOCKET" ]; then
+            sudo rm -f "$GUNICORN_SOCKET"
+            echo "Archivo $GUNICORN_SOCKET eliminado para evitar conflictos."
+        fi
+
         echo "Repositorio clonado y permisos ajustados."
     else
         echo "Repositorio ya existe, verificando actualizaciones..."
@@ -431,6 +471,29 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
         else
             echo "Repositorio ya está actualizado."
         fi
+
+        # Reaplicar permisos
+        chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
+        chmod -R 770 "$PROJECT_DIR"
+        find "$PROJECT_DIR" -type f -exec chmod 660 {} \;
+        find "$PROJECT_DIR" -type f -name "*.sh" -exec chmod 770 {} \;
+        find "$PROJECT_DIR" -type f -name "manage.py" -exec chmod 770 {} \;
+
+        chown -R "$APP_USER:$MAIN_GROUP" "$LOG_DIR"
+        chmod -R 770 "$LOG_DIR"
+        find "$LOG_DIR" -type f -exec chmod 660 {} \;
+        touch "$LOG_DIR/nlp.log" "$LOG_DIR/app.log" "$LOG_DIR/celery.log" "$LOG_DIR/chatbot.log" "$LOG_DIR/gunicorn_access.log" "$LOG_DIR/gunicorn_error.log"
+        chown "$APP_USER:$MAIN_GROUP" "$LOG_DIR/nlp.log" "$LOG_DIR/app.log" "$LOG_DIR/celery.log" "$LOG_DIR/chatbot.log" "$LOG_DIR/gunicorn_access.log" "$LOG_DIR/gunicorn_error.log"
+        chmod 660 "$LOG_DIR/nlp.log" "$LOG_DIR/app.log" "$LOG_DIR/celery.log" "$LOG_DIR/chatbot.log" "$LOG_DIR/gunicorn_access.log" "$LOG_DIR/gunicorn_error.log"
+
+        chown -R "$APP_USER:$MAIN_GROUP" "$STATIC_DIR" "$MEDIA_DIR"
+        chmod -R 770 "$STATIC_DIR" "$MEDIA_DIR"
+        find "$STATIC_DIR" -type f -exec chmod 660 {} \;
+        find "$MEDIA_DIR" -type f -exec chmod 660 {} \;
+
+        touch "$GUNICORN_SOCKET"
+        chown "$APP_USER:$MAIN_GROUP" "$GUNICORN_SOCKET"
+        chmod 660 "$GUNICORN_SOCKET"
     fi
 
     SKILL_JSON="/home/pablo/skills_data/skill_db_relax_20.json"
@@ -439,7 +502,7 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
         mkdir -p /home/pablo/skills_data
         wget "$SKILL_URL" -O "$SKILL_JSON"
         chown "$APP_USER:$MAIN_GROUP" "$SKILL_JSON"
-        chmod 664 "$SKILL_JSON"
+        chmod 660 "$SKILL_JSON"
         echo "Archivo $SKILL_JSON actualizado desde SkillNER."
     else
         echo "Archivo $SKILL_JSON ya existe y está actualizado."
@@ -450,7 +513,7 @@ if [ "${PART_7_RUN:-enabled}" != "disabled" ]; then
     if [ ! -f "$ESCO_JSON" ] || [ "$(find "$ESCO_JSON" -mtime +1 2>/dev/null)" ]; then
         wget "$ESCO_URL" -O "$ESCO_JSON" || echo "Advertencia: No se pudo descargar ESCO_occup_skills.json"
         chown "$APP_USER:$MAIN_GROUP" "$ESCO_JSON"
-        chmod 664 "$ESCO_JSON"
+        chmod 660 "$ESCO_JSON"
         echo "Archivo $ESCO_JSON actualizado."
     else
         echo "Archivo $ESCO_JSON ya existe y está actualizado."
@@ -470,23 +533,67 @@ sleep 2
 
 if [ "${PART_8_RUN:-enabled}" != "disabled" ]; then
     if [ ! -d "$VENV_DIR" ]; then
-        su - "$APP_USER" -c "$PY_VERSION -m venv $VENV_DIR"
+        su - "$APP_USER" -c "$PY_VERSION -m venv $VENV_DIR" || {
+            echo "Error: Falló la creación del entorno virtual."
+            exit 1
+        }
         echo "Entorno virtual creado."
     else
         echo "Entorno virtual ya existe."
     fi
 
     chown -R "$APP_USER:$MAIN_GROUP" "$VENV_DIR"
-    chmod -R 775 "$VENV_DIR"
+    chmod -R 770 "$VENV_DIR"
+    find "$VENV_DIR" -type f -exec chmod 660 {} \;
+    find "$VENV_DIR" -type f -name "*.sh" -exec chmod 770 {} \;
+    chmod -R u+x "$VENV_DIR/bin/"
 
+    # Instalar dependencias principales
     su - "$APP_USER" -c "source $VENV_DIR/bin/activate && \
         pip install --upgrade pip && \
-        pip install wheel django gunicorn psycopg2-binary redis celery django-celery-beat django-celery-results sentry-sdk spacy==3.8.0 tensorflow-cpu==2.19.0 tf-keras tensorflow-text && \
-        python -m spacy download es_core_news_md==3.8.0 && \
-        cd $PROJECT_DIR && [ -f requirements.txt ] && pip install -r requirements.txt --no-deps"
-    echo "Dependencias instaladas."
+        pip install wheel django gunicorn psycopg2-binary==2.9.9 redis==5.0.8 celery==5.4.0 \
+        django-celery-beat django-celery-results sentry-sdk spacy==3.8.4 tensorflow==2.19.0 \
+        tf-keras==2.19.0 tensorflow-text==2.19.0 django-silk==5.2.0 python-dotenv==1.0.1 \
+        drf-yasg==1.21.7 django-cors-headers==4.7.0 djangorestframework==3.15.2" || {
+            echo "Error: Falló la instalación de dependencias principales."
+            exit 1
+        }
+    echo "Dependencias principales instaladas."
 
-    # Set TF_CPP_MIN_LOG_LEVEL in virtualenv
+    # Instalar el modelo de spaCy
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && \
+        pip install https://github.com/explosion/spacy-models/releases/download/es_core_news_md-3.8.0/es_core_news_md-3.8.0-py3-none-any.whl || python -m spacy download es_core_news_md" || {
+            echo "Error: Falló la instalación del modelo de spaCy."
+            exit 1
+        }
+    echo "Modelo de spaCy instalado."
+
+    # Instalar dependencias específicas del proyecto
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && \
+        cd $PROJECT_DIR && [ -f requirements.txt ] && pip install -r requirements.txt --no-deps" || {
+            echo "Advertencia: Falló la instalación de requirements.txt, continuando."
+        }
+    echo "Dependencias específicas del proyecto instaladas."
+
+    # Verificaciones
+    echo "Verificando instalación..."
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && pip check" || {
+        echo "Advertencia: pip check encontró problemas en las dependencias."
+    }
+
+    echo "Verificando instalación de spaCy..."
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && python -c 'import spacy; print(f\"spaCy version: {spacy.__version__}\"); nlp = spacy.load(\"es_core_news_md\"); print(\"Modelo NLP cargado correctamente.\")'" || {
+        echo "Error: Falló la verificación de spaCy."
+        exit 1
+    }
+
+    echo "Verificando instalación de TensorFlow..."
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && python -c 'import tensorflow as tf; print(f\"TF version: {tf.__version__}\")'" || {
+        echo "Error: Falló la verificación de TensorFlow."
+        exit 1
+    }
+
+    # Configurar variables de entorno para TensorFlow
     echo "export TF_CPP_MIN_LOG_LEVEL=2" >> "$VENV_DIR/bin/activate"
     echo "export CUDA_VISIBLE_DEVICES=" >> "$VENV_DIR/bin/activate"
     echo "TensorFlow environment variables configurados."
@@ -504,38 +611,122 @@ echo "==========================================================="
 sleep 2
 
 if [ "${PART_9_RUN:-enabled}" != "disabled" ]; then
-    if [ ! -f "/home/$APP_USER/run_gunicorn.sh" ]; then
-        cat > /home/$APP_USER/run_gunicorn.sh <<EOF
-#!/bin/bash
-source $VENV_DIR/bin/activate
-exec gunicorn --workers 1 --bind unix:$GUNICORN_SOCKET --timeout 120 \
-    --log-level debug \
-    --access-logfile $GUNICORN_ACCESS_LOG \
-    --error-logfile $GUNICORN_ERROR_LOG \
-    $APP_NAME.wsgi:application
-EOF
-        chmod +x /home/$APP_USER/run_gunicorn.sh
-        chown $APP_USER:$MAIN_GROUP /home/$APP_USER/run_gunicorn.sh
-        echo "Script wrapper para Gunicorn creado."
+    # Crear archivo .env si no existe
+    ENV_FILE="$PROJECT_DIR/.env"
+    if [ ! -f "$ENV_FILE" ]; then
+        # Generar una clave secreta aleatoria
+        SECRET_KEY=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 50)
+        sudo -u "$APP_USER" bash -c "cat > \"$ENV_FILE\" <<EOF
+# Django Settings
+DJANGO_SECRET_KEY=$SECRET_KEY
+DJANGO_SECRET_KEY2=hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48
+DJANGO_DEBUG=True
+DJANGO_ALLOWED_HOSTS=$DOMAIN,127.0.0.1,localhost,34.57.227.244
+
+# Admin contact
+ADMIN_EMAIL=hola@huntred.com
+ADMIN_PHONE=+525518490291
+
+# Niveles de Loggeo
+CONSOLE_LOG_LEVEL=INFO
+DEBUG_LOG_LEVEL=DEBUG
+MESSENGER_LOG_LEVEL=DEBUG
+WHATSAPP_LOG_LEVEL=DEBUG
+INSTAGRAM_LOG_LEVEL=DEBUG
+TELEGRAM_LOG_LEVEL=DEBUG
+ROOT_LOG_LEVEL=DEBUG
+SENTRY_LOG_LEVEL=WARNING
+DB_LOG_LEVEL=INFO
+LOG_MAX_BYTES=10485760
+LOG_BACKUP_COUNT=3
+
+# Database Configuration
+DB_NAME=$DB_NAME
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+DB_HOST=$DB_HOST
+DB_PORT=$DB_PORT
+DB_CONN_MAX_AGE=60
+DB_CONNECT_TIMEOUT=10
+
+# Notificaciones
+NTFY_ENABLED=true
+NTFY_DEFAULT_TOPIC=ai_huntred_notifications
+NTFY_USERNAME=PabloLLH
+NTFY_PASSWORD=Natalia&Patricio1113!
+NTFY_API=tk_o8jpud5aezsa0ht8ozjm2eeix9d1p
+
+# Sentry Configuration
+SENTRY_DSN=https://e9989a45cedbcefa64566dbcfb2ffd59@o4508638041145344.ingest.us.sentry.io/4508638043766784
+SENTRY_SAMPLE_RATE=1.0
+SENTRY_SEND_PII=True
+SENTRY_DEBUG=False
+
+# Redis/Celery Configuration
+CELERY_BROKER_URL=redis://127.0.0.1:6379/0
+CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
+CELERY_WORKER_CONCURRENCY=2
+
+# CORS Configuration
+CORS_ALLOW_ALL_ORIGINS=True
+CORS_ALLOW_CREDENTIALS=False
+
+# Email Configuration
+EMAIL_HOST=mail.huntred.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=hola@huntred.com
+EMAIL_HOST_PASSWORD=Natalia&Patricio1113!
+EMAIL_USE_TLS=True
+DEFAULT_FROM_EMAIL=Grupo huntRED® (huntRED, huntU, Amigro)
+
+# Localization
+LANGUAGE_CODE=es-mx
+TIMEZONE=America/Mexico_City
+
+# Static and Media Files
+STATIC_URL=/static/
+STATIC_ROOT=$STATIC_DIR
+MEDIA_URL=/media/
+MEDIA_ROOT=$MEDIA_DIR
+
+# API Rate Limiting
+THROTTLE_ANON=100/day
+THROTTLE_USER=1000/day
+
+# Security Settings
+SECURE_SSL_REDIRECT=False
+SESSION_COOKIE_SECURE=False
+CSRF_COOKIE_SECURE=False
+SECURE_BROWSER_XSS_FILTER=True
+SECURE_CONTENT_TYPE_NOSNIFF=True
+X_FRAME_OPTIONS=DENY
+
+# TensorFlow Settings
+TF_CPP_MIN_LOG_LEVEL=2
+CUDA_VISIBLE_DEVICES=
+TFHUB_CACHE_DIR=$TFHUB_CACHE
+EOF" || {
+            echo "Error: No se pudo crear el archivo $ENV_FILE."
+            exit 1
+        }
+        sudo chown "$APP_USER:$MAIN_GROUP" "$ENV_FILE"
+        sudo chmod 660 "$ENV_FILE"
+        echo ".env creado con permisos correctos."
     else
-        echo "Script wrapper para Gunicorn ya existe."
+        echo ".env ya existe, verificando permisos..."
+        sudo chown "$APP_USER:$MAIN_GROUP" "$ENV_FILE"
+        sudo chmod 660 "$ENV_FILE"
+        echo "Permisos de .env verificados."
     fi
 
-    if [ ! -f "/home/$APP_USER/run_celery.sh" ]; then
-        cat > /home/$APP_USER/run_celery.sh <<EOF
-#!/bin/bash
-source $VENV_DIR/bin/activate
-exec celery -A $APP_NAME worker --loglevel=info --concurrency=2
-EOF
-        chmod +x /home/$APP_USER/run_celery.sh
-        chown $APP_USER:$MAIN_GROUP /home/$APP_USER/run_celery.sh
-        echo "Script wrapper para Celery creado."
-    else
-        echo "Script wrapper para Celery ya existe."
+    # Verificar que .env existe
+    if [ ! -f "$ENV_FILE" ]; then
+        echo "Error: El archivo $ENV_FILE no se encontró después de intentar crearlo."
+        exit 1
     fi
 
-    if [ ! -f "$GUNICORN_SERVICE" ]; then
-        cat > "$GUNICORN_SERVICE" <<EOF
+    # Configurar Gunicorn
+    sudo cat > "$GUNICORN_SERVICE" <<EOF
 [Unit]
 Description=Gunicorn for $APP_NAME
 After=network.target
@@ -548,7 +739,11 @@ Environment="PYTHONPATH=$PROJECT_DIR"
 Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
 Environment="TF_CPP_MIN_LOG_LEVEL=2"
 Environment="CUDA_VISIBLE_DEVICES="
-ExecStart=/home/$APP_USER/run_gunicorn.sh
+ExecStart=$VENV_DIR/bin/gunicorn --workers 2 --bind unix:$GUNICORN_SOCKET --timeout 120 \
+    --log-level debug \
+    --access-logfile $GUNICORN_ACCESS_LOG \
+    --error-logfile $GUNICORN_ERROR_LOG \
+    $APP_NAME.wsgi:application
 Restart=always
 RestartSec=5
 StandardOutput=syslog
@@ -557,13 +752,12 @@ StandardError=syslog
 [Install]
 WantedBy=multi-user.target
 EOF
-        echo "Servicio Gunicorn creado."
-    else
-        echo "Servicio Gunicorn ya existe."
-    fi
+    sudo chown root:root "$GUNICORN_SERVICE"
+    sudo chmod 644 "$GUNICORN_SERVICE"
+    echo "Servicio Gunicorn configurado."
 
-    if [ ! -f "$CELERY_SERVICE" ]; then
-        cat > "$CELERY_SERVICE" <<EOF
+    # Configurar Celery
+    sudo cat > "$CELERY_SERVICE" <<EOF
 [Unit]
 Description=Celery Service for $APP_NAME
 After=network.target redis-server.service
@@ -577,7 +771,7 @@ Environment="DJANGO_SETTINGS_MODULE=$APP_NAME.settings"
 Environment="TFHUB_CACHE_DIR=$TFHUB_CACHE"
 Environment="TF_CPP_MIN_LOG_LEVEL=2"
 Environment="CUDA_VISIBLE_DEVICES="
-ExecStart=/home/$APP_USER/run_celery.sh
+ExecStart=$VENV_DIR/bin/celery -A $APP_NAME worker --loglevel=info --concurrency=2
 Restart=always
 RestartSec=5
 StandardOutput=syslog
@@ -586,45 +780,73 @@ StandardError=syslog
 [Install]
 WantedBy=multi-user.target
 EOF
-        echo "Servicio Celery creado."
-    else
-        echo "Servicio Celery ya existe."
-    fi
+    sudo chown root:root "$CELERY_SERVICE"
+    sudo chmod 644 "$CELERY_SERVICE"
+    echo "Servicio Celery configurado."
 
-    if [ ! -f "/home/$APP_USER/truncate_logs.sh" ]; then
-        cat > /home/$APP_USER/truncate_logs.sh <<EOF
+    # Configurar truncado de logs
+    TRUNCATE_LOGS_SCRIPT="/home/pablo/bin/truncate_logs.sh"
+    if ! sudo crontab -u "$APP_USER" -l 2>/dev/null | grep -q "truncate_logs.sh"; then
+        sudo mkdir -p /home/pablo/bin
+        sudo bash -c "cat > $TRUNCATE_LOGS_SCRIPT <<EOF
 #!/bin/bash
 tail -n 50 $GUNICORN_ACCESS_LOG > /tmp/gunicorn_access_temp.log && mv /tmp/gunicorn_access_temp.log $GUNICORN_ACCESS_LOG
 tail -n 50 $GUNICORN_ERROR_LOG > /tmp/gunicorn_error_temp.log && mv /tmp/gunicorn_error_temp.log $GUNICORN_ERROR_LOG
-EOF
-        chmod +x /home/$APP_USER/truncate_logs.sh
-        chown $APP_USER:$MAIN_GROUP /home/$APP_USER/truncate_logs.sh
-        (crontab -l 2>/dev/null; echo "0 * * * * /home/$APP_USER/truncate_logs.sh") | crontab -
-        echo "Script de truncado de logs creado."
+EOF" || {
+            echo "Advertencia: No se pudo crear $TRUNCATE_LOGS_SCRIPT, continuando."
+        }
+        sudo chmod +x "$TRUNCATE_LOGS_SCRIPT"
+        sudo chown "$APP_USER:$MAIN_GROUP" "$TRUNCATE_LOGS_SCRIPT"
+        sudo -u "$APP_USER" bash -c "(crontab -l 2>/dev/null; echo \"0 * * * * $TRUNCATE_LOGS_SCRIPT\") | crontab -" || {
+            echo "Advertencia: Falló la configuración de la tarea de cron para truncate_logs.sh, continuando."
+        }
+        echo "Tarea de truncado de logs configurada."
     else
-        echo "Script de truncado de logs ya existe."
+        echo "Tarea de truncado de logs ya existe."
     fi
 
-    # Ensure log files exist with correct permissions
-    touch "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
-    chown "$APP_USER:$MAIN_GROUP" "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
-    chmod 664 "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
+    # Asegurar archivos de log
+    sudo touch "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
+    sudo chown "$APP_USER:$MAIN_GROUP" "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
+    sudo chmod 660 "$GUNICORN_ACCESS_LOG" "$GUNICORN_ERROR_LOG"
     echo "Archivos de log de Gunicorn creados con permisos correctos."
 
-    systemctl daemon-reload
-    systemctl enable gunicorn celery
+    # Eliminar cualquier archivo gunicorn.sock existente para evitar conflictos
+    if [ -f "$GUNICORN_SOCKET" ]; then
+        sudo rm -f "$GUNICORN_SOCKET"
+        echo "Archivo $GUNICORN_SOCKET eliminado para evitar conflictos."
+    fi
+
+    # Verificar permisos del directorio del proyecto
+    sudo chown "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
+    sudo chmod 770 "$PROJECT_DIR"
+    echo "Permisos del directorio $PROJECT_DIR verificados."
+
+    # Recargar y habilitar servicios
+    sudo systemctl daemon-reload || {
+        echo "Error: Falló systemctl daemon-reload."
+        exit 1
+    }
+    sudo systemctl enable gunicorn celery || {
+        echo "Error: Falló systemctl enable para gunicorn o celery."
+        exit 1
+    }
+
+    # Reiniciar servicios con verificación
     for service in gunicorn celery; do
-        if ! systemctl is-active --quiet "$service"; then
-            systemctl restart "$service"
-            sleep 2
-            if ! systemctl is-active --quiet "$service"; then
-                echo "Error: El servicio $service no se pudo iniciar. Revisa los logs."
-                journalctl -u "$service" -n 50
-                exit 1
-            fi
-            echo "Servicio $service reiniciado con éxito."
+        echo "Iniciando servicio $service..."
+        sudo systemctl restart "$service" || {
+            echo "Error: No se pudo reiniciar el servicio $service."
+            sudo journalctl -u "$service" -n 50
+            exit 1
+        }
+        sleep 2
+        if ! sudo systemctl is-active --quiet "$service"; then
+            echo "Error: El servicio $service no está activo después del reinicio."
+            sudo journalctl -u "$service" -n 50
+            exit 1
         else
-            echo "Servicio $service ya está corriendo."
+            echo "Servicio $service reiniciado con éxito."
         fi
     done
 
@@ -693,9 +915,13 @@ EOF
     if certbot certificates | grep -q "$DOMAIN"; then
         echo "Certificado SSL ya existe para $DOMAIN."
     else
-        echo "Advertencia: Certbot no se ejecutará debido a límites de Let's Encrypt."
-        echo "Ejecuta después de 2025-04-18 01:19:06 UTC:"
-        echo "sudo certbot --nginx -d $DOMAIN -m $EMAIL --agree-tos --non-interactive"
+        echo "Intentando obtener certificado para $DOMAIN..."
+        if certbot --nginx -d "$DOMAIN" -m "$EMAIL" --agree-tos --non-interactive; then
+            echo "Certificado obtenido exitosamente."
+        else
+            echo "ADVERTENCIA: Error al obtener certificado. Revisa límites de Let's Encrypt."
+            echo "Comando para ejecutarlo manualmente: sudo certbot --nginx -d $DOMAIN -m $EMAIL --agree-tos --non-interactive"
+        fi
     fi
 
     echo "PART_10_RUN=disabled" >> "$STATUS_FILE"
@@ -711,122 +937,49 @@ echo "==========================================================="
 sleep 2
 
 if [ "${PART_11_RUN:-enabled}" != "disabled" ]; then
-    if [ -f "$PROJECT_DIR/.env" ]; then
-        chown "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR/.env"
-        chmod 660 "$PROJECT_DIR/.env"
-        echo "Permisos de .env validados y ajustados."
-    else
-        su - "$APP_USER" -c "cat > $PROJECT_DIR/.env <<EOF
-DJANGO_SECRET_KEY=$SECRET_KEY
-DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=$DOMAIN,127.0.0.1,localhost,34.57.227.244
-DB_NAME=$DB_NAME
-DB_USER=$DB_USER
-DB_PASSWORD=$DB_PASSWORD
-DB_HOST=$DB_HOST
-DB_PORT=$DB_PORT
-DB_CONN_MAX_AGE=$DB_CONN_MAX_AGE
-DB_CONNECT_TIMEOUT=$DB_CONNECT_TIMEOUT
-CELERY_BROKER_URL=redis://127.0.0.1:6379/0
-CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
-CELERY_WORKER_CONCURRENCY=2
-EMAIL_HOST=mail.huntred.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=hola@huntred.com
-EMAIL_HOST_PASSWORD=Natalia&Patricio1113!
-EMAIL_USE_TLS=True
-DEFAULT_FROM_EMAIL=Grupo huntRED® <hola@huntred.com>
-SENTRY_DSN=https://e9989a45cedbcefa64566dbcfb2ffd59@o4508638041145344.ingest.us.sentry.io/4508638043766784
-SENTRY_SAMPLE_RATE=1.0
-SENTRY_SEND_PII=True
-SENTRY_DEBUG=False
-LANGUAGE_CODE=es-mx
-TIMEZONE=America/Mexico_City
-STATIC_URL=/static/
-STATIC_ROOT=$STATIC_DIR
-MEDIA_URL=/media/
-MEDIA_ROOT=$MEDIA_DIR
-THROTTLE_ANON=100/day
-THROTTLE_USER=1000/day
-CORS_ALLOW_ALL_ORIGINS=False
-CORS_ALLOW_CREDENTIALS=False
-CORS_ALLOWED_ORIGINS=https://$DOMAIN
-SECURE_SSL_REDIRECT=False
-SESSION_COOKIE_SECURE=False
-CSRF_COOKIE_SECURE=False
-GIT_USER=ablova@gmail.com
-GIT_PASSWORD=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
-TF_CPP_MIN_LOG_LEVEL=2
-CUDA_VISIBLE_DEVICES=
-TFHUB_CACHE_DIR=$TFHUB_CACHE
-EOF"
-        chown "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR/.env"
-        chmod 660 "$PROJECT_DIR/.env"
-        echo ".env creado con permisos correctos."
-    fi
-
-    if [ ! -f "/home/$APP_USER/.git-credentials" ]; then
-        su - "$APP_USER" -c "
-            git config --global credential.helper store
-            echo 'https://ablova@gmail.com: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@github.com' > ~/.git-credentials
-            chmod 600 ~/.git-credentials
-            git config --global user.email 'ablova@gmail.com'
-            git config --global user.name 'ablova'
-        "
-        echo "Credenciales de Git configuradas."
-    else
-        echo "Credenciales de Git ya configuradas."
-    fi
-
-    export CUDA_VISIBLE_DEVICES=""
-    export SKIP_NLP_INIT=1
-    echo "Ejecutando makemigrations..."
-    time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py makemigrations --noinput"
-    echo "makemigrations completado."
-
-    echo "Ejecutando migrate..."
-    time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py migrate --noinput"
-    echo "migrate completado."
-
-    unset SKIP_NLP_INIT
-    echo "Ejecutando collectstatic..."
-    time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py collectstatic --noinput"
-    echo "collectstatic completado."
-
-    echo "Ejecutando loaddata..."
-    if [ -f "$PROJECT_DIR/app/fixtures/initial_data.json" ]; then
-        time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py loaddata /home/pablo/app/fixtures/initial_data.json"
-        echo "loaddata completado."
-    else
-        echo "Advertencia: initial_data.json no encontrado, omitiendo loaddata."
-    fi
-
-    echo "Creando superusuario..."
-    time su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && \
-        echo 'from django.contrib.auth.models import User; \
-        if not User.objects.filter(username=\"PabloLLH\").exists(): \
-            User.objects.create_superuser(\"PabloLLH\", \"pablo@huntred.com\", \"Natalia&Patricio1113!\")' | python manage.py shell"
-    echo "Superusuario creado."
-
-    chown -R "$APP_USER:$MAIN_GROUP" "$PROJECT_DIR"
-    chmod -R 775 "$PROJECT_DIR"
-    find "$PROJECT_DIR" -type f -exec chmod 664 {} \;
-    chmod 660 "$PROJECT_DIR/.env"
-
-    for service in gunicorn celery nginx; do
-        if ! systemctl is-active --quiet "$service"; then
-            systemctl restart "$service"
-            sleep 2
-            if ! systemctl is-active --quiet "$service"; then
-                echo "Error: El servicio $service no se pudo iniciar. Revisa los logs."
-                journalctl -u "$service" -n 50
-                exit 1
-            fi
-            echo "Servicio $service reiniciado con éxito."
+    # Crear backup de la BD antes de proceder
+    if [ -n "$DB_NAME" ] && command -v pg_dump &> /dev/null; then
+        echo "Creando backup de la base de datos..."
+        BACKUP_FILE="/tmp/${DB_NAME}_backup_$(date +%Y%m%d_%H%M%S).sql"
+        if su - postgres -c "pg_dump $DB_NAME > $BACKUP_FILE"; then
+            echo "Backup creado en $BACKUP_FILE"
+            chown "$APP_USER:$MAIN_GROUP" "$BACKUP_FILE"
+            chmod 640 "$BACKUP_FILE"
         else
-            echo "Servicio $service ya está corriendo."
+            echo "Advertencia: No se pudo crear backup de la base de datos."
         fi
-    done
+    fi
+
+    # Verificación del entorno antes de migraciones
+    echo "Verificando entorno Django..."
+    if ! su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py check"; then
+        echo "ADVERTENCIA: Problemas detectados en el proyecto. Revise los errores antes de continuar."
+        read -p "¿Desea continuar de todos modos? (s/n): " -n 1 -r CONTINUE
+        echo
+        if [[ ! $CONTINUE =~ ^[Ss]$ ]]; then
+            echo "Proceso detenido por el usuario."
+            exit 1
+        fi
+    fi
+
+    # Ejecutar migraciones
+    echo "Ejecutando migrate..."
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py migrate --noinput" || {
+        echo "ERROR: La migración falló. Revise los logs para más información."
+        read -p "¿Desea continuar con el despliegue? (s/n): " -n 1 -r CONTINUE_DEPLOY
+        echo
+        if [[ ! $CONTINUE_DEPLOY =~ ^[Ss]$ ]]; then
+            echo "Proceso detenido por el usuario."
+            exit 1
+        fi
+    }
+    echo "migrate completado exitosamente."
+
+    echo "Ejecutando collectstatic..."
+    su - "$APP_USER" -c "source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py collectstatic --noinput" || {
+        echo "ADVERTENCIA: collectstatic encontró errores."
+    }
+    echo "collectstatic completado exitosamente."
 
     echo "PART_11_RUN=disabled" >> "$STATUS_FILE"
     echo "Paso [11/12] completado."
@@ -850,42 +1003,18 @@ alias grep='grep --color=auto'
 export PS1=\"\\[\033[1;32m\\]\u@\h:\\[\033[1;34m\\]\w\\[\033[1;36m\\]\$ \\[\033[0m\\]\"
 alias iniciar='cd /home/pablo && source venv/bin/activate'
 alias apt-todo='sudo apt-get update -y && sudo apt-get upgrade -y && sudo apt autoremove -y'
-alias edit_settings='sudo nano /home/pablo/ai_huntred/settings.py'
-alias edit_urls='sudo nano /home/pablo/ai_huntred/urls.py'
-alias edit_celery='sudo nano /home/pablo/ai_huntred/celery_app.py'
-alias edit_nlp='sudo nano /home/pablo/app/chatbot/nlp.py'
-alias edit_utils='sudo nano /home/pablo/app/chatbot/utils.py'
-alias edit_generate_embeddings='sudo nano /home/pablo/app/chatbot/generate_embeddings.py'
-alias edit_config='sudo nano /home/pablo/app/chatbot/config.py'
-alias logs_celery='sudo journalctl -u celery -f'
-alias logs_gunicorn='tail -f $GUNICORN_ACCESS_LOG $GUNICORN_ERROR_LOG'
+alias logs_gunicorn='tail -f $LOG_DIR/gunicorn_access.log $LOG_DIR/gunicorn_error.log'
 alias logs_nginx='sudo tail -f /var/log/nginx/error.log /var/log/nginx/access.log'
-alias logs_nlp='tail -f $LOG_DIR/nlp.log'
-alias logs_all='tail -f $LOG_DIR/*.log $GUNICORN_LOG_DIR/*.log'
-alias reload_aliases='source ~/.bashrc'
+alias logs_all='tail -f $LOG_DIR/*.log'
 alias rserver='sudo systemctl restart gunicorn nginx celery'
-alias check_logs='tail -n 50 $LOG_DIR/*.log $GUNICORN_LOG_DIR/*.log'
-alias clear_logs='sudo truncate -s 0 $LOG_DIR/*.log $GUNICORN_LOG_DIR/*.log && touch $GUNICORN_ACCESS_LOG $GUNICORN_ERROR_LOG'
-alias edit_env='sudo nano /home/pablo/.env'
-alias edit_nginx='sudo nano $NGINX_SITE'
+alias check_logs='tail -n 50 $LOG_DIR/*.log'
+alias clear_logs='sudo truncate -s 0 $LOG_DIR/*.log && touch $LOG_DIR/gunicorn_access.log $LOG_DIR/gunicorn_error.log'
 alias migrate='source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py migrate'
-alias makemigrations='source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py makemigrations'
 alias collectstatic='source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py collectstatic --noinput'
-alias shell='source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py shell'
-alias restart_celery='sudo systemctl restart celery'
-alias restart_gunicorn='sudo systemctl restart gunicorn'
-alias restart_nginx='sudo systemctl restart nginx'
-alias smart_reload='source $VENV_DIR/bin/activate && cd $PROJECT_DIR && python manage.py check && sudo systemctl restart celery gunicorn nginx'
-alias clear_cache='sudo find /home/pablo -name "*.pyc" -delete && sudo find /home/pablo -name "__pycache__" -type d -exec rm -r {} + && rm -rf /tmp/tfhub_modules/*'
-alias test_nlp='source $VENV_DIR/bin/activate && export TF_CPP_MIN_LOG_LEVEL=2 && python -c "import os; os.environ[\"DJANGO_SETTINGS_MODULE\"] = \"ai_huntred.settings\"; import django; django.setup(); from app.chatbot.nlp import load_skills_catalog; catalog = load_skills_catalog(\"candidate\", \"deep\"); print(f\"Total skills: {sum(len(v) for v in catalog.values())}\")"'
-alias run_embeddings='source $VENV_DIR/bin/activate && export TF_CPP_MIN_LOG_LEVEL=2 && python /home/pablo/app/chatbot/generate_embeddings.py'
 alias check_services='systemctl status gunicorn celery nginx redis-server postgresql'
-export TF_ENABLE_ONEDNN_OPTS=0
-export TF_CPP_MIN_LOG_LEVEL=2
-export CUDA_VISIBLE_DEVICES=""
 EOF"
         chown "$APP_USER:$APP_USER" "/home/$APP_USER/.bashrc"
-        chmod 644 "/home/$APP_USER/.bashrc"
+        chmod 660 "/home/$APP_USER/.bashrc"
         su - "$APP_USER" -c "source /home/$APP_USER/.bashrc"
         echo ".bashrc configurado con alias y variables de entorno."
     else
@@ -903,13 +1032,7 @@ echo "DEPLOY FINALIZADO."
 echo "==========================================================="
 echo "Verifica con:"
 echo "  systemctl status gunicorn celery nginx redis-server postgresql"
-echo "  curl -I http://$DOMAIN/admin/  # HTTP hasta que Certbot se ejecute"
-echo "Admin: http://$DOMAIN/admin/ (usuario: PabloLLH, contraseña: Natalia&Patricio1113!)"
-echo "Silk: http://$DOMAIN/silk/ (usa PabloLLH)"
-echo "Si Certbot falló, ejecuta después de 2025-04-18 01:19:06 UTC: sudo certbot --nginx -d $DOMAIN"
-echo "Asegúrate de que $DOMAIN resuelve a 34.57.227.244."
+echo "  curl -I http://$DOMAIN/admin/"
 echo "Revisa /home/pablo/setup_status.conf para estado de pasos."
-echo "Para forzar un paso, edita setup_status.conf (e.g., PART_7_RUN=enabled) y vuelve a ejecutar."
-echo "Logs: tail -f $LOG_DIR/nlp.log $GUNICORN_LOG_DIR/{access,error}.log"
-echo "Test NLP: source $VENV_DIR/bin/activate && python -c 'from app.chatbot.nlp import load_skills_catalog; catalog = load_skills_catalog(\"candidate\", \"deep\"); print(f\"Total skills: {sum(len(v) for v in catalog.values())}\")'"
+echo "Logs: tail -f $LOG_DIR/*.log"
 echo "==========================================================="
