@@ -123,14 +123,12 @@ async def handle_incoming_message(payload: Dict[str, Any]):
             return JsonResponse({'error': 'Missing phone_number_id'}, status=400)
 
         # Obtener configuración de WhatsAppAPI
-        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-            phoneID=phone_number_id, is_active=True
-        ).afirst()
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(phoneID=phone_number_id, is_active=True).first)()
         if not whatsapp_api:
             logger.error(f"No se encontró WhatsAppAPI activo para phone_number_id: {phone_number_id}")
             return JsonResponse({'error': 'Invalid phone number ID'}, status=400)
 
-        business_unit = whatsapp_api.business_unit
+        business_unit = await sync_to_async(lambda: whatsapp_api.business_unit)()
         chatbot = ChatBotHandler()
 
         # Extraer datos del usuario desde el payload
@@ -318,9 +316,7 @@ async def handle_media_message(message, sender_id, chatbot, business_unit, perso
         await send_message('whatsapp', sender_id, "No pude procesar el medio enviado.", business_unit.name.lower())
         return
 
-    whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-        business_unit=business_unit, is_active=True
-    ).afirst()
+    whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(business_unit=business_unit, is_active=True).first)()
     if not whatsapp_api:
         logger.error("No se encontró configuración de WhatsAppAPI activa")
         return
@@ -408,9 +404,7 @@ async def send_whatsapp_message(
         # Obtener configuración de WhatsAppAPI
         whatsapp_api = None
         if business_unit:
-            whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-                business_unit=business_unit, is_active=True
-            ).afirst()
+            whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(business_unit=business_unit, is_active=True).first)()
 
         if whatsapp_api:
             phone_id = whatsapp_api.phoneID
@@ -517,9 +511,7 @@ async def send_whatsapp_decision_buttons(user_id: str, message: str, buttons: Li
             logger.error(f"[send_whatsapp_decision_buttons] No se encontraron botones válidos: {buttons}")
             return False, None
 
-        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-            business_unit=business_unit, is_active=True
-        ).afirst()
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(business_unit=business_unit, is_active=True).first)()
         if not whatsapp_api:
             logger.error(f"[send_whatsapp_decision_buttons] No se encontró WhatsAppAPI para {business_unit.name}")
             return False, None
@@ -575,9 +567,7 @@ async def send_whatsapp_list(user_id: str, message: str, sections: List[Dict], b
         bool: True si la lista se envió correctamente, False en caso contrario.
     """
     try:
-        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-            business_unit__name__iexact=business_unit_name, is_active=True
-        ).afirst()
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(business_unit__name__iexact=business_unit_name, is_active=True).first)()
         if not whatsapp_api:
             logger.error(f"[send_whatsapp_list] No se encontró WhatsAppAPI activo para {business_unit_name}")
             return False
@@ -632,9 +622,7 @@ async def send_whatsapp_image(user_id: str, message: str, image_url: str, phone_
         bool: True si la imagen se envió correctamente, False en caso contrario.
     """
     try:
-        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter)(
-            phoneID=phone_id, business_unit=business_unit, is_active=True
-        ).afirst()
+        whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(phoneID=phone_id, business_unit=business_unit, is_active=True).first)()
         if not whatsapp_api:
             logger.error(f"[send_whatsapp_image] No se encontró WhatsAppAPI para phone_id: {phone_id}")
             return False

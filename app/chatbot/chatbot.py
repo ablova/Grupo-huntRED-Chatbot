@@ -87,7 +87,10 @@ class ChatBotHandler:
             logger.error(f"[handle_known_intents] business_unit no es un BusinessUnit, es {type(business_unit)}")
             await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
             return False
-        
+        # Creacion de Chatstate
+        if chat_state is None:
+            logger.error(f"Failed to initialize chat_state for chat_id: {chat_id}")
+            return "Error: Could not initialize chat state."
         # Validar chat_state
         if not isinstance(chat_state, ChatState):
             logger.error(f"[handle_known_intents] chat_state no es un ChatState, es {type(chat_state)}")
