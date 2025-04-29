@@ -351,6 +351,7 @@ class NLPProcessor:
         if opportunities:
             result["opportunities"] = opportunities
         return result
+        
 
 if __name__ == "__main__":
     async def test_nlp():
@@ -360,6 +361,7 @@ if __name__ == "__main__":
                 nlp = NLPProcessor(mode=mode, analysis_depth=depth)
                 text = "Tengo experiencia en Python, liderazgo, y gestión de proyectos."
                 result = await nlp.analyze(text)
+                logger.info(f"[nlp.py] Análisis para '{text}': {analysis}")
                 print(json.dumps(result, indent=2, ensure_ascii=False))
 
     asyncio.run(test_nlp())

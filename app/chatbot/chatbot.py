@@ -81,7 +81,7 @@ class ChatBotHandler:
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
         """Procesa mensajes entrantes de forma robusta y validada."""
         # Log inicial para verificar que business_unit llega correctamente
-        logger.info(f"[process_message] business_unit recibido: {business_unit}, tipo: {type(business_unit)}")
+        logger.info(f"[process_message] Recibido mensaje de {user_id} en {platform} para {business_unit.name}: {message}")
         # Validar business_unit
         if not isinstance(business_unit, BusinessUnit):
             logger.error(f"[handle_known_intents] business_unit no es un BusinessUnit, es {type(business_unit)}")
@@ -129,7 +129,7 @@ class ChatBotHandler:
             logger.info(f"[process_message] chat_state después de _get_or_create: tipo={type(chat_state)}, valor={chat_state}")
             chat_state.context["language"] = language
             await sync_to_async(chat_state.save)()
-            logger.info(f"[process_message] chat_state después de save: tipo={type(chat_state)}, valor={chat_state}")
+            logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
 
             from app.chatbot.utils import analyze_text, is_spam_message, update_user_message_history, is_user_spamming
             # 4. Verificar SPAM y silenciado
@@ -144,9 +144,10 @@ class ChatBotHandler:
             # 5. Detectar y manejar intents
             if text:
                 intents = detect_intents(text)
-                logger.info(f"[process_message] Intents detectados: {intents}")
+                logger.info(f"[detect_intents] Intents detectados para '{text}': {intents}")
                 if intents:
                     handled = await handle_known_intents(intents, platform, user_id, chat_state, business_unit, text, self)
+                    logger.info(f"[handle_known_intents] Intent {intents[0]} manejado: {handled}")
                     if handled:
                         return None  # El handler del intent ya envió la respuesta
                 ## Fallback a NLP con manejo robusto
@@ -170,6 +171,7 @@ class ChatBotHandler:
                 await self.send_complete_initial_messages(platform, user_id, business_unit)
                 chat_state.state = "waiting_for_tos"
                 await sync_to_async(chat_state.save)()
+                logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
                 return
 
             # 7. Verificación de aceptación de TOS
@@ -178,6 +180,7 @@ class ChatBotHandler:
                 if text.lower() in ["sí", "si"]:
                     chat_state.state = "profile_in_progress"
                     await sync_to_async(chat_state.save)()
+                    logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
                     await self.start_profile_creation(platform, user_id, business_unit, chat_state, user)
                 return
 
@@ -206,6 +209,7 @@ class ChatBotHandler:
                         await send_message(platform, user_id, response, bu_key)
                         chat_state.context["awaiting_salary"] = True
                         await sync_to_async(chat_state.save)()
+                        logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
                     elif chat_state.context.get("awaiting_salary") and text:
                         salary = text.strip()
                         chat_state.context["current_salary"] = salary
@@ -216,6 +220,7 @@ class ChatBotHandler:
                             response = f"Guardé tu sueldo: {salary}. ¿En qué más puedo ayudarte?"
                         await send_message(platform, user_id, response, bu_key)
                         await sync_to_async(chat_state.save)()
+                        logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
                     return
 
             # 11. Análisis NLP y respuesta por defecto
@@ -361,18 +366,21 @@ class ChatBotHandler:
             chat_state.context['awaiting_group_invitation'] = True
             chat_state.state = "waiting_for_invitation_name"
             await sync_to_async(chat_state.save)()
+            logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
             return
         if chat_state.state == "waiting_for_invitation_name":
             chat_state.context['invitation_name'] = text.capitalize()
             await send_message(platform, user_id, "Gracias, ahora dime el apellido.", bu_key)
             chat_state.state = "waiting_for_invitation_apellido"
             await sync_to_async(chat_state.save)()
+            logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
             return
         elif chat_state.state == "waiting_for_invitation_apellido":
             chat_state.context['invitation_apellido'] = text.capitalize()
             await send_message(platform, user_id, "Perfecto, ahora dame el número de teléfono (ej. +521234567890).", bu_key)
             chat_state.state = "waiting_for_invitation_phone"
             await sync_to_async(chat_state.save)()
+            logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
             return
         elif chat_state.state == "waiting_for_invitation_phone":
             phone_pattern = r"^\+\d{10,15}$"
@@ -390,6 +398,7 @@ class ChatBotHandler:
                 await send_options(platform, user_id, "Selecciona una opción:", buttons, bu_key)
                 chat_state.state = "waiting_for_invitation_confirmation"
                 await sync_to_async(chat_state.save)()
+                logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
             else:
                 resp = "El número no parece válido. Usa el formato '+521234567890'. Intenta de nuevo."
                 await send_message(platform, user_id, resp, bu_key)
@@ -403,6 +412,7 @@ class ChatBotHandler:
                 await send_message(platform, user_id, "¡Genial! Dime el nombre de la siguiente persona.", bu_key)
                 chat_state.state = "waiting_for_invitation_name"
                 await sync_to_async(chat_state.save)()
+                logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
             elif text == "no_invite_more":
                 await send_message(platform, user_id, "¡Listo! No invitaré a nadie más. ¿En qué te ayudo ahora?", bu_key)
                 await send_menu(platform, user_id, business_unit)
@@ -411,6 +421,7 @@ class ChatBotHandler:
                 chat_state.context.pop('invitation_apellido', None)
                 chat_state.state = "idle"
                 await sync_to_async(chat_state.save)()
+                logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
             else:
                 await send_message(platform, user_id, "Por favor, selecciona 'Sí' o 'No'.", bu_key)
             return
@@ -608,6 +619,7 @@ class ChatBotHandler:
                 await send_message(platform, user_id, response, business_unit.name.lower(), options=all_options if all_options else None)
                 chat_state.context['current_jobs_page'] = page
                 await sync_to_async(chat_state.save)()
+                logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
         except asyncio.TimeoutError:
             logger.error(f"Timeout al presentar vacantes para user_id={user_id}")
             await send_message(platform, user_id, "Lo siento, tardé demasiado en mostrar las vacantes. Intenta de nuevo.", business_unit.name.lower())
@@ -717,6 +729,7 @@ class ChatBotHandler:
         })
         chat_state.last_interaction_at = timezone.now()
         await sync_to_async(chat_state.save)()
+        logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
 
     async def store_bot_message(self, chat_state, text: str):
         if not chat_state.conversation_history:
@@ -728,6 +741,7 @@ class ChatBotHandler:
         })
         chat_state.last_interaction_at = timezone.now()
         await sync_to_async(chat_state.save)()
+        logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
 
     async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person):
         bu_key = self.get_business_unit_key(business_unit)
@@ -749,3 +763,4 @@ class ChatBotHandler:
             else:
                 await send_message(platform, user_id, "Por favor, responde 'Sí' o 'No' para aceptar o rechazar los Términos de Servicio.", bu_key)
         await sync_to_async(chat_state.save)()
+        logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")

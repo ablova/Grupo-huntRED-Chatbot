@@ -230,6 +230,7 @@ def detect_intents(text: str) -> List[str]:
             for pattern in data['patterns']:
                 if re.search(pattern, text):
                     detected_intents.append((intent, data.get('priority', 100)))
+                    logger.debug(f"[detect_intents] Coincidencia encontrada: intent '{intent}' con patrón '{pattern}'")
                     break  # Evita duplicados del mismo intent
     
     detected_intents.sort(key=lambda x: x[1])

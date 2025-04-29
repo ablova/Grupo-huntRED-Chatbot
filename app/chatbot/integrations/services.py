@@ -1,4 +1,5 @@
 # /home/pablo/app/chatbot/integrations/services.py
+# /home/pablo/app/chatbot/integrations/services.py
 
 import logging
 import smtplib
@@ -7,15 +8,15 @@ import ssl
 import itertools
 from asgiref.sync import sync_to_async
 from typing import Optional, List, Dict, Union, Any, Tuple
-from asgiref.sync import sync_to_async
 from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from pathlib import Path
 from tenacity import retry, stop_after_attempt
-from django.core.cache import cache
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from abc import ABC, abstractmethod
+from datetime import datetime
 
 from app.models import (
     BusinessUnit, ConfiguracionBU, WhatsAppAPI, TelegramAPI, SlackAPI,
@@ -32,9 +33,7 @@ REQUEST_TIMEOUT = 10.0
 CACHE_TIMEOUT = 600  # 10 minutos
 whatsapp_semaphore = asyncio.Semaphore(10)
 
-
-
-# En services.py No pueden ser más de 10, por envio.
+# Menús dinámicos por unidad de negocio
 MENU_OPTIONS_BY_BU = {
     "amigro": [
         {"title": "📝 Crear Perfil", "payload": "actualizar_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
@@ -86,6 +85,7 @@ MENU_OPTIONS_BY_BU = {
     ]
 }
 
+# Menús dinámicos por estado (para amigro)
 MENU_OPTIONS_BY_STATE = {
     "amigro": {
         "initial": [
@@ -196,6 +196,7 @@ MENU_OPTIONS_BY_STATE = {
 }
 
 def get_greeting_by_time() -> str:
+    """Devuelve un saludo basado en la hora actual."""
     hour = datetime.now().hour
     if 5 <= hour < 12:
         return "🌅 Buenos días"
@@ -203,8 +204,9 @@ def get_greeting_by_time() -> str:
         return "🌇 Buenas tardes"
     else:
         return "🌙 Buenas noches"
-    
+
 class Button:
+    """Clase para representar botones interactivos."""
     def __init__(self, title: str, payload: Optional[str] = None, url: Optional[str] = None):
         self.title = title
         self.payload = payload
@@ -217,8 +219,41 @@ class Button:
             payload=button_dict.get('payload'),
             url=button_dict.get('url')
         )
-        
+
+# Clase abstracta para estandarizar la obtención de datos de usuario
+class UserDataFetcher(ABC):
+    """Clase base abstracta para estandarizar la obtención de datos de usuario."""
+    @abstractmethod
+    async def fetch(self, user_id: str, api_instance: Any, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        pass
+
+class WhatsAppUserDataFetcher(UserDataFetcher):
+    async def fetch(self, user_id: str, api_instance: WhatsAppAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        from app.chatbot.integrations.whatsapp import fetch_whatsapp_user_data
+        return await fetch_whatsapp_user_data(user_id, api_instance, payload)
+
+class TelegramUserDataFetcher(UserDataFetcher):
+    async def fetch(self, user_id: str, api_instance: TelegramAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        from app.chatbot.integrations.telegram import fetch_telegram_user_data
+        return await fetch_telegram_user_data(user_id, api_instance, payload)
+
+class MessengerUserDataFetcher(UserDataFetcher):
+    async def fetch(self, user_id: str, api_instance: MessengerAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        from app.chatbot.integrations.messenger import fetch_messenger_user_data
+        return await fetch_messenger_user_data(user_id, api_instance, payload)
+
+class InstagramUserDataFetcher(UserDataFetcher):
+    async def fetch(self, user_id: str, api_instance: InstagramAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        from app.chatbot.integrations.instagram import fetch_instagram_user_data
+        return await fetch_instagram_user_data(user_id, api_instance, payload)
+
+class SlackUserDataFetcher(UserDataFetcher):
+    async def fetch(self, user_id: str, api_instance: SlackAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        from app.chatbot.integrations.slack import fetch_slack_user_data
+        return await fetch_slack_user_data(user_id, api_instance, payload)
+
 class MessageService:
+    """Servicio para enviar mensajes y obtener datos de usuario en múltiples plataformas."""
     def __init__(self, business_unit: BusinessUnit):
         self.business_unit = business_unit
         self._api_instances = {}
@@ -284,7 +319,6 @@ class MessageService:
             return None
 
         try:
-            # Usar consulta asíncrona nativa de Django
             api_instance = await model_class.objects.filter(
                 business_unit=self.business_unit, is_active=True
             ).afirst()
@@ -315,9 +349,7 @@ class MessageService:
                 self._api_instances[platform] = None
                 return None
             
-            # Todo está correcto, almacenar en memoria y caché
             self._api_instances[platform] = api_instance
-            
             try:
                 cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
                 logger.debug(f"API para {platform} almacenada en caché correctamente")
@@ -330,7 +362,7 @@ class MessageService:
             logger.error(f"Error al obtener instancia de API para {platform}: {e}", exc_info=True)
             self._api_instances[platform] = None
             return None
-        
+
     async def send_platform_message(
         self,
         platform: str,
@@ -339,7 +371,7 @@ class MessageService:
         api_instance: Optional[object] = None,
         options: Optional[List[Dict]] = None
     ) -> bool:
-        """Envía mensajes a cualquier plataforma de manera dinámica"""
+        """Envía mensajes a cualquier plataforma de manera dinámica."""
         if api_instance is None:
             api_instance = await self.get_api_instance(platform)
             if not api_instance:
@@ -369,7 +401,7 @@ class MessageService:
         message: str,
         options: Optional[List[Dict]] = None
     ) -> bool:
-        """Envía un mensaje al usuario en la plataforma especificada"""
+        """Envía un mensaje al usuario en la plataforma especificada."""
         try:
             logger.info(f"[send_message] Enviando a {user_id} en {platform}, BU: {self.business_unit.name}")
             return await self.send_platform_message(platform, user_id, message, options=options)
@@ -436,11 +468,10 @@ class MessageService:
 
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_menu(self, platform: str, user_id: str):
-        """Envía el menú principal dinámico basado en el estado del ChatState"""
+        """Envía el menú principal dinámico basado en el estado del ChatState."""
         try:
             logger.info(f"[send_menu] 📩 Enviando menú a {user_id} en {platform} para {self.business_unit.name}")
             
-            # Obtener el ChatState del usuario de manera asíncrona
             chat_state = await ChatState.objects.filter(
                 user_id=user_id, business_unit=self.business_unit
             ).afirst()
@@ -451,13 +482,11 @@ class MessageService:
             else:
                 state = chat_state.state
 
-            # Usar caché para las opciones del menú
             cache_key = f"menu_options:{self.business_unit.name.lower()}:{state}:{user_id}"
             cached_options = cache.get(cache_key)
             if cached_options:
                 message, simplified_options = cached_options
             else:
-                # Determinar las opciones según el estado y la unidad de negocio
                 bu_name = self.business_unit.name.lower()
                 options_by_state = MENU_OPTIONS_BY_STATE.get(bu_name, MENU_OPTIONS_BY_STATE["default"])
                 options = options_by_state.get(state, options_by_state["initial"])
@@ -483,6 +512,7 @@ class MessageService:
 
     @retry(stop=stop_after_attempt(MAX_RETRIES))
     async def send_url(self, platform: str, user_id: str, url: str) -> bool:
+        """Envía un enlace al usuario."""
         return await self.send_message(platform, user_id, f"Aquí tienes el enlace: {url}")
 
     @retry(stop=stop_after_attempt(MAX_RETRIES))
@@ -493,7 +523,7 @@ class MessageService:
         message: str,
         buttons: Optional[List[Dict]] = None
     ) -> bool:
-        """Envía mensaje con opciones al usuario"""
+        """Envía mensaje con opciones al usuario."""
         try:
             if not buttons:
                 buttons = [{"title": "Continuar", "payload": "continue"}]
@@ -523,7 +553,6 @@ class MessageService:
             logger.error(f"Error enviando opciones en {platform}: {e}", exc_info=True)
             return False
 
-    # Funciones específicas por canal
     async def _send_whatsapp(self, user_id: str, message: str, api_instance: WhatsAppAPI, options: Optional[List[Dict]]) -> bool:
         from app.chatbot.integrations.whatsapp import send_whatsapp_message
         async with whatsapp_semaphore:
@@ -571,7 +600,6 @@ class MessageService:
             await send_slack_message(user_id, message, api_instance.bot_token)
         return True
 
-    # Implementaciones específicas de send_options
     async def _send_whatsapp_options(self, user_id, message, buttons, api_instance):
         from app.chatbot.integrations.whatsapp import send_whatsapp_decision_buttons
         url_buttons = [btn for btn in buttons if btn.url]
@@ -675,8 +703,9 @@ class MessageService:
         except Exception as e:
             logger.error(f"Error enviando opciones Slack: {e}", exc_info=True)
             return False
-        
+
     async def fetch_user_data(self, platform: str, user_id: str, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Obtiene datos de usuario de manera estandarizada."""
         cache_key = f"user_data:{platform}:{user_id}"
         cached_data = cache.get(cache_key)
         if cached_data:
@@ -688,56 +717,43 @@ class MessageService:
             logger.error(f"No se encontró instancia de API para {platform}")
             return {}
 
-        fetch_functions = {
-            "whatsapp": self.fetch_whatsapp_user_data,
-            "telegram": self.fetch_telegram_user_data,
-            "slack": self.fetch_slack_user_data,
-            "instagram": self.fetch_instagram_user_data,
-            "messenger": self.fetch_messenger_user_data,
+        fetcher_mapping = {
+            'whatsapp': WhatsAppUserDataFetcher(),
+            'telegram': TelegramUserDataFetcher(),
+            'messenger': MessengerUserDataFetcher(),
+            'instagram': InstagramUserDataFetcher(),
+            'slack': SlackUserDataFetcher(),
         }
 
-        fetch_func = fetch_functions.get(platform)
-        if not fetch_func:
-            logger.error(f"No hay función de fetch definida para {platform}")
+        fetcher = fetcher_mapping.get(platform)
+        if not fetcher:
+            logger.error(f"No hay fetcher definido para {platform}")
             return {}
 
         try:
-            data = await fetch_func(user_id, api_instance, payload)
+            data = await fetcher.fetch(user_id, api_instance, payload)
             cache.set(cache_key, data, timeout=3600)
             return data
         except Exception as e:
             logger.error(f"Error al obtener datos de usuario para {platform}:{user_id}: {e}", exc_info=True)
             return {}
 
-    # Ejemplo de implementación específica
-    @retry(stop=stop_after_attempt(3))
-    async def fetch_slack_user_data(self, user_id: str, api_instance: SlackAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
-        from app.chatbot.integrations.slack import fetch_slack_user_data
-        return await fetch_slack_user_data(user_id, api_instance, payload)
-    @retry(stop=stop_after_attempt(3))
-    async def fetch_telegram_user_data(self, user_id: str, api_instance: TelegramAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
-        from app.chatbot.integrations.telegram import fetch_telegram_user_data
-        return await fetch_telegram_user_data(user_id, api_instance, payload)
-    @retry(stop=stop_after_attempt(3))
-    async def fetch_whatsapp_user_data(self, user_id: str, api_instance: WhatsAppAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
-        from app.chatbot.integrations.whatsapp import fetch_whatsapp_user_data
-        return await fetch_whatsapp_user_data(user_id, api_instance, payload)
-    @retry(stop=stop_after_attempt(3))
-    async def fetch_instagram_user_data(self, user_id: str, api_instance: InstagramAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
-        from app.chatbot.integrations.instagram import fetch_instagram_user_data
-        return await fetch_instagram_user_data(user_id, api_instance, payload)
-    @retry(stop=stop_after_attempt(3))
-    async def fetch_messenger_user_data(self, user_id: str, api_instance: MessengerAPI, payload: Dict[str, Any] = None) -> Dict[str, any]:
-        from app.chatbot.integrations.messenger import fetch_messenger_user_data
-        return await fetch_messenger_user_data(user_id, api_instance, payload)
+    async def invalidate_cache(self, platform: str):
+        """Invalida el caché para una plataforma específica."""
+        cache_key = f"api_instance:{platform}:{self.business_unit.id}"
+        cache.delete(cache_key)
+        if platform in self._api_instances:
+            del self._api_instances[platform]
+        logger.info(f"Caché invalidado para {platform}")
 
 class EmailService:
+    """Servicio para enviar correos electrónicos."""
     def __init__(self, business_unit: BusinessUnit):
         self.business_unit = business_unit
         self._config = None
 
     async def get_config(self) -> ConfiguracionBU:
-        """Obtiene la configuración de correo de la unidad de negocio"""
+        """Obtiene la configuración de correo de la unidad de negocio."""
         if not self._config:
             self._config = await sync_to_async(ConfiguracionBU.objects.select_related('business_unit').get)(
                 business_unit=self.business_unit
@@ -751,7 +767,7 @@ class EmailService:
         body: str,
         from_email: Optional[str] = None
     ) -> Dict[str, str]:
-        """Envía un correo electrónico"""
+        """Envía un correo electrónico."""
         server = None
         try:
             config = await self.get_config()
@@ -774,7 +790,6 @@ class EmailService:
             
             logger.info(f"Correo enviado a {to_email} con asunto: {subject}")
             return {"status": "success", "message": "Correo enviado correctamente."}
-
         except Exception as e:
             logger.error(f"[send_email] Error: {e}", exc_info=True)
             return {"status": "error", "message": str(e)}
@@ -783,26 +798,23 @@ class EmailService:
                 server.quit()
 
 class GamificationService:
+    """Servicio para gestionar gamificación."""
     def __init__(self):
         pass
 
     async def award_points(self, user: Person, activity_type: str, points: int = 10):
-        """Otorga puntos al usuario por una actividad"""
+        """Otorga puntos al usuario por una actividad."""
         try:
             profile, created = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get_or_create)(
                 user=user,
                 defaults={'points': 0, 'level': 1}
             )
             
-            # Asumiendo que award_points es un método sincrónico
             await sync_to_async(profile.award_points)(activity_type, points)
             await sync_to_async(profile.save)()
             
             logger.info(f"[GamificationService] Otorgados {points} puntos a {user.nombre}")
-            
-            # Notificar al usuario
             await self.notify_user_gamification_update(user, activity_type)
-
         except Exception as e:
             logger.error(f"[GamificationService] Error otorgando puntos a {user.nombre}: {e}", exc_info=True)
 
@@ -868,17 +880,12 @@ async def notify_employer(worker, message):
     except Exception as e:
         logger.error(f"[notify_employer] Error enviando notificación al empleador {worker.name}: {e}", exc_info=True)
 
-
-# ================================
-# FUNCIONES PARA OBTENER BUSINESS UNIT DINÁMICO
-# ================================
 async def get_business_unit(name: Optional[str] = None) -> Optional[BusinessUnit]:
     """Obtiene una instancia de BusinessUnit por nombre."""
     try:
         if not name:
             return None
         
-        # Normalizar el nombre antes de la búsqueda
         normalized_name = str(name).lower().replace('®', '').strip() if isinstance(name, str) else name
         
         if isinstance(name, BusinessUnit):
@@ -893,7 +900,7 @@ async def get_business_unit(name: Optional[str] = None) -> Optional[BusinessUnit
         return None
 
 def run_async(func, *args, **kwargs):
-    """ Ejecuta la función en modo síncrono o asíncrono según el contexto. """
+    """Ejecuta la función en modo síncrono o asíncrono según el contexto."""
     try:
         loop = asyncio.get_running_loop()
         return func(*args, **kwargs)
@@ -901,57 +908,57 @@ def run_async(func, *args, **kwargs):
         return asyncio.run(func(*args, **kwargs))
 
 async def reset_chat_state(user_id: str, business_unit: BusinessUnit, platform: Optional[str] = None):
-        """
-        Reinicia el estado de la conversación (ChatState) para un usuario en una unidad de negocio específica.
+    """Reinicia el estado de la conversación (ChatState) para un usuario."""
+    try:
+        chat_state = await sync_to_async(ChatState.objects.get)(user_id=user_id, business_unit=business_unit)
+        await sync_to_async(chat_state.delete)()
+        logger.info(f"🧹 ChatState reiniciado para {user_id} en {business_unit.name}")
         
-        Args:
-            user_id (str): Identificador del usuario.
-            business_unit (BusinessUnit): Unidad de negocio asociada al chat.
-            platform (Optional[str]): Nombre del canal (e.g., 'whatsapp', 'telegram') para enviar mensaje de confirmación.
-        """
-        try:
-            # Busca y elimina el ChatState existente
-            chat_state = await sync_to_async(ChatState.objects.get)(user_id=user_id, business_unit=business_unit)
-            await sync_to_async(chat_state.delete)()
-            logger.info(f"🧹 ChatState reiniciado para {user_id} en {business_unit.name}")
-            
-            # Si se especifica una plataforma, envía un mensaje de confirmación
-            if platform:
-                await send_message(platform, user_id, "🧹 Conversación reiniciada. Envía un mensaje para comenzar de nuevo.", business_unit)
-        except ChatState.DoesNotExist:
-            # Si no existe un ChatState, no hay nada que reiniciar
-            logger.info(f"🧹 No se encontró ChatState para {user_id} en {business_unit.name}, no hay nada que reiniciar.")
-            if platform:
-                await send_message(platform, user_id, "🧹 No había conversación activa, pero estás listo para comenzar de nuevo.", business_unit)
-# ================================
-# WRAPPERS PARA FUNCIONES ASÍNCRONAS Y SINCRÓNICAS -----  NO MODIFICAR POR FAVOR
-# ================================
+        if platform:
+            await send_message(platform, user_id, "🧹 Conversación reiniciada. Envía un mensaje para comenzar de nuevo.", business_unit)
+    except ChatState.DoesNotExist:
+        logger.info(f"🧹 No se encontró ChatState para {user_id} en {business_unit.name}, no hay nada que reiniciar.")
+        if platform:
+            await send_message(platform, user_id, "🧹 No había conversación activa, pero estás listo para comenzar de nuevo.", business_unit)
+
 async def send_message_async(platform: str, user_id: str, message: str, business_unit_name: str = None):
     """Envía un mensaje de forma asíncrona."""
     try:
         if not business_unit_name:
             business_unit_name = 'default'
         
-        # Normalizar el nombre del business unit
         business_unit_name = business_unit_name.lower().replace('®', '').strip()
+        # Log antes de buscar la unidad de negocio
+        logger.debug(f"[send_message_async] Iniciando proceso para {user_id} en {platform} con unidad de negocio: {business_unit_name}")
         
         business_unit = await get_business_unit(business_unit_name)
         if not business_unit:
             logger.error(f"Business unit no encontrado: {business_unit_name}")
             return False
-            
+        
         message_service = MessageService(business_unit)
-        return await message_service.send_message(platform, user_id, message)
+        # Log antes de enviar el mensaje
+        logger.info(f"[send_message_async] Preparando envío a {user_id} en {platform} para {business_unit_name}: {message}")
+        
+        # Ejecutar el envío y registrar el resultado
+        success = await message_service.send_message(platform, user_id, message)
+        if success:
+            logger.info(f"[send_message_async] Mensaje enviado exitosamente a {user_id} en {platform} para {business_unit_name}")
+        else:
+            logger.warning(f"[send_message_async] Fallo al enviar mensaje a {user_id} en {platform} para {business_unit_name}")
+        return success
     except Exception as e:
-        logger.error(f"Error en send_message_async: {e}", exc_info=True)
+        # Log detallado del error
+        logger.error(f"[send_message_async] Error al enviar mensaje a {user_id} en {platform} para {business_unit_name}: {str(e)}", exc_info=True)
         return False
-
+    
 def send_message(platform: str, user_id: str, message: str, business_unit: str = None):
-    """ Envío de mensaje de forma segura en entornos síncronos y asíncronos. """
+    """Envío de mensaje de forma segura en entornos síncronos y asíncronos."""
+    logger.debug(f"[send_message] Llamada a send_message para {user_id} en {platform}")
     return run_async(send_message_async, platform, user_id, message, business_unit)
 
 async def send_email_async(subject: str, to_email: str, body: str, business_unit_name: str = None, from_email=None):
-    """ Versión asíncrona de `send_email`. """
+    """Versión asíncrona de `send_email`."""
     business_unit = await get_business_unit(business_unit_name)
     if business_unit:
         service = EmailService(business_unit)
@@ -960,33 +967,22 @@ async def send_email_async(subject: str, to_email: str, body: str, business_unit
     return False
 
 def send_email(subject: str, to_email: str, body: str, business_unit_name: str = None, from_email=None):
-    """ Wrapper de `send_email`, compatible con entornos síncronos y asíncronos. """
+    """Wrapper de `send_email`, compatible con entornos síncronos y asíncronos."""
     return run_async(send_email_async, subject, to_email, body, business_unit_name, from_email)
 
 async def send_list_options(platform: str, user_id: str, message: str, buttons: List[Dict], business_unit_name: str):
-    """
-    Envía una lista interactiva en WhatsApp si hay más de 3 opciones.
-    """
+    """Envía una lista interactiva en WhatsApp si hay más de 3 opciones."""
     from app.chatbot.integrations.whatsapp import send_whatsapp_list
-
     if platform != "whatsapp":
         success = await send_options(platform, user_id, message, buttons, business_unit_name)
         return success, None
     sections = [{"title": "Opciones", "rows": [{"id": btn["payload"], "title": btn["title"]} for btn in buttons]}]
     success = await send_whatsapp_list(user_id, message, sections, business_unit_name)
-    msg_id = "msg_id_placeholder" if success else None  # Reemplaza con el ID real si la API lo devuelve
+    msg_id = "msg_id_placeholder" if success else None
     return success, msg_id
-#Envio de Lista Interactiva para cuando hay más de 3 botones
 
 async def send_smart_options(platform, user_id, message, options, business_unit_name):
-    """
-    Envía opciones interactivas de manera optimizada:
-    - Si hay solo botones con URL, los envía como mensajes separados.
-    - Si hay 1 botón con URL y otros sin URL, primero envía la URL, luego los botones tras 2 segundos.
-    - Si hay más de 3 opciones en WhatsApp, usa listas interactivas.
-    - Si la lista interactiva falla, divide en lotes de 3 botones.
-    - Si hay 3 o menos opciones, usa botones directamente.
-    """
+    """Envía opciones interactivas de manera optimizada."""
     try:
         business_unit = await get_business_unit(business_unit_name)
         if not business_unit:
@@ -1023,7 +1019,7 @@ async def send_smart_options(platform, user_id, message, options, business_unit_
                 if not success:
                     logger.error("[send_smart_options] ❌ Falló el envío de opciones.")
                     return False, None
-                last_msg_id = "msg_id_placeholder"  # Reemplaza con el ID real si está disponible
+                last_msg_id = "msg_id_placeholder"
                 await asyncio.sleep(0.5)
 
             return True, last_msg_id
@@ -1035,21 +1031,9 @@ async def send_smart_options(platform, user_id, message, options, business_unit_
     except Exception as e:
         logger.error(f"[send_smart_options] ❌ Error enviando opciones a {user_id}: {e}", exc_info=True)
         return False, None
-           
+
 async def send_options_async(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
-    """
-    Envío de mensaje con botones interactivos de forma asíncrona.
-
-    Args:
-        platform (str): Plataforma donde se enviará el mensaje (WhatsApp, Telegram, Messenger, Instagram).
-        user_id (str): ID del usuario al que se enviará el mensaje.
-        message (str): Contenido del mensaje.
-        buttons (Optional[List[Dict]]): Lista de botones interactivos.
-        business_unit_name (Optional[str]): Nombre de la unidad de negocio.
-
-    Returns:
-        bool: True si se envió correctamente, False en caso contrario.
-    """
+    """Envío de mensaje con botones interactivos de forma asíncrona."""
     try:
         business_unit = await get_business_unit(business_unit_name)
         if not business_unit:
@@ -1063,15 +1047,14 @@ async def send_options_async(platform: str, user_id: str, message: str, buttons=
                 logger.error(f"[send_options_async] ⚠️ No hay botones válidos para enviar a WhatsApp.")
                 return False
             
-            # ✅ Asegurar que los títulos no se corten arbitrariamente
             formatted_buttons = []
-            for i, btn in enumerate(buttons[:3]):  # WhatsApp permite máximo 3 botones
+            for i, btn in enumerate(buttons[:3]):
                 if "title" in btn and "payload" in btn:
                     formatted_buttons.append({
                         "type": "reply",
                         "reply": {
-                            "id": btn["payload"],  # ID debe ser el payload correcto
-                            "title": btn["title"][:20]  # Máximo 20 caracteres
+                            "id": btn["payload"],
+                            "title": btn["title"][:20]
                         }
                     })
                 else:
@@ -1090,7 +1073,6 @@ async def send_options_async(platform: str, user_id: str, message: str, buttons=
                 buttons=formatted_buttons,
                 business_unit=business_unit
             )
-
         else:
             success = await service.send_options(platform, user_id, message, buttons)
 
@@ -1106,11 +1088,11 @@ async def send_options_async(platform: str, user_id: str, message: str, buttons=
         return False
 
 def send_options(platform: str, user_id: str, message: str, buttons=None, business_unit_name: str = None):
-    """ Wrapper de `send_options_async`, compatible con entornos síncronos y asíncronos. """
+    """Wrapper de `send_options_async`, compatible con entornos síncronos y asíncronos."""
     return run_async(send_options_async, platform, user_id, message, buttons, business_unit_name)
 
 async def send_menu_async(platform: str, user_id: str, business_unit: Optional[str] = None):
-    """ Envía el menú principal al usuario en la plataforma especificada. """
+    """Envía el menú principal al usuario en la plataforma especificada."""
     business_unit = await get_business_unit(business_unit)
     
     if not business_unit:
@@ -1125,7 +1107,7 @@ def send_menu(platform: str, user_id: str, business_unit_name: str = None):
     return run_async(send_menu_async, platform, user_id, business_unit_name)
 
 async def send_image_async(platform: str, user_id: str, message: str, image_url: str, business_unit: Optional[str] = None):
-    """ Envía una imagen con un mensaje al usuario en la plataforma especificada. """
+    """Envía una imagen con un mensaje al usuario en la plataforma especificada."""
     business_unit = await get_business_unit(business_unit)
     
     if not business_unit:
@@ -1140,7 +1122,7 @@ def send_image(platform: str, user_id: str, message: str, image_url: str, busine
     return run_async(send_image_async, platform, user_id, message, image_url, business_unit_name)
 
 async def send_url_async(platform: str, user_id: str, url: str, business_unit: Optional[str] = None):
-    """ Envía un enlace al usuario en la plataforma especificada. """
+    """Envía un enlace al usuario en la plataforma especificada."""
     business_unit = await get_business_unit(business_unit)
     
     if not business_unit:
