@@ -4,6 +4,7 @@ from django.views import View
 from django.http import JsonResponse, HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+#from ratelimit.decorators import ratelimit
 from app.chatbot.chatbot import ChatBotHandler
 from app.chatbot.integrations.instagram import instagram_webhook
 from app.chatbot.integrations.telegram import telegram_webhook
@@ -11,9 +12,9 @@ from app.chatbot.integrations.messenger import messenger_webhook
 from app.chatbot.integrations.whatsapp import whatsapp_webhook
 import logging
 import json
-from prometheus_client import Histogram
 
-webhook_latency = Histogram('webhook_processing_seconds', 'Tiempo de procesamiento de webhooks', ['platform'])
+#from app.chatbot.nlp import get_skill_extractor # Asegúrate de que la importación es correcta
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +28,11 @@ class WhatsAppWebhookView(View):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     async def post(self, request, *args, **kwargs):
-        with webhook_latency.labels(platform='whatsapp').time():
-            try:
-                payload = json.loads(request.body.decode("utf-8"))
-                return await whatsapp_webhook(request)
-            except json.JSONDecodeError:
-                logger.error("[whatsapp_webhook] Error: JSON mal formado recibido")
-                return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
-            except Exception as e:
-                payload = request.body.decode("utf-8") if request.body else "No payload"
-                logger.error(f"[whatsapp_webhook] Error inesperado: {e}\nPayload: {payload}", exc_info=True)
-                return JsonResponse({"status": "error", "message": "Error interno"}, status=500)
+        try:
+            return await whatsapp_webhook(request)
+        except Exception as e:
+            logger.error(f"Error en WhatsAppWebhook POST: {e}")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TelegramWebhookView(View):
@@ -49,16 +44,15 @@ class TelegramWebhookView(View):
         return await telegram_webhook(request, bot_name)
 
     async def post(self, request, *args, **kwargs):
-        with webhook_latency.labels(platform='telegram').time():
-            bot_name = kwargs.get('bot_name', None)
-            if not bot_name:
-                return JsonResponse({'status': 'error', 'message': 'Bot name no proporcionado'}, status=400)
-            logger.info(f"📩 Webhook de Telegram (POST) activado para {bot_name}")
-            try:
-                return await telegram_webhook(request, bot_name)
-            except Exception as e:
-                logger.error(f"❌ Error en TelegramWebhook POST: {e}")
-                return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        bot_name = kwargs.get('bot_name', None)
+        if not bot_name:
+            return JsonResponse({'status': 'error', 'message': 'Bot name no proporcionado'}, status=400)
+        logger.info(f"📩 Webhook de Telegram (POST) activado para {bot_name}")
+        try:
+            return await telegram_webhook(request, bot_name)
+        except Exception as e:
+            logger.error(f"❌ Error en TelegramWebhook POST: {e}")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MessengerWebhookView(View):
