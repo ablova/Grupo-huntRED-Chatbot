@@ -1,7 +1,7 @@
 # /home/pablo/app/chatbot/workflow/common.py
-
 import logging
 import re
+from typing import Dict, Any, List, Optional, Tuple, Union
 from forex_python.converter import CurrencyRates
 from app.chatbot.workflow.profile_questions import get_questions
 from django.core.files.storage import default_storage
@@ -13,17 +13,16 @@ from app.utilidades.salario import (
     calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
     obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
 )
-from app.chatbot.integrations.services import send_menu, send_email, send_message, send_options, send_image, send_email, GamificationService
-from app.utilidades.signature.pdf_generator import generate_personality_report #Para crear el PDF e integrarlo al CV
-from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState
+from app.chatbot.integrations.services import send_menu, send_email, send_message, send_options, send_image, GamificationService
+from app.utilidades.signature.pdf_generator import generate_personality_report
+from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState, DivisionTransition
 from django.conf import settings
 from urllib.parse import urlparse
 from asgiref.sync import sync_to_async
 from app.chatbot.workflow.personality import TEST_QUESTIONS, get_questions_personality, get_random_tipi_questions
+from app.ml.ml_model import BUSINESS_UNIT_HIERARCHY
 
 logger = logging.getLogger(__name__)
-
-
 
 # =========================================================
 # Ejecución de Pruebas
@@ -48,233 +47,6 @@ PRUEBAS_POR_UNIDAD = {
     ]
 }
 # Funciones Genéricas para Pruebas
-
-async def iniciar_prueba_personalidad(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, test_type: str):
-    try:
-        async with asyncio.timeout(5):  # Timeout de 5 segundos
-            domain = get_business_unit_domain(unidad_negocio)
-            await iniciar_prueba(plataforma, user_id, test_type, domain, unidad_negocio, estado_chat, persona)
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout al iniciar prueba {test_type} para user_id={user_id}")
-        await send_message(plataforma, user_id, "Lo siento, tardé demasiado en iniciar la prueba. Intenta de nuevo.", unidad_negocio.name.lower())
- 
-async def iniciar_prueba(plataforma: str, user_id: str, test_type: str, domain: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
-    """Inicia una prueba de personalidad genérica."""
-    if not questions:
-        await send_message(plataforma, user_id, "Error: No hay preguntas disponibles para esta prueba.", bu_name)
-        estado_chat.state = "idle"
-        await sync_to_async(estado_chat.save)()
-        return
-    estado_chat.state = f'taking_{test_type}'
-    estado_chat.context['test_type'] = test_type
-    estado_chat.context['domain'] = domain
-    estado_chat.context['current_step'] = 0
-    estado_chat.context['answers'] = {}
-    await sync_to_async(estado_chat.save)()
-
-    questions = get_questions_personality(test_type, domain)
-    if test_type == 'TIPI':
-        questions = get_random_tipi_questions(domain)
-    first_step = list(questions.keys())[0] if test_type in ['huntBigFive', '16PF', 'NEO'] else None
-    estado_chat.context['current_step_key'] = first_step
-
-    await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
-       
-async def enviar_pregunta(plataforma: str, user_id: str, test_type: str, domain: str, estado_chat: ChatState, unidad_negocio: BusinessUnit):
-    """Envía la siguiente pregunta según el tipo de prueba."""
-    questions = get_questions_personalitys(test_type, domain)
-    if test_type == 'TIPI':
-        questions = get_random_tipi_questions(domain)
-    step = estado_chat.context['current_step']
-    step_key = estado_chat.context.get('current_step_key')
-
-    if test_type in ['huntBigFive', '16PF', 'NEO']:
-        trait_questions = questions[step_key]
-        if step < len(trait_questions):
-            question = trait_questions[step]['text']
-            options = trait_questions[step]['options']
-            await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
-    elif test_type == 'DISC':
-        if step < len(questions):
-            question = questions[step]['text']
-            options = questions[step]['options']
-            await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
-    elif test_type == 'MBTI':
-        if step < len(questions):
-            question = questions[step]['text']
-            options = questions[step]['options']
-            await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
-    elif test_type == 'TIPI':
-        trait = list(questions.keys())[step // 2]
-        q_idx = step % 2
-        question = questions[trait][q_idx]['text']
-        options = ['1 - Muy en desacuerdo', '2', '3', '4', '5', '6', '7 - Muy de acuerdo']
-        await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
-
-async def manejar_respuesta_prueba(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
-    """Maneja las respuestas de cualquier prueba."""
-    test_type = estado_chat.context.get('test_type')
-    if not test_type or estado_chat.state != f'taking_{test_type}':
-        return False
-
-    domain = estado_chat.context['domain']
-    questions = get_questions_personality(test_type, domain)
-    if test_type == 'TIPI':
-        questions = get_random_tipi_questions(domain)
-    step = estado_chat.context['current_step']
-    step_key = estado_chat.context.get('current_step_key')
-
-    # Validar respuesta
-    valid_range = range(1, 6) if test_type in ['huntBigFive', '16PF', 'NEO'] else range(1, 4) if test_type == 'MBTI' else range(1, 8) if test_type == 'TIPI' else None
-    options = ['a', 'b', 'c', 'd'] if test_type == 'DISC' else None
-    try:
-        respuesta = texto.lower() if test_type == 'DISC' else int(texto)
-        if (valid_range and respuesta not in valid_range) or (options and respuesta not in options):
-            await send_message(plataforma, user_id, f'Por favor, responde con una opción válida.', unidad_negocio.name.lower())
-            return True
-    except ValueError:
-        await send_message(plataforma, user_id, f'Por favor, responde con una opción válida.', unidad_negocio.name.lower())
-        return True
-
-    # Guardar respuesta
-    if test_type in ['huntBigFive', '16PF', 'NEO']:
-        if step_key not in estado_chat.context['answers']:
-            estado_chat.context['answers'][step_key] = []
-        estado_chat.context['answers'][step_key].append(respuesta)
-    else:
-        estado_chat.context['answers'][step] = respuesta
-
-    # Avanzar
-    estado_chat.context['current_step'] += 1
-    if test_type in ['huntBigFive', '16PF', 'NEO']:
-        trait_questions = questions[step_key]
-        if estado_chat.context['current_step'] < len(trait_questions):
-            await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
-        else:
-            traits = list(questions.keys())
-            current_idx = traits.index(step_key)
-            if current_idx + 1 < len(traits):
-                estado_chat.context['current_step'] = 0
-                estado_chat.context['current_step_key'] = traits[current_idx + 1]
-                await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
-            else:
-                await finalizar_prueba(plataforma, user_id, test_type, estado_chat, persona, unidad_negocio)
-    else:
-        if estado_chat.context['current_step'] < (len(questions) if test_type in ['DISC', 'MBTI'] else len(questions) * 2):
-            await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
-        else:
-            await finalizar_prueba(plataforma, user_id, test_type, estado_chat, persona, unidad_negocio)
-    await sync_to_async(estado_chat.save)()
-    return True
-
-async def finalizar_prueba(plataforma: str, user_id: str, test_type: str, estado_chat: ChatState, persona: Person, unidad_negocio: BusinessUnit):
-    """Calcula y guarda los resultados de la prueba."""
-    answers = estado_chat.context.get('answers', {})
-    if test_type == 'huntBigFive' or test_type == 'NEO':
-        for trait, responses in answers.items():
-            score = sum(responses) / len(responses)
-            setattr(persona, {'apertura': 'openness', 'conciencia': 'conscientiousness', 'extraversion': 'extraversion', 'amabilidad': 'agreeableness', 'neuroticismo': 'neuroticism'}[trait], score)
-    elif test_type == 'DISC':
-        d, i, s, c = 0, 0, 0, 0
-        for ans in answers.values():
-            if ans == 'a': d += 1
-            elif ans == 'b': i += 1
-            elif ans == 'c': s += 1
-            elif ans == 'd': c += 1
-        persona.metadata['disc'] = f'D{d}I{i}S{s}C{c}'
-    elif test_type == '16PF':
-        for trait, responses in answers.items():
-            score = sum(responses) / len(responses)
-            persona.metadata[f'16pf_{trait}'] = score
-    elif test_type == 'MBTI':
-        ei = sum(answers[0:2]) / 2; sn = sum(answers[2:4]) / 2; tf = sum(answers[4:6]) / 2; jp = sum(answers[6:8]) / 2
-        persona.mbti_type = ('E' if ei < 2 else 'I') + ('S' if sn < 2 else 'N') + ('T' if tf < 2 else 'F') + ('J' if jp < 2 else 'P')
-    elif test_type == 'TIPI':
-        for idx, trait in enumerate(['extraversion', 'agreeableness', 'conscientiousness', 'neuroticism', 'openness']):
-            direct = answers[idx * 2]; reverse = 8 - answers[idx * 2 + 1]
-            score = (direct + reverse) / 2
-            setattr(persona, {'extraversion': 'extraversion', 'agreeableness': 'agreeableness', 'conscientiousness': 'conscientiousness', 'neuroticism': 'neuroticism', 'openness': 'openness'}[trait], score)
-    await sync_to_async(persona.save)()
-    await send_message(plataforma, user_id, f'¡Gracias por completar la prueba {test_type}! Tus resultados han sido guardados.', unidad_negocio.name.lower())
-    
-    # Generar y enviar reporte
-    report_path = generate_personality_report(persona, unidad_negocio)
-    await send_image(plataforma, user_id, "Aquí está tu reporte de personalidad", report_path, unidad_negocio.name)
-    
-    # Notificación por email con el reporte adjunto
-    email_body = f"Hola {persona.nombre},<br>Has completado la prueba {test_type} con {unidad_negocio.name}. ¡Gracias por participar!<br>Adjunto encontrarás tu reporte de personalidad en PDF.<br>Saludos,<br>Equipo {unidad_negocio.name}"
-    await send_email(
-        subject=f"Prueba de Personalidad Completada - {unidad_negocio.name}",
-        to_email=persona.email,
-        body=email_body,
-        business_unit_name=unidad_negocio.name,
-        attachments=[report_path]
-    )
-    # Limpiar archivo temporal
-    import os
-    os.remove(report_path)
-
-    # Gamificación: otorgar puntos
-    gamification_service = GamificationService()
-    await gamification_service.award_points(persona, f"prueba_{test_type}", points=100)
-    
-    # Actualizar estado y notificar
-    estado_chat.state = 'idle'
-    await sync_to_async(estado_chat.save)()
-    
-    # Manejo de respuestas durante una prueba de personalidad
-    if await manejar_respuesta_prueba(plataforma, user_id, texto, unidad_negocio, estado_chat, persona):
-        return True
-
-    # Manejo de respuestas para campos específicos del perfil
-    if estado_chat.state.startswith("waiting_for_"):
-        field = estado_chat.state.replace("waiting_for_", "")
-        if field in ['nombre', 'apellido_paterno', 'email', 'phone', 'nacionalidad']:
-            # Validaciones específicas
-            if field == 'email' and not re.match(r"[^@]+@[^@]+\.[^@]+", texto):
-                await send_message(plataforma, user_id, "Por favor, ingresa un email válido.", bu_name)
-                return True
-            if field == 'phone' and not re.match(r"^\+\d{10,15}$", texto):
-                await send_message(plataforma, user_id, "Por favor, usa el formato '+521234567890'.", bu_name)
-                return True
-            # Guardar el valor en el objeto persona
-            setattr(persona, field, texto.capitalize() if field in ['nombre', 'apellido_paterno'] else texto)
-            await sync_to_async(persona.save)()
-            # Continuar según la unidad de negocio
-            if bu_name == "amigro":
-                from app.chatbot.workflow.amigro import continuar_perfil_amigro
-                await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
-            elif bu_name == "huntu":
-                from app.chatbot.workflow.huntu import continuar_perfil_huntu
-                await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
-            else:
-                await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
-        return True
-
-    return False
-
-async def ofrecer_prueba_personalidad(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, mensaje_base: str = ""):
-    """Ofrece una prueba de personalidad al usuario."""
-    bu_name = unidad_negocio.name.lower()
-    pruebas = PRUEBAS_POR_UNIDAD.get(bu_name, [])
-    if pruebas:
-        mensaje = mensaje_base + f"Para {bu_name}, te recomendamos:\n" + "\n".join(
-            [f"{i+1}. {p['nombre']} - {p['descripcion']}" for i, p in enumerate(pruebas)]
-        ) + "\nResponde con el número de la prueba o 'No' para omitir."
-    else:
-        mensaje = "¡Perfil completo! 🎉\nPronto te contactaremos con oportunidades."
-        estado_chat.state = "completed"
-    await send_message(plataforma, user_id, mensaje, bu_name)
-    if pruebas:
-        estado_chat.state = "offering_personality_test"
-    await sync_to_async(estado_chat.save)()
- 
-
-
-# =========================================================
-# Creación de Perfil 
-# =========================================================
-# Diccionario de explicaciones para los métodos de creación de perfil
 EXPLICACIONES_METODOS = {
     "default": {
         "dynamic": "Te haré preguntas una por una para completar tu perfil paso a paso.",
@@ -298,10 +70,252 @@ EXPLICACIONES_METODOS = {
     }
 }
 
+# Criterios de transición definidos como configuración global
+DIVISION_TRANSITION_CRITERIA = {
+    "amigro_to_huntu": {
+        "required_certifications": ["licenciatura"],
+        "min_skills": 3,
+        "min_experience_months": 18,
+        "min_salary_mxn": 20000,
+        "min_salary_increase": 0.20,
+        "personality_traits": {"conscientiousness": 4.0},
+        "profile_completeness": 0.8,
+        "additional_requirements": {"cv_parsed": True, "job_search_status": ["activa", "remota"]}
+    },
+    "huntu_to_huntred": {
+        "required_certifications": ["certificación relevante"],
+        "required_experience": {"years": 2, "role": "profesional"},
+        "min_skills": 5,
+        "min_experience_months": 12,
+        "min_salary_mxn": 45000,
+        "min_salary_increase": 0.30,
+        "personality_traits": {"extraversion": 4.5, "openness": 4.0},
+        "profile_completeness": 0.9,
+        "additional_requirements": {"experience_years": 2}
+    },
+    "huntred_to_huntred_executive": {
+        "required_certifications": ["maestría"],
+        "required_experience": {"years": 5, "role": "gerencial"},
+        "min_skills": 7,
+        "min_experience_months": 36,
+        "min_salary_mxn": 150000,
+        "min_salary_increase": 0.50,
+        "personality_traits": {"extraversion": 4.5, "openness": 4.0, "conscientiousness": 4.5},
+        "profile_completeness": 1.0,
+        "additional_requirements": {"experience_years": 5}
+    }
+}
+
+# Funciones para manejar pruebas de personalidad
+async def iniciar_prueba_personalidad(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, test_type: str):
+    """Inicia una prueba de personalidad con un timeout de 5 segundos."""
+    try:
+        async with asyncio.timeout(5):
+            domain = get_business_unit_domain(unidad_negocio)
+            await iniciar_prueba(plataforma, user_id, test_type, domain, unidad_negocio, estado_chat, persona)
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout al iniciar prueba {test_type} para user_id={user_id}")
+        await send_message(plataforma, user_id, "Lo siento, tardé demasiado en iniciar la prueba. Intenta de nuevo.", unidad_negocio.name.lower())
+
+async def iniciar_prueba(plataforma: str, user_id: str, test_type: str, domain: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Configura el estado para comenzar una prueba de personalidad."""
+    questions = get_questions_personality(test_type, domain)
+    if not questions:
+        await send_message(plataforma, user_id, "Error: No hay preguntas disponibles para esta prueba.", unidad_negocio.name.lower())
+        estado_chat.state = "idle"
+        await sync_to_async(estado_chat.save)()
+        return
+    estado_chat.state = f'taking_{test_type}'
+    estado_chat.context['test_type'] = test_type
+    estado_chat.context['domain'] = domain
+    estado_chat.context['current_step'] = 0
+    estado_chat.context['answers'] = {}
+    await sync_to_async(estado_chat.save)()
+
+    if test_type == 'TIPI':
+        questions = get_random_tipi_questions(domain)
+    first_step = list(questions.keys())[0] if test_type in ['huntBigFive', '16PF', 'NEO'] else None
+    estado_chat.context['current_step_key'] = first_step
+
+    await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
+
+async def enviar_pregunta(plataforma: str, user_id: str, test_type: str, domain: str, estado_chat: ChatState, unidad_negocio: BusinessUnit):
+    """Envía la siguiente pregunta de la prueba al usuario."""
+    questions = get_questions_personality(test_type, domain)
+    if test_type == 'TIPI':
+        questions = get_random_tipi_questions(domain)
+    step = estado_chat.context['current_step']
+    step_key = estado_chat.context.get('current_step_key')
+
+    if test_type in ['huntBigFive', '16PF', 'NEO']:
+        trait_questions = questions[step_key]
+        if step < len(trait_questions):
+            question = trait_questions[step]['text']
+            options = trait_questions[step]['options']
+            await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
+    elif test_type == 'DISC':
+        if step < len(questions):
+            question = questions[step]['text']
+            options = questions[step]['options']
+            await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
+    elif test_type == 'TIPI':
+        trait = list(questions.keys())[step // 2]
+        q_idx = step % 2
+        question = questions[trait][q_idx]['text']
+        options = ['1 - Muy en desacuerdo', '2', '3', '4', '5', '6', '7 - Muy de acuerdo']
+        await send_message(plataforma, user_id, f'{question}\nOpciones: {", ".join(options)}', unidad_negocio.name.lower())
+
+async def manejar_respuesta_prueba(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
+    """Procesa las respuestas del usuario durante una prueba."""
+    test_type = estado_chat.context.get('test_type')
+    if not test_type or estado_chat.state != f'taking_{test_type}':
+        return False
+
+    domain = estado_chat.context['domain']
+    questions = get_questions_personality(test_type, domain)
+    if test_type == 'TIPI':
+        questions = get_random_tipi_questions(domain)
+    step = estado_chat.context['current_step']
+    step_key = estado_chat.context.get('current_step_key')
+
+    # Validar respuesta
+    valid_range = range(1, 6) if test_type in ['huntBigFive', '16PF', 'NEO'] else range(1, 8) if test_type == 'TIPI' else None
+    options = ['a', 'b', 'c', 'd'] if test_type == 'DISC' else None
+    try:
+        respuesta = texto.lower() if test_type == 'DISC' else int(texto)
+        if (valid_range and respuesta not in valid_range) or (options and respuesta not in options):
+            await send_message(plataforma, user_id, f'Por favor, responde con una opción válida.', unidad_negocio.name.lower())
+            return True
+    except ValueError:
+        await send_message(plataforma, user_id, f'Por favor, responde con una opción válida.', unidad_negocio.name.lower())
+        return True
+
+    # Guardar respuesta y avanzar
+    if test_type in ['huntBigFive', '16PF', 'NEO']:
+        if step_key not in estado_chat.context['answers']:
+            estado_chat.context['answers'][step_key] = []
+        estado_chat.context['answers'][step_key].append(respuesta)
+    else:
+        estado_chat.context['answers'][step] = respuesta
+
+    estado_chat.context['current_step'] += 1
+    if test_type in ['huntBigFive', '16PF', 'NEO']:
+        trait_questions = questions[step_key]
+        if estado_chat.context['current_step'] < len(trait_questions):
+            await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
+        else:
+            traits = list(questions.keys())
+            current_idx = traits.index(step_key)
+            if current_idx + 1 < len(traits):
+                estado_chat.context['current_step'] = 0
+                estado_chat.context['current_step_key'] = traits[current_idx + 1]
+                await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
+            else:
+                await finalizar_prueba(plataforma, user_id, test_type, estado_chat, persona, unidad_negocio)
+    else:
+        if estado_chat.context['current_step'] < (len(questions) if test_type == 'DISC' else len(questions) * 2):
+            await enviar_pregunta(plataforma, user_id, test_type, domain, estado_chat, unidad_negocio)
+        else:
+            await finalizar_prueba(plataforma, user_id, test_type, estado_chat, persona, unidad_negocio)
+    await sync_to_async(estado_chat.save)()
+    return True
+
+async def finalizar_prueba(plataforma: str, user_id: str, test_type: str, estado_chat: ChatState, persona: Person, unidad_negocio: BusinessUnit):
+    """Finaliza la prueba, calcula resultados y genera un reporte."""
+    answers = estado_chat.context.get('answers', {})
+    if test_type == 'huntBigFive' or test_type == 'NEO':
+        for trait, responses in answers.items():
+            score = sum(responses) / len(responses)
+            setattr(persona, {'apertura': 'openness', 'conciencia': 'conscientiousness', 'extraversion': 'extraversion', 'amabilidad': 'agreeableness', 'neuroticismo': 'neuroticism'}[trait], score)
+    elif test_type == 'DISC':
+        d, i, s, c = 0, 0, 0, 0
+        for ans in answers.values():
+            if ans == 'a': d += 1
+            elif ans == 'b': i += 1
+            elif ans == 'c': s += 1
+            elif ans == 'd': c += 1
+        persona.metadata['disc'] = f'D{d}I{i}S{s}C{c}'
+    elif test_type == 'TIPI':
+        for idx, trait in enumerate(['extraversion', 'agreeableness', 'conscientiousness', 'neuroticism', 'openness']):
+            direct = answers[idx * 2]; reverse = 8 - answers[idx * 2 + 1]
+            score = (direct + reverse) / 2
+            setattr(persona, trait, score)
+    await sync_to_async(persona.save)()
+    await send_message(plataforma, user_id, f'¡Gracias por completar la prueba {test_type}! Tus resultados han sido guardados.', unidad_negocio.name.lower())
+
+    # Generar y enviar reporte
+    report_path = generate_personality_report(persona, unidad_negocio)
+    await send_image(plataforma, user_id, "Aquí está tu reporte de personalidad", report_path, unidad_negocio.name)
+    
+    # Enviar email con reporte adjunto
+    email_body = f"Hola {persona.nombre},<br>Has completado la prueba {test_type} con {unidad_negocio.name}. Adjunto tu reporte de personalidad.<br>Saludos,<br>Equipo {unidad_negocio.name}"
+    await send_email(
+        subject=f"Prueba de Personalidad - {unidad_negocio.name}",
+        to_email=persona.email,
+        body=email_body,
+        business_unit_name=unidad_negocio.name,
+        attachments=[report_path]
+    )
+    import os
+    os.remove(report_path)
+
+    # Gamificación
+    gamification_service = GamificationService()
+    await gamification_service.award_points(persona, f"prueba_{test_type}", points=100)
+    
+    estado_chat.state = 'idle'
+    await sync_to_async(estado_chat.save)()
+
+#Procesamiento de Cambio de Business Unit
+async def evaluar_transicion(persona: Person, current_bu: BusinessUnit) -> Optional[str]:
+    """Evalúa si el candidato puede transicionar a una unidad superior."""
+    ml_system = MatchmakingLearningSystem(business_unit=current_bu.name.lower())
+    transition_proba = ml_system.predict_transition(persona)
+    if transition_proba > 0.7:
+        possible_transitions = ml_system.get_possible_transitions(current_bu.name.lower())
+        if possible_transitions:
+            return possible_transitions[0]
+    return None
+
+async def transfer_candidate_to_new_division(persona: Person, new_bu: BusinessUnit, plataforma: str, user_id: str):
+    """Transfiere al candidato a una nueva unidad de negocio."""
+    old_bu = persona.business_unit
+    persona.business_unit = new_bu
+    await sync_to_async(persona.save)()
+    DivisionTransition.objects.create(
+        person=persona,
+        from_division=old_bu.name if old_bu else "unknown",
+        to_division=new_bu.name,
+        success=True
+    )
+    bu_name = new_bu.name.lower()
+    await send_message(plataforma, user_id, f"¡Bienvenido a {bu_name.capitalize()}! Actualizaremos tu perfil.", bu_name)
+
+
+# =========================================================
+# Creación de Perfil 
+# =========================================================
+# Diccionario de explicaciones para los métodos de creación de perfil
 def obtener_explicaciones_metodos(bu_name: str) -> dict:
     """Devuelve las explicaciones de los métodos según la unidad de negocio."""
     return EXPLICACIONES_METODOS.get(bu_name.lower(), EXPLICACIONES_METODOS["default"])
 
+async def ofrecer_prueba_personalidad(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, mensaje_base: str = ""):
+    """Ofrece una prueba de personalidad al usuario."""
+    bu_name = unidad_negocio.name.lower()
+    pruebas = PRUEBAS_POR_UNIDAD.get(bu_name, [])
+    if pruebas:
+        mensaje = mensaje_base + f"Para {bu_name}, te recomendamos:\n" + "\n".join(
+            [f"{i+1}. {p['nombre']} - {p['descripcion']}" for i, p in enumerate(pruebas)]
+        ) + "\nResponde con el número de la prueba o 'No' para omitir."
+    else:
+        mensaje = "¡Perfil completo! 🎉\nPronto te contactaremos con oportunidades."
+        estado_chat.state = "completed"
+    await send_message(plataforma, user_id, mensaje, bu_name)
+    if pruebas:
+        estado_chat.state = "offering_personality_test"
+    await sync_to_async(estado_chat.save)()
+ 
 async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
     """Inicia o continúa el perfil conversacional (simplificado para este ejemplo)."""
     bu_name = unidad_negocio.name.lower()
@@ -540,6 +554,32 @@ async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, un
                 await send_message(plataforma, user_id, "Responde con un número válido o 'No'.", bu_name)
         return True
     
+    elif estado_chat.state == "offering_division_change":
+        if texto_lower == "no":
+            await send_message(plataforma, user_id, "¡Entendido! Seguirás en tu división actual.", bu_name)
+            estado_chat.state = "idle"
+            await sync_to_async(estado_chat.save)()
+            return True
+        try:
+            seleccion = int(texto) - 1
+            transitions = estado_chat.context.get("possible_transitions", {})
+            options = [{"title": "HuntU", "payload": "move_to_huntu"}]  # Ajustar dinámicamente
+            if 0 <= seleccion < len(options):
+                target_division = options[seleccion]["payload"].replace("move_to_", "")
+                new_bu = BusinessUnit.objects.get(name=target_division)
+                persona.business_unit = new_bu
+                await sync_to_async(persona.save)()
+                await send_message(plataforma, user_id, f"¡Bienvenido a {target_division}! Vamos a actualizar tu perfil.", bu_name)
+                if target_division == "huntu":
+                    from app.chatbot.workflow.huntu import continuar_perfil_huntu
+                    await continuar_perfil_huntu(plataforma, user_id, new_bu, estado_chat, persona)
+                estado_chat.state = "profile_in_progress"
+                await sync_to_async(estado_chat.save)()
+            else:
+                await send_message(plataforma, user_id, "Selecciona una opción válida o 'No'.", bu_name)
+        except ValueError:
+            await send_message(plataforma, user_id, "Responde con un número válido o 'No'.", bu_name)
+        return True
     # Corrección de datos
     elif texto.startswith("corregir "):
         campo = texto.split(" ")[1]
@@ -750,6 +790,228 @@ def generate_final_signed_contract(candidate, business_unit):
     except Exception as e:
         return f"Error al generar documento firmado: {e}"
 
+class TransitionCriteriaService:
+    """Servicio para evaluar y gestionar transiciones entre unidades de negocio."""
+
+    @staticmethod
+    def get_current_salary(person: Person) -> float:
+        """Obtiene el salario actual de una persona."""
+        try:
+            return float(person.salary_data.get('current_salary', 0))
+        except (ValueError, AttributeError, TypeError):
+            return 0.0
+
+    @staticmethod
+    def get_skills_count(person: Person) -> int:
+        """Cuenta el número total de habilidades de una persona."""
+        if not person.skills:
+            return 0
+        if isinstance(person.skills, str):
+            return len([s.strip() for s in person.skills.split(',')])
+        elif person.metadata and 'skills' in person.metadata:
+            if isinstance(person.metadata['skills'], list):
+                return len(person.metadata['skills'])
+        return 0
+
+    @staticmethod
+    def get_experience_months(person: Person) -> int:
+        """Calcula los meses de experiencia de una persona."""
+        if person.experience_years:
+            return person.experience_years * 12
+        if person.experience_data and isinstance(person.experience_data, dict):
+            total_months = 0
+            for exp in person.experience_data.get('experiences', []):
+                total_months += (exp.get('years', 0) * 12) + exp.get('months', 0)
+            return total_months
+        return 0
+
+    @staticmethod
+    def calculate_profile_completeness(person: Person) -> float:
+        """Calcula qué tan completo está el perfil de una persona."""
+        fields_to_check = ['nombre', 'apellido_paterno', 'email', 'phone', 'skills', 'fecha_nacimiento', 'nationality']
+        filled_fields = sum(1 for field in fields_to_check if getattr(person, field, None))
+        if person.metadata:
+            if person.metadata.get('soft_skills'): filled_fields += 1
+            if person.metadata.get('education'): filled_fields += 1
+            if person.metadata.get('certifications'): filled_fields += 1
+        if person.cv_parsed:
+            filled_fields += 1
+        total_possible = len(fields_to_check) + 4
+        return filled_fields / total_possible
+
+    @classmethod
+    def check_transition_eligibility(cls, person: Person, target_bu_name: str, proposed_salary: Optional[float] = None) -> Tuple[bool, Dict[str, Any]]:
+        """Verifica si una persona es elegible para transicionar a otra unidad de negocio."""
+        current_bu = person.business_unit
+        if not current_bu:
+            return False, {"error": "No se pudo determinar la unidad de negocio actual"}
+
+        current_bu_name = current_bu.name.lower()
+        target_bu_name = target_bu_name.lower()
+        transition_key = f"{current_bu_name}_to_{target_bu_name}"
+
+        if transition_key not in DIVISION_TRANSITION_CRITERIA:
+            return False, {"error": f"Transición no definida: {transition_key}"}
+
+        criteria = DIVISION_TRANSITION_CRITERIA[transition_key]
+        evaluation = {}
+        meets_criteria = True
+
+        current_level = BUSINESS_UNIT_HIERARCHY.get(current_bu_name, 0)
+        target_level = BUSINESS_UNIT_HIERARCHY.get(target_bu_name, 0)
+        if current_level == 0 or target_level == 0:
+            return False, {"error": "Unidad de negocio no válida"}
+
+        if target_level > current_level:  # Ascenso
+            if "min_skills" in criteria:
+                skills_count = cls.get_skills_count(person)
+                evaluation["skills"] = {"required": criteria["min_skills"], "actual": skills_count, "passed": skills_count >= criteria["min_skills"]}
+                meets_criteria &= evaluation["skills"]["passed"]
+
+            if "min_experience_months" in criteria:
+                experience_months = cls.get_experience_months(person)
+                evaluation["experience"] = {"required": criteria["min_experience_months"], "actual": experience_months, "passed": experience_months >= criteria["min_experience_months"]}
+                meets_criteria &= evaluation["experience"]["passed"]
+
+            if "min_salary_mxn" in criteria:
+                current_salary = cls.get_current_salary(person)
+                evaluation["min_salary"] = {"required": criteria["min_salary_mxn"], "actual": current_salary, "passed": current_salary >= criteria["min_salary_mxn"]}
+                meets_criteria &= evaluation["min_salary"]["passed"]
+
+            if proposed_salary and "min_salary_increase" in criteria:
+                current_salary = cls.get_current_salary(person)
+                if current_salary > 0:
+                    salary_increase = (proposed_salary - current_salary) / current_salary
+                    evaluation["salary_increase"] = {"required": criteria["min_salary_increase"], "actual": salary_increase, "passed": salary_increase >= criteria["min_salary_increase"]}
+                    meets_criteria &= evaluation["salary_increase"]["passed"]
+
+            if "profile_completeness" in criteria:
+                completeness = cls.calculate_profile_completeness(person)
+                evaluation["profile_completeness"] = {"required": criteria["profile_completeness"], "actual": completeness, "passed": completeness >= criteria["profile_completeness"]}
+                meets_criteria &= evaluation["profile_completeness"]["passed"]
+
+        return meets_criteria, evaluation
+
+    @classmethod
+    def execute_transition(cls, person: Person, target_bu_name: str, new_salary: Optional[float] = None, force: bool = False) -> Tuple[bool, str]:
+        """Ejecuta la transición a una nueva unidad de negocio."""
+        if not force:
+            is_eligible, evaluation = cls.check_transition_eligibility(person, target_bu_name, new_salary)
+            if not is_eligible:
+                return False
+
+def process_business_unit_transition(person_id: int, target_bu_name: str, new_salary: Optional[float] = None, force: bool = False) -> Dict[str, Any]:
+    """
+    Procesa una transición de unidad de negocio para una persona.
+    
+    Args:
+        person_id: ID de la persona.
+        target_bu_name: Nombre de la unidad de negocio objetivo (e.g., 'huntu').
+        new_salary: Nuevo salario (opcional).
+        force: Forzar la transición (opcional).
+        
+    Returns:
+        Diccionario con resultado y detalles.
+    """
+    try:
+        person = Person.objects.get(id=person_id)
+    except Person.DoesNotExist:
+        return {'success': False, 'message': f'Persona con ID {person_id} no encontrada'}
+
+    success, message = TransitionCriteriaService.execute_transition(person, target_bu_name, new_salary, force)
+    return {
+        'success': success,
+        'message': message,
+        'person_id': person_id,
+        'target_bu': target_bu_name,
+        'new_salary': new_salary
+    }
+
+async def get_possible_transitions(person: Person, current_bu: BusinessUnit) -> List[str]:
+    """
+    Obtiene las unidades de negocio a las que una persona puede transicionar.
+    
+    Args:
+        person: Instancia del modelo Person.
+        current_bu: Unidad de negocio actual.
+        
+    Returns:
+        Lista de nombres de unidades de negocio a las que puede transicionar.
+    """
+    current_bu_name = current_bu.name.lower()
+    possible_keys = [key for key in DIVISION_TRANSITION_CRITERIA.keys() if key.startswith(current_bu_name)]
+    qualified_transitions = []
+
+    for key in possible_keys:
+        target_bu_name = key.split("_to_")[1]
+        is_eligible, _ = TransitionCriteriaService.check_transition_eligibility(person, target_bu_name)
+        if is_eligible:
+            qualified_transitions.append(target_bu_name)
+
+    return qualified_transitions
+
+async def get_possible_transitions_with_details(person: Person, current_bu: BusinessUnit) -> Dict[str, Dict[str, Any]]:
+    """
+    Obtiene las unidades de negocio a las que una persona puede transicionar con detalles.
+    
+    Args:
+        person: Instancia del modelo Person.
+        current_bu: Unidad de negocio actual.
+        
+    Returns:
+        Diccionario con nombres de unidades y detalles de elegibilidad.
+    """
+    current_bu_name = current_bu.name.lower()
+    possible_keys = [key for key in DIVISION_TRANSITION_CRITERIA.keys() if key.startswith(current_bu_name)]
+    results = {}
+
+    for key in possible_keys:
+        target_bu_name = key.split("_to_")[1]
+        is_eligible, details = TransitionCriteriaService.check_transition_eligibility(person, target_bu_name)
+        results[target_bu_name] = {'eligible': is_eligible, 'details': details}
+
+    return results
+
+async def transfer_candidate_to_new_division(person: Person, new_bu: BusinessUnit, plataforma: str, user_id: str):
+    """
+    Transfiere al candidato a una nueva unidad de negocio y registra la transición.
+    
+    Args:
+        person: Instancia del modelo Person.
+        new_bu: Nueva unidad de negocio.
+        plataforma: Plataforma de comunicación (e.g., 'whatsapp').
+        user_id: ID del usuario en la plataforma.
+    """
+    bu_name = new_bu.name.lower()
+    is_eligible, details = TransitionCriteriaService.check_transition_eligibility(person, bu_name)
+    if not is_eligible:
+        await send_message(plataforma, user_id, f"No cumples con los requisitos para transicionar a {bu_name.capitalize()}. Detalles: {details}", bu_name)
+        return
+
+    old_bu = person.business_unit
+    person.business_unit = new_bu
+    await sync_to_async(person.save)()
+    DivisionTransition.objects.create(
+        person=person,
+        from_division=old_bu.name if old_bu else "unknown",
+        to_division=new_bu.name,
+        success=True
+    )
+    await send_message(plataforma, user_id, f"¡Bienvenido a {bu_name.capitalize()}! Actualizaremos tu perfil para maximizar tus oportunidades.", bu_name)
+
+    # Redirigir al flujo conversacional correspondiente
+    if bu_name == "huntu":
+        from app.chatbot.workflow.huntu import continuar_perfil_huntu
+        await continuar_perfil_huntu(plataforma, user_id, new_bu, ChatState.objects.get(user=person), person)
+    elif bu_name == "amigro":
+        from app.chatbot.workflow.amigro import continuar_perfil_amigro
+        await continuar_perfil_amigro(plataforma, user_id, new_bu, ChatState.objects.get(user=person), person)
+    elif bu_name == "huntred":
+        from app.chatbot.workflow.huntred import continuar_perfil_huntred
+        await continuar_perfil_huntred(plataforma, user_id, new_bu, ChatState.objects.get(user=person), person)
+    elif bu_name == "huntred_executive":
+        from app.chatbot.workflow.huntred_executive import continuar_perfil_huntred_executive
+        await continuar_perfil_huntred_executive(plataforma, user_id, new_bu, ChatState.objects.get(user=person), person)
 
 CURRENCY_MAP = {
     # Estados Unidos

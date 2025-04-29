@@ -10,6 +10,7 @@ from django.core.cache import cache
 from django.utils import timezone
 import random
 from app.chatbot.workflow.common import calcular_salario_chatbot, iniciar_creacion_perfil, iniciar_perfil_conversacional, iniciar_prueba, send_welcome_message
+from app.ml.ml_model import MatchmakingLearningSystem, BUSINESS_UNIT_HIERARCHY
 
 logger = logging.getLogger('chatbot')
 
@@ -29,7 +30,7 @@ INTENT_PATTERNS = {
             "amigro": ["¡Hola! 👋 Soy Amigro, aquí para apoyarte en tu búsqueda laboral en México, encontrando trabajo digno y alineado a tu experiencia e interéses."],
             "huntu": ["¡Hola! 🌟 Huntu está listo para ayudarte a dar pasos profesionales sólidos y de gran impacto para tu carrera."],
             "huntred": ["¡Saludos! 🤝 HuntRED te ayuda a encontrar roles gerenciales clave."],
-            "huntred® executive": ["¡Hola! HuntRED® Executive, tu aliado para posiciones de alto nivel."],
+            "huntred_executive": ["¡Hola! HuntRED® Executive, tu aliado para posiciones de alto nivel."],
             "sexsi": ["¡Saludos! Sexsi asegura que todo sea claro y consensuado. ¿En qué te ayudo?"],
             "default": ["¡Hola! Soy tu asistente de reclutamiento. ¿En qué puedo ayudarte?"]
         },
@@ -51,7 +52,7 @@ INTENT_PATTERNS = {
             "amigro": ["Amigro® 🌍 (amigro.org) usa IA para facilitar el acceso laboral a migrantes en México."],
             "huntu": ["Huntu 🚀 conecta estudiantes con internships y empleos de inicio profesional."],
             "huntred": ["HuntRED 💼 especializa en colocar gerentes y directivos en roles clave."],
-            "huntred® executive": ["HuntRED® Executive 🎯 encuentra líderes para consejos y direcciones."],
+            "huntred_executive": ["HuntRED® Executive 🎯 encuentra líderes para consejos y direcciones."],
             "sexsi": ["Sexsi 📜 crea contratos consensuados para relaciones sexuales seguras y legales."],
             "default": ["Somos un asistente de reclutamiento para diversas necesidades laborales."]
         },
@@ -75,8 +76,8 @@ INTENT_PATTERNS = {
     "prueba_personalidad": {
         "patterns": [r"\bprueba_personalidad\b"],
         "responses": ["¡Vamos a iniciar tu prueba de personalidad! Esto te ayudará a conocer mejor tu perfil profesional."],
-        "priority": 20  # Prioridad ajustable según tu lógica
-    },  
+        "priority": 20
+    },
     "contacto": {
         "patterns": [r"\bcontacto\b"],
         "responses": ["Te conectaré con un reclutador. Espera un momento."],
@@ -175,11 +176,11 @@ INTENT_PATTERNS = {
         },
         "priority": 30
     },
-    "executive_roles": {  # Nueva intención para HuntRED y HuntRED® Executive
+    "executive_roles": {  # Nueva intención para HuntRED y HuntRED Executive
         "patterns": [r"\b(director|consejo|ejecutivo|alto\s+nivel)\b"],
         "responses": {
             "huntred": ["Te ayudo a encontrar roles gerenciales. ¿Qué nivel buscas?"],
-            "huntred® executive": ["Conecto líderes con posiciones ejecutivas. ¿Qué rol te interesa?"],
+            "huntred_executive": ["Conecto líderes con posiciones ejecutivas. ¿Qué rol te interesa?"],
             "default": ["Este servicio es para HuntRED o Executive. ¿En qué más te ayudo?"]
         },
         "priority": 30
@@ -191,6 +192,11 @@ INTENT_PATTERNS = {
             "default": ["Este servicio está disponible solo para Sexsi. ¿En qué más te ayudo?"]
         },
         "priority": 30
+    },
+    "transition_to_higher_bu": {  # Nueva intención para transiciones ascendentes
+        "patterns": [r"\b(transicionar|subir de nivel|ascender)\b"],
+        "responses": ["Voy a evaluar si cumples con los requisitos para subir de nivel."],
+        "priority": 30
     }
 }
 
@@ -200,7 +206,8 @@ main_options = [
     {"title": "📄 Subir CV", "payload": "upload_cv"},
     {"title": "📋 Ver Menú", "payload": "show_menu"},
     {"title": "📝 Crear o Actualizar Perfil", "payload": "actualizar_perfil"},
-    {"title": "📞 Contactar Reclutador", "payload": "solicitar_contacto_reclutador"}
+    {"title": "📞 Contactar Reclutador", "payload": "solicitar_contacto_reclutador"},
+    {"title": "🔝 Subir de Nivel", "payload": "transition_to_higher_bu"}
 ]
 
 def detect_intents(text: str) -> List[str]:
@@ -452,7 +459,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
             await send_message(platform, user_id, "Dime el área de interés (ej. TI, marketing).", bu_name_lower)
             await sync_to_async(chat_state.save)()
             return True
-        elif bu_name_lower in ["huntred", "huntred® executive"] and primary_intent == "executive_roles":
+        elif bu_name_lower in ["huntred", "huntred_executive"] and primary_intent == "executive_roles":
             chat_state.state = "waiting_for_role_level"
             await send_message(platform, user_id, "¿Qué nivel buscas? (ej. gerente, director)", bu_name_lower)
             await sync_to_async(chat_state.save)()
@@ -463,11 +470,62 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
             await sync_to_async(chat_state.save)()
             return True
 
+        # 9. TRANSICIÓN A UNIDAD SUPERIOR
+        elif primary_intent == "transition_to_higher_bu":
+            ml_system = MatchmakingLearningSystem(business_unit=bu_name_lower)
+            transition_proba = ml_system.predict_transition(chat_state.person)
+            if transition_proba > 0.7:  # Umbral ajustable
+                possible_transitions = ml_system.get_possible_transitions(bu_name_lower)
+                if possible_transitions:
+                    message = "¡Felicidades! Tus habilidades y experiencia sugieren que podrías calificar para una unidad superior:\n"
+                    options = []
+                    for bu in possible_transitions:
+                        options.append({"title": bu.capitalize(), "payload": f"move_to_{bu}"})
+                    message += "\n".join([f"{i+1}. {opt['title']}" for i, opt in enumerate(options)])
+                    message += "\nResponde con el número o 'No' para quedarte en tu unidad actual."
+                    await send_message(platform, user_id, message, bu_name_lower)
+                    chat_state.state = "offering_division_change"
+                    chat_state.context["possible_transitions"] = possible_transitions
+                    await sync_to_async(chat_state.save)()
+                else:
+                    await send_message(platform, user_id, "Actualmente no hay unidades superiores a las que puedas transicionar.", bu_name_lower)
+            else:
+                await send_message(platform, user_id, "Aún no cumples con los requisitos para transicionar a una unidad superior. Sigue desarrollando tus habilidades.", bu_name_lower)
+            return True
+
+        # 10. MANEJO DE RESPUESTAS DE TRANSICIÓN
+        elif chat_state.state == "offering_division_change":
+            if text.lower() == "no":
+                await send_message(platform, user_id, "¡Entendido! Seguirás en tu unidad actual.", bu_name_lower)
+                chat_state.state = "idle"
+                await sync_to_async(chat_state.save)()
+                return True
+            try:
+                seleccion = int(text) - 1
+                possible_transitions = chat_state.context.get("possible_transitions", [])
+                if 0 <= seleccion < len(possible_transitions):
+                    target_bu_name = possible_transitions[seleccion]
+                    new_bu = BusinessUnit.objects.get(name=target_bu_name)
+                    persona = chat_state.person
+                    persona.business_unit = new_bu
+                    await sync_to_async(persona.save)()
+                    await send_message(platform, user_id, f"¡Bienvenido a {target_bu_name.capitalize()}! Vamos a actualizar tu perfil.", bu_name_lower)
+                    if target_bu_name == "huntu":
+                        from app.chatbot.workflow.huntu import continuar_perfil_huntu
+                        await continuar_perfil_huntu(plataforma, user_id, new_bu, chat_state, persona)
+                    estado_chat.state = "profile_in_progress"
+                    await sync_to_async(chat_state.save)()
+                else:
+                    await send_message(platform, user_id, "Selecciona una opción válida o 'No'.", bu_name_lower)
+            except ValueError:
+                await send_message(platform, user_id, "Responde con un número válido o 'No'.", bu_name_lower)
+            return True
+
         return False
 
     except Exception as e:
         logger.error(f"Error en handle_known_intents: {e}", exc_info=True)
-        await send_message(platform, user_id, "Ups, algo salió mal. ¿Intentamos de nuevo?", bu_name_lower)
+        await send_message(platform, user_id, "Ups, algo salió mal y no comprendi exactamente que necesitabas. ¿Intentamos de nuevo?", bu_name_lower)
         return False
 
 async def handle_document_upload(

@@ -14,6 +14,14 @@ from joblib import dump, load
 
 logger = logging.getLogger(__name__)
 
+# Diccionario de jerarquía de unidades de negocio
+BUSINESS_UNIT_HIERARCHY = {
+    "amigro": 1,
+    "huntu": 2,
+    "huntred": 3,
+    "huntred_executive": 4,
+}
+
 class MatchmakingLearningSystem:
     def __init__(self, business_unit=None):
         self.business_unit = business_unit
@@ -23,7 +31,12 @@ class MatchmakingLearningSystem:
             settings.ML_MODELS_DIR,
             f"matchmaking_model_{business_unit or 'global'}.pkl"
         )
+        self.transition_model_file = os.path.join(
+            settings.ML_MODELS_DIR,
+            f"transition_model_{business_unit or 'global'}.pkl"
+        )
         self._loaded_model = None
+        self._loaded_transition_model = None
 
     def load_tensorflow(self):
         try:
@@ -52,6 +65,22 @@ class MatchmakingLearningSystem:
                 ('classifier', self.model)
             ])
             logger.info("Modelo RandomForest inicializado (no entrenado).")
+    
+    def load_transition_model(self):
+        if not self._loaded_transition_model and os.path.exists(self.transition_model_file):
+            self._loaded_transition_model = load(self.transition_model_file)
+            logger.info(f"Modelo de transición cargado desde {self.transition_model_file}")
+        elif not os.path.exists(self.transition_model_file):
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import Pipeline
+            self.transition_model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.transition_scaler = StandardScaler()
+            self.transition_pipeline = Pipeline([
+                ('scaler', self.transition_scaler),
+                ('classifier', self.transition_model)
+            ])
+            logger.info("Modelo de transición RandomForest inicializado (no entrenado).")
 
     def _get_applications(self):
         from app.models import Application
@@ -436,7 +465,122 @@ class MatchmakingLearningSystem:
             "aligned_candidates": aligned_count,
             "total_candidates": len(salary_diffs)
         }
+    
+    def load_transition_model(self):
+        """Carga o inicializa el modelo de predicción de transiciones."""
+        if not self._loaded_transition_model and os.path.exists(self.transition_model_file):
+            self._loaded_transition_model = load(self.transition_model_file)
+            logger.info(f"Modelo de transición cargado desde {self.transition_model_file}")
+        elif not os.path.exists(self.transition_model_file):
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import Pipeline
+            self.transition_model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.transition_scaler = StandardScaler()
+            self.transition_pipeline = Pipeline([
+                ('scaler', self.transition_scaler),
+                ('classifier', self.transition_model)
+            ])
+            logger.info("Modelo de transición RandomForest inicializado (no entrenado).")
 
+    def prepare_transition_training_data(self):
+        """Prepara datos para entrenar el modelo de transiciones entre BusinessUnits."""
+        from app.models import Person, BusinessUnit, DivisionTransition
+        # Datos de candidatos que han transicionado
+        transitions = DivisionTransition.objects.select_related('person', 'from_business_unit', 'to_business_unit')
+        data = []
+        for transition in transitions:
+            person = transition.person
+            education_level = {
+                'licenciatura': 1,
+                'maestría': 2,
+                'doctorado': 3
+            }.get(person.metadata.get('education', [''])[0].lower(), 0)
+            data.append({
+                'experience_years': person.experience_years or 0,
+                'skills_count': len(person.skills.split(',')) if person.skills else 0,
+                'certifications_count': len(person.metadata.get('certifications', [])),
+                'education_level': education_level,
+                'openness': person.openness,
+                'conscientiousness': person.conscientiousness,
+                'extraversion': person.extraversion,
+                'agreeableness': person.agreeableness,
+                'neuroticism': person.neuroticism,
+                'transition_label': 1 if transition.success else 0
+            })
+        # Datos de candidatos sin transiciones
+        non_transitions = Person.objects.filter(divisiontransition__isnull=True)
+        for person in non_transitions:
+            education_level = {
+                'licenciatura': 1,
+                'maestría': 2,
+                'doctorado': 3
+            }.get(person.metadata.get('education', [''])[0].lower(), 0)
+            data.append({
+                'experience_years': person.experience_years or 0,
+                'skills_count': len(person.skills.split(',')) if person.skills else 0,
+                'certifications_count': len(person.metadata.get('certifications', [])),
+                'education_level': education_level,
+                'openness': person.openness,
+                'conscientiousness': person.conscientiousness,
+                'extraversion': person.extraversion,
+                'agreeableness': person.agreeableness,
+                'neuroticism': person.neuroticism,
+                'transition_label': 0
+            })
+        df = pd.DataFrame(data)
+        logger.info(f"Datos de transición preparados: {len(df)} registros.")
+        return df
+
+    def train_transition_model(self, df, test_size=0.2):
+        """Entrena el modelo de transiciones con los datos preparados."""
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import classification_report
+        X = df.drop(columns=["transition_label"])
+        y = df["transition_label"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+        self.transition_pipeline.fit(X_train, y_train)
+        dump(self.transition_pipeline, self.transition_model_file)
+        logger.info(f"✅ Modelo de transición entrenado y guardado en {self.transition_model_file}")
+        y_pred = self.transition_pipeline.predict(X_test)
+        report = classification_report(y_test, y_pred)
+        logger.info(f"Reporte de clasificación para transición:\n{report}")
+
+    def predict_transition(self, person):
+        """Predice la probabilidad de que un candidato esté listo para transicionar."""
+        self.load_transition_model()
+        if not self.transition_pipeline:
+            raise FileNotFoundError("El modelo de transición no está entrenado.")
+        education_level = {
+            'licenciatura': 1,
+            'maestría': 2,
+            'doctorado': 3
+        }.get(person.metadata.get('education', [''])[0].lower(), 0)
+        features = {
+            'experience_years': person.experience_years or 0,
+            'skills_count': len(person.skills.split(',')) if person.skills else 0,
+            'certifications_count': len(person.metadata.get('certifications', [])),
+            'education_level': education_level,
+            'openness': person.openness,
+            'conscientiousness': person.conscientiousness,
+            'extraversion': person.extraversion,
+            'agreeableness': person.agreeableness,
+            'neuroticism': person.neuroticism
+        }
+        X = pd.DataFrame([features])
+        proba = self.transition_pipeline.predict_proba(X)[0][1]  # Probabilidad de transición
+        logger.info(f"Probabilidad de transición para {person}: {proba:.2f}")
+        return proba
+
+    def get_possible_transitions(self, current_bu_name):
+        """Obtiene las transiciones posibles desde la unidad de negocio actual."""
+        current_level = BUSINESS_UNIT_HIERARCHY.get(current_bu_name.lower(), 0)
+        possible_transitions = []
+        for bu, level in BUSINESS_UNIT_HIERARCHY.items():
+            if level > current_level:
+                possible_transitions.append(bu)
+        return possible_transitions
+    
 class GrupohuntREDMLPipeline:
     model_config = {
         'huntRED®': {'layers': [256, 128, 64], 'learning_rate': 0.001, 'dropout_rate': 0.3},
@@ -533,6 +677,7 @@ class GrupohuntREDMLPipeline:
             X_scaled, y, test_size=0.2, random_state=42
         )
         return X_train, X_test, y_train, y_test
+
 
     def train_model(self, X_train, y_train, X_test, y_test):
         if self.model is None:
@@ -654,6 +799,31 @@ class GrupohuntREDMLPipeline:
             logger.info(f"Predicción realizada para aplicación {app.id}: {probability:.2%}")
 
         return predictions
+    
+        """Predice la probabilidad de que un candidato esté listo para transicionar."""
+        self.load_transition_model()
+        if not self.transition_pipeline:
+            raise FileNotFoundError("El modelo de transición no está entrenado.")
+        education_level = {
+            'licenciatura': 1,
+            'maestría': 2,
+            'doctorado': 3
+        }.get(person.metadata.get('education', [''])[0].lower(), 0)
+        features = {
+            'experience_years': person.experience_years or 0,
+            'skills_count': len(person.skills.split(',')) if person.skills else 0,
+            'certifications_count': len(person.metadata.get('certifications', [])),
+            'education_level': education_level,
+            'openness': person.openness,
+            'conscientiousness': person.conscientiousness,
+            'extraversion': person.extraversion,
+            'agreeableness': person.agreeableness,
+            'neuroticism': person.neuroticism
+        }
+        X = pd.DataFrame([features])
+        proba = self.transition_pipeline.predict_proba(X)[0][1]  # Probabilidad de transición
+        logger.info(f"Probabilidad de transición para {person}: {proba:.2f}")
+        return proba
     
 class AdaptiveMLFramework(GrupohuntREDMLPipeline):
     def __init__(self, business_unit):

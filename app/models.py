@@ -649,6 +649,13 @@ class Badge(models.Model):
     def __str__(self):
         return self.name
 
+class DivisionTransition(models.Model):
+    person = models.ForeignKey('app.Person', on_delete=models.CASCADE)
+    from_division = models.CharField(max_length=50)
+    to_division = models.CharField(max_length=50)
+    success = models.BooleanField(default=True)
+    date = models.DateTimeField(auto_now_add=True)
+    
 class MetaAPI(models.Model):
     business_unit = models.OneToOneField(
         BusinessUnit,
