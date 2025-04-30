@@ -82,24 +82,29 @@ class ChatBotHandler:
         """Procesa mensajes entrantes de forma robusta y validada."""
         # Log inicial para verificar que business_unit llega correctamente
         logger.info(f"[process_message] Recibido mensaje de {user_id} en {platform} para {business_unit.name}: {message}")
-        # Validar business_unit
+    
+        # Validar business_unit primero
         if not isinstance(business_unit, BusinessUnit):
-            logger.error(f"[handle_known_intents] business_unit no es un BusinessUnit, es {type(business_unit)}")
+            logger.error(f"[process_message] business_unit no es un BusinessUnit, es {type(business_unit)}")
             await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
             return False
-        # Creacion de Chatstate
+
+        # Inicializar chat_state al principio
+        user, chat_state, _ = await self._get_or_create_user_and_chat_state(user_id, platform, business_unit, payload)
         if chat_state is None:
-            logger.error(f"Failed to initialize chat_state for chat_id: {chat_id}")
-            return "Error: Could not initialize chat state."
+            logger.error(f"Failed to initialize chat_state for user_id: {user_id}")
+            await send_message(platform, user_id, "Error: No se pudo inicializar el estado del chat.", self.get_business_unit_key(business_unit))
+            return False
+
         # Validar chat_state
         if not isinstance(chat_state, ChatState):
-            logger.error(f"[handle_known_intents] chat_state no es un ChatState, es {type(chat_state)}")
-            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
+            logger.error(f"[process_message] chat_state no es un ChatState, es {type(chat_state)}")
+            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", self.get_business_unit_key(business_unit))
             return False
-        
+
         # Validar chat_state.person
         if not hasattr(chat_state, 'person') or chat_state.person is None:
-            logger.error(f"[handle_known_intents] chat_state.person no está asignado para user_id: {user_id}. Esto no debería ocurrir.")
+            logger.error(f"[process_message] chat_state.person no está asignado para user_id: {user_id}. Esto no debería ocurrir.")
             await send_message(platform, user_id, "No se encontró tu perfil. Por favor, inicia de nuevo.", business_unit.name.lower())
             return False
         

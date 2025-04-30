@@ -12,6 +12,7 @@ from django.urls import path, include
 from django.http import HttpResponse
 from django.views.generic import RedirectView
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.conf.urls.static import static
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +57,11 @@ except ImportError:
 # Archivos estáticos solo en modo DEBUG
 if settings.DEBUG:
     urlpatterns += staticfiles_urlpatterns()
+
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns += [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ]
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

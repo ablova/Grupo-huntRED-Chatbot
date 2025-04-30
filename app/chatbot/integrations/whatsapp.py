@@ -3,7 +3,6 @@
 # Módulo para manejar la integración con WhatsApp Business API.
 # Procesa mensajes entrantes, envía respuestas, y gestiona interacciones como botones y listas.
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
-
 import re
 import json
 import logging
@@ -16,11 +15,9 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from tenacity import retry, stop_after_attempt, wait_exponential
-
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import Person, ChatState, BusinessUnit, WhatsAppAPI, Template
-from app.chatbot.integrations.services import send_message
-
+from app.chatbot.integrations.services import send_message, RateLimiter  # Importamos RateLimit
 
 # Configuración del logger para trazabilidad y depuración
 logger = logging.getLogger('chatbot')
@@ -30,7 +27,8 @@ whatsapp_semaphore = asyncio.Semaphore(10)  # Limita la concurrencia para envío
 ENABLE_ADVANCED_PROCESSING = True  # Habilita el procesamiento avanzado con ChatBotHandler
 MAX_RETRIES = 3  # Máximo de reintentos para solicitudes HTTP
 REQUEST_TIMEOUT = 10.0  # Tiempo de espera para solicitudes HTTP (segundos)
-
+# Instancia del RateLimiter (limita a 5 mensajes por segundo por usuario)
+rate_limiter = RateLimit(rate=5, per=1)  # Ajusta rate y per según necesidades
 # ------------------------------------------------------------------------------
 # Webhook Principal para WhatsApp
 # ------------------------------------------------------------------------------
@@ -56,12 +54,31 @@ async def whatsapp_webhook(request):
             logger.error("[whatsapp_webhook] Error: 'entry' no encontrado en el payload")
             return JsonResponse({"status": "error", "message": "Formato de payload inválido"}, status=400)
 
-        await handle_incoming_message(payload)
-        return JsonResponse({"status": "success"}, status=200)
+        entry = payload.get('entry', [])[0]
+        changes = entry.get('changes', [])[0]
+        value = changes.get('value', {})
+        messages = value.get('messages', [])
+        if not messages:
+            logger.info("No hay mensajes para procesar, revisando statuses")
+            statuses = value.get('statuses', [])
+            for status in statuses:
+                logger.info(f"Estado recibido: {status['status']} para mensaje {status['id']}")
+            return JsonResponse({"status": "success", "message": "Estado procesado"}, status=200)
+
+        message = messages[0]
+        user_id = message.get('from')
+
+        # Aplicar RateLimiter por user_id
+        async with rate_limiter.acquire(user_id=user_id):
+            await handle_incoming_message(payload)
+            return JsonResponse({"status": "success"}, status=200)
 
     except json.JSONDecodeError:
         logger.error("[whatsapp_webhook] Error: JSON mal formado recibido")
         return JsonResponse({"status": "error", "message": "JSON inválido"}, status=400)
+    except asyncio.TimeoutError:
+        logger.error(f"❌ Rate limit excedido para user_id: {user_id}")
+        return JsonResponse({"status": "error", "message": "Demasiadas solicitudes, intenta de nuevo más tarde"}, status=429)
     except Exception as e:
         logger.error(f"[whatsapp_webhook] Error inesperado: {e}", exc_info=True)
         return JsonResponse({"status": "error", "message": "Error interno"}, status=500)

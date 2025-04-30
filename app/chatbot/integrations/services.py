@@ -1,11 +1,10 @@
 # /home/pablo/app/chatbot/integrations/services.py
-# /home/pablo/app/chatbot/integrations/services.py
-
 import logging
 import smtplib
 import asyncio
 import ssl
 import itertools
+import time
 from asgiref.sync import sync_to_async
 from typing import Optional, List, Dict, Union, Any, Tuple
 from django.core.cache import cache
@@ -36,8 +35,8 @@ whatsapp_semaphore = asyncio.Semaphore(10)
 # Menús dinámicos por unidad de negocio
 MENU_OPTIONS_BY_BU = {
     "amigro": [
-        {"title": "📝 Crear Perfil", "payload": "actualizar_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
-        {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
+        {"title": "📝 Crear Perfil", "payload": "crear_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
+        {"title": "📝 Actualizar Perfil", "payload": "actualizar_perfil", "description": "Gestiona y actualiza tu perfil."},
         {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
         {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
         {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
@@ -49,7 +48,7 @@ MENU_OPTIONS_BY_BU = {
         {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
     ],
     "huntred": [
-        {"title": "📝 Creación / Actualizar Perfil", "payload": "actualizar_perfil", "description": "Modifica tus datos personales o profesionales."},
+        {"title": "📝 Creación  Perfil", "payload": "crear_perfil", "description": "Modifica tus datos personales o profesionales."},
         {"title": "🔍 Buscar Empleo", "payload": "buscar_empleo", "description": "Encuentra trabajos específicos."},
         {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Gestiona tu perfil."},
         {"title": "📊 Ver Vacantes", "payload": "ver_vacantes", "description": "Lista de empleos disponibles."},
@@ -62,7 +61,7 @@ MENU_OPTIONS_BY_BU = {
         {"title": "💡 Tips Entrevista", "payload": "preparacion_entrevista", "description": "Consejos para entrevistas."},
     ],
     "huntu": [
-        {"title": "📝 Creación / Actualizar Perfil", "payload": "actualizar_perfil", "description": "Modifica tus datos personales o profesionales."},
+        {"title": "📝 Creación  Perfil", "payload": "crear_perfil", "description": "Modifica tus datos personales o profesionales."},
         {"title": "🔍 Explorar Vacantes", "payload": "explorar_vacantes", "description": "Descubre oportunidades únicas."},
         {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Actualiza tu información."},
         {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
@@ -89,7 +88,7 @@ MENU_OPTIONS_BY_BU = {
 MENU_OPTIONS_BY_STATE = {
     "amigro": {
         "initial": [
-            {"title": "📝 Crear Perfil", "payload": "actualizar_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
+            {"title": "📝 Crear Perfil", "payload": "crear_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
             {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
@@ -104,7 +103,7 @@ MENU_OPTIONS_BY_STATE = {
             {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
         ],
         "profile_in_progress": [
-            {"title": "📝 Crear Perfil", "payload": "actualizar_perfil", "description": "Sigue completando tu perfil."},
+            {"title": "📝 Crear Perfil", "payload": "crear_perfil", "description": "Sigue completando tu perfil."},
             {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
             {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
             {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
@@ -204,6 +203,37 @@ def get_greeting_by_time() -> str:
         return "🌇 Buenas tardes"
     else:
         return "🌙 Buenas noches"
+
+class RateLimiter:
+    def __init__(self, max_requests=10, time_window=60):
+        self.max_requests = max_requests  # Máximo de mensajes por usuario
+        self.time_window = time_window    # Ventana de tiempo en segundos
+
+    async def check_rate_limit(self, user_id: str) -> bool:
+        cache_key = f"rate_limit:{user_id}"
+        current_time = time.time()
+        
+        # Obtener historial de mensajes
+        request_history = cache.get(cache_key, [])
+        
+        # Filtrar mensajes dentro de la ventana de tiempo
+        request_history = [t for t in request_history if current_time - t < self.time_window]
+        
+        if len(request_history) >= self.max_requests:
+            logger.warning(f"Rate limit excedido para user_id={user_id}")
+            return False
+        
+        # Añadir nuevo timestamp
+        request_history.append(current_time)
+        cache.set(cache_key, request_history, timeout=self.time_window)
+        return True
+
+async def apply_rate_limit(platform: str, user_id: str, message: dict) -> bool:
+    limiter = RateLimiter(max_requests=10, time_window=60)
+    if not await limiter.check_rate_limit(user_id):
+        await send_message(platform, user_id, "Por favor, espera un momento antes de enviar más mensajes.", "default")
+        return False
+    return True
 
 class Button:
     """Clase para representar botones interactivos."""

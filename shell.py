@@ -1388,6 +1388,8 @@ USER=pablollh
 GROUP=ai_huntred
 
 # Proyecto
+sudo chown -R pablollh:ai_huntred /home/pablo
+sudo chown -R pablollh:ai_huntred /home/pablo/app
 sudo chown -R pablollh:ai_huntred /home/pablo/ai_huntred
 sudo find /home/pablo/ai_huntred -type d -exec chmod 750 {} \;
 sudo find /home/pablo/ai_huntred -type f -exec chmod 640 {} \;

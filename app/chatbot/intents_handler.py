@@ -98,6 +98,11 @@ INTENT_PATTERNS = {
         "responses": ["Dame tu correo asociado a la postulación y te daré el estado actual."],
         "priority": 25
     },
+    "crear_perfil": {
+        "patterns": [r"\b(crear\s+perfil|iniciar\s+perfil|comenzar\s+perfil)\b"],
+        "responses": ["¡Vamos a crear tu perfil! Empecemos con tu nombre."],
+        "priority": 30
+    },
     "actualizar_perfil": {
         "patterns": [r"\b(actualizar\s+perfil|cambiar\s+datos|modificar\s+información|editar\s+mi\s+perfil)\b"],
         "responses": ["¿Qué quieres actualizar? Puedes decirme: nombre, email, teléfono, habilidades, experiencia o salario esperado."],
@@ -264,7 +269,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", business_unit.name.lower())
         return False
     
-    bu_name_lower = business_unit.name.lower()
+    bu_name_lower = business_unit.name.lower().replace('®', '').strip()
     cache_key = f"intent:{user_id}:{text}"
     cached_response = cache.get(cache_key)
 
@@ -285,7 +290,13 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         # Respuestas básicas desde INTENT_PATTERNS
         if primary_intent in INTENT_PATTERNS:
             responses = INTENT_PATTERNS[primary_intent]['responses']
-            response = random.choice(responses.get(bu_name_lower, responses.get('default', ['Opción no disponible'])))
+            # Manejar respuestas según tipo
+            if isinstance(responses, list):
+                # Si responses es una lista, elegir una respuesta directamente
+                response = random.choice(responses)
+            else:
+                # Si responses es un diccionario, elegir según la unidad de negocio
+                response = random.choice(responses.get(bu_name_lower, responses.get('default', ['Opción no disponible'])))
             await send_message(platform, user_id, response, bu_name_lower)
             cache.set(cache_key, response, timeout=600)
 
@@ -296,7 +307,7 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         elif primary_intent == "saludo":
             from app.chatbot.workflow.common import send_welcome_message
             await send_welcome_message(user_id, platform, business_unit)
-            if not handler.is_profile_complete(chat_state.person, business_unit):
+            if handler and not handler.is_profile_complete(chat_state.person, business_unit):
                 tos_url = get_tos_url(business_unit)
                 await send_message(platform, user_id, f"📜 Revisa nuestros Términos de Servicio: {tos_url}", bu_name_lower)
                 await send_options(platform, user_id, "¿Aceptas los Términos de Servicio?",
@@ -314,20 +325,28 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         elif primary_intent == "show_menu":
             await send_menu(platform, user_id, business_unit)
             return True
-
+        
         # 2. CREACIÓN Y GESTIÓN DE PERFIL
-        elif primary_intent == "actualizar_perfil":
+        elif primary_intent in ["crear_perfil", "actualizar_perfil"]:
             from app.chatbot.workflow.common import iniciar_creacion_perfil
-            await iniciar_creacion_perfil(platform, user_id, business_unit, chat_state, user)
+            if not handler.is_profile_complete(user, business_unit):
+                # Perfil incompleto o no existe, iniciar creación
+                logger.info(f"[handle_known_intents] Perfil incompleto para {user_id}, iniciando creación")
+                await iniciar_creacion_perfil(platform, user_id, business_unit, chat_state, user)
+            else:
+                # Perfil completo, permitir actualización
+                await send_message(platform, user_id, "¿Qué quieres actualizar? Puedes decirme: nombre, email, teléfono, habilidades, experiencia o salario esperado.", bu_name_lower)
+                chat_state.state = "updating_profile"
+                await sync_to_async(chat_state.save)()
             return True
         elif primary_intent == "mi_perfil":
-            if not user.is_profile_complete():
+            from app.chatbot.workflow.common import obtener_resumen_perfil
+            if not handler.is_profile_complete(user, business_unit):
                 await send_message(platform, user_id, "Primero necesitas crear un perfil. ¿Deseas hacerlo ahora?", bu_name_lower)
                 await send_options(platform, user_id, "Selecciona una opción:",
-                                   [{"title": "Sí", "payload": "actualizar_perfil"}, {"title": "No", "payload": "no_action"}],
+                                   [{"title": "Sí", "payload": "crear_perfil"}, {"title": "No", "payload": "no_action"}],
                                    bu_name_lower)
             else:
-                from app.chatbot.workflow.common import obtener_resumen_perfil
                 recap_message = await obtener_resumen_perfil(user)
                 await send_message(platform, user_id, recap_message, bu_name_lower)
                 chat_state.state = "waiting_for_profile_confirmation"
@@ -526,7 +545,8 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
 
     except Exception as e:
         logger.error(f"Error en handle_known_intents: {e}", exc_info=True)
-        await send_message(platform, user_id, "Ups, algo salió mal y no comprendi exactamente que necesitabas. ¿Intentamos de nuevo?", bu_name_lower)
+        await send_message(platform, user_id, "Ups, algo salió mal y no comprendí exactamente qué necesitabas. ¿Intentamos de nuevo?", bu_name_lower)
+        await send_menu(platform, user_id, business_unit)
         return False
 
 async def handle_document_upload(

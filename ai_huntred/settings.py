@@ -76,6 +76,8 @@ INSTALLED_APPS = [
     'app.sexsi',
     'app.milkyleak',
     'silk',
+    'debug_toolbar',
+    'django_extensions',
 #    'django_wait_for_db',  # Debe estar aquí
 ]
 
@@ -91,6 +93,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'silk.middleware.SilkyMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 # Silk Configuration
@@ -337,3 +340,13 @@ class DynamicEmailBackend:
             recipient_list=recipient_list,
             connection=email_backend,
         )
+
+# Configuración de Django Debug Toolbar
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
+
+DEBUG_TOOLBAR_CONFIG = {
+    'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+    'SHOW_TEMPLATE_CONTEXT': True,
+}
