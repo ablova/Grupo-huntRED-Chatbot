@@ -206,24 +206,20 @@ def get_greeting_by_time() -> str:
 
 class RateLimiter:
     def __init__(self, max_requests=10, time_window=60):
-        self.max_requests = max_requests  # Máximo de mensajes por usuario
-        self.time_window = time_window    # Ventana de tiempo en segundos
+        self.max_requests = max_requests
+        self.time_window = time_window
 
     async def check_rate_limit(self, user_id: str) -> bool:
         cache_key = f"rate_limit:{user_id}"
         current_time = time.time()
-        
-        # Obtener historial de mensajes
         request_history = cache.get(cache_key, [])
-        
-        # Filtrar mensajes dentro de la ventana de tiempo
         request_history = [t for t in request_history if current_time - t < self.time_window]
         
         if len(request_history) >= self.max_requests:
             logger.warning(f"Rate limit excedido para user_id={user_id}")
+            cache.set(cache_key, request_history, timeout=self.time_window)
             return False
         
-        # Añadir nuevo timestamp
         request_history.append(current_time)
         cache.set(cache_key, request_history, timeout=self.time_window)
         return True
@@ -776,6 +772,22 @@ class MessageService:
             del self._api_instances[platform]
         logger.info(f"Caché invalidado para {platform}")
 
+    async def send_document(self, platform: str, user_id: str, file_url: str, caption: str) -> bool:
+        api_instance = await self.get_api_instance(platform)
+        if not api_instance:
+            logger.error(f"No se encontró configuración para {platform}")
+            return False
+
+        if platform == "telegram":
+            from app.chatbot.integrations.telegram import send_telegram_document
+            return await send_telegram_document(user_id, file_url, caption, api_instance, self.business_unit.name)
+        elif platform == "whatsapp":
+            from app.chatbot.integrations.whatsapp import send_whatsapp_document
+            return await send_whatsapp_document(user_id, file_url, caption, api_instance, self.business_unit)
+        # Add handlers for Messenger, Slack, Instagram
+        logger.error(f"Envío de documentos no soportado para {platform}")
+        return False
+    
 class EmailService:
     """Servicio para enviar correos electrónicos."""
     def __init__(self, business_unit: BusinessUnit):

@@ -19,60 +19,63 @@ REQUEST_TIMEOUT = 10.0  # segundos (si no está definido globalmente)
 CACHE_TIMEOUT = 600  # 10 minutos
 
 @csrf_exempt
-async def messenger_webhook(request, page_id):
-    """
-    Webhook de Messenger para manejar mensajes entrantes y verificación de token.
-    """
-    if request.method == 'GET':
-        return await verify_messenger_token(request, page_id)
-    elif request.method == 'POST':
-        try:
-            body = request.body.decode('utf-8')
-            payload = json.loads(body)
-            logger.info(f"[messenger_webhook] Payload recibido: {json.dumps(payload, indent=2)}")
-    
-            # Obtener MessengerAPI basado en page_id
-            messenger_api = await sync_to_async(
-                MessengerAPI.objects.filter(page_id=page_id, is_active=True).select_related('meta_api').first
-            )()
+async def messenger_webhook(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
+        
+        payload = json.loads(request.body.decode("utf-8"))
+        entry = payload.get("entry", [{}])[0]
+        messaging = entry.get("messaging", [{}])[0]
+        sender_id = messaging.get("sender", {}).get("id")
+        message = messaging.get("message", {})
+        
+        messenger_api = await sync_to_async(MessengerAPI.objects.filter(is_active=True).first)()
+        if not messenger_api:
+            logger.error("No se encontró configuración de MessengerAPI activa")
+            return JsonResponse({"status": "error", "message": "Configuración no encontrada"}, status=404)
 
-            if not messenger_api:
-                logger.error(f"MessengerAPI no encontrado para page_id: {page_id}")
-                return HttpResponse('Configuración no encontrada', status=404)
+        business_unit = await sync_to_async(lambda: messenger_api.business_unit)()
+        chatbot = ChatBotHandler()
 
-            # Procesar los mensajes recibidos
-            for entry in payload.get('entry', []):
-                for change in entry.get('changes', []):
-                    value = change.get('value', {})
-                    messages = value.get('messages', [])
-                    for message in messages:
-                        sender_id = message.get('from')
-                        message_text = message.get('message', {}).get('text', '').strip()
-                        if not message_text:
-                            logger.warning(f"Mensaje vacío recibido de {sender_id}")
-                            continue
-                        logger.info(f"Mensaje recibido de {sender_id}: {message_text}")
+        text = message.get("text", "").strip()
+        attachments = message.get("attachments", [])
+        if attachments:
+            attachment = attachments[0]
+            if attachment["type"] == "file":
+                message_dict = {
+                    "messages": [{
+                        "id": messaging.get("mid", ""),
+                        "file_id": attachment["payload"]["url"],
+                        "file_name": "document",
+                        "mime_type": attachment.get("mime_type", "application/pdf")
+                    }],
+                    "chat": {"id": sender_id}
+                }
+                await chatbot.process_message(
+                    platform="messenger",
+                    user_id=sender_id,
+                    message=message_dict,
+                    business_unit=business_unit,
+                    payload=payload
+                )
+                return JsonResponse({"status": "success"}, status=200)
 
-                        # Obtener o crear el ChatState
-                        chat_state = await get_or_create_chat_state(sender_id, 'messenger')
-
-                        # Proceso el mensaje con el ChatBotHandler
-                        chatbot_handler = ChatBotHandler()
-                        response_text, options = await chatbot_handler.process_message('messenger', sender_id, message_text, chat_state.business_unit)
-
-                        # Enviar la respuesta a Messenger
-                        await send_messenger_response(sender_id, response_text, options, chat_state.business_unit, messenger_api)
-
-            return HttpResponse(status=200)
-        except json.JSONDecodeError as e:
-            logger.error(f"[messenger_webhook] JSON inválido: {e}", exc_info=True)
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-        except Exception as e:
-            logger.error(f"[messenger_webhook] Error en webhook de Messenger: {e}", exc_info=True)
-            return JsonResponse({"error": "Internal Server Error"}, status=500)
-    else:
-        logger.warning(f"[messenger_webhook] Método no permitido: {request.method}")
-        return HttpResponse(status=405)
+        message_dict = {
+            "messages": [{"id": messaging.get("mid", ""), "text": {"body": text}}],
+            "chat": {"id": sender_id}
+        }
+        await chatbot.process_message(
+            platform="messenger",
+            user_id=sender_id,
+            message=message_dict,
+            business_unit=business_unit,
+            payload=payload
+        )
+        return JsonResponse({"status": "success"}, status=200)
+    except Exception as e:
+        logger.error(f"Error en messenger_webhook: {e}")
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 async def verify_messenger_token(request, page_id):
     """
@@ -187,7 +190,32 @@ async def send_messenger_image(user_id: str, image_url: str, caption: str, acces
         response.raise_for_status()
 
     logger.info(f"✅ Imagen enviada a {user_id} en Messenger.")
-    
+
+async def send_messenger_document(user_id: str, file_url: str, caption: str, api_instance: MessengerAPI) -> bool:
+    try:
+        url = f"https://graph.facebook.com/v22.0/me/messages"
+        headers = {
+            "Authorization": f"Bearer {api_instance.page_access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "recipient": {"id": user_id},
+            "message": {
+                "attachment": {
+                    "type": "file",
+                    "payload": {"url": file_url}
+                }
+            }
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        logger.info(f"[send_messenger_document] Documento enviado a {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"[send_messenger_document] Error: {e}")
+        return False
+     
 async def fetch_messenger_user_data(user_id: str, api_instance: MessengerAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
         if not isinstance(api_instance, MessengerAPI) or not hasattr(api_instance, 'page_access_token') or not api_instance.page_access_token:

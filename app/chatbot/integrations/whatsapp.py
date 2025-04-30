@@ -315,19 +315,9 @@ async def handle_interactive_message(message, sender_id, chatbot, business_unit,
         await send_message('whatsapp', sender_id, "Interacción no soportada.", business_unit.name.lower())
 
 async def handle_media_message(message, sender_id, chatbot, business_unit, person, chat_state, payload):
-    """
-    Procesa mensajes de medios (imagen, audio, etc.).
-
-    Args:
-        message: Diccionario con el mensaje recibido.
-        sender_id: ID del usuario (wa_id).
-        chatbot: Instancia de ChatBotHandler.
-        business_unit: Instancia de BusinessUnit.
-        person: Instancia de Person.
-        chat_state: Instancia de ChatState.
-        payload: Payload completo del webhook.
-    """
     media_id = message.get(message['type'], {}).get('id')
+    mime_type = message.get(message['type'], {}).get('mime_type')
+    file_name = message.get(message['type'], {}).get('file_name', 'document')
     if not media_id:
         logger.warning("Mensaje de medio recibido sin 'id'")
         await send_message('whatsapp', sender_id, "No pude procesar el medio enviado.", business_unit.name.lower())
@@ -343,8 +333,44 @@ async def handle_media_message(message, sender_id, chatbot, business_unit, perso
         await send_message('whatsapp', sender_id, "No pude descargar el medio enviado.", business_unit.name.lower())
         return
 
-    logger.info(f"Media URL: {media_url}")
-    await send_message('whatsapp', sender_id, "Medio recibido correctamente.", business_unit.name.lower())
+    message_dict = {
+        "messages": [{"id": message.get('id', ''), "file_id": media_id, "file_name": file_name, "mime_type": mime_type}],
+        "chat": {"id": sender_id}
+    }
+    response = await chatbot.process_message(
+        platform='whatsapp',
+        user_id=sender_id,
+        message=message_dict,
+        business_unit=business_unit,
+        payload=payload
+    )
+
+@retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
+async def send_whatsapp_document(user_id: str, file_url: str, caption: str, whatsapp_api: WhatsAppAPI, business_unit: BusinessUnit) -> bool:
+    try:
+        url = build_whatsapp_url(whatsapp_api)
+        headers = {
+            "Authorization": f"Bearer {whatsapp_api.api_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": user_id,
+            "type": "document",
+            "document": {
+                "link": file_url,
+                "caption": caption
+            }
+        }
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        logger.info(f"[send_whatsapp_document] Documento enviado a {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"[send_whatsapp_document] Error enviando documento: {e}")
+        return False
 
 async def handle_location_message(message, sender_id, chatbot, business_unit, person, chat_state, payload):
     """
@@ -410,7 +436,6 @@ async def send_whatsapp_message(
         bool: True si el mensaje se envió correctamente, False en caso contrario.
     """
     try:
-        # Validar parámetros de entrada
         if not user_id or not isinstance(user_id, str):
             logger.error("[send_whatsapp_message] user_id inválido")
             return False
@@ -418,35 +443,31 @@ async def send_whatsapp_message(
             logger.error("[send_whatsapp_message] message inválido o vacío")
             return False
 
-        # Obtener configuración de WhatsAppAPI
         whatsapp_api = None
         if business_unit:
             whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(business_unit=business_unit, is_active=True).first)()
+        elif phone_id:
+            whatsapp_api = await sync_to_async(WhatsAppAPI.objects.filter(phoneID=phone_id, is_active=True).first)()
 
-        if whatsapp_api:
-            phone_id = whatsapp_api.phoneID
-            api_token = whatsapp_api.api_token
-        else:
-            logger.error("[send_whatsapp_message] Falta phone_id o api_token válido")
+        if not whatsapp_api:
+            logger.error(f"[send_whatsapp_message] No se encontró WhatsAppAPI para business_unit={business_unit.name if business_unit else 'None'}, phone_id={phone_id}")
             return False
 
+        phone_id = whatsapp_api.phoneID
+        api_token = whatsapp_api.api_token
         if not phone_id or not api_token:
-            logger.error("[send_whatsapp_message] phone_id o api_token no proporcionados")
+            logger.error(f"[send_whatsapp_message] phone_id={phone_id}, api_token={'set' if api_token else 'unset'} no válidos")
             return False
 
-        # Validar longitud del mensaje (límite de WhatsApp: 4096 caracteres)
         if len(message) > 4096:
             logger.warning(f"[send_whatsapp_message] Mensaje demasiado largo para {user_id}, truncando a 4093 caracteres")
             message = message[:4093] + "..."
 
-        # Preparar URL y encabezados
         url = build_whatsapp_url(whatsapp_api)
         headers = {
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json"
         }
-
-        # Construir payload base
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -455,29 +476,24 @@ async def send_whatsapp_message(
             "text": {"body": message}
         }
 
-        # Manejar botones
         if buttons:
-            # Validar estructura de los botones
             valid_buttons = [
                 btn for btn in buttons
                 if isinstance(btn, dict) and btn.get('title') and btn.get('payload')
             ]
             if not valid_buttons:
                 logger.warning(f"[send_whatsapp_message] No se encontraron botones válidos para {user_id}")
-                payload["type"] = "text"  # Enviar como texto plano si no hay botones válidos
             else:
-                # Nota: No truncamos botones aquí porque send_smart_options maneja listas grandes
                 formatted_buttons = [
                     {
                         "type": "reply",
                         "reply": {
                             "id": btn.get('payload', f'btn_id_{i}'),
-                            "title": btn.get('title', '')[:20]  # Límite de 20 caracteres por título
+                            "title": btn.get('title', '')[:20]
                         }
                     }
                     for i, btn in enumerate(valid_buttons)
                 ]
-                logger.debug(f"Botones formateados: {formatted_buttons}")
                 payload["type"] = "interactive"
                 payload["interactive"] = {
                     "type": "button",
@@ -485,7 +501,6 @@ async def send_whatsapp_message(
                     "action": {"buttons": formatted_buttons}
                 }
 
-        # Enviar solicitud
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()

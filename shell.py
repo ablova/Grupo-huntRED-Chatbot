@@ -1345,7 +1345,7 @@ class JobScraper(EmailProcessor):
             await mail.logout()
 
 if __name__ == "__main__":
-    config = {"imap_server": "imap.gmail.com", "email": "pablo@huntred.com", "password": "tu_contraseña"}
+    config = {"imap_server": "imap.gmail.com", "email": "pablo@huntred.com", "password": "Natalia&Patricio1113!"}
     scraper = JobScraper(config)
     asyncio.run(scraper.process_job_emails())
 

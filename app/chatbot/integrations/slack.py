@@ -9,6 +9,64 @@ from app.chatbot.chatbot import ChatBotHandler
 
 logger = logging.getLogger('chatbot')
 
+ 
+@csrf_exempt
+async def slack_webhook(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
+        
+        payload = json.loads(request.body.decode("utf-8"))
+        event = payload.get("event", {})
+        user_id = event.get("user")
+        channel = event.get("channel")
+        text = event.get("text", "").strip()
+        files = event.get("files", [])
+
+        slack_api = await sync_to_async(SlackAPI.objects.filter(is_active=True).first)()
+        if not slack_api:
+            logger.error("No se encontró configuración de SlackAPI activa")
+            return JsonResponse({"status": "error", "message": "Configuración no encontrada"}, status=404)
+
+        business_unit = await sync_to_async(lambda: slack_api.business_unit)()
+        chatbot = ChatBotHandler()
+
+        if files:
+            file = files[0]
+            message_dict = {
+                "messages": [{
+                    "id": event.get("ts", ""),
+                    "file_id": file["url_private"],
+                    "file_name": file["name"],
+                    "mime_type": file["mimetype"]
+                }],
+                "chat": {"id": channel}
+            }
+            await chatbot.process_message(
+                platform="slack",
+                user_id=user_id,
+                message=message_dict,
+                business_unit=business_unit,
+                payload=payload
+            )
+            return JsonResponse({"status": "success"}, status=200)
+
+        message_dict = {
+            "messages": [{"id": event.get("ts", ""), "text": {"body": text}}],
+            "chat": {"id": channel}
+        }
+        await chatbot.process_message(
+            platform="slack",
+            user_id=user_id,
+            message=message_dict,
+            business_unit=business_unit,
+            payload=payload
+        )
+        return JsonResponse({"status": "success"}, status=200)
+    except Exception as e:
+        logger.error(f"Error en slack_webhook: {e}")
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
 async def send_slack_message(channel_id: str, message: str, bot_token: str) -> bool:
     """Envía un mensaje de texto a un canal de Slack."""
     url = "https://slack.com/api/chat.postMessage"
@@ -79,52 +137,25 @@ async def send_slack_message_with_buttons(channel_id: str, message: str, buttons
         logger.error(f"❌ Error enviando mensaje con botones a Slack: {e}", exc_info=True)
         return False
 
-@csrf_exempt
-async def slack_webhook(request):
-    """Webhook de Slack para recibir eventos y procesar mensajes."""
-    if request.method != "POST":
-        return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
-
+async def send_slack_document(channel_id: str, file_url: str, caption: str, bot_token: str) -> bool:
     try:
-        payload = json.loads(request.body.decode("utf-8"))
-        event_type = payload.get("type")
-
-        if event_type == "url_verification":
-            return JsonResponse({"challenge": payload["challenge"]}, status=200)
-
-        if event_type == "event_callback":
-            event = payload["event"]
-            if event["type"] == "message" and "bot_id" not in event:
-                channel_id = event["channel"]
-                text = event["text"]
-                business_unit_id = request.headers.get("X-Business-Unit-ID")
-
-                if not business_unit_id:
-                    return JsonResponse({"status": "error", "message": "Business Unit ID no proporcionado"}, status=400)
-
-                business_unit = await sync_to_async(BusinessUnit.objects.get)(id=business_unit_id)
-                slack_api = await sync_to_async(SlackAPI.objects.get)(business_unit=business_unit, is_active=True)
-
-                chatbot = ChatBotHandler()
-                response_text = await chatbot.process_message(
-                    platform="slack",
-                    user_id=channel_id,
-                    text=text,
-                    business_unit=business_unit
-                )
-
-                await send_slack_message(
-                    channel_id=channel_id,
-                    message=response_text,
-                    bot_token=slack_api.bot_token
-                )
-                return JsonResponse({"status": "success"}, status=200)
-
-        return JsonResponse({"status": "ignored"}, status=200)
+        url = "https://slack.com/api/files.upload"
+        headers = {"Authorization": f"Bearer {bot_token}"}
+        payload = {
+            "channels": channel_id,
+            "content": caption,
+            "file": file_url,
+            "filename": "document"
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, headers=headers, data=payload)
+            response.raise_for_status()
+        logger.info(f"[send_slack_document] Documento enviado a {channel_id}")
+        return True
     except Exception as e:
-        logger.error(f"❌ Error en webhook de Slack: {str(e)}", exc_info=True)
-        return JsonResponse({"status": "error", "message": "Error interno del servidor"}, status=500)
-    
+        logger.error(f"[send_slack_document] Error: {e}")
+        return False
+ 
 async def fetch_slack_user_data(user_id: str, api_instance: SlackAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
         if not isinstance(api_instance, SlackAPI) or not hasattr(api_instance, 'bot_token') or not api_instance.bot_token:

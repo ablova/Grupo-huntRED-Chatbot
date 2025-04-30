@@ -267,8 +267,8 @@ async def obtener_resumen_perfil(persona: Person) -> str:
     recap_lines.append("\n¿Es correcta esta información? Responde 'Sí' o 'No'.")
     return "\n".join(recap_lines)
 
-def send_welcome_message(user_id, platform, business_unit):
-    """ Envía un mensaje de bienvenida, el logo de la unidad y el menú de servicios. """
+async def send_welcome_message(user_id: str, platform: str, business_unit: BusinessUnit) -> str:
+    """Envía un mensaje de bienvenida, el logo de la unidad y el menú de servicios."""
     # Obtener el nombre de la unidad de negocio
     business_unit_name = business_unit.name.lower()
 
@@ -294,13 +294,13 @@ def send_welcome_message(user_id, platform, business_unit):
     logo_url = logo_urls.get(business_unit_name, settings.MEDIA_URL + "Grupo_huntRED.png")
 
     # Enviar mensaje de bienvenida
-    send_message(platform, user_id, welcome_message, business_unit)
+    await send_message(platform, user_id, welcome_message, business_unit.name.lower())
 
     # Enviar logo de la unidad de negocio
-    send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit)
+    await send_image(platform, user_id, "Aquí tienes nuestro logo 📌", logo_url, business_unit.name.lower())
 
     # Enviar menú de servicios
-    send_menu(platform, user_id, business_unit)
+    await send_menu(platform, user_id, business_unit.name.lower())
 
     return "Mensaje de bienvenida enviado correctamente."
 

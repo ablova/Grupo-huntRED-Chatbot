@@ -18,50 +18,63 @@ CACHE_TIMEOUT = 600  # 10 minutos
 
 @csrf_exempt
 async def instagram_webhook(request):
-    """
-    Webhook de Instagram para manejar mensajes entrantes y verificación de token.
-    """
-    if request.method == 'GET':
-        return await verify_instagram_token(request)
-    elif request.method == 'POST':
-        try:
-            body = request.body.decode('utf-8')
-            payload = json.loads(body)
-            logger.info(f"[instagram_webhook] Payload recibido: {json.dumps(payload, indent=2)}")
-            # Procesamiento del payload
-            for entry in payload.get('entry', []):
-                for change in entry.get('changes', []):
-                    value = change.get('value', {})
-                    messages = value.get('messages', [])
-                    for message in messages:
-                        sender_id = message.get('from')
-                        message_text = message.get('text', {}).get('body', '').strip()
-                        if not message_text:
-                            logger.warning(f"[instagram_webhook] Mensaje vacío de {sender_id}")
-                            continue
-                        logger.info(f"[instagram_webhook] Mensaje de {sender_id}: {message_text}")
-    
-                        # Obtener o crear el ChatState
-                        chat_state = await get_or_create_chat_state(sender_id, 'instagram')
-    
-                        # Proceso el mensaje con el ChatBotHandler
-                        chatbot_handler = ChatBotHandler()
-                        response_text, options = await chatbot_handler.process_message('instagram', sender_id, message_text, chat_state.business_unit)
-    
-                        # Enviar la respuesta a Instagram
-                        await send_instagram_response(sender_id, response_text, options, chat_state.business_unit)
-    
-            return HttpResponse(status=200)
-        except json.JSONDecodeError as e:
-            logger.error(f"[instagram_webhook] Error al decodificar JSON: {e}", exc_info=True)
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-        except Exception as e:
-            logger.error(f"[instagram_webhook] Error en el webhook de Instagram: {e}", exc_info=True)
-            return JsonResponse({"error": "Internal Server Error"}, status=500)
-    else:
-        logger.warning(f"[instagram_webhook] Método no permitido: {request.method}")
-        return HttpResponse(status=405)
+    try:
+        if request.method != "POST":
+            return JsonResponse({"status": "error", "message": "Método no permitido"}, status=405)
+        
+        payload = json.loads(request.body.decode("utf-8"))
+        entry = payload.get("entry", [{}])[0]
+        messaging = entry.get("messaging", [{}])[0]
+        sender_id = messaging.get("sender", {}).get("id")
+        message = messaging.get("message", {})
+        
+        instagram_api = await sync_to_async(InstagramAPI.objects.filter(is_active=True).first)()
+        if not instagram_api:
+            logger.error("No se encontró configuración de InstagramAPI activa")
+            return JsonResponse({"status": "error", "message": "Configuración no encontrada"}, status=404)
 
+        business_unit = await sync_to_async(lambda: instagram_api.business_unit)()
+        chatbot = ChatBotHandler()
+
+        text = message.get("text", "").strip()
+        attachments = message.get("attachments", [])
+        if attachments:
+            attachment = attachments[0]
+            if attachment["type"] == "file":
+                message_dict = {
+                    "messages": [{
+                        "id": messaging.get("mid", ""),
+                        "file_id": attachment["payload"]["url"],
+                        "file_name": "document",
+                        "mime_type": attachment.get("mime_type", "application/pdf")
+                    }],
+                    "chat": {"id": sender_id}
+                }
+                await chatbot.process_message(
+                    platform="instagram",
+                    user_id=sender_id,
+                    message=message_dict,
+                    business_unit=business_unit,
+                    payload=payload
+                )
+                return JsonResponse({"status": "success"}, status=200)
+
+        message_dict = {
+            "messages": [{"id": messaging.get("mid", ""), "text": {"body": text}}],
+            "chat": {"id": sender_id}
+        }
+        await chatbot.process_message(
+            platform="instagram",
+            user_id=sender_id,
+            message=message_dict,
+            business_unit=business_unit,
+            payload=payload
+        )
+        return JsonResponse({"status": "success"}, status=200)
+    except Exception as e:
+        logger.error(f"Error en instagram_webhook: {e}")
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+   
 async def verify_instagram_token(request):
     """
     Verifica el token de Instagram durante la configuración del webhook.
@@ -182,6 +195,31 @@ async def send_instagram_buttons(user_id: str, message: str, buttons: List[Dict]
     logger.info(f"✅ Botones enviados a {user_id} en Instagram")
     return True
 
+async def send_instagram_document(user_id: str, file_url: str, caption: str, api_instance: InstagramAPI) -> bool:
+    try:
+        url = f"https://graph.facebook.com/v22.0/me/messages"
+        headers = {
+            "Authorization": f"Bearer {api_instance.access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "recipient": {"id": user_id},
+            "message": {
+                "attachment": {
+                    "type": "file",
+                    "payload": {"url": file_url}
+                }
+            }
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+        logger.info(f"[send_instagram_document] Documento enviado a {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"[send_instagram_document] Error: {e}")
+        return False
+ 
 async def fetch_instagram_user_data(user_id: str, api_instance: InstagramAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
         if not isinstance(api_instance, InstagramAPI) or not hasattr(api_instance, 'access_token') or not api_instance.access_token:
