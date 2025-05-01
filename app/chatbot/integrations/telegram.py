@@ -14,7 +14,7 @@ from django.conf import settings
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import TelegramAPI, BusinessUnit
-from app.chatbot.integrations.services import RateLimiter
+from app.chatbot.integrations.services import RateLimit
 
 logger = logging.getLogger('chatbot')
 
@@ -22,8 +22,8 @@ CACHE_TIMEOUT = 600  # 10 minutos
 MAX_RETRIES = 3
 REQUEST_TIMEOUT = 10.0  # segundos
 
-# Instancia del RateLimiter (limita a 5 mensajes por segundo por usuario)
-rate_limiter = RateLimiter(max_requests=5, time_window=1)
+# Instancia del RateLimit (limita a 5 mensajes por segundo por usuario)
+rate_limiter = RateLimit(max_requests=5, time_window=1)
 
 # -------------------------------
 # ✅ 1. OBTENER Y VALIDAR CONFIGURACIÓN
@@ -74,25 +74,19 @@ async def get_telegram_api_by_access_token(access_token: str) -> Optional[Telegr
         logger.error(f"❌ Error de base de datos al obtener TelegramAPI por access_token: {e}")
         return None
     
-async def validate_telegram_config(business_unit: BusinessUnit) -> Tuple[Optional[TelegramAPI], Optional[str]]:
-    """Valida la configuración de Telegram para un Business Unit."""
-    telegram_api = await get_telegram_api_for_business(business_unit)
-    
-    if not telegram_api:
-        error_msg = f"❌ No se encontró configuración de Telegram activa para {business_unit.name}"
-        logger.error(error_msg)
-        return None, error_msg
-        
-    if not telegram_api.api_key:
-        error_msg = f"❌ API key no configurada para el bot de {business_unit.name}"
-        logger.error(error_msg)
-        return None, error_msg
-        
-    return telegram_api, None
-
-# /home/pablo/app/chatbot/integrations/telegram.py
 async def validate_telegram_message(payload: Dict[str, Any]) -> Tuple[int, str]:
-    """Valida el payload del mensaje de Telegram y extrae chat_id y contenido."""
+    """
+    Valida el payload del mensaje de Telegram y extrae chat_id y contenido.
+    
+    Args:
+        payload: Diccionario con los datos del webhook de Telegram.
+    
+    Returns:
+        Tuple[int, Dict[str, Any]]: chat_id y un diccionario con el tipo de mensaje y su contenido.
+    
+    Raises:
+        ValueError: Si el payload es inválido o falta información clave.
+    """
     try:
         message = payload.get("message", {})
         chat_id = message.get("chat", {}).get("id")

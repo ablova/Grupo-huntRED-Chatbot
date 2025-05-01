@@ -17,7 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.chatbot.chatbot import ChatBotHandler
 from app.models import Person, ChatState, BusinessUnit, WhatsAppAPI, Template
-from app.chatbot.integrations.services import send_message, RateLimiter  # Importamos RateLimit
+from app.chatbot.integrations.services import send_message, RateLimit  # Importamos RateLimit
 
 # Configuración del logger para trazabilidad y depuración
 logger = logging.getLogger('chatbot')
@@ -27,7 +27,7 @@ whatsapp_semaphore = asyncio.Semaphore(10)  # Limita la concurrencia para envío
 ENABLE_ADVANCED_PROCESSING = True  # Habilita el procesamiento avanzado con ChatBotHandler
 MAX_RETRIES = 3  # Máximo de reintentos para solicitudes HTTP
 REQUEST_TIMEOUT = 10.0  # Tiempo de espera para solicitudes HTTP (segundos)
-# Instancia del RateLimiter (limita a 5 mensajes por segundo por usuario)
+# Instancia del RateLimit (limita a 5 mensajes por segundo por usuario)
 rate_limiter = RateLimit(rate=5, per=1)  # Ajusta rate y per según necesidades
 # ------------------------------------------------------------------------------
 # Webhook Principal para WhatsApp
