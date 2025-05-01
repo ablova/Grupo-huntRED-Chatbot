@@ -1,4 +1,4 @@
-# Ubicación: /home/pablo/app/chatbot/generate_embeddings.py
+# /home/pablo/app/chatbot/generate_embeddings.py
 import logging
 import os
 import time
@@ -6,15 +6,30 @@ import json
 import gc
 import numpy as np
 import tensorflow as tf
-import sys
+import tensorflow_text as text  # Required for SentencepieceOp
 import pickle
-import django
-os.environ['DJANGO_SETTINGS_MODULE'] = 'ai_huntred.settings'
-django.setup()
-# Agregar la raíz del proyecto al PYTHONPATH
+import sys
+from tenacity import retry, stop_after_attempt, wait_exponential
+try:
+    from deep_translator import GoogleTranslator
+    from langdetect import detect
+    TRANSLATOR_AVAILABLE = True
+except ImportError:
+    TRANSLATOR_AVAILABLE = False
+
+# Set project root and PYTHONPATH
 project_root = "/home/pablo"
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+# Django setup
+os.environ['DJANGO_SETTINGS_MODULE'] = 'ai_huntred.settings'
+try:
+    import django
+    django.setup()
+except ImportError as e:
+    logging.error(f"Error setting up Django: {str(e)}")
+    sys.exit(1)
 
 from app.chatbot.nlp import load_use_model, FILE_PATHS, EMBEDDINGS_CACHE
 
@@ -26,14 +41,14 @@ def ensure_directory_permissions(directory):
     try:
         os.makedirs(directory, exist_ok=True)
         os.chmod(directory, 0o775)
-        os.chown(directory, os.getuid(), 1004)  # Grupo ai_huntred
+        os.chown(directory, os.getuid(), os.getgid())  # Use current group
     except Exception as e:
-        logger.warning(f"No se pudo configurar permisos para {directory}: {str(e)}")
+        logging.warning(f"No se pudo configurar permisos para {directory}: {str(e)}")
 
 try:
     ensure_directory_permissions(log_dir)
 except Exception as e:
-    print(f"Advertencia: No se pudo configurar permisos para {log_dir}: {str(e)}")
+    logging.warning(f"Advertencia: No se pudo configurar permisos para {log_dir}: {str(e)}")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,6 +64,7 @@ logger = logging.getLogger('nlp')
 MODEL_CONFIG = {'CACHE_VERSION': '1.0'}
 SKILL_EMBEDDINGS = {}
 USE_MODEL = None
+BATCH_SIZE = 50
 
 def track_progress(catalog: str, batch_size: int, total_skills: int, current_batch: int, start_time: float) -> None:
     """Muestra el progreso de la generación de embeddings."""
@@ -56,11 +72,22 @@ def track_progress(catalog: str, batch_size: int, total_skills: int, current_bat
     progress = (current_batch + 1) / batches_total * 100
     elapsed = time.time() - start_time
     eta = (elapsed / (current_batch + 1)) * (batches_total - current_batch - 1) if current_batch > 0 else 0
-    logger.info(f"Procesando {catalog}: Lote {current_batch + 1}/{batches_total} ({progress:.1f}%), ETA: {eta:.0f}s, Memoria usada: {os.popen('free -m').readlines()[1].split()[2]} MB")
+    logger.info(f"Procesando {catalog}: Lote {current_batch + 1}/{batches_total} ({progress:.1f}%), ETA: {eta:.0f}s")
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
 def translate_text(text: str) -> str:
-    """Función de traducción de respaldo."""
-    return text  # Simplificado; implementar traducción si es necesario
+    """Traduce texto a inglés si es necesario."""
+    if not TRANSLATOR_AVAILABLE or not text:
+        return text
+    try:
+        lang = detect(text)
+        if lang != "en":
+            translator = GoogleTranslator(source='auto', target='en')
+            return translator.translate(text)
+        return text
+    except Exception as e:
+        logger.warning(f"Error traduciendo texto '{text}': {str(e)}")
+        return text
 
 def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: str) -> bool:
     """Genera embeddings con seguimiento de progreso y manejo de memoria optimizado."""
@@ -89,11 +116,11 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
         return False
 
     # Ajustar según el catálogo
+    skill_names = []
     if catalog == "candidate_quick":
         skill_names = [skill_info.get("skill_cleaned", skill_info.get("skill_name", "")) for skill_info in data.values() if skill_info.get("skill_name")]
     elif catalog == "candidate_deep":
-        skill_names = []
-        for occupation, occ_data in data.items():
+        for _, occ_data in data.items():
             for skill_field in ["hasEssentialSkill", "hasOptionalSkill"]:
                 for skill in occ_data.get(skill_field, []):
                     skill_name = skill.get("title", "").lower()
@@ -122,7 +149,6 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
     # Generar embeddings
     batch_start_time = time.time()
     try:
-        # Asegurar que el modelo esté cargado
         USE_MODEL = load_use_model()
         if USE_MODEL is None:
             logger.error(f"No se pudo cargar el modelo para {catalog}")
@@ -141,7 +167,7 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
             with open(partial_cache, "wb") as f:
                 pickle.dump({"embeddings": SKILL_EMBEDDINGS, "last_index": i + batch_size}, f)
             os.chmod(partial_cache, 0o660)
-            os.chown(partial_cache, os.getuid(), 1004)
+            os.chown(partial_cache, os.getuid(), os.getgid())
 
             # Liberar memoria
             del batch, translated_batch, batch_tensor, embeddings
@@ -157,7 +183,7 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
             }
             pickle.dump(cached_data, f)
         os.chmod(embeddings_cache, 0o660)
-        os.chown(embeddings_cache, os.getuid(), 1004)
+        os.chown(embeddings_cache, os.getuid(), os.getgid())
 
         # Eliminar caché parcial
         if os.path.exists(partial_cache):
@@ -175,17 +201,12 @@ if __name__ == "__main__":
         ensure_directory_permissions("/home/pablo/skills_data")
         ensure_directory_permissions("/home/pablo/tfhub_cache")
         
-        # Cargar el modelo
-        start_time = time.time()
-        load_use_model()
-        logger.info(f"Modelo cargado en {time.time() - start_time:.2f}s")
-
-        # Procesar catálogos con lotes pequeños
+        # Procesar catálogos
         success = True
-        for catalog, batch_size in [("candidate_quick", 5), ("candidate_deep", 5)]:
-            logger.info(f"Generando embeddings para {catalog} con batch_size={batch_size}")
+        for catalog in ["candidate_quick", "candidate_deep"]:
+            logger.info(f"Generando embeddings para {catalog} con batch_size={BATCH_SIZE}")
             start_time = time.time()
-            if not initialize_with_progress(catalog, batch_size, EMBEDDINGS_CACHE):
+            if not initialize_with_progress(catalog, BATCH_SIZE, EMBEDDINGS_CACHE):
                 logger.error(f"Fallo al generar embeddings para {catalog}")
                 success = False
             else:

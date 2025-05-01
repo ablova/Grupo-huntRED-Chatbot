@@ -1,4 +1,5 @@
 # /home/pablo/app/utilidades/parser.py
+from typing import Dict, List, Optional
 import sys
 import logging
 import unicodedata
@@ -6,7 +7,6 @@ import email
 import asyncio
 from aioimaplib import aioimaplib
 from tempfile import NamedTemporaryFile
-from typing import List, Dict, Optional
 from langdetect import detect
 from pathlib import Path
 import pdfplumber
@@ -14,11 +14,8 @@ from contextlib import ExitStack
 from django.utils.timezone import now
 from docx import Document
 from asgiref.sync import sync_to_async
-from app.chatbot.utils import get_nlp_processor  # Reemplazar importación
-from app.chatbot.nlp import NLPProcessor  # Importar la clase para instanciar por idioma
-
-# Project imports
-
+from app.chatbot.utils import get_nlp_processor
+from app.chatbot.nlp import NLPProcessor
 from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill
 from app.chatbot.integrations.services import send_email
 

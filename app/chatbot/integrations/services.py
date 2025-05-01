@@ -204,7 +204,7 @@ def get_greeting_by_time() -> str:
     else:
         return "🌙 Buenas noches"
 
-class RateLimit:
+class RateLimiter:
     def __init__(self, max_requests=10, time_window=60):
         self.max_requests = max_requests
         self.time_window = time_window

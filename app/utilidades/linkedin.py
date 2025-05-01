@@ -146,6 +146,23 @@ def deduplicate_persons(
 
     return possible_matches[0] if possible_matches else None
 
+async def deduplicate_persons(first_name: str, last_name: str, email: Optional[str], company: Optional[str], position: Optional[str]) -> Optional[Person]:
+    query = Person.objects.all()
+    if email:
+        existing = await sync_to_async(query.filter(email__iexact=email).first)()
+        if existing:
+            return existing
+
+    filters = {'nombre__iexact': first_name}
+    if last_name:
+        filters['apellido_paterno__iexact'] = last_name
+
+    possible_matches = await sync_to_async(list)(query.filter(**filters))
+    if company and company.strip():
+        possible_matches = [p for p in possible_matches if p.metadata.get('last_company', '').lower() == company.lower()]
+
+    return possible_matches[0] if possible_matches else None
+
 def normalize_and_save_person(first_name, last_name, email, linkedin_url, business_unit):
     """
     Normaliza los datos y guarda la información del usuario.
@@ -325,7 +342,7 @@ async def process_csv(csv_path: str, business_unit: BusinessUnit):
             }
 
             try:
-                candidate = deduplicate_persons(fn, ln, email, None, None)
+                candidate = await deduplicate_persons(fn, ln, email, None, None)
                 if candidate:
                     candidate = merge_candidate_data(candidate, candidate_data)
                     candidate.number_interaction += 1

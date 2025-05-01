@@ -194,20 +194,25 @@ class EmailScraperV2:
             self.session = aiohttp.ClientSession()
 
     async def _basic_connect(self) -> Optional[aioimaplib.IMAP4_SSL]:
-        """Conexión básica sin decorador para evitar recursión."""
-        try:
-            if self.mail:
-                await self.mail.logout()
-            self.mail = aioimaplib.IMAP4_SSL(self.imap_server, timeout=CONNECTION_TIMEOUT)
-            await asyncio.wait_for(self.mail.wait_hello_from_server(), timeout=CONNECTION_TIMEOUT)
-            await asyncio.wait_for(self.mail.login(self.email_account, self.password), timeout=CONNECTION_TIMEOUT)
-            await self.mail.select(FOLDER_CONFIG["jobs_folder"])
-            logger.info(f"✅ Connected to {self.imap_server}")
-            return self.mail
-        except Exception as e:
-            logger.error(f"❌ Basic connection failed: {e}")
-            self.mail = None
-            return None
+        """
+        Conexión básica sin decorador para evitar recursión.
+        """
+        for attempt in range(MAX_RETRIES):
+            try:
+                if self.mail:
+                    await self.mail.logout()
+                self.mail = aioimaplib.IMAP4_SSL(self.imap_server, timeout=CONNECTION_TIMEOUT)
+                await asyncio.wait_for(self.mail.wait_hello_from_server(), timeout=CONNECTION_TIMEOUT)
+                await asyncio.wait_for(self.mail.login(self.email_account, self.password), timeout=CONNECTION_TIMEOUT)
+                await self.mail.select(FOLDER_CONFIG["jobs_folder"])
+                logger.info(f"✅ Connected to {self.imap_server}")
+                return self.mail
+            except Exception as e:
+                logger.error(f"❌ Attempt {attempt + 1} failed: {e}")
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(RETRY_DELAY * (2 ** attempt))  # Backoff exponencial
+        self.mail = None
+        return None
 
     @with_imap_connection
     async def connect(self) -> Optional[aioimaplib.IMAP4_SSL]:
