@@ -7,6 +7,7 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from pathlib import Path
 import tensorflow as tf
+import sys  # Added for INSTALLED_APPS conditional
 
 # --- Configuración temprana de TensorFlow ---
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
@@ -76,10 +77,13 @@ INSTALLED_APPS = [
     'app.sexsi',
     'app.milkyleak',
     'silk',
-    'debug_toolbar',
     'django_extensions',
-#    'django_wait_for_db',  # Debe estar aquí
+    # 'django_wait_for_db',  # Comentado como en el original
 ]
+
+# Condicionalmente agregar debug_toolbar si no estamos en modo de pruebas
+if 'test' not in sys.argv:
+    INSTALLED_APPS.append('debug_toolbar')
 
 # Middleware
 MIDDLEWARE = [
@@ -156,9 +160,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Create directories (permissions set manually)
 for directory in [LOG_DIR, STATIC_ROOT, MEDIA_ROOT, ML_MODELS_DIR]:
     os.makedirs(directory, exist_ok=True)
-    #logger.debug(f"Ensured directory exists: {directory}")
 
-# Ubicación del archivo: /home/pablo/ai_huntred/settings.py
+# Configuración de logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -181,7 +184,7 @@ LOGGING = {
         'app_file': {
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
-            'level': 'DEBUG',  # Más detalle para depuración
+            'level': 'DEBUG',
             'formatter': 'verbose',
         },
         'chatbot_file': {
@@ -293,7 +296,6 @@ CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
 CORS_ALLOW_CREDENTIALS = env.bool('CORS_ALLOW_CREDENTIALS', default=False)
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[]) if not CORS_ALLOW_ALL_ORIGINS else []
 
-
 # Dynamic Email Backend
 def get_email_backend(business_unit):
     from django.apps import apps
@@ -342,11 +344,9 @@ class DynamicEmailBackend:
         )
 
 # Configuración de Django Debug Toolbar
-INTERNAL_IPS = [
-    '127.0.0.1',
-]
-
+INTERNAL_IPS = ['127.0.0.1']
 DEBUG_TOOLBAR_CONFIG = {
     'SHOW_TOOLBAR_CALLBACK': lambda request: True,
     'SHOW_TEMPLATE_CONTEXT': True,
+    'IS_RUNNING_TESTS': False,  # Bypass toolbar check during tests
 }

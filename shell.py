@@ -64,19 +64,33 @@ sudo swapon -a && sleep 5 && sudo swapoff -a && sleep 5 && sudo swapon -a
 
 # Eliminar procesos Zombie
 sudo kill -9 $(ps -ef | awk '/systemctl.*less/ {print $2,$3}' | tr ' ' '\n' | sort -u)
+for ppid in $(ps axo stat,ppid,pid,comm | grep -w Z | awk '{print $2}' | sort -u); do
+    sudo kill -s SIGCHLD $ppid
+done
 
-sudo chown -R pablo:ai_huntred /home/pablo && \
+sudo chown -R pablollh:ai_huntred /home/pablo && \
 sudo find /home/pablo -type d -exec chmod 755 {} \; && \
 sudo find /home/pablo -type f -exec chmod 644 {} \; && \
 sudo chmod -R 775 /home/pablo/media && \
 sudo chmod -R 775 /home/pablo/static && \
 sudo chmod -R 775 /home/pablo/logs && \
+sudo chmod -R 775 /home/pablo/skills_data && \
 sudo chmod 640 /home/pablo/*/settings.py && \
 sudo chmod 640 /home/pablo/.env && \
 sudo find /home/pablo -name '*.sh' -exec chmod 755 {} \; && \
 sudo chmod 755 /home/pablo/manage.py && \
 echo 'Permisos corregidos correctamente'
+ls -ld /home/pablo/skills_data /home/pablo/logs
+ls -l /home/pablo/skills_data/*
+ls -l /home/pablo/logs/*.log
 
+sudo find /home/pablo -type d -exec chmod 750 {} \; && \
+sudo find /home/pablo -type f -exec chmod 640 {} \; && \
+sudo find /home/pablo -name "*.py" -exec chmod 750 {} \; && \
+sudo find /home/pablo -path "*/venv/bin/*" -type f -exec chmod 750 {} \; && \
+sudo chmod 770 /home/pablo/logs /home/pablo/media /home/pablo/staticfiles /home/pablo/static && \
+sudo chmod 660 /home/pablo/gunicorn.sock && \
+sudo chown -R pablollh:ai_huntred /home/pablo
 
 
 # Elimina archivos __pycache__ y .pyc

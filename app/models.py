@@ -10,13 +10,15 @@ from django.dispatch import receiver
 from urllib.parse import urlparse
 from asgiref.sync import sync_to_async
 
+from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+from datetime import datetime, timedelta
+
 import requests
 import logging
 import re
 import uuid
 
 logger = logging.getLogger(__name__)
-
 
 PLATFORM_CHOICES = [
     ("workday", "Workday"),
@@ -48,7 +50,7 @@ BUSINESS_UNIT_CHOICES = [
     ('sexsi', 'SexSI'),
 ]
 
-COMUNICATION_CHOICES =[
+COMUNICATION_CHOICES = [
     ("whatsapp", "WhatsApp"),
     ("telegram", "Telegram"),
     ("messenger", "Messenger"),
@@ -90,6 +92,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
 ]
 
+
 class Configuracion(models.Model):
     secret_key = models.CharField(max_length=255, default='hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48')
     sentry_dsn = models.CharField(max_length=255, blank=True, null=True, default='https://94c6575f877d16a00cc74bcaaab5ae79@o4508258791653376.ingest.us.sentry.io/4508258794471424')
@@ -98,7 +101,7 @@ class Configuracion(models.Model):
     test_phone_number = models.CharField(max_length=15, default='+525518490291', help_text='Número de teléfono para pruebas y reportes de ejecución')
     test_email = models.EmailField(max_length=50, default='pablo@huntred.com', help_text='Email para pruebas y reportes de ejecución')
     default_platform = models.CharField(max_length=20, default='whatsapp', choices=COMUNICATION_CHOICES, help_text='Plataforma de pruebas por defecto')
-    ntfy_topic = models.CharField(max_length=100,blank=True,null=True,default=None,help_text="Tema de ntfy.sh para notificaciones generales. Si no se define, usa NTFY_DEFAULT_TOPIC de settings.")
+    ntfy_topic = models.CharField(max_length=100, blank=True, null=True, default=None, help_text="Tema de ntfy.sh para notificaciones generales. Si no se define, usa NTFY_DEFAULT_TOPIC de settings.")
     notification_hour = models.TimeField(blank=True, null=True, help_text='Hora para enviar notificaciones diarias de pruebas')
     is_test_mode = models.BooleanField(default=True, help_text='Indicador de modo de pruebas')
 
@@ -110,6 +113,7 @@ class Configuracion(models.Model):
     def __str__(self):
         return "Configuración General del Sistema"
 
+
 class DominioScraping(models.Model):
     empresa = models.CharField(max_length=75, unique=True, blank=True, null=True)
     dominio = models.URLField(max_length=255, unique=True)
@@ -120,7 +124,13 @@ class DominioScraping(models.Model):
     estado = models.CharField(max_length=20, choices=[("definido", "Definido"), ("libre", "Indefinido")], default="libre")
     verificado = models.BooleanField(default=False)
     activo = models.BooleanField(default=True)
-    cookies = models.JSONField(blank=True, null=True)
+    cookies = models.JSONField(default=lambda: {
+        "linkedin": {"li_at": None, "JSESSIONID": None},
+        "indeed": {"CTK": None, "INDEED_CSRF_TOKEN": None},
+        "glassdoor": {"GSESSIONID": None, "datr": None},
+        "workday": {"JSESSIONID": None, "wday_vps_cookie": None},
+        "default": {"JSESSIONID": None, "csrf_token": None},
+    }, blank=True, null=True)
     frecuencia_scraping = models.IntegerField(default=24)
     mensaje_error = models.TextField(blank=True, null=True)
     ultima_verificacion = models.DateTimeField(blank=True, null=True)
@@ -133,7 +143,7 @@ class DominioScraping(models.Model):
     selector_salario = models.CharField(max_length=200, null=True, blank=True)
     # Tipo de selector (CSS, XPath)
     tipo_selector = models.CharField(
-        max_length=20, 
+        max_length=20,
         choices=[('css', 'CSS'), ('xpath', 'XPath')],
         default='css'
     )
@@ -148,17 +158,6 @@ class DominioScraping(models.Model):
 
     def __str__(self):
         return f"{self.dominio} ({self.plataforma})"
-
-    def validar_url(self):
-        try:
-            logger.info(f"Validando URL: {self.dominio}")
-            response = requests.head(self.dominio, timeout=10, allow_redirects=True)
-            if response.status_code != 200:
-                logger.error(f"URL no válida: {self.dominio} - Estado: {response.status_code}")
-                raise ValidationError("La URL proporcionada no es válida o no responde correctamente.")
-        except requests.RequestException as e:
-            logger.error(f"Error al validar la URL: {e}")
-            raise ValidationError(f"Error al validar la URL: {e}")
 
     def detectar_plataforma(self):
         if self.plataforma:
@@ -186,13 +185,17 @@ class DominioScraping(models.Model):
         logger.warning(f"No se detectó una plataforma conocida para: {self.dominio}")
 
     def clean(self):
-        self.validar_url()
         self.detectar_plataforma()
 
     def save(self, *args, **kwargs):
-        if not kwargs.pop("skip_clean", False):
-            self.full_clean()
+        """Sobreescribe save para ejecutar validación."""
+        self.clean()
         super().save(*args, **kwargs)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['dominio']),  # Índice para búsquedas rápidas
+        ]
 
 class ConfiguracionScraping(models.Model):
     dominio = models.ForeignKey(DominioScraping, on_delete=models.CASCADE)
@@ -406,24 +409,24 @@ class Worker(models.Model):
         return str(self.name)
 
 class Vacante(models.Model):
-    titulo = models.CharField(max_length=300)
-    empresa = models.ForeignKey(Worker, on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
+    titulo = models.CharField(max_length=1000)
+    empresa = models.ForeignKey(Worker, on_delete=models.CASCADE)
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)  # Relación con BusinessUnit
     salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     ubicacion = models.CharField(max_length=300, blank=True, null=True)
-    descripcion = models.TextField(blank=True, null=True)
+    descripcion = models.TextField(max_length=3000, blank=True)
     requisitos = models.TextField(blank=True, null=True)
     beneficios = models.TextField(blank=True, null=True)
-    skills_required = models.JSONField(blank=True, null=True)
-    modalidad = models.CharField(max_length=20, choices=[
+    skills_required = models.JSONField(default=list)
+    modalidad = models.CharField(max_length=50, choices=[
         ('presencial', 'Presencial'),
         ('remoto', 'Remoto'),
         ('hibrido', 'Híbrido')
     ], null=True, blank=True)
     remote_friendly = models.BooleanField(default=False)
     dominio_origen = models.ForeignKey(DominioScraping, on_delete=models.SET_NULL, null=True)
-    url_original = models.URLField(max_length=500, blank=True, null=True)
-    fecha_publicacion = models.DateTimeField(null=True, blank=True)
+    url_original = models.URLField(max_length=1000, blank=True, null=True)
+    fecha_publicacion = models.DateTimeField()
     fecha_scraping = models.DateTimeField(auto_now_add=True)
     activa = models.BooleanField(default=True)
     required_count = models.IntegerField(default=1)

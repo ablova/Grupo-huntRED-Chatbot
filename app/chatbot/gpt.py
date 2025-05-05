@@ -1,5 +1,4 @@
 # /home/pablo/app/chatbot/gpt.py
-
 import logging
 import backoff
 from openai import OpenAI, OpenAIError, RateLimitError
@@ -11,7 +10,18 @@ from asgiref.sync import sync_to_async
 import asyncio
 import json
 import requests
+from aiohttp import ClientSession, ClientConnectorSSLError  # For efficient HTTP requests
+import os
 import google.generativeai as genai
+from google.generativeai import types
+
+# Suppress TensorFlow warnings and configure CPU-only mode
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppress TensorFlow logs (0=All, 3=Errors only)
+os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Disable GPU
+import tensorflow as tf
+tf.config.set_soft_device_placement(True)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(1)
 
 logger = logging.getLogger('chatbot')
 
@@ -32,6 +42,9 @@ class BaseHandler:
 
     async def generate_response(self, prompt: str, business_unit=None) -> str:
         raise NotImplementedError("Método 'generate_response' debe ser implementado.")
+
+    async def close(self):
+        pass  # Optional cleanup method for handlers
 
 class OpenAIHandler(BaseHandler):
     async def initialize(self):
@@ -74,11 +87,17 @@ class OpenAIHandler(BaseHandler):
 
 class GrokHandler(BaseHandler):
     async def initialize(self):
-        self.api_url = "https://api.x.ai/v1/chat/completions"  # Verificar si este es el endpoint correcto
+        # Use aiohttp for connection pooling and SSL error handling
+        self.api_url = "https://api.x.ai/v1/chat/completions"
         self.headers = {"Authorization": f"Bearer {self.config.api_token}"}
-        self.client = True
-        logger.info(f"GrokHandler configurado con modelo: {self.config.model}, Token: {self.config.api_token}")
+        self.client = ClientSession()
+        logger.info(f"GrokHandler configurado con modelo: {self.config.model}")
 
+    @backoff.on_exception(
+        backoff.expo,
+        (ClientConnectorSSLError, asyncio.TimeoutError, requests.exceptions.RequestException),
+        max_tries=3
+    )
     async def generate_response(self, prompt: str, business_unit=None) -> str:
         if not self.client:
             return "⚠ GPT no inicializado."
@@ -99,23 +118,32 @@ class GrokHandler(BaseHandler):
             "top_p": self.config.top_p
         }
         try:
-            logger.debug(f"Enviando solicitud a Grok - URL: {self.api_url}, Headers: {self.headers}, Payload: {payload}")
-            response = await asyncio.to_thread(
-                requests.post, self.api_url, headers=self.headers, json=payload
-            )
-            response.raise_for_status()
-            logger.debug(f"Respuesta de Grok: {response.text}")
-            return response.json()["choices"][0]["message"]["content"].strip()
-        except requests.exceptions.RequestException as e:
-            error_detail = f"Error en Grok: {str(e)}, Status: {getattr(e.response, 'status_code', 'N/A')}, Response: {getattr(e.response, 'text', 'No response')}"
+            logger.debug(f"Enviando solicitud a Grok - URL: {self.api_url}, Payload: {payload}")
+            async with self.client.post(self.api_url, headers=self.headers, json=payload) as response:
+                response.raise_for_status()
+                data = await response.json()
+                logger.debug(f"Respuesta de Grok: {data}")
+                return data["choices"][0]["message"]["content"].strip()
+        except (ClientConnectorSSLError, requests.exceptions.RequestException) as e:
+            error_detail = f"Error en Grok: {str(e)}, Status: {getattr(e.response, 'status_code', 'N/A')}"
             logger.error(error_detail)
             return f"Error al comunicarse con Grok: {error_detail}"
+        except asyncio.TimeoutError:
+            logger.warning("Timeout en Grok.")
+            return "Solicitud tardó demasiado."
+        except Exception as e:
+            logger.error(f"Error inesperado en Grok: {e}")
+            return f"Error inesperado: {e}"
+
+    async def close(self):
+        if self.client:
+            await self.client.close()
 
 class GeminiHandler(BaseHandler):
     async def initialize(self):
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.config.model}:generateContent"
         self.headers = {"Authorization": f"Bearer {self.config.api_token}"}
-        self.client = True
+        self.client = ClientSession()
         logger.info(f"GeminiHandler configurado con modelo: {self.config.model}")
 
     async def generate_response(self, prompt: str, business_unit=None) -> str:
@@ -136,12 +164,10 @@ class GeminiHandler(BaseHandler):
             }
         }
         try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(requests.post, self.api_url, headers=self.headers, json=payload),
-                timeout=GPT_DEFAULTS["timeout"]
-            )
-            response.raise_for_status()
-            return response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            async with self.client.post(self.api_url, headers=self.headers, json=payload) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
         except asyncio.TimeoutError:
             logger.warning("Timeout en Gemini.")
             return "Solicitud tardó demasiado."
@@ -149,9 +175,13 @@ class GeminiHandler(BaseHandler):
             logger.error(f"Error en Gemini: {e}")
             return "Error al comunicarse con Gemini."
 
+    async def close(self):
+        if self.client:
+            await self.client.close()
+
 class LlamaHandler(BaseHandler):
     async def initialize(self):
-        self.client = True  # Placeholder, ajustar según la API real
+        self.client = True  # Placeholder
         logger.info(f"LlamaHandler configurado con modelo: {self.config.model}")
 
     async def generate_response(self, prompt: str, business_unit=None) -> str:
@@ -163,7 +193,7 @@ class ClaudeHandler(BaseHandler):
     async def initialize(self):
         self.api_url = "https://api.anthropic.com/v1/complete"
         self.headers = {"Authorization": f"Bearer {self.config.api_token}"}
-        self.client = True
+        self.client = ClientSession()
         logger.info(f"ClaudeHandler configurado con modelo: {self.config.model}")
 
     async def generate_response(self, prompt: str, business_unit=None) -> str:
@@ -182,15 +212,18 @@ class ClaudeHandler(BaseHandler):
             "temperature": self.config.temperature
         }
         try:
-            response = await asyncio.to_thread(
-                requests.post, self.api_url, headers=self.headers, json=payload
-            )
-            response.raise_for_status()
-            return response.json()["completion"].strip()
+            async with self.client.post(self.api_url, headers=self.headers, json=payload) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data["completion"].strip()
         except requests.exceptions.RequestException as e:
             logger.error(f"Error en Claude: {e}")
             return "Error al comunicarse con Claude."
-       
+
+    async def close(self):
+        if self.client:
+            await self.client.close()
+
 class VertexAIHandler(BaseHandler):
     async def initialize(self):
         self.client = genai.Client(
@@ -232,12 +265,28 @@ class GPTHandler:
         self.handler = None
         self.config = GPT_DEFAULTS.copy()
         self.current_business_unit = None
+        self._handler_cache = {}  # Cache for handler instances
 
     async def initialize(self):
         try:
-            gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True).select_related('provider').first())()
+            # Try active providers first
+            gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True, provider__name__iexact='Xai (Grok)').select_related('provider').first())()
+            if not gpt_api:
+                logger.info("No se encontró configuración activa para Grok, intentando con OpenAI.")
+                gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True, provider__name__iexact='OpenAI (ChatGPT)').select_related('provider').first())()
+            if not gpt_api:
+                logger.info("No se encontró configuración activa, intentando proveedores inactivos.")
+                gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact='OpenAI (ChatGPT)').select_related('provider').first())()
+                if not gpt_api:
+                    gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact='Xai (Grok)').select_related('provider').first())()
             if gpt_api:
-                self.handler = await get_handler(gpt_api)
+                provider_key = (await sync_to_async(lambda: gpt_api.provider.name)())
+                # Check cache for existing handler
+                if provider_key in self._handler_cache:
+                    self.handler = self._handler_cache[provider_key]
+                else:
+                    self.handler = await get_handler(gpt_api)
+                    self._handler_cache[provider_key] = self.handler
                 await self.handler.initialize()
                 self.config.update({
                     "model": gpt_api.model,
@@ -245,17 +294,16 @@ class GPTHandler:
                     "temperature": gpt_api.temperature or GPT_DEFAULTS["temperature"],
                     "top_p": gpt_api.top_p or GPT_DEFAULTS["top_p"],
                 })
-                logger.info(f"GPTHandler configurado con modelo: {self.config['model']}")
+                logger.info(f"GPTHandler configurado con modelo: {self.config['model']}, proveedor: {provider_key}")
             else:
-                logger.error("Sin configuración de GPT API en BD.")
+                logger.error("Sin configuración de GPT API en BD para Grok o OpenAI.")
                 raise ValueError("Configuración GPT no encontrada.")
         except Exception as e:
             logger.exception(f"Error inicializando GPTHandler: {e}")
-            raise e
+            raise
 
     async def generate_response(self, prompt: str, business_unit: Optional[BusinessUnit] = None) -> str:
         self.current_business_unit = business_unit
-        
         if not self.handler:
             return "⚠ GPT no inicializado."
         return await self.handler.generate_response(prompt, business_unit)
@@ -291,29 +339,46 @@ class GPTHandler:
         except Exception as e:
             logger.error(f"Error generando respuesta síncrona GPT: {e}")
             return "Error inesperado en la solicitud."
-         
-# Actualizar HANDLER_MAPPING
+
+    async def close(self):
+        if self.handler:
+            await self.handler.close()
+            self.handler = None
+            self._handler_cache.clear()
+
+# Updated HANDLER_MAPPING to support xai(grok) and xai (grok)
 HANDLER_MAPPING = {
     'openai': OpenAIHandler,
-    'grok': GrokHandler,
+    'OpenAI (ChatGPT)': OpenAIHandler,
+    'xai(grok)': GrokHandler,
+    'xai (grok)': GrokHandler,
+    'Xai (Grok)': GrokHandler,
     'google(gemini)': GeminiHandler,
-    'vertexai': VertexAIHandler,  # Nuevo handler para Vertex AI
+    'Google (Gemini)': GeminiHandler,
+    'vertexai': VertexAIHandler,
+    'Vertex API': VertexAIHandler,
     'meta(llama)': LlamaHandler,
     'anthropic(claude)': ClaudeHandler,
+    'Anthropic (Claude)': ClaudeHandler,
 }
+
 async def get_handler(config: GptApi) -> BaseHandler:
     provider = await sync_to_async(lambda: config.provider)()
-    provider_key = provider.name.lower().replace(' ', '').replace('(xai)', '')
+    provider_key = provider.name  # Keep original case for exact match
+    logger.debug(f"Buscando handler para proveedor: {provider_key}")
     handler_class = HANDLER_MAPPING.get(provider_key)
     if handler_class:
         return handler_class(config)
-    raise ValueError(f"Proveedor no soportado: {provider_key}")        
+    raise ValueError(f"Proveedor no soportado: {provider_key}")
 
-async def test_provider(self, provider_name: str, prompt: str = "Test prompt") -> str:
-        """Prueba un proveedor específico."""
-        gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact=provider_name).first())()
-        if not gpt_api:
-            return f"Proveedor {provider_name} no encontrado."
-        temp_handler = await get_handler(gpt_api)
-        await temp_handler.initialize()
+async def test_provider(provider_name: str, prompt: str = "Test prompt") -> str:
+    """Prueba un proveedor específico."""
+    gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact=provider_name).first())()
+    if not gpt_api:
+        return f"Proveedor {provider_name} no encontrado."
+    temp_handler = await get_handler(gpt_api)
+    await temp_handler.initialize()
+    try:
         return await temp_handler.generate_response(prompt)
+    finally:
+        await temp_handler.close()  # Correctly await the async method
