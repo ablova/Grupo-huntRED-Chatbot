@@ -124,13 +124,7 @@ class DominioScraping(models.Model):
     estado = models.CharField(max_length=20, choices=[("definido", "Definido"), ("libre", "Indefinido")], default="libre")
     verificado = models.BooleanField(default=False)
     activo = models.BooleanField(default=True)
-    cookies = models.JSONField(default=lambda: {
-        "linkedin": {"li_at": None, "JSESSIONID": None},
-        "indeed": {"CTK": None, "INDEED_CSRF_TOKEN": None},
-        "glassdoor": {"GSESSIONID": None, "datr": None},
-        "workday": {"JSESSIONID": None, "wday_vps_cookie": None},
-        "default": {"JSESSIONID": None, "csrf_token": None},
-    }, blank=True, null=True)
+    cookies = models.JSONField(blank=True, null=True)
     frecuencia_scraping = models.IntegerField(default=24)
     mensaje_error = models.TextField(blank=True, null=True)
     ultima_verificacion = models.DateTimeField(blank=True, null=True)

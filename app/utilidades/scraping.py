@@ -550,16 +550,16 @@ def extract_field(html: str, selectors: List[str], attribute: Optional[str] = No
         return match.group(1).strip() if match else None
     return None
 
-async def get_scraper(domain: DominioScraping):
+async def get_scraper(domain: DominioScraping, ml_scraper):
     scraper_class = SCRAPER_MAP.get(domain.plataforma, SCRAPER_MAP["default"])
     if domain.mapeo_configuracion:
         selectors = domain.mapeo_configuracion.get("selectors", PLATFORM_SELECTORS.get(domain.plataforma, {}))
     else:
         selectors = PLATFORM_SELECTORS.get(domain.plataforma, {})
-    return scraper_class(domain, custom_selectors=selectors)
+    return scraper_class(domain, ml_scraper, custom_selectors=selectors)
 
 class BaseScraper:
-    def __init__(self, domain: DominioScraping, custom_selectors: Optional[Dict] = None):
+    def __init__(self, domain: DominioScraping, ml_scraper, custom_selectors: Optional[Dict] = None):
         self.domain = domain
         self.plataforma = domain.plataforma
         self.selectors = custom_selectors or PLATFORM_SELECTORS.get(self.plataforma, {})
@@ -568,6 +568,7 @@ class BaseScraper:
         self.delay = domain.frecuencia_scraping / 3600
         self.session = None
         self.cookies = domain.cookies or {}
+        self.ml_scraper = ml_scraper  # Añadido como parámetro
 
     async def __aenter__(self):
         headers = {'User-Agent': random.choice(USER_AGENTS)}
@@ -681,19 +682,10 @@ class BaseScraper:
         content = await self.fetch(url)
         if not content:
             return {"description": "No disponible", "location": "Unknown", "company": "Unknown"}
-        description = extract_field(content, [self.selectors.get("description", "div.job-description")])
-        location = extract_field(content, [self.selectors.get("location", "span.location")])
-        company = extract_field(content, [self.selectors.get("company", "span.company")])
-        posted_date = extract_field(content, [self.selectors.get("posted_date", "span.posted-date")])
-        details = {
-            "description": description or "No disponible",
-            "location": location or "Unknown",
-            "company": company or "Unknown",
-            "posted_date": posted_date,
-        }
-        if details["description"] != "No disponible":
-            analysis = await self.analyze_description(details["description"])
-            details.update(analysis["details"])
+        
+        platform = await self.ml_scraper.classify_page(url, content)
+        details = await self.ml_scraper.extract_job_details(content, platform)
+        details["url"] = url
         return details
 
     async def analyze_description(self, description: str) -> Dict:
@@ -736,7 +728,68 @@ class LinkedInScraper(BaseScraper):
                         vacantes.append(JobListing(**detail))
                 page += 1
         return vacantes
+    
+    async def fetch(self, url: str, use_playwright: bool = False) -> Optional[str]:
+        if use_playwright or self.plataforma in ["linkedin", "workday", "phenom_people"]:
+            for attempt in range(MAX_RETRIES):
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch(headless=True)
+                    try:
+                        context = await browser.new_context(
+                            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+                            viewport={"width": 1280, "height": 720}
+                        )
+                        page = await context.new_page()
+                        if self.cookies:
+                            await page.context.add_cookies([
+                                {"name": k, "value": v, "domain": "linkedin.com", "path": "/"}
+                                for k, v in self.cookies.items()
+                            ])
+                        normalized_url = url.replace("/comm/jobs/", "/jobs/")
+                        await page.goto(normalized_url, wait_until="networkidle", timeout=90000)
+                        # Check for authentication prompt
+                        login_prompt = await page.query_selector("input#session_key, input#username")
+                        if login_prompt:
+                            logger.warning(f"Authentication prompt detected for {url}, skipping")
+                            return None
+                        await page.wait_for_selector("h1, h2, div.jobs-unified-top-card", timeout=20000)
+                        content = await page.content()
+                        logger.debug(f"Successfully fetched content for {url} (attempt {attempt + 1})")
+                        return content
+                    except PlaywrightTimeoutError as e:
+                        logger.warning(f"Playwright timeout for {url} (attempt {attempt + 1}/{MAX_RETRIES}): {e}")
+                        if attempt < MAX_RETRIES - 1:
+                            await asyncio.sleep(RETRY_DELAY)
+                    except Exception as e:
+                        logger.error(f"Playwright failed for {url} (attempt {attempt + 1}/{MAX_RETRIES}): {e}", exc_info=True)
+                        return None
+                    finally:
+                        await browser.close()
+            logger.error(f"Failed to fetch {url} after {MAX_RETRIES} attempts")
+            return None
 
+    async def get_job_details(self, url: str) -> Dict:
+        try:
+            content = await self.fetch(url, use_playwright=True)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title = soup.select_one("h1.topcard__title")
+            description = soup.select_one("div.description__text")
+            location = soup.select_one("span.topcard__flavor--bullet")
+            company = soup.select_one("a.topcard__org-name-link")
+            return {
+                "title": title.get_text(strip=True) if title else "No especificado",
+                "description": description.get_text(strip=True) if description else "No disponible",
+                "location": location.get_text(strip=True) if location else "Unknown",
+                "company": company.get_text(strip=True) if company else "Unknown",
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para LinkedIn: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
+        
 class WorkdayScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
         vacantes = []
@@ -766,6 +819,27 @@ class WorkdayScraper(BaseScraper):
                     vacantes.append(JobListing(**detail))
             page += 1
         return vacantes
+
+    async def get_job_details(self, url: str) -> Dict:
+        try:
+            content = await self.fetch(url, use_playwright=True)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h2[data-automation-id="jobTitle"]')
+            desc_elem = soup.select_one('div[data-automation-id="jobPostingDescription"]')
+            loc_elem = soup.select_one('div[data-automation-id="location"]')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": "Workday Employer",  # Ajustar según dominio si es dinámico
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para Workday: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
 
 class PhenomPeopleScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -819,21 +893,25 @@ class PhenomPeopleScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url, use_playwright=True)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one('h1.job-title') or soup.select_one('h1')
-        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
-        loc_elem = soup.select_one('span.job-location') or soup.select_one('span.location')
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": "Honeywell",  # Ajustar según dominio si no es fijo
-            "skills": extract_skills(content),
-            "original_url": url
-        }
+        try:
+            content = await self.fetch(url, use_playwright=True)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h1.job-title') or soup.select_one('h1')
+            desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+            loc_elem = soup.select_one('span.job-location') or soup.select_one('span.location')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": "Honeywell",  # Ajustar según dominio si no es fijo
+                "skills": extract_skills(content),
+                "original_url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para PhenomPeople: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
 
 class SAPScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -971,24 +1049,28 @@ class IndeedScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one("h1.jobTitle") or soup.select_one("h1")
-        desc_elem = soup.select_one("div#jobDescriptionText") or soup.select_one("div.job-description")
-        loc_elem = soup.select_one("div.companyLocation") or soup.select_one("span.location")
-        comp_elem = soup.select_one("span.companyName") or soup.select_one("span.company")
-        date_elem = soup.select_one("span.date") or soup.select_one("span.posted-date")
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": comp_elem.get_text(strip=True) if comp_elem else "Unknown",
-            "posted_date": date_elem.get_text(strip=True) if date_elem else None,
-            "skills": extract_skills(content),
-            "original_url": url
-        }
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one("h1.jobTitle") or soup.select_one("h1")
+            desc_elem = soup.select_one("div#jobDescriptionText") or soup.select_one("div.job-description")
+            loc_elem = soup.select_one("div.companyLocation") or soup.select_one("span.location")
+            comp_elem = soup.select_one("span.companyName") or soup.select_one("span.company")
+            date_elem = soup.select_one("span.date") or soup.select_one("span.posted-date")
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": comp_elem.get_text(strip=True) if comp_elem else "Unknown",
+                "posted_date": date_elem.get_text(strip=True) if date_elem else None,
+                "skills": extract_skills(content),
+                "original_url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para Indeed: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
     
 class GreenhouseScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -1028,24 +1110,28 @@ class GreenhouseScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one("h1.app-title") or soup.select_one("h1")
-        desc_elem = soup.select_one("div#content") or soup.select_one("div.job-description")
-        loc_elem = soup.select_one("div.location") or soup.select_one("span.location")
-        comp_elem = soup.select_one("span.company-name") or soup.select_one("span.company")
-        date_elem = soup.select_one("span.posted-date") or soup.select_one("time")
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": comp_elem.get_text(strip=True) if comp_elem else "Greenhouse Employer",
-            "posted_date": date_elem.get_text(strip=True) if date_elem else None,
-            "skills": extract_skills(content),
-            "original_url": url
-        }
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one("h1.app-title") or soup.select_one("h1")
+            desc_elem = soup.select_one("div#content") or soup.select_one("div.job-description")
+            loc_elem = soup.select_one("div.location") or soup.select_one("span.location")
+            comp_elem = soup.select_one("span.company-name") or soup.select_one("span.company")
+            date_elem = soup.select_one("span.posted-date") or soup.select_one("time")
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": comp_elem.get_text(strip=True) if comp_elem else "Greenhouse Employer",
+                "posted_date": date_elem.get_text(strip=True) if date_elem else None,
+                "skills": extract_skills(content),
+                "original_url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para Greenhouse: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
     
 class AccentureScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -1079,21 +1165,25 @@ class AccentureScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url, use_playwright=True)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one('h1.cmp-teaser__title') or soup.select_one('h1')
-        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
-        loc_elem = soup.select_one('div.cmp-teaser-region, div.cmp-teaser-city')
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": "Accenture",
-            "skills": self.extract_skills(content),
-            "url": url
-        }
+        try:
+            content = await self.fetch(url, use_playwright=True)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h1.cmp-teaser__title') or soup.select_one('h1')
+            desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+            loc_elem = soup.select_one('div.cmp-teaser-region, div.cmp-teaser-city')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": "Accenture",
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para Accenture: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
     
 class ADPScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -1155,21 +1245,25 @@ class PeopleSoftScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one('h1') or soup.select_one('h2')
-        desc_elem = soup.select_one('div.job-desc') or soup.select_one('div.description')
-        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": "PeopleSoft Employer",
-            "skills": self.extract_skills(content),
-            "url": url
-        }
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h1') or soup.select_one('h2')
+            desc_elem = soup.select_one('div.job-desc') or soup.select_one('div.description')
+            loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": "PeopleSoft Employer",
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para PeopleSoft: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
     
 class GenericScraper(BaseScraper):  # Usar para Meta4, Cornerstone, UKG
     async def scrape(self) -> List[JobListing]:
@@ -1245,21 +1339,25 @@ class CornerstoneScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one('h1') or soup.select_one('h2')
-        desc_elem = soup.select_one('div.job-details') or soup.select_one('div.description')
-        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": self.__class__.__name__.replace("Scraper", " Employer"),
-            "skills": self.extract_skills(content),
-            "url": url
-        }
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h1') or soup.select_one('h2')
+            desc_elem = soup.select_one('div.job-details') or soup.select_one('div.description')
+            loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": self.__class__.__name__.replace("Scraper", " Employer"),
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para Cornerstone: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
 
 class UKGScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -1290,21 +1388,25 @@ class UKGScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one('h1') or soup.select_one('h2')
-        desc_elem = soup.select_one('div.job-details') or soup.select_one('div.description')
-        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": self.__class__.__name__.replace("Scraper", " Employer"),
-            "skills": self.extract_skills(content),
-            "url": url
-        }
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h1') or soup.select_one('h2')
+            desc_elem = soup.select_one('div.job-details') or soup.select_one('div.description')
+            loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": self.__class__.__name__.replace("Scraper", " Employer"),
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para UKG: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
 
 class GlassdoorScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -1335,21 +1437,25 @@ class GlassdoorScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one('h1') or soup.select_one('h2')
-        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
-        loc_elem = soup.select_one('span.jobLocation') or soup.select_one('span.location')
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": "Glassdoor Employer",
-            "skills": self.extract_skills(content),
-            "url": url
-        }
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h1') or soup.select_one('h2')
+            desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+            loc_elem = soup.select_one('span.jobLocation') or soup.select_one('span.location')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": "Glassdoor Employer",
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para Glassdoor: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
     
 class ComputrabajoScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -1380,21 +1486,25 @@ class ComputrabajoScraper(BaseScraper):
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {}
-        soup = BeautifulSoup(content, "html.parser")
-        title_elem = soup.select_one('h1') or soup.select_one('h2')
-        desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
-        loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
-        return {
-            "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
-            "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
-            "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
-            "company": "Computrabajo Employer",
-            "skills": self.extract_skills(content),
-            "url": url
-        }
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            soup = BeautifulSoup(content, "html.parser")
+            title_elem = soup.select_one('h1') or soup.select_one('h2')
+            desc_elem = soup.select_one('div.job-description') or soup.select_one('div.description')
+            loc_elem = soup.select_one('span.location') or soup.select_one('span.city')
+            return {
+                "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
+                "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
+                "location": loc_elem.get_text(strip=True) if loc_elem else "Unknown",
+                "company": "Computrabajo Employer",
+                "skills": extract_skills(content),
+                "url": url
+            }
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para Computrabajo: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
     
 class FlexibleScraper(BaseScraper): pass
 
@@ -1677,10 +1787,3 @@ PLATFORM_SELECTORS = {
         "pagination_step": 1,
     }
 }
-
-# Comando para ejecutar scrapers manualmente
-class Command(BaseCommand):
-    help = 'Ejecuta el scraper para todos los dominios activos'
-
-    def handle(self, *args, **options):
-        asyncio.run(run_all_scrapers())

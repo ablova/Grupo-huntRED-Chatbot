@@ -78,12 +78,7 @@ INSTALLED_APPS = [
     'app.milkyleak',
     'silk',
     'django_extensions',
-    # 'django_wait_for_db',  # Comentado como en el original
 ]
-
-# Condicionalmente agregar debug_toolbar si no estamos en modo de pruebas
-if 'test' not in sys.argv:
-    INSTALLED_APPS.append('debug_toolbar')
 
 # Middleware
 MIDDLEWARE = [
@@ -97,7 +92,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'silk.middleware.SilkyMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 # Silk Configuration
