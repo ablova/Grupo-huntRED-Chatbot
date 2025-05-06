@@ -1,5 +1,4 @@
 # /home/pablo/app/tasks.py
-
 import logging
 import asyncio
 import random
@@ -16,7 +15,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
-from app.chatbot.utils import get_nlp_processor  # Reemplazar importación
+from app.chatbot.utils import get_nlp_processor
 from app.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
 from app.utilidades.vacantes import VacanteManager
 from app.utilidades.parser import CVParser, IMAPCVProcessor
@@ -37,11 +36,16 @@ from app.chatbot.workflow.amigro import (
 from app.utilidades.scraping import (
     validar_url, ScrapingPipeline, scrape_and_publish, process_domain
 )
+from app.utilidades.scraping_utils import ScrapingMetrics  # Actualizado
+from app.ml.ml_scrape import MLScraper  # Actualizado
 from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
 from app.ml.ml_model import GrupohuntREDMLPipeline, MatchmakingLearningSystem
 from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
 from app.utilidades.catalogs import DIVISIONES
 import json, os
+import pandas as pd
+import aiohttp
+from email.message import EmailMessage
 
 logger = logging.getLogger(__name__)
 
@@ -364,17 +368,16 @@ def process_cv_emails_task(self, business_unit_id):
         logger.error(f"❌ Error in CV email processing: {e}")
         self.retry(exc=e)
 
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def ejecutar_scraping(self, dominio_id=None):
-    from app.models import DominioScraping, RegistroScraping
-    from app.utilidades.scraping import ScrapingPipeline, get_scraper, process_domain
-    from app.ml.ml_scrape import MLScraper, ScrapingMetrics
-    import asyncio
-
+    """
+    Ejecuta el scraping para todos los dominios o un dominio específico.
+    """
     async def run_scraping():
         ml_scraper = MLScraper()
         pipeline = ScrapingPipeline()
-        metrics = ScrapingMetrics()
+        metrics = ScrapingMetrics("web_scraper")
 
         if dominio_id:
             dominio = await sync_to_async(DominioScraping.objects.get)(pk=dominio_id)
@@ -389,7 +392,7 @@ def ejecutar_scraping(self, dominio_id=None):
                 dominio=dominio, estado='parcial', fecha_inicio=timezone.now()
             )
             scraper = await get_scraper(dominio, ml_scraper)
-            tasks.append(process_domain(scraper, dominio, registro, pipeline, metrics))
+            tasks.append(process_domain(scraper, dominio, registro, pipeline))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
@@ -404,6 +407,15 @@ def ejecutar_scraping(self, dominio_id=None):
                 dominio, jobs = result
                 successful += 1
                 total_vacancies += len(jobs)
+                # Registrar retroalimentación para MLScraper
+                for job in jobs:
+                    vacante = await sync_to_async(Vacante.objects.filter(url_original=job["url_original"]).first)()
+                    if vacante:
+                        await ml_scraper.log_feedback(
+                            vacante_id=vacante.id,
+                            success=True,
+                            corrections={}
+                        )
                 logger.info(f"✅ Completado para {dominio.empresa}: {len(jobs)} vacantes")
 
         return {
@@ -419,9 +431,37 @@ def ejecutar_scraping(self, dominio_id=None):
         logger.info(f"🏁 Scraping finalizado: {result['successful_domains']} dominios exitosos, {result['failed_domains']} fallidos, {result['total_vacancies']} vacantes")
         return result
     except Exception as e:
-        logger.error(f"❌ Error general en ejecutar_scraping: {str(e)}", exc_info=True)
+        logger.error(f"❌ Error general en ejecutar_scraping: {e}", exc_info=True)
         self.retry(exc=e)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
+def retrain_ml_scraper(self):
+    """
+    Reentrena el modelo MLScraper con los datos acumulados.
+    """
+    try:
+        ml_scraper = MLScraper()
+        training_data = []
+        with open(ml_scraper.training_data_path, "r") as f:
+            for line in f:
+                try:
+                    training_data.append(json.loads(line.strip()))
+                except json.JSONDecodeError:
+                    logger.warning(f"Línea inválida en datos de entrenamiento: {line}")
+                    continue
         
+        if not training_data:
+            logger.warning("No hay datos de entrenamiento disponibles")
+            return {"status": "error", "message": "No training data"}
+
+        ml_scraper.retrain(training_data)
+        logger.info("✅ MLScraper reentrenado con éxito")
+        return {"status": "success", "message": f"Reentrenado con {len(training_data)} ejemplos"}
+    except Exception as e:
+        logger.error(f"❌ Error reentrenando MLScraper: {e}")
+        self.retry(exc=e)
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
 def verificar_dominios_scraping(self):
     """
@@ -532,7 +572,16 @@ def execute_ml_and_scraping(self):
         # 2. Ejecutar scraping
         logger.info("🔍 Iniciando proceso de scraping...")
         dominios = DominioScraping.objects.filter(activo=True)
-        asyncio.run(scrape_and_publish(dominios))
+        ml_scraper = MLScraper()
+        results = asyncio.run(scrape_and_publish(dominios))
+        
+        # Registrar retroalimentación
+        for domain, jobs in results:
+            if jobs:
+                for job in jobs:
+                    vacante = await sync_to_async(Vacante.objects.filter(url_original=job["url_original"]).first)()
+                    if vacante:
+                        await ml_scraper.log_feedback(vacante_id=vacante.id, success=True, corrections={})
 
         # 3. Ejecutar modelo ML final
         logger.info("🧠 Entrenando modelo ML final...")
@@ -546,10 +595,14 @@ def execute_ml_and_scraping(self):
                 logger.error(f"❌ Error en ML final para {bu.name}: {str(e)}")
                 continue
 
-        logger.info("✨ Proceso de ML y scraping finalizado con éxito.")
+        # 4. Reentrenar MLScraper
+        logger.info("🧠 Reentrenando MLScraper...")
+        retrain_ml_scraper.delay()
 
+        logger.info("✨ Proceso de ML y scraping finalizado con éxito.")
+        return {"status": "success"}
     except Exception as e:
-        logger.error(f"❌ Error en el proceso ML + scraping: {str(e)}")
+        logger.error(f"❌ Error en el proceso ML + scraping: {e}")
         self.retry(exc=e)
 
 # =========================================================
@@ -1008,6 +1061,7 @@ def send_signature_reminders():
 # =========================================================
 # Tareas para obtención de oportunidades, scraping, 
 # =========================================================
+
 @shared_task(name="tasks.execute_email_scraper")
 def execute_email_scraper(dominio_id=None, batch_size=10):
     """
@@ -1018,12 +1072,12 @@ def execute_email_scraper(dominio_id=None, batch_size=10):
         batch_size (int): Número de correos a procesar por lote.
     
     Returns:
-        str: Resultado de la ejecución.
+        dict: Resultado de la ejecución con estadísticas.
     """
     try:
         # Obtener credenciales desde el entorno
-        EMAIL_ACCOUNT = env("EMAIL_ACCOUNT", default="pablo@huntred.com")
-        EMAIL_PASSWORD = env("EMAIL_PASSWORD", default="Natalia&Patricio1113!")
+        EMAIL_ACCOUNT = os.environ.get("EMAIL_ACCOUNT", "pablo@huntred.com")
+        EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "Natalia&Patricio1113!")
 
         # Instanciar el scraper
         scraper = EmailScraperV2(EMAIL_ACCOUNT, EMAIL_PASSWORD)
@@ -1036,12 +1090,19 @@ def execute_email_scraper(dominio_id=None, batch_size=10):
             logger.info(f"🚀 Ejecutando email scraper para todos los correos con batch_size={batch_size}...")
 
         # Ejecutar el scraper de manera asíncrona
-        asyncio.run(scraper.process_email_batch(batch_size=batch_size))  # Ajusta a process_email_batch
+        asyncio.run(scraper.process_all_emails(batch_size=batch_size))
 
-        # Obtener el número de correos procesados desde los logs sería ideal, pero como no devolvemos un contador directamente,
-        # asumimos éxito si no hay excepciones
-        return f"✅ Email scraper ejecutado con éxito para {batch_size} correos"
-
+        # Retornar estadísticas
+        result = {
+            "status": "success",
+            "correos_procesados": scraper.stats["correos_procesados"],
+            "correos_exitosos": scraper.stats["correos_exitosos"],
+            "correos_error": scraper.stats["correos_error"],
+            "vacantes_extraidas": scraper.stats["vacantes_extraidas"],
+            "vacantes_guardadas": scraper.stats["vacantes_guardadas"]
+        }
+        logger.info(f"✅ Email scraper ejecutado: {result}")
+        return result
     except Exception as e:
         logger.error(f"❌ Error en email_scraper: {e}", exc_info=True)
-        return f"❌ Error en ejecución: {e}"
+        return {"status": "error", "message": str(e)}
