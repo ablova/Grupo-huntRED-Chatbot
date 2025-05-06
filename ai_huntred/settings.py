@@ -337,10 +337,3 @@ class DynamicEmailBackend:
             connection=email_backend,
         )
 
-# Configuración de Django Debug Toolbar
-INTERNAL_IPS = ['127.0.0.1']
-DEBUG_TOOLBAR_CONFIG = {
-    'SHOW_TOOLBAR_CALLBACK': lambda request: True,
-    'SHOW_TEMPLATE_CONTEXT': True,
-    'IS_RUNNING_TESTS': False,  # Bypass toolbar check during tests
-}

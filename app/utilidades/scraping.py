@@ -7,33 +7,26 @@ from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 import logging
-
 from django.db import transaction
 from django.utils.timezone import now
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.cache import cache
 from celery import shared_task
 from asgiref.sync import sync_to_async
-
 from aiohttp import ClientSession, ClientTimeout
-from aiohttp.client_exceptions import ClientResponseError
 from bs4 import BeautifulSoup
 import trafilatura
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
-
-from app.models import (
-    DominioScraping, RegistroScraping, Vacante, BusinessUnit, ConfiguracionBU, Worker, USER_AGENTS
-)
+from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, Worker, USER_AGENTS
 from app.chatbot.utils import clean_text
 from app.utilidades.loader import DIVISION_SKILLS
 from app.chatbot.gpt import GPTHandler
 from app.chatbot.nlp import NLPProcessor
 from app.utilidades.vacantes import VacanteManager
-from app.utilidades.scraping_utils import scrape_with_playwright
-
-from prometheus_client import Counter, Histogram, start_http_server
+from app.utilidades.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, inicializar_contexto_playwright, visitar_pagina_humanizada, extraer_y_guardar_cookies
+from app.ml.ml_scrape import MLScraper
 
 logger = logging.getLogger(__name__)
+
 
 # Constantes para assign_business_unit
 BUSINESS_UNITS_KEYWORDS = {
@@ -70,7 +63,6 @@ INDUSTRY_KEYWORDS = {
     'operations': {'operator', 'worker', 'constructor', 'technician', 'trabajador', 'operador'},
     'strategy': {'strategic', 'global', 'board', 'president', 'estrategico'}
 }
-
 @dataclass
 class JobListing:
     title: str
@@ -87,38 +79,14 @@ class JobListing:
     benefits: Optional[List[str]] = None
     sectors: Optional[List[str]] = None
 
-class ScrapingMetrics:
-    def __init__(self):
-        self.jobs_scraped = Counter('jobs_scraped_total', 'Total jobs scraped')
-        self.scraping_duration = Histogram('scraping_duration_seconds', 'Time spent scraping')
-        self.errors_total = Counter('scraping_errors_total', 'Total scraping errors')
-        try:
-            start_http_server(8001)
-            logger.info("Prometheus server started on port 8001")
-        except OSError as e:
-            logger.warning(f"Failed to start Prometheus server: {e}")
-
-class ScrapingCache:
-    def __init__(self):
-        self.TTL = 3600  # 1 hora
-
-    async def get(self, key: str) -> Optional[Dict]:
-        return await cache.get(key)
-
-    async def set(self, key: str, value: Dict):
-        serialized = json.dumps(value)
-        await cache.set(key, serialized, timeout=self.TTL)
-        logger.info(f"Cached {key}")
-        return True
-
 class ScrapingPipeline:
-    def __init__(self, opportunity_db=None):
+    def __init__(self):
         self.cache = ScrapingCache()
         self.processor = NLPProcessor(language="es", mode="opportunity")
         self.gpt_handler = GPTHandler()
+        self.ml_scraper = MLScraper()
 
     async def process(self, jobs: List[Dict]) -> List[Dict]:
-        """Procesa trabajos, enriqueciendo con GPT si faltan campos críticos."""
         await self.gpt_handler.initialize()
         try:
             jobs = await self.clean_data(jobs)
@@ -184,7 +152,28 @@ class ScrapingPipeline:
         return jobs
 
     async def validate_data(self, jobs: List[Dict]) -> List[Dict]:
-        return [validated for job in jobs if (validated := validate_job_data(JobListing(**job)))]
+        validated_jobs = []
+        for job in jobs:
+            validated = validate_job_data(JobListing(**job))
+            if validated:
+                validated_jobs.append(validated)
+            else:
+                enriched_job = await self.enrich_missing_fields(job)
+                validated = validate_job_data(JobListing(**enriched_job))
+                if validated:
+                    validated_jobs.append(validated)
+        return validated_jobs
+
+    async def enrich_missing_fields(self, job: Dict) -> Dict:
+        if not job.get("description") or job["description"] == "No disponible":
+            details = await self.ml_scraper.extract_job_details(job["url"], job.get("plataforma", "default"))
+            job.update(details)
+        if not job.get("description") or job["description"] == "No disponible":
+            vacante = Vacante(titulo=job["title"], url_original=job["url"])
+            if await self.enrich_with_gpt(vacante):
+                job["description"] = vacante.descripcion
+                job["skills"] = vacante.skills_required
+        return job
 
 def validate_job_data(job: JobListing) -> Optional[Dict]:
     required_fields = ["title", "location", "company", "description", "url"]
@@ -208,34 +197,6 @@ def validate_job_data(job: JobListing) -> Optional[Dict]:
         "business_unit": assign_business_unit({"title": job.title, "description": job.description, "skills": job.skills, "location": job.location})
     }
 
-class WeightingModel:
-    def __init__(self, business_unit):
-        self.business_unit = business_unit
-        self.weights = self._load_weights()
-
-    @sync_to_async
-    def _load_weights(self):
-        """Carga los pesos de la configuración de la unidad de negocio de forma asíncrona."""
-        try:
-            config = ConfiguracionBU.objects.get(business_unit=self.business_unit)
-            return {
-                "hard_skills": config.hard_skills_weight,
-                "soft_skills": config.soft_skills_weight,
-                "personalidad": config.personality_weight,
-                "ubicacion": config.location_weight
-            }
-        except ConfiguracionBU.DoesNotExist:
-            # Valores por defecto si no hay configuración
-            return {
-                "hard_skills": 1.0,
-                "soft_skills": 1.0,
-                "personalidad": 1.0,
-                "ubicacion": 1.0
-            }
-
-    def get_weights(self, level: str):
-        """Devuelve los pesos para el nivel especificado."""
-        return self.weights
     
 async def assign_business_unit(job_title: str, job_description: str = None, salary_range: str = None, required_experience: str = None, location: str = None) -> Optional[int]:
     """Determina la unidad de negocio para una vacante con pesos dinámicos de forma asíncrona."""
@@ -550,53 +511,84 @@ def extract_field(html: str, selectors: List[str], attribute: Optional[str] = No
         return match.group(1).strip() if match else None
     return None
 
-async def get_scraper(domain: DominioScraping, ml_scraper):
+async def get_scraper(domain: DominioScraping, ml_scraper: MLScraper):
     scraper_class = SCRAPER_MAP.get(domain.plataforma, SCRAPER_MAP["default"])
     if domain.mapeo_configuracion:
         selectors = domain.mapeo_configuracion.get("selectors", PLATFORM_SELECTORS.get(domain.plataforma, {}))
     else:
-        selectors = PLATFORM_SELECTORS.get(domain.plataforma, {})
+        selectors = await ml_scraper.identify_selectors(domain.dominio, domain.plataforma)
+        if not selectors:
+            selectors = PLATFORM_SELECTORS.get(domain.plataforma, {})
     return scraper_class(domain, ml_scraper, custom_selectors=selectors)
 
 class BaseScraper:
-    def __init__(self, domain: DominioScraping, ml_scraper, custom_selectors: Optional[Dict] = None):
+    def __init__(self, domain: DominioScraping, ml_scraper: MLScraper, custom_selectors: Optional[Dict] = None):
         self.domain = domain
         self.plataforma = domain.plataforma
         self.selectors = custom_selectors or PLATFORM_SELECTORS.get(self.plataforma, {})
         self.response_type = "json" if self.plataforma in ["eightfold_ai", "oracle_hcm"] else "html"
-        self.semaphore = asyncio.Semaphore(10)
+        self.semaphore = asyncio.Semaphore(max(1, int(psutil.cpu_count() * 0.5)))
         self.delay = domain.frecuencia_scraping / 3600
         self.session = None
         self.cookies = domain.cookies or {}
-        self.ml_scraper = ml_scraper  # Añadido como parámetro
+        self.ml_scraper = ml_scraper
+        self.metrics = ScrapingMetrics("web_scraper")
+        self.health_monitor = SystemHealthMonitor()
 
     async def __aenter__(self):
         headers = {'User-Agent': random.choice(USER_AGENTS)}
         self.session = ClientSession(headers=headers, timeout=ClientTimeout(total=30), cookies=self.cookies)
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
+
+    async def refresh_cookies(self, url: str) -> Dict:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+            await page.goto(url, wait_until="networkidle")
+            cookies = await context.cookies()
+            await browser.close()
+            return {cookie["name"]: cookie["value"] for cookie in cookies}
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), 
            before_sleep=before_sleep_log(logger, logging.WARNING))
     async def fetch(self, url: str, use_playwright: bool = False) -> Optional[str]:
         if use_playwright or self.plataforma in ["linkedin", "workday", "phenom_people", "indeed", "glassdoor"]:
-            try:
-                content = await scrape_with_playwright(self.domain, url)
-                logger.info(f"Contenido obtenido con Playwright para {url}")
-                return content
-            except Exception as e:
-                logger.error(f"Error al obtener {url} con Playwright: {e}")
-                return None
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                try:
+                    context = await inicializar_contexto_playwright(self.domain, browser)
+                    page = await context.new_page()
+                    await visitar_pagina_humanizada(page, url)
+                    content = await page.content()
+                    await extraer_y_guardar_cookies(self.domain, context)
+                    return content
+                finally:
+                    await browser.close()
         else:
-            async with self.session.get(url) as response:
-                if response.status == 200:
-                    return await response.text()
-                else:
-                    logger.warning(f"Error HTTP {response.status} al obtener {url}")
-                    return None
+            try:
+                async with self.session.get(url) as response:
+                    if response.status == 200:
+                        return await response.text()
+                    elif response.status in [403, 401]:
+                        self.cookies = await self.refresh_cookies(url)
+                        async with self.session.get(url, cookies=self.cookies) as retry_response:
+                            if retry_response.status == 200:
+                                return await retry_response.text()
+                            logger.warning(f"Error HTTP {retry_response.status} al obtener {url}")
+                            return None
+                    else:
+                        logger.warning(f"Error HTTP {response.status} al obtener {url}")
+                        return None
+            except Exception as e:
+                logger.error(f"Error fetching {url}: {e}")
+                self.metrics.errors_total.inc()
+                return None
+
 
     async def scrape(self) -> List[JobListing]:
         if not self.selectors:
@@ -698,7 +690,6 @@ class BaseScraper:
             "sentiment": analysis.get("sentiment"),
             "job_classification": analysis.get("job_classification"),
         }
-
 # Scrapers específicos
 class LinkedInScraper(BaseScraper):
     async def scrape(self) -> List[JobListing]:
@@ -1555,12 +1546,11 @@ async def publish_to_internal_system(jobs: List[Dict], business_unit: BusinessUn
 
 async def scrape_and_publish(domains: List[DominioScraping]) -> None:
     pipeline = ScrapingPipeline()
-    metrics = ScrapingMetrics()
     tasks = []
     for domain in domains:
         registro = await sync_to_async(RegistroScraping.objects.create)(dominio=domain, estado='parcial')
-        scraper = await get_scraper(domain)
-        tasks.append(process_domain(scraper, domain, registro, pipeline, metrics))
+        scraper = await get_scraper(domain, pipeline.ml_scraper)
+        tasks.append(process_domain(scraper, domain, registro, pipeline))
     results = await asyncio.gather(*tasks)
     jobs_by_bu = {}
     for domain, jobs in results:
@@ -1570,31 +1560,31 @@ async def scrape_and_publish(domains: List[DominioScraping]) -> None:
     for bu_name, jobs in jobs_by_bu.items():
         bu = await sync_to_async(BusinessUnit.objects.get)(name=bu_name)
         await publish_to_internal_system(jobs, bu)
-        metrics.jobs_scraped.inc(len(jobs))
 
-async def process_domain(scraper, domain: DominioScraping, registro: RegistroScraping, pipeline: ScrapingPipeline, metrics: ScrapingMetrics) -> tuple:
+async def process_domain(scraper, domain: DominioScraping, registro: RegistroScraping, pipeline: ScrapingPipeline) -> tuple:
     try:
         async with asyncio.timeout(3600):
             async with scraper:
-                with metrics.scraping_duration.time():
+                with scraper.metrics.scraping_duration.time():
                     raw_jobs = await scraper.scrape()
                     processed_jobs = await pipeline.process([vars(job) for job in raw_jobs])
                     await save_vacantes(processed_jobs, domain)
                     registro.vacantes_encontradas = len(processed_jobs)
                     registro.estado = 'exitoso'
+                    await pipeline.ml_scraper.save_training_data(domain, processed_jobs, "success")
                     return domain, processed_jobs
     except Exception as e:
         registro.estado = 'fallido'
         registro.error_log = str(e)
         logger.error(f"Scraping failed for {domain.dominio}: {e}")
-        metrics.errors_total.inc()
+        scraper.metrics.errors_total.inc()
+        await pipeline.ml_scraper.save_training_data(domain, [], "failed", str(e))
         bu = await sync_to_async(BusinessUnit.objects.filter)(scraping_domains=domain).first()
         if bu and bu.admin_email:
             from app.chatbot.integrations.services import send_email
             await send_email(
                 business_unit_name=bu.name,
                 subject=f"Scraping Error for {domain.dominio}",
-                to_email=bu.admin_email,
                 body=f"Error: {str(e)}\nDetails: {registro.error_log}",
                 from_email="noreply@huntred.com",
             )
@@ -1607,6 +1597,7 @@ async def process_domain(scraper, domain: DominioScraping, registro: RegistroScr
 async def run_all_scrapers() -> None:
     domains = await sync_to_async(list)(DominioScraping.objects.filter(activo=True, business_units__scrapping_enabled=True))
     await scrape_and_publish(domains)
+
 
 # Selectors
 PLATFORM_SELECTORS = {

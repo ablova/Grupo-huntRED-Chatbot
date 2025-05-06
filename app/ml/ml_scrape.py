@@ -1,4 +1,7 @@
 # /home/pablo/app/ml/ml_scrape.py
+
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Deshabilita GPU
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -8,10 +11,13 @@ from sklearn.metrics import classification_report
 import spacy
 from bs4 import BeautifulSoup
 import pickle
-import os
 import logging
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
+import re
+import asyncio
+import json
+from app.utilidades.scraping import ScrapingPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -40,21 +46,35 @@ class MLScraper:
 
     async def train_email_classifier(self, emails: List[Dict], labels: List[str]):
         """Entrena el clasificador de correos con datos etiquetados."""
+        if not emails or not labels:
+            logger.error("No se proporcionaron datos para entrenamiento")
+            raise ValueError("Emails y labels no pueden estar vacíos")
+        
+        if len(emails) != len(labels):
+            logger.error(f"Longitudes no coinciden: {len(emails)} emails, {len(labels)} labels")
+            raise ValueError("Longitudes de emails y labels deben coincidir")
+
         features = [f"{e['From']} {e['Subject']} {e.get('body', '')[:500]}" for e in emails]
+        self.vectorizer = TfidfVectorizer(max_features=5000)
         X = self.vectorizer.fit_transform(features)
         X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=0.2, random_state=42)
         
         self.email_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
         self.email_classifier.fit(X_train, y_train)
         
+        # Evaluar el modelo
+        y_pred = self.email_classifier.predict(X_test)
+        logger.info(f"Reporte de clasificación:\n{classification_report(y_test, y_pred)}")
         accuracy = self.email_classifier.score(X_test, y_test)
         logger.info(f"Precisión del clasificador de correos: {accuracy:.2f}")
         
         # Guardar modelos
+        os.makedirs(self.model_dir, exist_ok=True)
         with open(f"{self.model_dir}/email_classifier.pkl", "wb") as f:
             pickle.dump(self.email_classifier, f)
         with open(f"{self.model_dir}/vectorizer.pkl", "wb") as f:
             pickle.dump(self.vectorizer, f)
+        logger.info("Modelos guardados exitosamente")
 
     async def classify_email(self, message: "email.message.Message") -> str:
         """Clasifica la plataforma de origen de un correo electrónico."""
@@ -80,6 +100,12 @@ class MLScraper:
             return "linkedin"
         elif "indeed" in sender or "indeed" in subject:
             return "indeed"
+        elif "computrabajo" in sender or "computrabajo" in subject:
+            return "computrabajo"
+        elif "workday" in sender or "workday" in subject:
+            return "workday"
+        elif "glassdoor" in sender or "glassdoor" in subject:
+            return "glassdoor"
         return "unknown"
 
     def _get_email_body(self, message: "email.message.Message") -> str:
@@ -87,6 +113,8 @@ class MLScraper:
         if message.is_multipart():
             for part in message.walk():
                 if part.get_content_type() == "text/html":
+                    return part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                elif part.get_content_type() == "text/plain":
                     return part.get_payload(decode=True).decode("utf-8", errors="ignore")
         return message.get_payload(decode=True).decode("utf-8", errors="ignore")
 
@@ -102,7 +130,7 @@ class MLScraper:
         
         # Identificar entidades relevantes
         for ent in doc.ents:
-            if ent.label_ in ["ORG", "LOC", "JOB_TITLE"]:  # Etiquetas personalizadas o genéricas
+            if ent.label_ in ["ORG", "LOC", "PER"]:  # Ajustado para spaCy estándar
                 job_data = self._extract_job_context(doc, ent)
                 if job_data:
                     job_listings.append(job_data)
@@ -121,9 +149,14 @@ class MLScraper:
     def _extract_job_context(self, doc, entity) -> Optional[Dict]:
         """Extrae contexto de una entidad para formar una vacante."""
         context = doc[max(0, entity.start - 20):min(len(doc), entity.end + 20)].text
-        title = entity.text if entity.label_ == "JOB_TITLE" else None
+        title = None
         company = entity.text if entity.label_ == "ORG" else None
         location = entity.text if entity.label_ == "LOC" else "No especificada"
+        
+        # Intentar extraer título del contexto
+        title_match = re.search(r"(?:job|vacante|puesto|position)\s*:\s*([^\n<]+)", context, re.IGNORECASE)
+        if title_match:
+            title = title_match.group(1).strip()
         
         if title or company:
             return {
@@ -153,7 +186,8 @@ class MLScraper:
             return "workday"
         elif "indeed" in domain:
             return "indeed"
-        # TODO: Implementar modelo de clasificación de páginas
+        elif "computrabajo" in domain:
+            return "computrabajo"
         return "unknown"
 
     async def extract_job_details(self, html_content: str, platform: str) -> Dict:
@@ -174,7 +208,7 @@ class MLScraper:
         }
         
         for ent in doc.ents:
-            if ent.label_ == "JOB_TITLE":
+            if ent.label_ == "PER":  # Usamos PER como proxy para títulos
                 job_data["titulo"] = ent.text
             elif ent.label_ == "ORG":
                 job_data["empresa"] = ent.text
@@ -183,25 +217,3 @@ class MLScraper:
         
         job_data["descripcion"] = text[:3000]
         return job_data
-
-    async def retrain_models(self, new_data: List[Dict]):
-        """Reentrena los modelos con nuevos datos."""
-        # TODO: Implementar lógica de reentrenamiento con retroalimentación
-        logger.info("Reentrenamiento de modelos pendiente de implementación")
-
-# Example usage for integration with email_scraper.py and scraping.py
-if __name__ == "__main__":
-    ml_scraper = MLScraper()
-
-    # Example training data (to be replaced with actual data)
-    emails = ["Subject: Nueva vacante en LinkedIn", "Subject: Actualiza tu perfil"]
-    email_labels = [1, 0]  # 1: job alert, 0: not job alert
-    ml_scraper.train_email_classifier(emails, email_labels)
-
-    urls = ["https://www.linkedin.com/jobs/view/123", "https://jobs.workday.com/job/456"]
-    platforms = ["linkedin", "workday"]
-    ml_scraper.train_platform_classifier(urls, platforms)
-
-    error_data = [{"text": "Short text", "url": "http://example.com"}, {"text": "Long complex HTML" * 100, "url": "http://fail.com"}]
-    error_outcomes = [0, 1]  # 0: success, 1: error
-    ml_scraper.train_error_predictor(error_data, error_outcomes)
