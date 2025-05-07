@@ -17,9 +17,13 @@ import requests
 import logging
 import re
 import uuid
+import pdfkit
+from io import BytesIO
+from django.core.files import File
 
 logger = logging.getLogger(__name__)
 
+# Choices
 PLATFORM_CHOICES = [
     ("workday", "Workday"),
     ("phenom_people", "Phenom People"),
@@ -42,6 +46,24 @@ PLATFORM_CHOICES = [
     ("flexible", "Flexible"),
 ]
 
+# Choices para el estado de la carta de oferta
+OFERTA_STATUS_CHOICES = [
+    ('pending', 'Pendiente'),
+    ('sent', 'Enviada'),
+    ('signed', 'Firmada'),
+    ('rejected', 'Rechazada'),
+    ('expired', 'Expirada'),
+]
+
+# Choices para el canal de envío
+CANAL_ENVIO_CHOICES = [
+    ('whatsapp', 'WhatsApp'),
+    ('email', 'Email'),
+    ('telegram', 'Telegram'),
+    ('messenger', 'Messenger'),
+    ('instagram', 'Instagram'),
+]
+
 BUSINESS_UNIT_CHOICES = [
     ('huntRED', 'huntRED®'),
     ('huntRED_executive', 'huntRED® Executive'),
@@ -58,6 +80,403 @@ COMUNICATION_CHOICES = [
     ("slack", "Slack"),
     ("sms", "SMS"),
 ]
+
+# Choices para el flujo conversacional
+INTENT_TYPE_CHOICES = [
+    ('SYSTEM', 'Sistema'),
+    ('USER', 'Usuario'),
+    ('BUSINESS', 'Negocio'),
+    ('FALLBACK', 'Respuesta por defecto'),
+]
+
+STATE_TYPE_CHOICES = [
+    ('INITIAL', 'Inicial'),
+    ('PROFILE', 'Perfil'),
+    ('SEARCH', 'Búsqueda'),
+    ('APPLY', 'Aplicación'),
+    ('INTERVIEW', 'Entrevista'),
+    ('OFFER', 'Oferta'),
+    ('HIRED', 'Contratado'),
+    ('IDLE', 'Inactivo'),
+]
+
+TRANSITION_TYPE_CHOICES = [
+    ('IMMEDIATE', 'Inmediato'),
+    ('CONDITIONAL', 'Condicional'),
+    ('TIME_BASED', 'Basado en tiempo'),
+    ('EVENT_BASED', 'Basado en evento'),
+]
+
+CONDITION_TYPE_CHOICES = [
+    ('PROFILE_COMPLETE', 'Perfil completo'),
+    ('HAS_APPLIED', 'Ha aplicado'),
+    ('HAS_INTERVIEW', 'Tiene entrevista'),
+    ('HAS_OFFER', 'Tiene oferta'),
+    ('HAS_PROFILE', 'Tiene perfil'),
+    ('HAS_CV', 'Tiene CV'),
+    ('HAS_TEST', 'Tiene prueba'),
+]
+
+# Modelos para el flujo conversacional
+class IntentPattern(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+    patterns = models.TextField(help_text="Patrones de regex separados por nueva línea")
+    responses = models.JSONField(default=dict, help_text="Respuestas por canal y unidad de negocio")
+    priority = models.IntegerField(default=50)
+    enabled = models.BooleanField(default=True)
+    type = models.CharField(max_length=20, choices=INTENT_TYPE_CHOICES, default='USER')
+    business_units = models.ManyToManyField(BusinessUnit, related_name='intent_patterns')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('-priority', 'name')
+
+    def __str__(self):
+        return f"{self.name} ({self.type})"
+
+    def get_patterns_list(self):
+        return self.patterns.split('\n') if self.patterns else []
+
+class StateTransition(models.Model):
+    current_state = models.CharField(max_length=50, choices=STATE_TYPE_CHOICES)
+    next_state = models.CharField(max_length=50, choices=STATE_TYPE_CHOICES)
+    conditions = models.JSONField(default=list, help_text="Condiciones para la transición")
+    type = models.CharField(max_length=20, choices=TRANSITION_TYPE_CHOICES, default='IMMEDIATE')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='state_transitions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('current_state', 'next_state', 'business_unit')
+
+    def __str__(self):
+        return f"{self.business_unit.name}: {self.current_state} -> {self.next_state}"
+
+class IntentTransition(models.Model):
+    current_intent = models.ForeignKey(IntentPattern, on_delete=models.CASCADE, related_name='transitions_from')
+    next_intent = models.ForeignKey(IntentPattern, on_delete=models.CASCADE, related_name='transitions_to')
+    conditions = models.JSONField(default=list, help_text="Condiciones para la transición")
+    type = models.CharField(max_length=20, choices=TRANSITION_TYPE_CHOICES, default='IMMEDIATE')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='intent_transitions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('current_intent', 'next_intent', 'business_unit')
+
+    def __str__(self):
+        return f"{self.business_unit.name}: {self.current_intent.name} -> {self.next_intent.name}"
+
+class ContextCondition(models.Model):
+    name = models.CharField(max_length=100)
+    type = models.CharField(max_length=50, choices=CONDITION_TYPE_CHOICES)
+    value = models.TextField()
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.type})"
+
+# Clase para manejar el estado de la conversación
+class ChatState(models.Model):
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='chat_states')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='chat_states')
+    state = models.CharField(max_length=50, choices=STATE_TYPE_CHOICES, default='INITIAL')
+    last_intent = models.ForeignKey(IntentPattern, on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_states')
+    conversation_history = models.JSONField(default=list)
+    last_transition = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('person', 'business_unit')
+
+    def __str__(self):
+        return f"{self.person.nombre} - {self.business_unit.name} ({self.state})"
+
+    def get_available_intents(self):
+        """Obtiene los intents disponibles según el estado actual."""
+        current_state = self.state
+        bu = self.business_unit
+        
+        # Obtener transiciones válidas desde el estado actual
+        transitions = StateTransition.objects.filter(
+            current_state=current_state,
+            business_unit=bu
+        )
+        
+        # Obtener intents disponibles
+        available_intents = IntentPattern.objects.filter(
+            business_units=bu,
+            enabled=True
+        )
+        
+        # Filtrar por condiciones
+        filtered_intents = []
+        for intent in available_intents:
+            transitions = IntentTransition.objects.filter(
+                current_intent=intent,
+                business_unit=bu
+            )
+            if transitions.exists():
+                filtered_intents.append(intent)
+        
+        return filtered_intents
+
+    def validate_transition(self, new_state):
+        """Valida si la transición de estado es válida."""
+        try:
+            StateTransition.objects.get(
+                current_state=self.state,
+                next_state=new_state,
+                business_unit=self.business_unit
+            )
+            return True
+        except StateTransition.DoesNotExist:
+            return False
+
+    def transition_to(self, new_state):
+        """Realiza una transición de estado."""
+        if self.validate_transition(new_state):
+            self.state = new_state
+            self.last_transition = timezone.now()
+            self.save()
+            return True
+        return False
+
+# Signal para crear ChatState cuando se crea un nuevo Person
+@receiver(post_save, sender=Person)
+def create_chat_states(sender, instance, created, **kwargs):
+    if created:
+        for bu in BusinessUnit.objects.all():
+            ChatState.objects.create(
+                person=instance,
+                business_unit=bu
+            )
+
+# Signal para actualizar el estado cuando se crea una nueva aplicación
+@receiver(post_save, sender=Application)
+def update_chat_state_on_application(sender, instance, created, **kwargs):
+    if created:
+        chat_state = ChatState.objects.get(
+            person=instance.user,
+            business_unit=instance.vacancy.business_unit
+        )
+        chat_state.transition_to('APPLY')
+
+# Signal para actualizar el estado cuando se crea una nueva entrevista
+@receiver(post_save, sender=Interview)
+def update_chat_state_on_interview(sender, instance, created, **kwargs):
+    if created:
+        chat_state = ChatState.objects.get(
+            person=instance.person,
+            business_unit=instance.job.business_unit
+        )
+        chat_state.transition_to('INTERVIEW')
+
+# Signal para actualizar el estado cuando se acepta una oferta
+@receiver(post_save, sender=Application)
+def update_chat_state_on_offer_accepted(sender, instance, **kwargs):
+    if instance.status == 'hired':
+        chat_state = ChatState.objects.filter(
+            person=instance.user,
+            business_unit=instance.vacancy.business_unit
+        ).first()
+        if chat_state:
+            chat_state.state = 'HIRED'
+            chat_state.last_transition = timezone.now()
+            chat_state.save()
+
+# Clase para manejar la generación y firma de cartas de oferta
+class EntrevistaTipo(models.Model):
+    """Tipos de entrevistas posibles"""
+    TIPO_CHOICES = [
+        ('presencial', 'Presencial'),
+        ('virtual', 'Virtual'),
+        ('panel', 'Panel'),
+        ('otro', 'Otro')
+    ]
+    
+    nombre = models.CharField(max_length=50, choices=TIPO_CHOICES)
+    descripcion = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.nombre
+
+
+class Entrevista(models.Model):
+    """Representa una entrevista realizada a un candidato"""
+    candidato = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='entrevistas')
+    vacante = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='entrevistas')
+    tipo = models.ForeignKey(EntrevistaTipo, on_delete=models.SET_NULL, null=True)
+    fecha = models.DateTimeField()
+    resultado = models.CharField(max_length=50, choices=[
+        ('pendiente', 'Pendiente'),
+        ('aprobado', 'Aprobado'),
+        ('rechazado', 'Rechazado')
+    ], default='pendiente')
+    comentarios = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return f"Entrevista de {self.candidato.nombre} para {self.vacante.titulo}"
+
+class OfertaEstado(models.Model):
+    """Estados posibles de una oferta"""
+    nombre = models.CharField(max_length=50)
+    descripcion = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.nombre
+
+class CartaOfertaManager(models.Manager):
+    def crear_carta_oferta(self, user, vacancy, salary, benefits, start_date, end_date=None):
+        """
+        Crea una nueva carta de oferta para un usuario.
+        """
+        if not user.is_complete_profile():
+            raise ValueError("El perfil del usuario debe estar completo para crear una carta de oferta.")
+
+        # Crear estado inicial si no existe
+        estado_pendiente, _ = OfertaEstado.objects.get_or_create(
+            nombre='pendiente',
+            defaults={'descripcion': 'Oferta pendiente de aceptación'}
+        )
+
+        carta = self.create(
+            user=user,
+            vacancy=vacancy,
+            salary=salary,
+            benefits=benefits,
+            start_date=start_date,
+            end_date=end_date or (start_date + timedelta(days=365)),
+            status=estado_pendiente
+        )
+        return carta
+
+class CartaOferta(models.Model):
+    """Representa una carta de oferta para un candidato"""
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='cartas_oferta')
+    vacancy = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='cartas_oferta')
+    salary = models.DecimalField(max_digits=10, decimal_places=2)
+    benefits = models.TextField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=20, choices=OFERTA_STATUS_CHOICES, default='pending')
+    canal_envio = models.CharField(max_length=20, choices=CANAL_ENVIO_CHOICES, null=True, blank=True)
+    fecha_envio = models.DateTimeField(null=True, blank=True)
+    fecha_firma = models.DateTimeField(null=True, blank=True)
+    pdf_file = models.FileField(upload_to='cartas_oferta/', null=True, blank=True)
+    entrevista = models.ForeignKey(Entrevista, on_delete=models.SET_NULL, null=True, blank=True, related_name='cartas_oferta')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = CartaOfertaManager()
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['user', 'vacancy']
+        from app.utils.pdf_generator import generate_pdf
+        
+        # Obtener la plantilla correspondiente basada en la unidad de negocio
+        template_name = 'default'
+        if hasattr(self.vacancy, 'business_unit'):
+            template_name = self.vacancy.business_unit.name.lower()
+            
+        template = settings.CARTA_OFERTA_TEMPLATES.get(template_name, 'default')
+        
+        # Renderizar el template con los datos
+        context = {
+            'user': self.user,
+            'vacancy': self.vacancy,
+            'salary': self.salary,
+            'benefits': self.benefits,
+            'start_date': self.start_date,
+            'end_date': self.end_date
+        }
+        
+        # Generar PDF
+        pdf_path = generate_pdf(template, context)
+        with open(pdf_path, 'rb') as pdf_file:
+            self.pdf_file.save(f'carta_oferta_{self.id}.pdf', pdf_file)
+
+    def marcar_como_firmada(self):
+        """Marca la carta como firmada y actualiza el estado."""
+        try:
+            self.status = 'signed'
+            self.fecha_firma = timezone.now()
+            self.save()
+
+            # Actualizar la aplicación asociada
+            application = Application.objects.filter(
+                user=self.user,
+                vacancy=self.vacancy
+            ).first()
+            if application:
+                application.status = 'hired'
+                application.save()
+
+            # Actualizar el estado del chat
+            chat_state = ChatState.objects.filter(
+                person=self.user,
+                business_unit=self.vacancy.business_unit
+            ).first()
+            if chat_state:
+                chat_state.state = 'HIRED'
+                chat_state.last_transition = timezone.now()
+                chat_state.save()
+
+        except Exception as e:
+            logger.error(f"Error marcando carta como firmada: {str(e)}")
+            raise
+
+    def rechazar(self):
+        """
+        Marca la carta como rechazada y actualiza el estado.
+        """
+        try:
+            self.status = 'rejected'
+            self.save()
+
+            # Actualizar la aplicación asociada
+            application = Application.objects.filter(
+                user=self.user,
+                vacancy=self.vacancy
+            ).first()
+            if application:
+                application.status = 'rejected'
+                application.save()
+
+        except Exception as e:
+            logger.error(f"Error rechazando carta: {str(e)}")
+            raise
+
+    def get_status_badge(self):
+        """
+        Devuelve el color de la etiqueta según el estado.
+        """
+        badge_colors = {
+            'pending': 'warning',
+            'sent': 'info',
+            'signed': 'success',
+            'rejected': 'danger',
+            'expired': 'secondary'
+        }
+        return badge_colors.get(self.status, 'secondary')
+
+    def get_status_display(self):
+        """
+        Devuelve la representación legible del estado.
+        """
+        for value, display in OFERTA_STATUS_CHOICES:
+            if value == self.status:
+                return display
+        return self.status
+
+    def __str__(self):
+        return f"Carta de Oferta para {self.user.nombre} - {self.vacancy.titulo} ({self.status})"
 
 # User agents
 USER_AGENTS = [

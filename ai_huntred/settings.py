@@ -7,7 +7,11 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from pathlib import Path
 import tensorflow as tf
-import sys  # Added for INSTALLED_APPS conditional
+import sys
+from ai_huntred.config.security import SecurityConfig
+from ai_huntred.config.logging import setup_logging
+from ai_huntred.config.optimization import OptimizationConfig
+from ai_huntred.config.monitoring import MonitoringConfig
 
 # --- Configuración temprana de TensorFlow ---
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
@@ -21,6 +25,26 @@ env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 env_file = os.path.join(BASE_DIR, '.env')
 
+# --- Configuración de Pagos ---
+PAYPAL_MODE = env('PAYPAL_MODE', default='sandbox')
+PAYPAL_CLIENT_ID = env('PAYPAL_CLIENT_ID')
+PAYPAL_CLIENT_SECRET = env('PAYPAL_CLIENT_SECRET')
+PAYPAL_RETURN_URL = env('PAYPAL_RETURN_URL')
+PAYPAL_CANCEL_URL = env('PAYPAL_CANCEL_URL')
+
+WORDPRESS_API_URL = env('WORDPRESS_API_URL')
+WORDPRESS_USERNAME = env('WORDPRESS_USERNAME')
+WORDPRESS_PASSWORD = env('WORDPRESS_PASSWORD')
+
+# --- Configuración de entorno ---
+
+# Configuración de localización para Ciudad de México
+TIME_ZONE = 'America/Mexico_City'
+LANGUAGE_CODE = 'es-mx'
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True
+
 # Validar existencia del archivo .env (sin usar logger aún)
 if not os.path.exists(env_file):
     raise FileNotFoundError(f"Environment file not found: {env_file}")
@@ -30,11 +54,44 @@ if not os.access(env_file, os.R_OK):
 # Cargar variables de entorno
 environ.Env.read_env(env_file)
 
-# --- Seguridad y entorno ---
-SECRET_KEY = env('DJANGO_SECRET_KEY', default='hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48')
-DEBUG = env.bool('DJANGO_DEBUG', default=False)
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['ai.huntred.com', '127.0.0.1', 'localhost', '34.57.227.244'])
+# Configuración de formato de fecha y hora para México
+DATE_FORMAT = 'd/m/Y'
+DATETIME_FORMAT = 'd/m/Y H:i'
+SHORT_DATE_FORMAT = 'd/m/Y'
+SHORT_DATETIME_FORMAT = 'd/m/Y H:i'
+TIME_FORMAT = 'H:i'
 
+# --- Seguridad y entorno ---
+# Asegurar que no se use la clave por defecto en producción
+SECRET_KEY = env('DJANGO_SECRET_KEY')
+DEBUG = env.bool('DJANGO_DEBUG', default=False)
+
+# Configurar hosts permitidos para Ciudad de México
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['ai.huntred.com', '127.0.0.1', 'localhost'])
+
+# Configuración de CORS para Ciudad de México
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:3000', 'http://127.0.0.1:3000'])
+CORS_ALLOW_CREDENTIALS = True
+
+# Configuración de seguridad adicional
+SECURE_BROWSER_XSS_FILTER = True
+SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=not DEBUG)
+CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=not DEBUG)
+SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=not DEBUG)
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Configuración de correo para Ciudad de México
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@huntred.com')
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+
+# Configuración de base de datos
 # Configuración de base de datos
 DATABASES = {
     'default': {
@@ -48,8 +105,15 @@ DATABASES = {
         'OPTIONS': {
             'connect_timeout': env.int('DB_CONNECT_TIMEOUT', default=10),
         },
+        'TEST': {
+            'NAME': 'test_g_huntred_ai_db',
+        },
     }
 }
+
+# Silenciar advertencia de Django 6.0
+FORMS_URLFIELD_ASSUME_HTTPS = True
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 WAIT_FOR_DB = {
     'RETRIES': 30,
@@ -78,6 +142,7 @@ INSTALLED_APPS = [
     'app.milkyleak',
     'silk',
     'django_extensions',
+    'app.pagos',
 ]
 
 # Middleware
@@ -92,6 +157,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'silk.middleware.SilkyMiddleware',
+    'ai_huntred.error_handling.ErrorHandlerMiddleware',
 ]
 
 # Silk Configuration
@@ -147,6 +213,19 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Directorios
 ML_MODELS_DIR = os.path.join(BASE_DIR, 'app', 'models', 'ml_models')
+CARTAS_OFERTA_DIR = os.path.join(BASE_DIR, 'media', 'cartas_oferta')
+
+# Configuración de PDFKit
+WKHTMLTOPDF_PATH = env('WKHTMLTOPDF_PATH', default='/usr/local/bin/wkhtmltopdf')
+
+# Configuración de cartas de oferta
+CARTA_OFERTA_TEMPLATES = {
+    'default': 'carta_oferta_template.html',
+    'amigro': 'carta_oferta_amigro.html',
+    'huntu': 'carta_oferta_huntu.html',
+    'huntred': 'carta_oferta_huntred.html',
+    'huntred_executive': 'carta_oferta_huntred_executive.html'
+}
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -156,91 +235,10 @@ for directory in [LOG_DIR, STATIC_ROOT, MEDIA_ROOT, ML_MODELS_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 # Configuración de logging
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'level': 'INFO',
-            'formatter': 'simple',
-        },
-        'app_file': {
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'app.log'),
-            'level': 'DEBUG',
-            'formatter': 'verbose',
-        },
-        'chatbot_file': {
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'chatbot.log'),
-            'level': 'DEBUG',
-            'formatter': 'verbose',
-        },
-        'celery_file': {
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'celery.log'),
-            'level': 'DEBUG',
-            'formatter': 'verbose',
-        },
-        'gunicorn_file': {
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'gunicorn.log'),
-            'level': 'INFO',
-            'formatter': 'verbose',
-        },
-        'nlp_file': {
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'nlp.log'),
-            'level': 'DEBUG',
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'app_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'app': {
-            'handlers': ['console', 'app_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'chatbot': {
-            'handlers': ['console', 'chatbot_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'celery': {
-            'handlers': ['console', 'celery_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'gunicorn': {
-            'handlers': ['console', 'gunicorn_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'nlp': {
-            'handlers': ['console', 'nlp_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
-}
+LOGGING = setup_logging()
 
 # Configuración de Celery
+optimization_config = OptimizationConfig.get_config()
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
@@ -248,6 +246,42 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'America/Mexico_City'
 CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
+
+# Configuración de optimización
+CACHES = {
+    'default': optimization_config['CACHE_CONFIG']
+}
+
+# Configuración de seguridad
+security_config = SecurityConfig.get_config()
+SIMPLE_JWT = security_config['JWT_CONFIG']
+RATELIMIT_RATE = security_config['RATE_LIMITING']['DEFAULT_RATE']
+RATELIMIT_LOGIN_RATE = security_config['RATE_LIMITING']['LOGIN_RATE']
+RATELIMIT_API_RATE = security_config['RATE_LIMITING']['API_RATE']
+
+# Configuración de chatbot
+from app.chatbot.optimization_config import OptimizationConfig
+
+CHATBOT_CONFIG = {
+    'ENABLED': env.bool('CHATBOT_ENABLED', default=True),
+    'MAX_CONCURRENT_SESSIONS': env.int('CHATBOT_MAX_SESSIONS', default=100),
+    'MESSAGE_TIMEOUT': env.int('CHATBOT_MESSAGE_TIMEOUT', default=30),  # segundos
+    'MAX_MESSAGE_RETRIES': env.int('CHATBOT_MAX_RETRIES', default=3),
+    'METRICS_COLLECTION_INTERVAL': env.int('CHATBOT_METRICS_INTERVAL', default=60),  # segundos
+    'FALLBACK_CHANNEL': env('CHATBOT_FALLBACK_CHANNEL', default='email'),
+    'CHANNEL_CONFIG': ChannelConfig.get_config(),
+    'OPTIMIZATION': OptimizationConfig.get_config()
+}
+
+# Configuración de monitoreo
+monitoring_config = MonitoringConfig.get_config()
+ENABLE_METRICS = monitoring_config['METRICS_CONFIG']['ENABLED']
+METRICS_ENDPOINT = monitoring_config['METRICS_CONFIG']['METRICS_ENDPOINT']
+
+# Configuración de alertas
+ALERT_EMAILS = monitoring_config['ALERT_CONFIG']['ALERT_EMAILS']
+CRITICAL_THRESHOLD = monitoring_config['ALERT_CONFIG']['CRITICAL_THRESHOLD']
+WARNING_THRESHOLD = monitoring_config['ALERT_CONFIG']['WARNING_THRESHOLD']
 
 # Sentry
 if env('SENTRY_DSN', default=None):

@@ -1,0 +1,17 @@
+{% extends 'pagos/base.html' %}
+
+{% block pagos_content %}
+    <div class="row">
+        <div class="col-12">
+            <h2>Eliminar Pago</h2>
+            <div class="alert alert-warning">
+                ¿Estás seguro de que deseas eliminar este pago?
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                <a href="{% url 'pagos:pago-list' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+{% endblock %}

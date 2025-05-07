@@ -2,17 +2,16 @@
 import logging
 import asyncio
 import random
-from celery import shared_task, chain, group
+from celery import shared_task, chain, group, chord
 from celery.schedules import crontab
 from django_celery_beat.models import PeriodicTask, CrontabSchedule, IntervalSchedule
 from celery.exceptions import MaxRetriesExceededError
-import celery 
-app = celery.current_app
+from celery import current_app
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from app.chatbot.integrations.services import send_email, send_message
 from app.chatbot.chatbot import ChatBotHandler
 from app.chatbot.utils import get_nlp_processor
@@ -36,16 +35,34 @@ from app.chatbot.workflow.amigro import (
 from app.utilidades.scraping import (
     validar_url, ScrapingPipeline, scrape_and_publish, process_domain
 )
-from app.utilidades.scraping_utils import ScrapingMetrics  # Actualizado
-from app.ml.ml_scrape import MLScraper  # Actualizado
+from app.utilidades.scraping_utils import ScrapingMetrics
+from app.ml.ml_scrape import MLScraper
 from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
 from app.ml.ml_model import GrupohuntREDMLPipeline, MatchmakingLearningSystem
 from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
 from app.utilidades.catalogs import DIVISIONES
-import json, os
+import json
+import os
 import pandas as pd
 import aiohttp
 from email.message import EmailMessage
+
+# Configuración de logging
+logger = logging.getLogger(__name__)
+
+# Decorador para manejo de errores y reintentos
+@shared_task(bind=True)
+def with_retry(task_function):
+    def wrapper(self, *args, **kwargs):
+        try:
+            return task_function(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error en {task_function.__name__}: {str(e)}")
+            if self.request.retries < self.max_retries:
+                raise self.retry(exc=e, countdown=2 ** self.request.retries * 60)
+            else:
+                raise
+    return wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +105,7 @@ def send_ntfy_notification(topic, message, image_url=None):
         logger.error(f"Error enviando notificación a {topic}: {str(e)}")
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
+@with_retry
 def send_linkedin_login_link(self, recipient_email, business_unit_id=None):
     """Envía un enlace de inicio de sesión de LinkedIn y notifica a los administradores."""
     try:
@@ -155,6 +173,7 @@ def get_business_unit(business_unit_id=None, default_name="amigro"):
     return BusinessUnit.objects.filter(name=default_name).first()
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
+@with_retry
 def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
     from app.models import BusinessUnit
     from app.chatbot.integrations.services import send_message
@@ -168,10 +187,10 @@ def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
 
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
+@with_retry
 def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
     from app.models import BusinessUnit
     from app.chatbot.integrations.services import send_message
-    import asyncio
     try:
         business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('telegram', chat_id, message, business_unit))
@@ -181,10 +200,10 @@ def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
         self.retry(exc=e)
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=40, queue='notifications')
+@with_retry
 def send_messenger_message_task(self, recipient_id, message, business_unit_id=None):
     from app.models import BusinessUnit
     from app.chatbot.integrations.services import send_message
-    import asyncio
     try:
         business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('messenger', recipient_id, message, business_unit))
@@ -399,6 +418,8 @@ def ejecutar_scraping(self, dominio_id=None):
         successful = 0
         failed = 0
         total_vacancies = 0
+        feedback_tasks = []
+        
         for result in results:
             if isinstance(result, Exception):
                 logger.error(f"❌ Error en un dominio: {str(result)}")
@@ -407,16 +428,23 @@ def ejecutar_scraping(self, dominio_id=None):
                 dominio, jobs = result
                 successful += 1
                 total_vacancies += len(jobs)
-                # Registrar retroalimentación para MLScraper
+                # Preparar tareas de retroalimentación asíncronas
                 for job in jobs:
-                    vacante = await sync_to_async(Vacante.objects.filter(url_original=job["url_original"]).first)()
-                    if vacante:
-                        await ml_scraper.log_feedback(
-                            vacante_id=vacante.id,
-                            success=True,
-                            corrections={}
-                        )
+                    async def log_feedback_for_job(job_url):
+                        vacante = await sync_to_async(Vacante.objects.filter(url_original=job_url).first)()
+                        if vacante:
+                            await ml_scraper.log_feedback(
+                                vacante_id=vacante.id,
+                                success=True,
+                                corrections={}
+                            )
+                    feedback_tasks.append(log_feedback_for_job(job["url_original"]))
                 logger.info(f"✅ Completado para {dominio.empresa}: {len(jobs)} vacantes")
+
+        # Ejecutar tareas de retroalimentación
+        if feedback_tasks:
+            await asyncio.gather(*feedback_tasks, return_exceptions=True)
+            logger.info("✅ Retroalimentación registrada para todas las vacantes")
 
         return {
             "status": "success",
@@ -433,7 +461,6 @@ def ejecutar_scraping(self, dominio_id=None):
     except Exception as e:
         logger.error(f"❌ Error general en ejecutar_scraping: {e}", exc_info=True)
         self.retry(exc=e)
-
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def retrain_ml_scraper(self):
@@ -548,6 +575,7 @@ def procesar_sublinks_task(self, vacante_id, sublink):
         self.retry(exc=e)
 
 # Cadena ML -> Scraping -> ML
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='ml')
 def execute_ml_and_scraping(self):
     """
@@ -576,12 +604,23 @@ def execute_ml_and_scraping(self):
         results = asyncio.run(scrape_and_publish(dominios))
         
         # Registrar retroalimentación
+        feedback_tasks = []
         for domain, jobs in results:
             if jobs:
                 for job in jobs:
-                    vacante = await sync_to_async(Vacante.objects.filter(url_original=job["url_original"]).first)()
-                    if vacante:
-                        await ml_scraper.log_feedback(vacante_id=vacante.id, success=True, corrections={})
+                    async def log_feedback_for_job(job_url):
+                        vacante = await sync_to_async(Vacante.objects.filter(url_original=job_url).first)()
+                        if vacante:
+                            await ml_scraper.log_feedback(
+                                vacante_id=vacante.id,
+                                success=True,
+                                corrections={}
+                            )
+                    feedback_tasks.append(log_feedback_for_job(job["url_original"]))
+        
+        if feedback_tasks:
+            asyncio.run(asyncio.gather(*feedback_tasks, return_exceptions=True))
+            logger.info("✅ Retroalimentación registrada para todas las vacantes")
 
         # 3. Ejecutar modelo ML final
         logger.info("🧠 Entrenando modelo ML final...")

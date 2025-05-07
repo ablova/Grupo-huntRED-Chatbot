@@ -1,4 +1,4 @@
-spacy==3.8.4
+spacy==3.5.3
 spacy-legacy==3.0.12
 spacy-loggers==1.0.5
 absl-py==2.2.2
@@ -48,7 +48,7 @@ defusedxml==0.7.1
 dill==0.3.8
 diskcache==5.6.3
 distro==1.9.0
-Django==5.2
+Django==4.2.15
 django-celery-beat==2.8.0
 django-cors-headers==4.7.0
 django-debug-toolbar==5.1.0
@@ -145,7 +145,7 @@ paypalrestsdk==1.13.3
 pdfminer.six==20250327
 pdfplumber==0.11.6
 pexpect==4.9.0
-pillow==11.2.1
+pillow==10.2.0
 playwright==1.51.0
 ply==3.11
 preshed==3.0.9
@@ -210,14 +210,14 @@ stack-data==0.6.3
 stone==3.3.1
 stopwords==1.0.1
 tenacity==9.1.2
-tensorboard==2.19.0
+tensorboard==2.16.0
 tensorboard-data-server==0.7.2
-tensorflow==2.19.0
+tensorflow==2.16.2
 tensorflow-hub==0.16.1
-tensorflow-text==2.19.0
+
 termcolor==3.0.1
 textblob==0.19.0
-thinc==8.3.6
+thinc==8.2.4
 threadpoolctl==3.6.0
 tinycss2==1.4.0
 tinyhtml5==2.0.0

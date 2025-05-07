@@ -11,6 +11,9 @@ from django.utils import timezone
 import random
 from app.chatbot.workflow.common import calcular_salario_chatbot, iniciar_creacion_perfil, iniciar_perfil_conversacional, iniciar_prueba, send_welcome_message
 from app.ml.ml_model import MatchmakingLearningSystem, BUSINESS_UNIT_HIERARCHY
+from app.chatbot.intents_optimizer import intent_optimizer
+from app.chatbot.channel_config import ChannelConfig
+from app.chatbot.metrics import chatbot_metrics
 
 logger = logging.getLogger('chatbot')
 
@@ -219,29 +222,41 @@ def detect_intents(text: str) -> List[str]:
     """Detecta intents en el texto, incluyendo payloads exactos, ordenados por prioridad."""
     if not text:
         return []
-    text = text.lower().strip()
     detected_intents = []
     
-    # Primero, verificar si el texto coincide exactamente con un intent conocido (payloads)
-    for intent, data in INTENT_PATTERNS.items():
-        if text == intent:  # Coincidencia exacta para payloads como 'actualizar_perfil'
-            detected_intents.append((intent, data.get('priority', 100)))
-            logger.debug(f"[detect_intents] Intent exacto detectado: {intent}")
-            break
-    
-    # Si no hay coincidencia exacta, buscar patrones regex
-    if not detected_intents:
+    # Verificar payloads exactos primero
+    if text.startswith('/'):
+        command = text[1:].strip()
         for intent, data in INTENT_PATTERNS.items():
-            for pattern in data['patterns']:
-                if re.search(pattern, text):
-                    detected_intents.append((intent, data.get('priority', 100)))
-                    logger.debug(f"[detect_intents] Coincidencia encontrada: intent '{intent}' con patrón '{pattern}'")
-                    break  # Evita duplicados del mismo intent
+            if command == intent:
+                detected_intents.append(intent)
+                break
     
-    detected_intents.sort(key=lambda x: x[1])
-    intents_list = [intent for intent, _ in detected_intents]
-    logger.debug(f"[detect_intents] Intents detectados: {intents_list}")
-    return intents_list
+    # Verificar patrones de regex
+    if not detected_intents:
+        # Optimizar patrones usando el optimizador
+        optimized_patterns = {
+            intent: IntentOptimizer.optimize_patterns(data['patterns'])
+            for intent, data in INTENT_PATTERNS.items()
+        }
+        
+        compiled_patterns = {
+            intent: IntentOptimizer.compile_patterns(patterns)
+            for intent, patterns in optimized_patterns.items()
+        }
+        
+        for intent, compiled in sorted(compiled_patterns.items(), key=lambda x: INTENT_PATTERNS[x[0]]['priority']):
+            for pattern in compiled:
+                if pattern.search(text.lower()):
+                    detected_intents.append(intent)
+                    break
+            if detected_intents:
+                break
+    
+    # Registrar métrica de detección de intents
+    ChatbotMetrics.track_message('intent_detection', 'completed', success=bool(detected_intents))
+    
+    return detected_intents
 
 def get_tos_url(business_unit: BusinessUnit) -> str:
     tos_urls = {
@@ -254,21 +269,10 @@ def get_tos_url(business_unit: BusinessUnit) -> str:
     return tos_urls.get(business_unit.name.lower(), "https://huntred.com/tos")
 
 async def handle_known_intents(intents: List[str], platform: str, user_id: str, chat_state: ChatState, business_unit: BusinessUnit, text: str, handler=None) -> bool:
-    logger.info(f"[handle_known_intents] Procesando intents: {intents} para BU: {business_unit.name}")
-    
-    # Validación inicial de tipos
-    if not isinstance(business_unit, BusinessUnit):
-        logger.error(f"business_unit no es un BusinessUnit, es {type(business_unit)}. Intentando usar el de chat_state.")
-        business_unit = getattr(chat_state, 'business_unit', None)
-        if not isinstance(business_unit, BusinessUnit):
-            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
-            return False
-    
-    if not isinstance(chat_state, ChatState):
-        logger.error(f"chat_state no es un ChatState, es {type(chat_state)}. Abortando.")
-        await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", business_unit.name.lower())
+    """Maneja los intents conocidos de manera optimizada."""
+    if not intents:
         return False
-    
+
     bu_name_lower = business_unit.name.lower().replace('®', '').strip()
     cache_key = f"intent:{user_id}:{text}"
     cached_response = cache.get(cache_key)
@@ -277,10 +281,6 @@ async def handle_known_intents(intents: List[str], platform: str, user_id: str, 
         await send_message(platform, user_id, cached_response, bu_name_lower)
         logger.info(f"[handle_known_intents] Respuesta desde caché: {cached_response}")
         return True
-
-    if not intents:
-        logger.info(f"[handle_known_intents] No se detectaron intents en: '{text}'")
-        return False
 
     primary_intent = intents[0]
     

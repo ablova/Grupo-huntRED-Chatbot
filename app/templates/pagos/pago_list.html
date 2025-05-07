@@ -1,0 +1,46 @@
+{% extends 'pagos/base.html' %}
+
+{% block pagos_content %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{% url 'pagos:pago-create' %}" class="btn btn-primary">Nuevo Pago</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>Monto</th>
+                        <th>Método</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pago in pagos %}
+                    <tr>
+                        <td>{{ pago.empleado.nombre }}</td>
+                        <td>${{ pago.monto }}</td>
+                        <td>{{ pago.metodo }}</td>
+                        <td>{{ pago.estado }}</td>
+                        <td>{{ pago.fecha_creacion }}</td>
+                        <td>
+                            <a href="{% url 'pagos:pago-detail' pago.id %}" class="btn btn-sm btn-info">Ver</a>
+                            <a href="{% url 'pagos:pago-update' pago.id %}" class="btn btn-sm btn-warning">Editar</a>
+                            <a href="{% url 'pagos:pago-delete' pago.id %}" class="btn btn-sm btn-danger">Eliminar</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No hay pagos registrados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

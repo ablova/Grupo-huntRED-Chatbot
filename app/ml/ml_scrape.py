@@ -12,6 +12,7 @@ from app.chatbot.utils import clean_text
 from app.models import DominioScraping
 import aiohttp
 import re
+import email  # Importación agregada para manejar email.message.Message
 
 logger = logging.getLogger(__name__)
 

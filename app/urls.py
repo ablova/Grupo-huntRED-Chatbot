@@ -10,6 +10,10 @@ from app.views.main_views import (
     index, interacciones_por_unidad, finalize_candidates, 
     login_view, submit_application, home
 )
+from app.views.cartas_oferta_views import (
+    gestion_cartas_oferta, marcar_como_firmada, reenviar_carta, ver_carta
+)
+from app.views.preview_views import generar_preview
 from app.views.dashboard_views import dashboard_view
 from app.views.chatbot_views import ProcessMessageView
 from app.views.util_views import (
@@ -133,6 +137,17 @@ urlpatterns += [
     path('sexsi/sign/revision/<int:agreement_id>/', request_revision, name='request_revision'),
     path('sexsi/sign/revoke/<int:agreement_id>/', revoke_agreement, name='revoke_agreement'),
     path('sexsi/webhook/paypal/', paypal_webhook, name='paypal_webhook'),
+]
+
+# ------------------------
+# 📌 RUTAS DE CARTAS DE OFERTA
+# ------------------------
+urlpatterns += [
+    path('admin/cartas_oferta/', gestion_cartas_oferta, name='gestion_cartas_oferta'),
+    path('admin/cartas_oferta/<int:carta_id>/firmar/', marcar_como_firmada, name='marcar_como_firmada'),
+    path('admin/cartas_oferta/<int:carta_id>/reenviar/', reenviar_carta, name='reenviar_carta'),
+    path('admin/cartas_oferta/<int:carta_id>/ver/', ver_carta, name='ver_carta'),
+    path('admin/cartas_oferta/preview/', generar_preview, name='generar_preview'),
 ]
 
 # -------------------------------

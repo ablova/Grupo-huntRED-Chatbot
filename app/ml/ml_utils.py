@@ -1,51 +1,93 @@
 # /home/pablo/app/ml/ml_utils.py
 
-from typing import List, Dict
-from app.chatbot.utils import get_nlp_processor  # Reemplazar importación
+from typing import List, Dict, Optional
+from app.utilidades.skill_classifier import SkillClassifier
 import logging
+
 logger = logging.getLogger(__name__)
 
-def calculate_match_percentage(candidate_skills: List[str], required_skills: List[str], classifier=None) -> float:
-    if not required_skills:
-        return 0.0
-    if classifier is None:
-        classifier = get_nlp_processor()  # Usar instancia singleton
-        if classifier is None:
-            logger.error("No se pudo obtener NLPProcessor")
+class MLUtils:
+    def __init__(self):
+        self.skill_classifier = SkillClassifier()
+
+    def calculate_skill_match(self, 
+                            candidate_skills: List[str], 
+                            required_skills: List[str], 
+                            use_classification: bool = True) -> float:
+        """
+        Calcula el porcentaje de coincidencia entre habilidades usando múltiples sistemas.
+        
+        Args:
+            candidate_skills: Lista de habilidades del candidato
+            required_skills: Lista de habilidades requeridas
+            use_classification: Si usar el sistema de clasificación de habilidades
+            
+        Returns:
+            float: Porcentaje de coincidencia (0-100)
+        """
+        if not required_skills:
             return 0.0
-    candidate_skills_text = " ".join(candidate_skills)
-    required_skills_text = " ".join(required_skills)
-    classified_candidate = classifier.analyze(candidate_skills_text)["skills"]
-    classified_required = classifier.analyze(required_skills_text)["skills"]
-    candidate_set = set(classified_candidate["technical"] + classified_candidate["soft"] + classified_candidate["tools"])
-    required_set = set(classified_required["technical"] + classified_required["soft"] + classified_required["tools"])
-    match_percentage = len(candidate_set.intersection(required_set)) / len(required_set) * 100
-    return round(match_percentage, 2)
-
-def calculate_alignment_percentage(candidate_salary: float, job_salary: float) -> float:
-    """
-    Calcula la alineación salarial entre candidato y vacante.
-    """
-    if not job_salary:
-        return 0.0
-    alignment = 100 - abs(candidate_salary - job_salary) / job_salary * 100
-    return max(round(alignment, 2), 0)
-
-def calculate_match_percentage(candidate_skills: List[str], required_skills: List[str], classifier=None) -> float:
-    """
-    Calcula el porcentaje de coincidencia entre habilidades, opcionalmente usando el clasificador de Tabiya.
-    """
-    if not required_skills:
-        return 0.0
-    if classifier:
-        candidate_skills_text = " ".join(candidate_skills)
-        required_skills_text = " ".join(required_skills)
-        classified_candidate = classifier.classify(candidate_skills_text)
-        classified_required = classifier.classify(required_skills_text)
-        candidate_set = {item['skill'].lower() for item in classified_candidate if 'skill' in item}
-        required_set = {item['skill'].lower() for item in classified_required if 'skill' in item}
-    else:
+            
+        if use_classification:
+            # Clasificar habilidades usando múltiples sistemas
+            skill_classification = self.skill_classifier.classify_skills(
+                candidate_skills + required_skills
+            )
+            
+            # Obtener habilidades técnicas y blandas
+            technical_skills = skill_classification.get("technical", [])
+            soft_skills = skill_classification.get("soft", [])
+            
+            # Calcular coincidencia ponderada
+            technical_overlap = len(set(technical_skills["person"]).intersection(technical_skills["vacancy"]))
+            soft_overlap = len(set(soft_skills["person"]).intersection(soft_skills["vacancy"]))
+            
+            # Calcular ponderación basada en la importancia de cada tipo de habilidad
+            total_overlap = (0.7 * technical_overlap + 0.3 * soft_overlap) / (
+                len(technical_skills["vacancy"]) + len(soft_skills["vacancy"]) or 1
+            )
+            
+            return min(max(total_overlap * 100, 0), 100)
+        
+        # Si no se usa clasificación, usar coincidencia directa
         candidate_set = {skill.lower() for skill in candidate_skills}
         required_set = {skill.lower() for skill in required_skills}
-    match_percentage = len(candidate_set.intersection(required_set)) / len(required_set) * 100
-    return round(match_percentage, 2)
+        overlap = len(candidate_set.intersection(required_set))
+        return min(max(overlap / len(required_set) * 100, 0), 100)
+
+    def calculate_salary_alignment(self, 
+                                 candidate_salary: float, 
+                                 job_salary: float) -> float:
+        """
+        Calcula la alineación salarial entre candidato y vacante.
+        
+        Args:
+            candidate_salary: Salario del candidato
+            job_salary: Salario de la vacante
+            
+        Returns:
+            float: Porcentaje de alineación (0-100)
+        """
+        if not job_salary:
+            return 0.0
+            
+        alignment = 100 - abs(candidate_salary - job_salary) / job_salary * 100
+        return max(round(alignment, 2), 0)
+
+    def calculate_industry_match(self, 
+                               person_industries: List[str], 
+                               vacancy_industries: List[str]) -> float:
+        """
+        Calcula la coincidencia de industria.
+        
+        Args:
+            person_industries: Lista de industrias del candidato
+            vacancy_industries: Lista de industrias de la vacante
+            
+        Returns:
+            float: Porcentaje de coincidencia (0-100)
+        """
+        person_set = {industry.lower() for industry in person_industries}
+        vacancy_set = {industry.lower() for industry in vacancy_industries}
+        overlap = len(person_set.intersection(vacancy_set))
+        return min(max(overlap / len(vacancy_set) * 100, 0), 100)

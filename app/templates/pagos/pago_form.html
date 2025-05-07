@@ -1,0 +1,26 @@
+{% extends 'pagos/base.html' %}
+
+{% block pagos_content %}
+    <div class="row">
+        <div class="col-12">
+            <h2>{{ form.instance.id|default:"Nuevo" }} Pago</h2>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="{{ form.monto.id_for_label }}" class="form-label">Monto</label>
+                    {{ form.monto }}
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.metodo.id_for_label }}" class="form-label">Método de Pago</label>
+                    {{ form.metodo }}
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.moneda.id_for_label }}" class="form-label">Moneda</label>
+                    {{ form.moneda }}
+                </div>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <a href="{% url 'pagos:pago-list' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+{% endblock %}

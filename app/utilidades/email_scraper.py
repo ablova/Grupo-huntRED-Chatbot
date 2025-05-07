@@ -83,7 +83,88 @@ class EmailScraperV2:
         self.session = None
         self.gpt_handler = GPTHandler()
         self.ml_scraper = MLScraper()
+        self.nlp = NLPProcessor(language="es", mode="opportunity")
+        self.skill_classifier = SkillClassifier()
         logger.info(f"Initializing EmailScraperV2 with account: {self.email_account}")
+
+    async def process_email_content(self, content: str) -> Dict:
+        """Procesa el contenido del correo usando NLP y clasificación de habilidades."""
+        try:
+            # Analizar el contenido
+            analysis = await self.nlp.analyze(content)
+            
+            # Clasificar habilidades
+            if analysis.get("skills"):
+                skill_classification = await self.skill_classifier.classify_skills(analysis["skills"])
+                analysis["skill_classification"] = skill_classification
+            
+            # Extraer información relevante
+            job_info = await self._extract_job_info(analysis)
+            
+            # Validar y completar información
+            complete_info = await self._validate_and_complete_info(job_info)
+            
+            return complete_info
+            
+        except Exception as e:
+            logger.error(f"Error processing email content: {e}")
+            return {"error": str(e)}
+
+    async def _extract_job_info(self, analysis: Dict) -> Dict:
+        """Extrae información de trabajo del análisis."""
+        job_info = {
+            "title": analysis.get("entities", {}).get("job_title"),
+            "company": analysis.get("entities", {}).get("company"),
+            "location": analysis.get("entities", {}).get("location"),
+            "description": analysis.get("description"),
+            "skills": analysis.get("skills", []),
+            "requirements": analysis.get("requirements", []),
+            "salary": analysis.get("salary", {})
+        }
+        return job_info
+
+    async def _validate_and_complete_info(self, job_info: Dict) -> Dict:
+        """Valida y completa la información del trabajo."""
+        # Validar campos requeridos
+        required_fields = ["title", "company", "description"]
+        missing_fields = [f for f in required_fields if not job_info.get(f)]
+        
+        if missing_fields:
+            # Intentar completar campos faltantes
+            job_info = await self._complete_missing_fields(job_info)
+            
+            # Si aún faltan campos, marcar como incompleto
+            missing_fields = [f for f in required_fields if not job_info.get(f)]
+            if missing_fields:
+                job_info["status"] = "incomplete"
+                job_info["missing_fields"] = missing_fields
+            else:
+                job_info["status"] = "complete"
+        
+        return job_info
+
+    async def _complete_missing_fields(self, job_info: Dict) -> Dict:
+        """Completar campos faltantes usando GPT y ML."""
+        try:
+            # Usar GPT para completar campos faltantes
+            prompt = f"Completa la información faltante para el puesto: {job_info.get('title', '')}\n"
+            for field in ["company", "location", "description"]:
+                if not job_info.get(field):
+                    prompt += f"{field}:\n"
+            
+            response = await self.gpt_handler.generate_response(prompt)
+            data = json.loads(response)
+            
+            # Actualizar información
+            for field in data:
+                if field in job_info and not job_info[field]:
+                    job_info[field] = data[field]
+                    
+            return job_info
+            
+        except Exception as e:
+            logger.error(f"Error completing missing fields: {e}")
+            return job_info
 
     async def _init_http_session(self):
         if self.session is None or self.session.closed:
@@ -188,6 +269,7 @@ class EmailScraperV2:
         return False
 
     async def fetch_html(self, url: str, cookies: Dict = None, headers: Dict = None) -> str:
+        """Obtiene contenido HTML de una URL con manejo de errores mejorado."""
         url = url.replace("https://https://", "https://")
         default_headers = {
             "User-Agent": random.choice(USER_AGENTS),
@@ -198,6 +280,28 @@ class EmailScraperV2:
         headers = {**default_headers, **(headers or {})}
         parsed_url = urlparse(url)
         domain = parsed_url.netloc
+        
+        # Verificar si ya se ha procesado esta URL
+        cache_key = f"html_{url}"
+        cached = await self.cache.get(cache_key)
+        if cached:
+            logger.info(f"Using cached content for {url}")
+            return cached
+            
+        try:
+            async with self.session.get(url, headers=headers, cookies=cookies) as response:
+                if response.status == 200:
+                    content = await response.text()
+                    # Guardar en cache con TTL
+                    await self.cache.set(cache_key, content, ttl=3600)  # 1 hora
+                    return content
+                else:
+                    logger.error(f"Failed to fetch {url}: {response.status}")
+                    return ""
+                    
+        except Exception as e:
+            logger.error(f"Error fetching {url}: {e}")
+            return ""
 
         if "linkedin.com" in domain:
             for attempt in range(MAX_RETRIES):

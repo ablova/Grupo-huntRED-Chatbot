@@ -1,0 +1,84 @@
+{% load static %}
+
+<style>
+.tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.task-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.task-card:hover {
+    transform: translateY(-5px);
+}
+
+.task-card.high {
+    border-left: 4px solid #e74c3c;
+}
+
+.task-card.medium {
+    border-left: 4px solid #f1c40f;
+}
+
+.task-card.low {
+    border-left: 4px solid #2ecc71;
+}
+
+.task-card h4 {
+    color: #34495e;
+    margin: 0 0 10px 0;
+    font-size: 16px;
+}
+
+.task-card p {
+    color: #7f8c8d;
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.priority {
+    font-size: 12px;
+    color: #95a5a6;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #f8f9fa;
+    padding: 5px 10px;
+    border-radius: 15px;
+}
+
+.deadline {
+    font-size: 12px;
+    color: #95a5a6;
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+@media (max-width: 768px) {
+    .tasks-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="tasks-grid">
+    {% for task in tasks %}
+    <div class="task-card {{ task.priority }}">
+        <h4>{{ task.title }}</h4>
+        <p>{{ task.description }}</p>
+        <span class="priority">{{ task.priority }}</span>
+        <span class="deadline">{{ task.deadline }}</span>
+    </div>
+    {% endfor %}
+</div>

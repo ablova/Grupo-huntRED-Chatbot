@@ -22,12 +22,14 @@ This document outlines the architecture, functionalities, and integrations of th
 
 System Architecture
 
-The chatbot system for huntred.com is built using Django as the main framework, leveraging Python’s asynchronous capabilities to handle multiple simultaneous requests. Key components include:
+The chatbot system for huntred.com is built using Django as the main framework, with specialized components for handling multiple simultaneous requests. Key components include:
 	•	Django Models: Define data structures for users, chat states, API configurations, and conversation flows.
 	•	Platform Integrations: Dedicated modules to manage communication with different messaging platforms (WhatsApp, Messenger, Telegram, Instagram).
 	•	Messaging Services: Reusable functions to send messages, images, buttons, and other interactive elements.
 	•	ChatBotHandler: The chatbot’s core, which processes incoming messages, determines responses, and manages conversation flow.
 	•	NLP Utilities: Tools for text analysis, intent detection, and sentiment analysis.
+	•	Dashboard: Real-time data visualization system with KPIs and system metrics.
+	•	Gamification System: Module that handles points, achievements, and badges to incentivize user participation.
 
 Platform Integrations
 
@@ -88,14 +90,25 @@ The ChatState model stores relevant information about the ongoing conversation w
 	•	business_unit: Associated business unit.
 	•	current_question: Current question in the conversation flow.
 	•	context: Additional relevant information for the conversation.
+	•	last_activity: Timestamp of the last interaction.
+	•	message_count: Message counter in the current conversation.
 
 Message Sending
 
-Functions for sending messages (send_message, send_whatsapp_buttons, send_messenger_buttons, etc.) are designed to be reusable and handle various content types, including text, images, and interactive buttons.
+Functions for sending messages (send_message, send_whatsapp_buttons, send_messenger_buttons, etc.) are designed to be reusable and handle various content types, including text, images, interactive buttons, and message templates.
 
 Sending Interactive Buttons
 
 Interactive buttons allow users to quickly respond via predefined options, enhancing user experience and simplifying navigation in the conversation flow.
+
+Message Templates
+
+Predefined templates for common messages, including:
+- Welcome messages
+- Confirmation messages
+- Error messages
+- Help messages
+- Gamification messages
 
 Error and Logs Handling
 
@@ -116,6 +129,10 @@ Prerequisites
 	•	httpx
 	•	asgiref
 	•	celery (for asynchronous tasks in Telegram)
+	•	Dashboard Dependencies:
+	•	plotly (for data visualization)
+	•	django-dashboard (for dashboard)
+	•	django-model-utils (for model utilities)
 	•	API Configurations: Ensure credentials and tokens for each messaging platform are available.
 
 Configuration Steps
@@ -162,13 +179,17 @@ Testing
 	•	Test error scenarios, such as empty messages or API failures, to ensure the system handles them seamlessly.
 
 Maintenance
-	1.	Log Monitoring:
-	•	Regularly review logs to identify and resolve issues.
-	2.	Dependency Updates:
-	•	Keep dependencies updated to leverage improvements and security patches.
-	3.	Continuous Improvements:
-	•	Add new functionalities and conversation patterns as needed by users and the business.
-	4.	Data Backup:
-	•	Implement backup strategies to ensure critical data is protected.
+	1. Log Monitoring:
+	• Regularly review logs to identify and resolve issues.
+	2. Dependency Updates:
+	• Keep dependencies updated to leverage improvements and security patches.
+	3. Continuous Improvements:
+	• Add new functionalities and conversation patterns as needed by users and the business.
+	4. Data Backup:
+	• Implement backup strategies to ensure critical data is protected.
+	5. KPI Monitoring:
+	• Regularly monitor system KPIs to identify trends and areas for improvement.
+	6. Performance Optimization:
+	• Conduct periodic performance testing and optimize the system as needed.
 
 This concludes the translation of the document. Let me know if you need further adjustments or additional translations!

@@ -1,0 +1,93 @@
+{% load static %}
+
+<style>
+.integrations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.integration-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.integration-card:hover {
+    transform: translateY(-5px);
+}
+
+.integration-card.success {
+    border-left: 4px solid #2ecc71;
+}
+
+.integration-card.warning {
+    border-left: 4px solid #f1c40f;
+}
+
+.integration-card.error {
+    border-left: 4px solid #e74c3c;
+}
+
+.integration-card h4 {
+    color: #34495e;
+    margin: 0 0 10px 0;
+    font-size: 16px;
+}
+
+.integration-card p {
+    color: #7f8c8d;
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.last-update {
+    font-size: 12px;
+    color: #95a5a6;
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.status-success .status-indicator {
+    background: #2ecc71;
+}
+
+.status-warning .status-indicator {
+    background: #f1c40f;
+}
+
+.status-error .status-indicator {
+    background: #e74c3c;
+}
+
+@media (max-width: 768px) {
+    .integrations-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="integrations-grid">
+    {% for integration in integrations %}
+    <div class="integration-card {{ integration.status }}">
+        <div class="status-indicator"></div>
+        <h4>{{ integration.name }}</h4>
+        <p>{{ integration.status }}</p>
+        <span class="last-update">{{ integration.last_update }}</span>
+    </div>
+    {% endfor %}
+</div>

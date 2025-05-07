@@ -1,0 +1,104 @@
+{% load static %}
+
+<style>
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    min-height: 400px;
+}
+
+.chart-title {
+    margin-bottom: 20px;
+    color: #34495e;
+    font-size: 18px;
+}
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="charts-grid">
+    <div class="chart-container">
+        <div class="chart-title">Aplicaciones por Mes</div>
+        <div id="applications-chart"></div>
+    </div>
+    <div class="chart-container">
+        <div class="chart-title">Tasa de Conversión</div>
+        <div id="conversion-chart"></div>
+    </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+// Datos de ejemplo (reemplazar con datos reales)
+const applicationsData = {
+    x: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+    y: [150, 200, 250, 300, 280, 320],
+    type: 'bar',
+    marker: {
+        color: '#3498db'
+    }
+};
+
+const conversionData = {
+    x: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+    y: [0.45, 0.50, 0.55, 0.60, 0.62, 0.65],
+    type: 'scatter',
+    mode: 'lines+markers',
+    line: {
+        color: '#2ecc71'
+    }
+};
+
+// Layout para el gráfico de aplicaciones
+const applicationsLayout = {
+    title: 'Aplicaciones por Mes',
+    xaxis: {
+        title: 'Mes'
+    },
+    yaxis: {
+        title: 'Número de Aplicaciones'
+    },
+    margin: {
+        l: 50,
+        r: 20,
+        b: 50,
+        t: 50
+    }
+};
+
+// Layout para el gráfico de conversión
+const conversionLayout = {
+    title: 'Tasa de Conversión',
+    xaxis: {
+        title: 'Mes'
+    },
+    yaxis: {
+        title: 'Tasa de Conversión',
+        tickformat: '.0%',
+        range: [0, 1]
+    },
+    margin: {
+        l: 50,
+        r: 20,
+        b: 50,
+        t: 50
+    }
+};
+
+// Crear gráficos
+Plotly.newPlot('applications-chart', [applicationsData], applicationsLayout);
+Plotly.newPlot('conversion-chart', [conversionData], conversionLayout);
+</script>

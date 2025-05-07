@@ -16,6 +16,9 @@ __pycache__
 setup_server.sh
 update_git.sh
 shell.py
+app/ml/training_data/
+celerybeat-schedule
+scripts/
 
 # Archivos de respaldo
 *_old.py

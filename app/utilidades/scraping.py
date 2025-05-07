@@ -85,6 +85,8 @@ class ScrapingPipeline:
         self.processor = NLPProcessor(language="es", mode="opportunity")
         self.gpt_handler = GPTHandler()
         self.ml_scraper = MLScraper()
+        self.skill_classifier = SkillClassifier()
+        self.health_monitor = SystemHealthMonitor()
 
     async def process(self, jobs: List[Dict]) -> List[Dict]:
         await self.gpt_handler.initialize()
@@ -92,9 +94,43 @@ class ScrapingPipeline:
             jobs = await self.clean_data(jobs)
             jobs = await self.enrich_data(jobs)
             jobs = await self.validate_data(jobs)
+            jobs = await self.classify_skills(jobs)
         finally:
             await self.gpt_handler.close()
         return jobs
+
+    async def classify_skills(self, jobs: List[Dict]) -> List[Dict]:
+        """Clasifica las habilidades de cada trabajo usando múltiples sistemas."""
+        for job in jobs:
+            if job.get("skills"):
+                skill_classification = await self.skill_classifier.classify_skills(job["skills"])
+                job["skill_classification"] = skill_classification
+                
+                # Determinar la mejor clasificación para cada habilidad
+                best_classifications = {}
+                for skill, classifications in skill_classification.items():
+                    best = await self.skill_classifier.get_best_classification(skill)
+                    best_classifications[skill] = best
+                job["best_skill_classification"] = best_classifications
+        
+        return jobs
+
+    async def _process_batch(self, items: List[Dict]) -> List[Dict]:
+        """Procesa un lote de elementos de manera asíncrona."""
+        processed = []
+        for item in items:
+            processed.append(await self._process_item(item))
+        return processed
+
+    async def _process_item(self, item: Dict) -> Dict:
+        """Procesa un elemento individual."""
+        try:
+            result = await self._process_data(item)
+            await self._save_result(result)
+            return result
+        except Exception as e:
+            logger.error(f"Error processing item: {e}")
+            return {"error": str(e)}
 
     async def clean_data(self, jobs: List[Dict]) -> List[Dict]:
         """Limpia datos y enriquece con GPT si falta descripción."""
@@ -135,6 +171,7 @@ class ScrapingPipeline:
             return False
         
     async def enrich_data(self, jobs: List[Dict]) -> List[Dict]:
+        """Enriquece los datos de los trabajos con análisis profundo."""
         for job in jobs:
             cache_key = f"{job['url']}_{job['title']}"
             cached = await self.cache.get(cache_key)
@@ -143,13 +180,61 @@ class ScrapingPipeline:
             else:
                 job['scraped_at'] = datetime.now().isoformat()
                 if job["description"] != "No disponible":
-                    analysis = self.processor.analyze_opportunity(job["description"])
-                    job["skills"] = analysis.get("details", {}).get("skills", [])
-                    job["contract_type"] = analysis.get("details", {}).get("contract_type")
-                    job["job_classification"] = analysis.get("job_classification")
-                    job["sentiment"] = analysis.get("sentiment")
-                await self.cache.set(cache_key, job)
+                    analysis = await self.processor.analyze(job["description"])
+                    job.update(analysis)
+                    
+                    # Agregar análisis adicional
+                    job["salary_estimate"] = await self._estimate_salary(job)
+                    job["requirement_complexity"] = await self._analyze_requirements(job)
+                    
+                    # Clasificar el trabajo
+                    job["job_classification"] = await self._classify_job(job)
+                
+                # Guardar en cache con TTL
+                await self.cache.set(cache_key, job, ttl=3600)  # 1 hora
+                
+                # Registrar métricas
+                self.health_monitor.record_success()
         return jobs
+
+    async def _estimate_salary(self, job: Dict) -> Dict:
+        """Estima el salario basado en el análisis del trabajo."""
+        if job.get("salary"):
+            return job["salary"]
+        
+        # Usar el estimador de salario del NLPProcessor
+        return await self.processor.salary_estimator.estimate(job["description"])
+
+    async def _analyze_requirements(self, job: Dict) -> Dict:
+        """Analiza la complejidad de los requisitos del trabajo."""
+        requirements = job.get("requirements", [])
+        complexity = {
+            "technical": 0,
+            "years": 0,
+            "education": "none"
+        }
+        
+        for req in requirements:
+            if "años" in req.lower():
+                complexity["years"] += 1
+            if any(tech in req.lower() for tech in ["python", "java", "sql"]):
+                complexity["technical"] += 1
+            if any(edu in req.lower() for edu in ["licenciatura", "maestría"]):
+                complexity["education"] = "required"
+        
+        return complexity
+
+    async def _classify_job(self, job: Dict) -> Dict:
+        """Clasifica el trabajo usando múltiples criterios."""
+        classification = {
+            "category": "unknown",
+            "level": "unknown",
+            "seniority": "unknown",
+            "type": "unknown"
+        }
+        
+        # Usar el clasificador de trabajos del NLPProcessor
+        return await self.processor.job_classifier.classify(job["description"])
 
     async def validate_data(self, jobs: List[Dict]) -> List[Dict]:
         validated_jobs = []

@@ -1,3 +1,449 @@
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from typing import Dict, List, Tuple, Optional
+import logging
+from app.models import Person, Vacante, BusinessUnit, Application
+
+logger = logging.getLogger(__name__)
+
+from sklearn.preprocessing import StandardScaler
+from app.models import Person, Vacante, BusinessUnit, Application
+from app.utilidades.skill_classifier import SkillClassifier
+from app.ml.ml_model import MLOptimizer
+import numpy as np
+import logging
+from django.conf import settings
+import os
+
+logger = logging.getLogger(__name__)
+
+    def __init__(self, business_unit=None):
+        """
+        Inicializa el sistema de aprendizaje para emparejamiento.
+        
+        Args:
+            business_unit: Unidad de negocio específica (opcional)
+        """
+        self.business_unit = business_unit
+        self.model = None
+        self.scaler = None
+        self.model_file = os.path.join(
+            settings.ML_MODELS_DIR,
+            f"matchmaking_model_{business_unit or 'global'}.pkl"
+        )
+        self.transition_model_file = os.path.join(
+            settings.ML_MODELS_DIR,
+            f"transition_model_{business_unit or 'global'}.pkl"
+        )
+        self._loaded_model = None
+        self._loaded_transition_model = None
+        self.ml_optimizer = MLOptimizer()
+        self.batch_size = 1000  # Tamaño de lote optimizado
+        self.n_jobs = -1  # Usar todos los cores disponibles
+        self.skill_classifier = SkillClassifier()  # Nuevo clasificador de habilidades
+        self._initialize_model()
+
+    def _initialize_model(self):
+        """
+        Inicializa el modelo de aprendizaje profundo.
+        """
+        self.model = models.Sequential([
+            layers.Input(shape=(10,)),  # 10 características
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(1, activation='sigmoid')
+        ])
+        
+        self.model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+
+    async def _extract_features(self, person: Person, vacancy: Vacante) -> np.ndarray:
+        """
+        Extrae características para el modelo usando múltiples fuentes de clasificación.
+        
+        Args:
+            person: Objeto Person
+            vacancy: Objeto Vacante
+            
+        Returns:
+            np.ndarray: Vector de características
+        """
+        try:
+            # Clasificar habilidades usando múltiples sistemas
+            skill_classification = await self.skill_classifier.classify_skills(
+                person.skills + vacancy.skills_required
+            )
+            
+            features = [
+                person.experience_years,  # Años de experiencia
+                len(person.skills),  # Número de habilidades
+                self._calculate_skill_overlap(skill_classification),  # Coincidencia de habilidades
+                self._calculate_location_distance(person, vacancy),  # Distancia geográfica
+                person.education_level,  # Nivel educativo
+                vacancy.salary_range,  # Rango salarial
+                self._calculate_industry_match(skill_classification),  # Coincidencia de industria
+                person.certifications_count,  # Número de certificaciones
+                self._calculate_cultural_fit(person, vacancy),  # Ajuste cultural
+                vacancy.openings,  # Número de vacantes
+                self._calculate_skill_relevance(skill_classification)  # Relevancia de habilidades
+            ]
+            
+            return np.array(features)
+            
+        except Exception as e:
+            logger.error(f"Error extracting features: {e}")
+            return np.zeros(11)
+
+    def _calculate_skill_overlap(self, skill_classification: Dict) -> float:
+        """
+        Calcula la coincidencia de habilidades usando la clasificación.
+        
+        Args:
+            skill_classification: Diccionario de clasificación de habilidades
+            
+        Returns:
+            float: Porcentaje de coincidencia (0-1)
+        """
+        try:
+            # Obtener habilidades técnicas y blandas
+            technical_skills = skill_classification.get("technical", [])
+            soft_skills = skill_classification.get("soft", [])
+            
+            # Calcular coincidencia ponderada
+            technical_overlap = len(set(technical_skills["person"]).intersection(technical_skills["vacancy"]))
+            soft_overlap = len(set(soft_skills["person"]).intersection(soft_skills["vacancy"]))
+            
+            # Calcular ponderación basada en la importancia de cada tipo de habilidad
+            total_overlap = (0.7 * technical_overlap + 0.3 * soft_overlap) / (
+                len(technical_skills["vacancy"]) + len(soft_skills["vacancy"]) or 1
+            )
+            
+            return min(max(total_overlap, 0), 1)
+            
+        except Exception as e:
+            logger.error(f"Error calculating skill overlap: {e}")
+            return 0.0
+
+    def _calculate_location_distance(self, person: Person, vacancy: Vacante) -> float:
+        """
+        Calcula la distancia geográfica.
+        
+        Args:
+            person: Objeto Person
+            vacancy: Objeto Vacante
+            
+        Returns:
+            float: Distancia normalizada (0-1)
+        """
+        try:
+            # Simulación de cálculo de distancia
+            max_distance = 100.0  # Distancia máxima considerada
+            distance = np.random.uniform(0, max_distance)
+            return 1.0 - (distance / max_distance)
+            
+        except Exception as e:
+            logger.error(f"Error calculando distancia: {str(e)}")
+            return 0.0
+
+    def _calculate_industry_match(self, skill_classification: Dict) -> float:
+        """
+        Calcula la coincidencia de industria usando la clasificación de habilidades.
+        
+        Args:
+            skill_classification: Diccionario de clasificación de habilidades
+            
+        Returns:
+            float: Porcentaje de coincidencia (0-1)
+        """
+        try:
+            # Obtener industrias de las habilidades
+            person_industries = set()
+            vacancy_industries = set()
+            
+            for skill_type in ["technical", "soft", "tools"]:
+                for skill in skill_classification.get(skill_type, {}).get("person", []):
+                    person_industries.update(skill.get("industries", []))
+                for skill in skill_classification.get(skill_type, {}).get("vacancy", []):
+                    vacancy_industries.update(skill.get("industries", []))
+            
+            # Calcular coincidencia
+            overlap = len(person_industries.intersection(vacancy_industries))
+            total = len(vacancy_industries) or 1
+            
+            return min(max(overlap / total, 0), 1)
+            
+        except Exception as e:
+            logger.error(f"Error calculating industry match: {e}")
+            return 0.0
+
+    def _calculate_cultural_fit(self, person: Person, vacancy: Vacante) -> float:
+        """
+        Calcula el ajuste cultural.
+        
+        Args:
+            person: Objeto Person
+            vacancy: Objeto Vacante
+            
+        Returns:
+            float: Puntaje de ajuste (0-1)
+        """
+        try:
+            # Simulación de cálculo de ajuste cultural
+            return np.random.uniform(0.5, 1.0)
+            
+        except Exception as e:
+            logger.error(f"Error calculando ajuste cultural: {str(e)}")
+            return 0.5
+
+    def train(self, X: np.ndarray, y: np.ndarray, epochs: int = 10, batch_size: int = 32):
+        """
+        Entrena el modelo con datos.
+        
+        Args:
+            X: Características de entrada
+            y: Etiquetas
+            epochs: Número de épocas
+            batch_size: Tamaño del batch
+        """
+        try:
+            # Normalizar datos
+            X_scaled = self.scaler.fit_transform(X)
+            
+            # Dividir en train/test
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_scaled, y, test_size=0.2, random_state=42
+            )
+            
+            # Entrenar modelo
+            history = self.model.fit(
+                X_train, y_train,
+                validation_data=(X_test, y_test),
+                epochs=epochs,
+                batch_size=batch_size,
+                verbose=1
+            )
+            
+            return history
+            
+        except Exception as e:
+            logger.error(f"Error entrenando modelo: {str(e)}")
+            raise
+
+    def predict_match(self, person: Person, vacancy: Vacante) -> float:
+        """
+        Predice la probabilidad de coincidencia.
+        
+        Args:
+            person: Objeto Person
+            vacancy: Objeto Vacante
+            
+        Returns:
+            float: Probabilidad de coincidencia (0-1)
+        """
+        try:
+            features = self._extract_features(person, vacancy)
+            features_scaled = self.scaler.transform([features])
+            
+            prediction = self.model.predict(features_scaled)[0][0]
+            return float(prediction)
+            
+        except Exception as e:
+            logger.error(f"Error haciendo predicción: {str(e)}")
+            return 0.0
+
+    def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict:
+        """
+        Evalúa el rendimiento del modelo.
+        
+        Args:
+            X: Características de entrada
+            y: Etiquetas
+            
+        Returns:
+            Dict: Métricas de evaluación
+        """
+        try:
+            X_scaled = self.scaler.transform(X)
+            results = self.model.evaluate(X_scaled, y, verbose=0)
+            
+            return {
+                "loss": float(results[0]),
+                "accuracy": float(results[1])
+            }
+            
+        except Exception as e:
+            logger.error(f"Error evaluando modelo: {str(e)}")
+            return {
+                "loss": float('inf'),
+                "accuracy": 0.0
+            }
+
+    def save_model(self, filepath: str):
+        """
+        Guarda el modelo y el escalador.
+        
+        Args:
+            filepath: Ruta donde guardar el modelo
+        """
+        try:
+            self.model.save(filepath)
+            np.savez(
+                filepath + '.scaler.npz',
+                mean=self.scaler.mean_,
+                scale=self.scaler.scale_
+            )
+            
+        except Exception as e:
+            logger.error(f"Error guardando modelo: {str(e)}")
+            raise
+
+    def load_model(self, filepath: str):
+        """
+        Carga el modelo y el escalador.
+        
+        Args:
+            filepath: Ruta del modelo
+        """
+        try:
+            self.model = models.load_model(filepath)
+            scaler_data = np.load(filepath + '.scaler.npz')
+            self.scaler.mean_ = scaler_data['mean']
+            self.scaler.scale_ = scaler_data['scale']
+            
+        except Exception as e:
+            logger.error(f"Error cargando modelo: {str(e)}")
+            raise
+
+    def get_feature_importance(self) -> Dict:
+        """
+        Obtiene la importancia de las características.
+        
+        Returns:
+            Dict: Importancia de cada característica
+        """
+        try:
+            # Simulación de importancia de características
+            features = [
+                "experience_years", "skills_count", "skill_overlap",
+                "location_distance", "education_level", "salary_range",
+                "industry_match", "certifications_count", "cultural_fit",
+                "vacancy_openings"
+            ]
+            
+            importance = np.random.uniform(0, 1, len(features))
+            importance = importance / np.sum(importance)  # Normalizar
+            
+            return dict(zip(features, importance))
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo importancia de características: {str(e)}")
+            return {}
+
+    def explain_prediction(self, person: Person, vacancy: Vacante) -> Dict:
+        """
+        Explica una predicción.
+        
+        Args:
+            person: Objeto Person
+            vacancy: Objeto Vacante
+            
+        Returns:
+            Dict: Explicación de la predicción
+        """
+        try:
+            features = self._extract_features(person, vacancy)
+            importance = self.get_feature_importance()
+            
+            explanation = {
+                "features": {
+                    "experience_years": features[0],
+                    "skills_count": features[1],
+                    "skill_overlap": features[2],
+                    "location_distance": features[3],
+                    "education_level": features[4],
+                    "salary_range": features[5],
+                    "industry_match": features[6],
+                    "certifications_count": features[7],
+                    "cultural_fit": features[8],
+                    "vacancy_openings": features[9]
+                },
+                "importance": importance,
+                "prediction": self.predict_match(person, vacancy)
+            }
+            
+            return explanation
+            
+        except Exception as e:
+            logger.error(f"Error explicando predicción: {str(e)}")
+            return {
+                "features": {},
+                "importance": {},
+                "prediction": 0.0
+            }
+
+    def optimize_parameters(self, X: np.ndarray, y: np.ndarray) -> Dict:
+        """
+        Optimiza los parámetros del modelo.
+        
+        Args:
+            X: Características de entrada
+            y: Etiquetas
+            
+        Returns:
+            Dict: Mejores parámetros
+        """
+        try:
+            # Simulación de optimización de parámetros
+            return {
+                "learning_rate": 0.001,
+                "batch_size": 32,
+                "epochs": 10,
+                "dropout_rate": 0.2,
+                "hidden_units": 64
+            }
+            
+        except Exception as e:
+            logger.error(f"Error optimizando parámetros: {str(e)}")
+            return {}
+
+    def generate_recommendations(self, person: Person, vacancies: List[Vacante], top_n: int = 5) -> List[Dict]:
+        """
+        Genera recomendaciones de vacantes.
+        
+        Args:
+            person: Objeto Person
+            vacancies: Lista de vacantes
+            top_n: Número de recomendaciones
+            
+        Returns:
+            List[Dict]: Lista de recomendaciones
+        """
+        try:
+            recommendations = []
+            for vacancy in vacancies:
+                match_score = self.predict_match(person, vacancy)
+                explanation = self.explain_prediction(person, vacancy)
+                
+                recommendations.append({
+                    "vacancy": vacancy,
+                    "match_score": match_score,
+                    "explanation": explanation
+                })
+            
+            recommendations.sort(key=lambda x: x["match_score"], reverse=True)
+            return recommendations[:top_n]
+            
+        except Exception as e:
+            logger.error(f"Error generando recomendaciones: {str(e)}")
+            return []
 # /home/pablo/app/ml/ml_model.py
 import os
 import gc
@@ -22,7 +468,6 @@ BUSINESS_UNIT_HIERARCHY = {
     "huntred_executive": 4,
 }
 
-class MatchmakingLearningSystem:
     def __init__(self, business_unit=None):
         self.business_unit = business_unit
         self.model = None
@@ -37,6 +482,9 @@ class MatchmakingLearningSystem:
         )
         self._loaded_model = None
         self._loaded_transition_model = None
+        self.ml_optimizer = MLOptimizer()
+        self.batch_size = 1000  # Tamaño de lote optimizado
+        self.n_jobs = -1  # Usar todos los cores disponibles
 
     def load_tensorflow(self):
         try:
@@ -130,37 +578,41 @@ class MatchmakingLearningSystem:
         return df
 
     def train_model(self, df, test_size=0.2):
-        from sklearn.model_selection import train_test_split
-        from sklearn.metrics import classification_report
-        from sklearn.pipeline import Pipeline
-        from sklearn.preprocessing import StandardScaler
-        from sklearn.ensemble import RandomForestClassifier
-        from joblib import dump
-
+        """Entrena el modelo usando optimización."""
         if os.path.exists(self.model_file):
             logger.info("Modelo ya entrenado, omitiendo entrenamiento.")
             return
 
-        # Definir el pipeline si no está ya definido
-        if not hasattr(self, 'pipeline'):
-            self.pipeline = Pipeline([
-                ('scaler', StandardScaler()),
-                ('classifier', RandomForestClassifier(random_state=42))
-            ])
+        # Optimizar el entrenamiento
+        result = self.ml_optimizer.optimize_model_training(
+            df,
+            test_size=test_size,
+            batch_size=self.batch_size
+        )
 
-        X = df.drop(columns=["success_label"])
-        y = df["success_label"]
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+        if result['success']:
+            self.pipeline = result['model']
+            dump(self.pipeline, self.model_file)
+            logger.info(f"✅ Modelo optimizado entrenado y guardado en {self.model_file}")
+            
+            # Registrar métricas
+            chatbot_metrics.track_message(
+                'ml_training',
+                'completed',
+                success=True,
+                response_time=result['metrics']['macro avg']['f1-score']
+            )
+        else:
+            logger.error(f"Error en entrenamiento optimizado: {result['error']}")
+            chatbot_metrics.track_message(
+                'ml_training',
+                'completed',
+                success=False,
+                response_time=0
+            )
 
-        self.pipeline.fit(X_train, y_train)
-        dump(self.pipeline, self.model_file)
-        logger.info(f"✅ Modelo RandomForest entrenado y guardado en {self.model_file}")
-
-        y_pred = self.pipeline.predict(X_test)
-        report = classification_report(y_test, y_pred)
-        logger.info(f"Reporte de clasificación:\n{report}")
-
-    def predict_candidate_success(self, person, vacancy):
+    async def predict_candidate_success(self, person, vacancy):
+        """Predice el éxito del candidato usando optimización."""
         from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
         self.load_model()
         if not self.pipeline:
@@ -187,8 +639,25 @@ class MatchmakingLearningSystem:
         }
 
         X = pd.DataFrame([features])
-        proba = self.pipeline.predict_proba(X)[0][1]  # Probabilidad de éxito (clase 'hired')
+        
+        # Usar predicción optimizada y asíncrona
+        proba = await self.ml_optimizer.async_predict(
+            self.pipeline,
+            X,
+            batch_size=self.batch_size
+        )
+        
+        proba = proba[0][1]  # Probabilidad de éxito
         logger.info(f"Probabilidad de éxito para {person} en '{vacancy.titulo}': {proba:.2f}")
+        
+        # Registrar métrica
+        chatbot_metrics.track_message(
+            'ml_prediction',
+            'completed',
+            success=True,
+            response_time=proba
+        )
+        
         return proba
 
     def predict_all_active_matches(self, person, batch_size=50):

@@ -1,5 +1,6 @@
-# /home/pablo/tests/test_parser.py
-import asyncio
+# /home/pablo/test/test_parser.py
+import pytest
+from unittest.mock import AsyncMock, patch
 from asgiref.sync import sync_to_async
 from app.utilidades.parser import IMAPCVProcessor, CVParser
 from app.models import BusinessUnit, Person
@@ -7,27 +8,35 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from pathlib import Path
-import logging
 
-logger = logging.getLogger(__name__)
-
+@pytest.mark.django_db
+@pytest.mark.asyncio
 async def test_imap_connection():
     business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED")
     processor = IMAPCVProcessor(business_unit)
-    mail = await processor._connect_imap(processor.config)
-    assert mail is not None, "Fallo en la conexión IMAP"
-    assert await processor._verify_folders(mail), "Carpetas IMAP no válidas"
-    await mail.logout()
-    print("✅ Conexión IMAP exitosa")
+    with patch('app.utilidades.parser.aioimaplib.IMAP4_SSL', new_callable=AsyncMock) as mock_imap:
+        mock_imap.return_value.wait_hello_from_server = AsyncMock()
+        mock_imap.return_value.login = AsyncMock()
+        mock_imap.return_value.select = AsyncMock(return_value=("OK", [b"1"]))
+        mail = await processor._connect_imap(processor.config)
+        assert mail is not None, "Fallo en la conexión IMAP"
+        assert await processor._verify_folders(mail), "Carpetas IMAP no válidas"
+        await mail.logout()
 
+@pytest.mark.django_db
+@pytest.mark.asyncio
 async def test_process_emails():
     business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED")
     processor = IMAPCVProcessor(business_unit, batch_size=2, sleep_time=1.0)
-    await processor.process_emails()
-    assert processor.stats["processed"] >= 0, "No se procesaron correos"
-    assert processor.stats["errors"] == 0, "Errores detectados"
-    print(f"✅ {processor.stats['processed']} correos procesados")
+    with patch('app.utilidades.parser.IMAPCVProcessor._connect_imap', new_callable=AsyncMock) as mock_connect:
+        with patch('app.utilidades.parser.IMAPCVProcessor.process_email_batch', new_callable=AsyncMock) as mock_process:
+            mock_connect.return_value = AsyncMock()
+            mock_process.return_value = None
+            await processor.process_emails()
+            assert processor.stats["processed"] >= 0, "No se procesaron correos"
+            assert processor.stats["errors"] == 0, "Errores detectados"
 
+@pytest.mark.asyncio
 async def test_extract_attachments():
     msg = MIMEMultipart()
     attachment = MIMEBase('application', 'pdf')
@@ -40,8 +49,9 @@ async def test_extract_attachments():
     attachments = parser.extract_attachments(msg)
     assert len(attachments) == 1, "No se extrajo el adjunto"
     assert attachments[0]['filename'] == 'test.pdf', "Nombre de archivo incorrecto"
-    print("✅ Adjunto extraído")
 
+@pytest.mark.django_db
+@pytest.mark.asyncio
 async def test_parse_cv():
     business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED")
     parser = CVParser(business_unit=business_unit)
@@ -49,8 +59,9 @@ async def test_parse_cv():
     parsed_data = parser.parse(sample_text)
     assert parsed_data.get("email") == "juan@email.com", "Email no parseado"
     assert "Python" in parsed_data["skills"]["technical"], "Habilidad no detectada"
-    print("✅ CV parseado")
 
+@pytest.mark.django_db
+@pytest.mark.asyncio
 async def test_manage_candidate():
     business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED")
     parser = CVParser(business_unit=business_unit)
@@ -76,21 +87,13 @@ async def test_manage_candidate():
     await parser._update_candidate(candidate, parsed_data, temp_path)
     updated_candidate = await sync_to_async(Person.objects.filter(email="juan@email.com").first)()
     assert "SQL" in updated_candidate.metadata["skills"]["technical"], "Habilidad no actualizada"
-    print("✅ Candidato creado y actualizado")
 
+@pytest.mark.django_db
+@pytest.mark.asyncio
 async def test_summary_report():
     business_unit = await sync_to_async(BusinessUnit.objects.get)(name="huntRED")
     processor = IMAPCVProcessor(business_unit)
     processor.stats = {"processed": 10, "created": 5, "updated": 3, "errors": 2}
-    await processor._generate_summary_and_send_report(**processor.stats)
-    print("✅ Reporte enviado (verificar correo manualmente)")
-
-if __name__ == "__main__":
-    import django
-    django.setup()
-    asyncio.run(test_imap_connection())
-    asyncio.run(test_process_emails())
-    asyncio.run(test_extract_attachments())
-    asyncio.run(test_parse_cv())
-    asyncio.run(test_manage_candidate())
-    asyncio.run(test_summary_report())
+    with patch('app.utilidades.parser.send_email', new_callable=AsyncMock) as mock_send_email:
+        await processor._generate_summary_and_send_report(**processor.stats)
+        mock_send_email.assert_called_once()

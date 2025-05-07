@@ -24,6 +24,14 @@ class AppConfig(DjangoAppConfig):
             from app.ml.ml_opt import configure_tensorflow
             configure_tensorflow()
         
+        # Configurar PDFKit
+        try:
+            import pdfkit
+            pdfkit_config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_PATH)
+            pdfkit.configuration = pdfkit_config
+        except Exception as e:
+            logger.error(f"Error configurando PDFKit: {str(e)}")
+        
         # Registrar handlers solo en entornos de ejecución
         if 'runserver' in sys.argv or 'gunicorn' in os.environ.get('SERVER_SOFTWARE', ''):
             self.register_startup_handlers()

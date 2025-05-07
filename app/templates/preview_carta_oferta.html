@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2cm;
+            padding: 0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2cm;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 1cm;
+        }
+        .company-info {
+            text-align: center;
+            margin-bottom: 1cm;
+            font-size: 1.1em;
+        }
+        .date {
+            text-align: right;
+            margin-bottom: 1cm;
+        }
+        .recipient {
+            margin-bottom: 1cm;
+            font-size: 1.1em;
+        }
+        .content {
+            margin-bottom: 1cm;
+        }
+        .section {
+            margin-bottom: 1.5cm;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .section h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        .signature {
+            text-align: center;
+            margin-top: 2cm;
+        }
+        .signature-line {
+            border-top: 1px solid #000;
+            width: 200px;
+            margin: 1cm auto;
+        }
+        .terms {
+            margin-top: 2cm;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        .terms h4 {
+            color: #333;
+            margin-top: 1em;
+        }
+        .terms ol {
+            margin-left: 20px;
+        }
+        .terms li {
+            margin-bottom: 0.5em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{ business_unit.logo_url }}" alt="Logo Grupo huntRED®" class="logo">
+        <div class="company-info">
+            <h1>Grupo huntRED®</h1>
+            <h2>{{ business_unit.name }}</h2>
+            <p>{{ business_unit.direccion_bu }}</p>
+            <p>Teléfono: {{ business_unit.telefono_bu }}</p>
+            <p>Email: {{ business_unit.correo_bu }}</p>
+        </div>
+    </div>
+
+    <div class="date">
+        <p>Fecha: {{ fecha_generacion|date:"d/m/Y" }}</p>
+    </div>
+
+    <div class="recipient">
+        <p>A:</p>
+        <p>{{ user.nombre }} {{ user.apellido_paterno }}</p>
+        <p>{{ user.email }}</p>
+        <p>{{ user.phone }}</p>
+    </div>
+
+    <div class="content">
+        <h2>Oferta de Empleo</h2>
+        
+        <p>Estimado/a {{ user.nombre }},</p>
+
+        <div class="section">
+            <h3>Posición</h3>
+            <p>{{ vacancy.titulo }}</p>
+            <p><strong>Ubicación:</strong> {{ vacancy.ubicacion }}</p>
+            <p><strong>Modalidad:</strong> {{ vacancy.modalidad|default:"Presencial" }}</p>
+        </div>
+
+        <div class="section">
+            <h3>Compensación</h3>
+            <p><strong>Salario base:</strong> ${{ salary|floatformat:"0" }} MXN mensuales</p>
+            <p><strong>Beneficios adicionales:</strong></p>
+            <ul>
+                {% for benefit in benefits.split("\n") %}
+                <li>{{ benefit }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>Horario y Duración</h3>
+            <p><strong>Fecha de inicio:</strong> {{ start_date|date:"d/m/Y" }}</p>
+            <p><strong>Fecha de expiración de la oferta:</strong> {{ end_date|date:"d/m/Y" }}</p>
+            <p><strong>Periodo de prueba:</strong> {{ vacancy.periodo_prueba|default:"3 meses" }}</p>
+        </div>
+
+        <div class="section">
+            <h3>Requisitos</h3>
+            <ul>
+                <li>Presentar documentación completa</li>
+                <li>Aceptar políticas de la empresa</li>
+                <li>Firmar contrato laboral</li>
+            </ul>
+        </div>
+
+        <p>Para aceptar esta oferta, por favor firme y devuelva esta carta a más tardar el {{ end_date|date:"d/m/Y" }}.</p>
+
+        <p>Atentamente,</p>
+        <div class="signature">
+            <div class="signature-line"></div>
+            <p>{{ business_unit.name }}</p>
+            <p>Grupo huntRED®</p>
+        </div>
+
+        <div class="terms">
+            <h4>Cláusulas Adicionales</h4>
+            <ol>
+                <li>Esta oferta es válida únicamente hasta la fecha de expiración indicada.</li>
+                <li>La aceptación de esta oferta implica el compromiso de presentar documentación completa.</li>
+                <li>Los beneficios adicionales se especificarán en el contrato laboral.</li>
+                <li>La fecha de inicio es flexible según acuerdo entre las partes.</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

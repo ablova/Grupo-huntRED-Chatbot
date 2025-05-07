@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Gestión de Cartas de Oferta</h1>
+            <hr>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Nueva Carta de Oferta</h5>
+                </div>
+                <div class="card-body">
+                    <form id="nuevaCartaForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="user">Candidato</label>
+                                    <select class="form-control" id="user" required>
+                                        <option value="">Selecciona un candidato</option>
+                                        {% for candidato in candidatos %}
+                                        <option value="{{ candidato.id }}">{{ candidato.nombre }} {{ candidato.apellido_paterno }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        
+                        <div class="section-header">
+                            <h4>Información del Candidato</h4>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="user_id">Candidato:</label>
+                                <select id="user_id" name="user_id" class="form-control" required>
+                                    <option value="">Seleccionar candidato</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}">{{ user.nombre }} {{ user.apellido_paterno }} - {{ user.email }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Teléfono:</label>
+                                <input type="tel" id="phone" name="phone" class="form-control" readonly>
+                            </div>
+                        </div>
+
+                        <div class="section-header">
+                            <h4>Detalles de la Vacante</h4>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="vacancy_id">Vacante:</label>
+                                <select id="vacancy_id" name="vacancy_id" class="form-control" required>
+                                    <option value="">Seleccionar vacante</option>
+                                    {% for vacancy in vacancies %}
+                                    <option value="{{ vacancy.id }}" data-location="{{ vacancy.ubicacion }}" data-type="{{ vacancy.modalidad }}">
+                                        {{ vacancy.titulo }} - {{ vacancy.empresa }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="location">Ubicación:</label>
+                                <input type="text" id="location" name="location" class="form-control" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="work_type">Modalidad:</label>
+                                <input type="text" id="work_type" name="work_type" class="form-control" readonly>
+                            </div>
+                        </div>
+
+                        <div class="section-header">
+                            <h4>Compensación y Beneficios</h4>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="salary">Salario Mensual:</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">$</span>
+                                    </div>
+                                    <input type="number" id="salary" name="salary" class="form-control" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="trial_period">Periodo de Prueba:</label>
+                                <select id="trial_period" name="trial_period" class="form-control">
+                                    <option value="3">3 meses</option>
+                                    <option value="6">6 meses</option>
+                                    <option value="1">1 mes</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="benefits">Beneficios:</label>
+                            <textarea id="benefits" name="benefits" class="form-control" rows="4" required></textarea>
+                        </div>
+
+                        <div class="section-header">
+                            <h4>Detalles de Envío</h4>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="start_date">Fecha de Inicio:</label>
+                                <input type="date" id="start_date" name="start_date" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="end_date">Fecha de Expiración:</label>
+                                <input type="date" id="end_date" name="end_date" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="canal_envio">Canal de Envío:</label>
+                            <select id="canal_envio" name="canal_envio" class="form-control" required>
+                                <option value="">Seleccionar canal</option>
+                                {% for choice in canal_envio_choices %}
+                                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="preview-container">
+                            <h4>Vista Previa</h4>
+                            <iframe id="previewFrame" src=""></iframe>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Crear Carta de Oferta</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Cartas de Oferta Pendientes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Candidato</th>
+                                    <th>Vacante</th>
+                                    <th>Estado</th>
+                                    <th>Fecha de Envío</th>
+                                    <th>Fecha de Firma</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for carta in cartas_pendientes %}
+                                <tr>
+                                    <td>{{ carta.user.nombre }} {{ carta.user.apellido_paterno }}</td>
+                                    <td>{{ carta.vacancy.titulo }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ carta.get_status_badge }}">
+                                            {{ carta.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ carta.fecha_envio|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ carta.fecha_firma|date:"d/m/Y H:i"|default:"-" }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'ver_carta' carta.id %}" class="btn btn-sm btn-info" target="_blank">
+                                                <i class="fas fa-eye"></i> Ver PDF
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-success" onclick="marcarComoFirmada({{ carta.id }})">
+                                                <i class="fas fa-check"></i> Marcar como Firmada
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="reenviarCarta({{ carta.id }})">
+                                                <i class="fas fa-paper-plane"></i> Reenviar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userSelect = document.getElementById('user_id');
+            const phoneInput = document.getElementById('phone');
+            const vacancySelect = document.getElementById('vacancy_id');
+            const locationInput = document.getElementById('location');
+            const workTypeInput = document.getElementById('work_type');
+            const form = document.getElementById('nuevaCartaForm');
+            const previewFrame = document.getElementById('previewFrame');
+
+            // Actualizar teléfono al seleccionar candidato
+            userSelect.addEventListener('change', function() {
+                const selectedUser = users.find(user => user.id === parseInt(this.value));
+                if (selectedUser) {
+                    phoneInput.value = selectedUser.phone;
+                }
+            });
+
+            // Actualizar ubicación y modalidad al seleccionar vacante
+            vacancySelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                locationInput.value = selectedOption.dataset.location;
+                workTypeInput.value = selectedOption.dataset.type;
+            });
+
+            // Generar vista previa al cambiar campos importantes
+            form.addEventListener('change', function(e) {
+                if (e.target.name === 'user_id' || e.target.name === 'vacancy_id' || 
+                    e.target.name === 'salary' || e.target.name === 'benefits' || 
+                    e.target.name === 'start_date' || e.target.name === 'end_date') {
+                    
+                    // Actualizar vista previa
+                    const formData = new FormData(form);
+                    fetch('{% url "generar_preview" %}', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validar fechas
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
+
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validar formulario antes de enviar
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Validar que todas las fechas estén llenas
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validar que el salario sea un número válido
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validar que haya beneficios
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                // Si todo está bien, enviar el formulario
+                fetch('{% url "gestion_cartas_oferta" %}', {
+                    method: 'POST',
+                    body: new FormData(form)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                });
+            });
+        });
+
+        async function marcarComoFirmada(cartaId) {
+            try {
+                const response = await fetch(`{% url 'marcar_como_firmada' 0 %}`.replace('0', cartaId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        text: 'Carta marcada como firmada',
+                        icon: 'success'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.error || 'Error al marcar como firmada',
+                        icon: 'error'
+                    });
+                }
+            } catch (error) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Error al procesar la solicitud',
+                    icon: 'error'
+                });
+            }
+        }
+
+        async function reenviarCarta(cartaId) {
+            const { value: canal } = await Swal.fire({
+                title: 'Selecciona el canal de envío',
+                input: 'select',
+                inputOptions: {
+                    {% for canal in canal_envio_choices %}
+                    '{{ canal.0 }}': '{{ canal.1 }}',
+                    {% endfor %}
+                },
+                inputPlaceholder: 'Selecciona un canal',
+                showCancelButton: true
+            });
+
+            if (canal) {
+                try {
+                    const response = await fetch(`{% url 'reenviar_carta' 0 %}`.replace('0', cartaId), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({ canal_envio: canal })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            text: 'Carta reenviada exitosamente',
+                            icon: 'success'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: data.error || 'Error al reenviar la carta',
+                            icon: 'error'
+                        });
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'Error al procesar la solicitud',
+                        icon: 'error'
+                    });
+                }
+            }
+        }
+    </script>
+{% endblock %}

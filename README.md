@@ -24,13 +24,15 @@ Este documento describe la arquitectura, las funcionalidades y las integraciones
 
 ## Arquitectura del Sistema
 
-El sistema de chatbot de huntred.com está construido utilizando Django como framework principal, aprovechando la capacidad asíncrona de Python para manejar múltiples solicitudes simultáneamente. Las principales componentes incluyen:
+El sistema de chatbot de huntred.com está construido utilizando Django como framework principal, con componentes especializados para manejar múltiples solicitudes simultáneamente. Las principales componentes incluyen:
 
 - **Django Models:** Definen las estructuras de datos para usuarios, estados de chat, configuraciones de API, y flujos de conversación.
 - **Integraciones de Plataformas:** Módulos dedicados para manejar la comunicación con diferentes plataformas de mensajería (WhatsApp, Messenger, Telegram, Instagram).
 - **Servicios de Mensajería:** Funciones reutilizables para enviar mensajes, imágenes, botones y otros elementos interactivos.
 - **ChatBotHandler:** Núcleo del chatbot que procesa los mensajes entrantes, determina las respuestas y gestiona el flujo de conversación.
 - **Utilidades NLP:** Herramientas para análisis de texto, detección de intenciones y sentimientos.
+- **Dashboard:** Sistema de visualización de datos en tiempo real con KPIs y métricas del sistema.
+- **Sistema de Gamificación:** Módulo que maneja el sistema de puntos, logros y badges para incentivar la participación de los usuarios.
 
 ## Integraciones de Plataformas
 
@@ -104,14 +106,25 @@ El modelo `ChatState` almacena información relevante sobre la conversación act
 - **business_unit:** Unidad de negocio asociada.
 - **current_question:** Pregunta actual en el flujo de conversación.
 - **context:** Información adicional relevante para la conversación.
+- **last_activity:** Timestamp de la última interacción.
+- **message_count:** Contador de mensajes en la conversación actual.
 
 ## Envío de Mensajes
 
-Las funciones de envío de mensajes (`send_message`, `send_whatsapp_buttons`, `send_messenger_buttons`, etc.) están diseñadas para ser reutilizables y manejar diferentes tipos de contenido, incluyendo texto, imágenes y botones interactivos.
+Las funciones de envío de mensajes (`send_message`, `send_whatsapp_buttons`, `send_messenger_buttons`, etc.) están diseñadas para ser reutilizables y manejar diferentes tipos de contenido, incluyendo texto, imágenes, botones interactivos y plantillas de mensajes.
 
 ### Envío de Botones Interactivos
 
 Los botones interactivos permiten a los usuarios responder rápidamente a través de opciones predefinidas, mejorando la experiencia de usuario y facilitando la navegación en el flujo de conversación.
+
+### Plantillas de Mensajes
+
+Plantillas predefinidas para mensajes comunes, incluyendo:
+- Mensajes de bienvenida
+- Mensajes de confirmación
+- Mensajes de error
+- Mensajes de ayuda
+- Mensajes de gamificación
 
 ## Manejo de Errores y Logs
 
@@ -134,6 +147,10 @@ El sistema utiliza el módulo `logging` para registrar eventos importantes, erro
     - `httpx`
     - `asgiref`
     - `celery` (para tareas asíncronas en Telegram)
+- **Dependencias de Dashboard:**
+    - `plotly` (para visualización de datos)
+    - `django-dashboard` (para el dashboard)
+    - `django-model-utils` (para utilidades de modelos)
 - **Configuraciones de API:** Asegúrate de tener las credenciales y tokens necesarios para cada plataforma de mensajería.
 
 ### Pasos de Configuración
@@ -189,15 +206,16 @@ El sistema utiliza el módulo `logging` para registrar eventos importantes, erro
 
 1. **Monitoreo de Logs:**
     - Revisa regularmente los logs para identificar y solucionar problemas.
-
 2. **Actualización de Dependencias:**
     - Mantén las dependencias actualizadas para aprovechar mejoras y parches de seguridad.
-
 3. **Mejoras Continuas:**
     - Añade nuevas funcionalidades y patrones de conversación según las necesidades de los usuarios y del negocio.
-
 4. **Respaldo de Datos:**
     - Implementa estrategias de respaldo para asegurar que los datos importantes estén protegidos.
+5. **Monitoreo de KPIs:**
+    - Supervisa regularmente los KPIs del sistema para identificar tendencias y áreas de mejora.
+6. **Optimización de Rendimiento:**
+    - Realiza pruebas de rendimiento periódicas y optimiza el sistema según sea necesario.
 
 ## Integraciones de Servicios
 

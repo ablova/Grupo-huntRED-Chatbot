@@ -1,0 +1,59 @@
+{% load static %}
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 10px 0;
+}
+
+.stat-card h3 {
+    color: #34495e;
+    margin: 0 0 10px 0;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total de Candidatos</h3>
+        <p class="stat-value">{{ total_candidates }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Vacantes Activas</h3>
+        <p class="stat-value">{{ active_jobs }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Aplicaciones Nuevas</h3>
+        <p class="stat-value">{{ new_applications }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Contrataciones Último Mes</h3>
+        <p class="stat-value">{{ hires_last_month }}</p>
+    </div>
+</div>

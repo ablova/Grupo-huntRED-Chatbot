@@ -10,6 +10,10 @@ from asgiref.sync import sync_to_async
 from django.core.cache import cache
 import time
 
+from app.chatbot.channel_config import ChannelConfig
+from app.chatbot.message_retry import MessageRetry
+from app.chatbot.metrics import chatbot_metrics
+
 from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, ConfiguracionBU, Vacante,
     WhatsAppAPI, EnhancedNetworkGamificationProfile, ConfiguracionBU
@@ -61,16 +65,10 @@ class ChatBotHandler:
             ]
         }
         try:
-            from app.chatbot.utils import get_nlp_processor
-            self.nlp_processor = get_nlp_processor() if NLP_ENABLED else None
-            # Initialize GPTHandler
-            asyncio.run(self.gpt_handler.initialize())
+            self.nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
         except Exception as e:
-            logger.error(f"Error inicializando NLPProcessor o GPTHandler: {e}")
-            self.nlp_processor = None
-            self.gpt_handler = None
-        if self.nlp_processor:
-            logger.info("✅ NLPProcessor inicializado en ChatBotHandler")
+            logger.error(f"Error inicializando NLPProcessor: {e}")
+            self.nlp_processor = None if NLP_ENABLED else None
 
     def get_business_unit_key(self, business_unit) -> str:
         """Obtiene una clave segura para el business unit."""
@@ -81,13 +79,30 @@ class ChatBotHandler:
             logger.error(f"Error obteniendo business unit key: {e}")
         return 'default'
 
+    @MessageRetry.with_retry(platform)
+    async def send_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
+        """Envía un mensaje a través del canal especificado con retry."""
+        logger.info(f"[send_message] Enviando mensaje a {user_id} en {platform}: {message}")
+        
+        try:
+            await send_message(platform, user_id, message, business_unit.name)
+            chatbot_metrics.track_message(platform, 'sent', success=True)
+            return True
+        except Exception as e:
+            logger.error(f"Error sending message: {str(e)}")
+            chatbot_metrics.track_message(platform, 'sent', success=False)
+            return False
+
     async def process_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
         logger.info(f"[process_message] Recibido mensaje de {user_id} en {platform} para {business_unit.name}: {message}")
+        
+        # Registrar actividad del usuario
+        chatbot_metrics.track_user_activity(platform, user_id)
         
         # Validar business_unit
         if not isinstance(business_unit, BusinessUnit):
             logger.error(f"[process_message] business_unit no es un BusinessUnit, es {type(business_unit)}")
-            await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
+            await self.send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", "default")
             return False
 
         # Inicializar chat_state
@@ -97,11 +112,20 @@ class ChatBotHandler:
             await send_message(platform, user_id, "Error: No se pudo inicializar el estado del chat.", self.get_business_unit_key(business_unit))
             return False
 
+        # Validar mensaje según las restricciones del canal
+        if not MessageRetry.validate_message(platform, message):
+            logger.warning(f"Mensaje inválido para el canal {platform}")
+            await send_message(platform, user_id, "El mensaje no cumple con las restricciones del canal.", self.get_business_unit_key(business_unit))
+            return False
+
         # Validar chat_state
         if not isinstance(chat_state, ChatState):
             logger.error(f"[process_message] chat_state no es un ChatState, es {type(chat_state)}")
             await send_message(platform, user_id, "Ups, algo salió mal. Contacta a soporte.", self.get_business_unit_key(business_unit))
             return False
+
+        # Registrar métrica de mensaje recibido
+        chatbot_metrics.track_message(platform, 'received')
 
         # Validar chat_state.person
         if not hasattr(chat_state, 'person') or chat_state.person is None:
@@ -869,3 +893,4 @@ class ChatBotHandler:
                 await send_message(platform, user_id, "Por favor, responde 'Sí' o 'No' para aceptar o rechazar los Términos de Servicio.", bu_key)
         await sync_to_async(chat_state.save)()
         logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
+        

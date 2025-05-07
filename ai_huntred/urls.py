@@ -9,10 +9,12 @@ import logging
 from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.generic import RedirectView
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.conf.urls.static import static
+from django.views.decorators.csrf import csrf_exempt
+from ai_huntred.settings import METRICS_ENDPOINT, ENABLE_METRICS
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +26,34 @@ APPEND_SLASH = False
 def health_check(request):
     """Verifica si el servidor está activo."""
     logger.info("Health check requested")
-    return HttpResponse("OK")
+    return JsonResponse({
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat(),
+        'version': '1.0.0',
+        'environment': settings.ENVIRONMENT
+    })
 
+@csrf_exempt
+def metrics(request):
+    """Endpoint para métricas de Prometheus."""
+    if not ENABLE_METRICS:
+        return HttpResponse("Metrics disabled", status=403)
+    
+    # Aquí iría la lógica para recopilar métricas
+    metrics_data = ""  # Se reemplazaría con las métricas reales
+    return HttpResponse(metrics_data, content_type='text/plain')
+
+@csrf_exempt
 def trigger_error(request):
     """Simula un error para pruebas con Sentry u otros sistemas de monitoreo."""
     logger.warning("Triggering error for debugging")
     try:
         division_by_zero = 1 / 0
     except ZeroDivisionError:
-        return HttpResponse("Error triggered for debugging", status=500)
+        return JsonResponse({
+            'error': 'Division by zero',
+            'timestamp': datetime.now().isoformat()
+        }, status=500)
 
 urlpatterns = [
     # Redirige /admin a /admin/ para consistencia
@@ -41,11 +62,15 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # Health check del servidor
     path('health/', health_check, name='health_check'),
+    # Endpoint para métricas
+    path(METRICS_ENDPOINT, metrics, name='metrics'),
     # Endpoint para pruebas de errores
     path('sentry-debug/', trigger_error, name='sentry_debug'),
     # Rutas de la aplicación principal
     path('', include('app.urls')),
     path('silk/', include('silk.urls', namespace='silk')),
+    # Rutas de pagos
+    path('pagos/', include('app.pagos.urls', namespace='pagos')),
 ]
 
 # Soporte condicional para Grappelli

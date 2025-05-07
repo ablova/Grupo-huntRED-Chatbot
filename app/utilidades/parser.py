@@ -246,18 +246,13 @@ class CVParser:
         """Inicializa el parser de CVs."""
         self.business_unit = business_unit
         self.DIVISION_SKILLS = load_division_skills()
+        self.nlp = NLPProcessor(language="es", mode="candidate")
+        self.skill_classifier = SkillClassifier()
+        self.cache = ScrapingCache()
 
-    def parse(self, text: str) -> Dict:
-        """Procesa el texto del CV usando NLPProcessor con detección de idioma."""
-        NLP_PROCESSORS = {}  # Diccionario para almacenar instancias por idioma
-        # Validación inicial
-        if not text or len(text.strip()) < 10:
-            logger.warning("⚠️ Texto demasiado corto para análisis")
-            return {}
-
-        # Detectar idioma
-        detected_lang = detect_language(text)
-
+    async def parse(self, text: str) -> Dict:
+        """Procesa un CV y extrae información relevante."""
+        result = await self.nlp.analyze(text)
         # Verificar si ya existe una instancia para el idioma detectado
         if detected_lang not in NLP_PROCESSORS:
             # Usar la instancia global para español, o crear una nueva para otros idiomas

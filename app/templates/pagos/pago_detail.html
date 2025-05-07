@@ -1,0 +1,20 @@
+{% extends 'pagos/base.html' %}
+
+{% block pagos_content %}
+    <div class="row">
+        <div class="col-12">
+            <h2>Detalles del Pago</h2>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Información del Pago</h5>
+                    <p><strong>Empleado:</strong> {{ pago.empleado.nombre }}</p>
+                    <p><strong>Monto:</strong> ${{ pago.monto }}</p>
+                    <p><strong>Método:</strong> {{ pago.metodo }}</p>
+                    <p><strong>Estado:</strong> {{ pago.estado }}</p>
+                    <p><strong>Fecha:</strong> {{ pago.fecha_creacion }}</p>
+                    <a href="{% url 'pagos:pago-list' %}" class="btn btn-secondary">Volver</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

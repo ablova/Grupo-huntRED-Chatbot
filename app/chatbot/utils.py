@@ -9,25 +9,29 @@ import requests
 import time
 import asyncio
 import pandas as pd
-from datetime import datetime
-from app.models import GptApi
-from asgiref.sync import sync_to_async
+from datetime import datetime, timedelta
+from app.models import (
+    GptApi, Person, Vacante, Application, BusinessUnit,
+    EnhancedNetworkGamificationProfile, ChatState, WorkflowStage
+)
+from asgiref.sync import sync_to_async, async_to_sync
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Coroutine, AsyncGenerator
 from difflib import get_close_matches
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
 from app.chatbot.nlp import NLPProcessor
+from app.chatbot.intents_handlers import IntentProcessor
 
 
 # Variable global para la instancia de NLPProcessor
 logger = logging.getLogger('nlp')
 _nlp_processor_instance: Optional[NLPProcessor] = None
 
-def get_nlp_processor() -> Optional[NLPProcessor]:
-    """Obtiene la instancia singleton de NLPProcessor."""
+async def get_nlp_processor() -> Optional[NLPProcessor]:
+    """Obtiene la instancia singleton de NLPProcessor de forma asíncrona."""
     global _nlp_processor_instance
     if _nlp_processor_instance is None:
         try:
@@ -77,16 +81,16 @@ def clean_text(text: str) -> str:
     text = re.sub(r'[^\w\sáéíóúñüÁÉÍÓÚÑÜ]', '', text, flags=re.UNICODE)
     return text
 
-def analyze_text(text: str) -> Dict[str, any]:
-    """Analiza el texto usando NLPProcessor."""
-    nlp_processor = get_nlp_processor()
+async def analyze_text(text: str) -> Dict[str, any]:
+    """Analiza el texto usando NLPProcessor de forma asíncrona."""
+    nlp_processor = await get_nlp_processor()
     if nlp_processor is None:
         logger.warning("No se pudo obtener NLPProcessor, devolviendo resultado vacío")
         return {"entities": [], "sentiment": {}}
     
     try:
         cleaned_text = clean_text(text)
-        result = nlp_processor.analyze(cleaned_text)
+        result = await nlp_processor.analyze(cleaned_text)
         return result
     except Exception as e:
         logger.error(f"Error analizando texto '{text}': {e}", exc_info=True)
@@ -171,9 +175,9 @@ def get_all_skills_for_unit(unit_name: str = "huntRED®") -> list:
         logger.error(f"Error obteniendo habilidades de {unit_name}: {e}")
         return []
     
-def get_positions_by_skills(skills: List[str], threshold: float = 0.6) -> List[Dict]:
+async def get_positions_by_skills(skills: List[str], threshold: float = 0.6) -> List[Dict]:
     """
-    Obtiene vacantes adecuadas basadas en las habilidades detectadas.
+    Obtiene vacantes adecuadas basadas en las habilidades detectadas de forma asíncrona.
 
     Args:
         skills (list): Lista de habilidades detectadas
@@ -182,8 +186,6 @@ def get_positions_by_skills(skills: List[str], threshold: float = 0.6) -> List[D
     Returns:
         list: Lista de diccionarios con vacantes sugeridas y su puntuación
     """
-    from app.models import Vacante
-
     if not skills:
         return []
 
@@ -191,7 +193,7 @@ def get_positions_by_skills(skills: List[str], threshold: float = 0.6) -> List[D
     suggested = []
 
     # Obtener todas las vacantes que tienen habilidades requeridas
-    all_vacantes = Vacante.objects.exclude(skills_required__isnull=True)
+    all_vacantes = await sync_to_async(Vacante.objects.exclude)(skills_required__isnull=True)
 
     for vacante in all_vacantes:
         try:
@@ -333,9 +335,9 @@ SPAM_DETECTION_WINDOW = 30  # 30 segundos
 MAX_MESSAGE_REPEATS = 3  # Cuántas veces puede repetir el mismo mensaje antes de ser SPAM
 MAX_MESSAGES_PER_MINUTE = 10  # Límite de mensajes por usuario por minuto
 
-def is_spam_message(user_id: str, text: str) -> bool:
+async def is_spam_message(user_id: str, text: str) -> bool:
     """
-    Verifica si un mensaje es considerado SPAM basándose en su frecuencia y repetición.
+    Verifica si un mensaje es considerado SPAM basándose en su frecuencia y repetición de forma asíncrona.
     
     Args:
         user_id (str): ID del usuario.
@@ -344,56 +346,58 @@ def is_spam_message(user_id: str, text: str) -> bool:
     Returns:
         bool: True si el mensaje es considerado SPAM, False en caso contrario.
     """
-    if not text or not isinstance(text, str):
+    try:
+        # Actualizar el historial de mensajes del usuario
+        await update_user_message_history(user_id)
+        
+        # Verificar si el usuario está enviando demasiados mensajes
+        if await is_user_spamming(user_id):
+            return True
+            
+        # Verificar si el mensaje es una repetición
+        message_history = cache.get(f'message_history_{user_id}', [])
+        if len(message_history) >= 5:  # Considerar últimos 5 mensajes
+            matches = get_close_matches(text.lower(), 
+                                      [msg.lower() for msg in message_history], 
+                                      n=1, 
+                                      cutoff=0.8)
+            if matches:
+                return True
+                
+        # Agregar mensaje al historial
+        message_history.append(text)
+        if len(message_history) > 10:  # Mantener solo los últimos 10 mensajes
+            message_history.pop(0)
+        cache.set(f'message_history_{user_id}', message_history, 3600)  # Expira en 1 hora
+        
+        return False
+    except Exception as e:
+        logger.error(f"Error en is_spam_message: {e}")
         return False
 
-    # Limpiar texto de manera más robusta
-    text_cleaned = re.sub(r'\s+', ' ', re.sub(r'[^\w\s]', '', text.lower().strip()))
-    if not text_cleaned:
-        return False
-
-    cache_key = f"spam_check:{user_id}"
-    user_messages = cache.get(cache_key, [])
-
-    # Registrar el nuevo mensaje
-    current_time = time.time()
-    user_messages.append((text_cleaned, current_time))
-    
-    # Filtrar mensajes dentro de la ventana de tiempo
-    user_messages = [(msg, ts) for msg, ts in user_messages if current_time - ts < SPAM_DETECTION_WINDOW]
-
-    # Contar repeticiones
-    message_count = sum(1 for msg, _ in user_messages if msg == text_cleaned)
-    if message_count >= MAX_MESSAGE_REPEATS:
-        return True  # SPAM detectado por mensajes repetidos
-
-    # Guardar historial actualizado
-    cache.set(cache_key, user_messages, timeout=SPAM_DETECTION_WINDOW)
-    return False
-
-def update_user_message_history(user_id: str):
+async def update_user_message_history(user_id: str):
     """
-    Registra la cantidad de mensajes enviados por un usuario en un minuto.
+    Registra la cantidad de mensajes enviados por un usuario en un minuto de forma asíncrona.
     
     Args:
         user_id (str): ID del usuario.
     """
-    cache_key = f"msg_count:{user_id}"
-    timestamps = cache.get(cache_key, [])
-    current_time = time.time()
+    try:
+        # Obtener el registro actual
+        key = f'user_messages_{user_id}'
+        message_count = cache.get(key, 0)
+        
+        # Incrementar el contador
+        message_count += 1
+        
+        # Establecer el nuevo valor con expiración de 60 segundos
+        cache.set(key, message_count, 60)
+    except Exception as e:
+        logger.error(f"Error en update_user_message_history: {e}")
 
-    # Limpiar mensajes fuera del período de 1 minuto
-    timestamps = [ts for ts in timestamps if current_time - ts < 60]
-    
-    # Agregar el nuevo mensaje
-    timestamps.append(current_time)
-    
-    # Guardar en cache
-    cache.set(cache_key, timestamps, timeout=60)
-
-def is_user_spamming(user_id: str) -> bool:
+async def is_user_spamming(user_id: str) -> bool:
     """
-    Verifica si un usuario ha enviado demasiados mensajes en un corto periodo.
+    Verifica si un usuario ha enviado demasiados mensajes en un corto periodo de forma asíncrona.
     
     Args:
         user_id (str): ID del usuario.
@@ -401,10 +405,20 @@ def is_user_spamming(user_id: str) -> bool:
     Returns:
         bool: True si el usuario está enviando demasiados mensajes, False en caso contrario.
     """
-    cache_key = f"msg_count:{user_id}"
-    timestamps = cache.get(cache_key, [])
-
-    return len(timestamps) > MAX_MESSAGES_PER_MINUTE
+    try:
+        # Obtener el contador de mensajes
+        key = f'user_messages_{user_id}'
+        message_count = cache.get(key, 0)
+        
+        # Si no hay contador, el usuario no ha enviado mensajes recientemente
+        if message_count == 0:
+            return False
+            
+        # Si el usuario ha enviado más de 5 mensajes en 60 segundos, es spam
+        return message_count > 5
+    except Exception as e:
+        logger.error(f"Error en is_user_spamming: {e}")
+        return False
 
 from transformers import AutoTokenizer
 

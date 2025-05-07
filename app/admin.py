@@ -31,7 +31,7 @@ from app.models import (
     Invitacion, MetaAPI, MessengerAPI, MigrantSupportPlatform, ModelTrainingLog,
     Person, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
     SmtpConfig, TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
-    Worker
+    Worker, IntentPattern, StateTransition, IntentTransition, ContextCondition
 )
 
 # Service Imports
