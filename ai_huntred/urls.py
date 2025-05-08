@@ -55,20 +55,32 @@ def trigger_error(request):
             'timestamp': datetime.now().isoformat()
         }, status=500)
 
+schema_view = get_swagger_view(title='ai_huntred API')
+
 urlpatterns = [
     # Redirige /admin a /admin/ para consistencia
     path('admin', RedirectView.as_view(url='/admin/', permanent=True)),
     # Interfaz de administración de Django
     path('admin/', admin.site.urls),
-    # Health check del servidor
-    path('health/', health_check, name='health_check'),
-    # Endpoint para métricas
-    path(METRICS_ENDPOINT, metrics, name='metrics'),
-    # Endpoint para pruebas de errores
-    path('sentry-debug/', trigger_error, name='sentry_debug'),
+    # API REST
+    path('api/', include('app.api.urls')),
+    # API de publicación
+    path('api/publish/', include('app.publish.urls')),
+    # Swagger UI
+    path('swagger/', schema_view, name='schema-swagger-ui'),
+    # Redirección de raíz a Swagger
+    path('', RedirectView.as_view(url='/swagger/', permanent=True)),
+    # Páginas de error
+    path('500/', trigger_error),
+    # Métricas
+    path(METRICS_ENDPOINT, metrics),
+    # Salud
+    path('health/', health_check),
     # Rutas de la aplicación principal
     path('', include('app.urls')),
     path('silk/', include('silk.urls', namespace='silk')),
+    # Rutas de publicación
+    path('publicacion/', include('app.publicacion.urls')),
     # Rutas de pagos
     path('pagos/', include('app.pagos.urls', namespace='pagos')),
 ]

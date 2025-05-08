@@ -25,7 +25,49 @@ env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 env_file = os.path.join(BASE_DIR, '.env')
 
-# --- Configuración de Pagos ---
+# --- Funciones para obtener configuración de la base de datos
+def get_whatsapp_api_config(business_unit):
+    """
+    Obtiene la configuración de WhatsApp para una unidad de negocio
+    """
+    from app.models import WhatsAppAPI
+    try:
+        return WhatsAppAPI.objects.get(
+            business_unit=business_unit,
+            is_active=True
+        )
+    except WhatsAppAPI.DoesNotExist:
+        return None
+
+def get_telegram_api_config(business_unit):
+    """
+    Obtiene la configuración de Telegram para una unidad de negocio
+    """
+    from app.models import TelegramAPI
+    try:
+        return TelegramAPI.objects.get(
+            business_unit=business_unit,
+            is_active=True
+        )
+    except TelegramAPI.DoesNotExist:
+        return None
+
+# Configuración de publicación
+PUBLISH_DEFAULT_CHANNEL = env('PUBLISH_DEFAULT_CHANNEL', default='TELEGRAM_CHANNEL')
+PUBLISH_AUTO_PUBLISH = env.bool('PUBLISH_AUTO_PUBLISH', default=True)
+
+# Configuración dinámica por unidad de negocio
+def get_channel_config(business_unit, channel_type):
+    """
+    Obtiene la configuración de un canal específico para una unidad de negocio
+    """
+    if channel_type == 'WHATSAPP':
+        return get_whatsapp_api_config(business_unit)
+    elif channel_type == 'TELEGRAM':
+        return get_telegram_api_config(business_unit)
+    return None
+
+# Configuración de Pagos ---
 PAYPAL_MODE = env('PAYPAL_MODE', default='sandbox')
 PAYPAL_CLIENT_ID = env('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = env('PAYPAL_CLIENT_SECRET')
@@ -92,7 +134,6 @@ EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 
 # Configuración de base de datos
-# Configuración de base de datos
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -143,6 +184,7 @@ INSTALLED_APPS = [
     'silk',
     'django_extensions',
     'app.pagos',
+    'app.publish',
 ]
 
 # Middleware
@@ -156,6 +198,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'app.middleware.PermissionMiddleware',
+    'app.middleware.RoleMiddleware',
+    'app.middleware.BusinessUnitMiddleware',
+    'app.middleware.DivisionMiddleware',
     'silk.middleware.SilkyMiddleware',
     'ai_huntred.error_handling.ErrorHandlerMiddleware',
 ]
@@ -177,6 +223,12 @@ SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 X_FRAME_OPTIONS = 'DENY'
+
+# Configuración de autenticación
+AUTH_USER_MODEL = 'app.CustomUser'
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # Configuración de URLs y plantillas
 ROOT_URLCONF = 'ai_huntred.urls'
@@ -307,7 +359,9 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
-    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',

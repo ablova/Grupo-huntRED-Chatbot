@@ -9,19 +9,81 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from urllib.parse import urlparse
 from asgiref.sync import sync_to_async
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.utils.translation import gettext_lazy as _
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 from datetime import datetime, timedelta
 
-import requests
-import logging
-import re
-import uuid
-import pdfkit
-from io import BytesIO
-from django.core.files import File
+# Choices para roles
+ROLE_CHOICES = [
+    ('SUPER_ADMIN', 'Super Administrador'),
+    ('BU_COMPLETE', 'Consultor BU Completo'),
+    ('BU_DIVISION', 'Consultor BU División')
+]
 
-logger = logging.getLogger(__name__)
+# Choices para permisos
+PERMISSION_CHOICES = [
+    ('ALL_ACCESS', 'Acceso Total'),
+    ('BU_ACCESS', 'Acceso a BU'),
+    ('DIVISION_ACCESS', 'Acceso a División')
+]
+
+# Choices para estados de usuario
+USER_STATUS_CHOICES = [
+    ('ACTIVE', 'Activo'),
+    ('INACTIVE', 'Inactivo'),
+    ('PENDING_APPROVAL', 'Pendiente de Aprobación')
+]
+
+# Choices para estados de verificación
+VERIFICATION_STATUS_CHOICES = [
+    ('PENDING', 'Pendiente'),
+    ('APPROVED', 'Aprobado'),
+    ('REJECTED', 'Rechazado')
+]
+
+# Choices para tipos de documento
+DOCUMENT_TYPE_CHOICES = [
+    ('ID', 'Identificación'),
+    ('CURP', 'CURP'),
+    ('RFC', 'RFC'),
+    ('PASSPORT', 'Pasaporte')
+]
+
+
+# User agents
+USER_AGENTS = [
+    "Mozilla/5.0 (Android 10; Mobile; rv:88.0) Gecko/88.0 Firefox/88.0",
+    "Mozilla/5.0 (Linux; Android 10; SM-A505FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.93 Mobile Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko",
+    "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.51",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0",
+    "Mozilla/5.0 (iPad; CPU OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPad; CPU OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+]
 
 # Choices
 PLATFORM_CHOICES = [
@@ -56,12 +118,30 @@ OFERTA_STATUS_CHOICES = [
 ]
 
 # Choices para el canal de envío
-CANAL_ENVIO_CHOICES = [
+COMUNICATION_CHOICES = [
     ('whatsapp', 'WhatsApp'),
-    ('email', 'Email'),
     ('telegram', 'Telegram'),
     ('messenger', 'Messenger'),
     ('instagram', 'Instagram'),
+    ('slack', 'Slack'),
+    ('email', 'Email'),
+    ('incode', 'INCODE Verification'),
+    ('blacktrust', 'BlackTrust Verification'),
+]
+
+# Choices para categorías de API
+API_CATEGORY_CHOICES = [
+    ('VERIFICATION', 'Verificación de Identidad'),
+    ('BACKGROUND_CHECK', 'Verificación de Antecedentes'),
+    ('MESSAGING', 'Envío de Mensajes'),
+    ('EMAIL', 'Envío de Email'),
+    ('SOCIAL_MEDIA', 'Redes Sociales'),
+    ('SCRAPING', 'Extracción de Datos'),
+    ('AI', 'Inteligencia Artificial'),
+    ('REPORTING', 'Generación de Reportes'),
+    ('ANALYTICS', 'Análisis de Datos'),
+    ('STORAGE', 'Almacenamiento'),
+    ('OTHER', 'Otro')
 ]
 
 BUSINESS_UNIT_CHOICES = [
@@ -72,13 +152,14 @@ BUSINESS_UNIT_CHOICES = [
     ('sexsi', 'SexSI'),
 ]
 
-COMUNICATION_CHOICES = [
-    ("whatsapp", "WhatsApp"),
-    ("telegram", "Telegram"),
-    ("messenger", "Messenger"),
-    ("instagram", "Instagram"),
-    ("slack", "Slack"),
-    ("sms", "SMS"),
+# Choices para divisiones
+DIVISION_CHOICES = [
+    ('RECRUITING', 'Recruiting'),
+    ('TECH', 'Tecnología'),
+    ('HR', 'Recursos Humanos'),
+    ('FINANCE', 'Finanzas'),
+    ('MARKETING', 'Marketing'),
+    ('OPERATIONS', 'Operaciones'),
 ]
 
 # Choices para el flujo conversacional
@@ -365,7 +446,7 @@ class CartaOferta(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     status = models.CharField(max_length=20, choices=OFERTA_STATUS_CHOICES, default='pending')
-    canal_envio = models.CharField(max_length=20, choices=CANAL_ENVIO_CHOICES, null=True, blank=True)
+    canal_envio = models.CharField(max_length=20, choices=COMUNICATION_CHOICES, null=True, blank=True)
     fecha_envio = models.DateTimeField(null=True, blank=True)
     fecha_firma = models.DateTimeField(null=True, blank=True)
     pdf_file = models.FileField(upload_to='cartas_oferta/', null=True, blank=True)
@@ -478,11 +559,218 @@ class CartaOferta(models.Model):
     def __str__(self):
         return f"Carta de Oferta para {self.user.nombre} - {self.vacancy.titulo} ({self.status})"
 
-# User agents
-USER_AGENTS = [
-    "Mozilla/5.0 (Android 10; Mobile; rv:88.0) Gecko/88.0 Firefox/88.0",
-    "Mozilla/5.0 (Linux; Android 10; SM-A505FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.93 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Mobile Safari/537.36",
+# Clase para manejar el estado de la conversación
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError(_('The Email must be set'))
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save()
+        return user
+
+    def create_superuser(self, email, password, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'SUPER_ADMIN')
+        extra_fields.setdefault('status', 'ACTIVE')
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError(_('Superuser must have is_staff=True.'))
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError(_('Superuser must have is_superuser=True.'))
+
+        return self.create_user(email, password, **extra_fields)
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError(_('Superuser must have is_superuser=True.'))
+        return self.create_user(email, password, **extra_fields)
+
+# Modelo de usuario personalizado
+class CustomUser(AbstractUser):
+    username = None
+    email = models.EmailField(_('email address'), unique=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='BU_DIVISION')
+    status = models.CharField(max_length=20, choices=USER_STATUS_CHOICES, default='PENDING_APPROVAL')
+    verification_status = models.CharField(max_length=20, choices=VERIFICATION_STATUS_CHOICES, default='PENDING')
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.SET_NULL, null=True, blank=True)
+    division = models.CharField(max_length=50, choices=DIVISION_CHOICES, blank=True, null=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    emergency_contact = models.CharField(max_length=20, blank=True, null=True)
+    emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    date_of_birth = models.DateField(blank=True, null=True)
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name', 'last_name']
+    objects = CustomUserManager()
+
+    class Meta:
+        ordering = ['-date_joined']
+        verbose_name = 'Usuario'
+        verbose_name_plural = 'Usuarios'
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} ({self.email})"
+
+    def has_bu_access(self, bu_name):
+        """Verifica si el usuario tiene acceso a una unidad de negocio."""
+        if self.role == 'SUPER_ADMIN':
+            return True
+        if self.business_unit and self.business_unit.name == bu_name:
+            return True
+        return False
+
+    def has_division_access(self, division_name):
+        """Verifica si el usuario tiene acceso a una división."""
+        if self.role == 'SUPER_ADMIN':
+            return True
+        if self.division == division_name:
+            return True
+        return False
+
+    def has_permission(self, permission):
+        """Verifica si el usuario tiene un permiso específico."""
+        return self.userpermission_set.filter(permission=permission).exists()
+
+    def clean(self):
+        """Valida que el email no esté vacío."""
+        if not self.email:
+            raise ValidationError(_('El email no puede estar vacío.'))
+
+    def save(self, *args, **kwargs):
+        """Valida los datos antes de guardar."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+# Modelo para permisos específicos
+class UserPermission(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='permissions')
+    permission = models.CharField(max_length=50, choices=PERMISSION_CHOICES)
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, null=True, blank=True)
+    division = models.CharField(max_length=50, choices=DIVISION_CHOICES, blank=True, null=True)
+
+    class Meta:
+        unique_together = ('user', 'permission', 'business_unit', 'division')
+        verbose_name = 'Permiso de Usuario'
+        verbose_name_plural = 'Permisos de Usuarios'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.permission}"
+
+
+    class Meta:
+        verbose_name = 'Verificación de Documento'
+        verbose_name_plural = 'Verificaciones de Documentos'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.document_type} ({self.verification_status})"
+
+# Modelo para registro de accesos fallidos
+class FailedLoginAttempt(models.Model):
+    email = models.EmailField()
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField()
+    attempt_time = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.email} - {self.attempt_time}"
+
+    def clean(self):
+        """Valida que el user_agent no sea vacío."""
+        if not self.user_agent:
+            raise ValidationError(_('El user_agent no puede estar vacío.'))
+
+    def save(self, *args, **kwargs):
+        """Valida los datos antes de guardar."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+# Modelo para registro de actividad de usuarios
+class UserActivityLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='activity_logs')
+    action = models.CharField(max_length=100)
+    description = models.TextField()
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Registro de Actividad'
+        verbose_name_plural = 'Registros de Actividad'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.action} ({self.created_at})"
+
+    def save(self, *args, **kwargs):
+        """Valida que el user_agent no sea vacío antes de guardar."""
+        if not self.user_agent:
+            raise ValidationError(_('El user_agent no puede estar vacío.'))
+        super().save(*args, **kwargs)
+
+# Signal para crear UserActivityLog cuando se crea un nuevo CustomUser
+@receiver(post_save, sender=CustomUser)
+@sync_to_async
+def create_user_activity(sender, instance, created, **kwargs):
+    if created:
+        UserActivityLog.objects.create(
+            user=instance,
+            action='USER_CREATED',
+            description=f'Nueva cuenta de usuario creada: {instance.email}',
+            ip_address='127.0.0.1',  # Se obtendrá de la request en producción
+            user_agent='System'  # Se obtendrá de la request en producción
+        )
+
+# Signal para registrar intentos fallidos de login
+@receiver(post_save, sender=FailedLoginAttempt)
+@sync_to_async
+def log_failed_login(sender, instance, created, **kwargs):
+    if created:
+        UserActivityLog.objects.create(
+            user=None,  # No hay usuario asociado en intentos fallidos
+            action='FAILED_LOGIN',
+            description=f'Intento fallido de login desde {instance.ip_address}',
+            ip_address=instance.ip_address,
+            user_agent=instance.user_agent
+        )
+
+# Signal para registrar cambios en el estado de verificación
+@receiver(post_save, sender=DocumentVerification)
+@sync_to_async
+def log_verification_status_change(sender, instance, **kwargs):
+    UserActivityLog.objects.create(
+        user=instance.user,
+        action='VERIFICATION_STATUS_CHANGED',
+        description=f'Estado de verificación cambiado a {instance.verification_status}',
+        ip_address='127.0.0.1',  # Se obtendrá de la request en producción
+        user_agent='System'  # Se obtendrá de la request en producción
+    )
+
+# Signal para registrar cambios en el estado del usuario
+@receiver(post_save, sender=CustomUser)
+@sync_to_async
+def log_user_status_change(sender, instance, **kwargs):
+    if instance.status != instance._old_status:
+        UserActivityLog.objects.create(
+            user=instance,
+            action='USER_STATUS_CHANGED',
+            description=f'Estado de usuario cambiado a {instance.status}',
+            ip_address='127.0.0.1',  # Se obtendrá de la request en producción
+            user_agent='System'  # Se obtendrá de la request en producción
+        )
+
+# Signal para registrar cambios en los permisos
+@receiver(post_save, sender=UserPermission)
+@sync_to_async
+def log_permission_change(sender, instance, created, **kwargs):
+    action = 'PERMISSION_GRANTED' if created else 'PERMISSION_UPDATED'
+    UserActivityLog.objects.create(
+        user=instance.user,
+        action=action,
+        description=f'Permiso {instance.permission} actualizado',
+        ip_address='127.0.0.1',  # Se obtendrá de la request en producción
+        user_agent='System'  # Se obtendrá de la request en producción
+    )    "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Mobile Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
@@ -724,7 +1012,19 @@ class ConfiguracionBU(models.Model):
         }
     
     
-class WeightingModel:
+    def calculate_tier(self, candidate_score: float) -> str:
+        """Calcula el tier del candidato basado en su puntuación."""
+        if candidate_score >= 85:
+            return "Tier 1 (Excelente)"
+        elif candidate_score >= 70:
+            return "Tier 2 (Muy Bueno)"
+        elif candidate_score >= 55:
+            return "Tier 3 (Bueno)"
+        elif candidate_score >= 40:
+            return "Tier 4 (Regular)"
+        else:
+            return "Tier 5 (Necesita Mejora)"
+
     def __init__(self, business_unit):
         self.business_unit = business_unit
         self.weights = self._load_weights()
@@ -884,18 +1184,58 @@ class ApiConfig(models.Model):
     business_unit = models.ForeignKey(
         BusinessUnit,
         related_name='api_configs',
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Si está vacío, la configuración es global para todas las unidades de negocio"
     )
     api_type = models.CharField(
         max_length=50,
         choices=COMUNICATION_CHOICES
     )
+    category = models.CharField(
+        max_length=50,
+        choices=API_CATEGORY_CHOICES,
+        help_text="Categoría de la API para identificar su propósito principal"
+    )
     api_key = models.CharField(max_length=255)
     api_secret = models.CharField(max_length=255, blank=True, null=True)
     additional_settings = models.JSONField(blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.business_unit.name} - {self.api_type}"
+        return f"{self.business_unit.name if self.business_unit else 'Global'} - {self.api_type} - {self.description[:50]}"
+
+    class Meta:
+        verbose_name = "API Configuration"
+        verbose_name_plural = "API Configurations"
+        unique_together = ['business_unit', 'api_type']
+
+    def get_verification_settings(self):
+        """Obtiene las configuraciones específicas para verificación"""
+        if self.api_type in ['incode', 'blacktrust']:
+            return {
+                'base_url': self.additional_settings.get('base_url', {
+                    'incode': 'https://api.incode.com',
+                    'blacktrust': 'https://api.blacktrust.com'
+                }.get(self.api_type)),
+                'timeout': self.additional_settings.get('timeout', 30),
+                'retry_count': self.additional_settings.get('retry_count', 3),
+                'verification_types': self.additional_settings.get('verification_types', {
+                    'incode': ['INE', 'ID', 'passport'],
+                    'blacktrust': ['criminal', 'credit', 'employment']
+                }.get(self.api_type))
+            }
+        return self.additional_settings
+
+    def get_business_units(self):
+        """Obtiene las unidades de negocio asociadas a esta configuración"""
+        if self.business_unit:
+            return [self.business_unit]
+        return BusinessUnit.objects.all()
 
 class Person(models.Model):
     number_interaction = models.IntegerField(default=0)  # Changed from CharField to IntegerField #number_interaction = models.CharField(max_length=40, unique=True)
@@ -1232,6 +1572,43 @@ class Chat(models.Model):
 
     def __str__(self):
         return str(self.body)
+
+class JobOpportunity(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    requirements = models.TextField()
+    location = models.CharField(max_length=255)
+    salary = models.CharField(max_length=100, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=JOB_STATUS_CHOICES, default='DRAFT')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='job_opportunities')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_publish_channels(self):
+        """
+        Obtiene los canales de publicación disponibles para esta unidad de negocio
+        """
+        from app.publish.models import Channel
+        return Channel.objects.filter(
+            business_unit=self.business_unit,
+            is_active=True
+        )
+
+    def get_channel_config(self, channel_type: str):
+        """
+        Obtiene la configuración del canal específico para esta unidad de negocio
+        """
+        if channel_type == 'WHATSAPP':
+            return WhatsAppAPI.objects.filter(
+                business_unit=self.business_unit,
+                is_active=True
+            ).first()
+        elif channel_type == 'TELEGRAM':
+            return TelegramAPI.objects.filter(
+                business_unit=self.business_unit,
+                is_active=True
+            ).first()
+        return None
 
 class SmtpConfig(models.Model):
     host = models.CharField(max_length=255)

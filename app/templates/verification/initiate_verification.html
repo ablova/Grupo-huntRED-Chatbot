@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Iniciar Verificación para {{ candidate.full_name }}</h4>
+                </div>
+                <div class="card-body">
+                    <form id="verificationForm" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="verification_type" class="form-label">Tipo de Verificación</label>
+                            <select class="form-select" id="verification_type" name="verification_type" required>
+                                {% for type in verification_types %}
+                                <option value="{{ type.0 }}">{{ type.1 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notas Adicionales</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Iniciar Verificación</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('verificationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const response = await fetch('{% url "initiate_verification" candidate.id %}', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(formData)),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+        alert('Verificación iniciada exitosamente');
+        window.location.href = '{% url "verification_list" %}';
+    } else {
+        alert('Error: ' + result.message);
+    }
+});
+</script>
+{% endblock %}

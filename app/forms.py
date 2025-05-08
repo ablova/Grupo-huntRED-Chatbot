@@ -5,10 +5,39 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from app.models import (
     WorkflowStage, Application, Vacante,
-    Person, EnhancedNetworkGamificationProfile
+    Person, EnhancedNetworkGamificationProfile, CustomUser, UserPermission
 )
 import logging
 from datetime import datetime
+
+# Choices para roles
+ROLE_CHOICES = [
+    ('SUPER_ADMIN', 'Super Administrador'),
+    ('BU_COMPLETE', 'Consultor BU Completo'),
+    ('BU_DIVISION', 'Consultor BU División')
+]
+
+# Choices para estados de usuario
+USER_STATUS_CHOICES = [
+    ('ACTIVE', 'Activo'),
+    ('INACTIVE', 'Inactivo'),
+    ('PENDING_APPROVAL', 'Pendiente de Aprobación')
+]
+
+# Choices para estados de verificación
+VERIFICATION_STATUS_CHOICES = [
+    ('PENDING', 'Pendiente'),
+    ('APPROVED', 'Aprobado'),
+    ('REJECTED', 'Rechazado')
+]
+
+# Choices para tipos de documento
+DOCUMENT_TYPE_CHOICES = [
+    ('ID', 'Identificación'),
+    ('CURP', 'CURP'),
+    ('RFC', 'RFC'),
+    ('PASSPORT', 'Pasaporte')
+]
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +194,145 @@ class PersonForm(forms.ModelForm):
         return person
 
 class GamificationProfileForm(forms.ModelForm):
+    class Meta:
+        model = EnhancedNetworkGamificationProfile
+        fields = [
+            'points', 'level', 'badges', 'achievements',
+            'last_activity', 'engagement_score'
+        ]
+        widgets = {
+            'achievements': forms.Textarea(attrs={'rows': 3}),
+            'badges': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def clean_points(self):
+        """Valida que los puntos no sean negativos."""
+        points = self.cleaned_data['points']
+        if points < 0:
+            raise ValidationError(_('Los puntos no pueden ser negativos'))
+        return points
+
+    def clean_level(self):
+        """Valida que el nivel sea válido."""
+        level = self.cleaned_data['level']
+        if level < 1 or level > 100:
+            raise ValidationError(_('El nivel debe estar entre 1 y 100'))
+        return level
+
+    def save(self, commit=True):
+        """Guarda el perfil y actualiza el ranking."""
+        profile = super().save(commit=False)
+        if commit:
+            profile.save()
+            
+            # Actualizar ranking
+            # Aquí implementar la lógica de ranking
+            
+        return profile
+
+# Formularios de autenticación
+class CustomUserCreationForm(forms.ModelForm):
+    """Formulario para crear nuevos usuarios."""
+    password1 = forms.CharField(
+        label=_('Password'),
+        widget=forms.PasswordInput
+    )
+    password2 = forms.CharField(
+        label=_('Password confirmation'),
+        widget=forms.PasswordInput
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'email', 'first_name', 'last_name', 'role',
+            'business_unit', 'division', 'phone_number'
+        ]
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get('password1')
+        password2 = self.cleaned_data.get('password2')
+        if password1 and password2 and password1 != password2:
+            raise ValidationError(_('Las contraseñas no coinciden'))
+        return password2
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password1'])
+        if commit:
+            user.save()
+        return user
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if CustomUser.objects.filter(email=email).exists():
+            raise ValidationError(_('Este email ya está registrado'))
+        return email
+
+class CustomUserChangeForm(forms.ModelForm):
+    """Formulario para editar usuarios existentes."""
+    class Meta:
+        model = CustomUser
+        fields = [
+            'email', 'first_name', 'last_name', 'role',
+            'business_unit', 'division', 'phone_number',
+            'status', 'verification_status'
+        ]
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if CustomUser.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError(_('Este email ya está registrado'))
+        return email
+
+class DocumentVerificationForm(forms.ModelForm):
+    """Formulario para verificar documentos."""
+    class Meta:
+        model = DocumentVerification
+        fields = [
+            'document_type', 'document_number',
+            'document_front', 'document_back', 'selfie'
+        ]
+        widgets = {
+            'document_front': forms.FileInput(attrs={'accept': 'image/*'}),
+            'document_back': forms.FileInput(attrs={'accept': 'image/*'}),
+            'selfie': forms.FileInput(attrs={'accept': 'image/*'})
+        }
+
+    def clean_document_number(self):
+        document_number = self.cleaned_data['document_number']
+        if DocumentVerification.objects.filter(
+            document_number=document_number,
+            user=self.instance.user
+        ).exclude(pk=self.instance.pk).exists():
+            raise ValidationError(_('Este número de documento ya está registrado'))
+        return document_number
+
+class UserPermissionForm(forms.ModelForm):
+    """Formulario para gestionar permisos de usuario."""
+    class Meta:
+        model = UserPermission
+        fields = ['permission', 'business_unit', 'division']
+
+    def clean(self):
+        cleaned_data = super().clean()
+        permission = cleaned_data.get('permission')
+        business_unit = cleaned_data.get('business_unit')
+        division = cleaned_data.get('division')
+
+        if permission == 'DIVISION_ACCESS' and not division:
+            raise ValidationError(_('La división es requerida para permisos de división'))
+
+        if permission == 'BU_ACCESS' and not business_unit:
+            raise ValidationError(_('La unidad de negocio es requerida para permisos de BU'))
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        permission = super().save(commit=False)
+        if commit:
+            permission.save()
+        return permission
     """Formulario para gestionar perfiles de gamificación."""
     
     class Meta:

@@ -8,16 +8,25 @@ from django.conf.urls.static import static
 # IMPORTACIONES DE VISTAS
 from app.views.main_views import (
     index, interacciones_por_unidad, finalize_candidates, 
-    login_view, submit_application, home
+    submit_application, home
 )
-from app.views.cartas_oferta_views import (
-    gestion_cartas_oferta, marcar_como_firmada, reenviar_carta, ver_carta
+from app.views.auth_views import (
+    login_view, logout_view, user_management,
+    approve_user, profile, change_password,
+    forgot_password, reset_password, document_verification
+)
+from app.views.offer_letter_views import (
+    gestion_cartas_oferta, marcar_como_firmada, reenviar_carta, ver_carta, generar_preview
 )
 from app.views.preview_views import generar_preview
 from app.views.dashboard_views import dashboard_view
-from app.views.chatbot_views import ProcessMessageView
+from app.views.chatbot_views import ProcessMessageView, ChatbotView, WebhookView
 from app.views.util_views import (
     SendTestMessageView, SendTestNotificationView, TriggerErrorView
+)
+from app.views.verification_views import (
+    verification_list, initiate_verification, analyze_risk,
+    verify_incode, webhook_verification
 )
 from app.views.candidatos_views import (
     candidato_dashboard, list_candidatos, add_application, 
@@ -43,6 +52,14 @@ from app.sexsi.views import (
     download_pdf, upload_signature_and_selfie, finalize_agreement,
     request_revision, revoke_agreement, paypal_webhook
 )
+from django.urls import path
+from .views.publish_views import (
+    job_opportunities_list,
+    create_job_opportunity,
+    publish_job_opportunity,
+    update_job_opportunity_status,
+    webhook_job_opportunity
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +67,22 @@ logger = logging.getLogger(__name__)
 # 📌 RUTAS PRINCIPALES Y DASHBOARD
 # -------------------------------
 urlpatterns = [
+    # Rutas de autenticación
+    path('login/', login_view, name='login'),
+    path('logout/', logout_view, name='logout'),
+    path('signup/', user_management, name='signup'),
+    path('approve-user/<int:user_id>/', approve_user, name='approve_user'),
+    path('profile/', profile, name='profile'),
+    path('change-password/', change_password, name='change_password'),
+    path('forgot-password/', forgot_password, name='forgot_password'),
+    path('reset-password/<str:token>/', reset_password, name='reset_password'),
+    path('document-verification/', document_verification, name='document_verification'),
+    
+    # Rutas del chatbot
+    path('chatbot/<str:platform>/', ChatbotView.as_view(), name='chatbot'),
+    path('webhook/', WebhookView.as_view(), name='webhook'),
+    
+    # Rutas principales y dashboard
     path('', home, name='home'),
     path('dashboard/', dashboard_view, name='dashboard'),
 ]
@@ -150,6 +183,27 @@ urlpatterns += [
     path('admin/cartas_oferta/preview/', generar_preview, name='generar_preview'),
 ]
 
+# ------------------------
+# 📌 RUTAS DE PUBLICACIÓN
+# ------------------------
+urlpatterns += [
+    path('publish/jobs/', job_opportunities_list, name='job_opportunities_list'),
+    path('publish/jobs/create/', create_job_opportunity, name='create_job_opportunity'),
+    path('publish/jobs/<int:opportunity_id>/publish/', publish_job_opportunity, name='publish_job_opportunity'),
+    path('publish/jobs/<int:opportunity_id>/status/', update_job_opportunity_status, name='update_job_opportunity_status'),
+    path('webhook/job_opportunity/', webhook_job_opportunity, name='webhook_job_opportunity'),
+]
+
+# ------------------------
+# 📌 RUTAS DE VERIFICACIÓN
+# ------------------------
+urlpatterns += [
+    path('verification/', verification_list, name='verification_list'),
+    path('verification/initiate/<int:candidate_id>/', initiate_verification, name='initiate_verification'),
+    path('verification/<int:verification_id>/risk/', analyze_risk, name='analyze_risk'),
+    path('verification/<int:verification_id>/incode/', verify_incode, name='verify_incode'),
+    path('webhook/verification/', webhook_verification, name='webhook_verification'),
+]
 # -------------------------------
 # 📌 MANEJO DE ARCHIVOS ESTÁTICOS
 # -------------------------------

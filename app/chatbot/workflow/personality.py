@@ -122,17 +122,214 @@ TEST_QUESTIONS = {
     },
 }
 
-def get_questions_personality(test_type, domain='general'):
-    """Devuelve las preguntas según el tipo de prueba y dominio."""
+def get_questions_personality(test_type, domain='general', business_unit=None):
+    """Devuelve las preguntas según el tipo de prueba, dominio y unidad de negocio."""
+    questions = TEST_QUESTIONS.get(test_type, {}).get(domain, [])
+    
+    # Si hay preguntas específicas para la unidad de negocio, usar esas
+    if business_unit and business_unit in TEST_QUESTIONS.get(test_type, {}):
+        return TEST_QUESTIONS[test_type][business_unit]
+    
+    return questions
+
+def get_random_tipi_questions(domain='general', business_unit=None):
+    """Selecciona preguntas aleatorias para TIPI."""
+    questions = TEST_QUESTIONS.get('TIPI', {}).get(domain, [])
+    
+    # Si hay preguntas específicas para la unidad de negocio, usar esas
+    if business_unit and business_unit in TEST_QUESTIONS.get('TIPI', {}):
+        questions = TEST_QUESTIONS['TIPI'][business_unit]
+    
+    return random.sample(questions, min(10, len(questions)))
+
+def analyze_personality_responses(responses: dict, business_unit: str = None) -> dict:
+    """Analiza las respuestas del candidato y devuelve un perfil de personalidad."""
+    analysis = {
+        'puntajes': {},
+        'fortalezas': [],
+        'areas_mejora': [],
+        'recomendaciones': [],
+        'compatibilidad': {}
+    }
+    
+    # Analizar respuestas por prueba
+    for test_type, responses_by_test in responses.items():
+        if test_type == 'huntBigFive':
+            analysis.update(_analyze_big_five(responses_by_test, business_unit))
+        elif test_type == 'DISC':
+            analysis.update(_analyze_disc(responses_by_test, business_unit))
+        elif test_type == '16PF':
+            analysis.update(_analyze_16pf(responses_by_test, business_unit))
+        elif test_type == 'MBTI':
+            analysis.update(_analyze_mbti(responses_by_test))
+        elif test_type == 'TIPI':
+            analysis.update(_analyze_tipi(responses_by_test))
+    
+    # Añadir recomendaciones específicas por unidad de negocio
+    if business_unit:
+        analysis['recomendaciones'].extend(_get_business_unit_recommendations(
+            business_unit,
+            analysis['puntajes']
+        ))
+    
+    return analysis
+
+def _analyze_big_five(responses: dict, business_unit: str = None) -> dict:
+    """Analiza las respuestas del Big Five."""
+    scores = {
+        'apertura': 0,
+        'conciencia': 0,
+        'extraversion': 0,
+        'amabilidad': 0,
+        'neuroticismo': 0
+    }
+    
+    for domain, response in responses.items():
+        scores[domain] = sum(response) / len(response)
+    
+    # Añadir interpretación específica por unidad de negocio
+    if business_unit:
+        _add_business_unit_interpretation(scores, business_unit)
+    
+    return scores
+
+def _analyze_disc(responses: dict, business_unit: str = None) -> dict:
+    """Analiza las respuestas del DISC."""
+    scores = {
+        'dominante': 0,
+        'influencia': 0,
+        'estabilidad': 0,
+        'conformidad': 0
+    }
+    
+    for option, count in responses.items():
+        if option == 'a':
+            scores['dominante'] += count
+        elif option == 'b':
+            scores['influencia'] += count
+        elif option == 'c':
+            scores['estabilidad'] += count
+        elif option == 'd':
+            scores['conformidad'] += count
+    
+    return scores
+
+def _analyze_16pf(responses: dict, business_unit: str = None) -> dict:
+    """Analiza las respuestas del 16PF."""
+    scores = {
+        'calidez': 0,
+        'estabilidad': 0
+    }
+    
+    for factor, response in responses.items():
+        scores[factor] = sum(response) / len(response)
+    
+    return scores
+
+def _analyze_mbti(responses: dict) -> dict:
+    """Analiza las respuestas del MBTI."""
+    scores = {
+        'E': 0,
+        'I': 0,
+        'S': 0,
+        'N': 0,
+        'T': 0,
+        'F': 0,
+        'J': 0,
+        'P': 0
+    }
+    
+    for option, count in responses.items():
+        if option.endswith('E'):
+            scores['E'] += count
+        elif option.endswith('I'):
+            scores['I'] += count
+        elif option.endswith('S'):
+            scores['S'] += count
+        elif option.endswith('N'):
+            scores['N'] += count
+        elif option.endswith('T'):
+            scores['T'] += count
+        elif option.endswith('F'):
+            scores['F'] += count
+        elif option.endswith('J'):
+            scores['J'] += count
+        elif option.endswith('P'):
+            scores['P'] += count
+    
+    return scores
+
+def _analyze_tipi(responses: dict) -> dict:
+    """Analiza las respuestas del TIPI."""
+    scores = {
+        'extraversion': 0,
+        'amabilidad': 0,
+        'conciencia': 0,
+        'estabilidad_emocional': 0,
+        'apertura': 0
+    }
+    
+    for domain, response in responses.items():
+        scores[domain] = sum(response) / len(response)
+    
+    return scores
+
+def _get_business_unit_recommendations(business_unit: str, scores: dict) -> list:
+    """Devuelve recomendaciones específicas para la unidad de negocio."""
+    recommendations = []
+    
+    if business_unit == 'consumer':
+        recommendations.extend([
+            'Foco en habilidades de comunicación',
+            'Desarrollo de técnicas de cierre',
+            'Manejo de objeciones'
+        ])
+    elif business_unit == 'pharma':
+        recommendations.extend([
+            'Desarrollo técnico',
+            'Habilidades de presentación',
+            'Conocimiento del mercado'
+        ])
+    elif business_unit == 'service':
+        recommendations.extend([
+            'Manejo de conflictos',
+            'Resolución de problemas',
+            'Atención al detalle'
+        ])
+    
+    return recommendations
+
+def _add_business_unit_interpretation(scores: dict, business_unit: str) -> None:
+    """Añade interpretación específica por unidad de negocio."""
+    if business_unit == 'consumer':
+        # Ajustar puntajes para ventas
+        scores['extraversion'] *= 1.2
+        scores['amabilidad'] *= 1.1
+    elif business_unit == 'pharma':
+        # Ajustar puntajes para farmacéutica
+        scores['conciencia'] *= 1.2
+        scores['apertura'] *= 1.1
+    elif business_unit == 'service':
+        # Ajustar puntajes para servicio
+        scores['amabilidad'] *= 1.2
+        scores['estabilidad'] *= 1.1
+
+def get_questions_personality(test_type, domain='general', business_unit=None):
+    """Devuelve las preguntas según el tipo de prueba, dominio y unidad de negocio."""
     cache_key = f"questions_{test_type}_{domain}"
     questions = cache.get(cache_key)
     if not questions:
         # Suponiendo que TEST_QUESTIONS es un diccionario con las preguntas
-        questions = TEST_QUESTIONS.get(test_type, {}).get(domain, {})
+        questions = TEST_QUESTIONS.get(test_type, {}).get(domain, [])
+        
+        # Si hay preguntas específicas para la unidad de negocio, usar esas
+        if business_unit and business_unit in TEST_QUESTIONS.get(test_type, {}):
+            questions = TEST_QUESTIONS[test_type][business_unit]
+        
         cache.set(cache_key, questions, timeout=3600)  # 1 hora de caché
     return questions
 
-def get_random_tipi_questions(domain='general'):
+def get_random_tipi_questions(domain='general', business_unit=None):
     """Selecciona preguntas aleatorias para TIPI."""
     selected_questions = {}
     for trait in TEST_QUESTIONS['TIPI']['general']:

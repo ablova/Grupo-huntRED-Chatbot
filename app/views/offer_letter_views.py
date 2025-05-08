@@ -133,3 +133,46 @@ def ver_carta(request, carta_id):
             return response
     
     return JsonResponse({'error': 'PDF no encontrado'}, status=404)
+
+@csrf_exempt
+@login_required
+def generar_preview(request):
+    """
+    Vista para generar un preview de la carta de oferta.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # Obtener los datos necesarios
+            user_id = data.get('user_id')
+            vacancy_id = data.get('vacancy_id')
+            salary = data.get('salary')
+            benefits = data.get('benefits')
+            start_date = data.get('start_date')
+            
+            if not all([user_id, vacancy_id, salary, benefits, start_date]):
+                return JsonResponse({'error': 'Faltan datos requeridos'}, status=400)
+            
+            # Obtener objetos
+            user = get_object_or_404(Person, id=user_id)
+            vacancy = get_object_or_404(Vacante, id=vacancy_id)
+            
+            # Generar preview
+            preview = render_to_string('preview_carta_oferta.html', {
+                'user': user,
+                'vacancy': vacancy,
+                'salary': salary,
+                'benefits': benefits,
+                'start_date': start_date
+            })
+            
+            return JsonResponse({'preview': preview})
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+        except Exception as e:
+            logger.error(f"Error generando preview: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Método no permitido'}, status=405)

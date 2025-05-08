@@ -30,7 +30,8 @@
                                     </select>
                                 </div>
                             </div>
-                        
+                        </div>
+
                         <div class="section-header">
                             <h4>Información del Candidato</h4>
                         </div>
@@ -196,6 +197,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize elements
             const userSelect = document.getElementById('user_id');
             const phoneInput = document.getElementById('phone');
             const vacancySelect = document.getElementById('vacancy_id');
@@ -203,8 +205,1028 @@
             const workTypeInput = document.getElementById('work_type');
             const form = document.getElementById('nuevaCartaForm');
             const previewFrame = document.getElementById('previewFrame');
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
 
-            // Actualizar teléfono al seleccionar candidato
+            // Event listeners for form elements
+            userSelect.addEventListener('change', function() {
+                const selectedUser = users.find(user => user.id === parseInt(this.value));
+                if (selectedUser) {
+                    phoneInput.value = selectedUser.telefono || 'No disponible';
+                }
+            });
+
+            vacancySelect.addEventListener('change', function() {
+                const selectedVacancy = vacancies.find(vacancy => vacancy.id === parseInt(this.value));
+                if (selectedVacancy) {
+                    locationInput.value = selectedVacancy.ubicacion;
+                    workTypeInput.value = selectedVacancy.modalidad;
+                }
+            });
+
+            // Form submission handling
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch("{% url 'crear_carta' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const benefitsInput = document.getElementById('benefits');
+            if (benefitsInput) {
+                benefitsInput.addEventListener('input', function() {
+                    const benefits = this.value;
+                    previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+                });
+            }
+
+            // Generate preview on important field changes
+            const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+            form.addEventListener('change', function(e) {
+                if (importantFields.includes(e.target.name)) {
+                    const formData = new FormData(form);
+                    fetch("{% url 'generar_preview' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validate dates
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all dates are filled
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validate salary is a valid number
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validate benefits are entered
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch("{% url 'gestion_cartas_oferta' %}", {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Form submission handling
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch("{% url 'crear_carta' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const benefitsInput = document.getElementById('benefits');
+            if (benefitsInput) {
+                benefitsInput.addEventListener('input', function() {
+                    const benefits = this.value;
+                    previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+                });
+            }
+
+            // Generate preview on important field changes
+            const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+            form.addEventListener('change', function(e) {
+                if (importantFields.includes(e.target.name)) {
+                    const formData = new FormData(form);
+                    fetch("{% url 'generar_preview' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validate dates
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all dates are filled
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validate salary is a valid number
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validate benefits are entered
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch("{% url 'gestion_cartas_oferta' %}", {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Form submission handling
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch("{% url 'crear_carta' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const benefitsInput = document.getElementById('benefits');
+            if (benefitsInput) {
+                benefitsInput.addEventListener('input', function() {
+                    const benefits = this.value;
+                    previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+                });
+            }
+
+            // Generate preview on important field changes
+            const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+            form.addEventListener('change', function(e) {
+                if (importantFields.includes(e.target.name)) {
+                    const formData = new FormData(form);
+                    fetch("{% url 'generar_preview' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validate dates
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all dates are filled
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validate salary is a valid number
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validate benefits are entered
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch("{% url 'gestion_cartas_oferta' %}", {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Form submission handling
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch("{% url 'crear_carta' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const benefitsInput = document.getElementById('benefits');
+            if (benefitsInput) {
+                benefitsInput.addEventListener('input', function() {
+                    const benefits = this.value;
+                    previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+                });
+            }
+
+            // Generate preview on important field changes
+            const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+            form.addEventListener('change', function(e) {
+                if (importantFields.includes(e.target.name)) {
+                    const formData = new FormData(form);
+                    fetch("{% url 'generar_preview' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validate dates
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all dates are filled
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validate salary is a valid number
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validate benefits are entered
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch("{% url 'gestion_cartas_oferta' %}", {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Form submission handling
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch("{% url 'crear_carta' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const benefitsInput = document.getElementById('benefits');
+            if (benefitsInput) {
+                benefitsInput.addEventListener('input', function() {
+                    const benefits = this.value;
+                    previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+                });
+            }
+
+            // Generate preview on important field changes
+            const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+            form.addEventListener('change', function(e) {
+                if (importantFields.includes(e.target.name)) {
+                    const formData = new FormData(form);
+                    fetch("{% url 'generar_preview' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validate dates
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all dates are filled
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validate salary is a valid number
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validate benefits are entered
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch("{% url 'gestion_cartas_oferta' %}", {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Form submission handling
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch("{% url 'crear_carta' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const benefitsInput = document.getElementById('benefits');
+            if (benefitsInput) {
+                benefitsInput.addEventListener('input', function() {
+                    const benefits = this.value;
+                    previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+                });
+            }
+
+            // Generate preview on important field changes
+            const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+            form.addEventListener('change', function(e) {
+                if (importantFields.includes(e.target.name)) {
+                    const formData = new FormData(form);
+                    fetch("{% url 'generar_preview' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validate dates
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all dates are filled
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validate salary is a valid number
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validate benefits are entered
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch("{% url 'gestion_cartas_oferta' %}", {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Form submission handling
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch("{% url 'crear_carta' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const benefitsInput = document.getElementById('benefits');
+            if (benefitsInput) {
+                benefitsInput.addEventListener('input', function() {
+                    const benefits = this.value;
+                    previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+                });
+            }
+
+            // Generate preview on important field changes
+            const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+            form.addEventListener('change', function(e) {
+                if (importantFields.includes(e.target.name)) {
+                    const formData = new FormData(form);
+                    fetch("{% url 'generar_preview' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        previewFrame.src = url;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar vista previa:', error);
+                        previewFrame.src = '';
+                    });
+                }
+            });
+
+            // Validate dates
+            startDate.addEventListener('change', function() {
+                const minDate = new Date(this.value);
+                minDate.setDate(minDate.getDate() + 1);
+                endDate.min = minDate.toISOString().split('T')[0];
+            });
+
+            endDate.addEventListener('change', function() {
+                const maxDate = new Date(this.value);
+                maxDate.setDate(maxDate.getDate() - 1);
+                startDate.max = maxDate.toISOString().split('T')[0];
+            });
+
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate all dates are filled
+                if (!startDate.value || !endDate.value) {
+                    alert('Por favor, complete todas las fechas.');
+                    return;
+                }
+
+                // Validate salary is a valid number
+                const salary = document.getElementById('salary').value;
+                if (!salary || isNaN(salary)) {
+                    alert('Por favor, ingrese un salario válido.');
+                    return;
+                }
+
+                // Validate benefits are entered
+                const benefits = document.getElementById('benefits').value;
+                if (!benefits.trim()) {
+                    alert('Por favor, ingrese al menos un beneficio.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('{% url "gestion_cartas_oferta" %}', {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Carta de oferta creada y enviada exitosamente');
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+            const vacancySelect = document.getElementById('vacancy_id');
+            const locationInput = document.getElementById('location');
+            const workTypeInput = document.getElementById('work_type');
+
+            // Event listeners for form elements
+            userSelect.addEventListener('change', function() {
+                const selectedUser = users.find(user => user.id === parseInt(this.value));
+                if (selectedUser) {
+                    phoneInput.value = selectedUser.telefono || 'No disponible';
+                }
+            });
+
+            vacancySelect.addEventListener('change', function() {
+                const selectedVacancy = vacancies.find(vacancy => vacancy.id === parseInt(this.value));
+                if (selectedVacancy) {
+                    locationInput.value = selectedVacancy.ubicacion;
+                    workTypeInput.value = selectedVacancy.modalidad;
+                }
+            });
+
+            // Form submission handling
+            document.getElementById('nuevaCartaForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('{% url 'crear_carta' %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const previewFrame = document.getElementById('previewFrame');
+            document.getElementById('benefits').addEventListener('input', function() {
+                const benefits = this.value;
+                // Update preview with benefits
+                previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+            });
+
+            // Event listeners for form elements
+            userSelect.addEventListener('change', function() {
+                const selectedUser = users.find(user => user.id === parseInt(this.value));
+                if (selectedUser) {
+                    phoneInput.value = selectedUser.telefono || 'No disponible';
+                }
+            });
+
+            vacancySelect.addEventListener('change', function() {
+                const selectedVacancy = vacancies.find(vacancy => vacancy.id === parseInt(this.value));
+                if (selectedVacancy) {
+                    locationInput.value = selectedVacancy.ubicacion;
+                    workTypeInput.value = selectedVacancy.modalidad;
+                }
+            });
+
+            // Form submission handling
+            document.getElementById('nuevaCartaForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('{% url 'crear_carta' %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const previewFrame = document.getElementById('previewFrame');
+            document.getElementById('benefits').addEventListener('input', function() {
+                const benefits = this.value;
+                // Update preview with benefits
+                previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+            });
+
+            // Event listeners for form elements
+            userSelect.addEventListener('change', function() {
+                const selectedUser = users.find(user => user.id === parseInt(this.value));
+                if (selectedUser) {
+                    phoneInput.value = selectedUser.telefono || 'No disponible';
+                }
+            });
+
+            vacancySelect.addEventListener('change', function() {
+                const selectedVacancy = vacancies.find(vacancy => vacancy.id === parseInt(this.value));
+                if (selectedVacancy) {
+                    locationInput.value = selectedVacancy.ubicacion;
+                    workTypeInput.value = selectedVacancy.modalidad;
+                }
+            });
+
+            // Form submission handling
+            document.getElementById('nuevaCartaForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('{% url 'crear_carta' %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const previewFrame = document.getElementById('previewFrame');
+            document.getElementById('benefits').addEventListener('input', function() {
+                const benefits = this.value;
+                // Update preview with benefits
+                previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+            });
+
+            // Event listeners for form elements
+            userSelect.addEventListener('change', function() {
+                const selectedUser = users.find(user => user.id === parseInt(this.value));
+                if (selectedUser) {
+                    phoneInput.value = selectedUser.telefono || 'No disponible';
+                }
+            });
+
+            vacancySelect.addEventListener('change', function() {
+                const selectedVacancy = vacancies.find(vacancy => vacancy.id === parseInt(this.value));
+                if (selectedVacancy) {
+                    locationInput.value = selectedVacancy.ubicacion;
+                    workTypeInput.value = selectedVacancy.modalidad;
+                }
+            });
+
+            // Form submission handling
+            document.getElementById('nuevaCartaForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('{% url 'crear_carta' %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const previewFrame = document.getElementById('previewFrame');
+            document.getElementById('benefits').addEventListener('input', function() {
+                const benefits = this.value;
+                // Update preview with benefits
+                previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+            });
+
+            // Event listeners for form elements
+            userSelect.addEventListener('change', function() {
+                const selectedUser = users.find(user => user.id === parseInt(this.value));
+                if (selectedUser) {
+                    phoneInput.value = selectedUser.telefono || 'No disponible';
+                }
+            });
+
+            vacancySelect.addEventListener('change', function() {
+                const selectedVacancy = vacancies.find(vacancy => vacancy.id === parseInt(this.value));
+                if (selectedVacancy) {
+                    locationInput.value = selectedVacancy.ubicacion;
+                    workTypeInput.value = selectedVacancy.modalidad;
+                }
+            });
+
+            // Form submission handling
+            document.getElementById('nuevaCartaForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('{% url 'crear_carta' %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al crear la carta de oferta');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
+                }
+            });
+
+            // Preview functionality
+            const previewFrame = document.getElementById('previewFrame');
+            document.getElementById('benefits').addEventListener('input', function() {
+                const benefits = this.value;
+                // Update preview with benefits
+                previewFrame.src = `{% url 'preview_carta' %}?benefits=${encodeURIComponent(benefits)}`;
+            });
+
+
+            // Update phone when candidate is selected
             userSelect.addEventListener('change', function() {
                 const selectedUser = users.find(user => user.id === parseInt(this.value));
                 if (selectedUser) {
@@ -212,20 +1234,17 @@
                 }
             });
 
-            // Actualizar ubicación y modalidad al seleccionar vacante
+            // Update location and work type when vacancy is selected
             vacancySelect.addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
                 locationInput.value = selectedOption.dataset.location;
                 workTypeInput.value = selectedOption.dataset.type;
             });
 
-            // Generar vista previa al cambiar campos importantes
+            // Generate preview on important field changes
             form.addEventListener('change', function(e) {
-                if (e.target.name === 'user_id' || e.target.name === 'vacancy_id' || 
-                    e.target.name === 'salary' || e.target.name === 'benefits' || 
-                    e.target.name === 'start_date' || e.target.name === 'end_date') {
-                    
-                    // Actualizar vista previa
+                const importantFields = ['user_id', 'vacancy_id', 'salary', 'benefits', 'start_date', 'end_date'];
+                if (importantFields.includes(e.target.name)) {
                     const formData = new FormData(form);
                     fetch('{% url "generar_preview" %}', {
                         method: 'POST',
@@ -243,9 +1262,7 @@
                 }
             });
 
-            // Validar fechas
-            const startDate = document.getElementById('start_date');
-            const endDate = document.getElementById('end_date');
+            // Validate dates
 
             startDate.addEventListener('change', function() {
                 const minDate = new Date(this.value);
@@ -259,83 +1276,69 @@
                 startDate.max = maxDate.toISOString().split('T')[0];
             });
 
-            // Validar formulario antes de enviar
-            form.addEventListener('submit', function(e) {
+            // Validate form before submission
+            form.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                // Validar que todas las fechas estén llenas
+                // Validate all dates are filled
                 if (!startDate.value || !endDate.value) {
                     alert('Por favor, complete todas las fechas.');
                     return;
                 }
 
-                // Validar que el salario sea un número válido
+                // Validate salary is a valid number
                 const salary = document.getElementById('salary').value;
                 if (!salary || isNaN(salary)) {
                     alert('Por favor, ingrese un salario válido.');
                     return;
                 }
 
-                // Validar que haya beneficios
+                // Validate benefits are entered
                 const benefits = document.getElementById('benefits').value;
                 if (!benefits.trim()) {
                     alert('Por favor, ingrese al menos un beneficio.');
                     return;
                 }
 
-                // Si todo está bien, enviar el formulario
-                fetch('{% url "gestion_cartas_oferta" %}', {
-                    method: 'POST',
-                    body: new FormData(form)
-                })
-                .then(response => response.json())
-                .then(data => {
+                try {
+                    const response = await fetch('{% url "gestion_cartas_oferta" %}', {
+                        method: 'POST',
+                        body: new FormData(form)
+                    });
+                    const data = await response.json();
+                    
                     if (data.success) {
                         alert('Carta de oferta creada y enviada exitosamente');
                         location.reload();
                     } else {
                         alert(data.error || 'Error al crear la carta de oferta');
                     }
-                })
-                .catch(error => {
+                } catch (error) {
                     console.error('Error:', error);
                     alert('Error al procesar la solicitud');
-                });
+                }
             });
         });
 
         async function marcarComoFirmada(cartaId) {
-            try {
-                const response = await fetch(`{% url 'marcar_como_firmada' 0 %}`.replace('0', cartaId), {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}'
+            if (confirm('¿Estás seguro de marcar esta carta como firmada?')) {
+                try {
+                    const response = await fetch(`/admin/marcar-como-firmada/${cartaId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Error al marcar como firmada');
                     }
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    Swal.fire({
-                        title: '¡Éxito!',
-                        text: 'Carta marcada como firmada',
-                        icon: 'success'
-                    }).then(() => {
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Error',
-                        text: data.error || 'Error al marcar como firmada',
-                        icon: 'error'
-                    });
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar la solicitud');
                 }
-            } catch (error) {
-                Swal.fire({
-                    title: 'Error',
-                    text: 'Error al procesar la solicitud',
-                    icon: 'error'
-                });
             }
         }
 

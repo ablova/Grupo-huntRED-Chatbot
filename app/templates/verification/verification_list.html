@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Lista de Verificaciones</h2>
+        <a href="{% url 'verification_list' %}" class="btn btn-primary">Nueva Verificación</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Candidato</th>
+                            <th>Tipo de Verificación</th>
+                            <th>Estado</th>
+                            <th>Nivel de Riesgo</th>
+                            <th>Fecha de Creación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for verification in verifications %}
+                        <tr>
+                            <td>{{ verification.candidate.full_name }}</td>
+                            <td>{{ verification.get_verification_type_display }}</td>
+                            <td>
+                                <span class="badge {% if verification.status == 'COMPLETED' %}bg-success{% elif verification.status == 'FAILED' %}bg-danger{% else %}bg-warning{% endif %}">
+                                    {{ verification.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if verification.risk_analysis %}
+                                <span class="badge {% if verification.risk_analysis.level == 'HIGH' %}bg-danger{% elif verification.risk_analysis.level == 'MEDIUM' %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ verification.risk_analysis.get_level_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ verification.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'analyze_risk' verification.id %}" class="btn btn-sm btn-info">Analizar Riesgo</a>
+                                    <a href="{% url 'verify_incode' verification.id %}" class="btn btn-sm btn-primary">Verificar INCODE</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay verificaciones disponibles</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if verifications.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    {% if verifications.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ verifications.previous_page_number }}">Anterior</a>
+                    </li>
+                    {% endif %}
+
+                    {% for i in verifications.paginator.page_range %}
+                    <li class="page-item {% if verifications.number == i %}active{% endif %}">
+                        <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                    </li>
+                    {% endfor %}
+
+                    {% if verifications.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ verifications.next_page_number }}">Siguiente</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

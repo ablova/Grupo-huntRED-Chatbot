@@ -485,8 +485,72 @@ class ApplicationAdmin(admin.ModelAdmin):
 @admin.register(ApiConfig)
 class ApiConfigAdmin(TokenMaskingMixin, admin.ModelAdmin):
     token_fields = ['api_key', 'api_secret']
-    list_display = ('business_unit', 'api_type', 'api_key')
-    list_filter = ('business_unit', 'api_type')
+    list_display = (
+        'is_global',
+        'business_unit',
+        'api_type',
+        'category',
+        'api_key',
+        'api_secret',
+        'enabled',
+        'description',
+        'created_at'
+    )
+    list_filter = (
+        'is_global',
+        'business_unit',
+        'api_type',
+        'category',
+        'enabled',
+        'created_at'
+    )
+    search_fields = (
+        'business_unit__name',
+        'api_type',
+        'category',
+        'api_key',
+        'description'
+    )
+    readonly_fields = (
+        'created_at',
+        'updated_at'
+    )
+    
+    def api_key(self, obj):
+        return format_html("<span style='color: #666;'>{}</span>", obj.api_key[:5] + "..." + obj.api_key[-5:])
+    api_key.short_description = 'API Key'
+    
+    def api_secret(self, obj):
+        return format_html("<span style='color: #666;'>{}</span>", obj.api_secret[:5] + "..." + obj.api_secret[-5:] if obj.api_secret else '-')
+    api_secret.short_description = 'API Secret'
+    
+    def is_global(self, obj):
+        return not bool(obj.business_unit)
+    is_global.boolean = True
+    is_global.short_description = 'Global'
+    
+    def get_queryset(self, request):
+        """Agrupa por business unit y api_type"""
+        queryset = super().get_queryset(request)
+        return queryset.order_by('business_unit__name', 'api_type')
+    
+    def has_delete_permission(self, request, obj=None):
+        """Previene la eliminación accidental de configuraciones"""
+        return False
+    
+    def get_actions(self, request):
+        """Elimina la acción de borrar"""
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Personaliza el formulario para mostrar campos según sea global o no"""
+        form = super().get_form(request, obj, **kwargs)
+        if obj and obj.business_unit is None:
+            form.base_fields['business_unit'].widget.attrs['disabled'] = 'disabled'
+        return form
 
 @admin.register(MetaAPI)
 class MetaAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):

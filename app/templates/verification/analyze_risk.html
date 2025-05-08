@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Análisis de Riesgo - {{ verification.candidate.full_name }}</h4>
+                </div>
+                <div class="card-body">
+                    <form id="riskForm" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="risk_factors" class="form-label">Factores de Riesgo</label>
+                            <select class="form-select" id="risk_factors" name="risk_factors" multiple required>
+                                <option value="credit_history">Historial Crediticio</option>
+                                <option value="criminal_record">Antecedentes Penales</option>
+                                <option value="employment_history">Historial Laboral</option>
+                                <option value="education_verification">Verificación Educativa</option>
+                                <option value="reference_check">Verificación de Referencias</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom_risk_data" class="form-label">Información Adicional</label>
+                            <textarea class="form-control" id="custom_risk_data" name="custom_risk_data" rows="3"></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Analizar Riesgo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('riskForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const response = await fetch('{% url "analyze_risk" verification.id %}', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(formData)),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+        alert('Análisis de riesgo completado');
+        window.location.reload();
+    } else {
+        alert('Error: ' + result.message);
+    }
+});
+</script>
+{% endblock %}

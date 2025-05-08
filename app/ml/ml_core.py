@@ -1,26 +1,35 @@
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras import layers, models
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from typing import Dict, List, Tuple, Optional
 import logging
-from app.models import Person, Vacante, BusinessUnit, Application
-
-logger = logging.getLogger(__name__)
-
-from sklearn.preprocessing import StandardScaler
-from app.models import Person, Vacante, BusinessUnit, Application
-from app.utilidades.skill_classifier import SkillClassifier
-from app.ml.ml_model import MLOptimizer
-import numpy as np
-import logging
+from typing import Dict, List, Optional, Type
 from django.conf import settings
-import os
+from app.models import Person, Vacante, BusinessUnit, Application
+from app.ml.core.models import MatchmakingModel, TransitionModel
+from app.ml.core.features import FeatureExtractor
+from app.ml.core.optimizers import PerformanceOptimizer
+from app.ml.core.utils import DistributedCache
+from app.ml.core.scheduling import AsyncProcessor
+from app.ml.core.analytics import PredictiveAnalytics
+from app.ml.core.matching import MatchmakingService
+from app.ml.core.transition import TransitionService
+from app.ml.monitoring.metrics import ATSMetrics
 
 logger = logging.getLogger(__name__)
 
-    def __init__(self, business_unit=None):
+class MLCore:
+    """
+    Sistema central de aprendizaje para el ATS AI.
+    
+    Este sistema coordina múltiples servicios de ML para proporcionar
+    un matchmaking avanzado, análisis predictivo y optimización de rendimiento.
+    
+    Características principales:
+    - Matchmaking inteligente por unidad de negocio
+    - Análisis predictivo de talento
+    - Optimización de rendimiento en tiempo real
+    - Sistema de recomendaciones personalizado
+    - Monitoreo y métricas avanzadas
+    """
+    
+    def __init__(self, business_unit: Optional[str] = None):
         """
         Inicializa el sistema de aprendizaje para emparejamiento.
         
@@ -28,165 +37,266 @@ logger = logging.getLogger(__name__)
             business_unit: Unidad de negocio específica (opcional)
         """
         self.business_unit = business_unit
-        self.model = None
-        self.scaler = None
-        self.model_file = os.path.join(
-            settings.ML_MODELS_DIR,
-            f"matchmaking_model_{business_unit or 'global'}.pkl"
-        )
-        self.transition_model_file = os.path.join(
-            settings.ML_MODELS_DIR,
-            f"transition_model_{business_unit or 'global'}.pkl"
-        )
-        self._loaded_model = None
-        self._loaded_transition_model = None
-        self.ml_optimizer = MLOptimizer()
-        self.batch_size = 1000  # Tamaño de lote optimizado
-        self.n_jobs = -1  # Usar todos los cores disponibles
-        self.skill_classifier = SkillClassifier()  # Nuevo clasificador de habilidades
-        self._initialize_model()
-
-    def _initialize_model(self):
-        """
-        Inicializa el modelo de aprendizaje profundo.
-        """
-        self.model = models.Sequential([
-            layers.Input(shape=(10,)),  # 10 características
-            layers.Dense(64, activation='relu'),
-            layers.Dropout(0.2),
-            layers.Dense(32, activation='relu'),
-            layers.Dropout(0.2),
-            layers.Dense(1, activation='sigmoid')
-        ])
         
-        self.model.compile(
-            optimizer='adam',
-            loss='binary_crossentropy',
-            metrics=['accuracy']
-        )
+        # Inicializar servicios
+        self.cache = DistributedCache(max_size=10000)
+        self.async_processor = AsyncProcessor()
+        self.performance_optimizer = PerformanceOptimizer()
+        
+        # Inicializar servicios específicos
+        self.feature_extractor = FeatureExtractor(self.cache, self.async_processor)
+        self.matchmaking_service = MatchmakingService(self.feature_extractor)
+        self.transition_service = TransitionService(self.feature_extractor)
+        self.predictive_analytics = PredictiveAnalytics()
+        self.metrics = ATSMetrics()
 
-    async def _extract_features(self, person: Person, vacancy: Vacante) -> np.ndarray:
+        # Configurar servicios
+        self._configure_services()
+
+    def _configure_services(self) -> None:
         """
-        Extrae características para el modelo usando múltiples fuentes de clasificación.
+        Configura los servicios del sistema según la unidad de negocio.
+        """
+        try:
+            # Configurar servicios específicos por unidad de negocio
+            if self.business_unit:
+                self.matchmaking_service.configure_for_unit(self.business_unit)
+                self.transition_service.configure_for_unit(self.business_unit)
+                
+            # Inicializar modelos
+            self.matchmaking_service.initialize_model()
+            self.transition_service.initialize_model()
+            
+            # Configurar optimización
+            self.performance_optimizer.configure(
+                batch_size=settings.ML_CONFIG['OPTIMIZATION']['BATCH_SIZE'],
+                gpu_enabled=settings.ML_CONFIG['OPTIMIZATION']['GPU_ENABLED'],
+                quantization=settings.ML_CONFIG['OPTIMIZATION']['QUANTIZATION']
+            )
+            
+        except Exception as e:
+            logger.error(f"Error configurando servicios: {e}")
+            raise
+
+    def train(self, X: np.ndarray, y: np.ndarray, epochs: int = 10, batch_size: int = 32) -> Dict[str, Dict]:
+        """
+        Entrena los servicios del sistema.
+        
+        Args:
+            X: Características de entrada
+            y: Etiquetas objetivo
+            epochs: Número de épocas de entrenamiento
+            batch_size: Tamaño del batch
+            
+        Returns:
+            Dict[str, Dict]: Historial de entrenamiento para cada servicio
+        """
+        try:
+            # Optimizar datos
+            X_optimized, y_optimized = self.performance_optimizer.optimize_training_data(X, y)
+            
+            # Entrenar servicios
+            matchmaking_history = self.matchmaking_service.train(X_optimized, y_optimized, epochs, batch_size)
+            transition_history = self.transition_service.train(X_optimized, y_optimized, epochs, batch_size)
+            
+            # Actualizar métricas
+            self.metrics.update_training_metrics(
+                matchmaking_history=matchmaking_history,
+                transition_history=transition_history
+            )
+            
+            return {
+                'matchmaking': matchmaking_history,
+                'transition': transition_history
+            }
+            
+        except Exception as e:
+            logger.error(f"Error entrenando servicios: {e}")
+            raise
+
+    def predict_match(self, person: Person, vacancy: Vacante) -> float:
+        """
+        Predice la probabilidad de coincidencia entre un candidato y una vacante.
         
         Args:
             person: Objeto Person
             vacancy: Objeto Vacante
             
         Returns:
-            np.ndarray: Vector de características
+            float: Probabilidad de coincidencia (0-1)
         """
         try:
-            # Clasificar habilidades usando múltiples sistemas
-            skill_classification = await self.skill_classifier.classify_skills(
-                person.skills + vacancy.skills_required
+            # Predecir con el servicio de matchmaking
+            prediction = self.matchmaking_service.predict(person, vacancy)
+            
+            # Actualizar métricas
+            self.metrics.update_prediction_metrics(
+                service='matchmaking',
+                prediction=prediction,
+                person=person,
+                vacancy=vacancy
             )
             
-            features = [
-                person.experience_years,  # Años de experiencia
-                len(person.skills),  # Número de habilidades
-                self._calculate_skill_overlap(skill_classification),  # Coincidencia de habilidades
-                self._calculate_location_distance(person, vacancy),  # Distancia geográfica
-                person.education_level,  # Nivel educativo
-                vacancy.salary_range,  # Rango salarial
-                self._calculate_industry_match(skill_classification),  # Coincidencia de industria
-                person.certifications_count,  # Número de certificaciones
-                self._calculate_cultural_fit(person, vacancy),  # Ajuste cultural
-                vacancy.openings,  # Número de vacantes
-                self._calculate_skill_relevance(skill_classification)  # Relevancia de habilidades
-            ]
-            
-            return np.array(features)
+            return prediction
             
         except Exception as e:
-            logger.error(f"Error extracting features: {e}")
-            return np.zeros(11)
-
-    def _calculate_skill_overlap(self, skill_classification: Dict) -> float:
-        """
-        Calcula la coincidencia de habilidades usando la clasificación.
-        
-        Args:
-            skill_classification: Diccionario de clasificación de habilidades
-            
-        Returns:
-            float: Porcentaje de coincidencia (0-1)
-        """
-        try:
-            # Obtener habilidades técnicas y blandas
-            technical_skills = skill_classification.get("technical", [])
-            soft_skills = skill_classification.get("soft", [])
-            
-            # Calcular coincidencia ponderada
-            technical_overlap = len(set(technical_skills["person"]).intersection(technical_skills["vacancy"]))
-            soft_overlap = len(set(soft_skills["person"]).intersection(soft_skills["vacancy"]))
-            
-            # Calcular ponderación basada en la importancia de cada tipo de habilidad
-            total_overlap = (0.7 * technical_overlap + 0.3 * soft_overlap) / (
-                len(technical_skills["vacancy"]) + len(soft_skills["vacancy"]) or 1
-            )
-            
-            return min(max(total_overlap, 0), 1)
-            
-        except Exception as e:
-            logger.error(f"Error calculating skill overlap: {e}")
+            logger.error(f"Error prediciendo coincidencia: {e}")
             return 0.0
 
-    def _calculate_location_distance(self, person: Person, vacancy: Vacante) -> float:
+    def predict_transition(self, person: Person, current_vacancy: Vacante, target_vacancy: Vacante) -> float:
         """
-        Calcula la distancia geográfica.
+        Predice la probabilidad de éxito en la transición.
         
         Args:
             person: Objeto Person
-            vacancy: Objeto Vacante
+            current_vacancy: Vacante actual
+            target_vacancy: Vacante objetivo
             
         Returns:
-            float: Distancia normalizada (0-1)
+            float: Probabilidad de éxito en la transición (0-1)
         """
         try:
-            # Simulación de cálculo de distancia
-            max_distance = 100.0  # Distancia máxima considerada
-            distance = np.random.uniform(0, max_distance)
-            return 1.0 - (distance / max_distance)
+            # Predecir con el servicio de transición
+            prediction = self.transition_service.predict(person, current_vacancy, target_vacancy)
+            
+            # Actualizar métricas
+            self.metrics.update_prediction_metrics(
+                service='transition',
+                prediction=prediction,
+                person=person,
+                current_vacancy=current_vacancy,
+                target_vacancy=target_vacancy
+            )
+            
+            return prediction
             
         except Exception as e:
-            logger.error(f"Error calculando distancia: {str(e)}")
+            logger.error(f"Error prediciendo transición: {e}")
             return 0.0
 
-    def _calculate_industry_match(self, skill_classification: Dict) -> float:
+    def generate_recommendations(self, person: Person, vacancies: List[Vacante], top_n: int = 5) -> List[Dict]:
         """
-        Calcula la coincidencia de industria usando la clasificación de habilidades.
+        Genera recomendaciones de vacantes para un candidato.
         
         Args:
-            skill_classification: Diccionario de clasificación de habilidades
+            person: Objeto Person
+            vacancies: Lista de vacantes
+            top_n: Número de recomendaciones
             
         Returns:
-            float: Porcentaje de coincidencia (0-1)
+            List[Dict]: Lista de recomendaciones
         """
         try:
-            # Obtener industrias de las habilidades
-            person_industries = set()
-            vacancy_industries = set()
+            # Generar recomendaciones usando el servicio de matchmaking
+            recommendations = self.matchmaking_service.generate_recommendations(
+                person=person,
+                vacancies=vacancies,
+                top_n=top_n,
+                current_vacancy=person.current_vacancy
+            )
             
-            for skill_type in ["technical", "soft", "tools"]:
-                for skill in skill_classification.get(skill_type, {}).get("person", []):
-                    person_industries.update(skill.get("industries", []))
-                for skill in skill_classification.get(skill_type, {}).get("vacancy", []):
-                    vacancy_industries.update(skill.get("industries", []))
+            # Analizar tendencias y oportunidades
+            analytics = self.predictive_analytics.analyze_recommendations(
+                recommendations,
+                person=person,
+                business_unit=self.business_unit
+            )
             
-            # Calcular coincidencia
-            overlap = len(person_industries.intersection(vacancy_industries))
-            total = len(vacancy_industries) or 1
+            # Actualizar métricas
+            self.metrics.update_recommendation_metrics(
+                recommendations=recommendations,
+                analytics=analytics,
+                person=person
+            )
             
-            return min(max(overlap / total, 0), 1)
+            return recommendations
             
         except Exception as e:
-            logger.error(f"Error calculating industry match: {e}")
-            return 0.0
+            logger.error(f"Error generando recomendaciones: {e}")
+            return []
+
+    def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, Dict]:
+        """
+        Evalúa el rendimiento del sistema.
+        
+        Args:
+            X: Características de entrada
+            y: Etiquetas objetivo
+            
+        Returns:
+            Dict[str, Dict]: Métricas de evaluación detalladas
+        """
+        try:
+            # Optimizar datos para evaluación
+            X_optimized, y_optimized = self.performance_optimizer.optimize_evaluation_data(X, y)
+            
+            # Evaluar servicios
+            matchmaking_metrics = self.matchmaking_service.evaluate(X_optimized, y_optimized)
+            transition_metrics = self.transition_service.evaluate(X_optimized, y_optimized)
+            
+            # Generar análisis predictivo
+            analytics = self.predictive_analytics.analyze_performance(
+                matchmaking_metrics=matchmaking_metrics,
+                transition_metrics=transition_metrics,
+                business_unit=self.business_unit
+            )
+            
+            # Actualizar métricas
+            self.metrics.update_evaluation_metrics(
+                matchmaking_metrics=matchmaking_metrics,
+                transition_metrics=transition_metrics,
+                analytics=analytics
+            )
+            
+            return {
+                'matchmaking': matchmaking_metrics,
+                'transition': transition_metrics,
+                'analytics': analytics
+            }
+            
+        except Exception as e:
+            logger.error(f"Error evaluando sistema: {e}")
+            return {}
+
+    def optimize_parameters(self, X: np.ndarray, y: np.ndarray) -> Dict:
+        """
+        Optimiza los parámetros del sistema.
+        
+        Args:
+            X: Características de entrada
+            y: Etiquetas objetivo
+            
+        Returns:
+            Dict: Mejores parámetros
+        """
+        try:
+            # Optimizar modelo de matchmaking
+            matchmaking_params = self.matchmaking_model.optimize_parameters(X, y)
+            
+            # Optimizar modelo de transición
+            transition_params = self.transition_model.optimize_parameters(X, y)
+            
+            return {
+                'matchmaking': matchmaking_params,
+                'transition': transition_params
+            }
+            
+        except Exception as e:
+            logger.error(f"Error optimizando parámetros: {e}")
+            return {}
+            
+            if total_industries == 0:
+                return 0.5  # Valor por defecto si no hay industrias
+            
+            return len(common_industries) / total_industries
+            
+        except Exception as e:
+            logger.error(f"Error calculando coincidencia de industria: {str(e)}")
+            return 0.50
 
     def _calculate_cultural_fit(self, person: Person, vacancy: Vacante) -> float:
         """
-        Calcula el ajuste cultural.
+        Calcula el ajuste cultural usando análisis semántico y predictivo.
         
         Args:
             person: Objeto Person
@@ -196,8 +306,25 @@ logger = logging.getLogger(__name__)
             float: Puntaje de ajuste (0-1)
         """
         try:
-            # Simulación de cálculo de ajuste cultural
-            return np.random.uniform(0.5, 1.0)
+            # Obtener análisis cultural detallado
+            cultural_analysis = self.cultural_fit_analyzer.analyze_cultural_fit(person, vacancy)
+            
+            # Calcular puntaje ponderado
+            weights = {
+                'communication_style': 0.2,
+                'work_ethic': 0.2,
+                'teamwork': 0.2,
+                'adaptability': 0.15,
+                'values_alignment': 0.15,
+                'leadership_style': 0.1
+            }
+            
+            total_score = sum(
+                cultural_analysis[factor] * weights[factor]
+                for factor in weights
+            )
+            
+            return total_score
             
         except Exception as e:
             logger.error(f"Error calculando ajuste cultural: {str(e)}")
@@ -409,66 +536,22 @@ logger = logging.getLogger(__name__)
                 "dropout_rate": 0.2,
                 "hidden_units": 64
             }
-            
-        except Exception as e:
-            logger.error(f"Error optimizando parámetros: {str(e)}")
-            return {}
+import logging
+from django.conf import settings
+from app.models import Person, Vacante, BusinessUnit, Application
+from app.ml.core.features import SkillAnalyzer, CulturalFitAnalyzer
+from app.ml.core.models.prediction import PredictiveAnalytics
+from app.ml.core.optimizers import PerformanceOptimizer
+from app.ml.core.utils import LRUCache
 
-    def generate_recommendations(self, person: Person, vacancies: List[Vacante], top_n: int = 5) -> List[Dict]:
+class MLCore:
+    def __init__(self, business_unit=None):
         """
-        Genera recomendaciones de vacantes.
+        Inicializa el sistema de aprendizaje para emparejamiento.
         
         Args:
-            person: Objeto Person
-            vacancies: Lista de vacantes
-            top_n: Número de recomendaciones
-            
-        Returns:
-            List[Dict]: Lista de recomendaciones
+            business_unit: Unidad de negocio específica (opcional)
         """
-        try:
-            recommendations = []
-            for vacancy in vacancies:
-                match_score = self.predict_match(person, vacancy)
-                explanation = self.explain_prediction(person, vacancy)
-                
-                recommendations.append({
-                    "vacancy": vacancy,
-                    "match_score": match_score,
-                    "explanation": explanation
-                })
-            
-            recommendations.sort(key=lambda x: x["match_score"], reverse=True)
-            return recommendations[:top_n]
-            
-        except Exception as e:
-            logger.error(f"Error generando recomendaciones: {str(e)}")
-            return []
-# /home/pablo/app/ml/ml_model.py
-import os
-import gc
-import json
-import logging
-from pathlib import Path
-from functools import lru_cache
-from django.conf import settings
-from django.utils import timezone
-from django.core.cache import cache
-import pandas as pd
-import numpy as np
-from joblib import dump, load
-
-logger = logging.getLogger(__name__)
-
-# Diccionario de jerarquía de unidades de negocio
-BUSINESS_UNIT_HIERARCHY = {
-    "amigro": 1,
-    "huntu": 2,
-    "huntred": 3,
-    "huntred_executive": 4,
-}
-
-    def __init__(self, business_unit=None):
         self.business_unit = business_unit
         self.model = None
         self.scaler = None
@@ -482,11 +565,21 @@ BUSINESS_UNIT_HIERARCHY = {
         )
         self._loaded_model = None
         self._loaded_transition_model = None
-        self.ml_optimizer = MLOptimizer()
+        self.performance_optimizer = PerformanceOptimizer()
         self.batch_size = 1000  # Tamaño de lote optimizado
         self.n_jobs = -1  # Usar todos los cores disponibles
+        
+        # Inicializar analizadores
+        self.skill_analyzer = SkillAnalyzer()
+        self.cultural_fit_analyzer = CulturalFitAnalyzer()
+        self.predictive_analytics = PredictiveAnalytics()
+        
+        # Inicializar cache
+        self.cache = LRUCache(max_size=1000)
+        
+        self._initialize_model()
 
-    def load_tensorflow(self):
+    def _initialize_model(self):
         try:
             import tensorflow as tf
             tf.config.set_visible_devices([], 'GPU')

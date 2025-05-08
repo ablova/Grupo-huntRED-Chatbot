@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Verificación INCODE - {{ verification.candidate.full_name }}</h4>
+                </div>
+                <div class="card-body">
+                    <form id="incodeForm" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="document_type" class="form-label">Tipo de Documento</label>
+                            <select class="form-select" id="document_type" name="document_type" required>
+                                <option value="id">Identificación</option>
+                                <option value="passport">Pasaporte</option>
+                                <option value="license">Licencia de Conducir</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="document_number" class="form-label">Número de Documento</label>
+                            <input type="text" class="form-control" id="document_number" name="document_number" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="document_front" class="form-label">Documento (Frente)</label>
+                            <input type="file" class="form-control" id="document_front" name="document_front" accept="image/*" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="document_back" class="form-label">Documento (Dorso)</label>
+                            <input type="file" class="form-control" id="document_back" name="document_back" accept="image/*" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="selfie" class="form-label">Selfie con Documento</label>
+                            <input type="file" class="form-control" id="selfie" name="selfie" accept="image/*" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Verificar con INCODE</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('incodeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const response = await fetch('{% url "verify_incode" verification.id %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+        alert('Verificación INCODE completada');
+        window.location.reload();
+    } else {
+        alert('Error: ' + result.message);
+    }
+});
+</script>
+{% endblock %}

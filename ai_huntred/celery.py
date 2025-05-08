@@ -8,13 +8,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 
 app = Celery('ai_huntred')
 
-# Configuración de Celery
+# Configuración base de Celery
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Autodiscover tasks
-app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
-
-# Configuración de logging
+# Configuración específica
 app.conf.update(
     task_serializer='json',
     accept_content=['json'],
@@ -39,7 +36,20 @@ app.conf.update(
             'task': 'app.tasks.update_user_profiles',
             'schedule': crontab(hour='*/1'),  # Cada hora
         },
-    }
+    },
+    task_queues={
+        'default': {'exchange': 'default', 'routing_key': 'default'},
+        'ml': {'exchange': 'ml', 'routing_key': 'ml.#'},
+        'scraping': {'exchange': 'scraping', 'routing_key': 'scraping.#'},
+        'notifications': {'exchange': 'notifications', 'routing_key': 'notifications.#'},
+    },
+    task_routes={
+        'app.tasks.execute_ml_and_scraping': {'queue': 'ml'},
+        'app.tasks.ejecutar_scraping': {'queue': 'scraping'},
+        'app.tasks.send_whatsapp_message': {'queue': 'notifications'},
+        'app.tasks.send_telegram_message': {'queue': 'notifications'},
+        'app.tasks.send_messenger_message': {'queue': 'notifications'},
+    },
 )
 
 # Configuración de Redis como backend

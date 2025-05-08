@@ -7,6 +7,11 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
+from app.decorators import (
+    super_admin_required, bu_complete_required, bu_division_required,
+    business_unit_required, division_required, permission_required,
+    verified_user_required, active_user_required
+)
 from asgiref.sync import sync_to_async
 from django.template.response import TemplateResponse
 from django.middleware.csrf import get_token
@@ -27,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 
-@staff_member_required
+@super_admin_required
 def interacciones_por_unidad(request):
     """
     Vista para mostrar estadísticas de interacciones por unidad de negocio.
@@ -40,6 +45,7 @@ def interacciones_por_unidad(request):
     return render(request, 'admin/estadisticas/interacciones.html', {'data': data})
 
 @login_required
+@active_user_required
 def index(request):
     """
     Vista principal para ai.huntred.com.
@@ -51,10 +57,10 @@ def index(request):
         'business_units': business_units,
         'config': config,
         'channels': ['whatsapp', 'telegram', 'messenger', 'instagram', 'slack'],
-        'is_admin': request.user.is_staff  # Determina si el usuario es administrador
+        'is_admin': request.user.is_superuser  # Determina si el usuario es super administrador
     }
 
-    if request.method == 'POST' and request.user.is_staff:
+    if request.method == 'POST':
         try:
             # Extraer datos del formulario
             recipient_type = request.POST.get('recipient_type')  # 'chatstate', 'person', 'direct'
@@ -64,6 +70,45 @@ def index(request):
             message = request.POST.get('message')
 
             # Validaciones iniciales
+            # Verificar permisos de acceso a la unidad de negocio
+            if not request.user.has_bu_access(business_unit_name):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'No tienes acceso a la unidad de negocio {business_unit_name}.'
+                }, status=403)
+
+            # Verificar permisos de acceso al canal
+            if channel == 'whatsapp' and not request.user.has_permission('WHATSAPP_ACCESS'):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No tienes permisos para enviar mensajes por WhatsApp.'
+                }, status=403)
+
+            if channel == 'telegram' and not request.user.has_permission('TELEGRAM_ACCESS'):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No tienes permisos para enviar mensajes por Telegram.'
+                }, status=403)
+
+            if channel == 'messenger' and not request.user.has_permission('MESSENGER_ACCESS'):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No tienes permisos para enviar mensajes por Messenger.'
+                }, status=403)
+
+            if channel == 'instagram' and not request.user.has_permission('INSTAGRAM_ACCESS'):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No tienes permisos para enviar mensajes por Instagram.'
+                }, status=403)
+
+            if channel == 'slack' and not request.user.has_permission('SLACK_ACCESS'):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No tienes permisos para enviar mensajes por Slack.'
+                }, status=403)
+
+            # Verificar que todos los campos requeridos estén presentes
             if not all([recipient_type, recipient_id, business_unit_name, channel, message]):
                 return JsonResponse({
                     'status': 'error',
@@ -159,10 +204,26 @@ def index(request):
     return render(request, 'index.html', context)
 
 
+@login_required
+@bu_complete_required
 def finalize_candidates(request, business_unit_id):
     """
     Finaliza el proceso de candidatos seleccionados y envía reportes.
     """
+    business_unit = get_object_or_404(BusinessUnit, id=business_unit_id)
+    if not request.user.has_bu_access(business_unit.name):
+        return JsonResponse({
+            'status': 'error',
+            'message': f'No tienes acceso a la unidad de negocio {business_unit.name}.'
+        }, status=403)
+
+    # Verificar permisos de finalización de candidatos
+    if not request.user.has_permission('FINALIZE_CANDIDATES'):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'No tienes permisos para finalizar candidatos.'
+        }, status=403)
+
     if request.method == 'POST':
         # Supongamos que recibes una lista de IDs de candidatos a incluir
         candidates_ids = request.POST.getlist('candidates')
@@ -192,6 +253,8 @@ def login_view(request):
         # Retornamos la plantilla de login para métodos GET
         return render(request, "login.html")
 
+@login_required
+@bu_division_required
 def submit_application(request, job_id):
     """
     Vista para manejar la aplicación de un candidato a un trabajo específico.
@@ -208,6 +271,18 @@ def submit_application(request, job_id):
 
     return render(request, 'apply.html', {'job_id': job_id})
 
+@login_required
+@active_user_required
 def home(request):
-    return HttpResponse("Bienvenido al sistema")
-    #return render(request, 'home.html')  # Asegúrate de que la plantilla exista
+    """
+    Vista principal para ai.huntred.com.
+    Muestra un formulario de envío de mensajes para administradores autenticados.
+    """
+    # Verificar permisos de acceso al dashboard
+    if not request.user.has_permission('ACCESS_DASHBOARD'):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'No tienes permisos para acceder al dashboard.'
+        }, status=403)
+
+    return render(request, 'home.html')  # Asegúrate de que la plantilla exista

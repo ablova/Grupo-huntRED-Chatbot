@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Crear Nueva Oportunidad Laboral</h3>
+                </div>
+                <div class="card-body">
+                    <form id="opportunityForm" onsubmit="return submitForm(event)">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Título</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="requirements" class="form-label">Requisitos</label>
+                            <textarea class="form-control" id="requirements" name="requirements" rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Ubicación</label>
+                            <input type="text" class="form-control" id="location" name="location" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="salary" class="form-label">Salario</label>
+                            <input type="text" class="form-control" id="salary" name="salary">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="business_unit" class="form-label">Unidad de Negocio</label>
+                            <select class="form-select" id="business_unit" name="business_unit_id" required>
+                                <option value="">Seleccione una unidad de negocio</option>
+                                {% for unit in business_units %}
+                                <option value="{{ unit.id }}">{{ unit.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="channels" class="form-label">Canales de Publicación</label>
+                            <select class="form-select" id="channels" name="channels" multiple required>
+                                {% for channel in channels %}
+                                <option value="{{ channel.id }}">{{ channel.name }} ({{ channel.type }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Crear Oportunidad
+                        </button>
+                        <a href="{% url 'job_opportunities_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitForm(event) {
+    event.preventDefault();
+    
+    const formData = {
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        requirements: document.getElementById('requirements').value,
+        location: document.getElementById('location').value,
+        salary: document.getElementById('salary').value,
+        business_unit_id: document.getElementById('business_unit').value,
+        channels: Array.from(document.getElementById('channels').selectedOptions).map(option => option.value)
+    };
+
+    fetch('{% url "create_job_opportunity" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Oportunidad creada exitosamente');
+            window.location.href = '{% url "job_opportunities_list" %}';
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al crear la oportunidad');
+    });
+
+    return false;
+}
+</script>
+{% endblock %}
