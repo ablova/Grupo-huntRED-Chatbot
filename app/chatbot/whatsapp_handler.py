@@ -6,7 +6,7 @@ from app.models import (
     WhatsAppAPI, MetaAPI, ConfiguracionBU
 )
 from app.chatbot.chat_state_manager import ChatStateManager
-from app.chatbot.intents_handlers import IntentProcessor
+from app.chatbot.intents_handler import IntentProcessor
 import asyncio
 import json
 import logging

@@ -32,7 +32,7 @@ from app.chatbot.workflow.executive import process_executive_candidate
 from app.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 from app.chatbot.gpt import GPTHandler
-from app.chatbot.intents_handler import detect_intents, handle_known_intents, get_tos_url
+from app.chatbot.intents_handler import IntentProcessor, detect_intents, handle_known_intents, get_tos_url
 
 logger = logging.getLogger('chatbot')
 
@@ -200,24 +200,29 @@ class ChatBotHandler:
 
             # 7. Detectar y manejar intents
             if text:
-                intents = detect_intents(text)
+                intents = await detect_intents(text)
                 logger.info(f"[detect_intents] Intents detectados para '{text}': {intents}")
                 if intents:
-                    handled = await handle_known_intents(intents, platform, user_id, chat_state, business_unit, text, self)
-                    if handled:
-                        return None  # El handler del intent ya envió la respuesta
-                    # Fallback a NLP con manejo robusto
-                    if NLP_ENABLED and self.nlp_processor:
-                        try:
-                            analysis = await self.nlp_processor.analyze(text)
-                            response = await self._generate_default_response(
-                                user, chat_state, text, 
-                                analysis.get("entities", []), 
-                                analysis.get("sentiment", {})
-                            )
-                        except Exception as nlp_error:
-                            logger.error(f"Error en análisis NLP: {nlp_error}")
-                            response = f"No entendí bien, pero parece que dijiste '{text}'. ¿En qué más puedo ayudarte?"
+                    intent = intents[0]
+                    # Crear procesador de intents
+                    intent_processor = IntentProcessor(user, business_unit)
+                    response = await intent_processor.process_intent(intent, text)
+                    return response
+
+                # Fallback a NLP con manejo robusto
+                if NLP_ENABLED and self.nlp_processor:
+                    try:
+                        analysis = await self.nlp_processor.analyze(text)
+                        response = await self._generate_default_response(
+                            user, chat_state, text, 
+                            analysis.get("entities", []), 
+                            analysis.get("sentiment", {})
+                        )
+                        await send_message(platform, user_id, response, bu_key)
+                        return response
+                    except Exception as nlp_error:
+                        logger.error(f"Error en análisis NLP: {nlp_error}")
+                        response = f"No entendí bien, pero parece que dijiste '{text}'. ¿En qué más puedo ayudarte?"
                         await send_message(platform, user_id, response, bu_key)
                         return response
 

@@ -23,7 +23,7 @@ from typing import Dict, List, Any, Optional, Coroutine, AsyncGenerator
 from difflib import get_close_matches
 from app.utilidades.catalogs import get_divisiones, map_skill_to_database
 from app.chatbot.nlp import NLPProcessor
-from app.chatbot.intents_handlers import IntentProcessor
+from app.chatbot.intents_handler import IntentProcessor
 
 
 # Variable global para la instancia de NLPProcessor

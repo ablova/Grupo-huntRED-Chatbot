@@ -14,7 +14,6 @@ register_module('generate_embeddings', '.generate_embeddings', package='app.chat
 register_module('gpt', '.gpt', package='app.chatbot')
 register_module('integrations', '.integrations', package='app.chatbot')
 register_module('intents_handler', '.intents_handler', package='app.chatbot')
-register_module('intents_handlers', '.intents_handlers', package='app.chatbot')
 register_module('intents_optimizer', '.intents_optimizer', package='app.chatbot')
 register_module('message_retry', '.message_retry', package='app.chatbot')
 register_module('metrics', '.metrics', package='app.chatbot')
