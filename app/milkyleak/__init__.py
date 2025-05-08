@@ -1,5 +1,8 @@
 from ..lazy_imports import lazy_imports, register_module
 
-# Register milkyleak modules for lazy loading
-lazy_imports.register('milkyleak', '.milkyleak')
-lazy_imports.register('templates', '.templates')
+# Establecer el paquete actual
+register_module('milkyleak', '.', package='app.milkyleak')
+
+# Registrar módulos de milkyleak para lazy loading
+register_module('milkyleak', '.milkyleak', package='app.milkyleak')
+register_module('templates', '.templates', package='app.milkyleak')
