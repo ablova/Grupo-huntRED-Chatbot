@@ -1,4 +1,4 @@
-from ..lazy_imports import lazy_imports, register_module
+from ..lazy_imports import lazy_imports, register_module, get_module
 
 # Establecer el paquete actual
 register_module('pagos', '.', package='app.pagos')
