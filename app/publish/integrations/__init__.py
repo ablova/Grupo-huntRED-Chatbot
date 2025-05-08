@@ -27,6 +27,11 @@ def register_integrations():
     """
     Registra todas las integraciones disponibles
     """
+    # Evitar importaciones circulares y problemas de carga de apps
+    from django.apps import apps
+    if not apps.ready:
+        return
+        
     from . import whatsapp, telegram
     
     # Registrar integraciones

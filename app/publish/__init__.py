@@ -25,11 +25,16 @@ register_module('utils', '.utils', package='app.publish')
 # Registrar procesadores e integraciones usando lazy imports
 def _register_processors():
     processors = get_module('processors')
-    processors.register_processors()
+    # No necesitamos llamar a register_processors() ya que los procesadores se registran automáticamente
+    # cuando se importan los módulos
 
 _register_processors()
 
 def _register_integrations():
+    from django.apps import apps
+    if not apps.ready:
+        return
+        
     integrations = get_module('integrations')
     integrations.register_integrations()
 
