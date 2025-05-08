@@ -7,16 +7,12 @@ from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 import logging
-from django.db import transaction
-from django.utils.timezone import now
-from django.core.exceptions import ObjectDoesNotExist
 from celery import shared_task
 from asgiref.sync import sync_to_async
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 import trafilatura
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
-from app.models import DominioScraping, RegistroScraping, Vacante, BusinessUnit, Worker, USER_AGENTS
 from app.chatbot.utils import clean_text
 from app.utilidades.loader import DIVISION_SKILLS
 from app.chatbot.gpt import GPTHandler
@@ -134,6 +130,7 @@ class ScrapingPipeline:
 
     async def clean_data(self, jobs: List[Dict]) -> List[Dict]:
         """Limpia datos y enriquece con GPT si falta descripción."""
+        from app.models import Vacante  # Importación local
         cleaned_jobs = []
         for job in jobs:
             if job.get('title') and job.get('url'):
@@ -149,7 +146,7 @@ class ScrapingPipeline:
                 cleaned_jobs.append(job)
         return cleaned_jobs
 
-    async def enrich_with_gpt(self, vacante: Vacante) -> bool:
+    async def enrich_with_gpt(self, vacante) -> bool:
         """Enriches a vacancy with GPT if critical fields are missing."""
         prompt = (
             f"Para el puesto '{vacante.titulo}' en {vacante.ubicacion or 'No especificada'}, "
@@ -285,6 +282,7 @@ def validate_job_data(job: JobListing) -> Optional[Dict]:
     
 async def assign_business_unit(job_title: str, job_description: str = None, salary_range: str = None, required_experience: str = None, location: str = None) -> Optional[int]:
     """Determina la unidad de negocio para una vacante con pesos dinámicos de forma asíncrona."""
+    from app.models import BusinessUnit  # Importación local
     # Normalize inputs for case-insensitive matching
     job_title_lower = job_title.lower()
     job_desc_lower = job_description.lower() if job_description else ""
@@ -503,7 +501,9 @@ async def enrich_with_gpt(vacante, gpt_handler: GPTHandler) -> bool:
         return False
 
 @transaction.atomic
-async def save_vacantes(jobs: List[Dict], dominio: DominioScraping):
+async def save_vacantes(jobs: List[Dict], dominio):
+    """Guarda las vacantes en la base de datos."""
+    from app.models import DominioScraping, RegistroScraping, Vacante  # Importación local
     seen_keys = set()
     for job in jobs:
         key = f"{job['title']}:{job['company']}:{job['location']}"
@@ -596,7 +596,9 @@ def extract_field(html: str, selectors: List[str], attribute: Optional[str] = No
         return match.group(1).strip() if match else None
     return None
 
-async def get_scraper(domain: DominioScraping, ml_scraper: MLScraper):
+async def get_scraper(domain, ml_scraper: MLScraper):
+    """Obtiene el scraper adecuado para un dominio."""
+    from app.models import DominioScraping  # Importación local
     scraper_class = SCRAPER_MAP.get(domain.plataforma, SCRAPER_MAP["default"])
     if domain.mapeo_configuracion:
         selectors = domain.mapeo_configuracion.get("selectors", PLATFORM_SELECTORS.get(domain.plataforma, {}))
@@ -1606,7 +1608,9 @@ SCRAPER_MAP = {
 }
 
 # Funciones de publicación y ejecución
-async def publish_to_internal_system(jobs: List[Dict], business_unit: BusinessUnit) -> bool:
+async def publish_to_internal_system(jobs: List[Dict], business_unit) -> bool:
+    """Publica los trabajos en el sistema interno."""
+    from app.models import BusinessUnit  # Importación local
     try:
         for job in jobs:
             job_data = {
@@ -1629,7 +1633,9 @@ async def publish_to_internal_system(jobs: List[Dict], business_unit: BusinessUn
         logger.error(f"Error publishing: {e}")
         return False
 
-async def scrape_and_publish(domains: List[DominioScraping]) -> None:
+async def scrape_and_publish(domains: List) -> None:
+    """Ejecuta el scraping y publicación para una lista de dominios."""
+    from app.models import DominioScraping  # Importación local
     pipeline = ScrapingPipeline()
     tasks = []
     for domain in domains:
@@ -1646,7 +1652,9 @@ async def scrape_and_publish(domains: List[DominioScraping]) -> None:
         bu = await sync_to_async(BusinessUnit.objects.get)(name=bu_name)
         await publish_to_internal_system(jobs, bu)
 
-async def process_domain(scraper, domain: DominioScraping, registro: RegistroScraping, pipeline: ScrapingPipeline) -> tuple:
+async def process_domain(scraper, domain, registro, pipeline: ScrapingPipeline) -> tuple:
+    """Procesa un dominio específico."""
+    from app.models import DominioScraping, RegistroScraping  # Importación local
     try:
         async with asyncio.timeout(3600):
             async with scraper:
@@ -1680,6 +1688,8 @@ async def process_domain(scraper, domain: DominioScraping, registro: RegistroScr
 
 @shared_task
 async def run_all_scrapers() -> None:
+    """Ejecuta todos los scrapers configurados."""
+    from app.models import DominioScraping  # Importación local
     domains = await sync_to_async(list)(DominioScraping.objects.filter(activo=True, business_units__scrapping_enabled=True))
     await scrape_and_publish(domains)
 

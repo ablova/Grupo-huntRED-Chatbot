@@ -14,7 +14,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from prometheus_client import Counter, Histogram, CollectorRegistry, start_http_server
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-from app.models import DominioScraping
+
 
 logger = logging.getLogger(__name__)
 
@@ -285,8 +285,11 @@ class PlaywrightAntiDeteccion:
         except Exception as e:
             logger.debug(f"No se pudo simular comportamiento humano: {e}")
 
-async def inicializar_contexto_playwright(domain: DominioScraping, browser: Browser) -> BrowserContext:
-    """Inicializa un contexto de navegador Playwright con configuración anti-detección."""
+async def inicializar_contexto_playwright(domain, browser: Browser) -> BrowserContext:
+    """Inicializa el contexto de Playwright con configuración anti-detección."""
+    from app.models import DominioScraping  # Importación local
+    if not isinstance(domain, DominioScraping):
+        raise ValueError("El dominio debe ser una instancia de DominioScraping")
     try:
         plataforma = domain.plataforma or "default"
         perfil = await PlaywrightAntiDeteccion.generar_perfil_navegador(plataforma)
@@ -336,7 +339,7 @@ async def inicializar_contexto_playwright(domain: DominioScraping, browser: Brow
         raise
 
 async def visitar_pagina_humanizada(page: Page, url: str):
-    """Visita una página con comportamiento humano."""
+    """Simula comportamiento humano al visitar una página."""
     try:
         await page.goto(url, wait_until="networkidle", timeout=60000)
         await PlaywrightAntiDeteccion.simular_comportamiento_humano(page)
@@ -345,8 +348,11 @@ async def visitar_pagina_humanizada(page: Page, url: str):
         logger.error(f"Error visitando página {url}: {e}")
         raise
 
-async def extraer_y_guardar_cookies(domain: DominioScraping, context: BrowserContext):
-    """Extrae cookies del contexto y las guarda en el modelo."""
+async def extraer_y_guardar_cookies(domain, context: BrowserContext):
+    """Extrae y guarda las cookies del contexto de Playwright."""
+    from app.models import DominioScraping
+    if not isinstance(domain, DominioScraping):
+        raise ValueError("El dominio debe ser una instancia de DominioScraping")
     try:
         cookies_playwright = await context.cookies()
         plataforma = domain.plataforma or "default"
@@ -377,7 +383,7 @@ async def extraer_y_guardar_cookies(domain: DominioScraping, context: BrowserCon
         return {}
 
 async def generate_summary_report(stats: Dict, actions_taken: List[str]) -> str:
-    """Genera un reporte de resumen para enviar por correo."""
+    """Genera un reporte resumen de las acciones tomadas."""
     try:
         return (
             f"Scraping Summary:\n"

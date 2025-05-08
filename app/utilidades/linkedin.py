@@ -8,13 +8,14 @@ import random
 import backoff
 import requests
 import itertools
+import asyncio
 from typing import Optional, List, Dict
 from datetime import datetime
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, Browser, Page
 from playwright.sync_api import sync_playwright
 from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
@@ -22,6 +23,12 @@ from app.chatbot.utils import get_nlp_processor  # Importar desde utils.py
 from app.utilidades.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
+from .scraping_utils import (
+    PlaywrightAntiDeteccion,
+    inicializar_contexto_playwright,
+    visitar_pagina_humanizada,
+    extraer_y_guardar_cookies
+)
 
 logger = logging.getLogger(__name__)
 os.environ["TRANSFORMERS_BACKEND"] = "tensorflow"
@@ -847,3 +854,70 @@ def main_test():
 
 if __name__ == "__main__":
     main_test()
+
+class LinkedInScraper:
+    def __init__(self):
+        self.browser = None
+        self.context = None
+        self.page = None
+
+    async def initialize(self):
+        """Inicializa el navegador y el contexto."""
+        playwright = await async_playwright().start()
+        self.browser = await playwright.chromium.launch(headless=True)
+        self.context = await self.browser.new_context()
+        self.page = await self.context.new_page()
+
+    async def close(self):
+        """Cierra el navegador y libera recursos."""
+        if self.browser:
+            await self.browser.close()
+
+    async def scrape_job(self, url: str) -> Dict:
+        """Extrae información de una oferta de trabajo de LinkedIn."""
+        try:
+            await self.page.goto(url)
+            await PlaywrightAntiDeteccion.simular_comportamiento_humano(self.page)
+            
+            # Extraer datos básicos
+            title = await self.page.evaluate('() => document.querySelector(".job-details-jobs-unified-top-card__job-title")?.textContent?.trim()')
+            company = await self.page.evaluate('() => document.querySelector(".job-details-jobs-unified-top-card__company-name")?.textContent?.trim()')
+            location = await self.page.evaluate('() => document.querySelector(".job-details-jobs-unified-top-card__bullet")?.textContent?.trim()')
+            
+            # Extraer descripción
+            description = await self.page.evaluate('() => document.querySelector(".job-details-jobs-unified-top-card__job-description")?.textContent?.trim()')
+            
+            # Extraer requisitos
+            requirements = await self.page.evaluate('() => {
+                const reqs = Array.from(document.querySelectorAll(".job-details-jobs-unified-top-card__job-description li"))
+                    .map(li => li.textContent.trim());
+                return reqs;
+            }')
+            
+            return {
+                'title': title,
+                'company': company,
+                'location': location,
+                'description': description,
+                'requirements': requirements,
+                'url': url,
+                'source': 'linkedin',
+                'scraped_at': datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error scraping LinkedIn job {url}: {e}")
+            return None
+
+async def process_linkedin_jobs(urls: List[str]) -> List[Dict]:
+    """Procesa una lista de URLs de ofertas de LinkedIn."""
+    scraper = LinkedInScraper()
+    try:
+        await scraper.initialize()
+        jobs = []
+        for url in urls:
+            job_data = await scraper.scrape_job(url)
+            if job_data:
+                jobs.append(job_data)
+        return jobs
+    finally:
+        await scraper.close()

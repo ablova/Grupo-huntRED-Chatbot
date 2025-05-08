@@ -68,15 +68,60 @@ def get_channel_config(business_unit, channel_type):
     return None
 
 # Configuración de Pagos ---
-PAYPAL_MODE = env('PAYPAL_MODE', default='sandbox')
-PAYPAL_CLIENT_ID = env('PAYPAL_CLIENT_ID')
-PAYPAL_CLIENT_SECRET = env('PAYPAL_CLIENT_SECRET')
-PAYPAL_RETURN_URL = env('PAYPAL_RETURN_URL')
-PAYPAL_CANCEL_URL = env('PAYPAL_CANCEL_URL')
+def get_paypal_config(business_unit):
+    """
+    Obtiene la configuración de PayPal para una unidad de negocio
+    """
+    from app.models import ApiConfig
+    try:
+        return ApiConfig.objects.get(
+            business_unit=business_unit,
+            api_type='paypal',
+            enabled=True
+        )
+    except ApiConfig.DoesNotExist:
+        return None
 
-WORDPRESS_API_URL = env('WORDPRESS_API_URL')
-WORDPRESS_USERNAME = env('WORDPRESS_USERNAME')
-WORDPRESS_PASSWORD = env('WORDPRESS_PASSWORD')
+# Configuración dinámica por unidad de negocio
+def get_channel_config(business_unit, channel_type):
+    """
+    Obtiene la configuración de un canal específico para una unidad de negocio
+    """
+    if channel_type == 'WHATSAPP':
+        return get_whatsapp_api_config(business_unit)
+    elif channel_type == 'TELEGRAM':
+        return get_telegram_api_config(business_unit)
+    elif channel_type == 'PAYPAL':
+        return get_paypal_config(business_unit)
+    return None
+
+# Configuración de PayPal (opcional)
+PAYPAL_CONFIG = {
+    'mode': env('PAYPAL_MODE', default='sandbox'),
+    'client_id': env('PAYPAL_CLIENT_ID', default=None),
+    'client_secret': env('PAYPAL_CLIENT_SECRET', default=None),
+    'return_url': env('PAYPAL_RETURN_URL', default=None),
+    'cancel_url': env('PAYPAL_CANCEL_URL', default=None)
+}
+
+# Verifica si PayPal está configurado
+PAYPAL_ENABLED = all(
+    value is not None 
+    for value in [PAYPAL_CONFIG['client_id'], PAYPAL_CONFIG['client_secret']]
+)
+
+# Configuración de WordPress (opcional)
+WORDPRESS_CONFIG = {
+    'api_url': env('WORDPRESS_API_URL', default=None),
+    'username': env('WORDPRESS_USERNAME', default=None),
+    'password': env('WORDPRESS_PASSWORD', default=None)
+}
+
+# Verifica si WordPress está configurado
+WORDPRESS_ENABLED = all(
+    value is not None 
+    for value in [WORDPRESS_CONFIG['api_url'], WORDPRESS_CONFIG['username'], WORDPRESS_CONFIG['password']]
+)
 
 # --- Configuración de entorno ---
 
@@ -90,6 +135,20 @@ USE_TZ = True
 # Validar existencia del archivo .env (sin usar logger aún)
 if not os.path.exists(env_file):
     raise FileNotFoundError(f"Environment file not found: {env_file}")
+
+# Configuración de Celery
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Mexico_City'
+CELERY_ENABLE_UTC = False
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
 if not os.access(env_file, os.R_OK):
     raise PermissionError(f"Environment file not readable: {env_file}")
 
@@ -156,10 +215,6 @@ DATABASES = {
 FORMS_URLFIELD_ASSUME_HTTPS = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-WAIT_FOR_DB = {
-    'RETRIES': 30,
-    'DELAY': 1,
-}
 
 # Aplicaciones instaladas
 INSTALLED_APPS = [

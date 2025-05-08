@@ -76,7 +76,7 @@ class AppConfig(DjangoAppConfig):
                 setattr(settings, key, value)
 
     def _setup_periodic_tasks(self, **kwargs):
-        from ai_huntred.celery_app import app
+        from ai_huntred.celery import app
         try:
             app.on_after_configure.connect(setup_periodic_tasks)
             logger.info("Periodic tasks registered successfully")
