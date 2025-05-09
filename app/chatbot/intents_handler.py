@@ -13,21 +13,24 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 from django.db.models import Q
+from tenacity import retry, stop_after_attempt, wait_exponential
+from collections import Counter
+from datetime import datetime, timedelta
 
 from app.models import (
     Person, Vacante, Application, BusinessUnit,
     EnhancedNetworkGamificationProfile, ChatState,
-    WorkflowStage, SmartOption, TemplateMessage,
-    ConfiguracionBU
+    WorkflowStage, ConfiguracionBU, Template
 )
 from app.chatbot.utils import ChatbotUtils
-from app.chatbot.integrations.services import send_message, send_options, send_menu
+from app.chatbot.integrations.services import send_message, send_smart_options, send_options, send_menu
 from app.chatbot.workflow.common import (
     calcular_salario_chatbot, iniciar_creacion_perfil,
     iniciar_perfil_conversacional, iniciar_prueba,
     send_welcome_message
 )
-from app.ml.ml_model import MatchmakingLearningSystem, BUSINESS_UNIT_HIERARCHY
+from app.ml.core.models import MatchmakingModel
+from app.ml.core.utils import BUSINESS_UNIT_HIERARCHY
 from app.chatbot.intents_optimizer import intent_optimizer
 from app.chatbot.channel_config import ChannelConfig
 from app.chatbot.metrics import chatbot_metrics
@@ -266,49 +269,7 @@ class IntentHandler:
         """Procesa el intent específico. Debe ser implementado por las clases hijas."""
         raise NotImplementedError("Este método debe ser implementado por las clases hijas")
 
-class JobSearchIntentHandler(IntentHandler):
-    """Maneja la búsqueda de empleos."""
-    
-    async def _process_intent(self) -> str:
-        # Obtener recomendaciones de vacantes
-        recommendations = await ChatbotUtils.get_vacancy_recommendations(self.user)
-        
-        # Preparar opciones inteligentes
-        self.smart_options = [
-            SmartOption(
-                text="Ver detalles de la vacante",
-                data={
-                    'action': 'view_vacancy',
-                    'vacancy_id': rec.id
-                }
-            ) for rec in recommendations[:3]
-        ]
-        
-        # Preparar mensajes de plantilla
-        self.template_messages = [
-            TemplateMessage(
-                title=f"{vacancy.title}",
-                description=f"{vacancy.description[:100]}...",
-                footer=f"{vacancy.location} • {vacancy.required_experience} años exp",
-                buttons=[
-                    {
-                        'type': 'quick_reply',
-                        'text': 'Postular',
-                        'payload': json.dumps({
-                            'action': 'apply',
-                            'vacancy_id': vacancy.id
-                        })
-                    }
-                ]
-            ) for vacancy in recommendations[:3]
-        ]
-        
-        # Actualizar estado del chat
-        await ChatbotUtils.update_chat_state(
-            self.user, 'searching_jobs', self.message
-        )
-        
-        return "Aquí tienes algunas oportunidades que podrían interesarte:"
+
 
 class ApplicationStatusIntentHandler(IntentHandler):
     """Maneja el estado de las aplicaciones."""
@@ -379,27 +340,12 @@ class ProfileUpdateIntentHandler(IntentHandler):
         
         # Preparar mensaje de plantilla
         self.template_messages = [
-            TemplateMessage(
-                title="Actualizar perfil",
-                description="Selecciona qué información deseas actualizar:",
-                footer="",
-                buttons=[
-                    {
-                        'type': 'quick_reply',
-                        'text': 'Experiencia',
-                        'payload': json.dumps({'action': 'update_experience'})
-                    },
-                    {
-                        'type': 'quick_reply',
-                        'text': 'Habilidades',
-                        'payload': json.dumps({'action': 'update_skills'})
-                    },
-                    {
-                        'type': 'quick_reply',
-                        'text': 'Salario',
-                        'payload': json.dumps({'action': 'update_salary'})
-                    }
-                ]
+            Template(
+                name="update_profile",
+                whatsapp_api=self.business_unit.whatsapp_apis.first(),
+                template_type="BUTTON",
+                language_code="es_MX",
+                image_url=None
             )
         ]
         
@@ -432,24 +378,12 @@ class InterviewScheduleIntentHandler(IntentHandler):
             
             # Preparar mensaje de plantilla
             self.template_messages = [
-                TemplateMessage(
-                    title="Próxima entrevista",
-                    description=f"Fecha: {next_interview.date}\n"
-                           f"Hora: {next_interview.time}\n"
-                           f"Vacante: {next_interview.vacancy.title}",
-                    footer="¿Necesitas ayuda con algo más?",
-                    buttons=[
-                        {
-                            'type': 'quick_reply',
-                            'text': 'Ver detalles',
-                            'payload': json.dumps({'action': 'view_interview_details'})
-                        },
-                        {
-                            'type': 'quick_reply',
-                            'text': 'Cancelar',
-                            'payload': json.dumps({'action': 'cancel_interview'})
-                        }
-                    ]
+                Template(
+                    name="upcoming_interview",
+                    whatsapp_api=self.business_unit.whatsapp_apis.first(),
+                    template_type="BUTTON",
+                    language_code="es_MX",
+                    image_url=None
                 )
             ]
             
@@ -509,37 +443,28 @@ class HelpIntentHandler(IntentHandler):
         help_info = await ChatbotUtils.get_help_info(self.business_unit)
         
         # Preparar opciones inteligentes
-        self.smart_options = [
-            SmartOption(
-                text="Ver FAQ",
-                data={'action': 'view_faq'}
-            ),
-            SmartOption(
-                text="Contactar soporte",
-                data={'action': 'contact_support'}
-            )
+        options = [
+            {
+                'title': 'Ver FAQ',
+                'payload': json.dumps({'action': 'view_faq'})
+            },
+            {
+                'title': 'Contactar soporte',
+                'payload': json.dumps({'action': 'contact_support'})
+            }
         ]
         
+        # Enviar opciones usando send_smart_options
+        await send_smart_options(platform, user_id, "¿En qué puedo ayudarte?", options, bu_key)
+        
         # Preparar mensaje de plantilla
-        self.template_messages = [
-            TemplateMessage(
-                title="Centro de ayuda",
-                description=f"{help_info['description']}",
-                footer="¿Necesitas ayuda con algo más?",
-                buttons=[
-                    {
-                        'type': 'quick_reply',
-                        'text': 'Ver FAQ',
-                        'payload': json.dumps({'action': 'view_faq'})
-                    },
-                    {
-                        'type': 'quick_reply',
-                        'text': 'Contactar soporte',
-                        'payload': json.dumps({'action': 'contact_support'})
-                    }
-                ]
-            )
-        ]
+        template = Template(
+            name="help_center",
+            whatsapp_api=self.business_unit.whatsapp_apis.first(),
+            template_type="BUTTON",
+            language_code="es_MX"
+        )
+        self.template = template
         
         return "¿En qué puedo ayudarte?"
 
@@ -565,53 +490,111 @@ class SalaryCalculatorIntentHandler(IntentHandler):
         
         return "Por favor, especifica tu salario (ej. 'salario bruto = 20k MXN mensual')"
 
-class JobSearchIntentHandler(IntentHandler):
-    """Maneja la búsqueda de empleos."""
-    
-    async def _process_intent(self) -> str:
-        # Obtener recomendaciones de vacantes
-        recommendations = await ChatbotUtils.get_vacancy_recommendations(self.user)
-        
-        # Preparar opciones inteligentes
-        self.smart_options = [
-            SmartOption(
-                text="Ver detalles de la vacante",
-                data={
-                    'action': 'view_vacancy',
-                    'vacancy_id': rec.id
-                }
-            ) for rec in recommendations[:3]
+
+
+class SpamDetector:
+    """Detector de spam para mensajes del chatbot."""
+
+    def __init__(self):
+        self.message_cache = cache
+        self.spam_threshold = 3  # Número máximo de mensajes idénticos permitidos
+        self.time_window = timedelta(minutes=5)  # Ventana de tiempo para detectar spam
+        self.suspicious_patterns = [
+            r'\b(free|gratis|ganar|dinero|cash|bitcoin|crypto)\b',
+            r'\b(work|job|employment|remote|online)\b',
+            r'\b(click|visit|link|website|url)\b',
+            r'\b(watch|video|tutorial|guide)\b',
+            r'\b(scam|fraud|phishing|hacking)\b'
         ]
+
+    async def is_spam(self, message: str) -> bool:
+        """Detecta si un mensaje es spam."""
+        try:
+            # Verificar patrones sospechosos
+            if self._contains_suspicious_patterns(message):
+                return True
+
+            # Verificar mensajes repetidos
+            if await self._is_repeated_message(message):
+                return True
+
+            return False
+        except Exception as e:
+            logger.error(f"Error en SpamDetector: {str(e)}", exc_info=True)
+            return False
+
+    def _contains_suspicious_patterns(self, message: str) -> bool:
+        """Verifica si el mensaje contiene patrones sospechosos."""
+        for pattern in self.suspicious_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                return True
+        return False
+
+    async def _is_repeated_message(self, message: str) -> bool:
+        """Verifica si el mensaje es repetido dentro de la ventana de tiempo."""
+        try:
+            # Normalizar el mensaje
+            normalized = self._normalize_message(message)
+            
+            # Obtener mensajes recientes
+            recent_messages = await self._get_recent_messages()
+            
+            # Contar ocurrencias del mensaje
+            message_count = recent_messages.count(normalized)
+            
+            if message_count >= self.spam_threshold:
+                return True
+            
+            # Guardar mensaje actual
+            await self._save_message(normalized)
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error en _is_repeated_message: {str(e)}", exc_info=True)
+            return False
+
+    def _normalize_message(self, message: str) -> str:
+        """Normaliza el mensaje para comparación."""
+        return message.lower().strip()
+
+    async def _get_recent_messages(self) -> List[str]:
+        """Obtiene mensajes recientes dentro de la ventana de tiempo."""
+        current_time = datetime.now()
+        start_time = current_time - self.time_window
         
-        # Preparar mensajes de plantilla
-        self.template_messages = [
-            TemplateMessage(
-                title=f"{vacancy.title}",
-                description=f"{vacancy.description[:100]}...",
-                footer=f"{vacancy.location} • {vacancy.required_experience} años exp",
-                buttons=[
-                    {
-                        'type': 'quick_reply',
-                        'text': 'Postular',
-                        'payload': json.dumps({
-                            'action': 'apply',
-                            'vacancy_id': vacancy.id
-                        })
-                    }
-                ]
-            ) for vacancy in recommendations[:3]
-        ]
+        # Clave para caché de mensajes
+        cache_key = f"recent_messages:{self.user.id}"
         
-        # Actualizar estado del chat
-        await ChatbotUtils.update_chat_state(
-            self.user, 'searching_jobs', self.message
-        )
+        # Obtener mensajes de caché
+        messages = self.message_cache.get(cache_key, [])
         
-        return "Aquí tienes algunas oportunidades que podrían interesarte:"
+        # Filtrar mensajes fuera de la ventana de tiempo
+        filtered_messages = []
+        for msg in messages:
+            if msg.get('timestamp', datetime.min) >= start_time:
+                filtered_messages.append(msg)
+        
+        # Actualizar caché
+        self.message_cache.set(cache_key, filtered_messages, timeout=self.time_window.total_seconds())
+        
+        return [msg['message'] for msg in filtered_messages]
+
+    async def _save_message(self, message: str):
+        """Guarda un mensaje en la caché de mensajes recientes."""
+        current_time = datetime.now()
+        cache_key = f"recent_messages:{self.user.id}"
+        
+        messages = self.message_cache.get(cache_key, [])
+        messages.append({'message': message, 'timestamp': current_time})
+        
+        # Mantener solo los últimos mensajes
+        messages = messages[-10:]  # Mantener solo los últimos 10 mensajes
+        
+        self.message_cache.set(cache_key, messages, timeout=self.time_window.total_seconds())
 
 class IntentProcessor:
     """Procesador de intents para el chatbot."""
-    
+
     def __init__(self, user: Person, business_unit: BusinessUnit):
         self.user = user
         self.business_unit = business_unit
@@ -625,12 +608,44 @@ class IntentProcessor:
             'salary_calculator': SalaryCalculatorIntentHandler,
             # Agregar más handlers según sea necesario
         }
-    
+        self.cache = cache
+        self.cache_timeout = 300  # 5 minutos
+        self.metrics = chatbot_metrics
+        self.spam_detector = SpamDetector()
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
     async def process_intent(self, intent: str, message: str) -> Dict[str, Any]:
         """Procesa un intent específico."""
-        handler_class = self.handlers.get(intent)
-        if handler_class:
-            handler = handler_class(self.user, intent, message, self.business_unit)
+        try:
+            # Verificar si el mensaje es spam
+            if await self.spam_detector.is_spam(message):
+                return {'response': "Por favor, no envíes mensajes repetidos o spam.", 'is_spam': True}
+
+            # Obtener handler desde caché o inicializar nuevo
+            handler_key = f"handler:{self.user.id}:{intent}"
+            handler = self.cache.get(handler_key)
+            
+            if not handler:
+                handler_class = self.handlers.get(intent)
+                if not handler_class:
+                    return {'response': "No se reconoció tu intención. ¿En qué puedo ayudarte?", 'is_error': True}
+                
+                handler = handler_class(self.user, intent, message, self.business_unit)
+                self.cache.set(handler_key, handler, self.cache_timeout)
+
+            # Procesar intent con métricas
+            with self.metrics.measure_intent_processing_time(intent):
+                response = await handler.handle()
+                
+            # Actualizar métricas
+            self.metrics.increment_intent_count(intent)
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error procesando intent {intent}: {str(e)}", exc_info=True)
+            self.metrics.increment_intent_error_count(intent)
+            return {'response': "Lo siento, hubo un error procesando tu mensaje.", 'is_error': True}
             return await handler.handle()
         return {
             'response': "Lo siento, no entiendo esa solicitud.",

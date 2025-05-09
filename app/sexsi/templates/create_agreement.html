@@ -1,8 +1,8 @@
-<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/create_agreement.html -->
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/create_agreement.html-->
 
 {{% extends "base.html" %}
 {% block content %}
-<h1>Crear Acuerdo SEXSI</h1>
+<h1>Crear Acuerdo Consensuado Privado - SEXSI</h1>
 <p>Por favor, ingresa la información completa. Esta transacción incluirá detalles legales como el origen de la solicitud, fecha, hora y ubicaciones de ambas partes.</p>
 <form method="post">
     {% csrf_token %}
@@ -11,6 +11,6 @@
         <input type="checkbox" name="accept_tos" required>
         Acepto los <a href="#">Términos de Servicio</a> y la <a href="#">Política de Privacidad</a>.
     </p>
-    <button type="submit">Crear Acuerdo</button>
+    <button type="submit">Crear Acuerdo Consensuado Privado</button>
 </form>
 {% endblock %}

@@ -18,9 +18,15 @@ from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, ConfiguracionBU, Vacante,
     WhatsAppAPI, EnhancedNetworkGamificationProfile, ConfiguracionBU
 )
-from app.chatbot.integrations.services import (
-    send_email, send_message, send_options, send_menu, send_url, send_image, GamificationService
+from app.chatbot.conversational_flow import ConversationalFlowManager
+from app.chatbot.components import (
+    IntentDetector,
+    StateManager,
+    ContextManager,
+    ResponseGenerator,
+    GamificationService
 )
+from app.chatbot.integrations.services import MessageService
 from app.chatbot.workflow.common import (
     generate_and_send_contract, iniciar_creacion_perfil, iniciar_perfil_conversacional,
     obtener_explicaciones_metodos
@@ -32,7 +38,6 @@ from app.chatbot.workflow.executive import process_executive_candidate
 from app.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 from app.utilidades.parser import CVParser
 from app.chatbot.gpt import GPTHandler
-from app.chatbot.intents_handler import IntentProcessor, detect_intents, handle_known_intents, get_tos_url
 
 logger = logging.getLogger('chatbot')
 
@@ -64,6 +69,15 @@ class ChatBotHandler:
                 "Por lo que platicaremos un poco de tu trayectoria profesional, tus intereses, tu situación migratoria, etc. Es importante ser lo más preciso posible, ya que con eso podremos identificar las mejores oportunidades para tí, tu familia, y en caso de venir en grupo, favorecerlo. *Por cierto Al iniciar, confirmas la aceptación de nuestros TOS."
             ]
         }
+        
+        # Inicializar componentes del nuevo sistema modular
+        self.intent_detector = IntentDetector()
+        self.state_manager = StateManager()
+        self.context_manager = ContextManager()
+        self.response_generator = ResponseGenerator()
+        self.message_service = MessageService()
+        self.gamification_service = GamificationService()
+        
         try:
             self.nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
         except Exception as e:
@@ -98,6 +112,44 @@ class ChatBotHandler:
         
         # Registrar actividad del usuario
         chatbot_metrics.track_user_activity(platform, user_id)
+        
+        # Inicializar gestor de flujo conversacional
+        flow_manager = ConversationalFlowManager(business_unit)
+        
+        try:
+            # Procesar el mensaje usando el nuevo flujo
+            result = await flow_manager.process_message(
+                platform=platform,
+                user_id=user_id,
+                message=message,
+                business_unit=business_unit
+            )
+            
+            if result['success']:
+                # Enviar respuesta usando el servicio de mensajes
+                await self.message_service.send_message(
+                    platform,
+                    user_id,
+                    result['response']['text']
+                )
+                
+                # Si hay opciones, enviarlas
+                if result['response'].get('options'):
+                    await self.message_service.send_options(
+                        platform,
+                        user_id,
+                        result['response']['text'],
+                        result['response']['options']
+                    )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error processing message: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e)
+            }
         
         # Validar business_unit
         if not isinstance(business_unit, BusinessUnit):
@@ -854,48 +906,49 @@ class ChatBotHandler:
                 await send_message(platform, user.phone, message, self.get_business_unit_key(business_unit))
 
     async def store_user_message(self, chat_state, text: str):
-        if not chat_state.conversation_history:
-            chat_state.conversation_history = []
-        chat_state.conversation_history.append({
-            "role": "user",
-            "content": text,
-            "timestamp": timezone.now().isoformat()
+        """Almacena el mensaje del usuario usando el ContextManager."""
+        await self.context_manager.update_context({
+            'last_message': text,
+            'timestamp': timezone.now(),
+            'role': 'user'
         })
-        chat_state.last_interaction_at = timezone.now()
-        await sync_to_async(chat_state.save)()
-        logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
 
     async def store_bot_message(self, chat_state, text: str):
-        if not chat_state.conversation_history:
-            chat_state.conversation_history = []
-        chat_state.conversation_history.append({
-            "role": "assistant",
-            "content": text,
-            "timestamp": timezone.now().isoformat()
+        """Almacena el mensaje del bot usando el ContextManager."""
+        await self.context_manager.update_context({
+            'last_bot_message': text,
+            'timestamp': timezone.now(),
+            'role': 'assistant'
         })
-        chat_state.last_interaction_at = timezone.now()
-        await sync_to_async(chat_state.save)()
-        logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
 
     async def handle_tos_acceptance(self, platform: str, user_id: str, text: str, chat_state: ChatState, business_unit: BusinessUnit, user: Person):
+        """Maneja la aceptación de los TOS usando el nuevo sistema modular."""
         bu_key = self.get_business_unit_key(business_unit)
-        attempts = chat_state.context.get('tos_attempts', 0)
         
-        if text.lower() in ["no", "nope"]:
-            await send_message(platform, user_id, "Entendido, pero necesitas aceptar los TOS para continuar. ¿Alguna duda?", bu_key)
-            chat_state.context['tos_attempts'] = attempts + 1
-        elif text.lower() in ["sí", "si"]:
-            user.tos_accepted = True
-            await sync_to_async(user.save)()
-            await send_message(platform, user_id, "¡Gracias por aceptar los TOS! Continuemos.", bu_key)
-            chat_state.context.pop('tos_attempts', None)
-        else:
-            chat_state.context['tos_attempts'] = attempts + 1
-            if attempts >= 3:
-                await send_message(platform, user_id, "Demasiados intentos inválidos. Por favor, contacta a soporte.", bu_key)
-                chat_state.state = "idle"
-            else:
-                await send_message(platform, user_id, "Por favor, responde 'Sí' o 'No' para aceptar o rechazar los Términos de Servicio.", bu_key)
-        await sync_to_async(chat_state.save)()
+        # Actualizar contexto usando ContextManager
+        await self.context_manager.update_context({
+            'tos_attempts': chat_state.context.get('tos_attempts', 0),
+            'last_tos_response': text
+        })
+        
+        # Determinar siguiente estado usando StateManager
+        next_state = await self.state_manager.determine_next_state(text)
+        
+        # Generar respuesta usando ResponseGenerator
+        response = await self.response_generator.generate_response(
+            intent='tos_acceptance',
+            state=next_state
+        )
+        
+        # Enviar mensaje usando MessageService
+        await self.message_service.send_message(
+            platform,
+            user_id,
+            response['text']
+        )
+        
+        # Actualizar estado usando StateManager
+        await self.state_manager.update_state(chat_state, next_state)
+        
         logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
         

@@ -14,7 +14,7 @@ class ConsentAgreementAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         operations_by_status = {
             "Pendiente": self.model.objects.filter(is_signed_by_creator=False, is_signed_by_invitee=False),
-            "Firmado por Creador": self.model.objects.filter(is_signed_by_creator=True, is_signed_by_invitee=False),
+            "Firmado por Anfitrión": self.model.objects.filter(is_signed_by_creator=True, is_signed_by_invitee=False),
             "Firmado por Invitado": self.model.objects.filter(is_signed_by_creator=False, is_signed_by_invitee=True),
             "Completado": self.model.objects.filter(is_signed_by_creator=True, is_signed_by_invitee=True),
         }

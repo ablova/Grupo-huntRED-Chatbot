@@ -1,20 +1,53 @@
 from typing import Dict, Any, Optional
 import logging
 from django.db import transaction
+from asgiref.sync import sync_to_async
 from app.models import ChatState, Person, BusinessUnit
 from app.chatbot.workflow.common import chatbot_metrics
 
 logger = logging.getLogger(__name__)
 
 class ConversationContext:
+    """
+    Gestor de contexto de conversación para el chatbot.
+    
+    Mantiene el estado y contexto de la conversación, incluyendo:
+    - Estado actual de la conversación
+    - Información del usuario
+    - Detalles de la unidad de negocio
+    - Historial de la conversación
+    - Preferencias y restricciones
+    
+    Características:
+    - Caching de contexto
+    - Validación de estados
+    - Manejo de transiciones
+    - Seguimiento de métricas
+    """
+
     def __init__(self, chat_state: ChatState):
+        """
+        Inicializa el contexto de conversación.
+        
+        Args:
+            chat_state (ChatState): Estado actual de la conversación
+        """
         self.chat_state = chat_state
         self.person = chat_state.person
         self.business_unit = chat_state.business_unit
         self.context = self._build_initial_context()
 
     def _build_initial_context(self) -> Dict[str, Any]:
-        """Construye el contexto inicial de la conversación."""
+        """
+        Construye el contexto inicial de la conversación.
+        
+        Returns:
+            Dict[str, Any]: Contexto inicial con:
+                - Estado actual
+                - Información del usuario
+                - Detalles de la unidad de negocio
+                - Preferencias del usuario
+        """
         return {
             'state': self.chat_state.state,
             'person': {
@@ -37,8 +70,16 @@ class ConversationContext:
             'preferences': self.person.get_preferences()
         }
 
-    def update_context(self, updates: Dict[str, Any]) -> None:
-        """Actualiza el contexto de la conversación."""
+    async def update_context(self, updates: Dict[str, Any]) -> None:
+        """
+        Actualiza el contexto de la conversación.
+        
+        Args:
+            updates (Dict[str, Any]): Actualizaciones para el contexto
+        
+        Raises:
+            ValueError: Si se intenta actualizar un estado no válido
+        """
         try:
             self.context.update(updates)
             
@@ -196,7 +237,7 @@ async def get_conversation_context(chat_state: ChatState) -> Dict[str, Any]:
 async def update_conversation_context(chat_state: ChatState, updates: Dict[str, Any]) -> None:
     """Actualiza el contexto de la conversación."""
     context_manager = ConversationContext(chat_state)
-    context_manager.update_context(updates)
+    await context_manager.update_context(updates)
 
 async def get_available_intents(chat_state: ChatState) -> List[str]:
     """Obtiene los intents disponibles para el estado actual."""

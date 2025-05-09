@@ -1,4 +1,3 @@
-# home/pablo/app/chatbot/workflow/amigro.py
 # /home/pablo/app/chatbot/workflow/amigro.py
 import logging
 import datetime

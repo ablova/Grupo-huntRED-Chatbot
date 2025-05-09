@@ -1,0 +1,142 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/mutual_agreement.html-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acuerdo de Consentimiento Mutuo - SEXSI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .signature {
+            margin-top: 50px;
+        }
+        .signature-block {
+            width: 45%;
+            display: inline-block;
+            text-align: center;
+            vertical-align: top;
+        }
+        .signature-line {
+            border-top: 2px solid #000;
+            width: 200px;
+            margin: 10px auto;
+        }
+        .date {
+            text-align: right;
+            margin-top: 20px;
+        }
+        .important {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ACUERDO DE CONSENTIMIENTO MUTUO</h1>
+        <h2>SEXSI - Acuerdos Consensuales Privados</h2>
+        <p>Documento de Consentimiento Informado y Mutuo</p>
+    </div>
+
+    <div class="section">
+        <h3>1. IDENTIFICACIÓN DE LAS PARTES</h3>
+        <p><strong>Anfitrión:</strong> {{ agreement.creator.get_full_name }}</p>
+        <p><strong>Invitado:</strong> {{ agreement.invitee.get_full_name }}</p>
+    </div>
+
+    <div class="section">
+        <h3>2. TIPO Y DURACIÓN DEL ACUERDO</h3>
+        <p class="important">Este acuerdo se establece como:</p>
+        <p><strong>{{ agreement.get_duration_type_display }}</strong></p>
+        
+        {% if agreement.duration_type != 'single' %}
+        <p>Duración específica: {{ agreement.duration_amount }} {{ agreement.get_duration_unit_display }}</p>
+        {% endif %}
+
+        <h4>Definiciones de Duración:</h4>
+        <ul>
+            <li><strong>Interacción de Una Sola Vez:</strong> Un encuentro único, sin compromiso de continuidad.</li>
+            <li><strong>Acuerdo de Corto Plazo:</strong> Una serie de encuentros dentro de un período definido (días, semanas, o meses).</li>
+            <li><strong>Acuerdo de Largo Plazo:</strong> Un compromiso continuo con revisiones periódicas cada 6 meses.</li>
+        </ul>
+
+        <p class="important">Condiciones de la Duración:</p>
+        <ul>
+            <li>Ambas partes confirman su acuerdo con la duración seleccionada.</li>
+            <li>Los acuerdos de corto y largo plazo especifican una duración exacta en {{ agreement.get_duration_unit_display|lower }}.</li>
+            <li>Los acuerdos de largo plazo requieren revisiones periódicas cada 6 meses para reconfirmar el consentimiento.</li>
+            <li>El consentimiento puede ser revocado por cualquier parte en cualquier momento, notificando por escrito a través de la plataforma SEXSI, conforme a la LFPDPPP.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h3>3. OBJETO DEL ACUERDO</h3>
+        <p>Las partes acuerdan voluntariamente establecer un marco de consentimiento mutuo para la realización de prácticas íntimas consensuales, de acuerdo con las preferencias y límites establecidos.</p>
+    </div>
+
+    <div class="section">
+        <h3>4. PREFERENCIAS Y LÍMITES</h3>
+        <p>Las partes han acordado las siguientes preferencias, compatibles con la duración seleccionada:</p>
+        <ul>
+            {% for preference in agreement.preferences.all %}
+            <li>{{ preference.name }} - {{ preference.description }} (Compatible con: {{ preference.allowed_durations|join:", " }})</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="section">
+        <h3>5. CONDICIONES DE SEGURIDAD</h3>
+        <p>Las partes se comprometen a:</p>
+        <ul>
+            <li>Mantener la confidencialidad del acuerdo y sus términos.</li>
+            <li>Respetar los límites y preferencias establecidos.</li>
+            <li>Comunicar cualquier cambio en sus preferencias o límites a través de la plataforma SEXSI.</li>
+            <li>Mantener un comportamiento respetuoso y considerado.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h3>6. DERECHOS DE RETRACTO Y CANCELACIÓN</h3>
+        <p>Conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), cualquier parte puede retirar su consentimiento en cualquier momento, sin necesidad de justificación, notificando por escrito a través de la plataforma SEXSI.</p>
+        
+        <p class="important">Para acuerdos de corto y largo plazo:</p>
+        <ul>
+            <li>La cancelación debe notificarse con al menos 24 horas de anticipación para acuerdos de corto plazo y 7 días para acuerdos de largo plazo.</li>
+            <li>Las partes pueden acordar un período de notificación diferente, documentado en la plataforma.</li>
+            <li>La cancelación no exime de responsabilidades adquiridas durante la vigencia del acuerdo.</li>
+        </ul>
+    </div>
+
+    <div class="signature">
+        <div class="signature-block">
+            <p><strong>Anfitrión</strong></p>
+            <div class="signature-line"></div>
+            <p>{{ agreement.creator.get_full_name }}</p>
+            <p>{{ agreement.creator_signature_date|default:"Pendiente" }}</p>
+        </div>
+        <div class="signature-block">
+            <p><strong>Invitado</strong></p>
+            <div class="signature-line"></div>
+            <p>{{ agreement.invitee.get_full_name }}</p>
+            <p>{{ agreement.invitee_signature_date|default:"Pendiente" }}</p>
+        </div>
+    </div>
+
+    <div class="date">
+        <p>Fecha: {{ agreement.date_created|date:"d/m/Y" }}</p>
+    </div>
+</body>
+</html>

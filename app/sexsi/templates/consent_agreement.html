@@ -1,0 +1,86 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/consent_agreement.html-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Acuerdo Consensuado Privado - SEXSI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .signature-area {
+            margin-top: 50px;
+            text-align: center;
+        }
+        .signature-box {
+            border-top: 2px solid #000;
+            width: 200px;
+            margin: 20px auto;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ACUERDO DE CONSENTIMIENTO</h1>
+        <p>Acuerdo Consensuado Privado - SEXSI</p>
+    </div>
+
+    <div class="section">
+        <h2>Datos Personales</h2>
+        <p><strong>Nombre completo:</strong> {{ full_name }}</p>
+        <p><strong>Fecha de nacimiento:</strong> {{ date_of_birth }}</p>
+        <p><strong>Nacionalidad:</strong> {{ nationality }}</p>
+        <p><strong>Número de identificación:</strong> {{ identification_number }}</p>
+    </div>
+
+    <div class="section">
+        <h2>Naturaleza del Consentimiento</h2>
+        <p><strong>Tipo de Duración:</strong> {{ agreement.get_duration_type_display }}</p>
+        {% if agreement.duration_type != 'single' %}
+        <p><strong>Duración Específica:</strong> {{ agreement.duration_amount }} {{ agreement.get_duration_unit_display }}</p>
+        {% endif %}
+        <p><strong>Preferencias de Intimidad:</strong> {{ consent_type }}</p>
+    </div>
+
+    <div class="section">
+        <h2>Declaración de Consentimiento</h2>
+        <p>Yo, {{ full_name }}, declaro que:</p>
+        <ol>
+            <li>Soy mayor de 18 años y me encuentro en pleno uso de mis facultades legales.</li>
+            <li>Entiendo completamente la naturaleza, alcance y duración del acuerdo consensuado privado.</li>
+            <li>Consiento voluntariamente a la realización del acuerdo consensuado privado por el período especificado.</li>
+            <li>He tenido la oportunidad de hacer preguntas y recibir respuestas claras.</li>
+            <li>Doy mi consentimiento libre, informado, específico e inequívoco para el acuerdo consensuado privado.</li>
+            <li>He sido informado/a de todas las implicaciones, incluyendo el derecho de retracto conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).</li>
+            <li>Entiendo que puedo revocar mi consentimiento en cualquier momento, notificando por escrito a través de la plataforma SEXSI.</li>
+        </ol>
+    </div>
+
+    <div class="signature-area">
+        <h2>Firma</h2>
+        <div class="signature-box">
+            <p>Firma del Anfitrión</p>
+        </div>
+        <div class="signature-box">
+            <p>Firma del Invitado</p>
+        </div>
+    </div>
+</body>
+</html>

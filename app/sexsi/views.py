@@ -101,6 +101,84 @@ class ConsentAgreementListView(ListView):
 
 @login_required
 def create_agreement(request):
+    """Vista para crear un nuevo acuerdo de consentimiento."""
+    if request.method == 'POST':
+        form = ConsentAgreementForm(request.POST, request.FILES)
+        if form.is_valid():
+            agreement = form.save(commit=False)
+            agreement.creator = request.user
+            agreement.status = 'draft'
+            
+            # Verificación de edad del creador
+            if agreement.creator_date_of_birth:
+                agreement.creator_age_verified = True
+                agreement.creator_age_verification_date = now()
+            
+            agreement.save()
+            form.save_m2m()
+            
+            # Verificación de edad del invitado (si se especifica)
+            if agreement.invitee and agreement.invitee_date_of_birth:
+                agreement.invitee_age_verified = True
+                agreement.invitee_age_verification_date = now()
+                agreement.save()
+            
+            # Agregar preferencias seleccionadas
+            if 'consensual_activities' in request.POST:
+                agreement.preferences.set(request.POST.getlist('consensual_activities'))
+            
+            messages.success(request, 'El acuerdo ha sido creado exitosamente.')
+            return redirect('sexsi:agreement_detail', agreement_id=agreement.id)
+    else:
+        form = ConsentAgreementForm()
+    
+    return render(request, 'consent_form.html', {'form': form})
+
+@login_required
+def agreement_detail(request, agreement_id):
+    """Muestra los detalles de un acuerdo."""
+    agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
+    return render(request, 'agreement_detail.html', {'agreement': agreement})
+
+@login_required
+def agreement_edit(request, agreement_id):
+    """Edita un acuerdo existente."""
+    agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
+    if request.method == 'POST':
+        form = ConsentAgreementForm(request.POST, request.FILES, instance=agreement)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'El acuerdo ha sido actualizado exitosamente.')
+            return redirect('sexsi:agreement_detail', agreement_id=agreement.id)
+    else:
+        form = ConsentAgreementForm(instance=agreement)
+    return render(request, 'consent_form.html', {'form': form})
+
+@login_required
+def sign_agreement(request, agreement_id, signer, token):
+    """Firma un acuerdo."""
+    agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
+    if validate_token(agreement, token):
+        if signer == 'creator':
+            agreement.is_signed_by_creator = True
+        else:
+            agreement.is_signed_by_invitee = True
+        agreement.save()
+        messages.success(request, 'El acuerdo ha sido firmado exitosamente.')
+        return redirect('sexsi:agreement_detail', agreement_id=agreement.id)
+    return redirect('sexsi:agreement_detail', agreement_id=agreement.id)
+
+@login_required
+def cancel_agreement(request, agreement_id):
+    """Cancela un acuerdo."""
+    agreement = get_object_or_404(ConsentAgreement, id=agreement_id)
+    agreement.status = 'cancelled'
+    agreement.save()
+    messages.success(request, 'El acuerdo ha sido cancelado.')
+    return redirect('sexsi:agreement_list')
+
+@login_required
+def create_agreement(request):
     if request.method == 'POST':
         form = ConsentAgreementForm(request.POST)
         if form.is_valid():
@@ -218,6 +296,118 @@ def generate_pdf_response(agreement):
     response = HttpResponse(pdf_file, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="agreement_{agreement.id}.pdf"'
     return response
+
+# Funciones auxiliares
+
+def validate_internal_token(signature, token):
+    """Valida que el token de firma interna sea válido y no haya expirado."""
+    return str(signature.token) == token and signature.is_token_valid()
+
+@login_required
+def create_internal_signature(request):
+    """Crea una nueva firma interna."""
+    if request.method == 'POST':
+        document_name = request.POST.get('document_name')
+        document_description = request.POST.get('document_description')
+        document_file = request.FILES.get('document_file')
+        reviewer_id = request.POST.get('reviewer_id')
+        business_unit_id = request.POST.get('business_unit_id')
+        
+        if not all([document_name, document_description, document_file, business_unit_id]):
+            messages.error(request, "⚠️ Todos los campos son requeridos.")
+            return redirect('sexsi:internal_signature_list')
+
+        try:
+            reviewer = Person.objects.get(id=reviewer_id)
+            business_unit = BusinessUnit.objects.get(id=business_unit_id)
+            
+            signature = InternalDocumentSignature.objects.create(
+                creator=request.user,
+                reviewer=reviewer,
+                document_name=document_name,
+                document_description=document_description,
+                document_file=document_file,
+                business_unit=business_unit
+            )
+            
+            messages.success(request, "✅ Firma interna creada exitosamente.")
+            return redirect('sexsi:internal_signature_detail', pk=signature.pk)
+            
+        except (Person.DoesNotExist, BusinessUnit.DoesNotExist):
+            messages.error(request, "⚠️ Usuario o Unidad de Negocio no encontrado.")
+            return redirect('sexsi:internal_signature_list')
+    
+    business_units = BusinessUnit.objects.all()
+    return render(request, 'internal_signature_form.html', {
+        'business_units': business_units,
+        'action': 'create'
+    })
+
+@login_required
+def internal_signature_list(request):
+    """Lista todas las firmas internas del usuario."""
+    signatures = InternalDocumentSignature.objects.filter(creator=request.user)
+    return render(request, 'internal_signature_list.html', {
+        'signatures': signatures
+    })
+
+@login_required
+def internal_signature_detail(request, pk):
+    """Muestra los detalles de una firma interna."""
+    signature = get_object_or_404(InternalDocumentSignature, pk=pk)
+    
+    if signature.creator != request.user and signature.reviewer != request.user:
+        messages.error(request, "⚠️ No tienes permiso para ver esta firma.")
+        return redirect('sexsi:internal_signature_list')
+    
+    return render(request, 'internal_signature_detail.html', {
+        'signature': signature
+    })
+
+@login_required
+def internal_signature_sign(request, pk, signer, token):
+    """Maneja el proceso de firma de un documento interno."""
+    signature = get_object_or_404(InternalDocumentSignature, pk=pk)
+    
+    if not validate_internal_token(signature, token):
+        messages.error(request, "⚠️ Token inválido o expirado.")
+        return redirect('sexsi:internal_signature_detail', pk=pk)
+    
+    if request.method == 'POST':
+        signature_file = request.FILES.get('signature')
+        
+        if not signature_file:
+            messages.error(request, "⚠️ Debes subir una firma.")
+            return redirect('sexsi:internal_signature_detail', pk=pk)
+        
+        if signer == 'creator':
+            signature.creator_signature = signature_file
+            signature.mark_as_signed_by_creator()
+        elif signer == 'reviewer':
+            signature.reviewer_signature = signature_file
+            signature.mark_as_signed_by_reviewer()
+        
+        messages.success(request, "✅ Firma registrada exitosamente.")
+        return redirect('sexsi:internal_signature_detail', pk=pk)
+    
+    return render(request, 'internal_signature_sign.html', {
+        'signature': signature,
+        'signer': signer,
+        'token': token
+    })
+
+@login_required
+def internal_signature_cancel(request, pk):
+    """Cancela una firma interna."""
+    signature = get_object_or_404(InternalDocumentSignature, pk=pk)
+    
+    if signature.creator != request.user:
+        messages.error(request, "⚠️ No tienes permiso para cancelar esta firma.")
+        return redirect('sexsi:internal_signature_detail', pk=pk)
+    
+    signature.cancel()
+    messages.success(request, "✅ Firma cancelada exitosamente.")
+    return redirect('sexsi:internal_signature_list')
 
 # Funciones auxiliares
 

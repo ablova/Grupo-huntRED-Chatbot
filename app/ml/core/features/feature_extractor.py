@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 from app.models import Person, Vacante
 from app.ml.core.analyzers import BaseAnalyzer
-from app.ml.core.models import BaseModel
+from app.ml.core.models.base import BaseModel
 from app.ml.core.utils import DistributedCache
 from app.ml.core.scheduling import AsyncProcessor
 import numpy as np
@@ -34,8 +34,22 @@ class FeatureExtractor:
         """
         Inicializa los analizadores disponibles.
         """
-        # Implementar inicialización de analizadores
-        pass
+        try:
+            from app.ml.core.analyzers import SkillAnalyzer, CulturalFitAnalyzer
+            
+            # Inicializar analizadores
+            self.skill_analyzer = SkillAnalyzer()
+            self.cultural_fit_analyzer = CulturalFitAnalyzer()
+            
+            # Registrar analizadores
+            self.register_analyzer('skills', self.skill_analyzer)
+            self.register_analyzer('cultural_fit', self.cultural_fit_analyzer)
+            
+            logger.info("Analizadores inicializados correctamente")
+            
+        except Exception as e:
+            logger.error(f"Error inicializando analizadores: {e}")
+            raise
 
     def register_analyzer(self, name: str, analyzer: BaseAnalyzer) -> None:
         """
@@ -105,29 +119,43 @@ class FeatureExtractor:
             np.ndarray: Vector de características completo
         """
         try:
-            # Extraer características numéricas
-            features = [
-                self._normalize_score(sum(results[0].values()) / len(results[0])),  # Puntaje de habilidades
-                self._normalize_score(sum(results[1].values()) / len(results[1])),  # Puntaje cultural
-                results[2],  # Predicción de tiempo de contratación
-                results[3],  # Riesgo de rotación
-                self._normalize_score(person.years_of_experience),  # Años de experiencia
-                self._normalize_score(person.education_level),  # Nivel educativo
-                self._normalize_score(vacancy.salary_range),  # Rango salarial
-                self._normalize_score(vacancy.required_experience),  # Experiencia requerida
-                self._normalize_score(vacancy.required_education),  # Educación requerida
-                self._normalize_score(vacancy.location_score),  # Puntaje de ubicación
-                self._normalize_score(results[4]['demand'].get(vacancy.industry, 1.0)),  # Demanda del sector
-                self._normalize_score(results[4]['salary'].get(vacancy.level, 1.0)),  # Tendencia salarial
-                self._normalize_score(results[4]['skills'].get(vacancy.main_skill, 1.0)),  # Tendencia de habilidades
-                self._normalize_score(results[4]['locations'].get(vacancy.location, 1.0))  # Tendencia geográfica
-            ]
+            # Extraer resultados por analizador
+            skill_results = results[0]  # Resultados del SkillAnalyzer
+            cultural_fit = results[1]  # Resultados del CulturalFitAnalyzer
             
-            return np.array(features)
+            # Construir vector de características
+            features = []
+            
+            # 1. Características de habilidades (512 dimensiones)
+            features.extend(skill_results['embedding'])
+            
+            # 2. Métricas de ajuste cultural (8 dimensiones)
+            features.append(cultural_fit['cultural_alignment'])
+            features.append(cultural_fit['values_alignment'])
+            features.append(cultural_fit['behavior_alignment'])
+            features.append(cultural_fit['communication_alignment'])
+            features.append(cultural_fit['team_alignment'])
+            features.append(cultural_fit['leadership_alignment'])
+            features.append(cultural_fit['workstyle_alignment'])
+            features.append(cultural_fit['growth_alignment'])
+            
+            # 3. Características adicionales (6 dimensiones)
+            features.append(person.years_of_experience / 50)  # Normalizado 0-1
+            features.append(person.education_level / 5)  # Normalizado 0-1
+            features.append(person.certifications_count / 10)  # Normalizado 0-1
+            features.append(vacancy.required_experience / 10)  # Normalizado 0-1
+            features.append(vacancy.required_education_level / 5)  # Normalizado 0-1
+            features.append(vacancy.required_certifications_count / 10)  # Normalizado 0-1
+            
+            # Convertir a numpy array y normalizar
+            features_array = np.array(features)
+            features_array = (features_array - features_array.min()) / (features_array.max() - features_array.min())
+            
+            return features_array
             
         except Exception as e:
             logger.error(f"Error construyendo vector de características: {e}")
-            return np.zeros(14)
+            return np.zeros(526)  # 512 + 8 + 6
 
     def _normalize_score(self, score: float) -> float:
         """
@@ -139,4 +167,11 @@ class FeatureExtractor:
         Returns:
             float: Puntaje normalizado
         """
-        return max(0, min(1, score))
+        try:
+            # Asegurar que el score esté en un rango válido
+            score = max(0, min(1, score))
+            return float(score)
+            
+        except Exception as e:
+            logger.error(f"Error normalizando puntaje: {e}")
+            return 0.0

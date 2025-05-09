@@ -1,5 +1,4 @@
-<!-- Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/pdf_template.html -->
-
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/pdf_template.html-->
 <!DOCTYPE html>
 <html>
 <head>
@@ -42,7 +41,7 @@
 </div>
     <hr>
     <div class="section">
-        <h2>Información de la Transacción</h2>
+        <h2>Información del Acuerdo Consensuado Privado</h2>
         <p><strong>ID del Acuerdo:</strong> {{ agreement.id }}</p>
         <p><strong>Origen de la Solicitud:</strong> Plataforma SeXSI - Seguridad Personal (Íntima)</p>
         <p><strong>Fecha de Solicitud:</strong> {{ agreement.date_created|date:"d/m/Y" }}</p>
@@ -50,8 +49,8 @@
     </div>
     <div class="section">
         <h2>Información de las Partes</h2>
-        <p><strong>Creador:</strong> {{ agreement.creator.username }}</p>
-        <p><strong>Ubicación del Creador:</strong>
+        <p><strong>Anfitrión:</strong> {{ agreement.creator.username }}</p>
+        <p><strong>Ubicación del Anfitrión:</strong>
             {% if agreement.creator.profile.location %}
                 {{ agreement.creator.profile.location }}
             {% else %}
@@ -64,22 +63,22 @@
     <div class="section">
         <h2>Detalles del Encuentro</h2>
         <p><strong>Fecha de Encuentro:</strong> {{ agreement.date_of_encounter }}</p>
-        <p><strong>Ubicación del Encuentro:</strong> {{ agreement.location }}</p>
+        <p><strong>Ubicación del Encuentro (Aproximado y Opcional):</strong> {{ agreement.location }}</p>
         <p><strong>Texto del Acuerdo:</strong></p>
         <p>{{ agreement.agreement_text }}</p>
     </div>
     <hr>
     <div class="section signature">
         <h2>Firmas y Verificación</h2>
-        <p><strong>Selfie del Creador:</strong></p>
+        <p><strong>Selfie del Anfitrión:</strong></p>
         {% if agreement.creator_selfie %}
-            <img src="{{ agreement.creator_selfie.url }}" alt="Selfie del Creador">
+            <img src="{{ agreement.creator_selfie.url }}" alt="Selfie del Anfitrión">
         {% else %}
             <p>No disponible</p>
         {% endif %}
-        <p><strong>Firma del Creador:</strong></p>
+        <p><strong>Firma del Anfitrión:</strong></p>
         {% if agreement.creator_signature %}
-            <img src="{{ agreement.creator_signature.url }}" alt="Firma del Creador">
+            <img src="{{ agreement.creator_signature.url }}" alt="Firma del Anfitrión">
         {% else %}
             <p>No disponible</p>
         {% endif %}

@@ -19,8 +19,8 @@ from asgiref.sync import sync_to_async
 from app.chatbot.utils import get_nlp_processor  # Importar desde utils.py
 from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
 from app.chatbot.integrations.services import send_email, send_message
-from app.ml.ml_model import MatchmakingLearningSystem
-from app.chatbot.utils import prioritize_interests, get_positions_by_skills
+from app.ml.core.models.matchmaking.matchmaking import MatchmakingModel
+from app.chatbot.utils import ChatbotUtils
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
@@ -94,6 +94,20 @@ class VacanteManager:
         self.api_url = None
         self.headers = None
         self.client = None
+
+    async def should_publish_to_linkedin(self, vacante: Vacante) -> bool:
+        """
+        Determina si una vacante debe ser publicada en LinkedIn.
+
+        Args:
+            vacante (Vacante): La vacante a evaluar.
+        Returns:
+            bool: True si debe publicarse, False en caso contrario.
+        """
+        # Solo publicar en LinkedIn si:
+        # 1. Es una vacante manual o de WordPress
+        # 2. No es una vacante obtenida por scraping o email
+        return vacante.origen in ['manual', 'wordpress']
 
     async def initialize(self):
         """Método asíncrono para inicializar configuraciones."""
@@ -663,8 +677,8 @@ class VacanteManager:
 
     def suggest_positions(self, extracted_skills, interests):
         """ Sugiere posiciones basadas en habilidades detectadas e intereses expresados. """
-        prioritized_skills, skill_weights = prioritize_interests(extracted_skills, interests)
-        positions = get_positions_by_skills(prioritized_skills)
+        prioritized_skills, skill_weights = ChatbotUtils.prioritize_interests(extracted_skills, interests)
+        positions = ChatbotUtils.get_positions_by_skills(prioritized_skills)
         return {
             "positions": positions,
             "prioritized_skills": prioritized_skills,

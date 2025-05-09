@@ -36,7 +36,7 @@
         {% for op in operations %}
         <div class="kanban-item">
             <strong>ID:</strong> {{ op.id }}<br>
-            <strong>Creador - {{ op.invitee_contact }}:</strong> {{ op.creator.username }}<br>
+            <strong>Anfitrión - {{ op.invitee_contact }}:</strong> {{ op.creator.username }}<br>
             <strong>Fecha:</strong> {{ op.date_created|date:"d/m/Y H:i" }}<br>
             <strong>Método:</strong> {{ op.signature_method|capfirst }}
         </div>

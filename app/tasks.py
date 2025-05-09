@@ -36,10 +36,10 @@ from app.utilidades.scraping import (
     validar_url, ScrapingPipeline, scrape_and_publish, process_domain
 )
 from app.utilidades.scraping_utils import ScrapingMetrics
-from app.ml.ml_scrape import MLScraper
+from app.ml.utils.scrape import MLScraper
 from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
-from app.ml.ml_model import GrupohuntREDMLPipeline, MatchmakingLearningSystem
-from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
+from app.ml.core.models.matchmaking import GrupohuntREDMLPipeline, MatchmakingLearningSystem
+from app.ml.core.optimizers import check_system_load, configure_tensorflow_based_on_load
 from app.utilidades.catalogs import DIVISIONES
 import json
 import os

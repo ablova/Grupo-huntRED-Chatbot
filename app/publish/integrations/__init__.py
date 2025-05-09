@@ -33,10 +33,12 @@ def register_integrations():
         return
         
     from . import whatsapp, telegram
+    from .linkedin import LinkedInIntegration
     
     # Registrar integraciones
     register_integration('whatsapp', whatsapp.WhatsAppIntegration())
     register_integration('telegram', telegram.TelegramIntegration())
+    register_integration('linkedin', LinkedInIntegration())
 
 def initialize_integrations():
     """

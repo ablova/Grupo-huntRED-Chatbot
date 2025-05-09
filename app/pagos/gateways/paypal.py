@@ -1,12 +1,30 @@
-import os
-from paypalrestsdk import Api, Payment, Payout
 from django.conf import settings
+from app.models import ApiConfig
 from app.pagos.models import Pago
+from paypalrestsdk import Api, Payment, Payout
 
 class PayPalGateway:
-    def __init__(self):
-        self.api = Api({
-            'mode': settings.PAYPAL_MODE,  # 'sandbox' o 'live'
+    def __init__(self, business_unit=None):
+        """
+        Inicializa el gateway de PayPal.
+        
+        Args:
+            business_unit: Unidad de negocio asociada (opcional)
+        """
+        self.business_unit = business_unit
+        self.api = self._get_api_config()
+    
+    def _get_api_config(self):
+        """Obtiene la configuración de API de PayPal"""
+        config = ApiConfig.get_config('paypal', self.business_unit)
+        if config:
+            return Api({
+                'mode': config.additional_settings.get('environment', 'production'),
+                'client_id': config.api_key,
+                'client_secret': config.api_secret,
+            })
+        return Api({
+            'mode': settings.PAYPAL_MODE,
             'client_id': settings.PAYPAL_CLIENT_ID,
             'client_secret': settings.PAYPAL_CLIENT_SECRET,
         })

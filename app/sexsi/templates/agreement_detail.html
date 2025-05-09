@@ -1,46 +1,137 @@
 <!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/agreement_detail.html -->
 
-{% extends "base.html" %}
+{% extends "sexsi/base.html" %}
 {% block content %}
-<h1>Detalle del Acuerdo SEXSI</h1>
+<div class="container">
+    <div class="card mt-4">
+        <div class="card-header">
+            <h2 class="mb-0">Detalles del Acuerdo</h2>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <p><strong>Estado:</strong> {{ agreement.get_status_display }}</p>
+                    <p><strong>Fecha de Encuentro:</strong> {{ agreement.date_of_encounter }}</p>
+                    <p><strong>Lugar:</strong> {{ agreement.location }}</p>
+                    <p><strong>Duración:</strong> 
+                        {{ agreement.get_duration_type_display }}
+                        {% if agreement.duration_type != 'single' %}
+                            ({{ agreement.duration_amount }} {{ agreement.get_duration_unit_display }})
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <div class="notifications-section">
+                        <h3>Notificaciones</h3>
+                        <div class="notifications-list">
+                            {% for notification in agreement.notifications.all %}
+                            <div class="notification-item {% if notification.is_read %}read{% endif %}">
+                                <div class="notification-type">
+                                    {{ notification.get_type_display }}
+                                </div>
+                                <div class="notification-content">
+                                    <p>{{ notification.message }}</p>
+                                    <small>{{ notification.date_created }}</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-<p><strong>ID del Acuerdo:</strong> {{ agreement.id }}</p>
-<p><strong>Creador - {{ agreement.invitee_contact }}:</strong> {{ agreement.creator.username }}</p>
-<p><strong>Invitado - {{ agreement.invitee_contact }}:</strong> {{ agreement.invitee_contact }}</p>
-<p><strong>Fecha de Solicitud:</strong> {{ agreement.date_created|date:"d/m/Y" }}</p>
-<p><strong>Hora de Solicitud:</strong> {{ agreement.date_created|time:"H:i:s" }}</p>
-<p><strong>Origen de la Solicitud:</strong> ChatBot</p>
+            <div class="preferences-section">
+                <h3>Preferencias del Acuerdo</h3>
+                <div class="preferences-list">
+                    {% for preference in agreement.preferences.all %}
+                    <div class="preference-item">
+                        <strong>{{ preference.code }}</strong> - {{ preference.name }}
+                        <p>{{ preference.description }}</p>
+                        <small class="text-muted">Compatible con: {{ preference.allowed_durations|join:", " }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if agreement.creator == user and agreement.status != 'completed' %}
+                <div class="edit-preferences">
+                    <button type="button" class="btn btn-primary" onclick="navigateToPreferenceUpdate()">
+                        Editar Preferencias
+                    </button>
+                </div>
+                {% endif %}
+            </div>
 
-<p><strong>Fecha de Encuentro:</strong> {{ agreement.date_of_encounter }}</p>
-<p><strong>Ubicación del Encuentro:</strong> {{ agreement.location }}</p>
+            <div class="agreement-actions mt-4">
+                {% if agreement.creator == user and agreement.status != 'completed' %}
+                    <button type="button" class="btn btn-primary" onclick="navigateToAgreementEdit()">
+                        Editar Acuerdo
+                    </button>
+                {% endif %}
+                
+                {% if agreement.creator == user and agreement.status == 'pending' %}
+                    <button type="button" class="btn btn-success" onclick="signAgreement('creator')">
+                        Firmar como Anfitrión
+                    </button>
+                {% endif %}
+                
+                {% if agreement.invitee == user and agreement.status == 'signed_by_creator' %}
+                    <button type="button" class="btn btn-success" onclick="signAgreement('invitee')">
+                        Aceptar Invitación
+                    </button>
+                {% endif %}
 
-<p><strong>Texto del Acuerdo:</strong> {{ agreement.agreement_text }}</p>
-<p><strong>Firmado por el Creador:</strong> {{ agreement.is_signed_by_creator }}</p>
-<p><strong>Firmado por el Invitado:</strong> {{ agreement.is_signed_by_invitee }}</p>
+                {% if agreement.invitee == user and agreement.status == 'pending' %}
+                    <a href="{% url 'sexsi:sign_agreement' agreement.id %}?token={{ agreement.token }}" class="btn btn-primary">
+                        Firmar como Invitado
+                    </a>
+                {% endif %}
 
-<p><strong>Ubicación del Creador:</strong> 
-    {% if agreement.creator.profile.location %}
-        {{ agreement.creator.profile.location }}
-    {% else %}
-        No disponible
-    {% endif %}
-</p>
-<p><strong>Ubicación del Invitado:</strong> No disponible</p>
+                {% if agreement.is_signed_by_creator and agreement.is_signed_by_invitee %}
+                    <a href="{% url 'sexsi:download_pdf' agreement.id %}" class="btn btn-info">
+                        Descargar PDF del Acuerdo
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 
-{% if not agreement.is_signed_by_creator %}
-    <p>
-        <a href="{% url 'sexsi:sign_agreement' agreement.id %}?signer=creator&token={{ agreement.token }}">Firmar como Creador</a>
-    </p>
-{% endif %}
-{% if not agreement.is_signed_by_invitee %}
-    <p>
-        <a href="{% url 'sexsi:sign_agreement' agreement.id %}?token={{ agreement.token }}">Firmar como Invitado</a>
-    </p>
-{% endif %}
+<script>
+const preferenceUpdateUrl = "{% url 'sexsi:preference_update' agreement.id|slugify %}";
+const agreementEditUrl = "{% url 'sexsi:agreement_edit' agreement.id|slugify %}";
+const signAgreementUrl = "{% url 'sexsi:agreement_sign' agreement.id %}";
 
-{% if agreement.is_signed_by_creator and agreement.is_signed_by_invitee %}
-    <p>
-        <a href="{% url 'sexsi:download_pdf' agreement.id %}">Descargar PDF del Acuerdo</a>
-    </p>
-{% endif %}
+function navigateToPreferenceUpdate() {
+    window.location.href = preferenceUpdateUrl;
+}
+
+function navigateToAgreementEdit() {
+    window.location.href = agreementEditUrl;
+}
+
+function signAgreement(role) {
+    fetch(signAgreementUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+            role: role
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        alert("Error al firmar el acuerdo");
+    });
+}
+</script>
 {% endblock %}

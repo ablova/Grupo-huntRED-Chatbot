@@ -40,13 +40,27 @@ ML_CONFIG = {
             'TIMEOUT': 30,
             'RETRY_ATTEMPTS': 3,
             'QUEUE_SIZE': 1000
+        },
+        'ASYNC': {
+            'MAX_CONCURRENT_TASKS': 5,
+            'TASK_TIMEOUT': 60,
+            'RETRY_DELAY': 5,
+            'MAX_RETRIES': 3
         }
     },
     'PREDICTION': {
         'CONFIDENCE_THRESHOLD': 0.7,
         'MIN_MATCH_SCORE': 0.5,
         'MAX_RECOMMENDATIONS': 10,
-        'CACHE_TTL': 3600  # 1 hora
+        'CACHE_TTL': 3600,  # 1 hora
+        'DATA_VALIDATION': {
+            'MIN_EXPERIENCE': 0,
+            'MAX_EXPERIENCE': 50,
+            'MIN_SALARY': 0,
+            'MAX_SALARY': 500000,
+            'MIN_EDUCATION': 0,
+            'MAX_EDUCATION': 6
+        }
     },
     'BUSINESS': {
         'UNITS': {

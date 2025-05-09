@@ -7,47 +7,89 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ConversationalFlowManager:
+    """
+    Gestor de flujo conversacional para el chatbot.
+    
+    Características:
+    - Manejo de estados de conversación
+    - Transiciones de estado basadas en intents
+    - Gestión de contexto y memoria
+    - Integración con ML para respuestas dinámicas
+    
+    Estructura:
+    1. Manejo de estados
+    2. Detección de intents
+    3. Transiciones de estado
+    4. Gestión de contexto
+    5. Generación de respuestas
+    
+    Uso:
+    1. Inicializar con unidad de negocio
+    2. Procesar mensajes usando process_message()
+    3. Obtener respuestas usando get_response()
+    
+    Ejemplo:
+    ```python
+    flow_manager = ConversationalFlowManager(business_unit)
+    response = flow_manager.process_message(person, "Hola")
+    ```
+    """
+
     def __init__(self, business_unit: BusinessUnit):
+        """
+        Inicializa el gestor de flujo conversacional.
+        
+        Args:
+            business_unit (BusinessUnit): Unidad de negocio asociada
+        """
         self.business_unit = business_unit
         self.current_state = None
         self.context = {}
+        
+        # Inicializar componentes
+        self.intent_detector = IntentDetector(business_unit)
+        self.state_manager = StateManager(business_unit)
+        self.context_manager = ContextManager(business_unit)
+        self.response_generator = ResponseGenerator(business_unit)
 
-    def process_message(self, person: Person, message: str) -> dict:
+    async def process_message(self, person: Person, message: str) -> dict:
         """
         Procesa un mensaje y determina la siguiente acción del flujo conversacional.
         
         Args:
-            person: El usuario que envía el mensaje
-            message: El mensaje recibido
+            person (Person): El usuario que envía el mensaje
+            message (str): El mensaje recibido
             
         Returns:
-            dict: Respuesta con el siguiente estado y acciones
+            dict: Respuesta con:
+                - next_state: Estado siguiente
+                - response: Respuesta al usuario
+                - actions: Acciones a realizar
+                - context: Contexto actualizado
         """
         try:
             with transaction.atomic():
                 # 1. Obtener o crear el estado actual del chat
-                chat_state, _ = ChatState.objects.get_or_create(
+                chat_state, _ = await ChatState.objects.aget_or_create(
                     person=person,
                     business_unit=self.business_unit
                 )
                 
-                # 2. Determinar el intent del mensaje
-                intent = self._determine_intent(message)
+                # 2. Detectar intent
+                intent = await self.intent_detector.detect_intent(message)
                 
                 # 3. Verificar condiciones de contexto
-                if not self._check_context_conditions(intent):
-                    return self._handle_context_failure()
+                if not await self.context_manager.check_conditions(intent):
+                    return await self._handle_context_failure()
                 
-                # 4. Determinar la transición de estado
-                next_state = self._determine_next_state(intent)
+                # 4. Determinar transición de estado
+                next_state = await self.state_manager.determine_next_state(intent)
                 
-                # 5. Actualizar el estado del chat
-                chat_state.state = next_state
-                chat_state.last_transition = timezone.now()
-                chat_state.save()
+                # 5. Actualizar estado
+                await self.state_manager.update_state(chat_state, next_state)
                 
-                # 6. Obtener la respuesta apropiada
-                response = self._get_response(intent, next_state)
+                # 6. Generar respuesta
+                response = await self.response_generator.generate_response(intent, next_state)
                 
                 return {
                     'success': True,
@@ -57,7 +99,7 @@ class ConversationalFlowManager:
                 }
                 
         except Exception as e:
-            logger.error(f"Error processing message: {str(e)}")
+            logger.error(f"Error processing message: {str(e)}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)

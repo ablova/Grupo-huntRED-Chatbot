@@ -1,19 +1,15 @@
-# Documentación del Sistema de Chatbot, Machine Learning, Scraping & Parser de Grupo huntRED - Amigro.org
+# Documentación del Sistema de Chatbot de Grupo huntRED
 ## Índice
 
 1. [Introducción](#introducción)
 2. [Arquitectura del Sistema](#arquitectura-del-sistema)
-3. [Integraciones de Plataformas](#integraciones-de-plataformas)
-    - [WhatsApp](#whatsapp)
-    - [Messenger](#messenger)
-    - [Telegram](#telegram)
-    - [Instagram](#instagram)
-4. [Flujo de Conversación](#flujo-de-conversación)
-5. [Manejo de Estados de Chat](#manejo-de-estados-de-chat)
-6. [Envío de Mensajes](#envío-de-mensajes)
-7. [Manejo de Errores y Logs](#manejo-de-errores-y-logs)
-8. [Configuración y Despliegue](#configuración-y-despliegue)
-9. [Pruebas](#pruebas)
+3. [Componentes Principales](#componentes-principales)
+4. [Integraciones](#integraciones)
+5. [Flujo de Conversación](#flujo-de-conversación)
+6. [Manejo de Estados](#manejo-de-estados)
+7. [Sistema de Mensajería](#sistema-de-mensajería)
+8. [Pruebas y Verificación](#pruebas-y-verificación)
+9. [Configuración y Despliegue](#configuración-y-despliegue)
 10. [Mantenimiento](#mantenimiento)
 
 ---
@@ -24,21 +20,85 @@ Este documento describe la arquitectura, las funcionalidades y las integraciones
 
 ## Arquitectura del Sistema
 
-El sistema de chatbot de huntred.com está construido utilizando Django como framework principal, con componentes especializados para manejar múltiples solicitudes simultáneamente. Las principales componentes incluyen:
+El sistema de chatbot de Grupo huntRED está construido sobre una arquitectura modular y escalable, utilizando Django como framework principal. La estructura actual del sistema incluye:
 
-- **Django Models:** Definen las estructuras de datos para usuarios, estados de chat, configuraciones de API, y flujos de conversación.
-- **Integraciones de Plataformas:** Módulos dedicados para manejar la comunicación con diferentes plataformas de mensajería (WhatsApp, Messenger, Telegram, Instagram).
-- **Servicios de Mensajería:** Funciones reutilizables para enviar mensajes, imágenes, botones y otros elementos interactivos.
-- **ChatBotHandler:** Núcleo del chatbot que procesa los mensajes entrantes, determina las respuestas y gestiona el flujo de conversación.
-- **Utilidades NLP:** Herramientas para análisis de texto, detección de intenciones y sentimientos.
-- **Dashboard:** Sistema de visualización de datos en tiempo real con KPIs y métricas del sistema.
-- **Sistema de Gamificación:** Módulo que maneja el sistema de puntos, logros y badges para incentivar la participación de los usuarios.
+### Componentes Principales
 
-## Integraciones de Plataformas
+1. **Gestión de Conversación**
+   - `ConversationalFlowManager`: Gestiona el flujo de conversación y transiciones de estado
+   - `IntentDetector`: Detecta y clasifica las intenciones del usuario
+   - `StateManager`: Maneja las transiciones de estado
+   - `ContextManager`: Mantiene y actualiza el contexto de la conversación
+   - `ResponseGenerator`: Genera respuestas dinámicas basadas en el contexto
+   - `CVGenerator`: Genera currículums vitae basados en el perfil de LinkedIn
+
+2. **Sistema de Mensajería**
+   - `MessageService`: Servicio centralizado para el manejo de mensajes
+   - `RateLimiter`: Sistema de limitación de tasa para evitar abusos
+   - `Button`: Clase para manejar elementos interactivos
+   - `EmailService`: Servicio para envío de correos electrónicos
+   - `GamificationService`: Sistema de gamificación y recompensas
+
+3. **Integraciones**
+   - WhatsApp
+   - Telegram
+   - Messenger
+   - Instagram
+   - Slack
+   - LinkedIn (para validación y análisis de perfil)
+
+4. **Utilidades**
+   - Sistema de métricas y monitoreo
+   - Sistema de caché
+   - Manejo asíncrono de operaciones
+   - Integración con ML para análisis de texto
+   - CV Generator con validación LinkedIn
+   - Sistema de análisis de perfil integrado
+
+## Componentes Principales
+
+### Gestión de Conversación
+
+El sistema utiliza un enfoque modular para el manejo de conversaciones:
+
+1. **ConversationalFlowManager**
+   - Gestiona el flujo de conversación
+   - Maneja transiciones de estado
+   - Mantiene el contexto de la conversación
+   - Genera respuestas dinámicas
+
+2. **IntentDetector**
+   - Detecta intenciones del usuario
+   - Clasifica mensajes
+   - Maneja patrones de intent
+   - Implementa detección de fallback
+
+3. **StateManager**
+   - Maneja estados de conversación
+   - Valida transiciones
+   - Mantiene historial
+   - Implementa timeouts
+
+4. **ContextManager**
+   - Mantiene contexto de conversación
+   - Valida condiciones
+   - Actualiza estado
+   - Persiste contexto
+
+5. **ResponseGenerator**
+   - Genera respuestas dinámicas
+   - Maneja canales específicos
+   - Personaliza respuestas
+   - Implementa fallbacks
+
+6. **CVGenerator**
+   - Genera currículums vitae basados en el perfil de LinkedIn
+   - Valida la información del perfil
+   - Crea un currículum vitae personalizado
 
 ### WhatsApp
 
-- **Archivo:** `/home/amigro/app/integrations/whatsapp.py`
+- **Archivo:** `/home/pablo/app/chatbot/integrations/whatsapp.py`
 - **Funciones Principales:**
     - `whatsapp_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
     - `send_whatsapp_response`: Envía respuestas al usuario, incluyendo botones interactivos.
@@ -49,36 +109,281 @@ El sistema de chatbot de huntred.com está construido utilizando Django como fra
 
 ### Messenger
 
-- **Archivo:** `/home/amigro/app/integrations/messenger.py`
+- **Archivo:** `/home/pablo/app/chatbot/integrations/messenger.py`
 - **Funciones Principales:**
     - `messenger_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
     - `send_messenger_response`: Envía respuestas al usuario, incluyendo botones interactivos.
-    - `send_messenger_buttons`: Envía botones de respuesta rápida al usuario.
+    - `send_messenger_buttons`: Envía botones de decisión (Sí/No) al usuario.
 
 - **Configuraciones Clave:**
     - **MessengerAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de Messenger.
 
 ### Telegram
 
-- **Archivo:** `/home/amigro/app/integrations/telegram.py`
+- **Archivo:** `/home/pablo/app/chatbot/integrations/telegram.py`
 - **Funciones Principales:**
-    - `telegram_webhook`: Maneja los mensajes entrantes y las configuraciones de webhook.
+    - `telegram_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
     - `send_telegram_response`: Envía respuestas al usuario, incluyendo botones interactivos.
-    - `send_telegram_buttons`: Envía botones de respuesta rápida al usuario.
+    - `send_telegram_buttons`: Envía botones de decisión (Sí/No) al usuario.
 
 - **Configuraciones Clave:**
     - **TelegramAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de Telegram.
 
 ### Instagram
 
-- **Archivo:** `/home/amigro/app/integrations/instagram.py`
+- **Archivo:** `/home/pablo/app/chatbot/integrations/instagram.py`
 - **Funciones Principales:**
     - `instagram_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
     - `send_instagram_response`: Envía respuestas al usuario, incluyendo botones interactivos.
-    - `send_instagram_buttons`: Envía botones de respuesta rápida al usuario.
+    - `send_instagram_buttons`: Envía botones de decisión (Sí/No) al usuario.
 
 - **Configuraciones Clave:**
     - **InstagramAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de Instagram.
+
+### Slack
+
+- **Archivo:** `/home/pablo/app/chatbot/integrations/slack.py`
+- **Funciones Principales:**
+    - `slack_webhook`: Maneja la verificación del webhook y los mensajes entrantes.
+    - `send_slack_response`: Envía respuestas al usuario, incluyendo botones interactivos.
+    - `send_slack_buttons`: Envía botones de decisión (Sí/No) al usuario.
+
+- **Configuraciones Clave:**
+    - **SlackAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de Slack.
+
+### LinkedIn
+
+- **Archivo:** `/home/pablo/app/utilidades/cv_generator/cv_utils.py`
+- **Funciones Principales:**
+    - `get_linkedin_profile`: Obtiene información del perfil de LinkedIn.
+    - `validate_linkedin_data`: Valida los datos del perfil de LinkedIn.
+    - `generate_linkedin_insights`: Genera insights basados en el perfil de LinkedIn.
+    - `create_linkedin_verification`: Crea un sello de verificación basado en LinkedIn.
+
+- **Configuraciones Clave:**
+    - **LinkedInAPI:** Modelo que almacena las credenciales y configuraciones necesarias para interactuar con la API de LinkedIn.
+    - **VerificationSettings:** Configuraciones para la validación de perfiles.
+
+## Integraciones
+
+### Plataformas de Mensajería
+
+1. **WhatsApp**
+   - Manejo de mensajes y multimedia
+   - Soporte para plantillas
+   - Integración con MetaAPI
+   - Manejo de ubicaciones
+
+2. **Telegram**
+   - Soporte para mensajes y botones
+   - Manejo de multimedia
+   - Sistema de fallback
+   - Rate limiting
+
+3. **Messenger**
+   - Integración con Facebook
+   - Soporte para botones y listas
+   - Manejo de estados
+   - Sistema de caché
+
+4. **Instagram**
+   - Integración con DM
+   - Manejo de multimedia
+   - Sistema de fallback
+   - Rate limiting
+
+5. **Slack**
+   - Integración con workspaces
+   - Manejo de mensajes y archivos
+   - Sistema de fallback
+   - Rate limiting
+
+### Servicios de Integración
+
+1. **MessageService**
+   - Manejo centralizado de mensajes
+   - Cache de instancias
+   - Rate limiting
+   - Manejo de errores
+
+2. **IntentDetector**
+   - Detección de intents
+   - Manejo de sinónimos
+   - Sistema de fallback
+   - Métricas de rendimiento
+
+3. **ContextManager**
+   - Gestión de contexto
+   - Validación de estados
+   - Persistencia
+   - Métricas de uso
+
+## Firma Digital
+
+### Proveedores de Firma Digital
+
+El sistema soporta múltiples proveedores de firma digital:
+
+- **DocuSign**: Integración completa con la API de DocuSign para firmas digitales seguras
+- **Firma Básica**: Sistema interno de firma digital para casos simples
+
+### Configuración por Unidad de Negocio
+
+Cada unidad de negocio puede configurar su propio proveedor de firma digital:
+
+- **Huntu y HuntRED®**: Usan firma digital básica para Cartas Propuestas
+- **SEXSI**: Implementa un sistema híbrido de firma digital y escrita para Acuerdos de Consentimiento
+
+### Tipos de Documentos
+
+- **Cartas Propuestas**: Para Huntu y HuntRED®
+- **Acuerdos Mutuos**: Para SEXSI
+- **Acuerdos de Consentimiento**: Para SEXSI
+
+### Seguridad
+
+El sistema implementa múltiples capas de seguridad:
+
+- Validación de identidad
+- Encriptación de datos sensibles
+- Auditoría de firmas
+- Verificación de integridad documental
+
+## Flujo de Conversación
+
+### Componentes Principales
+
+1. **ConversationalFlowManager**
+   - Gestiona el flujo de conversación
+   - Maneja transiciones de estado
+   - Mantiene el contexto
+   - Genera respuestas dinámicas
+
+2. **IntentDetector**
+   - Detecta intenciones del usuario
+   - Clasifica mensajes
+   - Maneja patrones de intent
+   - Implementa detección de fallback
+
+3. **StateManager**
+   - Maneja estados de conversación
+   - Valida transiciones
+   - Mantiene historial
+   - Implementa timeouts
+
+4. **ContextManager**
+   - Mantiene contexto de conversación
+   - Valida condiciones
+   - Actualiza estado
+   - Persiste contexto
+
+5. **ResponseGenerator**
+   - Genera respuestas dinámicas
+   - Maneja canales específicos
+   - Personaliza respuestas
+   - Implementa fallbacks
+
+### Procesamiento de Datos
+
+- **Archivo:** `/home/pablo/app/ml/core/data_cleaning.py`
+- **Funcionalidades:**
+    - Limpieza y normalización de texto.
+    - Manejo de valores faltantes.
+    - Transformación de características.
+    - Validación de datos.
+
+### Procesamiento Asíncrono
+
+- **Archivo:** `/home/pablo/app/ml/core/async_processing.py`
+- **Características:**
+    - Caché para optimización de rendimiento.
+    - Manejo asíncrono de tareas.
+    - Procesamiento por lotes.
+    - Evaluación de modelos.
+
+### Pruebas y Verificación
+
+### Tests del Sistema
+
+1. **Conversational Flow**
+   - `test_conversational_flow.py`: Pruebas del flujo de conversación
+   - `test_components.py`: Pruebas de componentes individuales
+   - `test_services.py`: Pruebas de servicios de mensajería
+   - `test_intents.py`: Pruebas de detección de intents
+   - `test_context.py`: Pruebas de gestión de contexto
+
+2. **Integraciones**
+   - `test_whatsapp.py`: Pruebas de integración con WhatsApp
+   - `test_telegram.py`: Pruebas de integración con Telegram
+   - `test_messenger.py`: Pruebas de integración con Messenger
+   - `test_instagram.py`: Pruebas de integración con Instagram
+   - `test_slack.py`: Pruebas de integración con Slack
+
+3. **Utilidades**
+   - `test_rate_limiter.py`: Pruebas de limitación de tasa
+   - `test_cache.py`: Pruebas de caché
+   - `test_email.py`: Pruebas de envío de emails
+   - `test_gamification.py`: Pruebas de gamificación
+   - `test_metrics.py`: Pruebas de métricas
+
+### Configuración
+
+- **Archivo:** `/home/pablo/app/ml/ml_config.py`
+- **Configuraciones Clave:**
+    - Sistema: Configuración de TensorFlow y recursos.
+    - Almacenamiento: Manejo de modelos y caché.
+    - Rendimiento: Optimización y parámetros de procesamiento.
+    - Predicción: Umbral de confianza y validación de datos.
+    - Negocio: Pesos y prioridades por unidad de negocio.
+
+## Módulo de Pagos
+
+### Estructura del Módulo
+
+- **Archivo:** `/home/pablo/app/pagos/views/payment_views.py`
+- **Componentes Principales:**
+    - `PaymentGateway`: Interfaz base para todos los gateways de pago.
+    - `StripeGateway`: Implementación para Stripe.
+    - `PayPalGateway`: Implementación para PayPal.
+    - `MercadoPagoGateway`: Implementación para MercadoPago.
+
+### Servicios
+
+- **Archivo:** `/home/pablo/app/pagos/services.py`
+- **Funcionalidades:**
+    - Manejo de transacciones.
+    - Webhooks de notificación.
+    - Reembolsos.
+    - Historial de pagos.
+
+### Pruebas
+
+- **Archivos:**
+    - `/home/pablo/app/tests/test_pagos/test_gateways.py`
+    - `/home/pablo/app/tests/test_pagos/test_views.py`
+    - `/home/pablo/app/tests/test_pagos/test_services.py`
+    - `/home/pablo/app/tests/test_pagos/test_models.py`
+
+### Configuración
+
+- **Archivos de Configuración:**
+    - Configuración de API para cada gateway.
+    - Webhooks y URLs de notificación.
+    - Manejo de monedas y tipos de pago.
+    - Configuración de reembolsos.
+
+### Integraciones
+
+- **Gateways Disponibles:**
+    - Stripe
+    - PayPal
+    - MercadoPago
+
+- **Características Comunes:**
+    - Soporte para múltiples monedas.
+    - Manejo de errores consistente.
+    - Webhooks para notificaciones.
+    - Reembolsos automáticos.
 
 ## Flujo de Conversación
 
@@ -158,9 +463,9 @@ El sistema utiliza el módulo `logging` para registrar eventos importantes, erro
 1. **Renombrar Archivos Actuales:**
     - Antes de cargar los nuevos archivos, renombra los existentes añadiendo `_old` para preservarlos.
         ```bash
-        mv /home/amigro/app/integrations/messenger.py /home/amigro/app/integrations/messenger_old.py
-        mv /home/amigro/app/integrations/telegram.py /home/amigro/app/integrations/telegram_old.py
-        mv /home/amigro/app/integrations/instagram.py /home/amigro/app/integrations/instagram_old.py
+        mv /home/pablo/app/chatbot/integrations/messenger.py /home/pablo/app/chatbot/integrations/messenger_old.py
+        mv /home/pablo/app/chatbot/integrations/telegram.py /home/pablo/app/chatbot/integrations/telegram_old.py
+        mv /home/pablo/app/chatbot/integrations/instagram.py /home/pablo/app/chatbot/integrations/instagram_old.py
         ```
 
 2. **Cargar los Nuevos Archivos:**
@@ -250,7 +555,7 @@ Con estas mejoras, tu sistema de chatbot debería ser más robusto, eficiente y 
 
 
 ___________
-# /home/amigro/app/chatbot.py
+# /home/pablo/app/chatbot/chatbot.py
 import logging
 import asyncio
 import re
@@ -1284,7 +1589,7 @@ class ChatBotHandler:
             await send_message(platform, user_id, "Por favor, confirma tu asistencia respondiendo con 'Sí'.")
             
 _____________________
-# /home/amigro/app/integrations/services.py
+# /home/pablo/app/chatbot/integrations/services.py
 
 import logging
 import smtplib
@@ -1706,7 +2011,7 @@ async def send_message_with_image(platform: str, user_id: str, message: str, ima
     except Exception as e:
         logger.error(f"Error enviando mensaje con imagen en {platform} a {user_id}: {e}", exc_info=True)
 ___________________
-# /home/amigro/app/integrations/whatsapp.py
+# /home/pablo/app/chatbot/integrations/whatsapp.py
 
 import json
 import httpx
@@ -2592,4 +2897,4 @@ async def send_test_notification(user_id):
 
 
     _______
-sudo nano app/chatbot.py && cd app/integrations && sudo nano services.py whatsapp.py instagram.py messenger.py telegram.py && sudo systemctl restart gunicorn && cd /home/amigro && python manage.py migrate
+sudo nano app/chatbot/chatbot.py && cd app/integrations && sudo nano services.py whatsapp.py instagram.py messenger.py telegram.py && sudo systemctl restart gunicorn && cd /home/amigro && python manage.py migrate

@@ -21,7 +21,7 @@ class AppConfig(DjangoAppConfig):
         
         # Configurar TensorFlow solo si es necesario (por ejemplo, en runserver o celery)
         if 'runserver' in sys.argv or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
-            from app.ml.ml_opt import configure_tensorflow
+            from app.ml.core.optimizers import configure_tensorflow
             configure_tensorflow()
         
         # Configurar PDFKit

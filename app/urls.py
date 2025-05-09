@@ -98,7 +98,25 @@ urlpatterns += [
 # 📌 RUTAS DEL CHATBOT
 # ------------------------
 urlpatterns += [
+    # Rutas principales del chatbot
+    path('chatbot/<str:platform>/', ChatbotView.as_view(), name='chatbot_platform'),
     path('chatbot/process_message/', ProcessMessageView.as_view(), name='process_message'),
+    
+    # Rutas de webhooks
+    path('webhook/whatsapp/', WhatsAppWebhookView.as_view(), name='whatsapp_webhook'),
+    path('webhook/telegram/', TelegramWebhookView.as_view(), name='telegram_webhook'),
+    path('webhook/messenger/', MessengerWebhookView.as_view(), name='messenger_webhook'),
+    path('webhook/instagram/', InstagramWebhookView.as_view(), name='instagram_webhook'),
+    
+    # Rutas de integración
+    path('webhook/payment/', WebhookView.as_view(), name='payment_webhook'),
+    path('webhook/verification/', webhook_verification, name='verification_webhook'),
+    path('webhook/job_opportunity/', webhook_job_opportunity, name='job_opportunity_webhook'),
+    
+    # Rutas de prueba y utilidades
+    path('chatbot/test/message/', SendTestMessageView.as_view(), name='test_message'),
+    path('chatbot/test/notification/', SendTestNotificationView.as_view(), name='test_notification'),
+    path('chatbot/test/error/', TriggerErrorView.as_view(), name='trigger_error')
 ]
 
 # ------------------------
@@ -134,6 +152,9 @@ urlpatterns += [
 # ------------------------
 urlpatterns += [
     path('login/', login_view, name='login'),
+    
+    # Rutas de pagos
+    path('pagos/', include('app.pagos.urls', namespace='pagos')),
 ]
 
 # ----------------------------------------

@@ -128,11 +128,54 @@ class BotResponse(models.Model):
     metadata = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
 
-class JobChannel(models.Model):
+class Campaign(models.Model):
     """
-    Canales específicos para oportunidades laborales
+    Modelo para campañas de marketing y publicidad
     """
-    opportunity = models.ForeignKey(JobOpportunity, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=[
+        ('draft', 'Borrador'),
+        ('active', 'Activa'),
+        ('completed', 'Completada'),
+        ('cancelled', 'Cancelada')
+    ], default='draft')
+    budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    target_audience = models.JSONField(default=dict)
+    analytics = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Integración con CVs ciegos
+    enable_blind_integration = models.BooleanField(default=False)
+    blind_content = models.JSONField(default=dict)
+    last_updated = models.DateTimeField(null=True, blank=True)
+    
+    def update_blind_content(self, content: dict):
+        """
+        Actualiza el contenido para CVs ciegos
+        """
+        self.blind_content = content
+        self.last_updated = timezone.now()
+        self.save()
+    
+    def is_active(self):
+        """
+        Verifica si la campaña está activa
+        """
+        now = timezone.now()
+        return self.status == 'active' and self.start_date <= now <= self.end_date
+
+    def __str__(self):
+        return self.name
+
+class CampaignChannel(models.Model):
+    """
+    Asociación entre campaña y canales de publicación
+    """
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE)
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=[
         ('pending', 'Pendiente'),
@@ -144,3 +187,6 @@ class JobChannel(models.Model):
     published_at = models.DateTimeField(null=True, blank=True)
     analytics = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('campaign', 'channel')

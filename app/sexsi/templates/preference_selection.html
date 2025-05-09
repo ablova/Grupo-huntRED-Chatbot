@@ -1,0 +1,238 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/preference_selection.html-->
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Selección de Preferencias y Duración del Acuerdo</h1>
+            
+            <div class="card">
+                <div class="card-body">
+                    <form id="agreementForm">
+                        <!-- Sección de Duración -->
+                        <div class="mb-4">
+                            <h3>Duración del Acuerdo</h3>
+                            <div class="form-group">
+                                <label for="durationType">Tipo de Duración</label>
+                                <select class="form-control" id="durationType" name="duration_type" required>
+                                    <option value="single">Interacción de Una Sola Vez</option>
+                                    <option value="short_term">Acuerdo de Corto Plazo</option>
+                                    <option value="long_term">Acuerdo de Largo Plazo</option>
+                                </select>
+                            </div>
+                            
+                            <div id="durationDetails" class="mt-3" style="display: none;">
+                                <div class="form-group">
+                                    <label for="durationAmount">Cantidad</label>
+                                    <input type="number" class="form-control" id="durationAmount" name="duration_amount" min="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="durationUnit">Unidad de Tiempo</label>
+                                    <select class="form-control" id="durationUnit" name="duration_unit" required>
+                                        <option value="days">Días</option>
+                                        <option value="weeks">Semanas</option>
+                                        <option value="months">Meses</option>
+                                        <option value="years">Años</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección de Preferencias -->
+                        <div class="mb-4">
+                            <h3>Preferencias de Intimidad</h3>
+                            <div class="preference-categories">
+                                {% for category_id, category in preference_categories.items %}
+                                <div class="category-section mb-4" data-category="{{ category_id }}">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">{{ category.name }}</h5>
+                                            <p class="small text-muted">{{ category.description }}</p>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="practices-list">
+                                                {% for practice_id, practice in practices_by_category[category_id].items %}
+                                                <div class="practice-item mb-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               id="practice_{{ practice_id }}" 
+                                                               name="selected_practices" 
+                                                               value="{{ practice_id }}"
+                                                               {% if not practice.is_compatible_with_duration(current_duration_type) %}disabled{% endif %}>
+                                                        <label class="form-check-label" for="practice_{{ practice_id }}">
+                                                            <strong>{{ practice.name }}</strong>
+                                                            <br>
+                                                            <small class="text-muted">{{ practice.description }}</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="actions mt-4">
+                            <button type="submit" class="btn btn-primary">Guardar Acuerdo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.category-section {
+    margin-bottom: 2rem;
+    border: 1px solid #ddd;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+.practices-list {
+    margin-top: 1rem;
+}
+
+.practice-item {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.practice-item.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#durationDetails {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    border-radius: 5px;
+    margin-top: 1rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const durationTypeSelect = document.getElementById('durationType');
+    const durationDetails = document.getElementById('durationDetails');
+    const practiceCheckboxes = document.querySelectorAll('input[type="checkbox"][name="selected_practices"]');
+
+    // Mostrar/ocultar detalles de duración según el tipo seleccionado
+    durationTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        if (selectedType === 'single') {
+            durationDetails.style.display = 'none';
+        } else {
+            durationDetails.style.display = 'block';
+        }
+
+        // Actualizar la compatibilidad de las preferencias
+        updatePracticeCompatibility(selectedType);
+    });
+
+    // Función para actualizar la compatibilidad de las preferencias
+    function updatePracticeCompatibility(durationType) {
+        practiceCheckboxes.forEach(checkbox => {
+            const practiceId = checkbox.value;
+            const isCompatible = practiceIsCompatibleWithDuration(practiceId, durationType);
+            
+            checkbox.disabled = !isCompatible;
+            checkbox.closest('.practice-item').classList.toggle('disabled', !isCompatible);
+
+            // Desmarcar preferencias no compatibles
+            if (!isCompatible && checkbox.checked) {
+                checkbox.checked = false;
+            }
+        });
+    }
+
+    // Función para verificar la compatibilidad de una práctica
+    function practiceIsCompatibleWithDuration(practiceId, durationType) {
+        // Aquí iría la lógica para verificar la compatibilidad
+        // Por ahora, asumimos que todas las prácticas son compatibles
+        return true;
+    }
+
+    // Inicializar con el valor por defecto
+    updatePracticeCompatibility(durationTypeSelect.value);
+});
+</script>
+
+<style>
+.category-section {
+    margin-bottom: 2rem;
+    border: 1px solid #ddd;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+.practices-list {
+    margin-top: 1rem;
+}
+
+.practice-item {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.practice-item input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.actions {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+button {
+    padding: 0.5rem 1rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+</style>
+
+<script>
+document.getElementById('savePreferences').addEventListener('click', function() {
+    const selectedPractices = Array.from(document.querySelectorAll('input[name="selected_practices"]:checked'))
+        .map(checkbox => checkbox.value);
+    
+    fetch('/api/sexsi/preferences/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            selected_practices: selectedPractices
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Preferencias guardadas exitosamente');
+        } else {
+            alert('Error al guardar las preferencias: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al guardar las preferencias');
+    });
+});
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 # signature_handler.py - Manejo centralizado de firma electrónica y validación de identidad
 from app.utilidades.pdf_generator import generate_contract_pdf
-from app.utilidades.digital_sign import request_digital_signature
+from app.utilidades.signature.digital_signature_providers import get_signature_provider
 from django.core.files.storage import default_storage
 
 def generate_and_send_contract(candidate, client, job_position, business_unit):
@@ -12,19 +12,31 @@ def generate_and_send_contract(candidate, client, job_position, business_unit):
     # Generar PDF con las condiciones laborales
     file_path = generate_contract_pdf(candidate, client, job_position, contract_path)
 
-    # Enviar contrato al candidato para firma digital
-    request_digital_signature(
-        user=candidate,
+    # Obtener el proveedor de firma digital configurado
+    signature_provider = get_signature_provider(business_unit.name)
+
+    # Preparar destinatarios
+    recipients = [
+        {
+            "email": candidate.email,
+            "name": f"{candidate.first_name} {candidate.last_name}"
+        }
+    ]
+    
+    # Agregar cliente para Huntu y HuntRED®
+    if business_unit.name.lower() in ["huntu", "huntred"]:
+        recipients.append({
+            "email": client.email,
+            "name": f"{client.first_name} {client.last_name}"
+        })
+
+    # Crear solicitud de firma
+    signature_request = signature_provider.create_signature_request(
         document_path=file_path,
-        document_name=f"Carta Propuesta {job_position.title}.pdf"
+        recipients=recipients
     )
 
-    # Enviar al cliente en Huntu y HuntRED®
-    if business_unit.name.lower() in ["huntu", "huntred"]:
-        request_digital_signature(
-            user=client,
-            document_path=file_path,
-            document_name=f"Carta Propuesta {job_position.title}.pdf"
-        )
-
-    return file_path
+    return {
+        "file_path": file_path,
+        "signature_request": signature_request
+    }

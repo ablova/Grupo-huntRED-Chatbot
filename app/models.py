@@ -90,6 +90,9 @@ COMUNICATION_CHOICES=[
     ('incode','INCODE Verification'),
     ('blacktrust','BlackTrust Verification'),
     ('paypal','PayPal Payment Gateway'),
+    ('stripe','Stripe Payment Gateway'),
+    ('mercado_pago','MercadoPago Payment Gateway'),
+    ('linkedin','LinkedIn Job Posting'),
 ]
 API_CATEGORY_CHOICES=[
     ('VERIFICATION','Verificación de Identidad'),
@@ -99,6 +102,7 @@ API_CATEGORY_CHOICES=[
     ('SOCIAL_MEDIA','Redes Sociales'),
     ('SCRAPING','Extracción de Datos'),
     ('AI','Inteligencia Artificial'),
+    ('PAYMENT_GATEWAY','Pasarela de Pago'),
     ('REPORTING','Generación de Reportes'),
     ('ANALYTICS','Análisis de Datos'),
     ('STORAGE','Almacenamiento'),
@@ -272,31 +276,67 @@ class Worker(models.Model):
         return str(self.name)
 
 class Vacante(models.Model):
-    titulo=models.CharField(max_length=1000)
-    empresa=models.ForeignKey(Worker,on_delete=models.CASCADE)
-    business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,related_name='vacantes',null=True,blank=True)
-    salario=models.DecimalField(max_digits=10,decimal_places=2,null=True,blank=True)
-    ubicacion=models.CharField(max_length=300,blank=True,null=True)
-    descripcion=models.TextField(max_length=3000,blank=True)
-    requisitos=models.TextField(blank=True,null=True)
-    beneficios=models.TextField(blank=True,null=True)
-    skills_required=models.JSONField(default=list)
-    modalidad=models.CharField(max_length=50,choices=[('presencial','Presencial'),('remoto','Remoto'),('hibrido','Híbrido')],null=True,blank=True)
-    remote_friendly=models.BooleanField(default=False)
-    dominio_origen=models.ForeignKey('DominioScraping',on_delete=models.SET_NULL,null=True)
-    url_original=models.URLField(max_length=1000,blank=True,null=True)
-    fecha_publicacion=models.DateTimeField()
-    fecha_scraping=models.DateTimeField(auto_now_add=True)
-    activa=models.BooleanField(default=True)
-    required_count=models.IntegerField(default=1)
-    procesamiento_count=models.IntegerField(default=0)
-    current_stage=models.ForeignKey('WorkflowStage',on_delete=models.SET_NULL,null=True,blank=True,related_name='vacantes')
-    sentiment=models.CharField(max_length=20,blank=True,null=True)
-    job_classification=models.CharField(max_length=100,blank=True,null=True)
-    requiere_prueba_personalidad=models.BooleanField(default=False)
-    class Meta:
-        unique_together=['titulo','empresa','url_original']
-        ordering=['-fecha_publicacion']
+    titulo = models.CharField(max_length=1000)
+    empresa = models.ForeignKey(Worker, on_delete=models.CASCADE)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)
+    salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    ubicacion = models.CharField(max_length=300, blank=True, null=True)
+    modalidad = models.CharField(max_length=50, choices=[
+        ('presencial', 'Presencial'),
+        ('remoto', 'Remoto'),
+        ('hibrido', 'Híbrido')
+    ], null=True, blank=True)
+    remote_friendly = models.BooleanField(default=False)
+    descripcion = models.TextField(max_length=3000, blank=True)
+    requisitos = models.TextField(blank=True, null=True)
+    beneficios = models.TextField(blank=True, null=True)
+    skills_required = models.JSONField(default=list)
+    activa = models.BooleanField(default=True)
+    fecha_publicacion = models.DateTimeField()
+    fecha_scraping = models.DateTimeField(auto_now_add=True)
+    current_stage = models.ForeignKey('WorkflowStage', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
+    numero_plazas = models.IntegerField(default=1, help_text="Número total de plazas disponibles")
+    plazas_restantes = models.IntegerField(default=1, help_text="Número de plazas aún disponibles")
+    procesamiento_count = models.IntegerField(default=0, help_text="Número de candidatos en proceso")
+    publicar_en = models.JSONField(default=list, help_text="Plataformas donde se publicará la vacante")
+    frecuencia_publicacion = models.IntegerField(default=1, help_text="Frecuencia de publicación en días")
+    max_candidatos = models.IntegerField(default=100, help_text="Máximo número de candidatos a aceptar")
+    dominio_origen = models.ForeignKey('DominioScraping', on_delete=models.SET_NULL, null=True)
+    url_original = models.URLField(max_length=1000, blank=True, null=True)
+    sentiment = models.CharField(max_length=20, blank=True, null=True)
+    job_classification = models.CharField(max_length=100, blank=True, null=True)
+    requiere_prueba_personalidad = models.BooleanField(default=False)
+    # Campos de LinkedIn (temporalmente deshabilitados hasta obtener acceso a la API)
+    linkedin_job_id = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        help_text="ID de la publicación en LinkedIn (temporalmente no disponible)"
+    )
+    linkedin_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_posted', 'No publicado'),
+            ('manual', 'Publicado manualmente')
+        ],
+        default='not_posted',
+        help_text="Estado de la publicación en LinkedIn (temporalmente solo manual)"
+    )
+    # Origen de la vacante
+    ORIGEN_CHOICES = [
+        ('manual', 'Creada manualmente'),
+        ('scraping', 'Obtenida por scraping'),
+        ('email', 'Obtenida por email'),
+        ('wordpress', 'Sincronizada de WordPress')
+    ]
+    origen = models.CharField(
+        max_length=20,
+        choices=ORIGEN_CHOICES,
+        default='manual',
+        help_text="Origen de la vacante (manual, scraping, email o wordpress)"
+    )
+    unique_together = ['titulo', 'empresa', 'url_original']
+    ordering = ['-fecha_publicacion']
     def __str__(self):
         return f"{self.titulo} - {self.empresa}"
 
@@ -410,6 +450,8 @@ class JobTracker(models.Model):
     def handle_job_tracker_status_change(sender,instance,**kwargs):
         if instance.status=='completed':
             print(f"El JobTracker para {instance.opportunity} ha sido completado.")
+
+
 
 class Interview(models.Model):
     INTERVIEW_TYPE_CHOICES=[('presencial','Presencial'),('virtual','Virtual'),('panel','Panel')]
@@ -577,6 +619,86 @@ class ConfiguracionBU(models.Model):
             return {**self.weights,"ubicacion":15,"hard_skills":50,"soft_skills":25,"personalidad":10}
         return self.weights
 
+class InternalDocumentSignature(models.Model):
+    """
+    Modelo para manejar firmas digitales internas de documentos.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('pending', 'Pendiente'),
+        ('signed_by_creator', 'Firmado por Creador'),
+        ('signed_by_reviewer', 'Firmado por Revisor'),
+        ('completed', 'Completado'),
+        ('cancelled', 'Cancelado')
+    ]
+
+    creator = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='created_signatures')
+    reviewer = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='reviewed_signatures', null=True, blank=True)
+    document_name = models.CharField(max_length=200)
+    document_description = models.TextField()
+    document_file = models.FileField(upload_to='internal_documents/')
+    signature_method = models.CharField(
+        max_length=20, 
+        choices=(
+            ("digital", "Firma Digital"), 
+            ("electronic", "Firma Electrónica")
+        ),
+        default="digital"
+    )
+    
+    # Firma y validaciones
+    is_signed_by_creator = models.BooleanField(default=False)
+    is_signed_by_reviewer = models.BooleanField(default=False)
+    creator_signature = models.ImageField(upload_to='internal_signatures/', null=True, blank=True)
+    reviewer_signature = models.ImageField(upload_to='internal_signatures/', null=True, blank=True)
+    
+    # Seguridad y control
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    token_expiry = models.DateTimeField()
+    
+    # Estado y timestamps
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Relación con Business Unit
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='internal_signatures')
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['creator', 'document_file']
+
+    def __str__(self):
+        return f"Firma #{self.id} - {self.document_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.token_expiry:
+            self.token_expiry = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    def is_token_valid(self):
+        return timezone.now() < self.token_expiry
+
+    def get_status_display(self):
+        return dict(self.STATUS_CHOICES).get(self.status, 'Desconocido')
+
+    def mark_as_signed_by_creator(self):
+        self.is_signed_by_creator = True
+        self.status = 'signed_by_creator'
+        self.save()
+
+    def mark_as_signed_by_reviewer(self):
+        self.is_signed_by_reviewer = True
+        self.status = 'completed'
+        self.save()
+
+    def cancel(self):
+        self.status = 'cancelled'
+        self.save()
+
+    def get_absolute_url(self):
+        return reverse('internal_signature_detail', kwargs={'pk': self.pk})
+
 class WorkflowStage(models.Model):
     name=models.CharField(max_length=100)
     description=models.TextField(blank=True,null=True)
@@ -686,6 +808,9 @@ class ChatState(models.Model):
         return False
 @receiver(post_save,sender=Person)
 def create_chat_states(sender,instance,created,**kwargs):
+    """
+    Crea estados de chat iniciales para una nueva persona.
+    """
     if created:
         for bu in BusinessUnit.objects.all():
             ChatState.objects.create(person=instance,business_unit=bu)
@@ -882,13 +1007,35 @@ class ApiConfig(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,related_name='api_configs',on_delete=models.CASCADE,null=True,blank=True,help_text="Si está vacío, la configuración es global para todas las unidades de negocio")
     api_type=models.CharField(max_length=50,choices=COMUNICATION_CHOICES)
     category=models.CharField(max_length=50,choices=API_CATEGORY_CHOICES,help_text="Categoría de la API para identificar su propósito principal")
-    api_key=models.CharField(max_length=255)
+    api_key=models.CharField(max_length=255,blank=True,null=True)
     api_secret=models.CharField(max_length=255,blank=True,null=True)
-    additional_settings=models.JSONField(blank=True,null=True)
+    additional_settings=models.JSONField(default=dict,blank=True,null=True)
     description=models.TextField(blank=True,null=True)
     enabled=models.BooleanField(default=True)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)
+    
+    @classmethod
+    def get_config(cls, api_type, business_unit=None):
+        """
+        Obtiene la configuración de API más apropiada para el tipo y unidad de negocio especificados.
+        Si no existe una configuración específica, retorna None.
+        """
+        try:
+            if business_unit:
+                return cls.objects.get(
+                    api_type=api_type,
+                    business_unit=business_unit,
+                    enabled=True
+                )
+            else:
+                return cls.objects.get(
+                    api_type=api_type,
+                    business_unit__isnull=True,
+                    enabled=True
+                )
+        except cls.DoesNotExist:
+            return None
     def __str__(self):
         return f"{self.business_unit.name if self.business_unit else 'Global'} - {self.api_type} - {self.description[:50]}"
     class Meta:
@@ -909,6 +1056,26 @@ class ApiConfig(models.Model):
                     'blacktrust':['criminal','credit','employment']
                 }.get(self.api_type))
             }
+        return self.additional_settings
+    def get_payment_settings(self):
+        if self.api_type in ['paypal','stripe','mercado_pago']:
+            settings = {
+                'base_url': self.additional_settings.get('base_url', {
+                    'paypal': 'https://api.paypal.com',
+                    'stripe': 'https://api.stripe.com',
+                    'mercado_pago': 'https://api.mercadopago.com'
+                }.get(self.api_type)),
+                'timeout': self.additional_settings.get('timeout', 30),
+                'retry_count': self.additional_settings.get('retry_count', 3),
+                'webhook_url': self.additional_settings.get('webhook_url'),
+                'currency': self.additional_settings.get('currency', 'MXN'),
+                'environment': self.additional_settings.get('environment', 'production')
+            }
+            if self.api_type == 'stripe':
+                settings['version'] = self.additional_settings.get('version', '2023-10-16')
+            elif self.api_type == 'mercado_pago':
+                settings['public_key'] = self.additional_settings.get('public_key')
+            return settings
         return self.additional_settings
     def get_business_units(self):
         if self.business_unit:
@@ -1056,8 +1223,30 @@ class JobOpportunity(models.Model):
     requirements=models.TextField()
     location=models.CharField(max_length=255)
     salary=models.CharField(max_length=100,blank=True,null=True)
-    status=models.CharField(max_length=20,choices=[('DRAFT','Draft')],default='DRAFT')
+    status=models.CharField(max_length=20,choices=[
+        ('DRAFT', 'Borrador'),
+        ('ACTIVE', 'Activa'),
+        ('PAUSED', 'En Pausa'),
+        ('CLOSED', 'Cerrada')
+    ], default='DRAFT')
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,related_name='job_opportunities')
+    
+    # Información de plazas
+    numero_plazas=models.IntegerField(default=1, help_text="Número total de plazas disponibles")
+    plazas_restantes=models.IntegerField(default=1, help_text="Número de plazas aún disponibles")
+    
+    # Información de contratación
+    contrataciones_exitosas=models.IntegerField(default=0, help_text="Número de contrataciones exitosas")
+    candidatos_aplicados=models.ManyToManyField('Person', through='JobApplication', related_name='opportunities_applied')
+    
+    # Información de publicación
+    fecha_publicacion=models.DateTimeField(null=True, blank=True, help_text="Fecha de primera publicación")
+    fecha_cierre=models.DateTimeField(null=True, blank=True, help_text="Fecha de cierre de la oportunidad")
+    
+    # Configuración de publicación
+    publicar_en=models.JSONField(default=list, help_text="Plataformas donde se publicará la oportunidad")
+    frecuencia_publicacion=models.IntegerField(default=1, help_text="Frecuencia de publicación en días")
+    max_candidatos=models.IntegerField(default=100, help_text="Máximo número de candidatos a aceptar")
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)
     def get_publish_channels(self):

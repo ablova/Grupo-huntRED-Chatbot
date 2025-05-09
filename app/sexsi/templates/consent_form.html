@@ -1,0 +1,180 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/consent_form.html-->
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Crear Nuevo Acuerdo de Consentimiento</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Duración del Acuerdo -->
+                        <div class="mb-4">
+                            <h5>Duración del Acuerdo</h5>
+                            <div class="form-group">
+                                <label for="{{ form.duration_type.id_for_label }}">Tipo de Duración</label>
+                                {{ form.duration_type }}
+                                <small class="form-text text-muted">
+                                    Selecciona el tipo de duración para este acuerdo (único, corto plazo, o largo plazo). Los acuerdos de largo plazo requieren revisiones cada 6 meses.
+                                </small>
+                            </div>
+                            
+                            <div id="duration_details" class="mt-3" style="display: none;">
+                                <div class="form-group">
+                                    <label for="{{ form.duration_amount.id_for_label }}">Duración</label>
+                                    <div class="input-group">
+                                        {{ form.duration_amount }}
+                                        {{ form.duration_unit }}
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        Especifica la duración y la unidad de tiempo (días, semanas, meses, años). Ejemplo: 3 meses.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Datos del Encuentro -->
+                        <div class="mb-4">
+                            <h5>Detalles del Encuentro</h5>
+                            <div class="form-group">
+                                <label for="{{ form.date_of_encounter.id_for_label }}">Fecha del Encuentro</label>
+                                {{ form.date_of_encounter }}
+                                <small class="form-text text-muted">
+                                    Fecha en que se llevará a cabo el encuentro.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.location.id_for_label }}">Lugar del Encuentro</label>
+                                {{ form.location }}
+                                <small class="form-text text-muted">
+                                    Dirección o ubicación donde se realizará el encuentro.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Preferencias y Actividades -->
+                        <div class="mb-4">
+                            <h5>Preferencias y Actividades Consensuales</h5>
+                            <div class="form-group">
+                                <label for="{{ form.agreement_text.id_for_label }}">Descripción del Acuerdo</label>
+                                {{ form.agreement_text }}
+                                <small class="form-text text-muted">
+                                    Describe detalladamente las actividades y preferencias acordadas.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.consensual_activities.id_for_label }}">Actividades Consensuales</label>
+                                {{ form.consensual_activities }}
+                                <small class="form-text text-muted">
+                                    Selecciona las actividades consensuales compatibles con la duración seleccionada.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Verificación de Edad -->
+                        <div class="mb-4">
+                            <h5>Verificación de Edad</h5>
+                            <div class="form-group">
+                                <label for="{{ form.date_of_birth.id_for_label }}">Fecha de Nacimiento</label>
+                                {{ form.date_of_birth }}
+                                <small class="form-text text-muted">
+                                    Por favor, ingresa tu fecha de nacimiento para verificar que eres mayor de 18 años.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.age_verification.id_for_label }}">Verificación de Edad</label>
+                                {{ form.age_verification }}
+                                <small class="form-text text-muted">
+                                    Debes confirmar que eres mayor de 18 años para continuar.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Verificación de Identidad -->
+                        <div class="mb-4">
+                            <h5>Verificación de Identidad</h5>
+                            <div class="form-group">
+                                <label for="{{ form.identity_document.id_for_label }}">Documento de Identidad</label>
+                                {{ form.identity_document }}
+                                <small class="form-text text-muted">
+                                    Sube una copia clara de tu INE, licencia o pasaporte para verificar tu edad y identidad.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.full_name_verified.id_for_label }}">Nombre Completo</label>
+                                {{ form.full_name_verified }}
+                                <small class="form-text text-muted">
+                                    Escribe tu nombre completo tal como aparece en tu documento de identidad.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.birthdate_verified.id_for_label }}">Fecha de Nacimiento</label>
+                                {{ form.birthdate_verified }}
+                                <small class="form-text text-muted">
+                                    Escribe tu fecha de nacimiento (DD/MM/AAAA).
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Condiciones y Aceptación -->
+                        <div class="mb-4">
+                            <h5>Condiciones y Aceptación</h5>
+                            <div class="form-check">
+                                {{ form.is_conscious }}
+                                <label class="form-check-label" for="{{ form.is_conscious.id_for_label }}">
+                                    Confirmo que estoy en pleno uso de mis facultades.
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                {{ form.is_sober }}
+                                <label class="form-check-label" for="{{ form.is_sober.id_for_label }}">
+                                    Confirmo que no he consumido alcohol o drogas en las últimas 6 horas.
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                {{ form.accept_tos }}
+                                <label class="form-check-label" for="{{ form.accept_tos.id_for_label }}">
+                                    Acepto los Términos de Servicio y la Política de Privacidad. Entiendo que puedo revocar mi consentimiento en cualquier momento conforme a la LFPDPPP.
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'sexsi:consent_list' %}" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Crear Acuerdo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const durationTypeSelect = document.getElementById('{{ form.duration_type.id_for_label }}');
+    const durationDetails = document.getElementById('duration_details');
+
+    function updateDurationDetails() {
+        const selectedValue = durationTypeSelect.value;
+        durationDetails.style.display = (selectedValue === 'single') ? 'none' : 'block';
+    }
+
+    updateDurationDetails();
+    durationTypeSelect.addEventListener('change', updateDurationDetails);
+});
+</script>
+{% endblock %}

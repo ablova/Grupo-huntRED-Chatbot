@@ -19,7 +19,7 @@ from app.chatbot.gpt import GPTHandler
 from app.chatbot.nlp import NLPProcessor
 from app.utilidades.vacantes import VacanteManager
 from app.utilidades.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, inicializar_contexto_playwright, visitar_pagina_humanizada, extraer_y_guardar_cookies
-from app.ml.ml_scrape import MLScraper
+from app.ml.utils.scrape import MLScraper
 
 logger = logging.getLogger(__name__)
 

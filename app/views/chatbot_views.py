@@ -6,23 +6,42 @@ from django.db import transaction
 import json
 import logging
 from asgiref.sync import sync_to_async
-from app.chatbot.integrations.services import send_message, send_options, send_menu
-from app.models import Person, BusinessUnit, Application, Event, EventParticipant
+from app.chatbot.conversational_flow import ConversationalFlowManager
+from app.chatbot.integrations.services import MessageService
+from app.models import Person, BusinessUnit
 
 logger = logging.getLogger(__name__)
 
-# Inicializar servicios
-vacante_service = VacanteService()
-matching_service = MatchingService()
-event_service = EventService()
-
 class ChatbotView(View):
+    """
+    Vista principal del chatbot que maneja las interacciones con diferentes plataformas.
+    
+    Características:
+    - Manejo de mensajes de diferentes plataformas
+    - Procesamiento de intents
+    - Gestión de estados
+    - Manejo de errores
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.message_service = MessageService()
+
     @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
 
     async def post(self, request, platform):
-        """Maneja las peticiones POST del chatbot."""
+        """
+        Maneja las peticiones POST del chatbot.
+        
+        Args:
+            request: HttpRequest
+            platform (str): Plataforma de mensajería (whatsapp, telegram, etc.)
+            
+        Returns:
+            JsonResponse: Respuesta con el estado de la operación
+        """
         try:
             data = json.loads(request.body.decode('utf-8'))
             user_id = data.get('user_id')
@@ -41,15 +60,38 @@ class ChatbotView(View):
             # Obtener el business unit
             bu = await sync_to_async(BusinessUnit.objects.get)(name=bu_name)
 
-            # Procesar el mensaje usando los servicios existentes
-            if text.lower() in ['menu', 'menú', 'inicio']:
-                await send_menu(platform, user_id, bu_name)
-            elif text.lower() in ['vacantes', 'jobs']:
-                await self._show_job_options(platform, user_id, bu_name, person)
-            else:
-                await send_message(platform, user_id, "Por favor, usa las opciones del menú.", bu_name)
-
+            # Inicializar gestor de flujo conversacional
+            flow_manager = ConversationalFlowManager(bu)
+            
+            # Procesar el mensaje
+            result = await flow_manager.process_message(person, text)
+            
+            if result['success']:
+                # Enviar respuesta usando el servicio de mensajes
+                await self.message_service.send_message(
+                    platform,
+                    user_id,
+                    result['response']['text']
+                )
+                
+                # Si hay opciones, enviarlas
+                if result['response'].get('options'):
+                    await self.message_service.send_options(
+                        platform,
+                        user_id,
+                        result['response']['text'],
+                        result['response']['options']
+                    )
+            
             return JsonResponse({'status': 'success'})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except BusinessUnit.DoesNotExist:
+            return JsonResponse({'error': 'Business unit not found'}, status=404)
+        except Exception as e:
+            logger.error(f"Error processing message: {e}", exc_info=True)
+            return JsonResponse({'error': 'Internal server error'}, status=500)
 
     async def _show_job_options(self, platform: str, user_id: str, bu_name: str, person: Person) -> None:
         """Muestra las opciones de vacantes disponibles."""

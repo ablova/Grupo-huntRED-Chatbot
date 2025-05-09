@@ -21,7 +21,8 @@ from urllib.parse import urlparse
 from asgiref.sync import sync_to_async
 from app.chatbot.workflow.profile_questions import get_questions
 from app.chatbot.workflow.personality import TEST_QUESTIONS, get_questions_personality, get_random_tipi_questions
-from app.ml.ml_model import BUSINESS_UNIT_HIERARCHY
+from app.ml.core.utils import BUSINESS_UNIT_HIERARCHY
+
 
 logger = logging.getLogger(__name__)
 
