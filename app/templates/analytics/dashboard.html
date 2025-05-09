@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Dashboard de Analytics</h1>
+    
+    <!-- Tarjetas de métricas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tasa de Conversión</h5>
+                    <h2 class="card-text">{{ reports.conversion.conversion_rate|floatformat:"2" }}%</h2>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Total Oportunidades: {{ reports.conversion.total_scraped }}<br>
+                            Convertidas: {{ reports.conversion.total_converted }}
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tendencias por Industria</h5>
+                    <canvas id="industryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Heatmap de Ubicaciones</h5>
+                    <div id="locationHeatmap"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Formulario de Predicción -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Predicción de Conversión</h5>
+            <form id="predictionForm" method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="industry" class="form-label">Industria</label>
+                    <input type="text" class="form-control" id="industry" name="industry">
+                </div>
+                <div class="mb-3">
+                    <label for="seniority" class="form-label">Nivel de Seniority</label>
+                    <select class="form-select" id="seniority" name="seniority">
+                        <option value="junior">Junior</option>
+                        <option value="mid">Mid</option>
+                        <option value="senior">Senior</option>
+                        <option value="lead">Lead</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="location" class="form-label">Ubicación</label>
+                    <input type="text" class="form-control" id="location" name="location">
+                </div>
+                <div class="mb-3">
+                    <label for="salary" class="form-label">Rango Salarial</label>
+                    <input type="number" class="form-control" id="salary" name="salary">
+                </div>
+                <button type="submit" class="btn btn-primary">Predecir Conversión</button>
+            </form>
+            
+            <div id="predictionResult" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heatmap.js@2.0.5"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar gráficos
+    const industryCtx = document.getElementById('industryChart').getContext('2d');
+    const industryChart = new Chart(industryCtx, {
+        type: 'bar',
+        data: {
+            labels: JSON.parse('{{ charts_data.industry_trends.labels|safe }}'),
+            datasets: [{
+                label: 'Número de Oportunidades',
+                data: JSON.parse('{{ charts_data.industry_trends.data|safe }}'),
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Inicializar heatmap
+    const heatmapContainer = document.getElementById('locationHeatmap');
+    const heatmap = h337.create({
+        container: heatmapContainer,
+        radius: 40,
+        maxOpacity: 0.8,
+        minOpacity: 0
+    });
+
+    // Preparar datos para heatmap
+    const locations = JSON.parse('{{ charts_data.location_heatmap.locations|safe }}');
+    const counts = JSON.parse('{{ charts_data.location_heatmap.counts|safe }}');
+    const maxCount = Math.max(...counts);
+    const points = locations.map((location, index) => ({
+        x: index * 100,
+        y: 100 - (counts[index] / maxCount * 100),
+        value: counts[index]
+    }));
+
+    heatmap.setData({
+        max: maxCount,
+        data: points
+    });
+
+    // Manejar predicción
+    document.getElementById('predictionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch('{% url "predict_conversion" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(Object.fromEntries(formData))
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('predictionResult').innerHTML = `
+                <div class="alert alert-info">
+                    <h5>Probabilidad de Conversión: ${data.probability * 100}%</h5>
+                    <p>${data.recommendation}</p>
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('predictionResult').innerHTML = `
+                <div class="alert alert-danger">
+                    Error al predecir la conversión
+                </div>
+            `;
+        });
+    });
+});
+</script>
+{% endblock %}

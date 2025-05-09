@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Contratos</h2>
+        <a href="{% url 'proposal_list' %}" class="btn btn-primary">Nueva Propuesta</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Propuesta</th>
+                            <th>Empresa</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Fecha de Firma</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contract in contracts %}
+                        <tr>
+                            <td>{{ contract.proposal.id }}</td>
+                            <td>{{ contract.proposal.company.name }}</td>
+                            <td>${{ contract.proposal.pricing_total|floatformat:"2" }}</td>
+                            <td>
+                                <span class="badge {% if contract.status == 'PENDING_APPROVAL' %}bg-warning{% elif contract.status == 'APPROVED' %}bg-info{% elif contract.status == 'SIGNED' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ contract.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if contract.signed_date %}
+                                {{ contract.signed_date|date:"Y-m-d" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'contract_detail' contract.id %}" class="btn btn-sm btn-info">Detalles</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,3 +1,9 @@
+# /home/pablo/app/chatbot/integrations/risk_analysis.py
+#
+# Módulo para analizar riesgos y consistencia en perfiles de candidatos.
+# Implementa métricas y análisis para evaluar la confiabilidad de los datos.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+
 import re
 from typing import Dict, Any, Optional
 from app.models import Candidate

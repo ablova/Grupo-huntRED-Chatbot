@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Propuesta de Servicios</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .company-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .table th, .table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .table th {
+            background-color: #f4f4f4;
+        }
+        .total {
+            text-align: right;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .signature {
+            margin-top: 50px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Propuesta de Servicios</h1>
+        <p>Fecha: {{ proposal.created_at|date:"Y-m-d" }}</p>
+    </div>
+
+    <div class="company-info">
+        <h2>{{ company.name }}</h2>
+        <p>{{ company.address }}</p>
+        <p>{{ company.city }}, {{ company.state }} {{ company.zip_code }}</p>
+        <p>Email: {{ company.email }}</p>
+        <p>Teléfono: {{ company.phone }}</p>
+    </div>
+
+    <div class="section">
+        <h2>Descripción del Servicio</h2>
+        <p>Basado en las oportunidades identificadas, proponemos los siguientes servicios:</p>
+    </div>
+
+    <div class="section">
+        <h2>Desglose de Costos</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Posición</th>
+                    <th>Salario Base</th>
+                    <th>Addons</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pricing.items %}
+                <tr>
+                    <td>{{ item.vacancy.title }}</td>
+                    <td>${{ item.base_price|floatformat:"2" }}</td>
+                    <td>
+                        <ul>
+                            {% for addon in item.addons %}
+                            <li>{{ addon.name }}: ${{ addon.price|floatformat:"2" }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>${{ item.total|floatformat:"2" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="total">Total General:</td>
+                    <td class="total">${{ pricing.total|floatformat:"2" }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Hitos de Pago</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Hito</th>
+                    <th>Porcentaje</th>
+                    <th>Evento</th>
+                    <th>Días después del evento</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for milestone in pricing.milestones %}
+                <tr>
+                    <td>{{ milestone.name }}</td>
+                    <td>{{ milestone.percentage }}%</td>
+                    <td>{{ milestone.trigger_event }}</td>
+                    <td>{{ milestone.due_date_offset }} días</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Términos y Condiciones</h2>
+        <p>1. El pago se realizará de acuerdo a los hitos establecidos.</p>
+        <p>2. El servicio comenzará una vez recibido el primer pago.</p>
+        <p>3. Los cambios en el alcance del servicio requerirán una nueva propuesta.</p>
+    </div>
+
+    <div class="signature">
+        <p>_________________________</p>
+        <p>Firma del Cliente</p>
+    </div>
+</body>
+</html>

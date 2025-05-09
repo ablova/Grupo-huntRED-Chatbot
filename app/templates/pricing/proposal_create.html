@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Nueva Propuesta</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="proposalForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="company" class="form-label">Empresa</label>
+                            <select name="company" id="company" class="form-select" required>
+                                <option value="">Selecciona una empresa</option>
+                                {% for company in companies %}
+                                <option value="{{ company.id }}">{{ company.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Unidades de Negocio</label>
+                            {% for bu in business_units %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_units" value="{{ bu.id }}" id="bu_{{ bu.id }}">
+                                <label class="form-check-label" for="bu_{{ bu.id }}">
+                                    {{ bu.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Vacantes</label>
+                            <div id="vacanciesContainer">
+                                <!-- Se llenará dinámicamente según la empresa seleccionada -->
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary">Crear Propuesta</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('company').addEventListener('change', function() {
+        const companyId = this.value;
+        const container = document.getElementById('vacanciesContainer');
+        
+        if (companyId) {
+            fetch(`/api/vacancies/company/${companyId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    container.innerHTML = '<label class="form-label">Vacantes</label>';
+                    data.forEach(vacancy => {
+                        const div = document.createElement('div');
+                        div.className = 'form-check';
+                        div.innerHTML = `
+                            <input class="form-check-input" type="checkbox" name="vacancies" value="${vacancy.id}" id="vac_${vacancy.id}">
+                            <label class="form-check-label" for="vac_${vacancy.id}">
+                                ${vacancy.titulo} (${vacancy.empresa.name})
+                            </label>
+                        `;
+                        container.appendChild(div);
+                    });
+                });
+        } else {
+            container.innerHTML = '';
+        }
+    });
+    </script>
+</div>
+{% endblock %}

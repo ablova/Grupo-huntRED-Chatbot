@@ -1,5 +1,8 @@
-# Ubicación del archivo: /home/pablo/ai_huntred/__init__.py
-# Inicialización de tareas para la aplicación ai_huntred.
+# /home/pablo/ai_huntred/__init__.py
+#
+# Módulo inicializador de la aplicación ai_huntred.
+# Configura Celery para la detección de tareas asíncronas.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
 from __future__ import absolute_import, unicode_literals
 

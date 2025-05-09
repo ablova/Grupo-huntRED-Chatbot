@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Detalles del Contrato</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p><strong>Propuesta:</strong> #{{ contract.proposal.id }}</p>
+                            <p><strong>Empresa:</strong> {{ contract.proposal.company.name }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge {% if contract.status == 'PENDING_APPROVAL' %}bg-warning{% elif contract.status == 'APPROVED' %}bg-info{% elif contract.status == 'SIGNED' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ contract.get_status_display }}
+                                </span>
+                            </p>
+                            <p><strong>Total:</strong> ${{ contract.proposal.pricing_total|floatformat:"2" }}</p>
+                            <p><strong>Fecha de Creación:</strong> {{ contract.created_at|date:"Y-m-d H:i" }}</p>
+                            {% if contract.signed_date %}
+                            <p><strong>Fecha de Firma:</strong> {{ contract.signed_date|date:"Y-m-d" }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Fecha de Inicio:</strong> {{ contract.start_date|date:"Y-m-d" }}</p>
+                            <p><strong>Fecha de Fin:</strong> {{ contract.end_date|date:"Y-m-d" }}</p>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Hitos de Pago</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Hito</th>
+                                            <th>Evento</th>
+                                            <th>Porcentaje</th>
+                                            <th>Fecha Estimada</th>
+                                            <th>Status</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for milestone in milestones %}
+                                        <tr>
+                                            <td>{{ milestone.name }}</td>
+                                            <td>
+                                                <span class="badge bg-secondary">
+                                                    {{ milestone.get_trigger_event_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ milestone.percentage }}%</td>
+                                            <td>
+                                                {% if milestone.due_date %}
+                                                {{ milestone.due_date|date:"Y-m-d" }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge {% if milestone.status == 'PENDING' %}bg-warning{% elif milestone.status == 'PAID' %}bg-success{% elif milestone.status == 'OVERDUE' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                    {{ milestone.get_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-info update-milestone" 
+                                                        data-id="{{ milestone.id }}"
+                                                        data-status="{{ milestone.status }}">
+                                                    Actualizar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <form method="post" class="contract-status-form" style="display: inline;">
+                            {% csrf_token %}
+                            <select name="status" class="form-select me-2">
+                                {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if contract.status == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-primary">Actualizar Status</button>
+                        </form>
+                        <a href="{% url 'contract_list' %}" class="btn btn-secondary">Volver</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Formulario de actualización de status del contrato
+        const contractForm = document.querySelector('.contract-status-form');
+        if (contractForm) {
+            contractForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const form = e.target;
+                const status = form.querySelector('select').value;
+                
+                fetch(`{% url 'contract_update' contract.id %}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: new FormData(form)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    }
+                });
+            });
+        }
+
+        // Botones de actualización de hitos
+        const updateButtons = document.querySelectorAll('.update-milestone');
+        updateButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const milestoneId = this.dataset.id;
+                const currentStatus = this.dataset.status;
+
+                // Mostrar modal o formulario de actualización
+                const statusSelect = document.createElement('select');
+                statusSelect.className = 'form-select';
+                {% for value, label in payment_status_choices %}
+                statusSelect.innerHTML += `<option value="{{ value }}" ${currentStatus == value ? 'selected' : ''}>{{ label }}</option>`;
+                {% endfor %}
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `{% url 'milestone_update' '0' %}`.replace('0', milestoneId);
+                form.innerHTML = `
+                    {% csrf_token %}
+                    ${statusSelect.outerHTML}
+                    <button type="submit" class="btn btn-primary mt-2">Actualizar</button>
+                `;
+
+                // Mostrar en modal o directamente en la página
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Actualizar Hito</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                ${form.innerHTML}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                new bootstrap.Modal(modal).show();
+            });
+        });
+    });
+    </script>
+</div>
+{% endblock %}

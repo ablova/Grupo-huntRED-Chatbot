@@ -1,0 +1,96 @@
+/* Estilos específicos para la tabla de pricing */
+.pricing-table {
+    margin: 30px 0;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pricing-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+.pricing-table th, .pricing-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.pricing-table th {
+    background-color: #f8f9fa;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.pricing-table tfoot {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.pricing-table tfoot td {
+    border-top: 2px solid #000;
+}
+
+/* Estilos para los addons */
+.pricing-table ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+.pricing-table ul li {
+    margin: 5px 0;
+    padding: 5px 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.pricing-table ul li::before {
+    content: "•";
+    color: #3498db;
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+}
+
+/* Estilos para los totales */
+.pricing-table tfoot td:last-child {
+    color: #2c3e50;
+    font-size: 1.1em;
+}
+
+/* Hover effects */
+.pricing-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+    .pricing-table table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .pricing-table th, .pricing-table td {
+        min-width: 120px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .pricing-table {
+        page-break-inside: avoid;
+    }
+    
+    .pricing-table table {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .pricing-table th, .pricing-table td {
+        padding: 8px;
+    }
+}

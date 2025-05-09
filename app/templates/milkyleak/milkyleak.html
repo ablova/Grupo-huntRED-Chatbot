@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>MilkyLeak</title>
+    <!-- Enlaces CSS y JavaScript -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        {% include 'components/form_section.html' with title='Ejecutor de Post de MilkyLeak' %}
+            {% if mega_connected %}
+            <div class="form-group">
+                <label><strong>Estado de conexión con Mega.nz:</strong></label>
+                <div class="alert alert-success">Conectado a Mega.nz</div>
+            </div>
+            {% else %}
+            <div class="form-group">
+                <label><strong>Estado de conexión con Mega.nz:</strong></label>
+                <div class="alert alert-danger">Error en la conexión a Mega.nz</div>
+            </div>
+            {% endif %}
+
+            {% if dropbox_connected %}
+            <div class="form-group">
+                <label><strong>Estado de conexión con Dropbox:</strong></label>
+                <div class="alert alert-success">Conectado a Dropbox</div>
+            </div>
+            {% else %}
+            <div class="form-group">
+                <label><strong>Estado de conexión con Dropbox:</strong></label>
+                <div class="alert alert-danger">Error en la conexión a Dropbox</div>
+            </div>
+            {% endif %}
+
+            {% if twitter_connected %}
+            <div class="form-group">
+                <label><strong>Estado de conexión con Twitter:</strong></label>
+                <div class="alert alert-success">Conectado a Twitter</div>
+            </div>
+            {% else %}
+            <div class="form-group">
+                <label><strong>Estado de conexión con Twitter:</strong></label>
+                <div class="alert alert-danger">Error en la conexión a Twitter</div>
+            </div>
+            {% endif %}
+
+            <form method="POST" id="post-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label><strong>Prefijo de Imagen:</strong></label>
+                    <input type="text" class="form-control" name="image_prefix" value="{{ image_prefix }}" required>
+                </div>
+                <div class="form-group">
+                    <label><strong>Texto del Post:</strong></label>
+                    <textarea class="form-control" name="post_text" rows="4" required>{{ post_text }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label><strong>Formato de la Imagen:</strong></label>
+                    <select class="form-control" name="image_format" required>
+                        <option value="jpg" {% if image_format == 'jpg' %}selected{% endif %}>JPG</option>
+                        <option value="png" {% if image_format == 'png' %}selected{% endif %}>PNG</option>
+                        <option value="webp" {% if image_format == 'webp' %}selected{% endif %}>WebP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><strong>Calidad de la Imagen (1-100):</strong></label>
+                    <input type="number" class="form-control" name="image_quality" value="{{ image_quality }}" min="1" max="100" required>
+                </div>
+                <div class="form-group">
+                    <label><strong>Dimensiones de la Imagen (px):</strong></label>
+                    <input type="text" class="form-control" name="image_dimensions" value="{{ image_dimensions }}" placeholder="AnchoxAlto" required>
+                </div>
+                <div class="form-group">
+                    <label><strong>Texto en la Imagen:</strong></label>
+                    <textarea class="form-control" name="image_text" rows="3">{{ image_text }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label><strong>Posición del Texto:</strong></label>
+                    <select class="form-control" name="text_position" required>
+                        <option value="top" {% if text_position == 'top' %}selected{% endif %}>Arriba</option>
+                        <option value="center" {% if text_position == 'center' %}selected{% endif %}>Centro</option>
+                        <option value="bottom" {% if text_position == 'bottom' %}selected{% endif %}>Abajo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><strong>Color del Texto:</strong></label>
+                    <input type="color" class="form-control" name="text_color" value="{{ text_color }}" required>
+                </div>
+                <div class="form-group">
+                    <label><strong>Tamaño del Texto (px):</strong></label>
+                    <input type="number" class="form-control" name="text_size" value="{{ text_size }}" min="10" max="100" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Crear Post</button>
+            </form>
+        {% endinclude %}
+    </div>
+</body>
+</html>

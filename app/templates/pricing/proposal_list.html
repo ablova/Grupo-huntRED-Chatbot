@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Propuestas</h2>
+        <a href="{% url 'proposal_create' %}" class="btn btn-primary">Nueva Propuesta</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Empresa</th>
+                            <th>BUs Involucradas</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for proposal in proposals %}
+                        <tr>
+                            <td>{{ proposal.company.name }}</td>
+                            <td>
+                                {% for bu in proposal.business_units.all %}
+                                {{ bu.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td>${{ proposal.pricing_total|floatformat:"2" }}</td>
+                            <td>
+                                <span class="badge {% if proposal.status == 'DRAFT' %}bg-secondary{% elif proposal.status == 'SENT' %}bg-info{% elif proposal.status == 'ACCEPTED' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ proposal.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ proposal.created_at|date:"Y-m-d" }}</td>
+                            <td>
+                                <a href="{% url 'proposal_detail' proposal.id %}" class="btn btn-sm btn-info">Detalles</a>
+                                {% if proposal.status == 'DRAFT' %}
+                                <a href="{% url 'proposal_send' proposal.id %}" class="btn btn-sm btn-success">Enviar</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

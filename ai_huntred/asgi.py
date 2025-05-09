@@ -1,12 +1,8 @@
-# /home/pablo/ai_huntred/asgi.py
-"""
-ASGI config for ai_huntred project.
-
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/3.2/howto/deployment/asgi/
-"""
+# /Users/pablollh/MEGA/GitHub/Grupo-huntRED-Chatbot/ai_huntred/asgi.py
+#
+# Configuración ASGI para el proyecto AI HuntRED.
+# Configura el middleware de seguridad y la aplicación ASGI principal.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
 import os
 import logging

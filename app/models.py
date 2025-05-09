@@ -17,6 +17,38 @@ import logging
 import requests
 logger=logging.getLogger(__name__)
 ROLE_CHOICES=[('SUPER_ADMIN','Super Administrador'),('BU_COMPLETE','Consultor BU Completo'),('BU_DIVISION','Consultor BU División')]
+
+# Estados para Propuestas
+PROPOSAL_STATUS_CHOICES = [
+    ('DRAFT', 'Borrador'),
+    ('SENT', 'Enviada'),
+    ('ACCEPTED', 'Aceptada'),
+    ('REJECTED', 'Rechazada')
+]
+
+# Estados para Contratos
+CONTRATO_STATUS_CHOICES = [
+    ('PENDING_APPROVAL', 'Pendiente de Aprobación'),
+    ('APPROVED', 'Aprobado'),
+    ('SIGNED', 'Firmado'),
+    ('REJECTED', 'Rechazado')
+]
+
+# Eventos que activan hitos de pago
+TRIGGER_EVENT_CHOICES = [
+    ('CONTRACT_SIGNING', 'Firma del contrato'),
+    ('START_DATE', 'Fecha de inicio'),
+    ('MILESTONE_1', 'Hitos de proyecto'),
+    ('CUSTOM_EVENT', 'Evento personalizado')
+]
+
+# Estados de pagos
+PAYMENT_STATUS_CHOICES = [
+    ('PENDING', 'Pendiente'),
+    ('PAID', 'Pagado'),
+    ('OVERDUE', 'Vencido'),
+    ('CANCELLED', 'Cancelado')
+]
 PERMISSION_CHOICES=[('ALL_ACCESS','Acceso Total'),('BU_ACCESS','Acceso a BU'),('DIVISION_ACCESS','Acceso a División')]
 USER_STATUS_CHOICES=[('ACTIVE','Activo'),('INACTIVE','Inactivo'),('PENDING_APPROVAL','Pendiente de Aprobación')]
 VERIFICATION_STATUS_CHOICES=[('PENDING','Pendiente'),('APPROVED','Aprobado'),('REJECTED','Rechazado')]
@@ -167,6 +199,7 @@ class BusinessUnit(models.Model):
     scrapping_enabled=models.BooleanField(default=True)
     scraping_domains=models.ManyToManyField('DominioScraping',related_name="business_units",blank=True)
     ntfy_topic=models.CharField(max_length=100,blank=True,null=True,default=None,help_text="Tema de ntfy.sh específico para esta unidad de negocio. Si no se define, usa el tema general.")
+    pricing_config = models.JSONField(default=dict, blank=True, help_text="Configuración de pricing por BU.")
     def __str__(self):
         return dict(BUSINESS_UNIT_CHOICES).get(self.name,self.name)
     def get_ntfy_topic(self):
@@ -210,6 +243,7 @@ class Person(models.Model):
     fecha_nacimiento=models.DateField(blank=True,null=True)
     sexo=models.CharField(max_length=20,choices=[('M','Masculino'),('F','Femenino'),('O','Otro')],blank=True,null=True)
     email=models.EmailField(blank=True,null=True)
+    company_email = models.EmailField(blank=True, null=True, help_text="Correo empresarial del contacto.")
     phone=models.CharField(max_length=40,blank=True,null=True)
     linkedin_url=models.URLField(max_length=200,blank=True,null=True,help_text="URL del perfil de LinkedIn")
     preferred_language=models.CharField(max_length=5,default='es_MX',help_text="Ej: es_MX, en_US")
@@ -250,10 +284,27 @@ class Person(models.Model):
         missing_fields=[field for field in required_fields if not getattr(self,field,None)]
         return not missing_fields
 
+class Company(models.Model):
+    name = models.CharField(max_length=255, unique=True, help_text="Nombre de la empresa.")
+    industry = models.CharField(max_length=100, blank=True, null=True, help_text="Industria.")
+    size = models.CharField(max_length=50, blank=True, null=True, help_text="Tamaño.")
+    metadata = models.JSONField(default=dict, blank=True, help_text="Datos adicionales (ej. scrapeados).")
+    fiscal_data = models.JSONField(default=dict, blank=True, help_text="Datos fiscales del trabajador en esta empresa.")
+    fiscal_responsible = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True, related_name='fiscal_responsibilities', help_text="Persona responsable fiscalmente.")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['name'])]
+
+    def __str__(self):
+        return self.name
+
 class Worker(models.Model):
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='workers')
+    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='workers')
     name=models.CharField(max_length=100)
     whatsapp=models.CharField(max_length=20,blank=True,null=True)
-    company=models.CharField(max_length=100,blank=True,null=True)
     img_company=models.CharField(max_length=500,blank=True,null=True)
     job_id=models.CharField(max_length=100,blank=True,null=True)
     url_name=models.CharField(max_length=100,blank=True,null=True)
@@ -279,6 +330,7 @@ class Vacante(models.Model):
     titulo = models.CharField(max_length=1000)
     empresa = models.ForeignKey(Worker, on_delete=models.CASCADE)
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)
+    proposal = models.ForeignKey('Proposal', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacancies')
     salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     ubicacion = models.CharField(max_length=300, blank=True, null=True)
     modalidad = models.CharField(max_length=50, choices=[
@@ -340,6 +392,57 @@ class Vacante(models.Model):
     def __str__(self):
         return f"{self.titulo} - {self.empresa}"
 
+# Propuestas y Contratos
+class Proposal(models.Model):
+    qr_code = models.ImageField(upload_to='proposals/qr/', null=True, blank=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='proposals', help_text="Empresa asociada.")
+    business_units = models.ManyToManyField(BusinessUnit, related_name='proposals', help_text="BUs involucradas en la propuesta.")
+    vacancies = models.ManyToManyField('Vacante', related_name='proposals', help_text="Vacantes incluidas en la propuesta.")
+    pricing_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Costo total de la propuesta.")
+    pricing_details = models.JSONField(default=dict, blank=True, help_text="Desglose de pricing por vacante y BU.")
+    status = models.CharField(max_length=20, choices=PROPOSAL_STATUS_CHOICES, default='DRAFT')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['company', 'status'])]
+
+    def __str__(self):
+        return f"Propuesta para {self.company} - {self.get_status_display()}"
+
+class Contrato(models.Model):
+    proposal = models.OneToOneField(Proposal, on_delete=models.CASCADE, related_name='contrato', help_text="Propuesta asociada.")
+    pdf_file = models.FileField(upload_to='contratos/%Y/%m/%d/', help_text="PDF del contrato.")
+    status = models.CharField(max_length=20, choices=CONTRATO_STATUS_CHOICES, default='PENDING_APPROVAL')
+    superuser_signature = models.BooleanField(default=False, help_text="Aprobación del superuser.")
+    client_signature = models.BooleanField(default=False, help_text="Firma del cliente.")
+    signers = models.ManyToManyField(Person, related_name='signed_contratos', help_text="Firmantes del cliente.")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['proposal', 'status'])]
+
+    def __str__(self):
+        return f"Contrato para {self.proposal.company} - {self.get_status_display()}"
+
+# Pagos
+class PaymentMilestone(models.Model):
+    contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name='payment_milestones', help_text="Contrato asociado.")
+    name = models.CharField(max_length=100, help_text="Nombre del hito (ej. Inicio).")
+    percentage = models.FloatField(validators=[MinValueValidator(0), MaxValueValidator(100)], help_text="Porcentaje del total.")
+    trigger_event = models.CharField(max_length=50, choices=TRIGGER_EVENT_CHOICES, help_text="Evento que activa el hito.")
+    due_date_offset = models.IntegerField(default=7, help_text="Días desde el evento para vencimiento.")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Monto calculado.")
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['contrato', 'status'])]
+
+    def __str__(self):
+        return f"{self.name} - {self.contrato}"
 class Application(models.Model):
     user=models.ForeignKey(Person,on_delete=models.CASCADE,related_name='applications')
     vacancy=models.ForeignKey(Vacante,on_delete=models.CASCADE,related_name='applications')
@@ -469,24 +572,15 @@ class Interview(models.Model):
     def days_until_interview(self):
         return (self.interview_date-timezone.now()).days
 
-class Configuracion(models.Model):
-    secret_key=models.CharField(max_length=255,default='hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48')
-    sentry_dsn=models.CharField(max_length=255,blank=True,null=True,default='https://94c6575f877d16a00cc74bcaaab5ae79@o4508258791653376.ingest.us.sentry.io/4508258794471424')
-    debug_mode=models.BooleanField(default=True)
-    test_user=models.CharField(max_length=255,blank=True,null=True,default='Pablo Lelo de Larrea H.')
-    test_phone_number=models.CharField(max_length=15,default='+525518490291',help_text='Número de teléfono para pruebas y reportes de ejecución')
-    test_email=models.EmailField(max_length=50,default='pablo@huntred.com',help_text='Email para pruebas y reportes de ejecución')
-    default_platform=models.CharField(max_length=20,default='whatsapp',choices=COMUNICATION_CHOICES,help_text='Plataforma de pruebas por defecto')
-    ntfy_topic=models.CharField(max_length=100,blank=True,null=True,default=None,help_text="Tema de ntfy.sh para notificaciones generales. Si no se define, usa NTFY_DEFAULT_TOPIC de settings.")
-    notification_hour=models.TimeField(blank=True,null=True,help_text='Hora para enviar notificaciones diarias de pruebas')
-    is_test_mode=models.BooleanField(default=True,help_text='Indicador de modo de pruebas')
-    def get_ntfy_topic(self):
-        from django.conf import settings
-        return self.ntfy_topic or settings.NTFY_DEFAULT_TOPIC
-    def __str__(self):
-        return "Configuración General del Sistema"
-
-class DominioScraping(models.Model):
+class PricingBaseline(models.Model):
+    BUSINESS_UNIT_CHOICES = [
+        ('huntred', 'Huntred'),
+        ('client', 'Cliente')
+    ]
+    bu = models.CharField(max_length=50, choices=BUSINESS_UNIT_CHOICES)
+    model = models.CharField(max_length=20, choices=[('fixed', 'Precio Fijo'), ('percentage', 'Porcentaje')])
+    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     empresa=models.CharField(max_length=75,unique=True,blank=True,null=True)
     dominio=models.URLField(max_length=255,unique=True)
     company_name=models.CharField(max_length=255,blank=True)
@@ -550,6 +644,49 @@ class ConfiguracionScraping(models.Model):
     tipo_selector=models.CharField(max_length=20,choices=[('css','CSS'),('xpath','XPath')])
     transformacion=models.CharField(max_length=100,null=True,blank=True)
 
+class Certificate(models.Model):
+    """
+    Modelo para certificados de contratos.
+    """
+    contract = models.OneToOneField(
+        Contract,
+        on_delete=models.CASCADE,
+        related_name='certificate'
+    )
+    certificate_hash = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    certificate_url = models.URLField()
+    
+    def verify(self):
+        """
+        Verifica la integridad y timestamp del certificado.
+        
+        Returns:
+            tuple: (bool, str) - (estado, mensaje)
+        """
+        try:
+            # Verificar hash
+            cert_hash = self.certificate_hash
+            timestamp = ots.Timestamp.from_hex(cert_hash)
+            
+            # Verificar timestamp
+            now = timezone.now()
+            if timestamp.timestamp > now:
+                return False, "El timestamp es posterior a la fecha actual"
+                
+            # Verificar integridad
+            if not timestamp.verify():
+                return False, "El certificado ha sido modificado"
+                
+            return True, "Certificado válido"
+                
+        except Exception as e:
+            return False, f"Error al verificar el certificado: {str(e)}"
+            return False, f"Error durante la verificación: {str(e)}"
+
+    def get_status_display(self):
+        return dict(self.STATUS_CHOICES).get(self.status, 'Desconocido')
+
 class ConfiguracionBU(models.Model):
     business_unit=models.OneToOneField(BusinessUnit,on_delete=models.CASCADE)
     logo_url=models.URLField(default="https://huntred.com/logo.png")
@@ -570,12 +707,67 @@ class ConfiguracionBU(models.Model):
     weight_hard_skills=models.IntegerField(default=45)
     weight_soft_skills=models.IntegerField(default=35)
     weight_contract=models.IntegerField(default=10)
+    
+    # Campos para pagos
+    stripe_api_key = models.CharField(max_length=255, blank=True, null=True)
+    stripe_webhook_secret = models.CharField(max_length=255, blank=True, null=True)
+    payment_terms = models.JSONField(default=dict, help_text="Términos de pago por tipo de servicio")
+    
+    # Campos para análisis
+    open_threshold = models.DecimalField(max_digits=3, decimal_places=2, default=0.7)
+    response_threshold = models.IntegerField(default=24, help_text="Horas")
+    max_discount = models.DecimalField(max_digits=3, decimal_places=2, default=0.10)
+    
+    # Campos para X
+    x_api_key = models.CharField(max_length=255, blank=True, null=True)
+    x_api_secret = models.CharField(max_length=255, blank=True, null=True)
+    x_access_token = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Campos para Redis
+    redis_host = models.CharField(max_length=255, default='localhost')
+    redis_port = models.IntegerField(default=6379)
+    redis_db = models.IntegerField(default=0)
+    
+    # Campos para Celery
+    celery_broker_url = models.CharField(max_length=255, default='redis://localhost:6379/0')
+    celery_result_backend = models.CharField(max_length=255, default='redis://localhost:6379/0')
+    
+    def get_payment_config(self):
+        """Obtiene la configuración de pagos."""
+        return {
+            'stripe_api_key': self.stripe_api_key,
+            'stripe_webhook_secret': self.stripe_webhook_secret,
+            'payment_terms': self.payment_terms
+        }
+        
+    def get_x_config(self):
+        """Obtiene la configuración de X."""
+        return {
+            'api_key': self.x_api_key,
+            'api_secret': self.x_api_secret,
+            'access_token': self.x_access_token
+        }
+        
+    def get_redis_config(self):
+        """Obtiene la configuración de Redis."""
+        return {
+            'host': self.redis_host,
+            'port': self.redis_port,
+            'db': self.redis_db
+        }
+        
+    def get_celery_config(self):
+        """Obtiene la configuración de Celery."""
+        return {
+            'broker_url': self.celery_broker_url,
+            'result_backend': self.celery_result_backend
+        }
     def __str__(self):
         return f"Configuración de {self.business_unit.name if self.business_unit else 'Unidad de Negocio'}"
     def get_smtp_config(self):
         return {
-            'host':self.smtp_host,
-            'port':self.smtp_port,
+            'host': self.smtp_host,
+            'port': self.smtp_port,
             'username':self.smtp_username,
             'password':self.smtp_password,
             'use_tls':self.smtp_use_tls,

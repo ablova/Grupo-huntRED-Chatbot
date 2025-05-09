@@ -1,0 +1,15 @@
+¡Hola {{ name }}!
+
+¡Bienvenido/a a Grupo huntRED! Hemos recibido tu CV y estamos emocionados de conocerte.
+
+Para completar tu registro, por favor responde a este email con el siguiente código de verificación:
+
+{{ verification_code }}
+
+Una vez verificado, podrás acceder a las oportunidades laborales disponibles en {{ business_unit }} a través de este enlace:
+{{ opportunities_link }}
+
+¡Gracias por tu interés en Grupo huntRED!
+
+Atentamente,
+El equipo de Grupo huntRED

@@ -1,4 +1,8 @@
 # /home/pablo/app/chatbot/integrations/invitaciones.py
+#
+# Módulo para manejar el envío de invitaciones para completar perfiles.
+# Gestiona la generación de códigos de verificación y envío de correos electrónicos.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
 import uuid
 from django.conf import settings

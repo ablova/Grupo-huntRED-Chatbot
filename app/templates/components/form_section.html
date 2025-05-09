@@ -1,0 +1,20 @@
+{% comment %} Componente reusable para secciones de formularios {% endcomment %}
+<div class="form-section">
+    <h2>{{ title }}</h2>
+    {% if status %}
+    <div class="form-group">
+        <label><strong>{{ status_label }}</strong></label>
+        {% if status.success %}
+        <div class="alert alert-success">{{ status.message }}</div>
+        {% else %}
+        <div class="alert alert-danger">{{ status.message }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if form %}
+    <form method="{{ form.method|default:'POST' }}" id="{{ form.id|default:'form' }}">
+        {% csrf_token %}
+        {{ form.content|safe }}
+    </form>
+    {% endif %}
+</div>

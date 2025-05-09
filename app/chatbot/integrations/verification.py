@@ -1,3 +1,9 @@
+# /home/pablo/app/chatbot/integrations/verification.py
+#
+# Módulo para manejar la verificación de identidad y análisis de riesgo.
+# Integra servicios como INCODE y BlackTrust para verificar datos de candidatos.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+
 from django.conf import settings
 from django.utils import timezone
 from app.models import ApiConfig, BusinessUnit

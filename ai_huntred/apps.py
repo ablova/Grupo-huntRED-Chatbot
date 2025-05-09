@@ -1,3 +1,9 @@
+# /home/pablo/ai_huntred/apps.py
+#
+# Configuración de la aplicación AI HuntRED.
+# Inicializa los componentes y configuraciones necesarios.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+
 from django.apps import AppConfig
 
 class AiHuntredConfig(AppConfig):

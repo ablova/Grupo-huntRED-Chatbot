@@ -1,4 +1,9 @@
 # /home/pablo/app/chatbot/integrations/slack.py
+#
+# Módulo para manejar la integración con Slack API.
+# Procesa mensajes entrantes, envía respuestas, y gestiona interacciones como botones y archivos.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+
 import logging
 import json
 import httpx

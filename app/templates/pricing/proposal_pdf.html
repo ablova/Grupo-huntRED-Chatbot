@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Propuesta Comercial</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2cm;
+        }
+        .company-info {
+            margin-bottom: 1cm;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1cm 0;
+        }
+        .table th, .table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        .table th {
+            background-color: #f5f5f5;
+        }
+        .signature {
+            margin-top: 2cm;
+            text-align: center;
+        }
+        .footer {
+            margin-top: 2cm;
+            text-align: center;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Propuesta Comercial</h1>
+        <p>Fecha: {{ today }}</p>
+    </div>
+
+    <div class="company-info">
+        <h2>A: {{ company.name }}</h2>
+        <p>{{ company.industry }}</p>
+        <p>{{ company.size }}</p>
+    </div>
+
+    <div class="pricing-details">
+        <h2>Desglose de Pricing</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Vacante</th>
+                    <th>Unidad de Negocio</th>
+                    <th>Base</th>
+                    <th>Addons</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pricing_details.items %}
+                <tr>
+                    <td>{{ item.vacancy.titulo }}</td>
+                    <td>{{ item.bu.name }}</td>
+                    <td>${{ item.base }}</td>
+                    <td>
+                        <ul>
+                            {% for addon in item.addons %}
+                            <li>{{ addon.name }}: ${{ addon.price }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>${{ item.total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="4" style="text-align: right;">Total General:</th>
+                    <th>${{ pricing_details.total }}</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="terms">
+        <h2>Términos y Condiciones</h2>
+        <ol>
+            <li>El pago se realizará en los términos acordados.</li>
+            <li>Los servicios se proporcionarán una vez recibido el pago.</li>
+            <li>Esta propuesta es válida por 30 días a partir de la fecha de emisión.</li>
+        </ol>
+    </div>
+
+    <div class="signature">
+        <h2>Aceptación</h2>
+        <p>__________________________</p>
+        <p>Firma del Cliente</p>
+    </div>
+
+    <div class="footer">
+        <p>huntRED® - Soluciones de Recursos Humanos</p>
+    </div>
+</body>
+</html>

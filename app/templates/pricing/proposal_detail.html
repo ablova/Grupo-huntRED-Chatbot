@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Detalles de Propuesta</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p><strong>Empresa:</strong> {{ proposal.company.name }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge {% if proposal.status == 'DRAFT' %}bg-secondary{% elif proposal.status == 'SENT' %}bg-info{% elif proposal.status == 'ACCEPTED' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ proposal.get_status_display }}
+                                </span>
+                            </p>
+                            <p><strong>Total:</strong> ${{ proposal.pricing_total|floatformat:"2" }}</p>
+                            <p><strong>Fecha de Creación:</strong> {{ proposal.created_at|date:"Y-m-d H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Unidades de Negocio:</strong></p>
+                            <ul>
+                                {% for bu in proposal.business_units.all %}
+                                <li>{{ bu.name }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Desglose de Pricing</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Vacante</th>
+                                            <th>BU</th>
+                                            <th>Base</th>
+                                            <th>Addons</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in pricing_details.items %}
+                                        <tr>
+                                            <td>{{ item.vacancy.titulo }}</td>
+                                            <td>{{ item.bu.name }}</td>
+                                            <td>${{ item.base|floatformat:"2" }}</td>
+                                            <td>
+                                                <ul>
+                                                    {% for addon in item.addons %}
+                                                    <li>{{ addon.name }}: ${{ addon.price|floatformat:"2" }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </td>
+                                            <td>${{ item.total|floatformat:"2" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <th colspan="4" class="text-end">Total General:</th>
+                                            <th>${{ pricing_details.total|floatformat:"2" }}</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        {% if proposal.status == 'DRAFT' %}
+                        <a href="{% url 'proposal_send' proposal.id %}" class="btn btn-success me-2">Enviar Propuesta</a>
+                        {% endif %}
+                        <a href="{% url 'proposal_list' %}" class="btn btn-secondary">Volver</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

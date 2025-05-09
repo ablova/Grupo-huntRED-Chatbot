@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Candidatos Potenciales</title>
+</head>
+<body>
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Candidatos Potenciales para {{ opportunity.title }}</h2>
+        
+        <p>Estimado/a {{ opportunity.company.name }},</p>
+        
+        <p>Hemos identificado varios candidatos potenciales para la posición de {{ opportunity.title }}. Para revisar la propuesta completa y los perfiles de los candidatos, por favor acceda al siguiente enlace:</p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <img src="{{ qr_code_url }}" alt="QR Code" style="max-width: 200px;">
+            <p style="margin: 10px 0;">O acceda directamente a través del enlace:</p>
+            <a href="{{ proposal_url }}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">
+                Ver Propuesta y Candidatos
+            </a>
+        </div>
+        
+        <p>Una vez que revise la propuesta y los candidatos, puede aprobarla directamente desde la plataforma. Al hacerlo, los CVs de los candidatos se actualizarán automáticamente para mostrar toda la información disponible.</p>
+        
+        <p>Si tiene alguna pregunta o necesita más información, no dude en contactarnos.</p>
+        
+        <p>Saludos cordiales,</p>
+        <p>El Equipo de Grupo huntRED®</p>
+    </div>
+</body>
+</html>

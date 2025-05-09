@@ -1,0 +1,65 @@
+{% comment %} Componente reusable para secciones de análisis {% endcomment %}
+<style>
+    .analysis-metrics {
+        margin-bottom: 20px;
+    }
+
+    .metric-bar {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: var(--light-gray);
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .metric-bar .metric-label {
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .metric-bar .metric-value {
+        font-weight: 600;
+        color: var(--accent-color);
+        margin-left: 10px;
+    }
+
+    .metric-bar .bar-container {
+        width: 100%;
+        height: 10px;
+        background: var(--medium-gray);
+        border-radius: 5px;
+        overflow: hidden;
+        margin-top: 10px;
+    }
+
+    .metric-bar .bar {
+        height: 100%;
+        background: var(--primary-color);
+        transition: width 0.3s ease-in-out;
+    }
+
+    .metric-bar .bar-label {
+        position: absolute;
+    }
+</style>
+<section class="analysis-section" aria-labelledby="{{ section_id }}-title">
+    <h2 class="section-title" id="{{ section_id }}-title">{{ title }}</h2>
+    {% if metrics %}
+    <div class="analysis-metrics">
+        {% for metric in metrics %}
+        <div class="metric-card">
+            <h3 class="metric-title">{{ metric.title }}</h3>
+            <div class="metric-value">{{ metric.value }}</div>
+            <div class="metric-description">{{ metric.description }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if disclaimer %}
+    <div class="disclaimer">
+        <p><strong>{{ translations.note }}:</strong> {{ disclaimer }}</p>
+    </div>
+    {% endif %}
+</section>

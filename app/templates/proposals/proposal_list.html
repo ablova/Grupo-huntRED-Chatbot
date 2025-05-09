@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load proposal_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2>Propuestas</h2>
+            
+            <!-- Filtros -->
+            <form method="get" class="mb-4">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" 
+                               name="company" 
+                               value="{{ filter_form.company.value|default:"" }}" 
+                               class="form-control" 
+                               placeholder="Nombre de la empresa">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-control">
+                            <option value="">Todos</option>
+                            {% for value, label in filter_form.status.field.choices %}
+                            <option value="{{ value }}" {% if value == filter_form.status.value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" 
+                               name="start_date" 
+                               value="{{ filter_form.start_date.value|default:"" }}" 
+                               class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" 
+                               name="end_date" 
+                               value="{{ filter_form.end_date.value|default:"" }}" 
+                               class="form-control">
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Filtrar</button>
+                        <a href="?" class="btn btn-secondary">Limpiar</a>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Tabla de propuestas -->
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Empresa</th>
+                            <th>Fecha de Creación</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for proposal in proposals %}
+                        <tr>
+                            <td>{{ proposal.company.name }}</td>
+                            <td>{{ proposal.created_at|format_date }}</td>
+                            <td>{{ proposal.pricing_total|format_currency }}</td>
+                            <td>{{ proposal.status|format_status }}</td>
+                            <td>
+                                <a href="{{ proposal.pdf_url }}" class="btn btn-primary btn-sm" target="_blank">
+                                    <i class="fas fa-file-pdf"></i> Ver PDF
+                                </a>
+                                {% if proposal.status == 'PENDING' %}
+                                <a href="{% url 'convert_to_contract' proposal.id %}" 
+                                   class="btn btn-success btn-sm">
+                                    <i class="fas fa-exchange-alt"></i> Convertir a Contrato
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación -->
+            {% if proposals.paginator.num_pages > 1 %}
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center">
+                    {% if proposals.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ proposals.previous_page_number }}&{{ request.GET.urlencode|cut:"page=" }}">
+                            Anterior
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in proposals.paginator.page_range %}
+                    <li class="page-item {% if proposals.number == num %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode|cut:"page=" }}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if proposals.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ proposals.next_page_number }}&{{ request.GET.urlencode|cut:"page=" }}">
+                            Siguiente
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

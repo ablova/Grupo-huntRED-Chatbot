@@ -1,4 +1,9 @@
 # /home/pablo/app/chatbot/integrations/services.py
+#
+# Módulo de servicios compartidos para el chatbot.
+# Incluye funcionalidades para manejo de mensajes, gamificación, correo electrónico y más.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+
 import logging
 import smtplib
 import asyncio

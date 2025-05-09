@@ -1,16 +1,18 @@
-# Documentación del Sistema de Chatbot de Grupo huntRED
+# Documentación del Sistema de Inteligencia Artificial y Comunicación Conversacional con IA de Grupo huntRED
 ## Índice
 
 1. [Introducción](#introducción)
 2. [Arquitectura del Sistema](#arquitectura-del-sistema)
-3. [Componentes Principales](#componentes-principales)
-4. [Integraciones](#integraciones)
-5. [Flujo de Conversación](#flujo-de-conversación)
-6. [Manejo de Estados](#manejo-de-estados)
-7. [Sistema de Mensajería](#sistema-de-mensajería)
-8. [Pruebas y Verificación](#pruebas-y-verificación)
-9. [Configuración y Despliegue](#configuración-y-despliegue)
-10. [Mantenimiento](#mantenimiento)
+3. [Estructura del Módulo de Comunicaciones](#estructura-del-módulo-de-comunicaciones)
+4. [Componentes Principales](#componentes-principales)
+5. [Integraciones](#integraciones)
+6. [Flujo de Conversación](#flujo-de-conversación)
+7. [Manejo de Estados](#manejo-de-estados)
+8. [Sistema de Mensajería](#sistema-de-mensajería)
+9. [Visualización y Métricas](#visualización-y-métricas)
+10. [Pruebas y Verificación](#pruebas-y-verificación)
+11. [Configuración y Despliegue](#configuración-y-despliegue)
+12. [Mantenimiento](#mantenimiento)
 
 ---
 
@@ -20,7 +22,7 @@ Este documento describe la arquitectura, las funcionalidades y las integraciones
 
 ## Arquitectura del Sistema
 
-El sistema de chatbot de Grupo huntRED está construido sobre una arquitectura modular y escalable, utilizando Django como framework principal. La estructura actual del sistema incluye:
+El sistema de chatbot de Grupo huntRED está construido sobre una arquitectura modular y escalable, utilizando Django como framework principal. La nueva estructura del sistema incluye:
 
 ### Componentes Principales
 
@@ -54,6 +56,117 @@ El sistema de chatbot de Grupo huntRED está construido sobre una arquitectura m
    - Integración con ML para análisis de texto
    - CV Generator con validación LinkedIn
    - Sistema de análisis de perfil integrado
+
+## Estructura del Módulo de Comunicaciones
+
+El módulo principal de comunicaciones (`com`) está organizado de la siguiente manera:
+
+```
+app/
+├── com/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── models.py
+│   ├── tasks.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── scraping/
+│   │   ├── monitoring/
+│   │   └── visualization/
+│   ├── chatbot/
+│   │   ├── __init__.py
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── state_manager.py
+│   │   │   ├── context_manager.py
+│   │   │   ├── flow_manager.py
+│   │   │   ├── nlp.py
+│   │   │   └── metrics.py
+│   │   ├── channels/
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── whatsapp/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   ├── scraper.py
+│   │   │   │   └── utils.py
+│   │   │   ├── x/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── utils.py
+│   │   │   └── email/
+│   │   │       ├── __init__.py
+│   │   │       ├── handler.py
+│   │   │       └── utils.py
+│   │   ├── components/
+│   │   │   ├── __init__.py
+│   │   │   ├── intents/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── optimizer.py
+│   │   │   ├── embeddings/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── generator.py
+│   │   │   └── gpt/
+│   │   │       ├── __init__.py
+│   │   │       └── handler.py
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── retry.py
+│   │       └── optimization.py
+│   ├── publish/
+│   │   ├── __init__.py
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   └── utils/
+│   ├── proposals/
+│   │   ├── __init__.py
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   └── utils/
+│   ├── recipients/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   └── types/
+│   │       ├── __init__.py
+│   │       ├── candidate.py
+│   │       ├── consultant.py
+│   │       ├── client.py
+│   │       ├── fiscal.py
+│   │       └── collector.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── scraping/
+│       │   ├── __init__.py
+│       │   ├── linkedin.py
+│       │   ├── email_scraper.py
+│       │   └── utils.py
+│       ├── monitoring/
+│       │   ├── __init__.py
+│       │   └── metrics.py
+│       └── visualization/
+│           ├── __init__.py
+│           └── report_generator.py
+```
+
+### Características Principales
+
+1. **Centralización**:
+   - Código más organizado
+   - Menos duplicación
+   - Más fácil mantenimiento
+
+2. **Optimización**:
+   - Índices en modelos
+   - Tareas asíncronas
+   - Caché para métricas
+   - Logging detallado
+
+3. **Visualización**:
+   - Dashboard completo
+   - Métricas en tiempo real
+   - Análisis de flujo
+   - Reportes detallados
 
 ## Componentes Principales
 
@@ -174,25 +287,37 @@ El sistema utiliza un enfoque modular para el manejo de conversaciones:
    - Integración con MetaAPI
    - Manejo de ubicaciones
 
-2. **Telegram**
+2. **X (Twitter)**
+   - Integración con API de X
+   - Soporte para mensajes directos
+   - Manejo de multimedia
+   - Sistema de rate limiting
+
+3. **Email**
+   - Integración con SMTP
+   - Soporte para plantillas
+   - Manejo de adjuntos
+   - Sistema de retry
+
+4. **Telegram**
    - Soporte para mensajes y botones
    - Manejo de multimedia
    - Sistema de fallback
    - Rate limiting
 
-3. **Messenger**
+5. **Messenger**
    - Integración con Facebook
    - Soporte para botones y listas
    - Manejo de estados
    - Sistema de caché
 
-4. **Instagram**
+6. **Instagram**
    - Integración con DM
    - Manejo de multimedia
    - Sistema de fallback
    - Rate limiting
 
-5. **Slack**
+7. **Slack**
    - Integración con workspaces
    - Manejo de mensajes y archivos
    - Sistema de fallback

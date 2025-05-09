@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bienvenido a Grupo huntRED</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .verification-code {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Bienvenido a Grupo huntRED</h1>
+    </div>
+    
+    <p>Hola {{ name }},</p>
+    
+    <p>¡Bienvenido/a a Grupo huntRED! Hemos recibido tu CV y estamos emocionados de conocerte.</p>
+    
+    <div class="verification-code">
+        Para completar tu registro, por favor responde a este email con el siguiente código de verificación:
+        <br><br>
+        {{ verification_code }}
+    </div>
+    
+    <p>Una vez verificado, podrás acceder a las oportunidades laborales disponibles en {{ business_unit }}:</p>
+    
+    <a href="{{ opportunities_link }}" class="button">Ver Oportunidades</a>
+    
+    <div class="footer">
+        <p>¡Gracias por tu interés en Grupo huntRED!</p>
+        <p>Atentamente,<br>El equipo de Grupo huntRED</p>
+    </div>
+</body>
+</html>

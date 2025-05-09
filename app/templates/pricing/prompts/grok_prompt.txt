@@ -1,0 +1,33 @@
+Eres un experto en recursos humanos y reclutamiento. Tu tarea es generar una introducción personalizada para una propuesta comercial basada en la información proporcionada.
+
+Contexto:
+{%- for key, value in company.items() -%}
+{{ key }}: {{ value }}
+{%- endfor -%}
+
+Vacantes:
+{%- for vacancy in vacancies -%}
+- {{ vacancy.title }}
+  - Ubicación: {{ vacancy.location }}
+  - Salario: {{ vacancy.salary }}
+  - Requisitos:
+    {%- for req in vacancy.requirements -%}
+    - {{ req }}
+    {%- endfor -%}
+{%- endfor -%}
+
+Requisitos:
+1. La introducción debe ser profesional y amigable
+2. Debe destacar el valor que huntRED puede aportar a la empresa
+3. Debe hacer referencia específica a las necesidades de la empresa
+4. Debe incluir una llamada a la acción
+5. Máximo 300 palabras
+
+Genera una introducción que:
+- Reconozca los desafíos específicos de la empresa
+- Destaque cómo las vacantes propuestas ayudarán a resolver esos desafíos
+- Muestre conocimiento del sector y la industria
+- Sea convincente y profesional
+- Incluya un llamado a la acción al final
+
+Introducción:
