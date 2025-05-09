@@ -1,4 +1,4 @@
-# Documentación del Sistema de Chatbot de Grupo huntRED
+# Documentación del Sistema de Inteligencia Artificial y Comunicación Conversacional con IA de Grupo huntRED
 ## Índice
 
 1. [Introducción](#introducción)
