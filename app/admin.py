@@ -20,6 +20,7 @@ from django.utils.translation import gettext_lazy as _
 
 # Module Imports
 from app.com.chatbot.gpt import GPTHandler
+from app.com.chatbot.intents_handler import detect_intents
 from app.com.utils.scraping import enrich_with_gpt
 
 # Utility Imports

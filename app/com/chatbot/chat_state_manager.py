@@ -1,16 +1,16 @@
+# /home/pablo/app/com/chatbot/chat_state_manager.py
 from typing import Dict, Any, Optional, List, Tuple, Set
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 from aioredis import Redis
 import aioredis
-from app.com.chatbot.metrics import StateMetrics
+from app.com.chatbot.metrics import ChatBotMetrics
 from app.models import (
     Person, BusinessUnit, ChatState, IntentPattern,
-    StateTransition, IntentTransition, ContextCondition,
-    ChannelPreference
+    StateTransition, IntentTransition, ContextCondition
 )
-from app.com.chatbot.utils import analyze_text, get_nlp_processor
+from app.com.chatbot.utils import ChatbotUtils
 from app.com.chatbot.workflow.common import get_workflow_context
 from app.com.chatbot.channels import WhatsAppHandler, TelegramHandler, SlackHandler
 import asyncio
@@ -57,7 +57,7 @@ class ChatStateManager:
         self.conversation_history = []
         self.context = {}
         self.context_stack = []  # Stack for context management
-        self.metrics = StateMetrics()
+        self.metrics = ChatBotMetrics()
         self.cache_key = STATE_CACHE_KEY.format(user.id, business_unit.id, channel)
         self.fallback_states = []
         self.error_count = 0
@@ -174,7 +174,7 @@ class ChatStateManager:
                 self.conversation_history = state['history']
                 self.context = state['context']
                 self.context_stack = state.get('context_stack', [])
-                self.metrics = StateMetrics.from_dict(state.get('metrics', {}))
+                self.metrics = ChatBotMetrics.from_dict(state.get('metrics', {}))
                 logger.info(f"Chat state successfully loaded for user {self.user.id}")
                 return True
             else:
@@ -253,7 +253,7 @@ class ChatStateManager:
                 await self.initialize()
             
             # Analyze message
-            analysis = await analyze_text(message, method='nlp')
+            analysis = await ChatbotUtils.analyze_text(message, method='nlp')
             
             # Get intent
             intent = await self._get_intent(analysis)
@@ -372,7 +372,7 @@ class ChatStateManager:
             # Calculate similarity score
             score = 0
             for pattern in intent.patterns:
-                similarity = await analyze_text(
+                similarity = await ChatbotUtils.analyze_text(
                     pattern,
                     analysis['text'],
                     method='similarity'

@@ -3,9 +3,7 @@ from django.utils import timezone
 from datetime import timedelta
 from app.models import (
     Person, Application, Vacante, BusinessUnit,
-    EnhancedNetworkGamificationProfile, ChatState, WorkflowStage,
-    GamificationAchievement, GamificationBadge, GamificationEvent,
-    GptApi, ConfiguracionBU
+    EnhancedNetworkGamificationProfile, ChatState, WorkflowStage, GptApi, ConfiguracionBU
 )
 import logging
 from typing import Dict, List, Optional, Any, Tuple, List, Dict, Tuple
@@ -31,12 +29,10 @@ from itsdangerous import URLSafeTimedSerializer
 from typing import Dict, List, Any, Optional
 from difflib import get_close_matches
 from app.com.utils.catalogs import get_divisiones, map_skill_to_database
-from app.com.chatbot.chatbot import nlp_processor as NLPProcessor
-from app.com.chatbot.nlp import NLPProcessor as NLPProcessorClass
 
 # Variable global para la instancia de NLPProcessor
 logger = logging.getLogger(__name__)
-_nlp_processor_instance: Optional[NLPProcessorClass] = None
+_nlp_processor_instance: Optional[Any] = None
 
 logger = logging.getLogger(__name__)
 
@@ -142,13 +138,18 @@ class ChatbotUtils:
         return [v[0] for v in scored_vacancies[:5]]
 
     @staticmethod
-    def get_nlp_processor() -> Optional[NLPProcessorClass]:
-        """Obtiene la instancia singleton de NLPProcessor."""
+    def get_nlp_processor():
+        """
+        Obtiene la instancia de NLPProcessor, inicializándola si es necesario.
+        
+        Returns:
+            NLPProcessor: Instancia del procesador NLP.
+        """
         global _nlp_processor_instance
         if _nlp_processor_instance is None:
             try:
-                _nlp_processor_instance = NLPProcessorClass(language="es", mode="candidate")
-                logger.info("Instancia de NLPProcessor creada exitosamente")
+                from app.com.chatbot.nlp import NLPProcessor as NLPProcessorClass
+                _nlp_processor_instance = NLPProcessorClass(language='es', mode='candidate', analysis_depth='quick')
             except Exception as e:
                 logger.error(f"Error creando NLPProcessor: {e}", exc_info=True)
                 _nlp_processor_instance = None
@@ -486,56 +487,6 @@ class ChatbotUtils:
                     scores[bu.name] += 3 * weights["ubicacion"]
 
             if dominant_industry:
-                if dominant_industry == 'tech':
-                    if bu.name == 'huntu':
-                        scores[bu.name] += 3 * weights["hard_skills"] * industry_scores['tech']
-                    elif bu.name == 'huntRED':
-                        scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['tech']
-                elif dominant_industry == 'management':
-                    if bu.name == 'huntRED':
-                        scores[bu.name] += 3 * weights["soft_skills"] * industry_scores['management']
-                    elif bu.name == 'huntRED Executive':
-                        scores[bu.name] += 2 * weights["personalidad"] * industry_scores['management']
-                elif dominant_industry == 'operations':
-                    if bu.name == 'amigro':
-                        scores[bu.name] += 3 * weights["ubicacion"] * industry_scores['operations']
-                elif dominant_industry == 'strategy':
-                    if bu.name == 'huntRED Executive':
-                        scores[bu.name] += 3 * weights["personalidad"] * industry_scores['strategy']
-                    elif bu.name == 'huntRED':
-                        scores[bu.name] += 1 * weights["soft_skills"] * industry_scores['strategy']
-
-            if job_description:
-                if any(term in job_desc_lower for term in ['migration', 'visa', 'bilingual', 'temporary', 'migración']):
-                    if bu.name == 'amigro':
-                        scores[bu.name] += 4 * weights["ubicacion"]
-                if any(term in job_desc_lower for term in ['strategic', 'global', 'executive', 'board', 'estrategico']):
-                    if bu.name == 'huntRED Executive':
-                        scores[bu.name] += 3 * weights["personalidad"]
-                if any(term in job_desc_lower for term in ['development', 'coding', 'software', 'data', 'programación']):
-                    if bu.name == 'huntu':
-                        scores[bu.name] += 3 * weights["hard_skills"]
-                if any(term in job_desc_lower for term in ['operations', 'management', 'leadership', 'gerencia']):
-                    if bu.name == 'huntRED':
-                        scores[bu.name] += 3 * weights["soft_skills"]
-
-            if location:
-                if any(term in location_lower for term in ['usa', 'europe', 'asia', 'mexico', 'latam', 'frontera', 'migración']):
-                    if bu.name == 'amigro':
-                        scores[bu.name] += 3 * weights["ubicacion"]
-                if any(term in location_lower for term in ['silicon valley', 'new york', 'london']):
-                    if bu.name == 'huntRED Executive':
-                        scores[bu.name] += 2 * weights["personalidad"]
-                    elif bu.name == 'huntu':
-                        scores[bu.name] += 1 * weights["hard_skills"]
-
-        max_score = max(scores.values())
-        candidates = [bu for bu, score in scores.items() if score == max_score]
-        logger.debug(f"Puntuaciones finales: {scores}, candidatos: {candidates}")
-        priority_order = ['huntRED Executive', 'huntRED', 'huntu', 'amigro']
-
-        if candidates:
-            if len(candidates) > 1 and dominant_industry:
                 if dominant_industry == 'strategy' and 'huntRED Executive' in candidates:
                     chosen_bu = 'huntRED Executive'
                 elif dominant_industry == 'management' and 'huntRED' in candidates:
@@ -705,6 +656,34 @@ class ChatbotUtils:
         return stats
 
     @staticmethod
+    async def get_gamification_stats(user: Person) -> Dict[str, Any]:
+        """
+        Obtiene estadísticas completas de gamificación del usuario.
+        
+        Args:
+            user: Instancia del modelo Person
+        
+        Returns:
+            Dict con estadísticas de gamificación
+        """
+        try:
+            profile = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get)(user=user)
+            next_level_points = profile.level * 1000
+            progress = (profile.points / next_level_points * 100) if next_level_points > 0 else 0
+            
+            return {
+                'points': profile.points,
+                'level': profile.level,
+                'progress': round(progress, 1),
+                'next_level_points': next_level_points
+            }
+        except EnhancedNetworkGamificationProfile.DoesNotExist:
+            return {'points': 0, 'level': 1, 'progress': 0, 'next_level_points': 1000}
+        except Exception as e:
+            logger.error(f"Error obteniendo stats de gamificación: {e}", exc_info=True)
+            return {'points': 0, 'level': 1, 'progress': 0, 'next_level_points': 1000}
+
+    @staticmethod
     def get_gamification_progress(user: Person) -> Dict[str, int]:
         """
         Obtiene el progreso de gamificación del usuario.
@@ -715,21 +694,80 @@ class ChatbotUtils:
         Returns:
             Dict: Diccionario con progreso de gamificación
         """
-        # Optimizar consulta usando select_related
-        profile = user.gamification_profile.select_related('badges', 'achievements')
+        try:
+            profile = user.gamification_profile
+            next_level_points = profile.level * 1000
+            current_progress = (profile.points / next_level_points) * 100 if next_level_points > 0 else 0
+            
+            return {
+                'points': profile.points,
+                'level': profile.level,
+                'experience': getattr(profile, 'experience', 0),
+                'progress_to_next_level': round(current_progress, 2)
+            }
+        except AttributeError:
+            return {
+                'points': 0,
+                'level': 1,
+                'experience': 0,
+                'progress_to_next_level': 0
+            }
+        except EnhancedNetworkGamificationProfile.DoesNotExist:
+            return {
+                'points': 0,
+                'level': 1,
+                'experience': 0,
+                'progress_to_next_level': 0
+            }
+
+    @staticmethod
+    def get_gamification_message(user: Person) -> str:
+        """
+        Genera un mensaje de gamificación personalizado.
         
-        # Calcular progreso hacia el siguiente nivel
-        next_level_points = profile.level * 1000  # Puntos requeridos para el siguiente nivel
-        current_progress = (profile.points / next_level_points) * 100 if next_level_points > 0 else 0
-        
-        return {
-            'points': profile.points,
-            'level': profile.level,
-            'experience': profile.experience,
-            'badges': profile.badges.count(),
-            'achievements': profile.achievements.count(),
-            'progress_to_next_level': round(current_progress, 2)
-        }
+        Args:
+            user: Usuario
+            
+        Returns:
+            str: Mensaje de gamificación
+        """
+        try:
+            profile = user.gamification_profile
+            next_level_points = profile.level * 1000
+            current_progress = (profile.points / next_level_points) * 100 if next_level_points > 0 else 0
+            
+            message = f"¡Hola {user.get_full_name()}!\n\n"
+            message += f"Nivel: {profile.level}\n"
+            message += f"Puntos: {profile.points}/{next_level_points}\n"
+            message += f"Progreso: {current_progress:.1f}%\n\n"
+            
+            # Mostrar recomendaciones de acción
+            message += "¡Sigue mejorando!\n"
+            actions = []
+            
+            experience = getattr(profile, 'experience', 0)
+            cv_uploaded = getattr(profile, 'cv_uploaded', False)
+            photo = getattr(profile, 'photo', False)
+            
+            if experience < 100:
+                actions.append("Completa tu perfil")
+            if not cv_uploaded:
+                actions.append("Sube tu CV")
+            if not photo:
+                actions.append("Agrega una foto")
+            
+            if actions:
+                message += "Acciones recomendadas:\n"
+                message += "\n".join(f"- {action}" for action in actions)
+            
+            return message
+        except AttributeError:
+            return f"¡Hola {user.get_full_name()}! No tienes un perfil de gamificación aún. Completa tu perfil para empezar a ganar puntos."
+        except EnhancedNetworkGamificationProfile.DoesNotExist:
+            return f"¡Hola {user.get_full_name()}! No tienes un perfil de gamificación aún. Completa tu perfil para empezar a ganar puntos."
+        except Exception as e:
+            logger.error(f"Error generando mensaje de gamificación: {e}")
+            return f"¡Hola {user.get_full_name()}! Hubo un error mostrando tu progreso. Intenta más tarde."
 
     @staticmethod
     def get_next_interview(user: Person) -> Optional[Application]:
@@ -1050,139 +1088,84 @@ class ChatbotUtils:
         return message
 
     @staticmethod
-    def get_gamification_message(user: Person) -> str:
+    def get_onboarding_message(user: Person) -> str:
         """
-        Genera un mensaje de gamificación personalizado.
+        Genera un mensaje de bienvenida personalizado.
         
-        Args:
-            user: Usuario
-            
         Returns:
-            str: Mensaje de gamificación
+            str: Mensaje de bienvenida
         """
-        profile = user.gamification_profile
+        # Verificar datos existentes del usuario
+        existing_data = []
+        missing_data = []
         
-        # Calcular progreso hacia el siguiente nivel
-        next_level_points = profile.level * 1000
-        current_progress = (profile.points / next_level_points) * 100
+        if user.location:
+            existing_data.append("Ubicación")
+        else:
+            missing_data.append("Tu ubicación actual")
+        
+        if user.skills.exists():
+            existing_data.append("Habilidades")
+        else:
+            missing_data.append("Tus habilidades principales")
+        
+        if user.education:
+            existing_data.append("Educación")
+        else:
+            missing_data.append("Tu nivel educativo")
+        
+        if user.experience_years is not None:
+            existing_data.append("Experiencia")
+        else:
+            missing_data.append("Tu experiencia laboral")
+        
+        if user.expected_salary is not None:
+            existing_data.append("Expectativas salariales")
+        else:
+            missing_data.append("Tus expectativas salariales")
         
         message = f"¡Hola {user.get_full_name()}!\n\n"
-        message += f"Nivel: {profile.level}\n"
-        message += f"Puntos: {profile.points}/{next_level_points}\n"
-        message += f"Progreso: {current_progress:.1f}%\n\n"
+        message += "¡Bienvenido/a a nuestro sistema de reclutamiento!\n\n"
         
-        # Mostrar badges y logros
-        badges = profile.badges.all()
-        achievements = profile.achievements.all()
-        
-        if badges.exists():
-            message += "Badges obtenidos:\n"
-            message += "\n".join(f"- {badge.name}" for badge in badges)
+        if existing_data:
+            message += "Datos completados:\n"
+            message += "\n".join(f"- {data}" for data in existing_data)
             message += "\n\n"
         
-        if achievements.exists():
-            message += "Logros recientes:\n"
-            message += "\n".join(f"- {ach.name}" for ach in achievements[:3])
+        if missing_data:
+            message += "Datos pendientes:\n"
+            message += "\n".join(f"{i}. {data}" for i, data in enumerate(missing_data, 1))
             message += "\n\n"
         
-        # Mostrar recomendaciones de acción
-        message += "¡Sigue mejorando!\n"
-        actions = []
-        
-        if profile.experience < 100:
-            actions.append("Completa tu perfil")
-        if not profile.cv_uploaded:
-            actions.append("Sube tu CV")
-        if not profile.photo:
-            actions.append("Agrega una foto")
-        if not profile.skills.exists():
-            actions.append("Añade tus habilidades")
-        
-        if actions:
-            message += "Acciones recomendadas:\n"
-            message += "\n".join(f"- {action}" for action in actions)
+        message += "¿Por dónde te gustaría comenzar?\n"
+        message += "\n".join(f"{i}. {data}" for i, data in enumerate(missing_data, 1))
         
         return message
 
-@staticmethod
-def get_onboarding_message(user: Person) -> str:
-    """
-    Genera un mensaje de bienvenida personalizado.
-    
-    Returns:
-        str: Mensaje de bienvenida
-    """
-    # Verificar datos existentes del usuario
-    existing_data = []
-    missing_data = []
+    @staticmethod
+    def get_help_message() -> str:
+        """
+        Genera un mensaje de ayuda con opciones de interacción.
         
-    if user.location:
-        existing_data.append("Ubicación")
-    else:
-        missing_data.append("Tu ubicación actual")
-            
-    if user.skills.exists():
-        existing_data.append("Habilidades")
-    else:
-        missing_data.append("Tus habilidades principales")
-            
-    if user.education:
-        existing_data.append("Educación")
-    else:
-        missing_data.append("Tu nivel educativo")
-            
-    if user.experience_years is not None:
-        existing_data.append("Experiencia")
-    else:
-        missing_data.append("Tu experiencia laboral")
-            
-    if user.expected_salary is not None:
-        existing_data.append("Expectativas salariales")
-    else:
-        missing_data.append("Tus expectativas salariales")
-            
-    message = f"¡Hola {user.get_full_name()}!\n\n"
-    message += "¡Bienvenido/a a nuestro sistema de reclutamiento!\n\n"
+        Returns:
+            str: Mensaje de ayuda
+        """
+        options = [
+            "Ver mis aplicaciones",
+            "Buscar nuevas oportunidades",
+            "Ver mi perfil",
+            "Ver mi progreso en gamificación",
+            "Ver mis entrevistas programadas",
+            "Actualizar mi perfil",
+            "Ver estadísticas del sistema",
+            "Ver recomendaciones personalizadas",
+            "Ver logros y badges",
+            "Ver preguntas frecuentes"
+        ]
         
-    if existing_data:
-        message += "Datos completados:\n"
-        message += "\n".join(f"- {data}" for data in existing_data)
-        message += "\n\n"
+        message = "¡Hola! Aquí tienes algunas opciones:\n\n"
+        message += "\n".join(f"{i}. {opt}" for i, opt in enumerate(options, 1))
+        message += "\n\n¿Qué te gustaría hacer?\n"
+        message += "\nEscribe el número correspondiente a la opción que deseas."
         
-    if missing_data:
-        message += "Datos pendientes:\n"
-        message += "\n".join(f"{i}. {data}" for i, data in enumerate(missing_data, 1))
-        message += "\n\n"
-        
-    message += "¿Por dónde te gustaría comenzar?\n"
-    message += "\n".join(f"{i}. {data}" for i, data in enumerate(missing_data, 1))
-        
-    return message
-
-@staticmethod
-def get_help_message() -> str:
-    """
-    Genera un mensaje de ayuda con opciones de interacción.
-    
-    Returns:
-        str: Mensaje de ayuda
-    """
-    options = [
-        "Ver mis aplicaciones",
-        "Buscar nuevas oportunidades",
-        "Ver mi perfil",
-        "Ver mi progreso en gamificación",
-        "Ver mis entrevistas programadas",
-        "Actualizar mi perfil",
-        "Ver estadísticas del sistema",
-        "Ver recomendaciones personalizadas",
-        "Ver logros y badges",
-        "Ver preguntas frecuentes"
-    ]
-        
-    message = "¡Hola! Aquí tienes algunas opciones:\n\n"
-    message += "\n".join(f"{i}. {opt}" for i, opt in enumerate(options, 1))
-    message += "\n\n¿Qué te gustaría hacer?\n"
-    message += "\nEscribe el número correspondiente a la opción que deseas."
-        
-    return message
+        return message

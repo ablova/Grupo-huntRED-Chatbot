@@ -19,14 +19,11 @@ from app.models import (
     WhatsAppAPI, EnhancedNetworkGamificationProfile, ConfiguracionBU
 )
 from app.com.chatbot.conversational_flow import ConversationalFlowManager
-from app.com.chatbot.components import (
-    IntentDetector,
-    StateManager,
-    ContextManager,
-    ResponseGenerator,
-    GamificationService
-)
-from app.com.chatbot.integrations.services import MessageService
+from app.com.chatbot.components.intent_detector import IntentDetector
+from app.com.chatbot.components.context_manager import ContextManager
+from app.com.chatbot.components.response_generator import ResponseGenerator
+from app.com.chatbot.components.state_manager import StateManager
+from app.com.chatbot.integrations.services import MessageService, GamificationService
 from app.com.chatbot.workflow.common import (
     generate_and_send_contract, iniciar_creacion_perfil, iniciar_perfil_conversacional,
     obtener_explicaciones_metodos

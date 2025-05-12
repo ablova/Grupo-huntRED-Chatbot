@@ -1,3 +1,4 @@
+# /home/pablo/app/com/chatbot/components/intent_detector.py
 from typing import Optional
 from app.models import Person, BusinessUnit, IntentPattern
 import logging

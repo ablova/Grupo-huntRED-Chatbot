@@ -9,7 +9,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from urllib.parse import urlparse
 from asgiref.sync import sync_to_async
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import AbstractUser, BaseUserManager, User
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timedelta
 import re
