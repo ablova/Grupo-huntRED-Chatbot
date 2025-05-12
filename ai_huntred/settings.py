@@ -231,9 +231,9 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_yasg',
     'app',
-    'app.chatbot',
+    'app.com.chatbot',
     'app.ml',
-    'app.utilidades',
+    'app.com.utils',
     'app.sexsi',
     'app.milkyleak',
     'silk',
@@ -367,7 +367,7 @@ RATELIMIT_LOGIN_RATE = security_config['RATE_LIMITING']['LOGIN_RATE']
 RATELIMIT_API_RATE = security_config['RATE_LIMITING']['API_RATE']
 
 # Configuración de chatbot
-from app.chatbot.optimization_config import OptimizationConfig
+from app.com.chatbot.optimization_config import OptimizationConfig
 
 CHATBOT_CONFIG = {
     'ENABLED': env.bool('CHATBOT_ENABLED', default=True),

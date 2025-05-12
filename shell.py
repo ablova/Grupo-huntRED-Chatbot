@@ -1,10 +1,10 @@
 gcloud compute ssh grupo-huntred --project=grupo-huntred --zone=us-central1-a
 
 import asyncio
-from app.chatbot.integrations.services import send_message
+from app.com.chatbot.integrations.services import send_message
 mensaje = "Por lo que verá refrejado los 18,245+IVa = 21,165 en 2 cargos uno de los 18245 y otro por el IVA en tu siguiente corte, pero que pueden hacer un descuento del 5% si lo realizamos antes del viernes, es decir quedaría en 17330+IVA 2773." 
 await send_message("whatsapp", "525518490291", mensaje, "amigro")
-python -c "import asyncio; from app.chatbot.integrations.services import send_message; async def main(): await send_message('whatsapp', '525518490291', 'Por lo que verá refrejado los 18,245+IVa = 21,165 en 2 cargos uno de los 18245 y otro por el IVA en tu siguiente corte, pero que pueden hacer un descuento del 5% si lo realizamos antes del viernes, es decir quedaría en 17330+IVA 2773.', 'amigro'); asyncio.run(main())"
+python -c "import asyncio; from app.com.chatbot.integrations.services import send_message; async def main(): await send_message('whatsapp', '525518490291', 'Por lo que verá refrejado los 18,245+IVa = 21,165 en 2 cargos uno de los 18245 y otro por el IVA en tu siguiente corte, pero que pueden hacer un descuento del 5% si lo realizamos antes del viernes, es decir quedaría en 17330+IVA 2773.', 'amigro'); asyncio.run(main())"
 
 # Sincronizacion GIT
 cd /Users/pablollh/Documents/GitHub/AmigroBot-mejorado_AI
@@ -245,7 +245,7 @@ from ai_huntred import your_specific_task
 
 import asyncio
 from app.models import WhatsAppAPI
-from app.chatbot.integrations.whatsapp import send_whatsapp_message
+from app.com.chatbot.integrations.whatsapp import send_whatsapp_message
 
 async def test_send_message():
     phone_id = "114521714899382"  # ID del número configurado en WhatsAppAPI
@@ -263,7 +263,7 @@ async def test_send_message():
 asyncio.run(test_send_message())
 
 import asyncio
-from app.chatbot.integrations.whatsapp import send_whatsapp_message
+from app.com.chatbot.integrations.whatsapp import send_whatsapp_message
 
 async def test_send_buttons():
     user_id = "5215518490291"
@@ -285,7 +285,7 @@ asyncio.run(test_send_buttons())
 
 
 import asyncio
-from app.chatbot.integrations.whatsapp import handle_interactive_message
+from app.com.chatbot.integrations.whatsapp import handle_interactive_message
 payload = {
     "interactive": {
         "type": "button_reply",
@@ -298,7 +298,7 @@ asyncio.run(handle_interactive_message(payload, "5215518490291", "amigro"))
 ENvio de mensaje telegram.
 import asyncio
 from app.models import TelegramAPI
-from app.chatbot.integrations.telegram import send_telegram_message
+from app.com.chatbot.integrations.telegram import send_telegram_message
 
 async def test_send_message():
     chat_id = 871198362  # ID del chat de Telegram
@@ -311,7 +311,7 @@ async def test_send_message():
 asyncio.run(test_send_message())
 
 import asyncio
-from app.chatbot.integrations.telegram import send_telegram_buttons
+from app.com.chatbot.integrations.telegram import send_telegram_buttons
 
 async def test_send_buttons():
     chat_id = 871198362
@@ -326,7 +326,7 @@ async def test_send_buttons():
 
 asyncio.run(test_send_buttons())
 
-from app.chatbot.chatbot import ChatBotHandler
+from app.com.chatbot.chatbot import ChatBotHandler
 import openai 
 
 handler = ChatBotHandler()
@@ -349,7 +349,7 @@ business_unit = BusinessUnit.objects.get(name="huntRED®")  # Ajusta según tus 
 
 # Ejecuta nuevamente la prueba
 import asyncio
-from app.chatbot.integrations.whatsapp import handle_interactive_message
+from app.com.chatbot.integrations.whatsapp import handle_interactive_message
 
 payload = {
     "interactive": {
@@ -359,14 +359,14 @@ payload = {
 }
 asyncio.run(handle_interactive_message(payload, "5215518490291", business_unit))
 
-from app.chatbot.gpt import GPTHandler
+from app.com.chatbot.gpt import GPTHandler
 
 gpt_handler = GPTHandler()
 response = gpt_handler.generate_response("Hola, ¿puedes ayudarme?")
 print(response)
 
 import asyncio
-from app.chatbot.integrations.whatsapp import handle_interactive_message
+from app.com.chatbot.integrations.whatsapp import handle_interactive_message
 
 from app.models import BusinessUnit
 
@@ -396,7 +396,7 @@ print(BusinessUnit.objects.all())
 BusinessUnit.objects.create(name="Amigro")
 
 import asyncio
-from app.chatbot.integrations.whatsapp import handle_interactive_message
+from app.com.chatbot.integrations.whatsapp import handle_interactive_message
 from app.models import BusinessUnit
 
 # Obtén el objeto BusinessUnit
@@ -419,7 +419,7 @@ asyncio.run(test_interactive_with_gpt())
 
 
 import asyncio
-from app.chatbot.gpt import GPTHandler
+from app.com.chatbot.gpt import GPTHandler
 from app.models import BusinessUnit, WhatsAppAPI
 
 async def test_gpt():
@@ -468,7 +468,7 @@ for person in persons:
 from app.utilidades.linkedin import process_linkedin_updates
 process_linkedin_updates()
 
-from app.chatbot.nlp import sn
+from app.com.chatbot.nlp import sn
 from app.utilidades.linkedin import extract_skills, associate_divisions
 from app.utilidades.loader import BUSINESS_UNITS, DIVISIONES, DIVISION_SKILLS
 
@@ -749,7 +749,7 @@ imap_processor = IMAPCVProcessor(unit)
 
 imap_processor.process_emails()
 
-from app.chatbot.integrations.services import send_email
+from app.com.chatbot.integrations.services import send_email
 import asyncio
 asyncio.run(send_email(
     business_unit_name="huntRED",
@@ -1200,7 +1200,7 @@ def calcular_neto_equivalente(neto_origen: float, moneda_origen: str, modelo: st
 import asyncio
 import os
 import django
-from app.chatbot.workflow.common import calcular_salario_chatbot
+from app.com.chatbot.workflow.common import calcular_salario_chatbot
 from app.models import BusinessUnit
 from asgiref.sync import sync_to_async
 
@@ -1233,7 +1233,7 @@ nohup python /home/pablo/nlp_pruebas_optimizadas.py &> /home/pablo/logs/nlp_prue
 nohup python /home/pablo/nlp_pruebas.py &> /home/pablo/logs/nlp_pruebas.out &
 
 import asyncio
-from app.chatbot.gpt import GPTHandler
+from app.com.chatbot.gpt import GPTHandler
 from app.models import BusinessUnit, GptApi
 from asgiref.sync import sync_to_async
 
@@ -1393,7 +1393,7 @@ if __name__ == "__main__":
 iniciar
 time python manage.py migrate && echo "Migracion Lista"
 sleep 10
-python -c "import asyncio; from app.chatbot.nlp import NLPProcessor; nlp = NLPProcessor(); print(asyncio.run(nlp.analyze('Tengo experiencia en Python')))" && echo "Prueba NLP Ejecutada"
+python -c "import asyncio; from app.com.chatbot.nlp import NLPProcessor; nlp = NLPProcessor(); print(asyncio.run(nlp.analyze('Tengo experiencia en Python')))" && echo "Prueba NLP Ejecutada"
 sleep 10
 python /home/pablo/app/chatbot/generate_embeddings.py > /home/pablo/logs/generate_embeddings.log 2>&1
 echo "Generando y procesando los embeddings"

@@ -1,3 +1,7 @@
+# /home/pablo/app/pagos/views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 from django.urls import reverse_lazy

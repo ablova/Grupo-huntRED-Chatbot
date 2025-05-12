@@ -1,4 +1,7 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/views/signature_views.py
+# /home/pablo/app/sexsi/views/signature_views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 """
 Vistas para manejo de firma digital en SEXSI.
 """
@@ -7,7 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
-from app.utilidades.signature.digital_signature_providers import get_signature_provider
+from app.com.utils.signature.digital_signature_providers import get_signature_provider
 from app.sexsi.config import get_document_config, validate_document_fields
 
 @method_decorator(csrf_exempt, name='dispatch')

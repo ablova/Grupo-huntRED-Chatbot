@@ -1,6 +1,10 @@
+# /home/pablo/app/tests/test_chatbot/test_conversational_flow.py
+#
+# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+
 import pytest
 from unittest.mock import patch, Mock
-from app.chatbot.conversational_flow import ConversationalFlowManager
+from app.com.chatbot.conversational_flow import ConversationalFlowManager
 from app.models import Person, BusinessUnit, IntentPattern, StateTransition, ChatState
 
 def create_test_data():

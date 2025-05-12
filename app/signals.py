@@ -10,14 +10,14 @@ from app.models import (
     Person, Application, EnhancedNetworkGamificationProfile,
     Vacante, BusinessUnit, WorkflowStage, Notification
 )
-from app.utilidades.parser import CVParser
+from app.com.utils.parser import CVParser
 from app.tasks import (
     train_matchmaking_model_task, send_mass_email_task,
     update_matchmaking_scores_task, update_engagement_scores_task
 )
 import logging
-from app.chatbot.integrations.services import send_message
-from app.chatbot.utils import get_nlp_processor
+from app.com.chatbot.integrations.services import send_message
+from app.com.chatbot.utils import get_nlp_processor
 
 logger = logging.getLogger(__name__)
 

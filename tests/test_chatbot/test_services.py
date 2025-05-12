@@ -2,7 +2,7 @@ import pytest
 from django.test import TestCase
 from asgiref.sync import async_to_sync
 from app.models import BusinessUnit
-from app.chatbot.integrations.services import MessageService
+from app.com.chatbot.integrations.services import MessageService
 
 class TestMessageService(TestCase):
     def setUp(self):
@@ -28,7 +28,7 @@ class TestMessageService(TestCase):
 
     def test_rate_limiting(self):
         """Test limitación de tasa"""
-        from app.chatbot.integrations.services import RateLimiter
+        from app.com.chatbot.integrations.services import RateLimiter
         
         limiter = RateLimiter(max_requests=1, time_window=1)
         
@@ -40,7 +40,7 @@ class TestMessageService(TestCase):
 
     def test_message_caching(self):
         """Test caché de mensajes"""
-        from app.chatbot.integrations.services import cache
+        from app.com.chatbot.integrations.services import cache
         
         cache_key = "test_message_cache"
         message = "Test message"

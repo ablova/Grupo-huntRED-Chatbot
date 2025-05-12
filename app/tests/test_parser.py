@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 from asgiref.sync import sync_to_async
-from app.utilidades.parser import IMAPCVProcessor, CVParser
+from app.com.utils.parser import IMAPCVProcessor, CVParser
 from app.models import BusinessUnit, Person
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase

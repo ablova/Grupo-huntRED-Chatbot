@@ -1,3 +1,7 @@
+# /home/pablo/app/tests/test_ats/test_cache/test_redis_cache.py
+#
+# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+
 import unittest
 from unittest.mock import patch, MagicMock
 from app.ml.core.scheduling.cache import RedisCache

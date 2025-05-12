@@ -1,3 +1,7 @@
+# /home/pablo/app/tests/test_pagos/test_gateways.py
+#
+# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+
 import unittest
 from unittest.mock import patch, MagicMock
 from django.test import TestCase

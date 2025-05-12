@@ -1,17 +1,18 @@
-# Ubicación: /home/pablo/app/tests.py
-
 # /home/pablo/app/tests.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta
 from django.test import TestCase, Client, override_settings
 from unittest.mock import patch, MagicMock, AsyncMock
 from app.models import BusinessUnit, Person, ChatState, GptApi
-from app.chatbot.chatbot import ChatBotHandler
-from app.chatbot.gpt import GPTHandler
-from app.chatbot.utils import get_nlp_processor  # Reemplazar importación
-from app.chatbot.utils import fetch_data_from_url, validate_request_data
-from app.utilidades.vacantes import VacanteManager, procesar_vacante
+from app.com.chatbot.chatbot import ChatBotHandler
+from app.com.chatbot.gpt import GPTHandler
+from app.com.chatbot.utils import get_nlp_processor  # Reemplazar importación
+from app.com.chatbot.utils import fetch_data_from_url, validate_request_data
+from app.com.utils.vacantes import VacanteManager, procesar_vacante
 from django.db import connections
 from app.tasks import send_whatsapp_message_task, train_ml_task, ejecutar_scraping
 
@@ -234,8 +235,8 @@ if __name__ == "__main__":
 # test_nlp.py
 import unittest
 import os
-from app.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
-from app.chatbot.nlp import SkillExtractionPipeline, SkillExtractorManager
+from app.com.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
+from app.com.chatbot.nlp import SkillExtractionPipeline, SkillExtractorManager
 
 class TestNLPIntegration(unittest.TestCase):
     def test_esco_and_nice_integration(self):

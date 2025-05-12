@@ -1,3 +1,21 @@
+# Ubicación del archivo: /home/pablo/app/admin_config.py
+# ARCHIVO OBSOLETO - NO USAR - Mayo 2025
+"""
+Este archivo está OBSOLETO y se mantiene temporalmente por compatibilidad.
+Todo el código ha sido migrado a una estructura más modular siguiendo
+las reglas globales de Grupo huntRED® para configuración de administradores.
+
+Las nuevas ubicaciones son:
+- app/com/utils/admin_base.py: Clases base y mixins reutilizables
+- app/com/utils/admin_utils.py: Implementaciones específicas de ModelAdmin
+- app/com/utils/admin_registry.py: Registro centralizado de configuraciones
+
+Para agregar nuevas configuraciones de administrador, por favor utiliza
+la estructura modular en lugar de modificar este archivo.
+"""
+
+# Importando solo lo necesario para mantener compatibilidad
+import warnings
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -5,6 +23,13 @@ from app.models import (
     Person, Application, Vacante, BusinessUnit,
     EnhancedNetworkGamificationProfile, ChatState, WorkflowStage,
     GamificationAchievement, GamificationBadge, GamificationEvent
+)
+
+# Emitiendo advertencia de deprecación
+warnings.warn(
+    "El archivo admin_config.py está obsoleto y será eliminado en futuras versiones. "
+    "Utilice la nueva estructura modular en app/com/utils/admin_*.py",
+    DeprecationWarning, stacklevel=2
 )
 
 @admin.register(Person)

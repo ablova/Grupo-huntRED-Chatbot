@@ -1,6 +1,10 @@
+# /home/pablo/app/tests/test_chatbot/test_admin_flow/test_flow_manager.py
+#
+# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+
 import unittest
 from unittest.mock import patch, MagicMock
-from app.chatbot.admin.flow_manager import FlowManager
+from app.com.chatbot.admin.flow_manager import FlowManager
 from app.models import ChatState
 
 class TestFlowManager(unittest.TestCase):

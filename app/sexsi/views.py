@@ -1,3 +1,7 @@
+# /home/pablo/app/sexsi/views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
  # Ubicacion SEXSI -- /home/pablo/app/sexsi/views.py
 import paypalrestsdk
 from django.shortcuts import redirect
@@ -15,7 +19,7 @@ from django.core.files.base import ContentFile
 
 from app.sexsi.models import ConsentAgreement, PaymentTransaction
 from app.sexsi.forms import ConsentAgreementForm
-from app.chatbot.integrations.services import send_email, send_message
+from app.com.chatbot.integrations.services import send_email, send_message
 from asgiref.sync import async_to_sync
 import json
 import os

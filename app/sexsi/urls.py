@@ -1,4 +1,7 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/urls.py
+# /home/pablo/app/sexsi/urls.py
+#
+# Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
+
 """
 URL configuration for the SEXSI app.
 """

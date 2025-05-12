@@ -1,3 +1,7 @@
+# /home/pablo/app/tests/test_ml/test_transition.py
+#
+# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+
 import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np

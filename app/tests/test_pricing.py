@@ -1,3 +1,7 @@
+# /home/pablo/app/tests/test_pricing.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
+
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User

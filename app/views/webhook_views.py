@@ -5,15 +5,15 @@ from django.http import JsonResponse, HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 #from ratelimit.decorators import ratelimit
-from app.chatbot.chatbot import ChatBotHandler
-from app.chatbot.integrations.instagram import instagram_webhook
-from app.chatbot.integrations.telegram import telegram_webhook
-from app.chatbot.integrations.messenger import messenger_webhook
-from app.chatbot.integrations.whatsapp import whatsapp_webhook
+from app.com.chatbot.chatbot import ChatBotHandler
+from app.com.chatbot.integrations.instagram import instagram_webhook
+from app.com.chatbot.integrations.telegram import telegram_webhook
+from app.com.chatbot.integrations.messenger import messenger_webhook
+from app.com.chatbot.integrations.whatsapp import whatsapp_webhook
 import logging
 import json
 
-#from app.chatbot.nlp import get_skill_extractor # Asegúrate de que la importación es correcta
+#from app.com.chatbot.nlp import get_skill_extractor # Asegúrate de que la importación es correcta
 
 
 logger = logging.getLogger(__name__)

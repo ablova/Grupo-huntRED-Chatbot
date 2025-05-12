@@ -12,35 +12,35 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 from asgiref.sync import sync_to_async, async_to_sync
-from app.chatbot.integrations.services import send_email, send_message
-from app.chatbot.chatbot import ChatBotHandler
-from app.chatbot.utils import get_nlp_processor
-from app.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
-from app.utilidades.vacantes import VacanteManager
-from app.utilidades.parser import CVParser, IMAPCVProcessor
-from app.utilidades.email_scraper import EmailScraperV2
+from app.com.chatbot.integrations.services import send_email, send_message
+from app.com.chatbot.chatbot import ChatBotHandler
+from app.com.chatbot.utils import get_nlp_processor
+from app.com.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
+from app.com.utils.vacantes import VacanteManager
+from app.com.utils.parser import CVParser, IMAPCVProcessor
+from app.com.utils.email_scraper import EmailScraperV2
 from app.models import (
     Configuracion, ConfiguracionBU, Vacante, Person, BusinessUnit,
     DominioScraping, RegistroScraping, Interview, Application,
 )
-from app.utilidades.linkedin import (
+from app.com.utils.linkedin import (
     process_api_data, fetch_member_profile,
     process_csv, slow_scrape_from_csv,
     scrape_linkedin_profile, deduplicate_candidates,
 )
-from app.chatbot.workflow.amigro import (
+from app.com.chatbot.workflow.amigro import (
     generate_candidate_summary_task, send_migration_docs_task,
     follow_up_migration_task
 )
-from app.utilidades.scraping import (
+from app.com.utils.scraping import (
     validar_url, ScrapingPipeline, scrape_and_publish, process_domain
 )
-from app.utilidades.scraping_utils import ScrapingMetrics
+from app.com.utils.scraping_utils import ScrapingMetrics
 from app.ml.utils.scrape import MLScraper
-from app.chatbot.utils import haversine_distance, sanitize_business_unit_name
+from app.com.chatbot.utils import haversine_distance, sanitize_business_unit_name
 from app.ml.core.models.matchmaking import GrupohuntREDMLPipeline, MatchmakingLearningSystem
 from app.ml.core.optimizers import check_system_load, configure_tensorflow_based_on_load
-from app.utilidades.catalogs import DIVISIONES
+from app.com.utils.catalogs import DIVISIONES
 import json
 import os
 import pandas as pd
@@ -176,7 +176,7 @@ def get_business_unit(business_unit_id=None, default_name="amigro"):
 @with_retry
 def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.chatbot.integrations.services import send_message
+    from app.com.chatbot.integrations.services import send_message
     try:
         bu = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('whatsapp', recipient, message, bu))
@@ -190,7 +190,7 @@ def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
 @with_retry
 def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.chatbot.integrations.services import send_message
+    from app.com.chatbot.integrations.services import send_message
     try:
         business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('telegram', chat_id, message, business_unit))
@@ -203,7 +203,7 @@ def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
 @with_retry
 def send_messenger_message_task(self, recipient_id, message, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.chatbot.integrations.services import send_message
+    from app.com.chatbot.integrations.services import send_message
     try:
         business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('messenger', recipient_id, message, business_unit))
@@ -673,7 +673,7 @@ def trigger_amigro_workflows(candidate_id):
 @shared_task
 def process_batch_task():
     logger.info("Procesando lote de usuarios recientes.")
-    from app.chatbot.nlp import process_recent_users_batch
+    from app.com.chatbot.nlp import process_recent_users_batch
     process_recent_users_batch()
     return "Lote procesado"
 

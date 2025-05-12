@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.utils import timezone
 from asgiref.sync import async_to_sync
 from app.models import Person, BusinessUnit
-from app.chatbot.components import (
+from app.com.chatbot.components import (
     IntentDetector,
     StateManager,
     ContextManager,

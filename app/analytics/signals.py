@@ -2,7 +2,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from app.models import Opportunity, Contract, Vacancy
 from app.analytics.reports import AnalyticsEngine
-from app.utilidades.notification_handler import NotificationHandler
+from app.com.utils.notification_handler import NotificationHandler
 
 @receiver(post_save, sender=Opportunity)
 def opportunity_saved(sender, instance, created, **kwargs):

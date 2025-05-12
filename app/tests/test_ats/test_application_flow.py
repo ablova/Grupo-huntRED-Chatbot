@@ -1,3 +1,7 @@
+# /home/pablo/app/tests/test_ats/test_application_flow.py
+#
+# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+
 import pytest
 from app.models import Application, Vacante, Person, BusinessUnit, Interview
 from datetime import datetime, timedelta

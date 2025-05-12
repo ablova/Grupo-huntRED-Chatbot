@@ -1,9 +1,13 @@
+# /home/pablo/app/tests/test_chatbot/test_state_manager.py
+#
+# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.chatbot.chat_state_manager import ChatStateManager
+from app.com.chatbot.chat_state_manager import ChatStateManager
 from app.models import Person, BusinessUnit, ChatState
-from app.chatbot.workflow.common import get_workflow_context
+from app.com.chatbot.workflow.common import get_workflow_context
 
 @pytest.fixture
 def mock_person():

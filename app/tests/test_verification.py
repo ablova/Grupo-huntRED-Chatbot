@@ -1,8 +1,12 @@
+# /home/pablo/app/tests/test_verification.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
+
 import pytest
 from django.test import TestCase
 from django.contrib.auth.models import User
 from app.models import BusinessUnit, ApiConfig
-from app.chatbot.integrations.verification import VerificationService, InCodeClient, BlackTrustClient
+from app.com.chatbot.integrations.verification import VerificationService, InCodeClient, BlackTrustClient
 import httpx
 from unittest.mock import AsyncMock, patch
 

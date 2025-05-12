@@ -1,3 +1,7 @@
+# /home/pablo/app/tests/analytics/tests.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
+
 from django.test import TestCase
 from django.utils import timezone
 from app.models import Opportunity, Contract, Vacancy, Person

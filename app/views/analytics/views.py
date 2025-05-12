@@ -1,3 +1,7 @@
+# /home/pablo/app/views/analytics/views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 from django.shortcuts import render
 from django.http import JsonResponse
 from app.analytics.reports import AnalyticsEngine

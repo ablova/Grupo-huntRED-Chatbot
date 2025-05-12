@@ -1,7 +1,7 @@
 # /home/pablo/test/test_email_scraper.py
 import pytest
 from unittest.mock import AsyncMock, patch
-from app.utilidades.email_scraper import EmailScraperV2
+from app.com.utils.email_scraper import EmailScraperV2
 
 @pytest.mark.django_db
 @pytest.mark.asyncio

@@ -1,3 +1,7 @@
+# /home/pablo/app/views/auth_views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required

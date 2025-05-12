@@ -20,10 +20,10 @@ from django.middleware.csrf import get_token
 from app.models import (
     BusinessUnit, ChatState, Configuracion, Application, Vacante, Person
 )
-from app.chatbot.utils import analyze_text
-from app.chatbot.gpt import GPTHandler
-from app.chatbot.chatbot import ChatBotHandler
-from app.chatbot.integrations.services import MessageService, get_business_unit
+from app.com.chatbot.utils import analyze_text
+from app.com.chatbot.gpt import GPTHandler
+from app.com.chatbot.chatbot import ChatBotHandler
+from app.com.chatbot.integrations.services import MessageService, get_business_unit
 
 import json
 import logging

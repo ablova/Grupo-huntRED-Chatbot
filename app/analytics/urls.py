@@ -1,3 +1,7 @@
+# /home/pablo/app/analytics/urls.py
+#
+# Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
+
 from django.urls import path
 from app.views.analytics import AnalyticsDashboardView
 

@@ -1,4 +1,10 @@
 # Ubicación del archivo: /home/pablo/app/admin.py
+"""
+Centro principal de configuración administrativa de Django para Grupo huntRED®.
+
+Este módulo utiliza la estructura modular centralizada en app/config para 
+registrar y configurar todas las clases de administración de Django del sistema.
+"""
 
 # Django Core Imports
 from django.contrib import admin, messages
@@ -9,9 +15,12 @@ from django.template.loader import select_template
 from django.template.response import TemplateResponse
 from django import forms
 from django.core.mail import send_mail
-from app.chatbot.gpt import GPTHandler
-from app.utilidades.scraping import enrich_with_gpt
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 
+# Module Imports
+from app.com.chatbot.gpt import GPTHandler
+from app.com.utils.scraping import enrich_with_gpt
 
 # Utility Imports
 from io import BytesIO
@@ -20,10 +29,10 @@ import matplotlib.pyplot as plt
 import json
 import re
 
+# Importing Admin modules from apps
 from app.sexsi.admin import *
 
-
-# Model Imports
+# Model Imports - Consolidated from admin.py and admin_config.py
 from app.models import (
     ApiConfig, Application, BusinessUnit, Chat, ChatState, Configuracion,
     ConfiguracionBU, Division, DominioScraping, EnhancedMLProfile,
@@ -31,55 +40,31 @@ from app.models import (
     Invitacion, MetaAPI, MessengerAPI, MigrantSupportPlatform, ModelTrainingLog,
     Person, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
     SmtpConfig, TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
-    Worker, IntentPattern, StateTransition, IntentTransition, ContextCondition
+    Worker, IntentPattern, StateTransition, IntentTransition, ContextCondition,
+    GamificationAchievement, GamificationBadge, GamificationEvent, WorkflowStage
 )
 
 # Service Imports
-from app.chatbot.integrations.services import send_email, send_message
+from app.com.chatbot.integrations.services import send_email, send_message
 
 # Utility Imports for Specific Functionalities
-from app.utilidades.vacantes import VacanteManager
+from app.com.utils.vacantes import VacanteManager
 from asgiref.sync import async_to_sync
 from django.contrib.auth.decorators import user_passes_test
 
-admin.site.site_header = "Administración de Grupo huntRED®"
-admin.site.site_title = "Portal Administrativo"
-admin.site.index_title = "Bienvenido al Panel de Administración"
+# Importando el sistema centralizado de administración
+from app.config.admin_registry import initialize_admin
+from app.config.admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
 
-# Token Masking Mixin
-class TokenMaskingMixin:
-    """Mixin para enmascarar campos sensibles en el admin"""
-    token_fields = []
-    visible_prefix_length = 6
-    visible_suffix_length = 4
+# Inicializando la configuración administrativa centralizada
+# Esto registra todos los modelos con sus clases admin correspondientes
+# y configura el sitio admin con los valores adecuados
+initialize_admin(force_register=True)
 
-    def get_masked_value(self, value):
-        if not value:
-            return "-"
-        if len(value) <= (self.visible_prefix_length + self.visible_suffix_length):
-            return "..." + value[-self.visible_suffix_length:]
-        return f"{value[:self.visible_prefix_length]}...{value[-self.visible_suffix_length:]}"
+# Las clases TokenMaskingMixin y ConfiguracionAdmin ahora están centralizadas
+# en app/config/admin_base.py y app/config/admin_core.py respectivamente
 
-    def get_list_display(self, request):
-        list_display = super().get_list_display(request)
-        if isinstance(list_display, tuple):
-            list_display = list(list_display)
-            
-        for field in self.token_fields:
-            if field in list_display:
-                mask_method_name = f'get_masked_{field}'
-                if not hasattr(self, mask_method_name):
-                    setattr(self, mask_method_name, 
-                           lambda obj, field=field: self.get_masked_value(getattr(obj, field)))
-                    getattr(self, mask_method_name).short_description = field.replace('_', ' ').title()
-                list_display[list_display.index(field)] = mask_method_name
-                
-        return list_display
-
-@admin.register(Configuracion)
-class ConfiguracionAdmin(TokenMaskingMixin, admin.ModelAdmin):
-    token_fields = ['secret_key', 'sentry_dsn']
-    list_display = ('secret_key', 'debug_mode', 'sentry_dsn')
+# El registro de ConfiguracionAdmin ahora se maneja en app/config/admin_registry.py
     
 @admin.register(DominioScraping)
 class DominioScrapingAdmin(admin.ModelAdmin):
@@ -190,7 +175,7 @@ class VacanteAdmin(admin.ModelAdmin):
     autocomplete_fields = ['business_unit', 'empresa']
 
     def save_model(self, request, obj, form, change):
-        from app.chatbot.gpt import GPTHandler
+        from app.com.chatbot.gpt import GPTHandler
         if not obj.descripcion:
             prompt = (
                 f"Genera una descripción profesional para un puesto de trabajo con el título '{obj.titulo}' "
@@ -293,15 +278,18 @@ class ReporteScrapingAdmin(admin.ModelAdmin):
 
     generar_reporte_pdf.short_description = "Generar reporte PDF de los seleccionados"
 
+# Base form for Person model
 class PersonForm(forms.ModelForm):
+    """Formulario base para el modelo Person con validación de email"""
     class Meta:
         model = Person
         fields = '__all__'
 
     def clean_email(self):
+        # Validating email uniqueness except for internal emails
         email = self.cleaned_data.get('email')
-        if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            raise forms.ValidationError("Ingresa un email válido.")
+        if email and not email.endswith('@grupo-huntred.com') and Person.objects.filter(email=email).exists():
+            raise forms.ValidationError("Este correo ya existe en nuestra base de datos.")
         return email
 
 @admin.register(Division)

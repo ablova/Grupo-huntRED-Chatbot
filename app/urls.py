@@ -1,5 +1,7 @@
-# Ubicación: /home/pablo/app/urls.py
-# Descripción: Archivo principal de rutas centralizadas para toda la aplicación.
+# /home/pablo/app/urls.py
+#
+# Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
+
 import logging
 from django.urls import path, re_path
 from django.conf import settings

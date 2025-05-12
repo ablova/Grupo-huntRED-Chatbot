@@ -22,7 +22,193 @@ Este documento describe la arquitectura, las funcionalidades y las integraciones
 
 ## Arquitectura del Sistema
 
-El sistema de chatbot de Grupo huntRED está construido sobre una arquitectura modular y escalable, utilizando Django como framework principal. La nueva estructura del sistema incluye:
+El sistema de Inteligencia Artificial y Comunicación Conversacional de Grupo huntRED está construido sobre una arquitectura modular y escalable, utilizando Django como framework principal. La estructura actual del sistema incluye:
+
+### Módulos Principales
+
+1. **Comunicaciones (com)**
+   - Gestión de conversaciones multiplataforma
+   - Sistema de estados y transiciones
+   - Procesamiento de mensajes
+   - Integraciones con WhatsApp, Telegram, Slack, etc.
+   - Sistema de notificaciones
+
+2. **Machine Learning (ml)**
+   - Procesamiento de lenguaje natural
+   - Análisis de sentimientos
+   - Clasificación de intenciones
+   - Generación de respuestas
+   - Sistema de embeddings
+   - Optimización de modelos
+
+3. **Pagos (pagos)**
+   - Gestión de transacciones
+   - Sistema de facturación
+   - Integración con gateways de pago
+   - Gestión de hitos de pago
+
+4. **Precios (pricing)**
+   - Sistema de precios dinámicos
+   - Gestión de addons
+   - Sistema de cupones
+   - Cálculo de hitos de pago
+
+5. **Propuestas (proposals)**
+   - Generación de propuestas
+   - Gestión de contratos
+   - Sistema de firmas digitales
+   - Validación de identidad
+
+6. **Publicación (publish)**
+   - Sistema de publicación multiplataforma
+   - Gestión de contenido
+   - Sistema de programación
+   - Análisis de métricas
+
+7. **SexSI (sexsi)**
+   - Gestión de contratos
+   - Sistema de pagos
+   - Validación de identidad
+   - Gestión de usuarios
+
+8. **Utilidades (utilidades)**
+   - Sistema de scraping
+   - Monitorización
+   - Generación de informes
+   - Validación de datos
+
+### Componentes Principales por Módulo
+
+#### Comunicaciones (com)
+- **Gestión de Conversación**
+  - ConversationalFlowManager: Gestiona el flujo de conversación
+  - IntentDetector: Detecta y clasifica intenciones
+  - StateManager: Maneja estados y transiciones
+  - ContextManager: Mantiene contexto de conversación
+  - ResponseGenerator: Genera respuestas dinámicas
+
+- **Sistema de Mensajería**
+  - MessageService: Manejo centralizado de mensajes
+  - RateLimiter: Sistema de limitación de tasa
+  - Button: Manejo de elementos interactivos
+  - EmailService: Servicio de correo electrónico
+  - GamificationService: Sistema de gamificación
+
+- **Integraciones**
+  - WhatsApp
+  - Telegram
+  - Messenger
+  - Instagram
+  - Slack
+  - LinkedIn
+
+#### Machine Learning (ml)
+- **Procesamiento de Lenguaje Natural**
+  - NLPProcessor: Procesamiento de texto
+  - IntentClassifier: Clasificación de intenciones
+  - SentimentAnalyzer: Análisis de sentimientos
+  - ResponseGenerator: Generación de respuestas
+  - CVParser: Procesamiento de CVs por BU
+  - LanguageDetector: Detección de idiomas
+
+- **Sistema de Embeddings**
+  - EmbeddingGenerator: Generación de embeddings
+  - EmbeddingOptimizer: Optimización de embeddings
+  - EmbeddingCache: Sistema de caché
+  - BUEmbedding: Embeddings por unidad de negocio
+  - SkillEmbedding: Embeddings específicos de habilidades
+
+- **Optimización**
+  - ModelOptimizer: Optimización de modelos
+  - PipelineOptimizer: Optimización de pipelines
+  - ResourceOptimizer: Optimización de recursos
+  - BUModelOptimizer: Optimización por unidad de negocio
+  - CVModelOptimizer: Optimización de modelos para CV
+
+- **Análisis de Datos**
+  - DataCollector: Colección de datos estructurados
+  - TrendAnalyzer: Análisis de tendencias
+  - MetricGenerator: Generación de métricas
+  - AlertSystem: Sistema de alertas
+  - BUDashboard: Dashboard por unidad de negocio
+  - CVAnalytics: Análisis específico de CVs
+
+- **Procesamiento de CVs**
+  - CVParser: Procesamiento de CVs
+  - SkillExtractor: Extracción de habilidades
+  - ExperienceAnalyzer: Análisis de experiencia
+  - EducationProcessor: Procesamiento de educación
+  - WelcomeMessageGenerator: Generación de mensajes de bienvenida
+  - BUCVProcessor: Procesamiento específico por unidad de negocio
+
+- **Análisis de Datos**
+  - DataCollector: Colección de datos estructurados
+  - TrendAnalyzer: Análisis de tendencias
+  - MetricGenerator: Generación de métricas
+  - AlertSystem: Sistema de alertas
+  - BUDashboard: Dashboard por unidad de negocio
+
+- **Procesamiento de CVs**
+  - CVParser: Procesamiento de CVs
+  - SkillExtractor: Extracción de habilidades
+  - ExperienceAnalyzer: Análisis de experiencia
+  - EducationProcessor: Procesamiento de educación
+  - WelcomeMessageGenerator: Generación de mensajes de bienvenida
+
+#### Pagos (pagos)
+- **Gestión de Transacciones**
+  - TransactionManager: Manejo de transacciones
+  - PaymentProcessor: Procesamiento de pagos
+  - RefundManager: Manejo de devoluciones
+
+- **Sistema de Facturación**
+  - InvoiceGenerator: Generación de facturas
+  - ReceiptGenerator: Generación de recibos
+  - TaxCalculator: Cálculo de impuestos
+
+#### Precios (pricing)
+- **Sistema de Precios**
+  - PriceCalculator: Cálculo de precios
+  - AddonManager: Gestión de addons
+  - CouponSystem: Sistema de cupones
+  - MilestoneGenerator: Generación de hitos
+
+#### Propuestas (proposals)
+- **Generación de Propuestas**
+  - ProposalGenerator: Generación de propuestas
+  - ContractManager: Gestión de contratos
+  - SignatureHandler: Sistema de firmas
+  - IdentityValidator: Validación de identidad
+
+#### Publicación (publish)
+- **Sistema de Publicación**
+  - ContentManager: Gestión de contenido
+  - Scheduler: Sistema de programación
+  - Analytics: Análisis de métricas
+  - PlatformIntegration: Integraciones multiplataforma
+
+#### SexSI (sexsi)
+- **Gestión de Contratos**
+  - ContractManager: Gestión de contratos
+  - PaymentProcessor: Procesamiento de pagos
+  - IdentityValidator: Validación de identidad
+  - UserManagement: Gestión de usuarios
+
+#### Utilidades (utilidades)
+- **Sistema de Scraping**
+  - LinkedInScraper: Scraping de LinkedIn
+  - EmailScraper: Scraping de emails
+  - DataValidator: Validación de datos
+
+- **Monitorización**
+  - MetricsCollector: Colección de métricas
+  - AlertSystem: Sistema de alertas
+  - PerformanceMonitor: Monitoreo de rendimiento
+
+- **Generación de Informes**
+  - ReportGenerator: Generación de informes
+  - Visualization: Visualización de datos
+  - ExportSystem: Sistema de exportación
 
 ### Componentes Principales
 
@@ -60,6 +246,268 @@ El sistema de chatbot de Grupo huntRED está construido sobre una arquitectura m
 ## Estructura del Módulo de Comunicaciones
 
 El módulo principal de comunicaciones (`com`) está organizado de la siguiente manera:
+
+```
+app/
+├── com/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── models.py
+│   ├── tasks.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── scraping/
+│   │   │   ├── __init__.py
+│   │   │   ├── linkedin.py
+│   │   │   ├── email_scraper.py
+│   │   │   └── utils.py
+│   │   ├── monitoring/
+│   │   │   ├── __init__.py
+│   │   │   └── metrics.py
+│   │   └── visualization/
+│   │       ├── __init__.py
+│   │       └── report_generator.py
+│   ├── chatbot/
+│   │   ├── __init__.py
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── state_manager.py
+│   │   │   ├── context_manager.py
+│   │   │   ├── flow_manager.py
+│   │   │   ├── nlp.py
+│   │   │   └── metrics.py
+│   │   ├── channels/
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── whatsapp/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   ├── scraper.py
+│   │   │   │   └── utils.py
+│   │   │   ├── telegram/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── utils.py
+│   │   │   ├── slack/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── utils.py
+│   │   │   └── email/
+│   │   │       ├── __init__.py
+│   │   │       ├── handler.py
+│   │   │       └── utils.py
+│   │   ├── components/
+│   │   │   ├── __init__.py
+│   │   │   ├── intents/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── optimizer.py
+│   │   │   ├── embeddings/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── generator.py
+│   │   │   └── gpt/
+│   │   │       ├── __init__.py
+│   │   │       └── handler.py
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── retry.py
+│   │       └── optimization.py
+│   ├── publish/
+│   │   ├── __init__.py
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   └── utils/
+│   ├── proposals/
+│   │   ├── __init__.py
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   └── utils/
+│   ├── recipients/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   └── types/
+│   │       ├── __init__.py
+│   │       ├── candidate.py
+│   │       ├── consultant.py
+│   │       ├── client.py
+│   │       ├── fiscal.py
+│   │       └── collector.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── scraping/
+│       │   ├── __init__.py
+│       │   ├── linkedin.py
+│       │   ├── email_scraper.py
+│       │   └── utils.py
+│       ├── monitoring/
+│       │   ├── __init__.py
+│       │   └── metrics.py
+│       └── visualization/
+│           ├── __init__.py
+│           └── report_generator.py
+```
+
+### Características Principales
+
+1. **Centralización**
+   - Código más organizado
+   - Menos duplicación
+   - Más fácil mantenimiento
+
+2. **Optimización**
+   - Índices en modelos
+   - Tareas asíncronas
+   - Caché para métricas
+   - Logging detallado
+
+3. **Visualización**
+   - Dashboard completo
+   - Métricas en tiempo real
+   - Análisis de flujo
+   - Reportes detallados
+
+4. **Integración con ML**
+   - Análisis de sentimientos
+   - Clasificación de intenciones
+   - Generación de respuestas
+   - Sistema de embeddings
+
+5. **Seguridad**
+   - Validación de identidad
+   - Códigos de verificación
+   - Protección de datos
+   - Auditoría de acciones
+
+```
+app/
+├── com/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── models.py
+│   ├── tasks.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── scraping/
+│   │   │   ├── __init__.py
+│   │   │   ├── linkedin.py
+│   │   │   ├── email_scraper.py
+│   │   │   └── utils.py
+│   │   ├── monitoring/
+│   │   │   ├── __init__.py
+│   │   │   └── metrics.py
+│   │   └── visualization/
+│   │       ├── __init__.py
+│   │       └── report_generator.py
+│   ├── chatbot/
+│   │   ├── __init__.py
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── state_manager.py
+│   │   │   ├── context_manager.py
+│   │   │   ├── flow_manager.py
+│   │   │   ├── nlp.py
+│   │   │   └── metrics.py
+│   │   ├── channels/
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── whatsapp/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   ├── scraper.py
+│   │   │   │   └── utils.py
+│   │   │   ├── telegram/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── utils.py
+│   │   │   ├── slack/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── utils.py
+│   │   │   └── email/
+│   │   │       ├── __init__.py
+│   │   │       ├── handler.py
+│   │   │       └── utils.py
+│   │   ├── components/
+│   │   │   ├── __init__.py
+│   │   │   ├── intents/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── handler.py
+│   │   │   │   └── optimizer.py
+│   │   │   ├── embeddings/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── generator.py
+│   │   │   └── gpt/
+│   │   │       ├── __init__.py
+│   │   │       └── handler.py
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── retry.py
+│   │       └── optimization.py
+│   ├── publish/
+│   │   ├── __init__.py
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   └── utils/
+│   ├── proposals/
+│   │   ├── __init__.py
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   └── utils/
+│   ├── recipients/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   └── types/
+│   │       ├── __init__.py
+│   │       ├── candidate.py
+│   │       ├── consultant.py
+│   │       ├── client.py
+│   │       ├── fiscal.py
+│   │       └── collector.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── scraping/
+│       │   ├── __init__.py
+│       │   ├── linkedin.py
+│       │   ├── email_scraper.py
+│       │   └── utils.py
+│       ├── monitoring/
+│       │   ├── __init__.py
+│       │   └── metrics.py
+│       └── visualization/
+│           ├── __init__.py
+│           └── report_generator.py
+```
+
+### Características Principales
+
+1. **Centralización**
+   - Código más organizado
+   - Menos duplicación
+   - Más fácil mantenimiento
+
+2. **Optimización**
+   - Índices en modelos
+   - Tareas asíncronas
+   - Caché para métricas
+   - Logging detallado
+
+3. **Visualización**
+   - Dashboard completo
+   - Métricas en tiempo real
+   - Análisis de flujo
+   - Reportes detallados
+
+4. **Integración con ML**
+   - Análisis de sentimientos
+   - Clasificación de intenciones
+   - Generación de respuestas
+   - Sistema de embeddings
+
+5. **Seguridad**
+   - Validación de identidad
+   - Códigos de verificación
+   - Protección de datos
+   - Auditoría de acciones
 
 ```
 app/
@@ -173,6 +621,496 @@ app/
 ### Gestión de Conversación
 
 El sistema utiliza un enfoque modular para el manejo de conversaciones:
+
+1. **ConversationalFlowManager**
+   - Gestiona el flujo de conversación
+   - Maneja transiciones de estado
+   - Mantiene el contexto de la conversación
+   - Genera respuestas dinámicas
+   - Implementa fallbacks
+
+2. **IntentDetector**
+   - Detecta intenciones del usuario
+   - Clasifica mensajes
+   - Maneja patrones de intent
+   - Implementa detección de fallback
+   - Integra con ML para mejora continua
+
+3. **StateManager**
+   - Maneja estados de conversación
+   - Valida transiciones
+   - Mantiene historial
+   - Implementa timeouts
+   - Gestiona estados concurrentes
+
+4. **ContextManager**
+   - Mantiene contexto de conversación
+   - Valida condiciones
+   - Actualiza estado
+   - Persiste contexto
+   - Maneja contexto compartido
+
+5. **ResponseGenerator**
+   - Genera respuestas dinámicas
+   - Implementa personalización
+   - Gestiona respuestas multilingües
+   - Integra con ML para mejora
+   - Maneja respuestas de emergencia
+
+### Sistema de Mensajería
+
+1. **MessageService**
+   - Servicio centralizado de mensajes
+   - Manejo de colas
+   - Gestión de prioridades
+   - Sistema de reintentos
+   - Logging detallado
+
+2. **RateLimiter**
+   - Sistema de limitación de tasa
+   - Prevención de abusos
+   - Gestión de límites por plataforma
+   - Sistema de cooldown
+   - Monitoreo en tiempo real
+
+3. **Button**
+   - Manejo de elementos interactivos
+   - Gestión de respuestas
+   - Sistema de validación
+   - Manejo de estados
+   - Integración con ML
+
+4. **EmailService**
+   - Servicio de correo electrónico
+   - Gestión de plantillas
+   - Sistema de personalización
+   - Tracking de aperturas
+   - Manejo de errores
+
+5. **GamificationService**
+   - Sistema de gamificación
+   - Gestión de puntos
+   - Sistema de recompensas
+   - Análisis de comportamiento
+   - Integración con ML
+
+### Integraciones
+
+1. **WhatsApp**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+2. **Telegram**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+3. **Slack**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+4. **LinkedIn**
+   - Validación de perfiles
+   - Análisis de datos
+   - Integración con ML
+   - Sistema de verificación
+   - Generación de insights
+
+5. **Instagram**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+### Utilidades
+
+1. **Sistema de Métricas**
+   - Colección de datos
+   - Análisis en tiempo real
+   - Generación de reportes
+   - Sistema de alertas
+   - Integración con ML
+
+2. **Sistema de Caché**
+   - Optimización de rendimiento
+   - Gestión de memoria
+   - Sistema de expiración
+   - Monitoreo de uso
+   - Integración con ML
+
+3. **Manejo Asíncrono**
+   - Gestión de tareas
+   - Sistema de colas
+   - Manejo de errores
+   - Logging detallado
+   - Integración con ML
+
+4. **Integración con ML**
+   - Análisis de sentimientos
+   - Clasificación de intenciones
+   - Generación de respuestas
+   - Sistema de embeddings
+   - Optimización continua
+
+### Mejoras al ML Module
+
+1. **Procesamiento de CVs**
+   - Extracción de skills específicas
+   - Análisis de experiencia
+   - Clasificación de nivel
+   - Generación de insights
+   - Sistema de recomendaciones
+
+2. **Análisis de Datos**
+   - Colección de datos estructurados
+   - Análisis de tendencias
+   - Generación de métricas
+   - Sistema de alertas
+   - Integración con ML
+
+3. **Optimización de Modelos**
+   - Entrenamiento continuo
+   - Validación cruzada
+   - Optimización de hiperparámetros
+   - Monitoreo de rendimiento
+   - Sistema de actualización
+
+4. **Sistema de Embeddings**
+   - Generación de embeddings
+   - Optimización de representaciones
+   - Sistema de caché
+   - Análisis de similitud
+   - Integración con ML
+
+5. **Integración con Chatbot**
+   - Mejora de respuestas
+   - Personalización de interacciones
+   - Análisis de contexto
+   - Sistema de recomendaciones
+   - Optimización continua
+
+### Seguridad
+
+1. **Validación de Identidad**
+   - Sistema de verificación
+   - Códigos de seguridad
+   - Protección de datos
+   - Auditoría de acciones
+   - Sistema de alertas
+
+2. **Gestión de Sesiones**
+   - Sesiones seguras
+   - Timeout de seguridad
+   - Validación de tokens
+   - Protección contra ataques
+   - Monitoreo de sesiones
+
+3. **Protección de Datos**
+   - Encriptación de datos
+   - Gestión de permisos
+   - Auditoría de acceso
+   - Sistema de logs
+   - Cumplimiento de normativas
+
+### Métricas y Monitoreo
+
+1. **Sistema de Métricas**
+   - Colección de datos
+   - Análisis en tiempo real
+   - Generación de reportes
+   - Sistema de alertas
+   - Integración con ML
+
+2. **Monitoreo de Rendimiento**
+   - Tiempo de respuesta
+   - Uso de recursos
+   - Tasa de errores
+   - Tiempo de inactividad
+   - Sistema de alertas
+
+3. **Análisis de Datos**
+   - Análisis de tendencias
+   - Generación de insights
+   - Sistema de recomendaciones
+   - Optimización continua
+   - Integración con ML
+
+### Mantenimiento y Actualizaciones
+
+1. **Sistema de Actualizaciones**
+   - Actualizaciones automáticas
+   - Validación de cambios
+   - Sistema de rollback
+   - Monitoreo de actualizaciones
+   - Integración con ML
+
+2. **Mantenimiento Preventivo**
+   - Monitoreo de rendimiento
+   - Limpieza de datos
+   - Optimización de recursos
+   - Actualización de dependencias
+   - Integración con ML
+
+3. **Sistema de Logs**
+   - Registro de acciones
+   - Monitoreo de errores
+   - Análisis de tendencias
+   - Sistema de alertas
+   - Integración con ML
+
+1. **ConversationalFlowManager**
+   - Gestiona el flujo de conversación
+   - Maneja transiciones de estado
+   - Mantiene el contexto de la conversación
+   - Genera respuestas dinámicas
+   - Implementa fallbacks
+
+2. **IntentDetector**
+   - Detecta intenciones del usuario
+   - Clasifica mensajes
+   - Maneja patrones de intent
+   - Implementa detección de fallback
+   - Integra con ML para mejora continua
+
+3. **StateManager**
+   - Maneja estados de conversación
+   - Valida transiciones
+   - Mantiene historial
+   - Implementa timeouts
+   - Gestiona estados concurrentes
+
+4. **ContextManager**
+   - Mantiene contexto de conversación
+   - Valida condiciones
+   - Actualiza estado
+   - Persiste contexto
+   - Maneja contexto compartido
+
+5. **ResponseGenerator**
+   - Genera respuestas dinámicas
+   - Implementa personalización
+   - Gestiona respuestas multilingües
+   - Integra con ML para mejora
+   - Maneja respuestas de emergencia
+
+### Sistema de Mensajería
+
+1. **MessageService**
+   - Servicio centralizado de mensajes
+   - Manejo de colas
+   - Gestión de prioridades
+   - Sistema de reintentos
+   - Logging detallado
+
+2. **RateLimiter**
+   - Sistema de limitación de tasa
+   - Prevención de abusos
+   - Gestión de límites por plataforma
+   - Sistema de cooldown
+   - Monitoreo en tiempo real
+
+3. **Button**
+   - Manejo de elementos interactivos
+   - Gestión de respuestas
+   - Sistema de validación
+   - Manejo de estados
+   - Integración con ML
+
+4. **EmailService**
+   - Servicio de correo electrónico
+   - Gestión de plantillas
+   - Sistema de personalización
+   - Tracking de aperturas
+   - Manejo de errores
+
+5. **GamificationService**
+   - Sistema de gamificación
+   - Gestión de puntos
+   - Sistema de recompensas
+   - Análisis de comportamiento
+   - Integración con ML
+
+### Integraciones
+
+1. **WhatsApp**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+2. **Telegram**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+3. **Slack**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+4. **LinkedIn**
+   - Validación de perfiles
+   - Análisis de datos
+   - Integración con ML
+   - Sistema de verificación
+   - Generación de insights
+
+5. **Instagram**
+   - Gestión de mensajes
+   - Sistema de botones
+   - Manejo de estados
+   - Integración con ML
+   - Sistema de verificación
+
+### Utilidades
+
+1. **Sistema de Métricas**
+   - Colección de datos
+   - Análisis en tiempo real
+   - Generación de reportes
+   - Sistema de alertas
+   - Integración con ML
+
+2. **Sistema de Caché**
+   - Optimización de rendimiento
+   - Gestión de memoria
+   - Sistema de expiración
+   - Monitoreo de uso
+   - Integración con ML
+
+3. **Manejo Asíncrono**
+   - Gestión de tareas
+   - Sistema de colas
+   - Manejo de errores
+   - Logging detallado
+   - Integración con ML
+
+4. **Integración con ML**
+   - Análisis de sentimientos
+   - Clasificación de intenciones
+   - Generación de respuestas
+   - Sistema de embeddings
+   - Optimización continua
+
+### Mejoras al ML Module
+
+1. **Procesamiento de CVs**
+   - Extracción de skills específicas
+   - Análisis de experiencia
+   - Clasificación de nivel
+   - Generación de insights
+   - Sistema de recomendaciones
+
+2. **Análisis de Datos**
+   - Colección de datos estructurados
+   - Análisis de tendencias
+   - Generación de métricas
+   - Sistema de alertas
+   - Integración con ML
+
+3. **Optimización de Modelos**
+   - Entrenamiento continuo
+   - Validación cruzada
+   - Optimización de hiperparámetros
+   - Monitoreo de rendimiento
+   - Sistema de actualización
+
+4. **Sistema de Embeddings**
+   - Generación de embeddings
+   - Optimización de representaciones
+   - Sistema de caché
+   - Análisis de similitud
+   - Integración con ML
+
+5. **Integración con Chatbot**
+   - Mejora de respuestas
+   - Personalización de interacciones
+   - Análisis de contexto
+   - Sistema de recomendaciones
+   - Optimización continua
+
+### Seguridad
+
+1. **Validación de Identidad**
+   - Sistema de verificación
+   - Códigos de seguridad
+   - Protección de datos
+   - Auditoría de acciones
+   - Sistema de alertas
+
+2. **Gestión de Sesiones**
+   - Sesiones seguras
+   - Timeout de seguridad
+   - Validación de tokens
+   - Protección contra ataques
+   - Monitoreo de sesiones
+
+3. **Protección de Datos**
+   - Encriptación de datos
+   - Gestión de permisos
+   - Auditoría de acceso
+   - Sistema de logs
+   - Cumplimiento de normativas
+
+### Métricas y Monitoreo
+
+1. **Sistema de Métricas**
+   - Colección de datos
+   - Análisis en tiempo real
+   - Generación de reportes
+   - Sistema de alertas
+   - Integración con ML
+
+2. **Monitoreo de Rendimiento**
+   - Tiempo de respuesta
+   - Uso de recursos
+   - Tasa de errores
+   - Tiempo de inactividad
+   - Sistema de alertas
+
+3. **Análisis de Datos**
+   - Análisis de tendencias
+   - Generación de insights
+   - Sistema de recomendaciones
+   - Optimización continua
+   - Integración con ML
+
+### Mantenimiento y Actualizaciones
+
+1. **Sistema de Actualizaciones**
+   - Actualizaciones automáticas
+   - Validación de cambios
+   - Sistema de rollback
+   - Monitoreo de actualizaciones
+   - Integración con ML
+
+2. **Mantenimiento Preventivo**
+   - Monitoreo de rendimiento
+   - Limpieza de datos
+   - Optimización de recursos
+   - Actualización de dependencias
+   - Integración con ML
+
+3. **Sistema de Logs**
+   - Registro de acciones
+   - Monitoreo de errores
+   - Análisis de tendencias
+   - Sistema de alertas
+   - Integración con ML
 
 1. **ConversationalFlowManager**
    - Gestiona el flujo de conversación

@@ -1,3 +1,7 @@
+# /home/pablo/app/views/chatbot/admin/flow_views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 from django.contrib import admin
 from django import forms
 from django.db import models

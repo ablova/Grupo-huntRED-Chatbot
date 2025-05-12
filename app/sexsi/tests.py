@@ -1,4 +1,6 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/tests.py
+# /home/pablo/app/sexsi/tests.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
 
 from django.test import TestCase, Client
 from django.contrib.auth.models import User

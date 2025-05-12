@@ -1,3 +1,7 @@
+# /home/pablo/app/advanced_features/urls.py
+#
+# Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings

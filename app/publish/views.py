@@ -1,3 +1,7 @@
+# /home/pablo/app/publish/views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 from rest_framework import viewsets, permissions
 from .models import Channel, Bot, JobChannel
 from .serializers import ChannelSerializer, BotSerializer, JobChannelSerializer

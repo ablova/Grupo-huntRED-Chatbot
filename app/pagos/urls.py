@@ -1,3 +1,7 @@
+# /home/pablo/app/pagos/urls.py
+#
+# Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
+
 from django.urls import path
 from .views.payment_views import (
     payment_list, initiate_payment, webhook_payment_status,

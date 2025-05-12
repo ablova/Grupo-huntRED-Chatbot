@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
 from django.utils import timezone
 from asgiref.sync import sync_to_async
-from app.chatbot.utils import clean_text
+from app.com.chatbot.utils import clean_text
 from app.models import DominioScraping
 import aiohttp
 import re

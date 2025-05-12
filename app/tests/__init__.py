@@ -1,4 +1,6 @@
-# Tests for the app
+# /home/pablo/app/tests/__init__.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
 
 from .test_admin import TestAdmin
 from .test_ats import TestATS

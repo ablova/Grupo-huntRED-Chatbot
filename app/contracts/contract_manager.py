@@ -6,9 +6,9 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.core.cache import cache
 from app.models import Contract, Person, BusinessUnit, ApiConfig
-from app.utilidades.signature.signature_handler import generate_and_send_contract
-from app.utilidades.signature.digital_signature_providers import get_signature_provider
-from app.chatbot.gpt import GPTHandler
+from app.com.utils.signature.signature_handler import generate_and_send_contract
+from app.com.utils.signature.digital_signature_providers import get_signature_provider
+from app.com.chatbot.gpt import GPTHandler
 from app.contracts.config import (
     CONTRACTS_DIR, SIGNED_CONTRACTS_DIR, TEMP_CONTRACTS_DIR,
     SIGNATURE_CONFIG, AI_CONFIG, BLOCKCHAIN_CONFIG, EMAIL_CONFIG,

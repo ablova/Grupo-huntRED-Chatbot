@@ -109,7 +109,7 @@ class ContractGenerator:
         Args:
             contract: Instancia de Contract
         """
-        from app.utilidades.notification_handler import NotificationHandler
+        from app.com.utils.notification_handler import NotificationHandler
         
         notification_handler = NotificationHandler()
         message = f"Nuevo contrato pendiente de aprobación: {contract.proposal.company}"

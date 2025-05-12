@@ -1,3 +1,7 @@
+# /home/pablo/app/tests/test_pricing_integration.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
+
 from django.test import TestCase, override_settings
 from django.core import mail
 from django.utils import timezone
@@ -6,7 +10,7 @@ from app.models import (
     Proposal, Contract, PaymentMilestone, BusinessUnit, Company, Vacante, Person
 )
 from app.pricing.utils import calculate_pricing, generate_proposal_pdf
-from app.chatbot.integrations.services import send_email, send_message
+from app.com.chatbot.integrations.services import send_email, send_message
 from app.tasks import send_whatsapp_message_task
 
 

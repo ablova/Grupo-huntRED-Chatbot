@@ -1,3 +1,7 @@
+# /home/pablo/app/views/preview_views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -7,7 +11,7 @@ import json
 import logging
 
 from app.models import CartaOferta, Person, Vacante, BusinessUnit
-from app.utilidades.signature.pdf_generator import generate_pdf
+from app.com.utils.signature.pdf_generator import generate_pdf
 
 logger = logging.getLogger(__name__)
 

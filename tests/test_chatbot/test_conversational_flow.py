@@ -3,8 +3,8 @@ from django.test import TestCase
 from django.utils import timezone
 from asgiref.sync import async_to_sync
 from app.models import Person, BusinessUnit
-from app.chatbot.conversational_flow import ConversationalFlowManager
-from app.chatbot.models import ChatState
+from app.com.chatbot.conversational_flow import ConversationalFlowManager
+from app.com.chatbot.models import ChatState
 
 class TestConversationalFlowManager(TestCase):
     def setUp(self):

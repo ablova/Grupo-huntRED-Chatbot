@@ -4,7 +4,7 @@ import psutil
 import tensorflow as tf
 import logging
 from app.ml.ml_config import ML_CONFIG
-from app.chatbot.migration_check import skip_on_migrate
+from app.com.chatbot.migration_check import skip_on_migrate
 
 # Configuración de logging
 logging.basicConfig(

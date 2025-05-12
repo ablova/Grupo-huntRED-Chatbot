@@ -1,4 +1,7 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/views/notification_views.py
+# /home/pablo/app/sexsi/views/notification_views.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 """
 Vistas para manejo de notificaciones en SEXSI.
 """

@@ -1,3 +1,7 @@
+# /home/pablo/app/views/candidates.py
+#
+# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings

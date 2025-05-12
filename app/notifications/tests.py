@@ -1,3 +1,7 @@
+# /home/pablo/app/notifications/tests.py
+#
+# Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
+
 from django.test import TestCase
 from django.contrib.auth.models import User
 from .notifications_manager import NotificationsManager
