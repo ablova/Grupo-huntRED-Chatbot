@@ -153,23 +153,23 @@ def initialize_all() -> None:
 
 def validate_imports() -> bool:
     """
-    Validate all imports in the application and register lazy imports.
+    Validate and register essential modules.
     
     Returns:
         bool: True if validation passed, False otherwise
     """
-    # Get all packages in the application
-    app_path = Path(__file__).parent
-    packages = [d.name for d in app_path.iterdir() if d.is_dir() and not d.name.startswith('_')]
+    # List of essential packages to register
+    essential_packages = ['ml', 'sexsi', 'com', 'pagos', 'publish']
     
-    # Register modules from each package
-    for package in packages:
+    # Register essential modules
+    for package in essential_packages:
         try:
             config_path = f"app.{package}.import_config"
             register_from_config(config_path)
-            logger.info(f"Registered modules from package {package}")
+            logger.info(f"Successfully registered modules from package {package}")
         except Exception as e:
             logger.error(f"Error registering modules from {package}: {str(e)}")
+            continue
     
     # Initialize all modules
     try:
@@ -179,6 +179,6 @@ def validate_imports() -> bool:
         logger.error(f"Error initializing modules: {str(e)}")
         return False
 
-# Register all modules at startup
+# Register essential modules at startup
 if os.environ.get('DJANGO_SETTINGS_MODULE'):
     validate_imports()
