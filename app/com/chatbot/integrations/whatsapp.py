@@ -15,8 +15,10 @@ from django.core.cache import cache
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, WhatsAppAPI, ChatState
-from app.com.chatbot.chat_state_manager import ChatStateManager
-from app.com.chatbot.intents_handler import IntentProcessor
+from app.com.chatbot.import_config import (
+    get_chat_state_manager,
+    get_intent_processor
+)
 from app.com.chatbot.integrations.whatsapp.rate_limiter import RateLimiter
 
 logger = logging.getLogger('chatbot')
@@ -29,14 +31,13 @@ whatsapp_semaphore = asyncio.Semaphore(10)
 
 class WhatsAppHandler:
     """Handler for WhatsApp channel interactions with rate limiting and error handling."""
-
     def __init__(self, user_id: str, phone_number_id: str, business_unit: BusinessUnit):
         self.user_id = user_id
         self.phone_number_id = phone_number_id
         self.business_unit = business_unit
         self.user: Optional[Person] = None
-        self.chat_manager: Optional[ChatStateManager] = None
-        self.intent_processor: Optional[IntentProcessor] = None
+        self.chat_manager = get_chat_state_manager()
+        self.intent_processor = get_intent_processor()
         self.whatsapp_api: Optional[WhatsAppAPI] = None
         self.user_data: Dict[str, Any] = {}
         self.api_base_url = settings.WHATSAPP_API_URL

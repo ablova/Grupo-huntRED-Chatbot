@@ -18,7 +18,13 @@ from app.com.utils.salario import (
     calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
     obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
 )
-from app.com.chatbot.integrations.message_sender import send_menu, send_message, send_image, send_options
+# Deferred imports to prevent circular dependencies
+def get_send_functions():
+    from app.com.chatbot.integrations.services import send_menu, send_message, send_image, send_options, send_smart_options
+    return send_menu, send_message, send_image, send_options
+
+# Initialize the functions when the module is first imported
+send_menu, send_message, send_image, send_options = get_send_functions()
 from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState, DivisionTransition
 from django.conf import settings
 from urllib.parse import urlparse

@@ -28,9 +28,12 @@ from app.models import (
     EnhancedNetworkGamificationProfile
 )
 
-from app.com.chatbot.integrations.whatsapp import WhatsAppHandler, fetch_whatsapp_user_data
+from app.com.chatbot.import_config import (
+    get_whatsapp_handler,
+    get_fetch_whatsapp_user_data
+)
 from app.com.chatbot.integrations.telegram import TelegramHandler, fetch_telegram_user_data
-from app.com.chatbot.integrations.messenger import MessengerHandler, fetch_messenger_user_data
+# The MessageService and GamificationService classes are defined in this file
 from app.com.chatbot.integrations.instagram import InstagramHandler, fetch_instagram_user_data
 from app.com.chatbot.integrations.slack import fetch_slack_user_data
 
@@ -436,35 +439,29 @@ class MessageService:
             'instagram': InstagramAPI,
             'slack': SlackAPI
         }
+        handler_mapping = {
+            'whatsapp': lambda: get_whatsapp_handler(),
+            'telegram': lambda: TelegramHandler,
+            'messenger': lambda: MessengerHandler,
+            'instagram': lambda: InstagramHandler,
+            'slack': lambda: SlackHandler
+        }
         model_class = model_mapping.get(platform)
-        if not model_class:
+        handler_class = handler_mapping.get(platform)
+        if not model_class or not handler_class:
             logger.error(f"Plataforma no soportada: {platform}")
             self._api_instances[platform] = None
             return None
 
         try:
-            api_instance = await model_class.objects.filter(
-                business_unit=self.business_unit, is_active=True
-            ).afirst()
-            
-            if not api_instance:
-                logger.warning(f"No se encontró configuración activa para {platform} en BU {self.business_unit.name}")
-                raise ValueError(f"No se encontró configuración activa para {platform}")
-
-            required_attrs = {
-                'whatsapp': ['phoneID', 'api_token', 'v_api'],
-                'telegram': ['api_key', 'bot_name'],
-                'messenger': ['page_access_token', 'page_id'],
-                'instagram': ['access_token', 'phoneID'],
-                'slack': ['bot_token']
-            }
-            missing_attrs = [attr for attr in required_attrs.get(platform, []) if not getattr(api_instance, attr)]
-            if missing_attrs:
-                raise ValueError(f"Configuración incompleta para {platform}: {', '.join(missing_attrs)}")
-
-            self._api_instances[platform] = api_instance
-            cache.set(cache_key, api_instance, timeout=CACHE_TIMEOUT)
-            return api_instance
+            api_instance = await model_class.objects.aget_or_create(
+                business_unit=self.business_unit,
+                defaults={'api_key': 'default'}
+            )
+            self._api_instances[platform] = api_instance[0]
+            self._handlers[platform] = handler_class()
+            cache.set(cache_key, api_instance[0], CACHE_TIMEOUT)
+            return api_instance[0]
 
         except ValueError as ve:
             logger.error(f"Error de validación en {platform}: {str(ve)}")

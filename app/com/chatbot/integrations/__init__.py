@@ -5,5 +5,12 @@
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
 from .verification import VerificationService, InCodeClient, BlackTrustClient
+from .whatsapp import WhatsAppHandler
+from .telegram import TelegramHandler
+from .messenger import MessengerHandler
+from .instagram import InstagramHandler
+from .slack import SlackHandler
 
-__all__ = ['VerificationService', 'InCodeClient', 'BlackTrustClient']
+__all__ = ['VerificationService', 'InCodeClient', 'BlackTrustClient',
+            'WhatsAppHandler', 'TelegramHandler', 'MessengerHandler',
+            'InstagramHandler', 'SlackHandler']
