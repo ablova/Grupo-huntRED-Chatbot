@@ -43,58 +43,10 @@ INTENT_PRIORITY = {
     'NONE': 1
 }
 
-async def get_redis_connection() -> Redis:
-    """Get Redis connection with connection pooling"""
-    if not hasattr(get_redis_connection, 'pool'):
-        for attempt in range(3):  # Retry up to 3 times
-            try:
-                get_redis_connection.pool = await aioredis.create_redis_pool(
-                    settings.REDIS_URL,
-                    minsize=5,
-                    maxsize=10,
-                    timeout=5  # Add timeout to prevent hanging
-                )
-                logger.info(f"Redis connection pool created on attempt {attempt+1}")
-                break
-            except Exception as e:
-                logger.error(f"Failed to create Redis pool on attempt {attempt+1}: {str(e)}")
-                if attempt == 2:  # Last attempt
-                    logger.critical("Failed to establish Redis connection after retries")
-                    raise
-                await asyncio.sleep(1)  # Wait before retrying
-    return get_redis_connection.pool
-
-async def get_cached_state_key(user_id: int, bu_id: int, channel: str) -> str:
-    """Get cache key for chat state with Redis support"""
-    redis_key = STATE_CACHE_KEY.format(user_id, bu_id, channel)
-    return redis_key
-
-@lru_cache(maxsize=1000)
-def get_intent_cache_key(user_id: int) -> str:
-    """Get cache key for intent analysis"""
-    return INTENT_CACHE_KEY.format(user_id)
-
-logger = logging.getLogger(__name__)
-
-# Cache configuration
-STATE_CACHE_KEY = 'chat_state_{}_{}'
-STATE_CACHE_TIMEOUT = 300  # 5 minutes
-
-@lru_cache(maxsize=1000)
-def get_cached_state_key(user_id: int, bu_id: int) -> str:
-    """Get cache key for chat state"""
-    return STATE_CACHE_KEY.format(user_id, bu_id)
-
 class ChatStateManager:
-    """Manejador de estados de chat para el chatbot.
-    
-    Optimizado para:
-    - Manejo asíncrono de estados
-    - Caching con Redis
-    - Seguimiento de métricas en tiempo real
-    - Manejo de contexto mejorado
     """
-    
+    Manager for handling chatbot conversation states with Redis caching.
+    """
     def __init__(self, user: Person, business_unit: BusinessUnit, channel: str):
         self.user = user
         self.business_unit = business_unit
@@ -106,98 +58,159 @@ class ChatStateManager:
         self.context = {}
         self.context_stack = []  # Stack for context management
         self.metrics = StateMetrics()
-        self.cache_key = get_cached_state_key(user.id, business_unit.id, channel)
+        self.cache_key = STATE_CACHE_KEY.format(user.id, business_unit.id, channel)
         self.fallback_states = []
         self.error_count = 0
         self.max_retries = 3
-        
+        self.redis_client = None
+        self._initialize_redis()
+        logger.info("ChatStateManager initialized")
+
+    def _initialize_redis(self):
+        """
+        Initialize Redis client with retry mechanism.
+        """
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                self.redis_client = Redis.from_url(
+                    settings.REDIS_URL,
+                    encoding="utf-8",
+                    decode_responses=True
+                )
+                # Test connection
+                self.redis_client.ping()
+                logger.info("Successfully connected to Redis")
+                return
+            except aioredis.ConnectionError as e:
+                logger.error(f"Redis connection attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                if attempt == max_retries - 1:
+                    logger.critical("Failed to connect to Redis after retries")
+                    raise
+                asyncio.sleep(2 ** attempt)  # Exponential backoff
+
+    async def get_state(self) -> Dict[str, Any]:
+        """
+        Retrieve the current state for the chat session.
+
+        Returns:
+            dict: Current state of the chat, or empty dict if not found.
+        """
+        for attempt in range(3):
+            try:
+                state_json = self.redis_client.get(self.cache_key)
+                if state_json:
+                    return json.loads(state_json)
+                return {}
+            except (aioredis.RedisError, json.JSONDecodeError) as e:
+                logger.error(f"Error retrieving state for chat {self.user.id}, attempt {attempt + 1}/3: {str(e)}")
+                if attempt == 2:
+                    logger.critical(f"Failed to retrieve state for chat {self.user.id} after retries")
+                    return {}
+                asyncio.sleep(1)
+
+    async def set_state(self, state: Dict[str, Any], ttl: int = None):
+        """
+        Set the current state for the chat session.
+
+        Args:
+            state (dict): State data to store.
+            ttl (int, optional): Time to live in seconds for the state data.
+        """
+        for attempt in range(3):
+            try:
+                state_json = json.dumps(state)
+                if ttl:
+                    self.redis_client.setex(self.cache_key, ttl, state_json)
+                else:
+                    self.redis_client.set(self.cache_key, state_json)
+                logger.info(f"State set for chat {self.user.id}")
+                return
+            except (aioredis.RedisError, json.JSONEncodeError) as e:
+                logger.error(f"Error setting state for chat {self.user.id}, attempt {attempt + 1}/3: {str(e)}")
+                if attempt == 2:
+                    logger.critical(f"Failed to set state for chat {self.user.id} after retries")
+                    raise
+                asyncio.sleep(1)
+
+    async def update_state_field(self, field: str, value: Any):
+        """
+        Update a specific field in the state for the chat session.
+
+        Args:
+            field (str): Field to update.
+            value (any): Value to set for the field.
+        """
+        state = await self.get_state()
+        state[field] = value
+        await self.set_state(state)
+        logger.info(f"Updated field {field} for chat {self.user.id}")
+
+    async def clear_state(self):
+        """
+        Clear the state for the chat session.
+        """
+        for attempt in range(3):
+            try:
+                self.redis_client.delete(self.cache_key)
+                logger.info(f"State cleared for chat {self.user.id}")
+                return
+            except aioredis.RedisError as e:
+                logger.error(f"Error clearing state for chat {self.user.id}, attempt {attempt + 1}/3: {str(e)}")
+                if attempt == 2:
+                    logger.critical(f"Failed to clear state for chat {self.user.id} after retries")
+                    raise
+                asyncio.sleep(1)
+
     async def initialize(self):
         """Inicializa el estado del chat para un usuario con soporte Redis."""
         try:
             logger.info(f"Initializing chat state for user {self.user.id} on channel {self.channel}")
             # Try to get from Redis cache first
-            redis = await get_redis_connection()
-            for attempt in range(3):  # Retry mechanism for Redis operations
-                try:
-                    cached_state = await redis.get(self.cache_key)
-                    if cached_state:
-                        cached_state = json.loads(cached_state)
-                        logger.debug(f"Loaded chat state from Redis for user {self.user.id}")
-                        self.current_state = cached_state['state']
-                        self.last_intent = cached_state['last_intent']
-                        self.conversation_history = cached_state['history']
-                        self.context = cached_state['context']
-                        self.context_stack = cached_state.get('context_stack', [])
-                        self.metrics = StateMetrics.from_dict(cached_state.get('metrics', {}))
-                        logger.info(f"Chat state successfully loaded for user {self.user.id}")
-                        return True
-                    else:
-                        logger.debug(f"No cached state found for user {self.user.id}, initializing new state")
-                        break
-                except Exception as e:
-                    logger.error(f"Redis get attempt {attempt+1} failed for user {self.user.id}: {str(e)}")
-                    if attempt == 2:
-                        logger.critical(f"Failed to load state from Redis for user {self.user.id} after retries")
-                        break
-                    await asyncio.sleep(1)  # Wait before retrying
-            
-            # Get or create the chat state
-            chat_state, created = await ChatState.objects.aget_or_create(
-                person=self.user,
-                business_unit=self.business_unit,
-                defaults={'state': 'INITIAL'}
-            )
-            
-            if created:
-                self.metrics.increment('new_conversation')
+            state = await self.get_state()
+            if state:
+                self.current_state = state['state']
+                self.last_intent = state['last_intent']
+                self.conversation_history = state['history']
+                self.context = state['context']
+                self.context_stack = state.get('context_stack', [])
+                self.metrics = StateMetrics.from_dict(state.get('metrics', {}))
+                logger.info(f"Chat state successfully loaded for user {self.user.id}")
+                return True
             else:
-                self.metrics.increment('existing_conversation')
+                logger.debug(f"No cached state found for user {self.user.id}, initializing new state")
+                # Get or create the chat state
+                chat_state, created = await ChatState.objects.aget_or_create(
+                    person=self.user,
+                    business_unit=self.business_unit,
+                    defaults={'state': 'INITIAL'}
+                )
+                
+                if created:
+                    self.metrics.increment('new_conversation')
+                else:
+                    self.metrics.increment('existing_conversation')
 
-            self.current_state = chat_state.state
-            self.last_intent = None
-            self.conversation_history = []
-            self.context = {}
-            self.context_stack = []
-            
-            # Save initial state to Redis
-            await self._save_to_redis()
-            return True
-            
-            # Get or create the chat state
-            chat_state, created = await ChatState.objects.aget_or_create(
-                person=self.user,
-                business_unit=self.business_unit,
-                defaults={'state': 'INITIAL'}
-            )
-            
-            self.current_state = chat_state.state
-            self.last_intent = chat_state.last_intent
-            self.conversation_history = chat_state.conversation_history or []
-            self.context = get_workflow_context(self.business_unit)
-            
-            # Initialize channel-specific context
-            if self.channel_handler:
-                self.context.update(self.channel_handler.get_initial_context())
-            
-            # Cache the state
-            cache.set(
-                self.cache_key,
-                {
+                self.current_state = chat_state.state
+                self.last_intent = None
+                self.conversation_history = []
+                self.context = {}
+                self.context_stack = []
+                
+                # Save initial state to Redis
+                await self.set_state({
                     'state': self.current_state,
                     'last_intent': self.last_intent,
                     'history': self.conversation_history,
                     'context': self.context,
                     'context_stack': self.context_stack,
                     'metrics': dict(self.metrics)
-                },
-                STATE_CACHE_TIMEOUT
-            )
-            
-            return chat_state
+                })
+                return True
         except Exception as e:
             logger.error(f"Error initializing chat state: {str(e)}")
             raise
-    
+
     async def update_state(self, new_state: str, intent: Optional[str] = None):
         """Actualiza el estado actual con soporte asíncrono y métricas."""
         try:
@@ -216,7 +229,14 @@ class ChatStateManager:
                     return False
             else:
                 logger.debug(f"State unchanged for user {self.user.id}: {new_state}")
-            await self._save_to_redis()
+            await self.set_state({
+                'state': self.current_state,
+                'last_intent': self.last_intent,
+                'history': self.conversation_history,
+                'context': self.context,
+                'context_stack': self.context_stack,
+                'metrics': dict(self.metrics)
+            })
             logger.info(f"State updated for user {self.user.id} to {new_state}")
             return True
         except Exception as e:
@@ -224,7 +244,7 @@ class ChatStateManager:
             self.error_count += 1
             self.metrics.increment('state_update_errors')
             return False
-    
+
     async def process_message(self, message: str) -> Dict[str, Any]:
         """Procesa un mensaje y actualiza el estado del chat."""
         try:
@@ -251,19 +271,15 @@ class ChatStateManager:
             # Update context
             self.context.update(analysis.get('context', {}))
             
-            # Cache state
-            cache.set(
-                self.cache_key,
-                {
-                    'state': self.current_state,
-                    'last_intent': self.last_intent,
-                    'history': self.conversation_history,
-                    'context': self.context,
-                    'context_stack': self.context_stack,
-                    'metrics': dict(self.metrics)
-                },
-                STATE_CACHE_TIMEOUT
-            )
+            # Save state to Redis
+            await self.set_state({
+                'state': self.current_state,
+                'last_intent': self.last_intent,
+                'history': self.conversation_history,
+                'context': self.context,
+                'context_stack': self.context_stack,
+                'metrics': dict(self.metrics)
+            })
             
             return {
                 'state': self.current_state,
@@ -273,7 +289,7 @@ class ChatStateManager:
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
             raise
-    
+
     async def _is_valid_transition(self, current_state: str, new_state: str) -> bool:
         """Verifica si una transición de estado es válida."""
         try:
@@ -428,21 +444,42 @@ class ChatStateManager:
     async def set_context(self, key: str, value: Any):
         """Establece un valor en el contexto con soporte asíncrono."""
         self.context[key] = value
-        await self._save_to_redis()
+        await self.set_state({
+            'state': self.current_state,
+            'last_intent': self.last_intent,
+            'history': self.conversation_history,
+            'context': self.context,
+            'context_stack': self.context_stack,
+            'metrics': dict(self.metrics)
+        })
         self.metrics.increment('context_updates')
 
     async def push_context(self, context: Dict[str, Any]):
         """Guarda el contexto actual y establece uno nuevo."""
         self.context_stack.append(self.context.copy())
         self.context = context
-        await self._save_to_redis()
+        await self.set_state({
+            'state': self.current_state,
+            'last_intent': self.last_intent,
+            'history': self.conversation_history,
+            'context': self.context,
+            'context_stack': self.context_stack,
+            'metrics': dict(self.metrics)
+        })
         self.metrics.increment('context_stack_push')
 
     async def pop_context(self):
         """Restaura el contexto anterior."""
         if self.context_stack:
             self.context = self.context_stack.pop()
-            await self._save_to_redis()
+            await self.set_state({
+                'state': self.current_state,
+                'last_intent': self.last_intent,
+                'history': self.conversation_history,
+                'context': self.context,
+                'context_stack': self.context_stack,
+                'metrics': dict(self.metrics)
+            })
             self.metrics.increment('context_stack_pop')
         return self.context_stack
     
@@ -458,32 +495,3 @@ class ChatStateManager:
                 if intent.startswith('intent_')
             }
         }
-
-    async def _save_to_redis(self):
-        """Guarda el estado en Redis de forma asíncrona con reintentos."""
-        state_data = {
-            'state': self.current_state,
-            'last_intent': self.last_intent,
-            'history': self.conversation_history[-10:],  # Limitar a los últimos 10 mensajes
-            'context': self.context,
-            'context_stack': self.context_stack,
-            'metrics': self.metrics.to_dict(),
-        }
-        redis = await get_redis_connection()
-        for attempt in range(self.max_retries):
-            try:
-                await redis.setex(
-                    self.cache_key,
-                    STATE_CACHE_TIMEOUT,
-                    json.dumps(state_data, default=str)
-                )
-                logger.debug(f"State saved to Redis for user {self.user.id}")
-                self.error_count = 0  # Reset error count on success
-                break
-            except Exception as e:
-                logger.error(f"Error saving state to Redis for user {self.user.id}, attempt {attempt+1}: {str(e)}")
-                self.error_count += 1
-                self.metrics.increment('redis_save_errors')
-                if attempt == self.max_retries - 1:
-                    logger.critical(f"Failed to save state to Redis for user {self.user.id} after {self.max_retries} attempts")
-                await asyncio.sleep(1)  # Wait before retrying

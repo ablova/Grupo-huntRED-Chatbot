@@ -1,3 +1,10 @@
+# app/lazy_imports.py
+"""
+Lazy Imports Module
+
+This module provides functionality for lazy loading of modules to improve startup performance.
+"""
+
 import importlib
 import sys
 from typing import Dict, Any

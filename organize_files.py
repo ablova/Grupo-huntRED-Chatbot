@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# /home/pablo/organize_files.py
 """
 Script para estandarizar los archivos en el proyecto Grupo huntRED®.
 

@@ -637,6 +637,64 @@ class PricingBaseline(models.Model):
     class Meta:
         indexes=[models.Index(fields=['dominio'])]
 
+
+class DominioScraping(models.Model):
+    empresa=models.CharField(max_length=75,unique=True,blank=True,null=True)
+    dominio=models.URLField(max_length=255,unique=True)
+    company_name=models.CharField(max_length=255,blank=True)
+    email_scraping_enabled=models.BooleanField(default=False)
+    valid_senders=models.JSONField(default=list)
+    plataforma=models.CharField(max_length=100,choices=PLATFORM_CHOICES,blank=True,null=True)
+    estado=models.CharField(max_length=20,choices=[("definido","Definido"),("libre","Indefinido")],default="libre")
+    verificado=models.BooleanField(default=False)
+    activo=models.BooleanField(default=True)
+    cookies=models.JSONField(blank=True,null=True)
+    frecuencia_scraping=models.IntegerField(default=24)
+    mensaje_error=models.TextField(blank=True,null=True)
+    ultima_verificacion=models.DateTimeField(blank=True,null=True)
+    creado_en=models.DateTimeField(auto_now_add=True)
+    actualizado_en=models.DateTimeField(auto_now=True)
+    selector_titulo=models.CharField(max_length=200,null=True,blank=True)
+    selector_descripcion=models.CharField(max_length=200,null=True,blank=True)
+    selector_ubicacion=models.CharField(max_length=200,null=True,blank=True)
+    selector_salario=models.CharField(max_length=200,null=True,blank=True)
+    tipo_selector=models.CharField(max_length=20,choices=[('css','CSS'),('xpath','XPath')],default='css')
+    mapeo_configuracion=models.JSONField(null=True,blank=True,help_text="Configuración personalizada (selectores, paginación, etc.)")
+    def generar_correo_asignado(self):
+        configuracion=ConfiguracionBU.objects.filter(scraping_domains__dominio=self.dominio).first()
+        dominio_bu=configuracion.dominio_bu if configuracion else "huntred.com"
+        return f"{self.empresa.lower()}@{dominio_bu}" if self.empresa else None
+    def __str__(self):
+        return f"{self.dominio} ({self.plataforma})"
+    def detectar_plataforma(self):
+        if self.plataforma:
+            logger.info(f"Plataforma ya definida manualmente: {self.plataforma}")
+            return
+        url_lower=self.dominio.lower()
+        patrones={
+            'workday':r'workday\.com',
+            'oracle_hcm':r'oracle\.com',
+            'sap_successfactors':r'sap\.com',
+            'cornerstone':r'cornerstoneondemand\.com',
+            'amigro':r'amigro\.org',
+        }
+        for plataforma,patron in patrones.items():
+            if re.search(patron,url_lower):
+                self.plataforma=plataforma
+                self.verificado=True
+                logger.info(f"Plataforma detectada automáticamente: {plataforma}")
+                return
+        self.plataforma="otro"
+        self.verificado=False
+        logger.warning(f"No se detectó una plataforma conocida para: {self.dominio}")
+    def clean(self):
+        self.detectar_plataforma()
+    def save(self,*args,**kwargs):
+        self.clean()
+        super().save(*args,**kwargs)
+    class Meta:
+        indexes=[models.Index(fields=['dominio'])]
+
 class ConfiguracionScraping(models.Model):
     dominio=models.ForeignKey(DominioScraping,on_delete=models.CASCADE)
     campo=models.CharField(max_length=50)
@@ -648,8 +706,8 @@ class Certificate(models.Model):
     """
     Modelo para certificados de contratos.
     """
-    contract = models.OneToOneField(
-        Contract,
+    contrato = models.OneToOneField(
+        Contrato,
         on_delete=models.CASCADE,
         related_name='certificate'
     )

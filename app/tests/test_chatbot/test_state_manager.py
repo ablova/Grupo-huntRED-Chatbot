@@ -38,6 +38,10 @@ def mock_get_redis_connection(mock_redis):
 def state_manager(mock_person, mock_business_unit, mock_get_redis_connection):
     return ChatStateManager(mock_person, mock_business_unit, 'whatsapp')
 
+@pytest.fixture
+def chat_state_manager():
+    return ChatStateManager()
+
 @pytest.mark.asyncio
 async def test_initialize(state_manager, mock_redis):
     # Test cache miss
@@ -92,3 +96,58 @@ async def test_metrics_tracking(state_manager, mock_redis):
     await state_manager.set_context('existing_key', 'value')
     assert state_manager.metrics.get('context_misses') == 1
     assert state_manager.metrics.get('context_hits') == 1
+
+@pytest.mark.asyncio
+async def test_get_state_success(chat_state_manager):
+    # Test successful state retrieval
+    with patch.object(chat_state_manager.redis_client, 'get', return_value=b'{"key": "value"}') as mock_get:
+        state = await chat_state_manager.get_state('chat123')
+        assert state == {"key": "value"}
+        mock_get.assert_called_once_with('chat:state:chat123')
+
+@pytest.mark.asyncio
+async def test_get_state_not_found(chat_state_manager):
+    # Test state retrieval when no state exists
+    with patch.object(chat_state_manager.redis_client, 'get', return_value=None) as mock_get:
+        state = await chat_state_manager.get_state('chat123')
+        assert state == {}
+        mock_get.assert_called_once_with('chat:state:chat123')
+
+@pytest.mark.asyncio
+async def test_save_state_success(chat_state_manager):
+    # Test successful state saving
+    with patch.object(chat_state_manager.redis_client, 'set', return_value=True) as mock_set:
+        result = await chat_state_manager.save_state('chat123', {'key': 'value'})
+        assert result is True
+        mock_set.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_save_state_failure(chat_state_manager):
+    # Test state saving failure
+    with patch.object(chat_state_manager.redis_client, 'set', side_effect=Exception('Redis error')) as mock_set:
+        result = await chat_state_manager.save_state('chat123', {'key': 'value'})
+        assert result is False
+        mock_set.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_delete_state_success(chat_state_manager):
+    # Test successful state deletion
+    with patch.object(chat_state_manager.redis_client, 'delete', return_value=1) as mock_delete:
+        result = await chat_state_manager.delete_state('chat123')
+        assert result is True
+        mock_delete.assert_called_once_with('chat:state:chat123')
+
+@pytest.mark.asyncio
+async def test_delete_state_failure(chat_state_manager):
+    # Test state deletion failure
+    with patch.object(chat_state_manager.redis_client, 'delete', side_effect=Exception('Redis error')) as mock_delete:
+        result = await chat_state_manager.delete_state('chat123')
+        assert result is False
+        mock_delete.assert_called_once_with('chat:state:chat123')
+
+@pytest.mark.asyncio
+async def test_redis_retry_mechanism(chat_state_manager):
+    # Test retry mechanism on Redis connection failure
+    with patch.object(chat_state_manager, '_connect_redis', side_effect=[Exception('Connection failed'), MagicMock()]):
+        await chat_state_manager._ensure_connection()
+        assert chat_state_manager.redis_client is not None

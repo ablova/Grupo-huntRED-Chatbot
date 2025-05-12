@@ -4,38 +4,7 @@ Módulo de publicación y campañas digitales
 
 __version__ = "1.0.0"
 
-from ..lazy_imports import lazy_imports, register_module, get_module
+# Exports for publish module
+# Add specific exports if necessary
 
-# Establecer el paquete actual
-register_module('publish', '.', package='app.com.publish')
-
-# Registrar módulos de publish para lazy loading
-register_module('admin', '.admin', package='app.com.publish')
-register_module('apps', '.apps', package='app.com.publish')
-register_module('models', '.models', package='app.com.publish')
-register_module('processors', '.processors', package='app.com.publish')
-register_module('serializers', '.serializers', package='app.com.publish')
-register_module('signals', '.signals', package='app.com.publish')
-register_module('tasks', '.tasks', package='app.com.publish')
-register_module('urls', '.urls', package='app.com.publish')
-register_module('views', '.views', package='app.com.publish')
-register_module('integrations', '.integrations', package='app.com.publish')
-register_module('utils', '.utils', package='app.com.publish')
-
-# Registrar procesadores e integraciones usando lazy imports
-def _register_processors():
-    processors = get_module('processors')
-    # No necesitamos llamar a register_processors() ya que los procesadores se registran automáticamente
-    # cuando se importan los módulos
-
-_register_processors()
-
-def _register_integrations():
-    from django.apps import apps
-    if not apps.ready:
-        return
-        
-    integrations = get_module('integrations')
-    integrations.register_integrations()
-
-_register_integrations()
+__all__ = []

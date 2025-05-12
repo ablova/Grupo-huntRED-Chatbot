@@ -44,6 +44,10 @@ cd /home/pablo && source venv/bin/activate &&
 git fetch origin &&
 git reset --hard origin/main &&
 git status &&
+git clean -fdcd /home/pablo && source venv/bin/activate &&
+git fetch origin &&
+git reset --hard origin/main &&
+git status &&
 git clean -fd &&
 git log -1 &&
 sudo systemctl restart gunicorn nginx &&

@@ -1,116 +1,102 @@
 from functools import wraps
-from django.http import HttpResponseForbidden
-from django.shortcuts import redirect
-from django.contrib import messages
-from django.utils.decorators import method_decorator
+from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+import logging
 
-def super_admin_required(view_func):
-    """
-    Decorador que requiere que el usuario sea super admin.
-    """
-    @wraps(view_func)
-    @login_required
-    def _wrapped_view(request, *args, **kwargs):
-        if not request.user.is_superuser:
-            messages.error(request, 'No tienes permisos para acceder a esta página.')
-            return redirect('dashboard')
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
+logger = logging.getLogger(__name__)
 
-def bu_complete_required(view_func):
-    """
-    Decorador que requiere que el usuario sea consultor BU completo.
-    """
-    @wraps(view_func)
-    @login_required
-    def _wrapped_view(request, *args, **kwargs):
-        if request.user.role not in ['SUPER_ADMIN', 'BU_COMPLETE']:
-            messages.error(request, 'No tienes permisos para acceder a esta página.')
-            return redirect('dashboard')
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
+# Roles definidos en el sistema
+ROLES = {
+    'super_admin': 'Super Admin',
+    'consultant_bu_complete': 'Consultant (BU Complete)',
+    'consultant_bu_division': 'Consultant (BU Division)'
+}
 
-def bu_division_required(view_func):
+def role_required(*required_roles):
     """
-    Decorador que requiere que el usuario sea consultor BU de división.
-    """
-    @wraps(view_func)
-    @login_required
-    def _wrapped_view(request, *args, **kwargs):
-        if request.user.role not in ['SUPER_ADMIN', 'BU_COMPLETE', 'BU_DIVISION']:
-            messages.error(request, 'No tienes permisos para acceder a esta página.')
-            return redirect('dashboard')
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
+    Decorador para restringir el acceso a vistas basadas en roles de usuario.
+    Requiere que el usuario esté autenticado y tenga uno de los roles especificados.
 
-def business_unit_required(bu_name):
-    """
-    Decorador que requiere que el usuario tenga acceso a una unidad de negocio específica.
+    Args:
+        *required_roles: Lista de roles requeridos para acceder a la vista.
+
+    Returns:
+        Decorador que verifica el rol del usuario.
     """
     def decorator(view_func):
         @wraps(view_func)
-        @login_required
+        @login_required(login_url='login')
         def _wrapped_view(request, *args, **kwargs):
-            if not request.user.has_bu_access(bu_name):
-                messages.error(request, f'No tienes acceso a la unidad de negocio {bu_name}.')
-                return redirect('dashboard')
+            if not hasattr(request.user, 'role') or request.user.role not in required_roles:
+                logger.warning(f"Access denied for user {request.user.username} with role {getattr(request.user, 'role', 'none')} to view requiring roles {required_roles}")
+                if request.user.is_authenticated:
+                    return HttpResponseForbidden("You do not have permission to access this page.")
+                else:
+                    return HttpResponseRedirect(reverse('login'))
+            logger.info(f"Access granted for user {request.user.username} with role {request.user.role} to view requiring roles {required_roles}")
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
 
-def division_required(division_name):
+def bu_access(bu_name=None, division=None):
     """
-    Decorador que requiere que el usuario tenga acceso a una división específica.
+    Decorador para restringir el acceso basado en la unidad de negocio (BU) y división.
+    Aplicable a consultores con acceso completo a BU o limitado a una división.
+
+    Args:
+        bu_name (str, optional): Nombre de la unidad de negocio requerida.
+        division (str, optional): División específica dentro de la BU.
+
+    Returns:
+        Decorador que verifica el acceso a la BU y división.
     """
     def decorator(view_func):
         @wraps(view_func)
-        @login_required
+        @login_required(login_url='login')
         def _wrapped_view(request, *args, **kwargs):
-            if not request.user.has_division_access(division_name):
-                messages.error(request, f'No tienes acceso a la división {division_name}.')
-                return redirect('dashboard')
+            if not hasattr(request.user, 'role'):
+                logger.warning(f"Access denied for user {request.user.username}: No role defined")
+                return HttpResponseForbidden("You do not have permission to access this page.")
+
+            user_role = request.user.role
+            if user_role == 'super_admin':
+                logger.info(f"Super Admin access granted for user {request.user.username} to BU {bu_name or 'any'} and division {division or 'any'}")
+                return view_func(request, *args, **kwargs)
+
+            if bu_name and hasattr(request.user, 'business_unit') and request.user.business_unit.name != bu_name:
+                logger.warning(f"Access denied for user {request.user.username}: Not authorized for BU {bu_name}")
+                return HttpResponseForbidden(f"You are not authorized to access data for {bu_name}.")
+
+            if division and user_role == 'consultant_bu_division':
+                if not hasattr(request.user, 'division') or request.user.division != division:
+                    logger.warning(f"Access denied for user {request.user.username}: Not authorized for division {division}")
+                    return HttpResponseForbidden(f"You are not authorized to access data for division {division}.")
+
+            logger.info(f"Access granted for user {request.user.username} with role {user_role} to BU {bu_name or 'any'} and division {division or 'any'}")
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
 
 def permission_required(permission):
     """
-    Decorador que requiere que el usuario tenga un permiso específico.
+    Decorador para restringir el acceso basado en permisos específicos.
+
+    Args:
+        permission (str): Permiso específico requerido.
+
+    Returns:
+        Decorador que verifica si el usuario tiene el permiso.
     """
     def decorator(view_func):
         @wraps(view_func)
-        @login_required
+        @login_required(login_url='login')
         def _wrapped_view(request, *args, **kwargs):
-            if not request.user.userpermission_set.filter(permission=permission).exists():
-                messages.error(request, f'No tienes el permiso requerido: {permission}.')
-                return redirect('dashboard')
+            if not request.user.has_perm(permission):
+                logger.warning(f"Permission denied for user {request.user.username}: Lacks permission {permission}")
+                raise PermissionDenied
+            logger.info(f"Permission granted for user {request.user.username}: Has permission {permission}")
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
-
-def verified_user_required(view_func):
-    """
-    Decorador que requiere que el usuario esté verificado.
-    """
-    @wraps(view_func)
-    @login_required
-    def _wrapped_view(request, *args, **kwargs):
-        if request.user.verification_status != 'APPROVED':
-            messages.error(request, 'Tu cuenta aún no está verificada.')
-            return redirect('document_verification')
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
-
-def active_user_required(view_func):
-    """
-    Decorador que requiere que el usuario esté activo.
-    """
-    @wraps(view_func)
-    @login_required
-    def _wrapped_view(request, *args, **kwargs):
-        if request.user.status != 'ACTIVE':
-            messages.error(request, 'Tu cuenta está inactiva o pendiente de aprobación.')
-            return redirect('dashboard')
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view

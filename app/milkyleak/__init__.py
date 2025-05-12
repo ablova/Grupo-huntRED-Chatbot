@@ -1,8 +1,9 @@
-from ..lazy_imports import lazy_imports, register_module, get_module
+# app/milkyleak/__init__.py
+# Removed manual lazy_imports registration as ModuleRegistry handles this automatically
 
 # Establecer el paquete actual
-register_module('milkyleak', '.', package='app.milkyleak')
 
-# Registrar módulos de milkyleak para lazy loading
-register_module('milkyleak', '.milkyleak', package='app.milkyleak')
-register_module('templates', '.templates', package='app.milkyleak')
+# Exports for milkyleak module
+# Add specific exports if necessary
+
+__all__ = []

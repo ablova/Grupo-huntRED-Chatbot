@@ -344,6 +344,14 @@ for directory in [LOG_DIR, STATIC_ROOT, MEDIA_ROOT, ML_MODELS_DIR]:
 # Configuración de logging
 LOGGING = setup_logging()
 
+# Initialize module registry for lazy loading
+try:
+    from app.module_registry import auto_register_modules
+    auto_register_modules()
+    logging.info("Module registry initialized successfully")
+except Exception as e:
+    logging.error(f"Failed to initialize module registry: {e}")
+
 # Configuración de Celery
 optimization_config = OptimizationConfig.get_config()
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
@@ -479,4 +487,3 @@ class DynamicEmailBackend:
             recipient_list=recipient_list,
             connection=email_backend,
         )
-
