@@ -1,4 +1,4 @@
-# /home/pablo/app/utilidades/signature/pdf_generator.py
+# /home/pablo/app/com/utils/signature/pdf_generator.py
 import os
 import datetime
 from reportlab.lib.pagesizes import A4

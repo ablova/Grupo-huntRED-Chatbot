@@ -1,4 +1,4 @@
-# /home/pablo/app/utilidades/loader.py
+# /home/pablo/app/com/utils/loader.py
 
 import os
 import json
@@ -9,7 +9,7 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 # Ruta base para los archivos JSON
-BASE_PATH = os.path.join(settings.BASE_DIR, 'app', 'utilidades', 'catalogs')
+BASE_PATH = os.path.join(settings.BASE_DIR, 'app', 'com', 'utils', 'catalogs')
 
 def load_json_file(file_name: str) -> dict:
     """

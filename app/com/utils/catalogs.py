@@ -1,4 +1,4 @@
-# Ubicación: /home/pablo/app/utilidades/catalogs.py
+# Ubicación: /home/pablo/app/com/utils/catalogs.py
 
 import json
 import logging

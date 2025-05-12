@@ -6,15 +6,19 @@ from forex_python.converter import CurrencyRates
 from app.com.chatbot.workflow.profile_questions import get_questions
 from django.core.files.storage import default_storage
 from app.com.utils.signature.pdf_generator import (
-    generate_cv_pdf, generate_contract_pdf, merge_signed_documents, generate_candidate_summary
+    generate_contract_pdf,
+    generate_cv_pdf,
+    generate_candidate_summary,
+    add_signature,
+    merge_signed_documents,
+    generate_personality_report
 )
 from app.com.utils.signature.digital_sign import request_digital_signature
 from app.com.utils.salario import (
     calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
     obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
 )
-from app.com.chatbot.integrations.services import send_menu, send_email, send_message, send_options, send_image, GamificationService
-from app.com.utils.signature.pdf_generator import generate_personality_report
+from app.com.chatbot.integrations.message_sender import send_menu, send_message, send_image, send_options
 from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState, DivisionTransition
 from django.conf import settings
 from urllib.parse import urlparse
@@ -25,6 +29,28 @@ from app.ml.core.utils import BUSINESS_UNIT_HIERARCHY
 
 
 logger = logging.getLogger(__name__)
+
+def get_workflow_context(user: Person, business_unit: BusinessUnit, channel: str) -> Dict[str, Any]:
+    """Obtiene el contexto necesario para el flujo de trabajo.
+    
+    Args:
+        user: Instancia del modelo Person.
+        business_unit: Unidad de negocio actual.
+        channel: Canal de comunicación (e.g., 'whatsapp').
+        
+    Returns:
+        Diccionario con el contexto del flujo.
+    """
+    return {
+        'user_id': user.id,
+        'business_unit': {
+            'id': business_unit.id,
+            'name': business_unit.name,
+            'type': business_unit.type
+        },
+        'channel': channel,
+        'timestamp': timezone.now().isoformat()
+    }
 
 # =========================================================
 # Creación y Actualización de Perfil
@@ -148,7 +174,7 @@ async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_ne
                             {"title": "Volver al Menú", "payload": "back_to_menu"}],
                            bu_name)
     logger.info(f"[iniciar_perfil_conversacional] Solicitando {field} para {user_id}")
- 
+
 async def finalizar_creacion_perfil(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person):
     """Finaliza el proceso de creación de perfil y ofrece pruebas o transiciones."""
     bu_name = unidad_negocio.name.lower().replace('®', '').strip()
@@ -750,7 +776,7 @@ async def ofrecer_prueba_personalidad(plataforma: str, user_id: str, unidad_nego
     estado_chat.state = "offering_personality_test"
     await sync_to_async(estado_chat.save)()
     logger.info(f"[ofrecer_prueba_personalidad] Ofreciendo pruebas para {user_id}")
- 
+
 async def iniciar_prueba_personalidad(plataforma: str, user_id: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, test_type: str):
     """Inicia una prueba de personalidad con un timeout de 5 segundos."""
     try:
