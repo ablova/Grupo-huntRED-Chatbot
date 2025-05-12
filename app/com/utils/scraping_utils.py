@@ -1,4 +1,4 @@
-# /home/pablo/app/utilidades/scraping_utils.py
+# /home/pablo/app/com/utils/scraping_utils.py
 import random
 import asyncio
 import json

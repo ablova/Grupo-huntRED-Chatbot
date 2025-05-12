@@ -1,4 +1,4 @@
-# /home/pablo/app/utilidades/vacantes.py
+# /home/pablo/app/com/utils/vacantes.py
 import requests
 import sys
 import logging

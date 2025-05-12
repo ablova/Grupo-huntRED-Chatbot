@@ -3,6 +3,8 @@ from django.utils import timezone
 from .models import IntentPattern, StateTransition, IntentTransition, ContextCondition, ChatState
 from app.models import Person, BusinessUnit
 import logging
+from app.com.utils.visualization import FlowVisualization as BaseFlowVisualization
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -200,118 +202,162 @@ class ConversationalFlowManager:
                                )]
         }
 
-class FlowVisualization:
+class FlowVisualization(BaseFlowVisualization):
     """
-    Clase para generar visualizaciones del flujo conversacional.
+    Clase para generar visualizaciones del flujo conversacional, extendiendo la implementación base.
+    Soporta características específicas de canales y necesidades de unidades de negocio, incluyendo notificaciones y alertas.
     """
     def __init__(self, business_unit: BusinessUnit):
+        super().__init__()
         self.business_unit = business_unit
+        self.notification_handlers = {}
+        self.alert_handlers = {}
+        self._initialize_handlers()
+
+    def _initialize_handlers(self):
+        """
+        Inicializa los manejadores de notificaciones y alertas basados en la unidad de negocio.
+        Configura características específicas para cada canal y necesidades de la unidad de negocio.
+        """
+        if self.business_unit.name == 'huntRED':
+            self.notification_handlers['whatsapp'] = self._send_whatsapp_notification
+            self.notification_handlers['telegram'] = self._send_telegram_notification
+            self.alert_handlers['urgent'] = self._handle_urgent_alert
+        elif self.business_unit.name == 'Amigro':
+            self.notification_handlers['email'] = self._send_email_notification
+            self.alert_handlers['standard'] = self._handle_standard_alert
+        elif self.business_unit.name == 'huntU':
+            self.notification_handlers['sms'] = self._send_sms_notification
+            self.alert_handlers['info'] = self._handle_info_alert
+        # Configuración para otras unidades de negocio
+        else:
+            self.notification_handlers['default'] = self._send_default_notification
+            self.alert_handlers['default'] = self._handle_default_alert
+        logger.info(f"Handlers initialized for business unit: {self.business_unit.name}")
 
     def generate_flow_diagram(self):
         """
         Genera un diagrama visual del flujo conversacional.
+        Este método puede ser extendido para agregar funcionalidades específicas del chatbot.
         """
-        try:
-            import graphviz
-            from django.db.models import Q
-            
-            # Crear un nuevo grafo
-            dot = graphviz.Digraph(comment='Conversational Flow')
-            
-            # Obtener todas las transiciones
-            transitions = StateTransition.objects.filter(
-                Q(current_state__business_unit=self.business_unit) |
-                Q(next_state__business_unit=self.business_unit)
-            ).distinct()
-            
-            # Agregar nodos y aristas
-            for transition in transitions:
-                dot.node(transition.current_state.name, 
-                        f"{transition.current_state.name}\n{transition.current_state.description}")
-                dot.node(transition.next_state.name,
-                        f"{transition.next_state.name}\n{transition.next_state.description}")
-                
-                dot.edge(transition.current_state.name,
-                        transition.next_state.name,
-                        label=transition.type)
-            
-            # Renderizar el grafo
-            return dot
-            
-        except ImportError:
-            logger.error("Graphviz no está instalado")
-            return None
-        except Exception as e:
-            logger.error(f"Error generating flow diagram: {str(e)}")
-            return None
-
-    def generate_business_unit_dashboard(self):
-        """
-        Genera un dashboard visual del estado de los procesos por unidad de negocio.
-        """
-        try:
-            from django.db.models import Count
-            import pandas as pd
-            import plotly.express as px
-            
-            # Obtener estadísticas de estados por candidato
-            stats = ChatState.objects.filter(
-                business_unit=self.business_unit
-            ).values('state').annotate(
-                count=Count('id')
-            )
-            
-            # Convertir a DataFrame
-            df = pd.DataFrame(stats)
-            
-            # Crear gráfico de barras
-            fig = px.bar(
-                df,
-                x='state',
-                y='count',
-                title=f'Estado de Procesos - {self.business_unit.name}',
-                labels={'state': 'Estado', 'count': 'Número de Candidatos'}
-            )
-            
-            return fig
-            
-        except Exception as e:
-            logger.error(f"Error generating dashboard: {str(e)}")
-            return None
+        return super().generate_process_flow()
 
     def generate_candidate_flow(self, person: Person):
         """
         Genera una visualización del flujo de un candidato específico.
         """
-        try:
-            import plotly.graph_objects as go
-            
-            # Obtener historial de estados
-            history = ChatState.objects.filter(
-                person=person,
-                business_unit=self.business_unit
-            ).order_by('last_transition')
-            
-            # Crear timeline
-            fig = go.Figure()
-            
-            for state in history:
-                fig.add_trace(go.Scatter(
-                    x=[state.last_transition],
-                    y=[state.state],
-                    mode='markers+text',
-                    text=state.state,
-                    textposition="top center"
-                ))
-            
-            fig.update_layout(
-                title=f'Flujo de Conversación - {person.nombre} {person.apellido_paterno}',
-                xaxis_title='Fecha',
-                yaxis_title='Estado'
-            )
-            
-            return fig
-            
-        except Exception as e:
-            logger.error(f"Error generating candidate flow: {str(e)}")
-            return None
+        return super().generate_candidate_timeline(person)
+
+    def send_notification(self, channel: str, message: str, person: Person = None):
+        """
+        Envía una notificación a través del canal especificado.
+        Selecciona el manejador adecuado basado en el canal y la unidad de negocio.
+        Si el canal especificado falla debido a limitaciones, intenta un canal alternativo.
+
+        Args:
+            channel (str): Canal a través del cual enviar la notificación.
+            message (str): Mensaje de la notificación.
+            person (Person, optional): Persona a la que va dirigida la notificación.
+        """
+        handler = self.notification_handlers.get(channel, self.notification_handlers.get('default'))
+        if handler:
+            try:
+                handler(message, person)
+                logger.info(f"Notification sent via {channel} for {self.business_unit.name}")
+            except Exception as e:
+                logger.error(f"Error sending notification via {channel}: {str(e)}")
+                # Intentar un canal alternativo si el inicial falla
+                fallback_channel = self._get_fallback_channel(channel)
+                if fallback_channel and fallback_channel != channel:
+                    logger.info(f"Attempting fallback to {fallback_channel} for {self.business_unit.name}")
+                    fallback_handler = self.notification_handlers.get(fallback_channel, self.notification_handlers.get('default'))
+                    try:
+                        fallback_handler(message, person)
+                        logger.info(f"Notification sent via fallback {fallback_channel} for {self.business_unit.name}")
+                    except Exception as fallback_e:
+                        logger.error(f"Error sending notification via fallback {fallback_channel}: {str(fallback_e)}")
+                else:
+                    logger.warning(f"No fallback channel available for {channel}")
+        else:
+            logger.warning(f"No notification handler found for channel: {channel}")
+
+    def _get_fallback_channel(self, failed_channel: str) -> str:
+        """
+        Determina un canal alternativo en caso de que el canal inicial falle.
+
+        Args:
+            failed_channel (str): Canal que falló.
+
+        Returns:
+            str: Canal alternativo, o vacío si no hay alternativa.
+        """
+        fallback_options = {
+            'whatsapp': 'telegram',
+            'telegram': 'email',
+            'sms': 'email',
+            'email': 'default'
+        }
+        return fallback_options.get(failed_channel, '')
+
+    def trigger_alert(self, alert_type: str, message: str, person: Person = None):
+        """
+        Dispara una alerta basada en el tipo especificado.
+        Selecciona el manejador adecuado basado en el tipo de alerta y la unidad de negocio.
+
+        Args:
+            alert_type (str): Tipo de alerta a disparar.
+            message (str): Mensaje de la alerta.
+            person (Person, optional): Persona asociada con la alerta.
+        """
+        handler = self.alert_handlers.get(alert_type, self.alert_handlers.get('default'))
+        if handler:
+            try:
+                handler(message, person)
+                logger.info(f"Alert triggered of type {alert_type} for {self.business_unit.name}")
+            except Exception as e:
+                logger.error(f"Error triggering alert of type {alert_type}: {str(e)}")
+        else:
+            logger.warning(f"No alert handler found for type: {alert_type}")
+
+    def _send_whatsapp_notification(self, message: str, person: Person = None):
+        """Simula el envío de una notificación por WhatsApp. Verifica limitaciones."""
+        # Implementación específica para WhatsApp
+        # Simulación de verificación de limitaciones (ejemplo: conversación no iniciada por destinatario)
+        if person and not hasattr(person, 'whatsapp_conversation_started') or not getattr(person, 'whatsapp_conversation_started', False):
+            raise Exception("WhatsApp conversation not initiated by recipient")
+        logger.info(f"WhatsApp notification: {message} to {person.nombre if person else 'N/A'}")
+
+    def _send_telegram_notification(self, message: str, person: Person = None):
+        """Simula el envío de una notificación por Telegram."""
+        # Implementación específica para Telegram
+        logger.info(f"Telegram notification: {message} to {person.nombre if person else 'N/A'}")
+
+    def _send_email_notification(self, message: str, person: Person = None):
+        """Simula el envío de una notificación por Email."""
+        # Implementación específica para Email
+        logger.info(f"Email notification: {message} to {person.email if person else 'N/A'}")
+
+    def _send_sms_notification(self, message: str, person: Person = None):
+        """Simula el envío de una notificación por SMS."""
+        # Implementación específica para SMS
+        logger.info(f"SMS notification: {message} to {person.telefono if person else 'N/A'}")
+
+    def _send_default_notification(self, message: str, person: Person = None):
+        """Método por defecto para enviar notificaciones."""
+        logger.info(f"Default notification: {message} to {person.nombre if person else 'N/A'}")
+
+    def _handle_urgent_alert(self, message: str, person: Person = None):
+        """Maneja alertas urgentes."""
+        logger.warning(f"Urgent alert: {message} for {person.nombre if person else 'N/A'}")
+
+    def _handle_standard_alert(self, message: str, person: Person = None):
+        """Maneja alertas estándar."""
+        logger.info(f"Standard alert: {message} for {person.nombre if person else 'N/A'}")
+
+    def _handle_info_alert(self, message: str, person: Person = None):
+        """Maneja alertas informativas."""
+        logger.info(f"Info alert: {message} for {person.nombre if person else 'N/A'}")
+
+    def _handle_default_alert(self, message: str, person: Person = None):
+        """Maneja alertas por defecto."""
+        logger.info(f"Default alert: {message} for {person.nombre if person else 'N/A'}")

@@ -20,7 +20,7 @@ from docx import Document
 from asgiref.sync import sync_to_async
 from app.com.chatbot.utils import get_nlp_processor
 from app.com.chatbot.nlp import NLPProcessor
-from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation
+from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation, Vacante
 from app.com.chatbot.integrations.services import send_email, send_message, send_notification
 from app.com.chatbot.chat_state_manager import ChatStateManager
 from app.com.chatbot.workflow.common import get_possible_transitions, process_business_unit_transition
@@ -691,3 +691,64 @@ def parse_document(file_path: str, business_unit_name: str) -> Dict:
             "status": "error",
             "message": str(e)
         }
+
+def parse_job_listing(content, source_url, source_type="web"):
+    """Parse job listing content from web or email sources to extract structured information."""
+    try:
+        soup = BeautifulSoup(content, "html.parser")
+        job_info = {}
+        
+        if source_type == "web":
+            title_elem = soup.find(["h1", "h2", "h3"], class_=["title", "job-title", "header"]) or soup.find(["h1", "h2", "h3"])
+            company_elem = soup.find(["span", "div"], class_=["company", "employer", "organization"])
+            desc_elem = soup.find(["div", "section"], class_=["description", "summary", "details", "content"])
+            url_elem = soup.find("a", href=True, text=re.compile(r"apply|postular|solicitar", re.I))
+            
+            job_info["title"] = title_elem.get_text(strip=True) if title_elem else "Untitled Job"
+            job_info["company"] = company_elem.get_text(strip=True) if company_elem else "Unknown Company"
+            job_info["description"] = desc_elem.get_text(strip=True)[:1000] if desc_elem else "No description available"
+            job_info["url"] = urljoin(source_url, url_elem["href"]) if url_elem else source_url
+            job_info["source"] = urlparse(source_url).netloc
+        
+        elif source_type == "email":
+            job_info["title"] = soup.title.get_text(strip=True) if soup.title else "Untitled Email Job"
+            company_elem = soup.find(text=re.compile(r"from|de|empresa|company", re.I))
+            job_info["company"] = company_elem.strip() if company_elem else "Unknown Sender"
+            job_info["description"] = soup.get_text(strip=True)[:1000]
+            job_info["url"] = extract_url(content) or source_url
+            job_info["source"] = "Email Scraping"
+        
+        logger.info(f"Parsed job listing: {job_info['title']} from {job_info['company']}")
+        return job_info if any(keyword in job_info["title"].lower() or keyword in job_info["description"].lower() for keyword in JOB_KEYWORDS) else None
+    except Exception as e:
+        logger.error(f"Error parsing job listing from {source_type}: {str(e)}", exc_info=True)
+        return None
+
+def extract_url(text):
+    """Extract the first URL from text content."""
+    try:
+        url_pattern = re.compile(r"https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[-\w./?%&=]*")
+        urls = url_pattern.findall(text)
+        return urls[0] if urls else ""
+    except Exception as e:
+        logger.error(f"Error extracting URL: {str(e)}")
+        return ""
+
+async def save_job_to_vacante(job_info, bu):
+    """Save parsed job information to Vacante model with async operation."""
+    try:
+        vacante = Vacante(
+            nombre=job_info["title"],
+            empresa=job_info["company"],
+            descripcion=job_info["description"],
+            url=job_info["url"],
+            business_unit=bu,
+            fuente=f"{job_info['source']} Parsing",
+            fecha_publicacion=timezone.now(),
+        )
+        await sync_to_async(vacante.save)()
+        logger.info(f"Saved parsed vacante: {job_info['title']}")
+        return vacante
+    except Exception as e:
+        logger.error(f"Error saving parsed vacante: {str(e)}", exc_info=True)
+        return None

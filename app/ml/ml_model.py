@@ -11,6 +11,7 @@ from django.core.cache import cache
 import pandas as pd
 import numpy as np
 from joblib import dump, load
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -94,40 +95,59 @@ class MatchmakingLearningSystem:
         logger.info(f"Aplicaciones recuperadas: {apps.count()}")
         return apps
 
-    def prepare_training_data(self):
+    @shared_task(name='ml.prepare_batch_data', retry_backoff=True, retry_jitter=True, max_retries=3)
+    def process_batch(self, batch_ids):
+        """Process a batch of applications to extract features."""
         from app.models import Application
         from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
-        apps = Application.objects.filter(
-            vacancy__business_unit=self.business_unit,
-            status__in=['hired', 'rejected']  # Ajustado para consistencia
-        ).select_related('person', 'vacancy')
+        batch_apps = Application.objects.filter(id__in=batch_ids)
+        batch_data = []
+        for app in batch_apps:
+            try:
+                hard_skills_score = calculate_match_percentage(app.person.skills, app.vacancy.required_skills)
+                soft_skills_score = calculate_alignment_percentage(app.person.personality, app.vacancy.culture_fit)
+                salary_alignment = self._calculate_salary_alignment(app)
+                age = self._calculate_age(app.person)
+                success = 1 if app.status == 'contratado' else 0
+                batch_data.append({
+                    'person_id': app.person.id,
+                    'vacancy_id': app.vacancy.id,
+                    'hard_skills_score': hard_skills_score,
+                    'soft_skills_score': soft_skills_score,
+                    'salary_alignment': salary_alignment,
+                    'age': age,
+                    'success': success
+                })
+                logger.info(f"Processed application {app.id} in batch")
+            except Exception as e:
+                logger.error(f"Error processing application {app.id}: {str(e)}")
+        return batch_data
+
+    def prepare_training_data(self):
+        """Prepare training data with batch processing to optimize memory usage."""
+        from app.models import Application
+        if self.business_unit:
+            apps = Application.objects.filter(
+                vacancy__business_unit=self.business_unit,
+                status__in=['contratado', 'rechazado']
+            )
+        else:
+            apps = Application.objects.filter(status__in=['contratado', 'rechazado'])
+        logger.info(f"Total applications to process: {apps.count()}")
+        
+        # Process in batches to avoid memory issues
+        batch_size = 1000
+        app_ids = list(apps.values_list('id', flat=True))
         data = []
-        for app in apps:
-            if not app.vacancy:
-                continue
-            data.append({
-                'experience_years': app.person.experience_years or 0,
-                'hard_skills_match': calculate_match_percentage(app.person.skills, app.vacancy.skills_required),
-                'soft_skills_match': calculate_match_percentage(
-                    app.person.metadata.get('soft_skills', []),
-                    app.vacancy.metadata.get('soft_skills', [])
-                ),
-                'salary_alignment': calculate_alignment_percentage(
-                    app.person.salary_data.get('current_salary', 0),
-                    app.vacancy.salario or 0
-                ),
-                'age': (timezone.now().date() - app.person.fecha_nacimiento).days / 365
-                    if app.person.fecha_nacimiento else 0,
-                'openness': app.person.openness,
-                'conscientiousness': app.person.conscientiousness,
-                'extraversion': app.person.extraversion,
-                'agreeableness': app.person.agreeableness,
-                'neuroticism': app.person.neuroticism,
-                'success_label': 1 if app.status == 'hired' else 0
-            })
-        df = pd.DataFrame(data)
-        logger.info(f"Datos preparados para {self.business_unit}: {len(df)} registros.")
-        return df
+        for i in range(0, len(app_ids), batch_size):
+            batch_ids = app_ids[i:i + batch_size]
+            logger.info(f"Processing batch {i // batch_size + 1} with {len(batch_ids)} applications")
+            batch_result = self.process_batch.delay(batch_ids)
+            batch_data = batch_result.get()  # Wait for the batch to complete
+            data.extend(batch_data)
+            logger.info(f"Batch {i // batch_size + 1} completed, {len(batch_data)} records processed")
+        
+        return data
 
     def train_model(self, df, test_size=0.2):
         from sklearn.model_selection import train_test_split
@@ -148,8 +168,8 @@ class MatchmakingLearningSystem:
                 ('classifier', RandomForestClassifier(random_state=42))
             ])
 
-        X = df.drop(columns=["success_label"])
-        y = df["success_label"]
+        X = df.drop(columns=["success"])
+        y = df["success"]
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
         self.pipeline.fit(X_train, y_train)
@@ -191,120 +211,50 @@ class MatchmakingLearningSystem:
         logger.info(f"Probabilidad de éxito para {person} en '{vacancy.titulo}': {proba:.2f}")
         return proba
 
-    def predict_all_active_matches(self, person, batch_size=50):
-        from app.models import Vacante
+    @shared_task(name='ml.predict_batch_matches', retry_backoff=True, retry_jitter=True, max_retries=3)
+    def predict_batch(self, person_id, batch_vacancy_ids):
+        """Predict matches for a batch of vacancies."""
+        from app.models import Person, Vacante
         from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+        person = Person.objects.get(id=person_id)
+        batch_vacancies = Vacante.objects.filter(id__in=batch_vacancy_ids, status='activa')
+        batch_predictions = []
+        for vacancy in batch_vacancies:
+            try:
+                score = self.predict_candidate_success(person, vacancy)
+                batch_predictions.append({
+                    'vacancy_id': vacancy.id,
+                    'score': score
+                })
+                logger.info(f"Predicted match for person {person_id} and vacancy {vacancy.id}: {score}")
+            except Exception as e:
+                logger.error(f"Error predicting match for person {person_id} and vacancy {vacancy.id}: {str(e)}")
+        return batch_predictions
+
+    def predict_all_active_matches(self, person, batch_size=50):
+        """Predict matches for a person across all active vacancies with batch processing."""
         self.load_model()
         if not self.pipeline:
             raise FileNotFoundError("El modelo no está entrenado.")
-
-        bu = person.current_stage.business_unit if person.current_stage else None
-        if not bu:
-            return []
-
-        active_vacancies = Vacante.objects.filter(activa=True, business_unit=bu)
-        if not active_vacancies.exists():
-            return []
-
-        features_list = []
-        for vacante in active_vacancies:
-            features = {
-                'experience_years': person.experience_years or 0,
-                'hard_skills_match': calculate_match_percentage(person.skills, vacante.skills_required),
-                'soft_skills_match': calculate_match_percentage(
-                    person.metadata.get("soft_skills", []),
-                    vacante.metadata.get("soft_skills", [])
-                ),
-                'salary_alignment': calculate_alignment_percentage(
-                    person.salary_data.get("current_salary", 0),
-                    vacante.salario or 0
-                ),
-                'age': (timezone.now().date() - person.fecha_nacimiento).days / 365
-                    if person.fecha_nacimiento else 0,
-                'openness': person.openness,
-                'conscientiousness': person.conscientiousness,
-                'extraversion': person.extraversion,
-                'agreeableness': person.agreeableness,
-                'neuroticism': person.neuroticism
-            }
-            features_list.append(features)
-
-        X = pd.DataFrame(features_list)
-        predictions = (self.pipeline.predict_proba(X)[:, 1] * 100).tolist()  # Probabilidad en porcentaje
-        results = [
-            {"vacante": v.titulo, "empresa": v.empresa.name if v.empresa else 'N/A', "score": round(p, 2)}
-            for v, p in zip(active_vacancies, predictions)
-        ]
-        return sorted(results, key=lambda x: x["score"], reverse=True)
-
-    async def predict_top_candidates(self, vacancy=None, limit=5):
-        """
-        Predice los mejores candidatos para una vacante específica o globalmente.
-        :param vacancy: Objeto Vacante (opcional). Si es None, evalúa todas las vacantes activas.
-        :param limit: Número máximo de candidatos a devolver.
-        :return: Lista de tuplas (Person, score) ordenada por score descendente.
-        """
-        from app.models import Person, Vacante
-        from asgiref.sync import sync_to_async
-        self.load_model()
-        if not self._loaded_model:
-            logger.warning("Modelo no entrenado. No se pueden predecir candidatos.")
-            return []
-
-        # Obtener todos los candidatos (Person) activos
-        candidates = await sync_to_async(
-            lambda: list(Person.objects.filter(is_active=True))
-        )()
-
-        if not candidates:
-            logger.info("No hay candidatos activos disponibles.")
-            return []
-
-        # Si se proporciona una vacante específica
-        if vacancy:
-            results = []
-            for person in candidates:
-                try:
-                    score = self.predict_candidate_success(person, vacancy)
-                    results.append((person, score))
-                except Exception as e:
-                    logger.error(f"Error prediciendo para {person.id}: {e}")
-                    continue
-            return sorted(results, key=lambda x: x[1], reverse=True)[:limit]
-
-        # Si no hay vacante específica, evaluar contra todas las vacantes activas
-        active_vacancies = await sync_to_async(
-            lambda: list(Vacante.objects.filter(
-                activa=True,
-                business_unit=self.business_unit if self.business_unit else None
-            ))
-        )()
-
-        if not active_vacancies:
-            logger.info(f"No hay vacantes activas para BU {self.business_unit or 'global'}.")
-            return []
-
-        # Calcular el mejor score promedio por candidato
-        results = {}
-        for person in candidates:
-            total_score = 0
-            count = 0
-            for vacancy in active_vacancies:
-                try:
-                    score = self.predict_candidate_success(person, vacancy)
-                    total_score += score
-                    count += 1
-                except Exception as e:
-                    logger.error(f"Error prediciendo para {person.id} en vacante {vacancy.id}: {e}")
-                    continue
-            if count > 0:
-                avg_score = total_score / count
-                results[person] = avg_score
-
-        # Ordenar y devolver los mejores candidatos
-        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
-        logger.info(f"Top {limit} candidatos predichos: {[f'{p.nombre}: {s:.2f}' for p, s in sorted_results[:limit]]}")
-        return sorted_results[:limit]
+        
+        if self.business_unit:
+            vacancies = Vacante.objects.filter(business_unit=self.business_unit, status='activa')
+        else:
+            vacancies = Vacante.objects.filter(status='activa')
+        logger.info(f"Predicting matches for person {person.id} across {vacancies.count()} active vacancies")
+        
+        vacancy_ids = list(vacancies.values_list('id', flat=True))
+        predictions = []
+        for i in range(0, len(vacancy_ids), batch_size):
+            batch_vacancy_ids = vacancy_ids[i:i + batch_size]
+            logger.info(f"Processing batch {i // batch_size + 1} with {len(batch_vacancy_ids)} vacancies")
+            batch_result = self.predict_batch.delay(person.id, batch_vacancy_ids)
+            batch_predictions = batch_result.get()  # Wait for the batch to complete
+            predictions.extend(batch_predictions)
+            logger.info(f"Batch {i // batch_size + 1} completed, {len(batch_predictions)} predictions made")
+        
+        sorted_predictions = sorted(predictions, key=lambda x: x['score'], reverse=True)
+        return sorted_predictions[:10]  # Return top 10 matches
 
     # Métodos internos (sin cambios, están bien)
     def _calculate_hard_skills_match(self, application):

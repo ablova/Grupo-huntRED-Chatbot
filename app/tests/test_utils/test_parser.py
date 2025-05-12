@@ -97,3 +97,122 @@ async def test_summary_report():
     with patch('app.utilidades.parser.send_email', new_callable=AsyncMock) as mock_send_email:
         await processor._generate_summary_and_send_report(**processor.stats)
         mock_send_email.assert_called_once()
+
+import pytest
+import asyncio
+from unittest.mock import patch, AsyncMock
+from bs4 import BeautifulSoup
+from app.models import BusinessUnit, Vacante
+from app.com.utils.parser import parse_job_listing, extract_url, save_job_to_vacante
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+@pytest.mark.asyncio
+async def test_parse_job_listing_web():
+    """Test parsing job listing from web content."""
+    sample_html = """
+    <html>
+        <body>
+            <h1 class="job-title">Software Engineer</h1>
+            <span class="company">Tech Corp</span>
+            <div class="description">Develop and maintain software solutions.</div>
+            <a href="/apply">Apply Now</a>
+        </body>
+    </html>
+    """
+    job_info = parse_job_listing(sample_html, "https://example.com/job", source_type="web")
+    assert job_info is not None
+    assert job_info["title"] == "Software Engineer"
+    assert job_info["company"] == "Tech Corp"
+    assert "Develop and maintain" in job_info["description"]
+    assert job_info["url"] == "https://example.com/apply"
+    assert job_info["source"] == "example.com"
+    logger.info("Parse job listing from web test passed")
+
+@pytest.mark.asyncio
+async def test_parse_job_listing_email():
+    """Test parsing job listing from email content."""
+    sample_email = """
+    <html>
+        <head><title>Job Opportunity</title></head>
+        <body>
+            <p>From: Hiring Manager</p>
+            <p>We have an opening for a Project Manager.</p>
+            <p>Visit https://careers.example.com for details.</p>
+        </body>
+    </html>
+    """
+    job_info = parse_job_listing(sample_email, "", source_type="email")
+    assert job_info is not None
+    assert job_info["title"] == "Job Opportunity"
+    assert job_info["company"] == "From: Hiring Manager"
+    assert "We have an opening" in job_info["description"]
+    assert job_info["url"] == "https://careers.example.com"
+    assert job_info["source"] == "Email Scraping"
+    logger.info("Parse job listing from email test passed")
+
+@pytest.mark.asyncio
+async def test_parse_job_listing_no_keywords():
+    """Test parsing job listing with no relevant keywords."""
+    sample_html = """
+    <html>
+        <body>
+            <h1 class="job-title">Office Supplies Sale</h1>
+            <span class="company">Office Depot</span>
+            <div class="description">Discount on office supplies.</div>
+        </body>
+    </html>
+    """
+    job_info = parse_job_listing(sample_html, "https://example.com/sale", source_type="web")
+    assert job_info is None
+    logger.info("Parse job listing with no keywords test passed")
+
+@pytest.mark.asyncio
+async def test_extract_url():
+    """Test extracting URL from text content."""
+    text = "Visit our site at https://example.com/careers for more info."
+    url = extract_url(text)
+    assert url == "https://example.com/careers"
+    logger.info("Extract URL test passed")
+
+@pytest.mark.asyncio
+async def test_extract_url_no_url():
+    """Test extracting URL when no URL is present."""
+    text = "Visit our site for more info."
+    url = extract_url(text)
+    assert url == ""
+    logger.info("Extract URL with no URL test passed")
+
+@pytest.mark.asyncio
+async def test_save_job_to_vacante():
+    """Test saving parsed job info to Vacante model."""
+    job_info = {
+        "title": "Test Job",
+        "company": "Test Company",
+        "description": "Test Description",
+        "url": "https://example.com/job",
+        "source": "Test Source"
+    }
+    bu = BusinessUnit(name="test_bu")
+    with patch('app.models.Vacante.save', new=AsyncMock):
+        vacante = await save_job_to_vacante(job_info, bu)
+        assert vacante is not None
+        logger.info("Save job to Vacante test passed")
+
+@pytest.mark.asyncio
+async def test_save_job_to_vacante_error():
+    """Test error handling when saving to Vacante model."""
+    job_info = {
+        "title": "Test Job",
+        "company": "Test Company",
+        "description": "Test Description",
+        "url": "https://example.com/job",
+        "source": "Test Source"
+    }
+    bu = BusinessUnit(name="test_bu")
+    with patch('app.models.Vacante.save', new=AsyncMock(side_effect=Exception("Save failed"))):
+        vacante = await save_job_to_vacante(job_info, bu)
+        assert vacante is None
+        logger.info("Save job to Vacante error handling test passed")

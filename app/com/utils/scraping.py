@@ -1,4 +1,4 @@
-# /home/pablo/app/utilidades/scraping.py
+# /home/pablo/app/com/utils/scraping.py
 import json
 import random
 import asyncio
@@ -19,7 +19,9 @@ from app.com.chatbot.gpt import GPTHandler
 from app.com.chatbot.nlp import NLPProcessor
 from app.com.utils.vacantes import VacanteManager
 from app.com.utils.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, inicializar_contexto_playwright, visitar_pagina_humanizada, extraer_y_guardar_cookies
+from app.com.utils.parser import parse_job_listing, save_job_to_vacante
 from app.ml.utils.scrape import MLScraper
+from app.com.utils.parser import parse_job_listing, save_job_to_vacante
 
 logger = logging.getLogger(__name__)
 
@@ -742,7 +744,6 @@ class BaseScraper:
             link = url_elem if url_elem and url_elem.startswith("http") else f"{self.domain.dominio.rsplit('/', 1)[0]}{url_elem or ''}"
             if link not in seen_urls:
                 seen_urls.add(link)
-                title = extract_field(str(card), [self.selectors["title"]]) or "No especificado"
                 tasks.append(self.get_job_details(link))
         details_list = await asyncio.gather(*tasks)
         for idx, detail in enumerate(details_list):
@@ -758,14 +759,15 @@ class BaseScraper:
         return vacantes
 
     async def get_job_details(self, url: str) -> Dict:
-        content = await self.fetch(url)
-        if not content:
-            return {"description": "No disponible", "location": "Unknown", "company": "Unknown"}
-        
-        platform = await self.ml_scraper.classify_page(url, content)
-        details = await self.ml_scraper.extract_job_details(content, platform)
-        details["url"] = url
-        return details
+        try:
+            content = await self.fetch(url)
+            if not content:
+                raise Exception("No se pudo obtener el contenido")
+            job_info = parse_job_listing(content, url, source_type="web")
+            return job_info
+        except Exception as e:
+            logger.warning(f"Fallo en lógica personalizada para {self.plataforma}: {e}. Usando ML como respaldo.")
+            return await super().get_job_details(url)
 
     async def analyze_description(self, description: str) -> Dict:
         analysis = nlp_processor.analyze_opportunity(description)
@@ -957,7 +959,7 @@ class PhenomPeopleScraper(BaseScraper):
                             company=detail.get("company", "Honeywell"),
                             url=detail.get("original_url", ""),
                             description=detail.get("description", "No disponible"),
-                            skills=detail.get("skills", [])
+                            skills=detail.get("skills", []),
                         ))
 
                 load_more_button = await page.query_selector('button.load-more')
@@ -997,7 +999,7 @@ class SAPScraper(BaseScraper):
         page = 1
         seen_urls = set()
         while True:
-            url = f"{self.domain.dominio}/jobs?page={page}"
+            url = f"{self.domain.dominio}?page={page}"
             content = await self.fetch(url)
             if not content:
                 break
@@ -1108,7 +1110,7 @@ class IndeedScraper(BaseScraper):
                 title = extract_field(str(card), [self.selectors["title"]]) or "No especificado"
                 url_elem = extract_field(str(card), [self.selectors["url"]], "href")
                 link = f"https://www.indeed.com{url_elem}" if url_elem and not url_elem.startswith("http") else url_elem
-                if link and link not in seen_urls:
+                if link not in seen_urls:
                     seen_urls.add(link)
                     tasks.append(self.get_job_details(link))
             details_list = await asyncio.gather(*tasks)
@@ -1136,7 +1138,7 @@ class IndeedScraper(BaseScraper):
             desc_elem = soup.select_one("div#jobDescriptionText") or soup.select_one("div.job-description")
             loc_elem = soup.select_one("div.companyLocation") or soup.select_one("span.location")
             comp_elem = soup.select_one("span.companyName") or soup.select_one("span.company")
-            date_elem = soup.select_one("span.date") or soup.select_one("span.posted-date")
+            date_elem = soup.select_one("span.date") or soup.select_one("time")
             return {
                 "title": title_elem.get_text(strip=True) if title_elem else "No especificado",
                 "description": desc_elem.get_text(strip=True) if desc_elem else "No disponible",
@@ -1873,3 +1875,94 @@ PLATFORM_SELECTORS = {
         "pagination_step": 1,
     }
 }
+
+class JobScraper:
+    """Enhanced job scraper using playwright for dynamic content and robust error handling."""
+
+    def __init__(self, domains=None, max_depth=2, max_pages=10, concurrency=3):
+        self.domains = domains or []
+        self.max_depth = max_depth
+        self.max_pages = max_pages
+        self.concurrency = concurrency
+        self.visited_urls = set()
+        self.scraped_data = []
+        self.session = None
+        logger.info("JobScraper initialized")
+
+    async def initialize(self):
+        """Initialize the playwright browser session."""
+        try:
+            playwright = await async_playwright().start()
+            browser = await playwright.chromium.launch(headless=True)
+            self.session = browser
+            logger.info("Playwright browser session initialized")
+            return self.session
+        except Exception as e:
+            logger.error(f"Error initializing playwright session: {str(e)}", exc_info=True)
+            raise
+
+    async def scrape_page(self, page, url, depth=0):
+        """Scrape a single page for job listings with error handling."""
+        try:
+            logger.info(f"Scraping URL: {url} at depth {depth}")
+            await page.goto(url, timeout=30000)
+            await page.wait_for_load_state("networkidle")
+            
+            content = await page.content()
+            job_info = parse_job_listing(content, url, source_type="web")
+            if job_info:
+                self.scraped_data.append(job_info)
+                logger.info(f"Found job: {job_info['title']} at {job_info['company']}")
+            
+            if depth < self.max_depth:
+                soup = BeautifulSoup(content, "html.parser")
+                links = soup.find_all("a", href=True)
+                tasks = []
+                for link in links:
+                    next_url = urljoin(url, link["href"])
+                    if next_url not in self.visited_urls and any(domain in next_url for domain in self.domains):
+                        self.visited_urls.add(next_url)
+                        tasks.append(self.scrape_page(page, next_url, depth + 1))
+                        if len(tasks) >= self.max_pages:
+                            break
+                await asyncio.gather(*tasks[:self.concurrency])
+        except Exception as e:
+            logger.error(f"Error scraping {url}: {str(e)}", exc_info=True)
+
+    async def scrape(self):
+        """Main scraping method with batch processing and robust error handling."""
+        try:
+            await self.initialize()
+            context = await self.session.new_context(user_agent=random.choice(USER_AGENTS))
+            page = await context.new_page()
+            
+            tasks = []
+            for domain in self.domains:
+                start_url = f"https://{domain}/jobs" if not domain.startswith("http") else f"{domain}/jobs"
+                tasks.append(self.scrape_page(page, start_url))
+                if len(tasks) >= self.concurrency:
+                    await asyncio.gather(*tasks)
+                    tasks = []
+            
+            if tasks:
+                await asyncio.gather(*tasks)
+            
+            await context.close()
+            await self.session.close()
+            logger.info(f"Scraping completed. Found {len(self.scraped_data)} job listings.")
+            return self.scraped_data
+        except Exception as e:
+            logger.error(f"Error in scrape: {str(e)}", exc_info=True)
+            raise
+        finally:
+            if self.session:
+                await self.session.close()
+                logger.info("Browser session closed")
+
+    async def save_to_vacante(self, bu):
+        """Save scraped job data to Vacante model with async operation."""
+        try:
+            for job_info in self.scraped_data:
+                await save_job_to_vacante(job_info, bu)
+        except Exception as e:
+            logger.error(f"Error saving scraped vacante: {str(e)}", exc_info=True)
