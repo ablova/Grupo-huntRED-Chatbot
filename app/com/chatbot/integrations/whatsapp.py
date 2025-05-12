@@ -15,11 +15,11 @@ from django.core.cache import cache
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, WhatsAppAPI, ChatState
-from app.com.chatbot.import_config import (
+from app.import_config import (
     get_chat_state_manager,
-    get_intent_processor
+    get_intent_processor,
+    get_rate_limiter
 )
-from app.com.chatbot.integrations.whatsapp.rate_limiter import RateLimiter
 
 logger = logging.getLogger('chatbot')
 

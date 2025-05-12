@@ -17,6 +17,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, TelegramAPI
 from app.com.chatbot.chat_state_manager import ChatStateManager
 from app.com.chatbot.intents_handler import IntentProcessor
+from app.com.chatbot.channel_config import RateLimiter
 
 logger = logging.getLogger('chatbot')
 
@@ -66,6 +67,7 @@ class TelegramHandler:
         self.intent_processor: Optional[IntentProcessor] = None
         self.telegram_api: Optional[TelegramAPI] = None
         self.user_data: Dict[str, Any] = {}
+        self.rate_limiter = RateLimiter()
 
     async def initialize(self) -> bool:
         """Inicializa el manejador de Telegram."""

@@ -10,20 +10,26 @@ from asgiref.sync import sync_to_async
 from django.core.cache import cache
 import time
 
-from app.com.chatbot.channel_config import ChannelConfig
-from app.com.chatbot.message_retry import MessageRetry
-from app.com.chatbot.metrics import chatbot_metrics
+from app.import_config import (
+    get_conversational_flow_manager,
+    get_intent_detector,
+    get_context_manager,
+    get_response_generator,
+    get_state_manager,
+    get_message_service,
+    get_gamification_service,
+    get_cv_parser,
+    get_gpt_handler,
+    get_channel_config,
+    get_rate_limiter
+)
 
 from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, ConfiguracionBU, Vacante,
     WhatsAppAPI, EnhancedNetworkGamificationProfile, ConfiguracionBU
 )
-from app.com.chatbot.conversational_flow import ConversationalFlowManager
-from app.com.chatbot.components.intent_detector import IntentDetector
-from app.com.chatbot.components.context_manager import ContextManager
-from app.com.chatbot.components.response_generator import ResponseGenerator
-from app.com.chatbot.components.state_manager import StateManager
-from app.com.chatbot.integrations.services import MessageService, GamificationService
+
+# Workflow functions (loaded on demand)
 from app.com.chatbot.workflow.common import (
     generate_and_send_contract, iniciar_creacion_perfil, iniciar_perfil_conversacional,
     obtener_explicaciones_metodos
@@ -33,8 +39,6 @@ from app.com.chatbot.workflow.huntu import process_huntu_candidate
 from app.com.chatbot.workflow.huntred import process_huntred_candidate
 from app.com.chatbot.workflow.executive import process_executive_candidate
 from app.com.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
-from app.com.utils.parser import CVParser
-from app.com.chatbot.gpt import GPTHandler
 
 logger = logging.getLogger('chatbot')
 
@@ -47,7 +51,7 @@ NLP_ENABLED = True
 
 class ChatBotHandler:
     def __init__(self):
-        self.gpt_handler = GPTHandler()
+        self.gpt_handler = get_gpt_handler()()
         self.workflow_mapping = {
             "amigro": process_amigro_candidate,
             "huntu": process_huntu_candidate,
@@ -62,18 +66,20 @@ class ChatBotHandler:
                 "¡Cuéntame, en qué puedo ayudarte hoy?"
             ],
             "amigro": [
-                "Bienvenido a Amigro® 🌍 - amigro.org, somos una organización que facilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México, mediante Inteligencia Artificial Conversacional",
+                "Bienvenido a Amigro - amigro.org, somos una organización que facilitamos el acceso laboral a mexicanos regresando y migrantes de Latinoamérica ingresando a México, mediante Inteligencia Artificial Conversacional",
                 "Por lo que platicaremos un poco de tu trayectoria profesional, tus intereses, tu situación migratoria, etc. Es importante ser lo más preciso posible, ya que con eso podremos identificar las mejores oportunidades para tí, tu familia, y en caso de venir en grupo, favorecerlo. *Por cierto Al iniciar, confirmas la aceptación de nuestros TOS."
             ]
         }
         
         # Inicializar componentes del nuevo sistema modular
-        self.intent_detector = IntentDetector()
-        self.state_manager = StateManager()
-        self.context_manager = ContextManager()
-        self.response_generator = ResponseGenerator()
-        self.message_service = MessageService()
-        self.gamification_service = GamificationService()
+        self.conversational_flow = get_conversational_flow_manager()()
+        self.intent_detector = get_intent_detector()()
+        self.context_manager = get_context_manager()()
+        self.response_generator = get_response_generator()()
+        self.state_manager = get_state_manager()()
+        self.message_service = get_message_service()()
+        self.gamification_service = get_gamification_service()()
+        self.cv_parser = get_cv_parser()()
         
         try:
             self.nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')

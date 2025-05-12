@@ -11,14 +11,11 @@ from app.models import (
     StateTransition, IntentTransition, ContextCondition
 )
 from app.com.chatbot.utils import ChatbotUtils
-# Deferred import to prevent circular dependencies
-def get_workflow_context_function():
-    from app.com.chatbot.workflow.common import get_workflow_context
-    return get_workflow_context
 from app.com.chatbot.import_config import (
     get_whatsapp_handler,
     get_telegram_handler,
-    get_slack_handler
+    get_slack_handler,
+    get_workflow_context
 )
 
 # Get handlers using deferred imports
@@ -76,7 +73,7 @@ class ChatStateManager:
         self.max_retries = 3
         self.redis_client = None
         self._initialize_redis()
-        self.get_workflow_context = get_workflow_context_function()
+        self.get_workflow_context = get_workflow_context
         logger.info("ChatStateManager initialized")
 
     def _initialize_redis(self):

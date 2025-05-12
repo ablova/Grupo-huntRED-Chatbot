@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from asgiref.sync import sync_to_async
 from app.models import SlackAPI, BusinessUnit
 from app.com.chatbot.chatbot import ChatBotHandler
+from app.com.chatbot.channel_config import RateLimiter
 
 logger = logging.getLogger('chatbot')
 
@@ -74,6 +75,9 @@ async def slack_webhook(request):
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 async def send_slack_message(channel_id: str, message: str, bot_token: str) -> bool:
+    """Envía un mensaje de texto a un canal de Slack con rate limiting."""
+    rate_limiter = RateLimiter()
+    await rate_limiter.wait_for_limit('slack')
     """Envía un mensaje de texto a un canal de Slack."""
     url = "https://slack.com/api/chat.postMessage"
     headers = {
@@ -98,6 +102,9 @@ async def send_slack_message(channel_id: str, message: str, bot_token: str) -> b
         return False
 
 async def send_slack_message_with_buttons(channel_id: str, message: str, buttons: List[Dict], bot_token: str) -> bool:
+    """Envía un mensaje con botones a Slack con rate limiting."""
+    rate_limiter = RateLimiter()
+    await rate_limiter.wait_for_limit('slack')
     """Envía un mensaje con botones a Slack."""
     url = "https://slack.com/api/chat.postMessage"
     headers = {
@@ -144,6 +151,9 @@ async def send_slack_message_with_buttons(channel_id: str, message: str, buttons
         return False
 
 async def send_slack_document(channel_id: str, file_url: str, caption: str, bot_token: str) -> bool:
+    """Envía un documento a Slack con rate limiting."""
+    rate_limiter = RateLimiter()
+    await rate_limiter.wait_for_limit('slack')
     try:
         url = "https://slack.com/api/files.upload"
         headers = {"Authorization": f"Bearer {bot_token}"}
