@@ -10,6 +10,11 @@ from django.contrib import admin
 import importlib
 import logging
 
+# Importando clases base y mixins
+from .admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
+from .admin_cache import CachedAdminMixin, OptimizedQuerysetMixin, setup_cache_signals
+from .admin_rbac import RBACModelMixin, setup_rbac_groups, rbac_admin_site
+
 # Importando administradores desde diferentes módulos
 from .admin_core import (
     # Core models
@@ -37,6 +42,15 @@ from .admin_scraping import (
     DominioScrapingAdmin,
     RegistroScrapingAdmin,
     ReporteScrapingAdmin
+)
+
+# Importando administradores de pricing
+from .admin_pricing import (
+    PricingBaselineAdmin,
+    AddonsAdmin,
+    CouponsAdmin,
+    PaymentMilestonesAdmin,
+    PricingSimulatorAdmin
 )
 
 # Importando modelos desde app.models
