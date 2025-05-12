@@ -1,8 +1,5 @@
 from django.contrib import admin
-from .models.pago import Pago
-from .models.empleador import Empleador
-from .models.worker import Worker
-from .models.oportunidad import Oportunidad
+from app.models import Pago, Empleador, Worker, Oportunidad
 
 @admin.register(Pago)
 class PagoAdmin(admin.ModelAdmin):

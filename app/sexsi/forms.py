@@ -1,7 +1,7 @@
 # Ubicacion SEXSI -- /home/pablo/app/sexsi/forms.py
 
 from django import forms
-from app.sexsi.models import ConsentAgreement
+from app.models import ConsentAgreement, Preference
 from datetime import datetime
 
 def calculate_age(birth_date):

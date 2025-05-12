@@ -12,8 +12,7 @@ from django.utils import timezone
 from asgiref.sync import async_to_sync
 from celery import shared_task
 
-from app.models import BusinessUnit, Person, Vacante, User
-from .models import Notification, NotificationStatus
+from app.models import BusinessUnit, Person, Vacante, User, Notification, NotificationStatus
 from .core import send_notification
 from .handlers import (
     EmailNotificationHandler, WhatsAppNotificationHandler,

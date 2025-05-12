@@ -1,7 +1,6 @@
 from typing import Optional
 from django.utils import timezone
-from app.models import Person, BusinessUnit
-from app.com.chatbot.models import ChatState, StateTransition
+from app.models import Person, BusinessUnit, ChatState, StateTransition
 import logging
 
 logger = logging.getLogger(__name__)

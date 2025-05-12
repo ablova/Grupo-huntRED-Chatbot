@@ -15,8 +15,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db.models import Q
 
-from app.models import Person, BusinessUnit, Vacante, User, Company
-from .models import Notification, NotificationType, NotificationStatus, NotificationChannel
+from app.models import Person, BusinessUnit, Vacante, User, Company, Notification, NotificationType, NotificationStatus, NotificationChannel, NotificationPreference
 
 logger = logging.getLogger('notifications')
 
@@ -82,8 +81,6 @@ def get_notification_preferences(user: User, notification_type: str, business_un
     Returns:
         Diccionario con canales habilitados
     """
-    from .models import NotificationPreference
-    
     # Intentamos obtener la preferencia específica
     try:
         if business_unit:

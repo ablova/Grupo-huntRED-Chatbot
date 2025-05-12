@@ -6,7 +6,7 @@
 # ... (previous manual registrations removed)
 
 # Exports for pagos module
-from .models import Pago, EstadoPago, TipoPago, MetodoPago
+from app.models import Pago, EstadoPago, TipoPago, MetodoPago
 from .services import PagoService
 
 __all__ = ['Pago', 'EstadoPago', 'TipoPago', 'MetodoPago', 'PagoService']

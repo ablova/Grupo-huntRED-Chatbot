@@ -1,5 +1,5 @@
 from celery import shared_task
-from .models import Conversation, Message, Notification, Metric
+from app.models import Conversation, Message, Notification, Metric
 from .config import ComConfig
 import logging
 

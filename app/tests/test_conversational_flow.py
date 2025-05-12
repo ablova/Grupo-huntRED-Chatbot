@@ -2,9 +2,8 @@ import pytest
 from django.test import TestCase
 from django.utils import timezone
 from asgiref.sync import async_to_sync
-from app.models import Person, BusinessUnit
+from app.models import Person, BusinessUnit, ChatState
 from app.com.chatbot.conversational_flow import ConversationalFlowManager
-from app.com.chatbot.models import ChatState
 
 class TestConversationalFlowManager(TestCase):
     def setUp(self):

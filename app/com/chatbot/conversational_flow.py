@@ -1,7 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
-from .models import IntentPattern, StateTransition, IntentTransition, ContextCondition, ChatState
-from app.models import Person, BusinessUnit
+from app.models import IntentPattern, StateTransition, IntentTransition, ContextCondition, ChatState, Person, BusinessUnit
 import logging
 from app.com.utils.visualization import FlowVisualization as BaseFlowVisualization
 import re

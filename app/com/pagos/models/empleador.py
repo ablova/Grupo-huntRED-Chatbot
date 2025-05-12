@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from app.models import Person
+from app.models import Person, Empleador
 
 class EstadoPerfil(models.TextChoices):
     ACTIVO = 'activo', 'Activo'

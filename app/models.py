@@ -1,3 +1,4 @@
+# app/models.py
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
@@ -142,10 +143,10 @@ API_CATEGORY_CHOICES=[
     ('OTHER','Otro')
 ]
 BUSINESS_UNIT_CHOICES=[
-    ('huntRED','huntRED®'),
-    ('huntRED_executive','huntRED® Executive'),
-    ('huntu','huntU®'),
-    ('amigro','Amigro®'),
+    ('huntRED','huntRED'),
+    ('huntRED_executive','huntRED Executive'),
+    ('huntu','huntU'),
+    ('amigro','Amigro'),
     ('sexsi','SexSI'),
 ]
 DIVISION_CHOICES=[
@@ -554,8 +555,6 @@ class JobTracker(models.Model):
         if instance.status=='completed':
             print(f"El JobTracker para {instance.opportunity} ha sido completado.")
 
-
-
 class Interview(models.Model):
     INTERVIEW_TYPE_CHOICES=[('presencial','Presencial'),('virtual','Virtual'),('panel','Panel')]
     person=models.ForeignKey(Person,on_delete=models.CASCADE)
@@ -636,7 +635,6 @@ class PricingBaseline(models.Model):
         super().save(*args,**kwargs)
     class Meta:
         indexes=[models.Index(fields=['dominio'])]
-
 
 class DominioScraping(models.Model):
     empresa=models.CharField(max_length=75,unique=True,blank=True,null=True)
@@ -740,7 +738,6 @@ class Certificate(models.Model):
                 
         except Exception as e:
             return False, f"Error al verificar el certificado: {str(e)}"
-            return False, f"Error durante la verificación: {str(e)}"
 
     def get_status_display(self):
         return dict(self.STATUS_CHOICES).get(self.status, 'Desconocido')
@@ -1647,3 +1644,526 @@ class Interaction(models.Model):
     chat_state=models.CharField(max_length=100,null=True,blank=True)
     def __str__(self):
         return f"Interacción de {self.person} en {self.timestamp}"
+
+# Modelos de Pagos
+
+class EstadoPerfil(models.TextChoices):
+    ACTIVO = 'activo', 'Activo'
+    INACTIVO = 'inactivo', 'Inactivo'
+    SUSPENDIDO = 'suspendido', 'Suspendido'
+
+class TipoDocumento(models.TextChoices):
+    RFC = 'rfc', 'RFC'
+    CURP = 'curp', 'CURP'
+    DNI = 'dni', 'DNI'
+    PASAPORTE = 'pasaporte', 'Pasaporte'
+
+class Empleador(models.Model):
+    persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='empleador')
+    
+    # Información fiscal
+    razon_social = models.CharField(max_length=255)
+    rfc = models.CharField(max_length=13, unique=True)
+    direccion_fiscal = models.TextField()
+    
+    # Información bancaria
+    clabe = models.CharField(max_length=18, unique=True)
+    banco = models.CharField(max_length=100)
+    
+    # Información de contacto
+    sitio_web = models.URLField(null=True, blank=True)
+    telefono_oficina = models.CharField(max_length=20)
+    
+    # Estado
+    estado = models.CharField(max_length=20, choices=EstadoPerfil.choices, default=EstadoPerfil.ACTIVO)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    # Documentos
+    documento_identidad = models.FileField(upload_to='empleadores/documentos/')
+    comprobante_domicilio = models.FileField(upload_to='empleadores/documentos/')
+    
+    class Meta:
+        ordering = ['-fecha_registro']
+        verbose_name = 'Empleador'
+        verbose_name_plural = 'Empleadores'
+
+    def __str__(self):
+        return self.razon_social
+
+    def validar_documentos(self):
+        """Valida que todos los documentos requeridos estén presentes y sean válidos"""
+        return True  # Implementación pendiente
+
+class Worker(models.Model):
+    persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='worker')
+    
+    # Información laboral
+    nss = models.CharField(max_length=11, unique=True, null=True, blank=True)
+    ocupacion = models.CharField(max_length=100)
+    experiencia_anios = models.IntegerField(default=0)
+    
+    # Información bancaria
+    clabe = models.CharField(max_length=18, unique=True)
+    banco = models.CharField(max_length=100)
+    
+    # Estado
+    estado = models.CharField(max_length=20, choices=EstadoPerfil.choices, default=EstadoPerfil.ACTIVO)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    # Documentos
+    documento_identidad = models.FileField(upload_to='workers/documentos/')
+    comprobante_domicilio = models.FileField(upload_to='workers/documentos/')
+    
+    class Meta:
+        ordering = ['-fecha_registro']
+        verbose_name = 'Worker'
+        verbose_name_plural = 'Workers'
+
+    def __str__(self):
+        return f"{self.persona.nombre} {self.persona.apellido_paterno}"
+
+    def validar_documentos(self):
+        """Valida que todos los documentos requeridos estén presentes y sean válidos"""
+        return True  # Implementación pendiente
+
+class Oportuncupidad(models.Model):
+    empleador = models.ForeignKey(Empleador, on_delete=models.CASCADE, related_name='oportunidades')
+    titulo = models.CharField(max_length=255)
+    descripcion = models.TextField()
+    
+    # Detalles del trabajo
+    tipo_contrato = models.CharField(max_length=50, choices=[
+        ('tiempo_completo', 'Tiempo Completo'),
+        ('medio_tiempo', 'Medio Tiempo'),
+        ('freelance', 'Freelance'),
+        ('proyecto', 'Por Proyecto')
+    ])
+    salario_minimo = models.DecimalField(max_digits=10, decimal_places=2)
+    salario_maximo = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # Ubicación
+    pais = models.CharField(max_length=50)
+    ciudad = models.CharField(max_length=100)
+    modalidad = models.CharField(max_length=50, choices=[
+        ('presencial', 'Presencial'),
+        ('remoto', 'Remoto'),
+        ('hibrido', 'Híbrido')
+    ])
+    
+    # Estado
+    estado = models.CharField(max_length=20, choices=EstadoPerfil.choices, default=EstadoPerfil.ACTIVO)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Oportunidad'
+        verbose_name_plural = 'Oportunidades'
+
+    def __str__(self):
+        return self.titulo
+
+class EstadoPago(models.TextChoices):
+    PENDIENTE = 'pendiente', 'Pendiente'
+    COMPLETADO = 'completado', 'Completado'
+    FALLIDO = 'fallido', 'Fallido'
+    RECHAZADO = 'rechazado', 'Rechazado'
+    EN_PROCESO = 'en_proceso', 'En Proceso'
+    REFUNDADO = 'reembolsado', 'Reembolsado'
+
+class TipoPago(models.TextChoices):
+    MONOEDO = 'monoedo', 'Pago Simple'
+    MULTIEDO = 'multiedo', 'Pago Múltiple'
+    RECURRENTE = 'recurrente', 'Pago Recurrente'
+    PRUEBA = 'prueba', 'Pago de Prueba'
+
+class MetodoPago(models.TextChoices):
+    PAYPAL = 'paypal', 'PayPal'
+    STRIPE = 'stripe', 'Stripe'
+    MERCADOPAGO = 'mercadopago', 'MercadoPago'
+    TRANSFERENCIA = 'transferencia', 'Transferencia Bancaria'
+    CRYPTO = 'crypto', 'Criptomonedas'
+
+class Pago(models.Model):
+    empleador = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='pagos_enviados')
+    vacante = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='pagos')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='pagos_recibidos')
+    
+    # Información de la oportunidad
+    oportunidad_id = models.CharField(max_length=100, db_index=True, help_text="ID único de la oportunidad")
+    oportunidad_descripcion = models.TextField(help_text="Descripción detallada de la oportunidad")
+    numero_plazas = models.IntegerField(default=1, help_text="Número de plazas o contrataciones asociadas")
+    plazas_contratadas = models.IntegerField(default=0, help_text="Número de plazas ya contratadas")
+    
+    # Información de seguimiento
+    referencia_cliente = models.CharField(max_length=100, null=True, blank=True, help_text="Referencia interna del cliente")
+    numero_contrato = models.CharField(max_length=50, null=True, blank=True, help_text="Número de contrato asociado")
+    
+    # Información financiera
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_por_plaza = models.DecimalField(max_digits=10, decimal_places=2, help_text="Monto base por plaza")
+    moneda = models.CharField(max_length=3, default='USD')
+    metodo = models.CharField(max_length=20, choices=MetodoPago.choices, default=MetodoPago.PAYPAL)
+    tipo = models.CharField(max_length=20, choices=TipoPago.choices, default=TipoPago.MONOEDO)
+    
+    # Estado y seguimiento
+    estado = models.CharField(max_length=20, choices=EstadoPago.choices, default=EstadoPago.PENDIENTE)
+    intentos = models.IntegerField(default=0)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    fecha_procesamiento = models.DateTimeField(null=True, blank=True)
+    
+    # Información del gateway
+    id_transaccion = models.CharField(max_length=255, null=True, blank=True)
+    url_webhook = models.URLField(null=True, blank=True)
+    webhook_payload = models.JSONField(null=True, blank=True)
+    
+    # Información adicional
+    descripcion = models.TextField(null=True, blank=True)
+    metadata = models.JSONField(default=dict)
+    
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Pago'
+        verbose_name_plural = 'Pagos'
+        indexes = [
+            models.Index(fields=['oportunidad_id']),
+            models.Index(fields=['estado']),
+            models.Index(fields=['fecha_procesamiento'])
+        ]
+    
+    def __str__(self):
+        return f'Pago #{self.id} - {self.empleador.nombre} -> {self.business_unit.name} (Oportunidad: {self.oportunidad_id})'
+    
+    def actualizar_estado(self, nuevo_estado, metadata=None):
+        """Actualiza el estado del pago y crea un registro histórico."""
+        historico = PagoHistorico.objects.create(
+            pago=self,
+            estado_anterior=self.estado,
+            metadata=metadata or {}
+        )
+        self.estado = nuevo_estado
+        self.fecha_actualizacion = timezone.now()
+        self.save()
+        return historico
+    
+    def marcar_como_completado(self, transaccion_id=None):
+        self.estado = EstadoPago.COMPLETADO
+        self.id_transaccion = transaccion_id
+        self.save()
+
+    def marcar_como_fallido(self, motivo=None):
+        self.estado = EstadoPago.FALLIDO
+        self.metadata['motivo_fallo'] = motivo
+        self.save()
+
+    def plazas_disponibles(self):
+        """Devuelve el número de plazas disponibles para contratación."""
+        return self.numero_plazas - self.plazas_contratadas
+    
+    def actualizar_plazas_contratadas(self, cantidad):
+        """Actualiza el número de plazas contratadas."""
+        if cantidad > self.plazas_disponibles():
+            raise ValueError(f"No hay suficientes plazas disponibles. Disponibles: {self.plazas_disponibles()}")
+        self.plazas_contratadas += cantidad
+        self.save()
+    
+    def calcular_monto_total(self):
+        """Calcula el monto total basado en el número de plazas."""
+        return self.monto_por_plaza * self.numero_plazas
+
+class PagoRecurrente(models.Model):
+    pago_base = models.OneToOneField(Pago, on_delete=models.CASCADE, related_name='recurrente')
+    frecuencia = models.CharField(max_length=20, choices=[
+        ('diario', 'Diario'),
+        ('semanal', 'Semanal'),
+        ('quincenal', 'Quincenal'),
+        ('mensual', 'Mensual'),
+        ('anual', 'Anual')
+    ])
+    fecha_proximo_pago = models.DateTimeField()
+    fecha_fin = models.DateTimeField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['-fecha_proximo_pago']
+        verbose_name = 'Pago Recurrente'
+        verbose_name_plural = 'Pagos Recurrentes'
+
+    def __str__(self):
+        return f'Pago Recurrente #{self.pago_base.id}'
+
+    def actualizar_proximo_pago(self):
+        """Actualiza la fecha del próximo pago según la frecuencia."""
+        if not self.activo:
+            return
+            
+        if self.frecuencia == 'diario':
+            self.fecha_proximo_pago += timedelta(days=1)
+        elif self.frecuencia == 'semanal':
+            self.fecha_proximo_pago += timedelta(days=7)
+        elif self.frecuencia == 'quincenal':
+            self.fecha_proximo_pago += timedelta(days=15)
+        elif self.frecuencia == 'mensual':
+            self.fecha_proximo_pago += timedelta(days=30)
+        elif self.frecuencia == 'anual':
+            self.fecha_proximo_pago += timedelta(days=365)
+        self.save()
+
+class PagoHistorico(models.Model):
+    pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='historico')
+    estado_anterior = models.CharField(max_length=20, choices=EstadoPago.choices)
+    fecha_cambio = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(default=dict)
+    
+    class Meta:
+        ordering = ['-fecha_cambio']
+        verbose_name = 'Historial de Pago'
+        verbose_name_plural = 'Historial de Pagos'
+
+    def __str__(self):
+        return f'Historial #{self.id} - Pago #{self.pago.id}'
+
+class WebhookLog(models.Model):
+    pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='webhook_logs')
+    evento = models.CharField(max_length=50)
+    payload = models.JSONField()
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    procesado = models.BooleanField(default=False)
+    error = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Log de Webhook'
+        verbose_name_plural = 'Logs de Webhooks'
+
+    def __str__(self):
+        return f'Webhook #{self.id} - {self.evento}'
+
+# Modelos de Sexsi
+
+def calculate_age(birth_date):
+    """Calcula la edad dada una fecha de nacimiento."""
+    today = date.today()
+    age = today.year - birth_date.year
+    if today.month < birth_date.month or (today.month == birth_date.month and today.day < birth_date.day):
+        age -= 1
+    return age
+
+class SexsiConfig(models.Model):
+    """
+    Configuración exclusiva para el flujo SEXSI.
+    Almacena los datos de integración para Hellosign y PayPal.
+    """
+    name = models.CharField(max_length=100, default="SEXSI Configuración")
+    
+    # Integración Hellosign
+    hellosign_api_key = models.CharField(max_length=255, blank=True, null=True, help_text="API Key para Hellosign")
+    hellosign_template_id = models.CharField(max_length=255, blank=True, null=True, help_text="ID de plantilla en Hellosign")
+    
+    # Integración PayPal (o similar)
+    paypal_client_id = models.CharField(max_length=255, blank=True, null=True, help_text="Client ID de PayPal")
+    paypal_client_secret = models.CharField(max_length=255, blank=True, null=True, help_text="Client Secret de PayPal")
+    
+    def __str__(self):
+        return self.name
+
+class ConsentAgreement(models.Model):
+    """
+    Modelo de Acuerdo de Consentimiento con doble validación de firma.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('pending', 'Pendiente'),
+        ('signed_by_creator', 'Firmado por Anfitrión'),
+        ('signed_by_invitee', 'Firmado por Invitado'),
+        ('completed', 'Completado'),
+        ('cancelled', 'Cancelado')
+    ]
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_agreements')
+    invitee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invited_agreements', null=True, blank=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_of_encounter = models.DateTimeField()
+    location = models.CharField(max_length=200)
+    agreement_text = models.TextField()
+    
+    # Preferencias y prácticas
+    preferences = models.ManyToManyField('Preference', related_name='agreements')
+    
+    # Firma y validaciones
+    is_signed_by_creator = models.BooleanField(default=False)
+    is_signed_by_invitee = models.BooleanField(default=False)
+    creator_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    invitee_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True, help_text="Selfie del creador con identificación")
+    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True, help_text="Selfie del invitado con identificación")
+    signature_method = models.CharField(
+        max_length=20, 
+        choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),
+        default="internal",
+        help_text="Método de firma elegido"
+    )
+    tos_accepted = models.BooleanField(default=False)
+    
+    # OTP y verificación de identidad
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_expiry = models.DateTimeField(null=True, blank=True)
+    creator_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
+    invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
+    
+    # Seguridad y control de token
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    
+    def default_token_expiry():
+        return now() + timedelta(hours=36)
+
+    token_expiry = models.DateTimeField(default=default_token_expiry)
+    
+    def clean(self):
+        """Validaciones adicionales"""
+        # Validaciones de duración
+        if self.duration_type != 'single' and not self.duration_amount:
+            raise ValidationError({'duration_amount': 'Debe especificar una cantidad de tiempo para duraciones no únicas.'})
+        
+        # Validación de fecha de encuentro
+        if self.date_of_encounter < now():
+            raise ValidationError({'date_of_encounter': 'La fecha del encuentro no puede estar en el pasado.'})
+        
+        # Validación de participantes
+        if self.creator == self.invitee:
+            raise ValidationError({'invitee': 'El invitado no puede ser el mismo que el creador del acuerdo.'})
+        
+        # Validación de firma
+        if self.is_signed_by_creator and not self.creator_signature:
+            raise ValidationError({'creator_signature': 'Debe cargar una firma para el creador si está marcado como firmado.'})
+        if self.is_signed_by_invitee and not self.invitee_signature:
+            raise ValidationError({'invitee_signature': 'Debe cargar una firma para el invitado si está marcado como firmado.'})
+    
+    def get_status_display(self):
+        """Obtiene la representación legible del estado."""
+        return dict(self.STATUS_CHOICES).get(self.status, 'Desconocido')
+    
+    def get_duration_display(self):
+        """Obtiene la representación legible de la duración."""
+        if self.duration_type == 'single':
+            return "Encuentro Único"
+        return f"{self.duration_amount} {self.get_duration_type_display()}"
+    
+    def get_absolute_url(self):
+        """Obtiene la URL absoluta para este acuerdo."""
+        return reverse('sexsi:agreement_detail', kwargs={'pk': self.pk})
+    
+    def generate_otp(self):
+        """Genera un código OTP de 6 dígitos y lo almacena con una validez de 10 minutos."""
+        self.otp_code = str(uuid.uuid4().int)[:6]
+        self.otp_expiry = now() + timedelta(minutes=10)
+        self.save()
+        return self.otp_code
+    
+    def verify_otp(self, otp_input):
+        """Verifica si el OTP ingresado es válido."""
+        return self.otp_code == otp_input and now() < self.otp_expiry
+    
+    def is_valid_for_duration(self, preference):
+        """Verifica si el acuerdo es válido para la duración de la preferencia."""
+        if preference.duration == 'single' and self.duration_type != 'single':
+            return False
+        if preference.duration in ['short_term', 'long_term'] and self.duration_type == 'single':
+            return False
+        return True
+    
+    def __str__(self):
+        return f"Acuerdo #{self.id} - {self.creator.username}"
+
+class PaymentTransaction(models.Model):
+    """
+    Modelo para registrar la transacción de pago asociada al Acuerdo SEXSI.
+    Permite almacenar el método, monto, ID de transacción (por PayPal u otro),
+    y el estado del pago.
+    """
+    agreement = models.OneToOneField(ConsentAgreement, on_delete=models.CASCADE, related_name='payment')
+    payment_method = models.CharField(max_length=50, default="PayPal", help_text="Método de pago")
+    transaction_id = models.CharField(max_length=100, blank=True, null=True, help_text="ID de transacción del servicio de pago")
+    transaction_status = models.CharField(max_length=50, default="pending", help_text="Estado del pago")
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Pago {self.id} para Acuerdo #{self.agreement.id}"
+
+class DiscountCoupon(models.Model):
+    """Modelo para almacenar cupones de descuento con diferentes porcentajes y un cupón de 100%."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='discount_coupons')
+    code = models.CharField(max_length=10, unique=True)
+    discount_percentage = models.PositiveIntegerField()
+    expiration_date = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    
+    def is_valid(self):
+        return not self.is_used and self.expiration_date > now()
+    
+    def __str__(self):
+        return f"Cupon {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
+
+class AgreementPreference(models.Model):
+    """
+    Modelo que representa la relación entre un acuerdo y sus preferencias,
+    permitiendo almacenar información adicional sobre cada preferencia en el contexto del acuerdo.
+    """
+    agreement = models.ForeignKey('ConsentAgreement', on_delete=models.CASCADE)
+    preference = models.ForeignKey('Preference', on_delete=models.CASCADE)
+    is_required = models.BooleanField(default=True, help_text="Indica si esta preferencia es obligatoria para el acuerdo")
+    notes = models.TextField(blank=True, null=True, help_text="Notas adicionales sobre esta preferencia en el contexto del acuerdo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('agreement', 'preference')
+        ordering = ['preference__category', 'preference__name']
+
+    def __str__(self):
+        return f"{self.agreement} - {self.preference}"
+
+class Preference(models.Model):
+    """
+    Modelo para almacenar preferencias de intimidad y prácticas.
+    """
+    PREFERENCE_TYPES = [
+        ('common', 'Preferencias Comunes'),
+        ('discrete', 'Preferencias Discretas'),
+        ('advanced', 'Exploraciones Avanzadas'),
+        ('exotic', 'Exploraciones Exóticas')
+    ]
+
+    code = models.CharField(max_length=10, unique=True, help_text="Código único de la preferencia")
+    name = models.CharField(max_length=100, help_text="Nombre descriptivo de la preferencia")
+    description = models.TextField(help_text="Descripción detallada de la preferencia")
+    category = models.CharField(max_length=20, choices=PREFERENCE_TYPES)
+    complexity_level = models.CharField(max_length=20, help_text="Nivel de complejidad de la práctica")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
+
+    def get_absolute_url(self):
+        return reverse('sexsi:preference_detail', kwargs={'pk': self.pk})
+    
+    def is_compatible_with_duration(self, duration_type):
+        """Verifica si esta preferencia es compatible con el tipo de duración del acuerdo."""
+        if self.duration == 'single' and duration_type != 'single':
+            return False
+        if self.duration in ['short_term', 'long_term'] and duration_type == 'single':
+            return False
+        return True
+    
+    def get_category_display(self):
+        """Obtiene la representación legible de la categoría."""
+        return dict(self.PREFERENCE_TYPES).get(self.category, 'Desconocido')

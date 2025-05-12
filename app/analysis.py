@@ -1,8 +1,8 @@
 from django.db import models
 from django.utils import timezone
-from .models import (
+from app.models import (
     BusinessUnit, Skill, Tier, SkillAnalysis, CandidateSegment, ImpactAnalysis,
-    AnalysisReport, Person, Vacante, Application
+    AnalysisReport, Person, Vacante, Application, Metric, Conversation, Message, Notification
 )
 import json
 from datetime import timedelta

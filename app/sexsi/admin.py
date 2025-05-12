@@ -1,7 +1,7 @@
 # Ubicacion SEXSI -- /home/pablo/app/sexsi/admin.py
 
 from django.contrib import admin
-from app.sexsi.models import ConsentAgreement, PaymentTransaction, SexsiConfig
+from app.models import ConsentAgreement, PaymentTransaction, SexsiConfig, DiscountCoupon, Preference, AgreementPreference
 
 @admin.register(ConsentAgreement)
 class ConsentAgreementAdmin(admin.ModelAdmin):

@@ -1,3 +1,4 @@
+# app/pagos/models/pago.py
 from django.db import models
 from django.utils import timezone
 from app.models import Person, Vacante

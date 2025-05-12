@@ -11,10 +11,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-from .models.pago import Pago
-from .models.empleador import Empleador
-from .models.worker import Worker
-from .models.oportunidad import Oportunidad
+from app.models import Pago, Empleador, Worker, Oportunidad
 from .gateways.paypal import PayPalGateway
 from .sync.wordpress import WordPressSync
 

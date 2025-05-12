@@ -12,8 +12,7 @@ from django.utils import timezone
 from django.db.models import Q
 from datetime import datetime, timedelta
 
-from app.models import Person, BusinessUnit, Vacante, User, Company
-from .models import Notification, NotificationType, NotificationStatus
+from app.models import Person, BusinessUnit, Vacante, User, Company, Notification, NotificationType, NotificationStatus
 from .core import send_notification, schedule_notification
 
 logger = logging.getLogger('notifications')

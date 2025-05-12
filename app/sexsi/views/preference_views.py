@@ -12,7 +12,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.contrib.auth.decorators import login_required
 from app.sexsi.config import PREFERENCE_CATEGORIES, PRACTICE_DICTIONARY, validate_preference
-from app.sexsi.models import Agreement, Preference
+from app.models import ConsentAgreement, Preference
 
 @method_decorator(login_required, name='dispatch')
 class PreferenceSelectionView(View):
@@ -53,7 +53,7 @@ class PreferenceSelectionView(View):
                     }, status=400)
             
             # Guardar las preferencias en la base de datos
-            agreement = Agreement.objects.create(
+            agreement = ConsentAgreement.objects.create(
                 creator=request.user,
                 status='draft'
             )
@@ -85,7 +85,7 @@ class PreferenceUpdateView(View):
         Actualiza las preferencias de un acuerdo.
         """
         try:
-            agreement = Agreement.objects.get(id=agreement_id)
+            agreement = ConsentAgreement.objects.get(id=agreement_id)
             
             # Verificar que el usuario tenga permiso para modificar
             if agreement.creator != request.user:
@@ -147,7 +147,7 @@ class PreferenceUpdateView(View):
                 'message': 'Preferencias actualizadas exitosamente'
             })
             
-        except Agreement.DoesNotExist:
+        except ConsentAgreement.DoesNotExist:
             return JsonResponse({
                 'success': False,
                 'error': 'Acuerdo no encontrado'

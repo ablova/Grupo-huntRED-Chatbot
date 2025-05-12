@@ -1,3 +1,5 @@
+
+# app/pagos/models/empleador.py
 from django.db import models
 from django.utils import timezone
 from app.models import Person

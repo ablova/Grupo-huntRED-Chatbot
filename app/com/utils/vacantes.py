@@ -180,7 +180,7 @@ class VacanteManager:
             # Verificación inicial: ¿existe la vacante?
             job_link = self.job_data.get("job_link")
             if job_link:
-                from .models import Vacante  # Asegúrate de importar tu modelo
+                from app.models import Vacante  # Import from the correct location
                 existing_vacante = await sync_to_async(Vacante.objects.filter(url_original=job_link).first)()
                 if existing_vacante:
                     logger.info(f"Vacante ya existe: {existing_vacante.titulo}")
@@ -258,7 +258,7 @@ class VacanteManager:
             # Publicación local
             logger.debug("Creando vacante en la base de datos local")
             print("💾 Creando vacante localmente...")
-            from .models import Vacante  # Asegúrate de importar tu modelo
+            from app.models import Vacante  # Import from the correct location
             vacante = await sync_to_async(Vacante.objects.create)(
                 titulo=payload["title"],
                 empresa=payload["meta"]["_company_name"],

@@ -2,7 +2,7 @@
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from app.sexsi.models import ConsentAgreement
+from app.models import ConsentAgreement
 
 @receiver(post_save, sender=ConsentAgreement)
 def track_agreement_updates(sender, instance, **kwargs):

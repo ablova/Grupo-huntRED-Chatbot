@@ -1,6 +1,6 @@
 from celery import shared_task
 from django.utils import timezone
-from .models import JobChannel
+from app.models import JobChannel, JobOpportunity, Channel, ChannelAnalytics
 from .processors import get_processor
 from .utils.content_adapters import ContentAdapter
 import logging
@@ -13,7 +13,6 @@ async def process_new_opportunity(job_id: int):
     Procesa una nueva oportunidad laboral
     """
     try:
-        from app.models import JobOpportunity
         opportunity = await JobOpportunity.objects.aget(id=job_id)
         
         # Si está marcado para publicar

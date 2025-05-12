@@ -17,7 +17,7 @@ from weasyprint import HTML
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from app.sexsi.models import ConsentAgreement, PaymentTransaction
+from app.models import ConsentAgreement, PaymentTransaction, Preference, DiscountCoupon
 from app.sexsi.forms import ConsentAgreementForm
 from app.com.chatbot.integrations.services import send_email, send_message
 from asgiref.sync import async_to_sync
@@ -170,7 +170,7 @@ def sign_agreement(request, agreement_id, signer, token):
         agreement.save()
         messages.success(request, 'El acuerdo ha sido firmado exitosamente.')
         return redirect('sexsi:agreement_detail', agreement_id=agreement.id)
-    return redirect('sexsi:agreement_detail', agreement_id=agreement.id)
+    return redirect('sexsi:agreement_detail', agreement_id=agreement_id)
 
 @login_required
 def cancel_agreement(request, agreement_id):
@@ -233,7 +233,7 @@ def upload_signature_and_selfie(request, agreement_id):
             agreement.is_signed_by_creator = True
             agreement.status = "pending_review"
         else:
-            agreement.invitee_signature = signature_path
+            agreement.invitee_signature = selfie_path
             agreement.invitee_selfie = selfie_path
             agreement.is_signed_by_invitee = True
             if agreement.is_signed_by_creator:

@@ -5,7 +5,7 @@ Registra los modelos del sistema de notificaciones en el panel de administració
 """
 
 from django.contrib import admin
-from .models import Notification, NotificationPreference
+from app.models import Notification, NotificationPreference
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):

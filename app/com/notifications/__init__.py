@@ -10,7 +10,10 @@ from .handlers import NotificationHandler, EmailNotificationHandler, WhatsAppNot
 from .managers import NotificationManager
 from .core import send_notification, schedule_notification
 from .templates import get_notification_template
-from .models import Notification, NotificationStatus, NotificationPreference
+# Correcting imports to reference models from app/models.py or correct module
+# from .models import Notification, NotificationStatus, NotificationPreference
+# Import from the correct location
+from app.models import Notification, NotificationStatus, NotificationPreference
 
 __all__ = [
     'NotificationHandler',

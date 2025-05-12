@@ -1,6 +1,5 @@
 from typing import Optional
-from app.models import Person, BusinessUnit
-from app.com.chatbot.models import IntentPattern
+from app.models import Person, BusinessUnit, IntentPattern
 import logging
 
 logger = logging.getLogger(__name__)

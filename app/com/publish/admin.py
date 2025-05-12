@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Channel, ChannelType, ChannelCredential, ChannelAnalytics, ChannelSubscription, Bot, BotCommand, BotResponse, JobChannel
+from app.models import Channel, ChannelType, ChannelCredential, ChannelAnalytics, ChannelSubscription, Bot, BotCommand, BotResponse, JobChannel
 
 @admin.register(ChannelType)
 class ChannelTypeAdmin(admin.ModelAdmin):

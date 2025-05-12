@@ -14,9 +14,8 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
-from app.models import Person, BusinessUnit, Vacante, User
+from app.models import Person, BusinessUnit, Vacante, User, Notification, NotificationStatus, NotificationType, NotificationChannel
 from app.com.chatbot.integrations.services import send_message_async, send_whatsapp
-from .models import Notification, NotificationStatus, NotificationType, NotificationChannel
 
 logger = logging.getLogger('notifications')
 

@@ -16,11 +16,7 @@ from django.utils import timezone
 from django.db import transaction
 from asgiref.sync import sync_to_async
 
-from app.models import Person, BusinessUnit, Vacante, User
-from .models import (
-    Notification, NotificationStatus, NotificationType,
-    NotificationChannel, NotificationPreference
-)
+from app.models import Person, BusinessUnit, Vacante, User, Notification, NotificationType, NotificationStatus, NotificationChannel, NotificationPreference
 from .handlers import (
     NotificationHandler, EmailNotificationHandler, WhatsAppNotificationHandler,
     SMSNotificationHandler, TelegramNotificationHandler, AppNotificationHandler,

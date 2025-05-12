@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional, List
 from django.conf import settings
-from app.pagos.models import Pago, EstadoPago, TipoPago, MetodoPago
+from app.models import Pago, EstadoPago, TipoPago, MetodoPago
 from app.pagos.gateways import PayPalGateway, StripeGateway, MercadoPagoGateway
 from app.models import Person, Vacante
 
@@ -131,14 +131,14 @@ class PagoService:
             response = gateway.execute_payment(pago.id_transaccion, **kwargs)
             
             if response['success']:
-                pago.marcar_como_completado(response.get('id'))
+                pago.marcar_completo(response.get('id'))
                 return {
                     'success': True,
                     'pago': pago,
                     'gateway_response': response
                 }
             
-            pago.marcar_como_fallido(response.get('error'))
+            pago.marcar_fallido(response.get('error'))
             return {
                 'success': False,
                 'error': response.get('error')

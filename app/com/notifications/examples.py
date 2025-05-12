@@ -12,8 +12,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from asgiref.sync import async_to_sync
 
-from app.models import Person, BusinessUnit, Vacante, User, Company
-from .models import Notification, NotificationType, NotificationStatus
+from app.models import Person, BusinessUnit, Vacante, User, Company, Notification, NotificationType, NotificationStatus
 from .core import send_notification, schedule_notification
 from .managers import (
     ProcesoNotificationManager, 

@@ -352,17 +352,35 @@ try:
 except Exception as e:
     logging.error(f"Failed to initialize module registry: {e}")
 
-# Configuración de Celery
-optimization_config = OptimizationConfig.get_config()
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'America/Mexico_City'
-CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
+# Celery Configuration Options
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Use Redis as the broker
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'  # Store task results
+CELERY_ACCEPT_CONTENT = ['json']  # Allow JSON content
+CELERY_TASK_SERIALIZER = 'json'  # Use JSON serializer for tasks
+CELERY_RESULT_SERIALIZER = 'json'  # Use JSON serializer for results
+CELERY_TIMEZONE = TIME_ZONE  # Set Celery timezone to match Django
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 3600  # Set a time limit for tasks (in seconds)
+CELERY_TASK_SOFT_TIME_LIMIT = 3300  # Soft time limit for tasks
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Import Celery app
+# Using celery_config.py to avoid circular import
+try:
+    from celery_config import app as celery_app
+except ImportError:
+    # Fallback in case the file is in a different location
+    try:
+        from ai_huntred.celery_config import app as celery_app
+    except ImportError:
+        # If celery app is not available, define a placeholder to prevent startup errors
+        celery_app = None
+        logging.warning("Celery app could not be imported. Celery tasks will not be available.")
+
+__all__ = ('celery_app',)
 
 # Configuración de optimización
+optimization_config = OptimizationConfig.get_config()
 CACHES = {
     'default': optimization_config['CACHE_CONFIG']
 }

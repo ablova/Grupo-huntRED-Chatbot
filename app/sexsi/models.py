@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.utils.timezone import now, timedelta
-from django.contrib.auth.models import User
+from app.models import User
 import uuid
 from django.urls import reverse
 from datetime import date
@@ -252,78 +252,3 @@ class Preference(models.Model):
 
     def get_absolute_url(self):
         return reverse('sexsi:preference_detail', kwargs={'pk': self.pk})
-
-class ConsentAgreement(models.Model):
-    """
-    Modelo de Acuerdo de Consentimiento con doble validación de firma.
-    """
-    STATUS_CHOICES = [
-        ('draft', 'Borrador'),
-        ('pending', 'Pendiente'),
-        ('signed_by_creator', 'Firmado por Anfitrión'),
-        ('signed_by_invitee', 'Firmado por Invitado'),
-        ('completed', 'Completado'),
-        ('cancelled', 'Cancelado')
-    ]
-
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_agreements')
-    invitee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invited_agreements', null=True, blank=True)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_of_encounter = models.DateTimeField()
-    location = models.CharField(max_length=200)
-    agreement_text = models.TextField()
-    
-    # Preferencias y prácticas
-    preferences = models.ManyToManyField('Preference', related_name='agreements')
-    
-    # Firma y validaciones
-    is_signed_by_creator = models.BooleanField(default=False)
-    is_signed_by_invitee = models.BooleanField(default=False)
-    creator_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
-    invitee_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
-    creator_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True, help_text="Selfie del creador con identificación")
-    invitee_selfie = models.ImageField(upload_to='selfies/', null=True, blank=True, help_text="Selfie del invitado con identificación")
-    signature_method = models.CharField(
-        max_length=20, 
-        choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),
-        default="internal",
-        help_text="Método de firma elegido"
-    )
-    tos_accepted = models.BooleanField(default=False)
-    
-    # OTP y verificación de identidad
-    otp_code = models.CharField(max_length=6, blank=True, null=True)
-    otp_expiry = models.DateTimeField(null=True, blank=True)
-    creator_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
-    invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
-    
-    # Seguridad y control de token
-    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    
-    def default_token_expiry():
-        return now() + timedelta(hours=36)
-
-    token_expiry = models.DateTimeField(default=default_token_expiry)
-    
-    def generate_otp(self):
-        """Genera un código OTP de 6 dígitos y lo almacena con una validez de 10 minutos."""
-        self.otp_code = str(uuid.uuid4().int)[:6]
-        self.otp_expiry = now() + timedelta(minutes=10)
-        self.save()
-        return self.otp_code
-    
-    def verify_otp(self, otp_input):
-        """Verifica si el OTP ingresado es válido."""
-        return self.otp_code == otp_input and now() < self.otp_expiry
-    
-    def __str__(self):
-        return f"Acuerdo #{self.id} - {self.creator.username}"
-
-    def get_status_display(self):
-        """Obtiene la representación legible del estado."""
-        return dict(self.STATUS_CHOICES).get(self.status, 'Desconocido')
-
-    def get_absolute_url(self):
-        """Obtiene la URL absoluta para este acuerdo."""
-        return reverse('sexsi:agreement_detail', kwargs={'pk': self.pk})

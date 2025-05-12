@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.contrib.auth.decorators import login_required
-from app.sexsi.models import Notification
+from app.models import Notification
 
 @method_decorator(login_required, name='dispatch')
 class NotificationMarkAsReadView(View):

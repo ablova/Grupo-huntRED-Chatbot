@@ -2,11 +2,14 @@
 
 from celery import shared_task
 from django.utils.timezone import now, timedelta
-from app.sexsi.models import ConsentAgreement
+from app.models import ConsentAgreement, DiscountCoupon
 from app.com.chatbot.workflow.sexsi import send_signature_reminder
 from app.com.chatbot.integrations.services import send_message, notify_employer, EnhancedNetworkGamificationProfile, send_email
 from django.contrib.auth.models import User
-from app.sexsi.models import DiscountCoupon # Modelo de cupones
+import logging
+import uuid
+
+logger = logging.getLogger(__name__)
 
 @shared_task
 def send_signature_reminder_intervals():
