@@ -35,20 +35,23 @@ from app.sexsi.admin import *
 
 # Model Imports - Consolidated from admin.py and admin_config.py
 from app.models import (
-    ApiConfig, Application, BusinessUnit, Chat, ChatState, Configuracion,
-    ConfiguracionBU, Division, DominioScraping, EnhancedMLProfile,
+    ApiConfig, Application, Chat, ChatState,
+    Division, DominioScraping, EnhancedMLProfile,
     EnhancedNetworkGamificationProfile, GptApi, InstagramAPI, Interview, Provider,
-    Invitacion, MetaAPI, MessengerAPI, MigrantSupportPlatform, ModelTrainingLog,
+    Invitacion, MetaAPI, MessengerAPI, ModelTrainingLog,
     Person, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
     SmtpConfig, TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
     Worker, IntentPattern, StateTransition, IntentTransition, ContextCondition,
-    GamificationAchievement, GamificationBadge, GamificationEvent, WorkflowStage
+    WorkflowStage
 )
+
+# Admin Mixins
+from .mixins import EnhancedAdminMixin, BulkActionsMixin, DateRangeFilter, StatusFilter
 
 # Service Imports
 from app.com.chatbot.integrations.services import send_email, send_message
 
-# Utility Imports for Specific Functionalities
+# Utility Imports for Specific Functionalidades
 from app.com.utils.vacantes import VacanteManager
 from asgiref.sync import async_to_sync
 from django.contrib.auth.decorators import user_passes_test
@@ -66,7 +69,94 @@ initialize_admin(force_register=True)
 # en app/config/admin_base.py y app/config/admin_core.py respectivamente
 
 # El registro de ConfiguracionAdmin ahora se maneja en app/config/admin_registry.py
-    
+
+# Importar el admin de BusinessUnit desde su módulo específico
+from .business_unit import BusinessUnitAdmin
+
+# Personalizar el admin site
+admin.site.site_header = "Grupo huntRED® Admin"
+admin.site.site_title = "Grupo huntRED® Admin"
+admin.site.index_title = "Bienvenido al Panel de Administración"
+
+# Clases de admin específicas que usan los mixins
+class CustomAdminSite(admin.AdminSite):
+    def each_context(self, request):
+        context = super().each_context(request)
+        try:
+            # Obtener la Business Unit actual
+            business_unit = BusinessUnit.objects.get(name=request.session.get('business_unit', 'huntRED'))
+            context['business_unit'] = business_unit
+        except BusinessUnit.DoesNotExist:
+            context['business_unit'] = None
+        return context
+
+# Instanciar el sitio admin personalizado
+admin_site = CustomAdminSite(name='myadmin')
+
+# Registrar los modelos con el nuevo sitio admin
+admin_site.register(BusinessUnit, BusinessUnitAdmin)
+
+# Clases de admin específicas que usan los mixins
+class VacanteAdmin(EnhancedAdminMixin, BulkActionsMixin):
+    list_display = ADMIN_CONFIG['Vacante']['list_display']
+    list_filter = ADMIN_CONFIG['Vacante']['list_filter']
+    search_fields = ADMIN_CONFIG['Vacante']['search_fields']
+    date_hierarchy = ADMIN_CONFIG['Vacante']['date_hierarchy']
+    actions = ['bulk_change_status', 'bulk_export']
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['business_unit'] = request.session.get('business_unit', 'huntRED')
+        return super().changelist_view(request, extra_context=extra_context)
+
+class ApplicationAdmin(EnhancedAdminMixin, BulkActionsMixin):
+    list_display = ADMIN_CONFIG['Application']['list_display']
+    list_filter = ADMIN_CONFIG['Application']['list_filter']
+    search_fields = ADMIN_CONFIG['Application']['search_fields']
+    date_hierarchy = ADMIN_CONFIG['Application']['date_hierarchy']
+    actions = ['bulk_change_status', 'bulk_export']
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['business_unit'] = request.session.get('business_unit', 'huntRED')
+        return super().changelist_view(request, extra_context=extra_context)
+
+class PersonAdmin(EnhancedAdminMixin, BulkActionsMixin):
+    list_display = ADMIN_CONFIG['Person']['list_display']
+    list_filter = ADMIN_CONFIG['Person']['list_filter']
+    search_fields = ADMIN_CONFIG['Person']['search_fields']
+    date_hierarchy = ADMIN_CONFIG['Person']['date_hierarchy']
+    actions = ['bulk_change_status', 'bulk_export']
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['business_unit'] = request.session.get('business_unit', 'huntRED')
+        return super().changelist_view(request, extra_context=extra_context)
+
+class ChatStateAdmin(EnhancedAdminMixin, BulkActionsMixin):
+    list_display = ADMIN_CONFIG['ChatState']['list_display']
+    list_filter = ADMIN_CONFIG['ChatState']['list_filter']
+    search_fields = ADMIN_CONFIG['ChatState']['search_fields']
+    date_hierarchy = ADMIN_CONFIG['ChatState']['date_hierarchy']
+    actions = ['bulk_change_status', 'bulk_export']
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['business_unit'] = request.session.get('business_unit', 'huntRED')
+        return super().changelist_view(request, extra_context=extra_context)
+
+class UserInteractionLogAdmin(EnhancedAdminMixin, BulkActionsMixin):
+    list_display = ADMIN_CONFIG['UserInteractionLog']['list_display']
+    list_filter = ADMIN_CONFIG['UserInteractionLog']['list_filter']
+    search_fields = ADMIN_CONFIG['UserInteractionLog']['search_fields']
+    date_hierarchy = ADMIN_CONFIG['UserInteractionLog']['date_hierarchy']
+    actions = ['bulk_change_status', 'bulk_export']
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['business_unit'] = request.session.get('business_unit', 'huntRED')
+        return super().changelist_view(request, extra_context=extra_context)
+
 @admin.register(DominioScraping)
 class DominioScrapingAdmin(admin.ModelAdmin):
     list_display = ('id', 'empresa', 'plataforma', 'verificado', 'email_scraping_enabled', 'valid_senders', 'ultima_verificacion', 'estado')
@@ -573,40 +663,24 @@ class InstagramAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
 
 @admin.register(TelegramAPI)
 class TelegramAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
-    token_fields = ['api_key']
-    list_display = ('bot_name', 'business_unit', 'api_key', 'is_active')
-    list_filter = ('business_unit', 'is_active')
-    search_fields = ('bot_name', 'api_key')
-
-@admin.register(GptApi)
-class GptApiAdmin(admin.ModelAdmin):
-    list_display = ('model', 'provider', 'is_active', 'organization', 'project')  # Cambiar 'model_type' por 'provider'
-    list_filter = ('provider', 'is_active')  # Cambiar 'model_type' por 'provider'
-    search_fields = ('model', 'organization', 'project')
-    list_editable = ('is_active',)
-    readonly_fields = ('prompts_preview',)
 
     fieldsets = (
-        ('Configuración General', {
-            'fields': ('provider', 'is_active')
+        (None, {
+            'fields': ('name', 'description')
         }),
-        ('Detalles del Modelo', {
-            'fields': ('model', 'api_token', 'organization', 'project')
+        ('Canales Habilitados', {
+            'fields': ('whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled'),
         }),
-        ('Parámetros de Generación', {
-            'fields': ('max_tokens', 'temperature', 'top_p')
+        ('Configuración de Scraping', {
+            'fields': ('scrapping_enabled', 'scraping_domains'),
         }),
-        ('Prompts', {
-            'fields': ('prompts', 'prompts_preview')
-        }),
-        ('Otras Opciones', {
-            'fields': ('tabiya_enabled',)
+        ('Información de Contacto', {
+            'fields': ('admin_phone',),
         }),
     )
+    inlines = [ConfiguracionBUInline, WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline, DominioScrapingInline]
 
-    def prompts_preview(self, obj):
-        if obj.prompts:
-            return json.dumps(obj.prompts, indent=2)[:200] + "..." if len(str(obj.prompts)) > 200 else json.dumps(obj.prompts, indent=2)
+# ... (rest of the code remains the same)
         return "Sin prompts configurados"
     prompts_preview.short_description = "Vista previa de prompts"
 
@@ -670,33 +744,6 @@ class ConfiguracionBUInline(admin.StackedInline):  # O admin.TabularInline
             'weight_hard_skills', 'weight_soft_skills', 'weight_contract'
         )
         return fields + additional_fields
-
-@admin.register(BusinessUnit)
-class BusinessUnitAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'get_admin_email', 'whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
-    list_editable = ('whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled', 'scrapping_enabled')
-    filter_horizontal = ('scraping_domains',)
-    search_fields = ['name', 'description']
-
-    def get_admin_email(self, obj):
-        return obj.admin_email
-    get_admin_email.short_description = 'Admin Email'
-
-    fieldsets = (
-        (None, {
-            'fields': ('name', 'description')
-        }),
-        ('Canales Habilitados', {
-            'fields': ('whatsapp_enabled', 'telegram_enabled', 'messenger_enabled', 'instagram_enabled'),
-        }),
-        ('Configuración de Scraping', {
-            'fields': ('scrapping_enabled', 'scraping_domains'),
-        }),
-        ('Información de Contacto', {
-            'fields': ('admin_phone',),
-        }),
-    )
-    inlines = [ConfiguracionBUInline, WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline]
 
 @admin.register(QuarterlyInsight)
 class QuarterlyInsightAdmin(admin.ModelAdmin):

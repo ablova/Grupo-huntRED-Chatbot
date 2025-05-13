@@ -1,7 +1,8 @@
 # /home/pablo/app/import_config.py
 import importlib
 import sys
-from typing import Dict, Any, Callable, Optional
+import ast
+from typing import Dict, Any, Callable, Optional, Set
 from pathlib import Path
 import logging
 import os
@@ -21,6 +22,17 @@ ch.setFormatter(formatter)
 
 # Add the handlers to the logger
 logger.addHandler(ch)
+
+# Define package structure
+PACKAGE_STRUCTURE = {
+    'root': ['models', 'views', 'forms', 'admin', 'apps'],
+    'com': [
+        'chatbot', 'notifications', 'pagos', 'proposals', 'analytics'
+    ],
+    'ml': ['models', 'services', 'trainers'],
+    'sexsi': ['models', 'services', 'templates'],
+    'publish': ['models', 'services', 'templates']
+}
 
 class ModuleRegistry:
     def __init__(self):
@@ -107,6 +119,104 @@ class ModuleRegistry:
         end_time = datetime.now()
         self._logger.info(f"Module registry initialization completed in {end_time - start_time}")
 
+    def validate_package_structure(self) -> None:
+        """
+        Validate that the package structure matches the defined configuration.
+        """
+        app_path = Path(os.path.dirname(__file__))
+        
+        # Check root packages
+        for package in PACKAGE_STRUCTURE['root']:
+            package_path = app_path / package
+            if not package_path.exists():
+                self._logger.warning(f"Missing root package: {package}")
+            if not (package_path / '__init__.py').exists():
+                self._logger.warning(f"Missing __init__.py in {package}")
+        
+        # Check subpackages
+        for subdir, packages in PACKAGE_STRUCTURE.items():
+            if subdir == 'root':
+                continue
+                
+            subdir_path = app_path / subdir
+            if not subdir_path.exists():
+                self._logger.warning(f"Missing subdirectory: {subdir}")
+                continue
+                
+            for package in packages:
+                package_path = subdir_path / package
+                if not package_path.exists():
+                    self._logger.warning(f"Missing package in {subdir}: {package}")
+                if not (package_path / '__init__.py').exists():
+                    self._logger.warning(f"Missing __init__.py in {subdir}/{package}")
+
+    def find_circular_imports(self, file_path: Path) -> Dict[str, Set[str]]:
+        """
+        Find circular imports in a Python file.
+        
+        Args:
+            file_path: Path to the Python file to analyze
+            
+        Returns:
+            Dictionary mapping module names to their dependencies
+        """
+        dependencies = {}
+        
+        with open(file_path, 'r') as f:
+            tree = ast.parse(f.read())
+            
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    module = alias.name
+                    if module not in dependencies:
+                        dependencies[module] = set()
+                    dependencies[module].add(os.path.basename(file_path).replace('.py', ''))
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module
+                if module not in dependencies:
+                    dependencies[module] = set()
+                dependencies[module].add(os.path.basename(file_path).replace('.py', ''))
+        
+        return dependencies
+
+    def fix_imports(self, file_path: Path) -> None:
+        """
+        Fix circular imports in a Python file.
+        
+        Args:
+            file_path: Path to the Python file to fix
+        """
+        with open(file_path, 'r') as f:
+            content = f.read()
+        
+        # Try to fix common circular import patterns
+        content = content.replace('from app.models import', 'from .models import')
+        content = content.replace('from app.views import', 'from .views import')
+        content = content.replace('from app.forms import', 'from .forms import')
+        
+        with open(file_path, 'w') as f:
+            f.write(content)
+
+    def process_directory(self, directory: Path) -> None:
+        """
+        Process all Python files in a directory to fix circular imports.
+        
+        Args:
+            directory: Path to the directory to process
+        """
+        for file_path in directory.rglob('*.py'):
+            if file_path.name == '__init__.py':
+                continue
+                
+            try:
+                dependencies = self.find_circular_imports(file_path)
+                if dependencies:
+                    self._logger.info(f"Found circular imports in {file_path}: {dependencies}")
+                    self.fix_imports(file_path)
+            except Exception as e:
+                self._logger.error(f"Error processing {file_path}: {str(e)}")
+
 # Create a global instance of ModuleRegistry
 module_registry = ModuleRegistry()
 
@@ -158,8 +268,11 @@ def validate_imports() -> bool:
     Returns:
         bool: True if validation passed, False otherwise
     """
+    # Validate package structure first
+    module_registry.validate_package_structure()
+    
     # List of essential packages to register
-    essential_packages = ['ml', 'sexsi', 'com', 'pagos', 'publish']
+    essential_packages = ['com']  # Only register com package for now
     
     # Register essential modules
     for package in essential_packages:
@@ -171,6 +284,10 @@ def validate_imports() -> bool:
             logger.error(f"Error registering modules from {package}: {str(e)}")
             continue
     
+    # Process directory for circular imports
+    app_path = Path(__file__).parent
+    module_registry.process_directory(app_path)
+    
     # Initialize all modules
     try:
         initialize_all()
@@ -178,6 +295,41 @@ def validate_imports() -> bool:
     except Exception as e:
         logger.error(f"Error initializing modules: {str(e)}")
         return False
+
+# Register essential modules at startup
+if os.environ.get('DJANGO_SETTINGS_MODULE'):
+    validate_imports()
+
+# Add getter functions for existing modules
+def get_conversational_flow_manager():
+    """Get ConversationalFlowManager instance."""
+    from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
+    return ConversationalFlowManager
+
+def get_intents_handler():
+    """Get IntentsHandler instance."""
+    from app.com.chatbot.intents_handler import IntentsHandler
+    return IntentsHandler
+
+def get_intents_optimizer():
+    """Get IntentsOptimizer instance."""
+    from app.com.chatbot.intents_optimizer import IntentsOptimizer
+    return IntentsOptimizer
+
+def get_context_manager():
+    """Get ContextManager instance."""
+    from app.com.chatbot.context_manager import ContextManager
+    return ContextManager
+
+def get_response_generator():
+    """Get ResponseGenerator instance."""
+    from app.com.chatbot.response_generator import ResponseGenerator
+    return ResponseGenerator
+
+def get_state_manager():
+    """Get StateManager instance."""
+    from app.com.chatbot.state_manager import StateManager
+    return StateManager
 
 # Register essential modules at startup
 if os.environ.get('DJANGO_SETTINGS_MODULE'):

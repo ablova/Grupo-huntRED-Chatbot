@@ -1,0 +1,14 @@
+{% load static %}
+{% load i18n %}
+
+{% block branding %}
+{% if business_unit and business_unit.logo %}
+    <h1 id="site-name">
+        <img src="{{ business_unit.logo.url }}" alt="{{ business_unit.name }}" 
+             style="height: 40px; margin-right: 10px;" />
+        <span>{{ site_title|default:_('Django site admin') }}</span>
+    </h1>
+{% else %}
+    <h1 id="site-name">{{ site_title|default:_('Django site admin') }}</h1>
+{% endif %}
+{% endblock %}

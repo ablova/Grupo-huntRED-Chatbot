@@ -1,0 +1,152 @@
+{% load static %}
+
+<!-- Componente de flujo de trabajo del chatbot -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Flujo de Trabajo del Chatbot</h5>
+    </div>
+    <div class="card-body">
+        <!-- Timeline -->
+        <div class="timeline">
+            {% for step in workflow.steps %}
+                <div class="timeline-item">
+                    <div class="timeline-icon">
+                        <i class="fas fa-{{ step.icon }}"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <h6 class="mb-1">{{ step.title }}</h6>
+                        <p class="text-muted mb-2">{{ step.description }}</p>
+                        <div class="progress mb-2" style="height: 6px;">
+                            <div class="progress-bar bg-{{ step.status_color }}" 
+                                 role="progressbar" 
+                                 style="width: {{ step.progress }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ step.timestamp }}</small>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Estado actual -->
+        <div class="mt-4">
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">Estado Actual</h6>
+                    <div class="badge bg-{{ workflow.current_status_color }}">
+                        {{ workflow.current_status }}
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-{{ workflow.action_button_type }}" 
+                            onclick="{{ workflow.action_button_onclick }}">
+                        <i class="fas fa-{{ workflow.action_button_icon }}"></i> 
+                        {{ workflow.action_button_label }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas de rendimiento -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Respuestas Exitosas</h5>
+                        <h2 class="card-text mb-0">{{ workflow.success_rate }}%</h2>
+                        <p class="card-text">
+                            <small>{{ workflow.success_count }} de {{ workflow.total_count }} interacciones</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Tiempo Promedio</h5>
+                        <h2 class="card-text mb-0">{{ workflow.avg_response_time }}s</h2>
+                        <p class="card-text">
+                            <small>desde la última hora</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Errores</h5>
+                        <h2 class="card-text mb-0">{{ workflow.error_count }}</h2>
+                        <p class="card-text">
+                            <small>{{ workflow.error_rate }}% de fallo</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding: 20px 0 20px;
+    margin: 0;
+}
+
+.timeline:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 40px;
+    width: 2px;
+    background: #e0e0e0;
+}
+
+.timeline-item {
+    padding: 20px 0;
+    position: relative;
+}
+
+.timeline-item:before,
+.timeline-item:after {
+    content: '';
+    display: table;
+}
+
+.timeline-item:after {
+    clear: both;
+}
+
+.timeline-icon {
+    width: 40px;
+    height: 40px;
+    background: #fff;
+    border-radius: 50%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.timeline-content {
+    margin-left: 60px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.timeline-content h6 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.timeline-content p {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+}
+</style>

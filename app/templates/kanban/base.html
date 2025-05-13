@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Kanban - Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<!-- SortableJS para funcionalidad drag-and-drop -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<link rel="stylesheet" href="{% static 'css/kanban.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-1">{% block kanban_title %}Sistema Kanban{% endblock %}</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'kanban:index' %}">Kanban</a></li>
+                    {% block kanban_breadcrumb %}{% endblock %}
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex">
+            <!-- Notificaciones Dropdown -->
+            <div class="dropdown me-2">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-bell"></i>
+                    {% if unread_notifications > 0 %}
+                    <span class="badge bg-danger">{{ unread_notifications }}</span>
+                    {% endif %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationsDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                    <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                        <h6 class="dropdown-header m-0">Notificaciones</h6>
+                        {% if unread_notifications > 0 %}
+                        <button id="markAllRead" class="btn btn-sm text-primary">Marcar todo como leído</button>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if notifications %}
+                            {% for notification in notifications %}
+                            <a href="{{ notification.url }}" class="dropdown-item notification-item py-2 border-bottom" data-id="{{ notification.id }}">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-{{ notification.icon }} fa-fw text-secondary"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-2">
+                                        <p class="mb-0 small">{{ notification.message }}</p>
+                                        <small class="text-muted">{{ notification.created_at|timesince }} atrás</small>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="p-3 text-center text-muted">
+                                <i class="fas fa-check-circle mb-2"></i>
+                                <p class="mb-0">No tienes notificaciones pendientes</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filtro Dropdown -->
+            <div class="dropdown me-2">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-filter"></i> Filtros
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3" aria-labelledby="filterDropdown" style="width: 300px;">
+                    <h6 class="dropdown-header">Filtrar tarjetas</h6>
+                    <div class="mb-3">
+                        <label for="searchInput" class="form-label">Búsqueda</label>
+                        <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Buscar...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="priorityFilter" class="form-label">Prioridad</label>
+                        <select class="form-select form-select-sm" id="priorityFilter">
+                            <option value="">Todas</option>
+                            <option value="1">Baja</option>
+                            <option value="2">Normal</option>
+                            <option value="3">Alta</option>
+                            <option value="4">Urgente</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="assigneeFilter" class="form-label">Asignado a</label>
+                        <select class="form-select form-select-sm" id="assigneeFilter">
+                            <option value="">Todos</option>
+                            <option value="unassigned">Sin asignar</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm w-100" id="applyFilters">Aplicar filtros</button>
+                </div>
+            </div>
+            
+            {% block kanban_actions %}{% endblock %}
+        </div>
+    </div>
+    
+    {% block kanban_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SortableJS para funcionalidad drag-and-drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+
+<!-- Variables globales para API endpoints -->
+<script>
+    const CSRF_TOKEN = '{{ csrf_token }}';
+    const KANBAN_API = {
+        moveCard: '{% url "kanban:move_card" %}',
+        updateCard: '{% url "kanban:update_card" %}',
+        archiveCard: '{% url "kanban:archive_card" %}',
+        addComment: '{% url "kanban:add_comment" %}',
+        uploadAttachment: '{% url "kanban:upload_attachment" %}',
+        markNotificationRead: '{% url "kanban:mark_notification_read" %}'
+    };
+    {% block kanban_extra_vars %}{% endblock %}
+</script>
+
+{% block kanban_js %}{% endblock %}
+{% endblock %}

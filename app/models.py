@@ -199,6 +199,18 @@ class BusinessUnit(models.Model):
     instagram_enabled=models.BooleanField(default=True)
     scrapping_enabled=models.BooleanField(default=True)
     scraping_domains=models.ManyToManyField('DominioScraping',related_name="business_units",blank=True)
+    wordpress_base_url=models.URLField(
+        max_length=255,
+        help_text="URL base de la API de WordPress (ej: https://huntu.mx/wp-json/wp/v2)",
+        null=True,
+        blank=True
+    )
+    wordpress_auth_token=models.CharField(
+        max_length=500,
+        help_text="Token JWT para autenticación con WordPress",
+        null=True,
+        blank=True
+    )
     ntfy_topic=models.CharField(max_length=100,blank=True,null=True,default=None,help_text="Tema de ntfy.sh específico para esta unidad de negocio. Si no se define, usa el tema general.")
     pricing_config = models.JSONField(default=dict, blank=True, help_text="Configuración de pricing por BU.")
     def __str__(self):

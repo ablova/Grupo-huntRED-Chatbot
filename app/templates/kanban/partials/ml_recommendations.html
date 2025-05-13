@@ -1,0 +1,154 @@
+{% if show_ml_features %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-brain me-2"></i>Análisis AI
+            </h5>
+            <span class="badge bg-light text-dark" title="Basado en machine learning">AI</span>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if ml_recommendations.candidate_score is not None %}
+            <div class="mb-3">
+                <h6 class="text-muted mb-2">Score de coincidencia</h6>
+                <div class="d-flex align-items-center">
+                    {% with score=ml_recommendations.candidate_score %}
+                        {% if score >= 0.85 %}
+                            <div class="progress flex-grow-1 me-2" style="height: 12px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ score|floatformat:2|stringformat:'s'|slice:'2:' }}%"></div>
+                            </div>
+                            <strong class="text-success">{{ score|floatformat:0 }}%</strong>
+                            <small class="ms-2 text-success"><i class="fas fa-check-circle"></i> Excelente</small>
+                        {% elif score >= 0.7 %}
+                            <div class="progress flex-grow-1 me-2" style="height: 12px;">
+                                <div class="progress-bar bg-info" role="progressbar" style="width: {{ score|floatformat:2|stringformat:'s'|slice:'2:' }}%"></div>
+                            </div>
+                            <strong class="text-info">{{ score|floatformat:0 }}%</strong>
+                            <small class="ms-2 text-info"><i class="fas fa-thumbs-up"></i> Bueno</small>
+                        {% elif score >= 0.5 %}
+                            <div class="progress flex-grow-1 me-2" style="height: 12px;">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: {{ score|floatformat:2|stringformat:'s'|slice:'2:' }}%"></div>
+                            </div>
+                            <strong class="text-warning">{{ score|floatformat:0 }}%</strong>
+                            <small class="ms-2 text-warning"><i class="fas fa-exclamation-triangle"></i> Moderado</small>
+                        {% else %}
+                            <div class="progress flex-grow-1 me-2" style="height: 12px;">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: {{ score|floatformat:2|stringformat:'s'|slice:'2:' }}%"></div>
+                            </div>
+                            <strong class="text-danger">{{ score|floatformat:0 }}%</strong>
+                            <small class="ms-2 text-danger"><i class="fas fa-times-circle"></i> Bajo</small>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+                <small class="text-muted mt-1 d-block">Evaluación de compatibilidad entre el candidato y la vacante</small>
+            </div>
+        {% endif %}
+
+        {% if ml_recommendations.column_recommendation %}
+            <div class="mb-3">
+                <h6 class="text-muted mb-2">Recomendación de movimiento</h6>
+                <div class="alert alert-success">
+                    <i class="fas fa-arrow-circle-right me-2"></i>
+                    <strong>{{ ml_recommendations.column_recommendation.message }}</strong>
+                    <div class="mt-2 d-flex justify-content-end">
+                        <button class="btn btn-sm btn-success js-move-to-recommended" 
+                                data-column-id="{{ ml_recommendations.column_recommendation.column_id }}">
+                            <i class="fas fa-check me-1"></i>Aplicar recomendación
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if ml_recommendations.similar_cards %}
+            <div class="mb-3">
+                <h6 class="text-muted mb-2">Candidatos similares</h6>
+                <div class="list-group list-group-flush">
+                    {% for similar in ml_recommendations.similar_cards %}
+                        <a href="{% url 'kanban:card_detail_view' similar.card.id %}" class="list-group-item list-group-item-action p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="d-block">{{ similar.card.person_name }}</span>
+                                    <small class="text-muted">{{ similar.card.vacancy_title }}</small>
+                                </div>
+                                <span class="badge rounded-pill {% if similar.similarity_score > 0.7 %}bg-success{% elif similar.similarity_score > 0.5 %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ similar.similarity_score|floatformat:0 }}% similar
+                                </span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if ml_recommendations.recommended_candidates %}
+            <div class="mb-3">
+                <h6 class="text-muted mb-2">Candidatos recomendados para esta etapa</h6>
+                <div class="list-group list-group-flush">
+                    {% for candidate in ml_recommendations.recommended_candidates %}
+                        <div class="list-group-item p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="d-block">{{ candidate.person.name }}</span>
+                                    <small class="text-muted">{{ candidate.vacancy.title }}</small>
+                                </div>
+                                <div>
+                                    <span class="badge {% if candidate.score > 0.8 %}bg-success{% elif candidate.score > 0.6 %}bg-info{% else %}bg-secondary{% endif %} me-2">
+                                        {{ candidate.score|floatformat:0 }}%
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-primary js-create-card-from-app" 
+                                            data-application-id="{{ candidate.application_id }}">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% if ml_recommendations.priority_suggestions %}
+            <div class="mb-3">
+                <h6 class="text-muted mb-2">Sugerencias de prioridad</h6>
+                <div class="list-group list-group-flush">
+                    {% for suggestion in ml_recommendations.priority_suggestions %}
+                        {% if suggestion.should_change %}
+                            <div class="list-group-item p-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="card-id-ref" data-card-id="{{ suggestion.card_id }}">Tarjeta #{{ suggestion.card_id }}</span>
+                                        <div class="mt-1">
+                                            <span class="badge priority-badge priority-{{ suggestion.current_priority }} me-2">
+                                                Actual: {% if suggestion.current_priority == 1 %}Baja{% elif suggestion.current_priority == 2 %}Normal{% elif suggestion.current_priority == 3 %}Alta{% else %}Urgente{% endif %}
+                                            </span>
+                                            <i class="fas fa-arrow-right text-muted"></i>
+                                            <span class="badge priority-badge priority-{{ suggestion.suggested_priority }} ms-2">
+                                                Sugerida: {% if suggestion.suggested_priority == 1 %}Baja{% elif suggestion.suggested_priority == 2 %}Normal{% elif suggestion.suggested_priority == 3 %}Alta{% else %}Urgente{% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary js-apply-priority" 
+                                            data-card-id="{{ suggestion.card_id }}" 
+                                            data-priority="{{ suggestion.suggested_priority }}">
+                                        <i class="fas fa-check me-1"></i>Aplicar
+                                    </button>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="text-center text-muted small">
+            <i class="fas fa-info-circle me-1"></i>
+            Estas recomendaciones están basadas en aprendizaje automático y análisis de datos históricos.
+            <span class="d-block mt-1">
+                Las sugerencias ayudan a identificar candidatos con mayor potencial de éxito.
+            </span>
+        </div>
+    </div>
+</div>
+{% endif %}

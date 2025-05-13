@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tu Plan de Desarrollo Profesional - Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos optimizados para impresión y visualización web */
+    @page {
+        size: a4 portrait;
+        margin: 2cm;
+    }
+    .header-section {
+        background: linear-gradient(135deg, #4c6ef5, #3b5bdb);
+        color: white;
+        border-radius: 10px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .section-header {
+        border-bottom: 2px solid #4c6ef5;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: #1864ab;
+    }
+    .card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+    .skill-badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        border-radius: 30px;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .current-skill {
+        background-color: #d0ebff;
+        color: #1971c2;
+    }
+    .target-skill {
+        background-color: #d3f9d8;
+        color: #2b8a3e;
+    }
+    .gap-skill {
+        background-color: #fff3bf;
+        color: #e67700;
+    }
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+        margin: 2rem 0;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        height: 100%;
+        width: 2px;
+        background-color: #dee2e6;
+        left: 0;
+        top: 0;
+    }
+    .timeline-item {
+        position: relative;
+        padding-bottom: 2rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: #4c6ef5;
+        left: -2.5rem;
+        top: 4px;
+    }
+    .resource-card {
+        display: flex;
+        align-items: flex-start;
+        padding: 1rem;
+        border-left: 4px solid #4c6ef5;
+        margin-bottom: 1rem;
+    }
+    .resource-icon {
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        color: #4c6ef5;
+    }
+    .resource-content {
+        flex: 1;
+    }
+    .huntred-footer {
+        text-align: center;
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid #dee2e6;
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    .phase-card {
+        border-left: 4px solid #4c6ef5;
+        margin-bottom: 1.5rem;
+    }
+    .recommendation-item {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 3px solid #4c6ef5;
+        background-color: #f8f9fa;
+    }
+    /* Para impresión */
+    @media print {
+        body {
+            font-size: 12pt;
+        }
+        .no-print {
+            display: none !important;
+        }
+        .card {
+            box-shadow: none;
+            border: 1px solid #dee2e6;
+            break-inside: avoid;
+        }
+        .header-section {
+            background: #4c6ef5 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        a {
+            text-decoration: none !important;
+            color: inherit !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 {% if for_pdf %}px-4{% endif %}">
+    <!-- Navegación - solo visible en web -->
+    {% if not for_pdf %}
+    <div class="d-flex justify-content-end mb-4 no-print">
+        <a href="javascript:window.print();" class="btn btn-outline-primary me-2">
+            <i class="fas fa-print me-1"></i>Imprimir
+        </a>
+        <a href="{% url 'ml_candidate_growth_plan_pdf' candidate.id %}" class="btn btn-primary">
+            <i class="fas fa-download me-1"></i>Descargar PDF
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Encabezado con datos del candidato -->
+    <div class="header-section">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                <div style="width: 120px; height: 120px; background-color: rgba(255,255,255,0.2); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-user-tie" style="font-size: 4rem; opacity: 0.8;"></i>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h1 class="display-5 mb-1">{{ candidate.name }}</h1>
+                <p class="h5 mb-3">{{ candidate.current_role }} {% if candidate.current_company %}en {{ candidate.current_company }}{% endif %}</p>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            <span>Generado: {{ timestamp|date:"d/m/Y" }}</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-briefcase me-2"></i>
+                            <span>Experiencia: {{ candidate.experience_years }} años</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Título del plan -->
+    <div class="text-center mb-5">
+        <h2 class="h1">Tu Plan de Desarrollo Profesional</h2>
+        <p class="lead">Una ruta personalizada para potenciar tu carrera profesional</p>
+    </div>
+
+    <div class="row">
+        <!-- Columna principal -->
+        <div class="col-lg-8">
+            <!-- Sección Habilidades -->
+            <div class="mb-5">
+                <h3 class="section-header">
+                    <i class="fas fa-chart-bar me-2 text-primary"></i>Perfil de Habilidades
+                </h3>
+                
+                <div class="card mb-4">
+                    <div class="card-header">Tus Habilidades Actuales</div>
+                    <div class="card-body">
+                        {% if candidate.current_skills %}
+                            {% for skill in candidate.current_skills %}
+                                <span class="skill-badge current-skill">{{ skill }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">No hay habilidades registradas actualmente.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">Áreas de Crecimiento</div>
+                    <div class="card-body">
+                        {% if candidate.growth_areas %}
+                            {% for skill in candidate.growth_areas %}
+                                <span class="skill-badge gap-skill">{{ skill }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">No se han identificado áreas específicas de crecimiento.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">Perfil de Habilidades Objetivo</div>
+                    <div class="card-body">
+                        {% if candidate.target_skills %}
+                            {% for skill in candidate.target_skills %}
+                                <span class="skill-badge target-skill">{{ skill }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">No hay un perfil objetivo definido.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sección Ruta de Aprendizaje -->
+            <div class="mb-5">
+                <h3 class="section-header">
+                    <i class="fas fa-route me-2 text-success"></i>Tu Ruta de Aprendizaje
+                </h3>
+                
+                {% if candidate.learning_path %}
+                    {% for phase in candidate.learning_path %}
+                        <div class="card phase-card mb-4">
+                            <div class="card-body">
+                                <h4 class="mb-2">{{ phase.phase }}</h4>
+                                <div class="d-flex align-items-center mb-3">
+                                    <span class="badge bg-primary me-2">{{ phase.duration }}</span>
+                                    <span class="text-muted">{{ phase.focus }}</span>
+                                </div>
+                                
+                                {% if phase.skills %}
+                                    <h5 class="mb-2">Enfoque en:</h5>
+                                    <div class="mb-3">
+                                        {% for skill in phase.skills %}
+                                            <span class="skill-badge gap-skill">{{ skill }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                
+                                {% if phase.activities %}
+                                    <h5 class="mb-2">Actividades recomendadas:</h5>
+                                    <ul class="mb-0">
+                                        {% for activity in phase.activities %}
+                                            <li>{{ activity }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No hay una ruta de aprendizaje definida en este momento.
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Sección Recursos Recomendados -->
+            <div class="mb-5">
+                <h3 class="section-header">
+                    <i class="fas fa-book me-2 text-info"></i>Recursos Recomendados
+                </h3>
+                
+                {% if candidate.recommended_resources %}
+                    {% for resource in candidate.recommended_resources %}
+                        <div class="resource-card">
+                            <div class="resource-icon">
+                                {% if resource.type == 'course' %}
+                                    <i class="fas fa-laptop-code"></i>
+                                {% elif resource.type == 'certification' %}
+                                    <i class="fas fa-certificate"></i>
+                                {% elif resource.type == 'book' %}
+                                    <i class="fas fa-book"></i>
+                                {% else %}
+                                    <i class="fas fa-link"></i>
+                                {% endif %}
+                            </div>
+                            <div class="resource-content">
+                                <h4 class="h5 mb-1">{{ resource.title }}</h4>
+                                <p class="text-muted mb-2">{{ resource.provider }}</p>
+                                <p class="mb-2">{{ resource.description }}</p>
+                                
+                                <div class="d-flex flex-wrap mb-2">
+                                    {% for skill in resource.skills %}
+                                        <span class="skill-badge gap-skill">{{ skill }}</span>
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <span><i class="far fa-clock me-1"></i>{{ resource.duration }}</span>
+                                    <span><i class="fas fa-star text-warning me-1"></i>{{ resource.rating }} ({{ resource.reviews }})</span>
+                                </div>
+                                
+                                {% if not for_pdf %}
+                                <div class="mt-2">
+                                    <a href="{{ resource.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        Explorar recurso <i class="fas fa-external-link-alt ms-1"></i>
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No hay recursos recomendados disponibles en este momento.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Columna lateral -->
+        <div class="col-lg-4">
+            <!-- Sección Trayectoria Profesional -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Tu Trayectoria Profesional
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <!-- Rol actual -->
+                        <div class="timeline-item">
+                            <h5 class="mb-1">Puesto actual</h5>
+                            <p class="text-primary mb-0 fw-bold">{{ candidate.current_role }}</p>
+                        </div>
+                        
+                        <!-- Roles potenciales futuros -->
+                        {% if candidate.career_path %}
+                            {% for path in candidate.career_path %}
+                                <div class="timeline-item">
+                                    <h5 class="mb-1">{{ path.title }}</h5>
+                                    <p class="text-muted mb-1">{{ path.timeframe }}</p>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="timeline-item">
+                                <p class="text-muted">No hay una trayectoria profesional definida en este momento.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sección Fortalezas Clave -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-star me-2"></i>Tus Fortalezas Clave
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if candidate.strengths %}
+                        <ul class="list-group list-group-flush">
+                            {% for strength in candidate.strengths %}
+                                <li class="list-group-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        <span>{{ strength }}</span>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">No hay fortalezas clave identificadas en este momento.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Sección Recomendaciones Personalizadas -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Recomendaciones Personalizadas
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if candidate.personalized_recommendations %}
+                        {% for rec in candidate.personalized_recommendations %}
+                            <div class="recommendation-item">
+                                <h5 class="mb-2">{{ rec.title }}</h5>
+                                <p class="mb-0">{{ rec.description }}</p>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No hay recomendaciones personalizadas disponibles en este momento.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pie de página -->
+    <div class="huntred-footer">
+        <p>Este plan de desarrollo profesional fue elaborado por Grupo huntRED®</p>
+        <p>La información contenida en este documento es para uso exclusivo del destinatario.</p>
+        {% if not for_pdf %}
+        <p>
+            <a href="https://www.huntred.com" target="_blank" class="text-decoration-none">www.huntred.com</a>
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if not for_pdf %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Código JavaScript adicional si es necesario
+    });
+</script>
+{% endif %}
+{% endblock %}

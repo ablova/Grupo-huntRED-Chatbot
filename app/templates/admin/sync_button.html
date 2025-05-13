@@ -1,0 +1,63 @@
+{% load static %}
+
+<div class="submit-row" style="margin-top: 20px;">
+    <div class="form-row field-dominio_bu">
+        <div class="field-box">
+            <label for="id_dominio_bu">URL de WordPress:</label>
+            <input type="url" name="dominio_bu" id="id_dominio_bu" value="{{ config.dominio_bu }}" class="vURLField">
+        </div>
+    </div>
+    
+    <div class="form-row field-jwt_token">
+        <div class="field-box">
+            <label for="id_jwt_token">Token JWT:</label>
+            <input type="text" name="jwt_token" id="id_jwt_token" value="{{ config.jwt_token }}" class="vTextField">
+        </div>
+    </div>
+    
+    <div class="form-row">
+        <div class="field-box">
+            <button type="button" class="button" onclick="syncPricing('{{ business_unit.name }}')">
+                <i class="fas fa-sync"></i> Sincronizar Pricing
+            </button>
+            <span id="sync-status-{{ business_unit.name }}" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i> Sincronizando...
+            </span>
+        </div>
+    </div>
+</div>
+
+<script>
+function syncPricing(businessUnit) {
+    const button = event.target;
+    const statusSpan = document.getElementById(`sync-status-${businessUnit}`);
+    
+    // Deshabilitar botón y mostrar estado
+    button.disabled = true;
+    statusSpan.style.display = 'inline';
+    
+    fetch(`/pagos/sync/${businessUnit}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    })
+    .finally(() => {
+        // Restaurar botón y ocultar estado
+        button.disabled = false;
+        statusSpan.style.display = 'none';
+    });
+}
+</script>

@@ -1,0 +1,149 @@
+{% extends "kanban/base.html" %}
+{% load static %}
+
+{% block kanban_title %}Tableros Kanban{% endblock %}
+
+{% block kanban_actions %}
+<div class="btn-group">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+        <i class="fas fa-plus"></i> Nuevo tablero
+    </button>
+</div>
+{% endblock %}
+
+{% block kanban_content %}
+<div class="row my-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            El sistema Kanban te permite gestionar el proceso de reclutamiento de candidatos. 
+            Arrastra las tarjetas entre columnas para actualizar el estado de los candidatos y 
+            mantén un seguimiento efectivo de todo el proceso.
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% if boards %}
+        {% for board in boards %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-header bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">{{ board.name }}</h5>
+                            <span class="badge bg-primary rounded-pill">{{ board.business_unit.name }}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">{{ board.description|default:"Sin descripción" }}</p>
+                        
+                        <div class="d-flex justify-content-between mb-3 mt-4">
+                            <div class="text-center">
+                                <h2 class="h4 mb-0">{{ board_stats|get_item:board.id|get_item:'total_columns' }}</h2>
+                                <small class="text-muted">Columnas</small>
+                            </div>
+                            <div class="text-center">
+                                <h2 class="h4 mb-0">{{ board_stats|get_item:board.id|get_item:'total_cards' }}</h2>
+                                <small class="text-muted">Tarjetas</small>
+                            </div>
+                            <div class="text-center">
+                                <h2 class="h4 mb-0">{{ board_stats|get_item:board.id|get_item:'urgent_cards' }}</h2>
+                                <small class="text-muted">Urgentes</small>
+                            </div>
+                        </div>
+                        
+                        {% if board_stats|get_item:board.id|get_item:'recent_activity' %}
+                            <h6 class="border-bottom pb-2 mb-2">Actividad reciente</h6>
+                            <ul class="list-unstyled">
+                                {% for activity in board_stats|get_item:board.id|get_item:'recent_activity' %}
+                                    <li class="mb-2">
+                                        <div class="d-flex">
+                                            <div class="me-2">
+                                                <i class="fas fa-circle text-primary" style="font-size: 8px;"></i>
+                                            </div>
+                                            <div>
+                                                <div>
+                                                    {{ activity.card }} - {{ activity.change_type|title }}
+                                                </div>
+                                                <small class="text-muted">
+                                                    {{ activity.timestamp|date:"d/m/Y H:i" }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="text-center text-muted mt-4">
+                                <i class="fas fa-history mb-2"></i>
+                                <p class="mb-0">Sin actividad reciente</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer border-0 bg-transparent">
+                        <a href="{% url 'kanban:board_view' board.id %}" class="btn btn-primary w-100">
+                            <i class="fas fa-columns me-1"></i> Ver tablero
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-clipboard-list fa-3x mb-3 text-muted"></i>
+                <h4>No hay tableros disponibles</h4>
+                <p class="text-muted">Comienza creando un nuevo tablero para gestionar tus candidatos.</p>
+                <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+                    <i class="fas fa-plus me-1"></i> Crear tablero
+                </button>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal para crear tablero -->
+<div class="modal fade" id="createBoardModal" tabindex="-1" aria-labelledby="createBoardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createBoardModalLabel">Nuevo tablero Kanban</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createBoardForm" method="post" action="{% url 'kanban:create_board' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="boardName" class="form-label">Nombre del tablero</label>
+                        <input type="text" class="form-control" id="boardName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="boardDescription" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="boardDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="businessUnit" class="form-label">Unidad de negocio</label>
+                        <select class="form-select" id="businessUnit" name="business_unit" required>
+                            {% for bu in business_units %}
+                            <option value="{{ bu.id }}">{{ bu.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="createBoardForm" class="btn btn-primary">Crear tablero</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block kanban_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Código para la página de índice si es necesario
+    });
+</script>
+{% endblock %}

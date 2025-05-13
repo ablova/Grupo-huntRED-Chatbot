@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Tablero Kanban" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/kanban.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid kanban-container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3">
+                <i class="fas fa-tasks me-2"></i>{{ board.name }}
+                <span class="badge bg-secondary ms-2">{{ board.business_unit.name }}</span>
+            </h1>
+            <p class="text-muted">{{ board.description|default:"" }}</p>
+        </div>
+        <div class="d-flex">
+            <div class="dropdown me-2">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown">
+                    <i class="fas fa-filter me-1"></i>Filtrar
+                </button>
+                <div class="dropdown-menu p-3" style="width: 300px;">
+                    <h6 class="dropdown-header">Filtrar candidatos</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Búsqueda</label>
+                        <input type="text" id="searchInput" class="form-control" placeholder="Nombre, empresa...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Prioridad</label>
+                        <select id="priorityFilter" class="form-select">
+                            <option value="">Todas</option>
+                            <option value="4">Urgente</option>
+                            <option value="3">Alta</option>
+                            <option value="2">Normal</option>
+                            <option value="1">Baja</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Asignado a</label>
+                        <select id="assigneeFilter" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="unassigned">Sin asignar</option>
+                            {% for user in assignable_users %}
+                                <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button id="applyFilters" class="btn btn-primary btn-sm w-100">Aplicar filtros</button>
+                </div>
+            </div>
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle position-relative" type="button" id="notificationsDropdown" data-bs-toggle="dropdown">
+                    <i class="fas fa-bell me-1"></i>Notificaciones
+                    {% if notifications|length > 0 %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {{ notifications|length }}
+                    </span>
+                    {% endif %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-0" style="width: 350px;">
+                    <div class="p-2 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Notificaciones</h6>
+                        {% if notifications|length > 0 %}
+                        <button id="markAllRead" class="btn btn-sm btn-link">Marcar todas como leídas</button>
+                        {% endif %}
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        {% if notifications|length > 0 %}
+                            {% for notification in notifications %}
+                                <div class="dropdown-item p-2 notification-item border-bottom" data-id="{{ notification.id }}">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1 text-truncate">{{ notification.title }}</h6>
+                                        <small class="text-muted">{{ notification.created_at|date:"d/m H:i" }}</small>
+                                    </div>
+                                    <p class="mb-1 small">{{ notification.message }}</p>
+                                    {% if notification.card %}
+                                    <small>
+                                        <a href="{% url 'kanban:card_detail' notification.card.id %}" class="stretched-link">
+                                            Ver tarjeta
+                                        </a>
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="p-3 text-center text-muted">
+                                <i class="fas fa-check-circle mb-2"></i>
+                                <p class="mb-0">No tienes notificaciones pendientes</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="kanban-board">
+        <div class="kanban-wrapper">
+            {% for column in columns %}
+            <div class="kanban-column" data-id="{{ column.id }}">
+                <div class="kanban-column-header" style="background-color: {{ column.color }}">
+                    <h3 class="kanban-column-title">
+                        {{ column.name }}
+                        {% if column.wip_limit > 0 %}
+                        <span class="badge bg-info rounded-pill">{{ column.active_cards|length }}/{{ column.wip_limit }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary rounded-pill">{{ column.active_cards|length }}</span>
+                        {% endif %}
+                    </h3>
+                </div>
+                <div class="kanban-column-body" data-column-id="{{ column.id }}">
+                    {% for card in column.active_cards %}
+                    <div class="kanban-card" data-id="{{ card.id }}" data-column-id="{{ column.id }}" data-position="{{ card.position }}">
+                        <div class="kanban-card-header">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="kanban-card-title text-truncate mb-1">
+                                    {{ card.application.user.nombre }} {{ card.application.user.apellido_paterno|default:"" }}
+                                </h5>
+                                <span class="priority-indicator priority-{{ card.priority }}"></span>
+                            </div>
+                            <div class="kanban-card-subtitle text-muted small">
+                                {{ card.application.vacancy.titulo|truncatechars:40 }}
+                            </div>
+                        </div>
+                        <div class="kanban-card-body">
+                            <div class="kanban-card-meta">
+                                <div class="meta-item" title="Comentarios">
+                                    <i class="fas fa-comment text-muted"></i>
+                                    <span>{{ card.comments.count }}</span>
+                                </div>
+                                <div class="meta-item" title="Archivos adjuntos">
+                                    <i class="fas fa-paperclip text-muted"></i>
+                                    <span>{{ card.attachments.count }}</span>
+                                </div>
+                                {% if card.due_date %}
+                                <div class="meta-item {% if card.due_date < now %}text-danger{% endif %}" title="Fecha límite">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>{{ card.due_date|date:"d/m/Y" }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if card.labels %}
+                            <div class="kanban-card-labels">
+                                {% for label in card.labels %}
+                                <span class="label" style="background-color: {{ label.color|default:'#6c757d' }}">
+                                    {{ label.name }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            {% if card.assignee %}
+                            <div class="kanban-card-assignee">
+                                <div class="avatar" title="{{ card.assignee.get_full_name|default:card.assignee.username }}">
+                                    {% if card.assignee.profile_image %}
+                                    <img src="{{ card.assignee.profile_image.url }}" alt="{{ card.assignee.username }}">
+                                    {% else %}
+                                    <span>{{ card.assignee.first_name|first }}{{ card.assignee.last_name|first }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="kanban-card-footer">
+                            <a href="{% url 'kanban:card_detail' card.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> Ver detalles
+                            </a>
+                            <div class="dropdown ms-auto">
+                                <button class="btn btn-sm btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end">
+                                    <button class="dropdown-item quick-edit-btn" data-id="{{ card.id }}">
+                                        <i class="fas fa-edit me-1"></i>Editar
+                                    </button>
+                                    <div class="dropdown-divider"></div>
+                                    <button class="dropdown-item archive-card-btn" data-id="{{ card.id }}">
+                                        <i class="fas fa-archive me-1"></i>Archivar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal para edición rápida de tarjeta -->
+<div class="modal fade" id="quickEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar tarjeta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickEditForm">
+                    <input type="hidden" id="editCardId" name="card_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Asignar a</label>
+                        <select id="assigneeSelect" name="assignee_id" class="form-select">
+                            <option value="">Sin asignar</option>
+                            {% for user in assignable_users %}
+                                <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Prioridad</label>
+                        <select id="prioritySelect" name="priority" class="form-select">
+                            <option value="1">Baja</option>
+                            <option value="2">Normal</option>
+                            <option value="3">Alta</option>
+                            <option value="4">Urgente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Fecha límite</label>
+                        <input type="date" id="dueDateInput" name="due_date" class="form-control">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Mover a columna</label>
+                        <select id="columnSelect" name="target_column_id" class="form-select">
+                            {% for column in columns %}
+                                <option value="{{ column.id }}">{{ column.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveQuickEdit">Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+<script>
+    const KANBAN_API = {
+        moveCard: '{% url "kanban:move_card" %}',
+        updateCard: '{% url "kanban:update_card" %}',
+        archiveCard: '{% url "kanban:archive_card" %}',
+        markNotificationRead: '{% url "kanban:mark_notification_read" %}'
+    };
+    
+    // Información actual para el sistema
+    const BOARD_ID = {{ board.id }};
+    const CSRF_TOKEN = '{{ csrf_token }}';
+</script>
+<script src="{% static 'js/kanban_board.js' %}"></script>
+{% endblock %}

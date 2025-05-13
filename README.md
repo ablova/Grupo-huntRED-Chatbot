@@ -3960,4 +3960,144 @@ async def send_test_notification(user_id):
 
 
     _______
+
+# Integración de Machine Learning con Kanban
+
+## Descripción General
+
+Este módulo proporciona una integración entre el sistema Kanban existente y capacidades avanzadas de Machine Learning para ofrecer recomendaciones inteligentes, planes de desarrollo profesional y análisis predictivo en el proceso de reclutamiento.
+
+## Características Principales
+
+- **Dashboard Analítico ML**: Visualización de métricas clave y predicciones sobre vacantes y candidatos.
+- **Análisis de Vacantes**: Evaluación detallada de probabilidad de éxito y recomendaciones para optimización.
+- **Planes de Desarrollo Profesional**: Generación automática de planes de crecimiento personalizados para candidatos.
+- **Recomendaciones Inteligentes**: Sugerencias para movimientos de tarjetas en tableros Kanban basadas en patrones históricos.
+
+## Componentes del Sistema
+
+### 1. Dashboard ML Admin
+
+El dashboard administrativo de ML proporciona una visión general del estado del reclutamiento con métricas predictivas:
+
+- **Vacantes con Alta Probabilidad**: Identifica oportunidades con mayor probabilidad de ser cubiertas exitosamente.
+- **Candidatos con Potencial**: Destaca candidatos con alto potencial de crecimiento y adaptación.
+- **Métricas de Reclutamiento**: Gráficos con análisis de habilidades más demandadas y tiempos de cobertura.
+- **Alertas**: Identificación proactiva de vacantes que requieren atención o ajustes.
+
+### 2. Análisis Detallado de Vacantes
+
+Para cada vacante, el sistema proporciona:
+
+- **Match de Candidatos**: Análisis de candidatos existentes y su adecuación a la vacante.
+- **Referencias de Éxito**: Benchmarks con vacantes similares exitosas.
+- **Recomendaciones de Acción**: Sugerencias concretas para mejorar la efectividad.
+- **Métricas Predictivas**: Tiempo estimado para cubrir la vacante y conversión esperada.
+
+### 3. Planes de Desarrollo Profesional
+
+El sistema genera planes personalizados de desarrollo profesional con tres variantes según la audiencia:
+
+#### Para Consultores (Uso Interno)
+
+- Análisis completo con métricas técnicas detalladas
+- Evaluación de complejidad de desarrollo y ROI
+- Predicciones de impacto salarial y demanda de mercado
+- Recomendaciones específicas para el consultor
+
+#### Para Clientes
+
+- Presentación cualitativa sin métricas exactas
+- Enfoque en potencial y valor del candidato
+- Análisis de ajuste organizacional
+- Tiempo estimado para alcanzar competencia
+
+#### Para Candidatos
+
+- Orientado al desarrollo personal y profesional
+- Ruta de aprendizaje estructurada
+- Recursos educativos recomendados
+- Trayectoria profesional y próximos pasos
+
+### 4. Integración con Kanban
+
+- **Recomendación de Columnas**: Sugerencias inteligentes sobre el movimiento de tarjetas.
+- **Priorización**: Ordenamiento inteligente de tarjetas basado en predicciones ML.
+- **Recomendación de Candidatos**: Sugerencias de candidatos apropiados para cada columna.
+
+## Uso Técnico
+
+### Generación de Planes de Desarrollo
+
+```python
+from app.kanban.ml_integration import get_candidate_growth_data
+
+# Para uso interno (consultores)
+plan_consultor = get_candidate_growth_data(person, audience_type='consultant')
+
+# Para compartir con clientes
+plan_cliente = get_candidate_growth_data(person, audience_type='client')
+
+# Para compartir con candidatos
+plan_candidato = get_candidate_growth_data(person, audience_type='candidate')
+```
+
+### Exportación de Planes
+
+Los planes se pueden exportar como PDF utilizando la URL:
+
+```
+/ml/candidate/{candidate_id}/growth/pdf/?audience=candidate
+```
+
+### Integración con Creación de CV
+
+Al crear o actualizar un CV de candidato, se puede generar y adjuntar automáticamente un plan de desarrollo:
+
+```python
+from app.views.ml_admin_views import generate_growth_plan_for_cv
+
+# Generar y adjuntar al crear un CV
+plan_pdf = generate_growth_plan_for_cv(candidate_id)
+```
+
+## Consideraciones sobre Privacidad
+
+- Los planes para candidatos y clientes omiten métricas internas sensibles
+- Cada nivel de audiencia recibe solo la información apropiada
+- Se requiere autenticación para acceder a todos los planes
+- Control de acceso basado en roles (RBAC) implementado para todas las funcionalidades
+
+## Implementación Técnica
+
+### Principales Archivos
+
+- `/app/kanban/ml_integration.py`: Integración entre Kanban y ML
+- `/app/views/ml_admin_views.py`: Vistas para dashboard y análisis
+- `/app/templates/ml/admin/`: Plantillas para consultores
+- `/app/templates/ml/candidate/`: Plantillas para candidatos
+
+### Dependencias
+
+- Sistema ML existente (`app/ml/ml_model.py`)
+- WeasyPrint (opcional, para generación de PDFs)
+- Django Caching Framework (para optimización de rendimiento)
+
+## Configuración
+
+El sistema está diseñado para activarse gradualmente conforme se acumula suficiente data para que las predicciones sean significativas. Para habilitar o deshabilitar las funcionalidades de ML:
+
+```python
+# En settings.py
+ENABLE_ML_FEATURES = True  # Activa todas las funcionalidades de ML
+ML_MIN_DATA_POINTS = 50    # Mínimo de data points para activar predicciones
+```
+
+## Notas de Implementación
+
+1. Este sistema está diseñado para enriquecer la experiencia Kanban, no para reemplazar el juicio humano.
+2. Las predicciones mejoran con el tiempo a medida que el sistema aprende de los datos históricos.
+3. La privacidad y seguridad de los datos se mantienen en todos los niveles.
+
+
 sudo nano app/chatbot/chatbot.py && cd app/integrations && sudo nano services.py whatsapp.py instagram.py messenger.py telegram.py && sudo systemctl restart gunicorn && cd /home/amigro && python manage.py migrate

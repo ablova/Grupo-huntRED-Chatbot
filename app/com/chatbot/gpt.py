@@ -2,7 +2,7 @@
 import logging
 import backoff
 from openai import OpenAI, OpenAIError, RateLimitError
-from typing import Optional
+from typing import Optional, Dict, Any, List, Union
 from app.models import GptApi, BusinessUnit
 from app.com.chatbot.integrations.services import send_email
 from django.conf import settings
@@ -10,10 +10,15 @@ from asgiref.sync import sync_to_async
 import asyncio
 import json
 import requests
-from aiohttp import ClientSession, ClientConnectorSSLError  # For efficient HTTP requests
+from aiohttp import ClientSession, ClientConnectorSSLError, TCPConnector
 import os
+import time
+from functools import lru_cache
 import google.generativeai as genai
 from google.generativeai import types
+
+# Importar el sistema de logging avanzado
+from app.com.utils.logger_utils import get_module_logger, log_async_function_call, ResourceMonitor
 
 # Suppress TensorFlow warnings and configure CPU-only mode
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppress TensorFlow logs (0=All, 3=Errors only)
@@ -23,7 +28,8 @@ tf.config.set_soft_device_placement(True)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_intra_op_parallelism_threads(1)
 
-logger = logging.getLogger('chatbot')
+# Configuración del logger con el nuevo sistema
+logger = get_module_logger('gpt')
 
 GPT_DEFAULTS = {
     "max_tokens": 150,
@@ -32,36 +38,121 @@ GPT_DEFAULTS = {
     "timeout": 60,
 }
 
+# Constantes de configuración
+MAX_RETRIES = 3
+CIRCUIT_BREAKER_THRESHOLD = 5
+CIRCUIT_BREAKER_TIMEOUT = 60  # segundos
+PROMPT_CACHE_SIZE = 100
+TOKEN_USAGE_ALERT_THRESHOLD = 0.8  # 80% del límite
+
+# Cache para evitar llamadas repetidas a la API
+response_cache = {}
+
+# Estado del circuit breaker para cada API
+service_circuit_breakers = {}
+
 class BaseHandler:
     def __init__(self, config: GptApi):
         self.config = config
         self.client = None
+        self.failures = 0
+        self.is_circuit_open = False
+        self.circuit_open_time = 0
+        self.token_usage = 0
+        self.token_limit = getattr(config, 'token_limit', 100000)
+        # Inicializar cache
+        if config.model not in response_cache:
+            response_cache[config.model] = {}
+        
+        # Log de inicialización
+        logger.info(f"Iniciando handler para modelo {config.model}", 
+                   extra={"data": {"model": config.model}})
 
+    @log_async_function_call(logger)
     async def initialize(self):
         raise NotImplementedError("Método 'initialize' debe ser implementado.")
 
+    @log_async_function_call(logger)
     async def generate_response(self, prompt: str, business_unit=None) -> str:
         raise NotImplementedError("Método 'generate_response' debe ser implementado.")
+        
+    def _check_circuit_breaker(self):
+        """Verifica si el circuit breaker está abierto"""
+        if self.is_circuit_open:
+            # Verifica si ha pasado suficiente tiempo para reintentar
+            if time.time() - self.circuit_open_time > CIRCUIT_BREAKER_TIMEOUT:
+                logger.info(f"Reseteando circuit breaker para {self.config.model}")
+                self.is_circuit_open = False
+                self.failures = 0
+                return False
+            return True
+        return False
+    
+    def _increment_failure(self):
+        """Incrementa el contador de fallos y abre el circuit breaker si es necesario"""
+        self.failures += 1
+        if self.failures >= CIRCUIT_BREAKER_THRESHOLD:
+            logger.warning(f"Circuit breaker abierto para {self.config.model} después de {self.failures} fallos")
+            self.is_circuit_open = True
+            self.circuit_open_time = time.time()
+    
+    def _update_token_usage(self, tokens: int):
+        """Actualiza el contador de uso de tokens y alerta si se acerca al límite"""
+        self.token_usage += tokens
+        usage_percent = self.token_usage / self.token_limit
+        if usage_percent >= TOKEN_USAGE_ALERT_THRESHOLD:
+            logger.warning(f"Uso de tokens al {usage_percent*100:.1f}% del límite para {self.config.model}")
 
     async def close(self):
-        pass  # Optional cleanup method for handlers
+        """Limpia recursos"""
+        logger.debug(f"Cerrando handler para {self.config.model}")
 
 class OpenAIHandler(BaseHandler):
+    @log_async_function_call(logger)
     async def initialize(self):
-        self.client = OpenAI(api_key=self.config.api_token, organization=self.config.organization)
-        logger.info(f"OpenAIHandler configurado con modelo: {self.config.model}")
+        try:
+            self.client = OpenAI(api_key=self.config.api_token, organization=self.config.organization)
+            logger.info(f"OpenAIHandler configurado con modelo: {self.config.model}")
+            # Registrar estado de memoria al inicializar
+            ResourceMonitor.log_memory_usage(logger, f"OpenAIHandler-{self.config.model}")
+            return True
+        except Exception as e:
+            logger.error(f"Error inicializando OpenAIHandler: {str(e)}", exc_info=True)
+            return False
 
-    @backoff.on_exception(backoff.expo, OpenAIError, max_tries=3)
+    @log_async_function_call(logger)
+    @backoff.on_exception(backoff.expo, OpenAIError, max_tries=MAX_RETRIES)
     async def generate_response(self, prompt: str, business_unit=None) -> str:
+        # Verificar circuit breaker
+        if self._check_circuit_breaker():
+            logger.warning(f"Circuit breaker abierto para {self.config.model}, evitando llamada")
+            return "⚠ Servicio temporalmente no disponible. Intente más tarde."
+            
         if not self.client:
+            logger.error("Cliente OpenAI no inicializado")
             return "⚠ GPT no inicializado."
+            
+        # Verificar cache
+        cache_key = f"{prompt[:100]}_{business_unit.id if business_unit else 'general'}"
+        if cache_key in response_cache[self.config.model]:
+            logger.info(f"Respuesta encontrada en caché para {self.config.model}")
+            return response_cache[self.config.model][cache_key]
+            
         bu_name = business_unit.name if business_unit else "General"
         full_prompt = (
             f"Unidad de Negocio: {bu_name}\n"
             f"{prompt}\n\n"
             "Devuelve únicamente una lista JSON de habilidades (ej: ['Python', 'Django'])."
         )
+        
+        # Tiempo de inicio para métricas
+        start_time = time.time()
+        
         try:
+            # Log de la solicitud
+            logger.info(f"Enviando solicitud a OpenAI ({self.config.model})", 
+                       extra={"data": {"prompt_length": len(full_prompt), "business_unit": bu_name}})
+                       
             response = await asyncio.wait_for(
                 asyncio.to_thread(
                     self.client.chat.completions.create,
@@ -76,14 +167,62 @@ class OpenAIHandler(BaseHandler):
                 ),
                 timeout=GPT_DEFAULTS["timeout"]
             )
-            return response.choices[0].message.content.strip()
-        except RateLimitError:
-            logger.warning("Cuota de OpenAI excedida.")
-            self._notify_quota_exceeded()
-            return "Cuota excedida."
+            
+            # Actualizar contadores de tokens
+            tokens_used = response.usage.total_tokens
+            self._update_token_usage(tokens_used)
+            
+            # Registrar métricas
+            elapsed_time = time.time() - start_time
+            logger.info(f"Respuesta OpenAI recibida en {elapsed_time:.2f}s, {tokens_used} tokens", 
+                       extra={"data": {"elapsed_time": elapsed_time, "tokens": tokens_used}})
+            
+            # Guardar en caché
+            result = response.choices[0].message.content.strip()
+            if len(response_cache[self.config.model]) < PROMPT_CACHE_SIZE:
+                response_cache[self.config.model][cache_key] = result
+                
+            # Resetear contador de fallos
+            self.failures = 0
+            return result
+            
+        except RateLimitError as e:
+            self._increment_failure()
+            logger.warning(f"Cuota de OpenAI excedida: {str(e)}")
+            await self._notify_quota_exceeded()
+            return "Cuota excedida. Por favor, intente más tarde."
+            
         except asyncio.TimeoutError:
-            logger.warning("Timeout en OpenAI.")
-            return "Solicitud tardó demasiado."
+            self._increment_failure()
+            logger.warning(f"Timeout en OpenAI después de {GPT_DEFAULTS['timeout']}s")
+            return "La solicitud tardó demasiado en completarse."
+            
+        except OpenAIError as e:
+            self._increment_failure()
+            logger.error(f"Error de OpenAI: {str(e)}", exc_info=True)
+            return f"Error al procesar la solicitud: {str(e)}"
+            
+        except Exception as e:
+            self._increment_failure()
+            logger.error(f"Error inesperado: {str(e)}", exc_info=True)
+            return "Error procesando la solicitud."
+            
+    async def _notify_quota_exceeded(self):
+        """Notifica a los administradores sobre cuota excedida"""
+        try:
+            admin_email = self.config.notify_email or "admin@huntred.com"
+            await send_email(
+                business_unit_name="Sistema",
+                subject=f"⚠ ALERTA: Cuota de API excedida para {self.config.model}",
+                to_email=admin_email,
+                body=f"La cuota de la API de {self.config.model} ha sido excedida. "
+                     f"Por favor, revise el uso y considere aumentar el límite. "
+                     f"Uso actual: {self.token_usage} tokens.",
+                from_email="noreply@huntred.com"
+            )
+            logger.info(f"Notificación de cuota excedida enviada a {admin_email}")
+        except Exception as e:
+            logger.error(f"Error enviando notificación de cuota excedida: {str(e)}", exc_info=True)
 
 class GrokHandler(BaseHandler):
     async def initialize(self):

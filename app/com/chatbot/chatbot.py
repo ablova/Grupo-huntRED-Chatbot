@@ -16,9 +16,6 @@ from app.import_config import (
     get_context_manager,
     get_response_generator,
     get_state_manager,
-    get_message_service,
-    get_gamification_service,
-    get_cv_parser,
     get_gpt_handler,
     get_channel_config,
     get_rate_limiter

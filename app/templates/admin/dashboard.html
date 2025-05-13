@@ -1,25 +1,121 @@
-<!-- /home/pablo/templates/admin/dashboard.html -->
-
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+    <link rel="stylesheet" href="{% static 'css/admin-enhancements.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
-<h1>Dashboard de Estadísticas</h1>
-<div style="display: flex; flex-wrap: wrap; justify-content: space-around; margin-bottom: 20px;">
-    <div style="text-align: center; margin: 10px;">
-        <h3>Total de Dominios</h3>
-        <p style="font-size: 24px; font-weight: bold;">{{ total_dominios }}</p>
+<div class="row">
+    <!-- Tarjetas de métricas -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total de Dominios</h5>
+                <h2 class="card-text">{{ total_dominios }}</h2>
+                <p class="card-text text-muted">
+                    <small>Última actualización: {{ last_update|date:"d/m/Y H:i" }}</small>
+                </p>
+            </div>
+        </div>
     </div>
-    <div style="text-align: center; margin: 10px;">
-        <h3>Total de Vacantes</h3>
-        <p style="font-size: 24px; font-weight: bold;">{{ total_vacantes }}</p>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total de Vacantes</h5>
+                <h2 class="card-text">{{ total_vacantes }}</h2>
+                <p class="card-text text-muted">
+                    <small>Última actualización: {{ last_update|date:"d/m/Y H:i" }}</small>
+                </p>
+            </div>
+        </div>
     </div>
-    <div style="text-align: center; margin: 10px;">
-        <h3>Scraping Activo</h3>
-        <p style="font-size: 24px; font-weight: bold;">{{ scraping_activo }}</p>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Scraping Activo</h5>
+                <h2 class="card-text">{{ scraping_activo }}</h2>
+                <p class="card-text text-muted">
+                    <small>Última actualización: {{ last_update|date:"d/m/Y H:i" }}</small>
+                </p>
+            </div>
+        </div>
     </div>
 </div>
 
-<div style="text-align: center;">
-    <h3>Vacantes por Estado</h3>
-    <img src="data:image/png;base64,{{ grafico_vacantes }}" alt="Gráfico de Vacantes">
+<!-- Gráficos -->
+<div class="row mt-4">
+    <!-- Gráfico de Vacantes por Estado -->
+    {% include "components/admin_chart.html" with 
+        chart={
+            "id": "vacantesChart",
+            "title": "Distribución de Vacantes por Estado",
+            "type": "pie",
+            "labels": {{ grafico_vacantes_labels|safe }},
+            "datasets": [{
+                "data": {{ grafico_vacantes_data|safe }},
+                "backgroundColor": [
+                    "#FF6384",
+                    "#36A2EB",
+                    "#FFCE56",
+                    "#4BC0C0",
+                    "#9966FF"
+                ]
+            }]
+        }
+    %}
+
+    <!-- Gráfico de Dominios por Plataforma -->
+    {% include "components/admin_chart.html" with 
+        chart={
+            "id": "platformChart",
+            "title": "Distribución de Dominios por Plataforma",
+            "type": "bar",
+            "labels": {{ grafico_platform_labels|safe }},
+            "datasets": [{
+                "label": "Dominios",
+                "data": {{ grafico_platform_data|safe }},
+                "backgroundColor": "rgba(54, 162, 235, 0.5)",
+                "borderColor": "rgba(54, 162, 235, 1)",
+                "borderWidth": 1
+            }]
+        }
+    %}
 </div>
+
+<!-- Tabla de Últimas Actividades -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Últimas Actividades</h5>
+    </div>
+    <div class="card-body">
+        {% include "components/admin_table.html" with 
+            columns=[
+                {"label": "Fecha", "name": "date", "type": "date"},
+                {"label": "Tipo", "name": "type"},
+                {"label": "Descripción", "name": "description"},
+                {"label": "Estado", "name": "status", "type": "status"}
+            ]
+            rows=last_activities
+            actions=[
+                {"label": "Ver Detalles", "type": "info", "icon": "info-circle", "onclick": "showDetails(this)"}
+            ]
+            pagination=pagination
+        %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+function showDetails(button) {
+    const row = button.closest('tr');
+    const id = row.dataset.id;
+    window.location.href = `/admin/activity/${id}/`;
+}
+</script>
+{% endblock %}
 {% endblock %}

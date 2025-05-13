@@ -1,50 +1,182 @@
-# /home/pablo/app/views/proposals/views.py
-#
-# Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
+"""
+Vistas para el sistema de propuestas y contratos.
 
-from django.shortcuts import render, get_object_or_404
+Responsabilidades:
+- Generación de propuestas
+- Gestión de contratos
+- Integración con ATS y chatbot
+- Reportes y análisis
+"""
+
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.core.files.storage import default_storage
 from django.conf import settings
-import pdfkit
-import os
-from app.models import Proposal, Opportunity, Vacancy, Person
+from django.db import transaction
+from django.utils import timezone
+from django.core.cache import caches
+from django_ratelimit.decorators import ratelimit
+from django_prometheus import exports
+
+from app.decorators import (
+    bu_complete_required, bu_division_required,
+    permission_required, verified_user_required
+)
+from app.models import (
+    Proposal, Opportunity, Vacancy, Person,
+    Application, Interview, Contract
+)
 from app.pricing.utils import calculate_pricing
 from app.contracts.contract_generator import ContractGenerator
 from app.proposals.forms import ProposalFilterForm
+from app.utils import get_business_unit, get_user_permissions
 
-class ProposalView:
+import logging
+import pdfkit
+import os
+import json
+from asgiref.sync import sync_to_async
+
+logger = logging.getLogger(__name__)
+
+class ProposalViews(View):
+    """
+    Vistas principales para el sistema de propuestas.
+    """
+    
+    @method_decorator(login_required)
+    @method_decorator(bu_complete_required)
     def proposal_list(self, request):
         """
-        Muestra la lista de propuestas con filtros.
-        
-        Args:
-            request: HttpRequest
-            
-        Returns:
-            HttpResponse: Página con la lista de propuestas
+        Lista de propuestas con filtros y estadísticas.
         """
+        business_unit = get_business_unit(request.user)
+        
         # Crear formulario de filtros
         filter_form = ProposalFilterForm(request.GET)
         
-        # Obtener queryset base
-        proposals = Proposal.objects.all().order_by('-created_at')
+        # Obtener queryset base con optimizaciones
+        proposals = Proposal.objects.filter(
+            company__business_unit=business_unit
+        ).select_related(
+            'company',
+            'created_by',
+            'approved_by'
+        ).prefetch_related(
+            'vacancies',
+            'contracts'
+        ).order_by('-created_at')
         
         # Aplicar filtros
         if filter_form.is_valid():
             proposals = filter_form.filter_queryset(proposals)
         
+        # Estadísticas
+        stats = {
+            'total': proposals.count(),
+            'approved': proposals.filter(status='APPROVED').count(),
+            'pending': proposals.filter(status='PENDING').count(),
+            'rejected': proposals.filter(status='REJECTED').count()
+        }
+        
         # Paginación
-        from django.core.paginator import Paginator
-        paginator = Paginator(proposals, 10)  # 10 propuestas por página
+        paginator = Paginator(proposals, 10)
         page_number = request.GET.get('page', 1)
         proposals = paginator.get_page(page_number)
         
-        return render(request, 'proposals/proposal_list.html', {
+        context = {
             'proposals': proposals,
-            'filter_form': filter_form
-        })
+            'filter_form': filter_form,
+            'stats': stats,
+            'business_unit': business_unit
+        }
+        return render(request, 'proposals/proposal_list.html', context)
+    
+    @method_decorator(login_required)
+    @method_decorator(bu_complete_required)
+    @method_decorator(ratelimit(key='user', rate='100/m'))
+    def generate_proposal(self, request, opportunity_id):
+        """
+        Genera una propuesta para una oportunidad.
+        """
+        if request.method != 'POST':
+            return JsonResponse({'error': 'Método no permitido'}, status=405)
+            
+        opportunity = get_object_or_404(Opportunity, id=opportunity_id)
+        
+        # Verificar permisos
+        if not request.user.has_perm('can_generate_proposal'):
+            return JsonResponse({'error': 'No tienes permisos para generar propuestas'}, status=403)
+            
+        try:
+            with transaction.atomic():
+                # Calcular pricing
+                pricing = calculate_pricing(opportunity_id)
+                
+                # Crear propuesta
+                proposal = Proposal.objects.create(
+                    company=opportunity.company,
+                    pricing_total=pricing['total'],
+                    pricing_details=pricing,
+                    created_by=request.user,
+                    status='PENDING'
+                )
+                
+                # Asociar vacantes
+                for vacancy in opportunity.vacancies.all():
+                    proposal.vacancies.add(vacancy)
+                
+                # Generar PDF
+                pdf_content = self._generate_proposal_pdf(proposal)
+                
+                # Guardar PDF
+                pdf_path = self._save_proposal_pdf(proposal, pdf_content)
+                
+                # Notificar al chatbot
+                self._notify_chatbot(proposal)
+                
+                # Crear registro de auditoría
+                self._create_audit_log(request.user, proposal, 'CREATED')
+                
+                return JsonResponse({
+                    'proposal_id': proposal.id,
+                    'pdf_url': pdf_path,
+                    'pricing': pricing
+                })
+                
+        except Exception as e:
+            logger.error(f"Error generando propuesta: {e}", exc_info=True)
+            return JsonResponse({'error': 'Error generando propuesta'}, status=500)
+    
+    async def _notify_chatbot(self, proposal):
+        """
+        Notifica al chatbot sobre la nueva propuesta.
+        """
+        from app.com.chatbot.integrations.services import MessageService
+        
+        message_service = MessageService()
+        
+        # Enviar mensaje a los responsables
+        for person in proposal.company.responsible_persons.all():
+            await message_service.send_message(
+                'whatsapp',
+                person.phone_number,
+                f'Nueva propuesta generada para {proposal.company.name}'
+            )
+    
+    def _create_audit_log(self, user, proposal, action):
+        """
+        Crea un registro de auditoría.
+        """
+        from app.models import AuditLog
+        
+        AuditLog.objects.create(
+            user=user,
+            proposal=proposal,
+            action=action,
+            timestamp=timezone.now()
+        )
         
     def generate_proposal(self, request, opportunity_id):
         """

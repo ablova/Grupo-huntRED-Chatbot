@@ -1,12 +1,471 @@
-<!-- /home/pablo/app/templates/dashboard.html -->
+<!-- /Users/pablollh/MEGA/GitHub/Grupo-huntRED-Chatbot/app/templates/dashboard.html -->
 {% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
 {% block content %}
+<div class="container-fluid">
+    <!-- Sección de Métricas -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card hover-shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Métricas Principales</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for metric in metrics %}
+                        <div class="col-md-3 mb-4">
+                            <div class="card h-100 dashboard-metric">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ metric.label }}</h5>
+                                    <h2 class="card-text">{% if metric.is_currency %}{{ metric.value|floatformat:"2" }}{% else %}{{ metric.value }}{% endif %}</h2>
+                                    <div class="metric-trend {{ metric.trend_class }}">
+                                        {{ metric.trend_value }}% {{ metric.trend_direction }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<h1>Dashboard de Monitoreo</h1>
-<ul>
-  <li>Chats Activos: {{ data.active_chats }}</li>
-  <li>Vacantes Activas: {{ data.vacancies_active }}</li>
-  <li>Total Aplicaciones: {{ data.applications_total }}</li>
-</ul>
+    <!-- Sección de Gráficos -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card hover-shadow">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Aplicaciones</h5>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="changePeriod('week')">Semana</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="changePeriod('month')">Mes</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="changePeriod('year')">Año</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="applications_chart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Fecha Inicial:</strong> {{ start_date }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Fecha Final:</strong> {{ end_date }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card hover-shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Estado de Entrevistas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="interviews_chart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <div class="row">
+                            {% for result in interviews_data %}
+                            <div class="col-md-4">
+                                <div class="metric-trend">
+                                    <span class="badge bg-{{ result.resultado|lower }}">{{ result.resultado }}</span>
+                                    <span class="ms-2">{{ result.count }} entrevistas</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-{% endblock}
+    <!-- Sección de Chatbot -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Estado del Chatbot</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for step in workflow.steps %}
+                        <div class="timeline-step" style="background-color: var(--bs-{{ step.status_color }}-bg)">
+                            <i class="fas fa-{{ step.icon }}"></i>
+                            <div class="timeline-content">
+                                <h6>{{ step.title }}</h6>
+                                <p>{{ step.timestamp }}</p>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: {{ step.progress }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-4">
+                        <h6>Estadísticas</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p>Conversaciones Activas: {{ workflow.active_conversations }}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p>Conversaciones Completadas: {{ workflow.completed_conversations }}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p>Tiempo Promedio: {{ workflow.avg_time }} minutos</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            {% include "components/proposal_status.html" with 
+                proposal={
+                    "id": "123",
+                    "status": "SENT",
+                    "status_color": "warning",
+                    "pricing_total": 10000,
+                    "pending_amount": 5000,
+                    "paid_amount": 5000,
+                    "payment_milestones": [
+                        {
+                            "id": "1",
+                            "name": "Firma del Contrato",
+                            "trigger_event": "CONTRACT_SIGNING",
+                            "percentage": 30,
+                            "status": "PAID",
+                            "status_color": "success"
+                        },
+                        {
+                            "id": "2",
+                            "name": "Fecha de Inicio",
+                            "trigger_event": "START_DATE",
+                            "percentage": 70,
+                            "status": "PENDING",
+                            "status_color": "warning"
+                        }
+                    ]
+                }
+            %}
+        </div>
+    </div>
+
+    <!-- Sección de Propuestas -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Estado de Propuestas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="status-badge bg-{{ proposal.status_color }}">
+                                {{ proposal.status }}
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: {{ proposal.progress }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p>Total: ${{ proposal.pricing_total }}</p>
+                            <p>Pagado: ${{ proposal.paid_amount }}</p>
+                            <p>Pendiente: ${{ proposal.pending_amount }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Hitos de Pago</h6>
+                            <div class="milestones">
+                                {% for milestone in proposal.payment_milestones %}
+                                <div class="milestone-item" style="color: var(--bs-{{ milestone.status_color }}-text)">
+                                    <i class="fas fa-circle"></i>
+                                    <span>{{ milestone.name }}</span>
+                                    <span>{{ milestone.percentage }}%</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Actividad Reciente -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Actividad Reciente</h5>
+                    <div class="btn-group">
+                        <input type="text" class="form-control" id="activitySearch" placeholder="Buscar...">
+                        <select class="form-select" id="activityFilter">
+                            <option value="all">Todos</option>
+                            <option value="chatbot">Chatbot</option>
+                            <option value="proposals">Propuestas</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover activity-table">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Descripción</th>
+                                    <th>Estado</th>
+                                    <th>Fecha</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for state in chatbot_data.states %}
+                                    <tr data-type="chatbot">
+                                        <td>Chatbot</td>
+                                        <td>{{ state.person.nombre }} en {{ state.business_unit.name }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ state.get_state_color }}">
+                                                {{ state.get_state_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ state.last_transition|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" 
+                                                    onclick="viewChat('{{ state.id }}')">
+                                                Ver Chat
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                {% for offer in proposals_data.recent %}
+                                    <tr data-type="proposals">
+                                        <td>Propuesta</td>
+                                        <td>{{ offer.user.nombre }} para {{ offer.vacancy.titulo }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ offer.get_status_color }}">
+                                                {{ offer.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ offer.created_at|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success" 
+                                                    onclick="viewOffer('{{ offer.id }}')">
+                                                Ver Detalles
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewChat(chatId) {
+    window.location.href = `/admin/app/chatstate/${chatId}/`;
+}
+
+function viewOffer(offerId) {
+    window.location.href = `/admin/app/cartaoferta/${offerId}/`;
+}
+
+// Función para cambiar el período de los gráficos
+function changePeriod(period) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('period', period);
+    window.location.href = url.toString();
+}
+
+// Función para filtrar la tabla de actividad
+function filterActivity() {
+    const searchInput = document.getElementById('activitySearch').value.toLowerCase();
+    const filterSelect = document.getElementById('activityFilter').value;
+    const rows = document.querySelectorAll('.activity-table tbody tr');
+
+    rows.forEach(row => {
+        const type = row.getAttribute('data-type');
+        const description = row.cells[1].textContent.toLowerCase();
+        
+        const matchesSearch = description.includes(searchInput);
+        const matchesFilter = filterSelect === 'all' || type === filterSelect;
+        
+        row.style.display = matchesSearch && matchesFilter ? '' : 'none';
+    });
+}
+
+// Inicializar gráficos
+const applicationsCtx = document.getElementById('applications_chart');
+const interviewsCtx = document.getElementById('interviews_chart');
+
+// Función para formatear fechas y números
+function formatDate(date) {
+    return date.toLocaleDateString('es-MX', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+    }).format(amount);
+}
+
+// Función para actualizar gráficos
+function updateCharts() {
+    // Datos de aplicaciones
+    const applicationsData = {{ applications_data|safe }};
+    const dates = applicationsData.map(item => formatDate(new Date(item.date)));
+    const counts = applicationsData.map(item => item.count);
+
+    // Datos de entrevistas
+    const interviewsData = {{ interviews_data|safe }};
+    const interviewLabels = interviewsData.map(item => item.resultado);
+    const interviewCounts = interviewsData.map(item => item.count);
+    const interviewColors = interviewsData.map(item => {
+        const status = item.resultado.toLowerCase();
+        return status === 'pendiente' ? '#ffc107' :
+               status === 'aprobado' ? '#28a745' : '#dc3545';
+    });
+
+    // Gráfico de aplicaciones
+    new Chart(applicationsCtx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Aplicaciones',
+                data: counts,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Aplicaciones por Fecha'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('es-MX').format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return new Intl.NumberFormat('es-MX').format(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Gráfico de entrevistas
+    new Chart(interviewsCtx, {
+        type: 'pie',
+        data: {
+            labels: interviewLabels,
+            datasets: [{
+                data: interviewCounts,
+                backgroundColor: interviewColors,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Estado de Entrevistas'
+                }
+            }
+        }
+    });
+}
+
+// Sistema de notificaciones
+function showNotification(type, message) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.role = 'alert';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.getElementById('notifications').appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
+}
+
+// Event listeners para la tabla de actividad
+document.addEventListener('DOMContentLoaded', function() {
+    // Hover en cards
+    const cards = document.querySelectorAll('.card.hover-shadow');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', () => card.classList.add('shadow'));
+        card.addEventListener('mouseleave', () => card.classList.remove('shadow'));
+    });
+    
+    // Scroll suave
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+});
+
+// Event listeners para la tabla de actividad
+document.getElementById('activitySearch').addEventListener('input', filterActivity);
+document.getElementById('activityFilter').addEventListener('change', filterActivity);
+</script>
+{% endblock %}

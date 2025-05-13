@@ -3,7 +3,7 @@
 # Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
 
 import logging
-from django.urls import path, re_path
+from django.urls import path, re_path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -35,6 +35,8 @@ from app.views.candidatos_views import (
     candidato_details, generate_challenges
 )
 from app.views.ml_views import train_ml_api, predict_matches
+from app.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
+from app.views.dashboard import dashboard
 
 # IMPORTACIONES DE WEBHOOKS (MENSAJERÍA)
 from app.views.webhook_views import (
@@ -62,6 +64,7 @@ from .views.publish_views import (
     update_job_opportunity_status,
     webhook_job_opportunity
 )
+from .com.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_view
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +125,12 @@ urlpatterns += [
 ]
 
 # ------------------------
+# 📌 RUTAS DE DASHBOARD
+# ------------------------
+urlpatterns += [
+    path('dashboard/', dashboard, name='dashboard'),
+]
+
 # 📌 RUTAS DE CANDIDATOS
 # ------------------------
 urlpatterns += [
@@ -227,6 +236,31 @@ urlpatterns += [
     path('verification/<int:verification_id>/incode/', verify_incode, name='verify_incode'),
     path('webhook/verification/', webhook_verification, name='webhook_verification'),
 ]
+# ----------------------------------------
+# 📌 RUTAS DE KANBAN (GESTIÓN DE CANDIDATOS)
+# ----------------------------------------
+urlpatterns += [
+    path('kanban/', include('app.kanban.urls', namespace='kanban')),
+]
+
+# ------------------------
+# 📌 RUTAS DE ML (ANÁLISIS PREDICTIVO)
+# ------------------------
+urlpatterns += [
+    # Dashboard y análisis ML
+    path('ml/dashboard/', MLDashboardView.as_view(), name='ml_dashboard'),
+    path('ml/vacancy/<int:vacancy_id>/', vacancy_analysis_view, name='ml_vacancy_analysis'),
+    path('ml/candidate/<int:candidate_id>/growth/', candidate_growth_plan_view, name='ml_candidate_growth_plan'),
+    path('ml/candidate/<int:candidate_id>/growth/pdf/', candidate_growth_plan_pdf_view, name='ml_candidate_growth_plan_pdf'),
+    
+    # API para los gráficos y datos del dashboard
+    path('ml/api/dashboard-charts/', dashboard_charts_api_view, name='ml_api_dashboard_charts'),
+    
+    # Rutas existentes de ML
+    path('ml/train/', train_ml_api, name='train_ml_api'),
+    path('ml/predict/', predict_matches, name='predict_matches'),
+]
+
 # -------------------------------
 # 📌 MANEJO DE ARCHIVOS ESTÁTICOS
 # -------------------------------

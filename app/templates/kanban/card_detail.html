@@ -1,0 +1,356 @@
+{% extends "kanban/base.html" %}
+{% load static %}
+
+{% block kanban_title %}Detalle de Tarjeta: {{ card.application.user.nombre }} {{ card.application.user.apellido_paterno }}{% endblock %}
+
+{% block kanban_breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'kanban:board_view' card.column.board.id %}">{{ card.column.board.name }}</a></li>
+<li class="breadcrumb-item active">Detalle de tarjeta</li>
+{% endblock %}
+
+{% block kanban_actions %}
+<div class="btn-group">
+    <a href="{% url 'kanban:board_view' card.column.board.id %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Volver al tablero
+    </a>
+</div>
+{% endblock %}
+
+{% block kanban_content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Información principal de la tarjeta -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-id-card me-2"></i>Información del Candidato
+                    </h5>
+                    <span class="badge bg-light text-dark">{{ card.column.name }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h2 class="h4 mb-3">{{ card.application.user.nombre }} {{ card.application.user.apellido_paterno }} {{ card.application.user.apellido_materno }}</h2>
+                            <div class="mb-3">
+                                <h6 class="text-muted">Datos de contacto:</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-envelope me-2"></i>{{ card.application.user.email|default:"No disponible" }}</li>
+                                    <li><i class="fas fa-phone me-2"></i>{{ card.application.user.phone|default:"No disponible" }}</li>
+                                    <li><i class="fas fa-map-marker-alt me-2"></i>{{ card.application.user.ubicacion|default:"No disponible" }}</li>
+                                </ul>
+                            </div>
+                            <div class="mb-3">
+                                <h6 class="text-muted">Aplicación para:</h6>
+                                <p class="mb-1">{{ card.application.vacancy.titulo }}</p>
+                                <p class="mb-1 small text-muted">{{ card.application.vacancy.empresa.nombre }}</p>
+                                <p class="small text-muted">Aplicó el: {{ card.application.applied_at|date:"d/m/Y H:i" }}</p>
+                            </div>
+                            {% if card.application.user.skills %}
+                            <div class="mb-3">
+                                <h6 class="text-muted">Habilidades:</h6>
+                                <div class="skills-container">
+                                    {% for skill in card.application.user.skills|split:"," %}
+                                        <span class="badge bg-secondary me-1 mb-1">{{ skill|trim }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Estado</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Prioridad:</span>
+                                            <span class="priority-badge priority-{{ card.priority }}">
+                                                {{ card.get_priority_display }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Asignado a:</span>
+                                            <span>{{ card.assignee.get_full_name|default:"Sin asignar" }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Fecha límite:</span>
+                                            <span>{{ card.due_date|date:"d/m/Y"|default:"No establecida" }}</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Última actividad:</span>
+                                            <span>{{ card.last_activity|timesince }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" id="moveCardBtn" data-bs-toggle="modal" data-bs-target="#moveCardModal">
+                                    <i class="fas fa-exchange-alt me-1"></i>Mover tarjeta
+                                </button>
+                                <button class="btn btn-outline-secondary" id="editCardBtn" data-bs-toggle="modal" data-bs-target="#editCardModal">
+                                    <i class="fas fa-edit me-1"></i>Editar tarjeta
+                                </button>
+                                {% if not card.is_archived %}
+                                <button class="btn btn-outline-warning" id="archiveCardBtn">
+                                    <i class="fas fa-archive me-1"></i>Archivar tarjeta
+                                </button>
+                                {% else %}
+                                <button class="btn btn-outline-success" id="unarchiveCardBtn">
+                                    <i class="fas fa-box-open me-1"></i>Restaurar tarjeta
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sección de comentarios -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>Comentarios
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="commentsContainer" class="mb-3">
+                        {% if comments %}
+                            {% for comment in comments %}
+                                <div class="comment-item mb-3">
+                                    <div class="d-flex">
+                                        <div class="avatar me-2">
+                                            {% if comment.user.profile_image %}
+                                                <img src="{{ comment.user.profile_image.url }}" alt="{{ comment.user.username }}">
+                                            {% else %}
+                                                <span>{{ comment.user.first_name|first }}{{ comment.user.last_name|first }}</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="comment-content">
+                                            <div class="comment-header d-flex justify-content-between align-items-center">
+                                                <strong>{{ comment.user.get_full_name|default:comment.user.username }}</strong>
+                                                <small class="text-muted">{{ comment.created_at|date:"d/m/Y H:i" }}</small>
+                                            </div>
+                                            <div class="comment-body">
+                                                {{ comment.text|linebreaksbr }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                                <p>No hay comentarios aún</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <form id="commentForm">
+                        <div class="mb-3">
+                            <label for="commentInput" class="form-label">Añadir un comentario</label>
+                            <textarea id="commentInput" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i>Enviar comentario
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Archivos adjuntos -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paperclip me-2"></i>Archivos adjuntos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="attachmentsContainer" class="mb-3">
+                        {% if attachments %}
+                            {% for attachment in attachments %}
+                                <div class="attachment-item d-flex align-items-center mb-2 p-2 border rounded">
+                                    <i class="fas {{ attachment.content_type|file_icon_class }} fa-2x me-3"></i>
+                                    <div class="flex-grow-1">
+                                        <div class="attachment-name">{{ attachment.filename }}</div>
+                                        <div class="small text-muted">
+                                            {{ attachment.size|filesizeformat }} • 
+                                            Subido por {{ attachment.uploaded_by.get_full_name|default:attachment.uploaded_by.username }}
+                                        </div>
+                                    </div>
+                                    <a href="{{ attachment.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-file-upload fa-2x mb-2"></i>
+                                <p>No hay archivos adjuntos</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <form id="attachmentForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="fileInput" class="form-label">Adjuntar archivo</label>
+                            <input type="file" id="fileInput" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i>Subir archivo
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Historial de actividad -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Historial
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="timeline">
+                        {% for event in history %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6 class="timeline-title">
+                                        {{ event.get_change_type_display }}
+                                        <small class="text-muted">
+                                            {{ event.timestamp|date:"d/m/Y H:i" }}
+                                        </small>
+                                    </h6>
+                                    <p class="timeline-text">
+                                        {% if event.change_type == 'status' %}
+                                            Estado cambiado de <strong>{{ event.old_value }}</strong> a <strong>{{ event.new_value }}</strong>
+                                        {% elif event.change_type == 'column' %}
+                                            Movido de <strong>{{ event.old_value }}</strong> a <strong>{{ event.new_value }}</strong>
+                                        {% elif event.change_type == 'assignee' %}
+                                            Reasignado de <strong>{{ event.old_value|default:"Sin asignar" }}</strong> a <strong>{{ event.new_value|default:"Sin asignar" }}</strong>
+                                        {% elif event.change_type == 'priority' %}
+                                            Prioridad cambiada de <strong>{{ event.old_value }}</strong> a <strong>{{ event.new_value }}</strong>
+                                        {% elif event.change_type == 'due_date' %}
+                                            Fecha límite cambiada de <strong>{{ event.old_value|default:"No establecida" }}</strong> a <strong>{{ event.new_value|default:"No establecida" }}</strong>
+                                        {% elif event.change_type == 'archive' %}
+                                            Tarjeta {{ event.new_value }}
+                                        {% elif event.change_type == 'comment' %}
+                                            Nuevo comentario añadido
+                                        {% elif event.change_type == 'attachment' %}
+                                            Nuevo archivo adjunto
+                                        {% endif %}
+                                    </p>
+                                    {% if event.user %}
+                                        <p class="timeline-text small">
+                                            Por {{ event.user.get_full_name|default:event.user.username }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center text-muted py-3">
+                                <p>No hay historial disponible</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para mover tarjeta -->
+<div class="modal fade" id="moveCardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mover tarjeta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="moveCardForm">
+                    <div class="mb-3">
+                        <label class="form-label">Mover a columna</label>
+                        <select id="moveColumnSelect" name="target_column_id" class="form-select">
+                            {% for column in available_columns %}
+                                <option value="{{ column.id }}" {% if column.id == card.column.id %}selected{% endif %}>
+                                    {{ column.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveMove">Mover</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar tarjeta -->
+<div class="modal fade" id="editCardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar tarjeta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editCardForm">
+                    <div class="mb-3">
+                        <label class="form-label">Asignar a</label>
+                        <select id="assigneeSelect" name="assignee_id" class="form-select">
+                            <option value="">Sin asignar</option>
+                            {% for user in assignable_users %}
+                                <option value="{{ user.id }}" {% if card.assignee == user %}selected{% endif %}>
+                                    {{ user.get_full_name|default:user.username }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Prioridad</label>
+                        <select id="prioritySelect" name="priority" class="form-select">
+                            <option value="1" {% if card.priority == 1 %}selected{% endif %}>Baja</option>
+                            <option value="2" {% if card.priority == 2 %}selected{% endif %}>Normal</option>
+                            <option value="3" {% if card.priority == 3 %}selected{% endif %}>Alta</option>
+                            <option value="4" {% if card.priority == 4 %}selected{% endif %}>Urgente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Fecha límite</label>
+                        <input type="date" id="dueDateInput" name="due_date" class="form-control" 
+                            value="{% if card.due_date %}{{ card.due_date|date:'Y-m-d' }}{% endif %}">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveEdit">Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block kanban_extra_vars %}
+const CARD_ID = {{ card.id }};
+{% endblock %}
+
+{% block kanban_js %}
+<script src="{% static 'js/kanban_card_detail.js' %}"></script>
+{% endblock %}

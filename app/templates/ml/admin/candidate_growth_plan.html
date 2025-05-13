@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Plan de Desarrollo Profesional - {{ candidate.name }} - Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<style>
+    .growth-plan-header {
+        background: linear-gradient(135deg, #38b2ac, #319795);
+        color: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .skill-progress {
+        height: 12px;
+        border-radius: 6px;
+    }
+    .timeline {
+        position: relative;
+        margin: 2rem 0;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        width: 2px;
+        background-color: #e2e8f0;
+        top: 0;
+        bottom: 0;
+        left: 24px;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+        padding-left: 3rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        left: 17px;
+        top: 5px;
+        background-color: #4299e1;
+    }
+    .timeline-item.completed::before {
+        background-color: #48bb78;
+    }
+    .timeline-item.current::before {
+        background-color: #f6ad55;
+    }
+    .timeline-item.future::before {
+        background-color: #a0aec0;
+    }
+    .skill-badge {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 600;
+        border-radius: 30px;
+        margin-right: 0.4rem;
+        margin-bottom: 0.4rem;
+    }
+    .skill-card {
+        border-radius: 8px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .skill-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .growth-path-card {
+        border-left: 4px solid #4299e1;
+    }
+    .resource-card {
+        border-radius: 8px;
+        transition: transform 0.2s;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .resource-card:hover {
+        transform: translateY(-3px);
+    }
+    .section-title {
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    .current-skill {
+        background-color: #bee3f8;
+        color: #2c5282;
+    }
+    .target-skill {
+        background-color: #c6f6d5;
+        color: #276749;
+    }
+    .gap-skill {
+        background-color: #fed7d7;
+        color: #c53030;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado y Navegación -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'ml:dashboard' %}">Dashboard ML</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Plan de Desarrollo</li>
+                </ol>
+            </nav>
+            <h2 class="h3">
+                <i class="fas fa-graduation-cap me-2 text-primary"></i>Plan de Desarrollo Profesional
+            </h2>
+        </div>
+        <a href="{% url 'ml:dashboard' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i>Volver al Dashboard
+        </a>
+    </div>
+
+    <!-- Header de Candidato -->
+    <div class="growth-plan-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3 class="mb-1">{{ candidate.name }}</h3>
+                <p class="mb-2">{{ candidate.current_role }} en {{ candidate.current_company }}</p>
+                <div class="d-flex mb-3">
+                    <div class="me-4">
+                        <i class="far fa-calendar-alt me-1"></i>
+                        Último CV: {{ candidate.last_updated }}
+                    </div>
+                    <div class="me-4">
+                        <i class="fas fa-briefcase me-1"></i>
+                        Experiencia: {{ candidate.experience_years }} años
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="d-flex flex-column align-items-end">
+                    <h6 class="mb-2">Potencial de Crecimiento:</h6>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 100px; height: 10px;">
+                            <div class="progress-bar bg-success" style="width: {{ candidate.growth_potential }}%;"></div>
+                        </div>
+                        <span class="h5 mb-0">{{ candidate.growth_potential }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="row">
+        <!-- Columna Izquierda: Plan de Desarrollo -->
+        <div class="col-lg-8">
+            <!-- Resumen de Brechas de Habilidades -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2 text-primary"></i>Análisis de Brechas de Habilidades
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6>Progreso General</h6>
+                            <span>{{ candidate.current_match }}%</span>
+                        </div>
+                        <div class="progress skill-progress">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ candidate.current_match }}%" aria-valuenow="{{ candidate.current_match }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <h6 class="mb-3">Habilidades Actuales</h6>
+                            {% for skill in candidate.current_skills %}
+                                <span class="skill-badge current-skill mb-2">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <h6 class="mb-3">Habilidades Objetivo</h6>
+                            {% for skill in candidate.target_skills %}
+                                <span class="skill-badge target-skill mb-2">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <h6 class="mb-3">Brechas a Cubrir</h6>
+                            {% for skill in candidate.skill_gaps %}
+                                <span class="skill-badge gap-skill mb-2">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Plan de Desarrollo -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-road me-2 text-success"></i>Ruta de Desarrollo
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for item in candidate.development_path %}
+                            <div class="timeline-item {{ item.status }}">
+                                <h5>{{ item.title }}</h5>
+                                <p class="text-muted mb-1">{{ item.timeframe }}</p>
+                                <p>{{ item.description }}</p>
+                                {% if item.skills %}
+                                    <div>
+                                        {% for skill in item.skills %}
+                                            <span class="skill-badge bg-light text-dark">{{ skill }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recursos Recomendados -->
+            <div class="mb-4">
+                <h4 class="section-title">
+                    <i class="fas fa-book me-2 text-info"></i>Recursos Recomendados
+                </h4>
+                
+                <div class="row">
+                    {% for resource in candidate.recommended_resources %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card resource-card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start">
+                                        <div class="me-3">
+                                            {% if resource.type == 'course' %}
+                                                <i class="fas fa-laptop-code fa-2x text-primary"></i>
+                                            {% elif resource.type == 'certification' %}
+                                                <i class="fas fa-certificate fa-2x text-warning"></i>
+                                            {% elif resource.type == 'book' %}
+                                                <i class="fas fa-book fa-2x text-success"></i>
+                                            {% else %}
+                                                <i class="fas fa-link fa-2x text-info"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h5 class="card-title">{{ resource.title }}</h5>
+                                            <h6 class="text-muted mb-2">{{ resource.provider }}</h6>
+                                            <p class="small mb-2">{{ resource.description }}</p>
+                                            
+                                            <div class="mt-2 mb-3">
+                                                {% for skill in resource.skills %}
+                                                    <span class="skill-badge bg-light text-dark">{{ skill }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="far fa-clock me-1"></i>
+                                                    <span class="small">{{ resource.duration }}</span>
+                                                </div>
+                                                <div>
+                                                    <i class="fas fa-star text-warning"></i>
+                                                    <span class="small">{{ resource.rating }} ({{ resource.reviews }})</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <a href="{{ resource.url }}" target="_blank" class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="fas fa-external-link-alt me-1"></i>Explorar Recurso
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Columna Derecha: Próximos Roles y Oportunidades -->
+        <div class="col-lg-4">
+            <!-- Proyección de Carrera -->
+            <div class="card mb-4 growth-path-card">
+                <div class="card-header bg-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>Proyección de Carrera
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5 class="mb-0">Rol Actual</h5>
+                            <p class="text-muted">{{ candidate.current_role }}</p>
+                        </div>
+                        <i class="fas fa-arrow-down text-muted"></i>
+                    </div>
+                    
+                    {% for role in candidate.career_path %}
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h5 class="mb-0">{{ role.title }}</h5>
+                                <p class="text-muted">Estimado: {{ role.timeframe }}</p>
+                            </div>
+                            <div class="badge bg-{{ role.badge_class }}">{{ role.match }}% match</div>
+                        </div>
+                        {% if not forloop.last %}
+                            <i class="fas fa-arrow-down text-muted d-block text-center mb-4"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a href="#" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-briefcase me-1"></i>Explorar Más Roles
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Vacantes Recomendadas -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-bullseye me-2"></i>Vacantes Recomendadas
+                    </h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for vacancy in candidate.recommended_vacancies %}
+                            <a href="{% url 'ml:vacancy_analysis' vacancy.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ vacancy.title }}</h6>
+                                        <p class="mb-1 small">{{ vacancy.company }}</p>
+                                    </div>
+                                    <div class="badge bg-success">{{ vacancy.match }}%</div>
+                                </div>
+                            </a>
+                        {% empty %}
+                            <div class="list-group-item text-center py-3">
+                                <p class="text-muted mb-0">No hay vacantes recomendadas actualmente</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recomendaciones Personalizadas -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Recomendaciones Personalizadas
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for rec in candidate.personalized_recommendations %}
+                            <li class="list-group-item">
+                                <h6 class="mb-1">{{ rec.title }}</h6>
+                                <p class="mb-0">{{ rec.description }}</p>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item text-center py-3">
+                                <p class="text-muted mb-0">No hay recomendaciones personalizadas</p>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Última actualización -->
+    <div class="text-end text-muted small mt-4">
+        <i class="fas fa-sync me-1"></i>Última actualización: {{ timestamp|date:"d/m/Y H:i" }}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Placeholder para futuras funcionalidades
+    });
+</script>
+{% endblock %}
