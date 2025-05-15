@@ -2445,3 +2445,7 @@ class Preference(models.Model):
     def get_category_display(self):
         """Obtiene la representación legible de la categoría."""
         return dict(self.PREFERENCE_TYPES).get(self.category, 'Desconocido')
+
+
+# Importando el User estándar de Django para módulos como SEXSI
+from django.contrib.auth.models import User

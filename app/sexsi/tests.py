@@ -3,7 +3,7 @@
 # Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
 
 from django.test import TestCase, Client
-from django.contrib.auth.models import User
+from app.models import Person
 from django.utils.timezone import now, timedelta
 from app.models import ConsentAgreement
 import uuid

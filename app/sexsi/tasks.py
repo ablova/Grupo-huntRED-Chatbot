@@ -5,7 +5,7 @@ from django.utils.timezone import now, timedelta
 from app.models import ConsentAgreement, DiscountCoupon
 from app.com.chatbot.workflow.sexsi import send_signature_reminder
 from app.com.chatbot.integrations.services import send_message, notify_employer, EnhancedNetworkGamificationProfile, send_email
-from django.contrib.auth.models import User
+from app.models import Person
 import logging
 import uuid
 

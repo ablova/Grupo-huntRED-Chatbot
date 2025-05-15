@@ -229,7 +229,6 @@ INSTALLED_APPS = [
     'drf_yasg',
     'silk',
     'django_extensions',
-    'app',
     'app',  # Incluye todos los módulos de app
     'app.sexsi', # Recordemos que este tiene unos contratos separados.
 ]

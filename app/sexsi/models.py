@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.utils.timezone import now, timedelta
-from app.models import User
+from app.models import Person
 import uuid
 from django.urls import reverse
 from datetime import date
@@ -47,8 +47,8 @@ class ConsentAgreement(models.Model):
     ]
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_agreements')
-    invitee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invited_agreements', null=True, blank=True)
+    creator = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='created_agreements')
+    invitee = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='invited_agreements', null=True, blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
     date_of_encounter = models.DateTimeField()
     location = models.CharField(max_length=200)
@@ -169,7 +169,7 @@ class PaymentTransaction(models.Model):
 
 class DiscountCoupon(models.Model):
     """Modelo para almacenar cupones de descuento con diferentes porcentajes y un cupón de 100%."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='discount_coupons')
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='discount_coupons')
     code = models.CharField(max_length=10, unique=True)
     discount_percentage = models.PositiveIntegerField()
     expiration_date = models.DateTimeField()
