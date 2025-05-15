@@ -1,3 +1,4 @@
+# /home/pablo/app/module_registry.py
 """
 Module Registry for Lazy Loading
 
@@ -10,8 +11,10 @@ import os
 import pkgutil
 import sys
 from typing import Callable, Dict, Optional, TypeVar
-
+import logging
 from app.lazy_imports import LazyImporter, LazyModule
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
@@ -29,41 +32,57 @@ class ModuleRegistry:
         Args:
             base_package: The base package to start the scan from. Defaults to 'app'.
         """
-        base_module = importlib.import_module(base_package)
-        base_path = os.path.dirname(base_module.__file__)
+        try:
+            base_module = importlib.import_module(base_package)
+            base_path = os.path.dirname(base_module.__file__)
 
-        for _, module_name, _ in pkgutil.walk_packages([base_path], prefix=base_package + '.'):
-            # Skip test modules and private modules
-            if module_name.endswith('.tests') or module_name.split('.')[-1].startswith('_'):
-                continue
+            for _, module_name, _ in pkgutil.walk_packages([base_path], prefix=base_package + '.'):
+                # Skip test modules and private modules
+                if module_name.endswith('.tests') or module_name.split('.')[-1].startswith('_'):
+                    continue
 
-            # Create a loader for each module
-            def create_loader(full_module_name: str) -> Callable[[], object]:
-                def loader():
-                    return importlib.import_module(full_module_name)
-                return loader
+                self._importer.register(module_name, module_name)
+                self._modules[module_name] = module_name
 
-            self._importer.register(module_name, create_loader(module_name))
-            self._modules[module_name] = module_name
+        except Exception as e:
+            logger.error(f"Error auto-registering modules: {str(e)}")
 
     def get_module(self, module_name: str) -> Optional[LazyModule]:
         """Get a lazy-loaded module by name.
 
         Args:
-            module_name: The full name of the module to load.
+            module_name: The name of the module to retrieve.
 
         Returns:
-            A LazyModule instance if registered, None otherwise.
+            Optional[LazyModule]: The lazy-loaded module or None if not found.
         """
-        return self._importer.get(module_name)
+        return self._importer.get_module(module_name)
 
-    def list_registered_modules(self) -> list[str]:
-        """List all registered module names.
+    def register_module(self, name: str, module_path: str) -> None:
+        """Register a module for lazy loading.
+
+        Args:
+            name: The name to use when accessing the module
+            module_path: The full module path (e.g., 'app.com.chatbot.chatbot')
+        """
+        if name in self._modules:
+            logger.warning(f"Module {name} already registered")
+            return
+        
+        self._importer.register(name, module_path)
+        self._modules[name] = module_path
+
+    def get(self, name: str, attr: str) -> any:
+        """Get an attribute from a registered module.
+
+        Args:
+            name: The name of the module
+            attr: The attribute to get from the module
 
         Returns:
-            A sorted list of registered module names.
+            Any: The requested attribute or None if not found
         """
-        return sorted(self._modules.keys())
+        return self._importer.get(name, attr)
 
 # Create a singleton instance
 _REGISTRY = ModuleRegistry()
@@ -77,14 +96,14 @@ def auto_register_modules(base_package: str = 'app') -> None:
     """
     _REGISTRY.auto_register(base_package)
 
-def get_module(module_name: str) -> Optional[LazyModule]:
-    """Get a lazy-loaded module by name.
+def get_module(module_name: str) -> Optional[object]:
+    """Get a module by name.
 
     Args:
-        module_name: The full name of the module to load.
+        module_name: The name of the module to retrieve.
 
     Returns:
-        A LazyModule instance if registered, None otherwise.
+        Optional[object]: The module or None if not found.
     """
     return _REGISTRY.get_module(module_name)
 

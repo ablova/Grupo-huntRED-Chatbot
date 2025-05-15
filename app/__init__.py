@@ -1,9 +1,9 @@
 # app/__init__.py
-# Removed manual lazy_imports registration as ModuleRegistry handles this automatically
-
-# Establecer el paquete actual
 
 # Exports for app module
-# Add specific exports if necessary
+default_app_config = 'app.apps.AppConfig'
+__all__ = ['models', 'views', 'admin', 'forms', 'api', 'tasks', 'signals']
 
-__all__ = []
+# Inicializar el registro de módulos
+from app.module_registry import auto_register
+auto_register()

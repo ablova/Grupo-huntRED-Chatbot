@@ -301,6 +301,7 @@ if os.environ.get('DJANGO_SETTINGS_MODULE'):
     validate_imports()
 
 # Add getter functions for existing modules
+# Funciones de chatbot
 def get_conversational_flow_manager():
     """Get ConversationalFlowManager instance."""
     from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
@@ -310,6 +311,10 @@ def get_intents_handler():
     """Get IntentsHandler instance."""
     from app.com.chatbot.intents_handler import IntentsHandler
     return IntentsHandler
+
+def get_intent_detector():
+    """Get IntentDetector instance (alias for IntentsHandler)."""
+    return get_intents_handler()
 
 def get_intents_optimizer():
     """Get IntentsOptimizer instance."""
@@ -331,6 +336,37 @@ def get_state_manager():
     from app.com.chatbot.state_manager import StateManager
     return StateManager
 
+def get_gpt_handler():
+    """Get GPTHandler instance."""
+    from app.com.chatbot.gpt_handler import GPTHandler
+    return GPTHandler
+
+def get_channel_config():
+    """Get channel configuration."""
+    from app.com.utils.channel_config import ChannelConfig
+    return ChannelConfig
+
+def get_rate_limiter():
+    """Get RateLimiter instance."""
+    from app.com.utils.rate_limiter import RateLimiter
+    return RateLimiter
+
+# Funciones de workflow
+def get_workflow_manager():
+    """Get WorkflowManager instance."""
+    from app.com.chatbot.workflow.manager import WorkflowManager
+    return WorkflowManager
+
+def get_contract_generator():
+    """Get ContractGenerator instance."""
+    from app.com.chatbot.workflow.contract_generator import ContractGenerator
+    return ContractGenerator
+
+def get_profile_creator():
+    """Get ProfileCreator instance."""
+    from app.com.chatbot.workflow.profile_creator import ProfileCreator
+    return ProfileCreator
+    
 # Register essential modules at startup
 if os.environ.get('DJANGO_SETTINGS_MODULE'):
     validate_imports()

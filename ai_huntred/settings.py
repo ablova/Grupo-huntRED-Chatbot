@@ -25,31 +25,28 @@ env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 env_file = os.path.join(BASE_DIR, '.env')
 
-# --- Funciones para obtener configuración de la base de datos
-def get_whatsapp_api_config(business_unit):
-    """
-    Obtiene la configuración de WhatsApp para una unidad de negocio
-    """
-    from app.models import WhatsAppAPI
-    try:
-        return WhatsAppAPI.objects.get(
-            business_unit=business_unit,
-            is_active=True
-        )
-    except WhatsAppAPI.DoesNotExist:
-        return None
 
-def get_telegram_api_config(business_unit):
+# --- Funciones para obtener configuración de la base de datos
+# Funciones de configuración de API
+
+def get_api_config(api_type, business_unit):
     """
-    Obtiene la configuración de Telegram para una unidad de negocio
+    Obtiene la configuración de API para una unidad de negocio
     """
-    from app.models import TelegramAPI
     try:
-        return TelegramAPI.objects.get(
+        if api_type == 'whatsapp':
+            from app.models import WhatsAppAPI as APIModel
+        elif api_type == 'telegram':
+            from app.models import TelegramAPI as APIModel
+        else:
+            raise ValueError(f"API type {api_type} not supported")
+            
+        return APIModel.objects.get(
             business_unit=business_unit,
             is_active=True
         )
-    except TelegramAPI.DoesNotExist:
+    except Exception as e:
+        logger.error(f"Error getting {api_type} API config: {str(e)}")
         return None
 
 # Configuración de publicación
@@ -230,16 +227,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'drf_yasg',
-    'app',
-    'app.com.chatbot',
-    'app.ml',
-    'app.com.utils',
-    'app.sexsi',
-    'app.milkyleak',
     'silk',
     'django_extensions',
-    'app.pagos',
-    'app.publish',
+    'app',
+    'app',  # Incluye todos los módulos de app
+    'app.sexsi', # Recordemos que este tiene unos contratos separados.
 ]
 
 # Middleware
@@ -280,6 +272,7 @@ SECURE_HSTS_PRELOAD = True
 X_FRAME_OPTIONS = 'DENY'
 
 # Configuración de autenticación
+from app.temp_user_model import CustomUser
 AUTH_USER_MODEL = 'app.CustomUser'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

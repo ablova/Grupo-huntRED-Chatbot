@@ -40,14 +40,8 @@ sudo journalctl --vacuum-time=1s
 sudo journalctl --vacuum-size=2M
 
 #journalctl -p 4 -xb
-cd /home/pablo && source venv/bin/activate &&
-git fetch origin &&
-git reset --hard origin/main &&
-git status &&
-git clean -fdcd /home/pablo && source venv/bin/activate &&
-git fetch origin &&
-git reset --hard origin/main &&
-git status &&
+sudo chmod -R 775 /home/pablo
+sudo chmod g+s /home/pablo &&
 git clean -fd &&
 git log -1 &&
 sudo systemctl restart gunicorn nginx &&

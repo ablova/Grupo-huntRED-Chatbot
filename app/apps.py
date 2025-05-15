@@ -4,6 +4,7 @@ import sys
 import logging
 from django.apps import AppConfig as DjangoAppConfig
 from django.conf import settings
+from app.module_registry import ModuleRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -12,17 +13,27 @@ class AppConfig(DjangoAppConfig):
     name = 'app'
 
     def ready(self):
+        # Inicializar el registro de módulos
+        module_registry = ModuleRegistry()
+        module_registry.auto_register()
+
         # Evitar ejecución en comandos de gestión como migrate, makemigrations, etc.
         if any(arg in sys.argv for arg in ['migrate', 'makemigrations', 'collectstatic']):
             return
         
         # Importar signals solo si no es un comando de migración
-        import app.signals
-        
+        try:
+            import app.signals
+        except ImportError as e:
+            logger.error(f"Error importing signals: {str(e)}")
+            
         # Configurar TensorFlow solo si es necesario (por ejemplo, en runserver o celery)
         if 'runserver' in sys.argv or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
-            from app.ml.core.optimizers import configure_tensorflow
-            configure_tensorflow()
+            try:
+                from app.ml.core.optimizers import configure_tensorflow
+                configure_tensorflow()
+            except ImportError as e:
+                logger.error(f"Error configuring TensorFlow: {str(e)}")
         
         # Configurar PDFKit
         try:
@@ -34,7 +45,10 @@ class AppConfig(DjangoAppConfig):
         
         # Registrar handlers solo en entornos de ejecución
         if 'runserver' in sys.argv or 'gunicorn' in os.environ.get('SERVER_SOFTWARE', ''):
-            self.register_startup_handlers()
+            try:
+                self.register_startup_handlers()
+            except Exception as e:
+                logger.error(f"Error registering startup handlers: {str(e)}")
 
     def register_startup_handlers(self):
         from django.core.signals import request_started

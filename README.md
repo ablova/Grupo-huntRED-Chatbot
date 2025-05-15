@@ -191,14 +191,97 @@ class PaymentTransaction(models.Model):
 
 ### Módulo Pricing
 
-El módulo de Pricing (localizado en `app/pricing`) implementa un sistema avanzado para calcular precios dinámicos basados en diferentes modelos de negocio por BU, con soporte para addons, cupones y hitos de pago.
+El módulo de Pricing (localizado en `app/pricing`) es un sistema sofisticado que maneja cálculos de precios dinámicos, gestión de contratos y flujos financieros para todas las unidades de negocio. Está dividido en varios componentes especializados:
 
-#### Pricing Core
+#### Componentes Principales
 
-Componente central para cálculo de precios con soporte para dos modelos:
-- **Modelo Porcentaje**: Para huntRED®, basado en salarios y comisiones
-- **Modelo Fijo**: Para huntU y Amigro, con precios predefinidos
-- **Modelo AI**: Para huntRED® Executive con capa de IA para optimización
+1. **Pricing Core**
+   - Sistema de cálculo de precios dinámicos
+   - Soporte para múltiples modelos de negocio
+   - Gestión de addons y cupones
+   - Sistema de hitos de pago
+
+2. **Proposal Generator**
+   - Generación de propuestas de precios
+   - Desglose detallado de costos
+   - Integración con descripciones de trabajo
+   - Formato HTML y PDF
+
+3. **Contract Workflow**
+   - Firma digital de contratos
+   - Flujo de aprobación por superusuario
+   - Almacenamiento seguro de documentos
+   - Sistema de notificaciones
+
+4. **Fiscal Management**
+   - Gestión de responsabilidades fiscales
+   - Validación de datos fiscales
+   - Generación de reportes fiscales
+   - Notificaciones de pagos
+
+#### Modelos de Negocio
+
+1. **Modelo Porcentaje (huntRED®)**
+   - Cálculo basado en salarios
+   - Sistema de comisiones
+   - Optimización de precios con IA
+   - Soporte para addons específicos
+
+2. **Modelo Fijo (huntU/Amigro)**
+   - Precios predefinidos por servicio
+   - Escalas de precio por volumen
+   - Paquetes de servicios
+   - Promociones temporales
+
+3. **Modelo AI (huntRED® Executive)**
+   - Optimización de precios con IA
+   - Predicción de precios óptimos
+   - Análisis de mercado en tiempo real
+   - Ajustes dinámicos de precio
+
+#### Sistema de Addons
+
+- Addons específicos por BU
+- Precios dinámicos basados en volumen
+- Límite máximo de addons por vacante
+- Sistema de activación/inactivación
+
+#### Sistema de Cupones
+
+- Cupones de descuento fijo
+- Cupones porcentuales
+- Validación de fechas
+- Límite de usos por cupón
+
+#### Sistema de Hitos de Pago
+
+- Definición de hitos por BU
+- Eventos desencadenantes
+- Porcentajes de pago
+- Cálculo de fechas de vencimiento
+
+#### Integraciones
+
+- Integración con modelos de Company
+- Integración con modelos de Opportunity
+- Sistema de notificaciones
+- Reportes y analytics
+
+#### Ejemplo de Uso
+
+```python
+# Cálculo de precios para una oportunidad
+pricing = await calculate_pricing(opportunity_id=123)
+
+# Aplicación de cupón
+discount = await apply_coupon(opportunity_id=123, coupon_code="HUNT2024")
+
+# Generación de hitos de pago
+milestones = await generate_milestones(opportunity_id=123)
+
+# Generación de propuesta
+proposal = await generate_proposal(opportunity_id=123, format="pdf")
+```
 
 #### Modelos Principales
 

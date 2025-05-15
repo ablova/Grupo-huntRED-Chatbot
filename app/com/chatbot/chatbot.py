@@ -12,7 +12,7 @@ import time
 
 from app.import_config import (
     get_conversational_flow_manager,
-    get_intent_detector,
+    get_intents_handler,
     get_context_manager,
     get_response_generator,
     get_state_manager,

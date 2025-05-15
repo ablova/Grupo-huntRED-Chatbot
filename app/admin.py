@@ -680,7 +680,7 @@ class TelegramAPIAdmin(TokenMaskingMixin, admin.ModelAdmin):
     )
     inlines = [ConfiguracionBUInline, WhatsAppAPIInline, MessengerAPIInline, TelegramAPIInline, InstagramAPIInline, DominioScrapingInline]
 
-# ... (rest of the code remains the same)
+    def prompts_preview(self, obj):
         return "Sin prompts configurados"
     prompts_preview.short_description = "Vista previa de prompts"
 
