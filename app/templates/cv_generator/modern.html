@@ -1,3 +1,4 @@
+<!-- app/templates/cv_generator/modern.html -->
 <!DOCTYPE html>
 <html lang="{{ language }}">
 <head>
@@ -1485,6 +1486,26 @@
             <div class="disclaimer">
                 <p><strong>Nota:</strong> {{ ml_disclaimer }}</p>
             </div>
+            {% endif %}
+
+            <!-- Integración de SocialVerify™ -->            
+            {% if show_verification %}
+                {% include 'components/social_verify.html' with 
+                    truth_score=truth_score 
+                    verification_date=verification_date 
+                    social_verifications=social_verifications 
+                    education_verifications=education_verifications 
+                    experience_verifications=experience_verifications 
+                %}
+            {% endif %}
+
+            <!-- Integración de SocialLink™ -->            
+            {% if social_connections %}
+                {% include 'components/social_graph.html' with 
+                    social_connections=social_connections 
+                    social_connections_json=social_connections_json 
+                    person_id=person_id 
+                %}
             {% endif %}
         {% endinclude %}
 

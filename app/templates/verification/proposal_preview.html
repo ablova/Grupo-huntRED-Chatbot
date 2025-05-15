@@ -1,0 +1,255 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Propuesta de Verificación - {{ opportunity.name }}{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'verification/css/verification.css' %}">
+<style>
+    .verification-service {
+        border-left: 5px solid #17a2b8;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+    }
+    .badge-basic {
+        background-color: #28a745;
+    }
+    .badge-freemium {
+        background-color: #17a2b8;
+    }
+    .badge-premium {
+        background-color: #6f42c1;
+    }
+    .candidate-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .price-summary {
+        position: sticky;
+        top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="proposal-preview">
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="h3 mb-0">Propuesta de Verificación</h1>
+                <p class="text-muted">Oportunidad: {{ opportunity.name }} | Business Unit: {{ business_unit.name }}</p>
+            </div>
+        </div>
+
+        <form action="{% url 'purchase_package' opportunity.id %}" method="POST" id="purchaseForm">
+            {% csrf_token %}
+            
+            <!-- Pasar los addons seleccionados como datos ocultos -->
+            {% for addon_id in selected_addons %}
+            <input type="hidden" name="selected_addons" value="{{ addon_id }}">
+            {% endfor %}
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Detalles de la propuesta -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h5 class="mb-0">Detalles de la Propuesta</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group mb-4">
+                                <label for="package_name">Nombre del Paquete:</label>
+                                <input type="text" id="package_name" name="package_name" class="form-control" 
+                                       value="Verificación para {{ opportunity.name }}" required>
+                            </div>
+                            
+                            <h5 class="mt-4">Servicios de Verificación Seleccionados:</h5>
+                            
+                            {% if proposal.selected_addons %}
+                                {% for addon in proposal.selected_addons %}
+                                <div class="verification-service">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h5 class="mb-0">{{ addon.name }}</h5>
+                                        <span class="badge badge-{{ addon.tier }}">{{ addon.tier|upper }}</span>
+                                    </div>
+                                    <p>{{ addon.description }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <small class="text-muted">Precio por candidato:</small>
+                                            <strong class="ml-2">${{ addon.price }}</strong>
+                                        </div>
+                                        <div>
+                                            <small class="text-muted">Servicios incluidos:</small>
+                                            {% for service in addon.services %}
+                                            <span class="badge bg-secondary ml-1">{{ service.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    No se han seleccionado servicios de verificación.
+                                    <a href="{% url 'package_selection' opportunity.id %}" class="alert-link">Volver a seleccionar</a>.
+                                </div>
+                            {% endif %}
+                            
+                            <h5 class="mt-4">Candidatos a Verificar:</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="selectAllCandidates">
+                                        <label class="form-check-label" for="selectAllCandidates">
+                                            Seleccionar todos los candidatos ({{ candidates.count }})
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-right">
+                                    <span class="badge bg-info" id="selectedCount">0 seleccionados</span>
+                                </div>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-body candidate-list">
+                                    <div class="row">
+                                        {% for candidate in candidates %}
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input candidate-checkbox" type="checkbox" 
+                                                       name="selected_candidates" value="{{ candidate.id }}" 
+                                                       id="candidate_{{ candidate.id }}">
+                                                <label class="form-check-label" for="candidate_{{ candidate.id }}">
+                                                    {{ candidate.nombre }} {{ candidate.apellido }}
+                                                    <small class="d-block text-muted">{{ candidate.email }}</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <!-- Resumen de Precios -->
+                    <div class="card shadow-sm price-summary">
+                        <div class="card-header bg-gradient-success text-white">
+                            <h5 class="mb-0">Resumen de Precios</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Servicios seleccionados: <strong>{{ proposal.selected_addons|length }}</strong></p>
+                            <p>Candidatos: <strong id="candidateCount">0</strong> / {{ candidates.count }}</p>
+                            
+                            <hr>
+                            
+                            <h6>Desglose por Servicio:</h6>
+                            <ul class="list-group mb-3">
+                                {% for addon in proposal.pricing.addons %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span>{{ addon.name }}</span>
+                                        <small class="d-block text-muted">${{ addon.price }} x <span class="dynamic-count">0</span> candidatos</small>
+                                    </div>
+                                    <span class="dynamic-total" data-unit-price="{{ addon.price }}">$0.00</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            
+                            <hr>
+                            
+                            <div class="d-flex justify-content-between">
+                                <h5>Subtotal:</h5>
+                                <h5 id="dynamicSubtotal">$0.00</h5>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <h6>IVA (16%):</h6>
+                                <h6 id="dynamicIva">$0.00</h6>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mt-2">
+                                <h4>Total:</h4>
+                                <h4 id="dynamicTotal" class="text-primary">$0.00</h4>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button type="submit" id="purchaseButton" class="btn btn-success btn-lg btn-block" disabled>
+                                    Comprar Verificaciones <i class="fas fa-check-circle"></i>
+                                </button>
+                                <a href="{% url 'package_selection' opportunity.id %}" class="btn btn-light btn-block mt-2">
+                                    <i class="fas fa-arrow-left"></i> Volver a Selección
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+$(document).ready(function() {
+    // Función para actualizar conteo de candidatos seleccionados
+    function updateSelectedCount() {
+        const selectedCount = $('.candidate-checkbox:checked').length;
+        $('#selectedCount').text(selectedCount + ' seleccionados');
+        $('#candidateCount').text(selectedCount);
+        
+        // Actualizar precios
+        updatePrices(selectedCount);
+        
+        // Habilitar/deshabilitar botón de compra
+        if (selectedCount > 0) {
+            $('#purchaseButton').prop('disabled', false);
+        } else {
+            $('#purchaseButton').prop('disabled', true);
+        }
+    }
+    
+    // Función para actualizar precios basados en candidatos seleccionados
+    function updatePrices(candidateCount) {
+        let subtotal = 0;
+        
+        // Actualizar conteo y totales por addon
+        $('.dynamic-count').text(candidateCount);
+        
+        $('.dynamic-total').each(function() {
+            const unitPrice = parseFloat($(this).data('unit-price'));
+            const addonTotal = unitPrice * candidateCount;
+            $(this).text('$' + addonTotal.toFixed(2));
+            subtotal += addonTotal;
+        });
+        
+        // Calcular IVA y total
+        const iva = subtotal * 0.16;
+        const total = subtotal + iva;
+        
+        // Actualizar UI
+        $('#dynamicSubtotal').text('$' + subtotal.toFixed(2));
+        $('#dynamicIva').text('$' + iva.toFixed(2));
+        $('#dynamicTotal').text('$' + total.toFixed(2));
+    }
+    
+    // Manejar cambios en checkboxes de candidatos
+    $('.candidate-checkbox').change(function() {
+        updateSelectedCount();
+    });
+    
+    // Seleccionar/deseleccionar todos
+    $('#selectAllCandidates').change(function() {
+        $('.candidate-checkbox').prop('checked', $(this).prop('checked'));
+        updateSelectedCount();
+    });
+    
+    // Inicializar
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

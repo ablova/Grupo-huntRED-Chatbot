@@ -1,15 +1,27 @@
 # /home/pablo/app/com/utils/signature/pdf_generator.py
 import os
+import json
 import datetime
+import asyncio
+from typing import Dict, List, Any, Optional
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import Paragraph, Image, Table, TableStyle
 from pypdf import PdfMerger
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 from django.core.files.storage import default_storage
+from asgiref.sync import sync_to_async
+
+from app.models import Person
+from app.com.chatbot.validation.truth_analyzer import truth_analyzer
 
 # Intentar registrar la fuente SF Pro Display; usar Helvetica si falla
 FONT_NAME = "Helvetica"
@@ -104,134 +116,298 @@ def generate_candidate_summary(candidate):
     
     return output_path
 
-def generate_cv_pdf(candidate, business_unit):
-    """Genera un CV en PDF para el candidato, incluyendo información profesional y personalidad."""
-    output_path = f"/tmp/cv/{candidate.id}.pdf"
+async def generate_cv_pdf(candidate, business_unit, html_template="modern"):
+    """
+    Genera un CV en formato HTML y PDF para el candidato usando TruthSense™ y SocialVerify™.
+    
+    Args:
+        candidate: Persona/candidato a generar el CV
+        business_unit: Unidad de negocio (huntRED, huntU, Amigro)
+        html_template: Nombre de la plantilla HTML a utilizar
+        
+    Returns:
+        Dict con rutas a los archivos generados HTML y PDF
+    """
+    try:
+        from django.template.loader import render_to_string
+        from django.core.files.base import ContentFile
+        from weasyprint import HTML, CSS
+        from django.conf import settings
+        import tempfile
+        
+        # Formatear el contexto para la plantilla
+        context = await format_cv_context(candidate, business_unit)
+        
+        # Renderizar HTML usando el motor de plantillas de Django
+        template_path = f'cv_generator/{html_template}.html'
+        html_content = await sync_to_async(render_to_string)(template_path, context)
+        
+        # Definir rutas de salida
+        html_output_path = f"/tmp/{candidate.id}_{business_unit.lower()}_cv.html"
+        pdf_output_path = f"/tmp/{candidate.id}_{business_unit.lower()}_cv.pdf"
+        
+        # Guardar HTML
+        with open(html_output_path, 'w', encoding='utf-8') as html_file:
+            html_file.write(html_content)
+        
+        # Convertir HTML a PDF usando WeasyPrint
+        # Este proceso es CPU-intensivo, limitamos su uso con optimizaciones
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as temp_html:
+            temp_html.write(html_content.encode('utf-8'))
+            temp_html_path = temp_html.name
+        
+        # Definir CSS para optimizar la conversión
+        css = CSS(string='''
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        @media print {
+            body {
+                font-size: 12pt;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+        ''')
+        
+        # Usar una configuración de prioridad baja para WeasyPrint para optimizar CPU
+        os.nice(10)  # Reducir la prioridad del proceso para evitar bloquear el sistema
+        
+        # Convertir a PDF (operación CPU-intensiva)
+        # Notificando que se está optimizando el uso de CPU conforme a los requisitos
+        print("Optimizando conversión HTML a PDF para bajo uso de CPU...")
+        HTML(temp_html_path).write_pdf(pdf_output_path, stylesheets=[css])
+        
+        # Eliminar archivo temporal
+        os.unlink(temp_html_path)
+        
+        # Guardar en almacenamiento por defecto (para acceso posterior)
+        with open(pdf_output_path, "rb") as f:
+            pdf_content = f.read()
+            await sync_to_async(default_storage.save)(f"cvs/{candidate.id}_{business_unit.lower()}_cv.pdf", ContentFile(pdf_content))
+        
+        with open(html_output_path, "rb") as f:
+            html_content_bytes = f.read()
+            await sync_to_async(default_storage.save)(f"cvs/{candidate.id}_{business_unit.lower()}_cv.html", ContentFile(html_content_bytes))
+        
+        # Devolver rutas a los archivos generados
+        return {
+            'html_path': html_output_path,
+            'pdf_path': pdf_output_path,
+            'storage_path': f"cvs/{candidate.id}_{business_unit.lower()}_cv.pdf",
+            'html_storage_path': f"cvs/{candidate.id}_{business_unit.lower()}_cv.html"
+        }
+        
+    except ImportError as e:
+        # Caer en modo de compatibilidad si WeasyPrint no está disponible
+        print(f"Error de importación al generar CV: {str(e)}")
+        return await generate_cv_pdf_legacy(candidate, business_unit)
+    except Exception as e:
+        print(f"Error generando CV para {candidate.name}: {str(e)}")
+        # En caso de error, usar la versión legacy
+        return await generate_cv_pdf_legacy(candidate, business_unit)
+
+async def generate_cv_pdf_legacy(candidate, business_unit):
+    """Genera un CV en PDF para el candidato usando el método tradicional (ReportLab)."""
+    output_path = f"/tmp/{candidate.id}_{business_unit.lower()}_cv.pdf"
     c = canvas.Canvas(output_path, pagesize=A4)
-    page_num = 1
     
     # Encabezado
-    draw_header(c, business_unit, f"CV - {candidate.full_name}")
+    draw_header(c, business_unit, f"Curriculum Vitae - {candidate.name if hasattr(candidate, 'name') else ''}")
     
-    # Datos personales
-    c.setFont(FONT_NAME, 14)
-    c.drawString(10*mm, 240*mm, "Datos Personales")
+    # Datos del candidato
+    c.setFont(FONT_NAME, 16)
+    c.drawString(10*mm, 240*mm, candidate.name if hasattr(candidate, 'name') else '')
+    
     c.setFont(FONT_NAME, 12)
-    y_position = 230*mm
-    c.drawString(10*mm, y_position, f"Nombre: {candidate.full_name}")
-    y_position -= 10*mm
-    c.drawString(10*mm, y_position, f"Fecha de Nacimiento: {candidate.birth_date}")
-    y_position -= 10*mm
-    c.drawString(10*mm, y_position, f"Nacionalidad: {candidate.nationality}")
-    y_position -= 10*mm
-    c.drawString(10*mm, y_position, f"Teléfono: {candidate.phone}")
-    y_position -= 10*mm
-    c.drawString(10*mm, y_position, f"Correo Electrónico: {candidate.email}")
-    y_position -= 10*mm
-    c.drawString(10*mm, y_position, f"Dirección: {candidate.address}")
-    y_position -= 20*mm
+    if hasattr(candidate, 'headline') and candidate.headline:
+        c.drawString(10*mm, 235*mm, candidate.headline)
+    elif hasattr(candidate, 'current_position') and candidate.current_position:
+        c.drawString(10*mm, 235*mm, candidate.current_position)
+    
+    # Datos de contacto
+    contact_y = 225*mm
+    c.drawString(10*mm, contact_y, f"Email: {candidate.email if hasattr(candidate, 'email') else ''}")
+    contact_y -= 5*mm
+    c.drawString(10*mm, contact_y, f"Teléfono: {candidate.phone if hasattr(candidate, 'phone') else ''}")
+    contact_y -= 5*mm
+    
+    if hasattr(candidate, 'address') and candidate.address:
+        c.drawString(10*mm, contact_y, f"Dirección: {candidate.address}")
+        contact_y -= 5*mm
+    
+    # Línea separadora
+    c.setStrokeColor('#000000')
+    c.line(10*mm, contact_y - 2*mm, 200*mm, contact_y - 2*mm)
     
     # Resumen profesional
-    if candidate.professional_summary:
+    if hasattr(candidate, 'summary') and candidate.summary:
         c.setFont(FONT_NAME, 14)
-        c.drawString(10*mm, y_position, "Resumen Profesional")
-        y_position -= 10*mm
-        c.setFont(FONT_NAME, 12)
-        text = c.beginText(10*mm, y_position)
-        text.textLines(candidate.professional_summary)
-        c.drawText(text)
-        y_position -= 20*mm
+        summary_y = contact_y - 10*mm
+        c.drawString(10*mm, summary_y, "Resumen Profesional")
+        
+        c.setFont(FONT_NAME, 10)
+        summary_text = candidate.summary
+        
+        # Dividir por párrafos y mostrar el texto con alineación
+        paragraphs = summary_text.split('\n')
+        text_y = summary_y - 5*mm
+        
+        for para in paragraphs:
+            text_y -= 5*mm
+            c.drawString(15*mm, text_y, para)
+        
+        # Actualizar la posición Y después del resumen
+        current_y = text_y - 10*mm
+    else:
+        current_y = contact_y - 10*mm
     
-    # Experiencia laboral
-    c.setFont(FONT_NAME, 14)
-    c.drawString(10*mm, y_position, "Experiencia Laboral")
-    y_position -= 10*mm
-    c.setFont(FONT_NAME, 12)
-    for job in candidate.work_experience:
-        c.drawString(10*mm, y_position, f"{job.company} - {job.position}")
-        y_position -= 10*mm
-        c.drawString(10*mm, y_position, f"Periodo: {job.start_date} - {job.end_date}")
-        y_position -= 10*mm
-        text = c.beginText(10*mm, y_position)
-        text.textLines(f"Responsabilidades: {job.responsibilities}")
-        c.drawText(text)
-        y_position -= 15*mm
+    # Experiencia profesional
+    if hasattr(candidate, 'experience_set'):
+        experiences = await sync_to_async(list)(candidate.experience_set.all())
+        
+        if experiences:
+            c.setFont(FONT_NAME, 14)
+            c.drawString(10*mm, current_y, "Experiencia Profesional")
+            current_y -= 10*mm
+            
+            for experience in experiences:
+                c.setFont(FONT_NAME, 12)
+                c.drawString(15*mm, current_y, f"{experience.position} en {experience.company}")
+                current_y -= 5*mm
+                
+                c.setFont(FONT_NAME, 10)
+                date_str = f"{experience.start_date} - {experience.end_date if experience.end_date else 'Presente'}"
+                c.drawString(15*mm, current_y, date_str)
+                current_y -= 5*mm
+                
+                if experience.description:
+                    c.setFont(FONT_NAME, 10)
+                    lines = experience.description.split('\n')
+                    for line in lines:
+                        c.drawString(20*mm, current_y, line)
+                        current_y -= 5*mm
+                
+                current_y -= 5*mm
     
-    # Educación y certificaciones
-    c.setFont(FONT_NAME, 14)
-    c.drawString(10*mm, y_position, "Educación y Certificaciones")
-    y_position -= 10*mm
-    c.setFont(FONT_NAME, 12)
-    for edu in candidate.education:
-        c.drawString(10*mm, y_position, f"{edu.institution} - {edu.degree} ({edu.year_completed})")
-        y_position -= 10*mm
+    # Educación
+    if hasattr(candidate, 'education_set'):
+        educations = await sync_to_async(list)(candidate.education_set.all())
+        
+        if educations:
+            c.setFont(FONT_NAME, 14)
+            c.drawString(10*mm, current_y, "Educación")
+            current_y -= 10*mm
+            
+            for education in educations:
+                c.setFont(FONT_NAME, 12)
+                degree_field = f"{education.degree}"
+                if hasattr(education, 'field') and education.field:
+                    degree_field += f" en {education.field}"
+                c.drawString(15*mm, current_y, degree_field)
+                current_y -= 5*mm
+                
+                c.setFont(FONT_NAME, 10)
+                c.drawString(15*mm, current_y, education.institution)
+                current_y -= 5*mm
+                
+                start_year = education.start_year if hasattr(education, 'start_year') else ''
+                end_year = education.end_year if hasattr(education, 'end_year') and education.end_year else 'Presente'
+                date_str = f"{start_year} - {end_year}"
+                c.drawString(15*mm, current_y, date_str)
+                current_y -= 10*mm
     
-    # Habilidades técnicas y blandas
-    y_position -= 10*mm
-    c.setFont(FONT_NAME, 14)
-    c.drawString(10*mm, y_position, "Habilidades Técnicas")
-    y_position -= 10*mm
-    c.setFont(FONT_NAME, 12)
-    text = c.beginText(10*mm, y_position)
-    text.textLines(", ".join(candidate.hard_skills))
-    c.drawText(text)
-    y_position -= 10*mm
+    # Habilidades
+    if hasattr(candidate, 'skill_set'):
+        skills = await sync_to_async(list)(candidate.skill_set.all())
+        
+        if skills:
+            c.setFont(FONT_NAME, 14)
+            c.drawString(10*mm, current_y, "Habilidades")
+            current_y -= 10*mm
+            
+            c.setFont(FONT_NAME, 10)
+            skill_text = ", ".join(skill.name for skill in skills)
+            
+            # Dividir las habilidades en líneas múltiples si es necesario
+            max_width = 180*mm
+            words = skill_text.split(', ')
+            current_line = []
+            
+            for word in words:
+                test_line = ', '.join(current_line + [word])
+                if c.stringWidth(test_line, FONT_NAME, 10) <= max_width:
+                    current_line.append(word)
+                else:
+                    c.drawString(15*mm, current_y, ', '.join(current_line))
+                    current_y -= 5*mm
+                    current_line = [word]
+            
+            if current_line:
+                c.drawString(15*mm, current_y, ', '.join(current_line))
+                current_y -= 10*mm
     
-    c.setFont(FONT_NAME, 14)
-    c.drawString(10*mm, y_position, "Habilidades Blandas")
-    y_position -= 10*mm
-    c.setFont(FONT_NAME, 12)
-    text = c.beginText(10*mm, y_position)
-    text.textLines(", ".join(candidate.soft_skills))
-    c.drawText(text)
-    y_position -= 20*mm
-    
-    # Idiomas
-    if candidate.languages:
+    # Gráfico de personalidad si está disponible
+    if hasattr(candidate, 'extras') and 'personality_results' in candidate.extras:
         c.setFont(FONT_NAME, 14)
-        c.drawString(10*mm, y_position, "Idiomas")
-        y_position -= 10*mm
-        c.setFont(FONT_NAME, 12)
-        text = c.beginText(10*mm, y_position)
-        text.textLines(", ".join(candidate.languages))
-        c.drawText(text)
-        y_position -= 20*mm
-    
-    # Pie de página
-    draw_footer(c, page_num, f"CV - {candidate.full_name}")
-    
-    # Resultados de personalidad (nueva página)
-    if hasattr(candidate, 'metadata') and 'personality_results' in candidate.metadata:
-        c.showPage()
-        page_num += 1
-        draw_header(c, business_unit, f"CV - {candidate.full_name}")
-        c.setFont(FONT_NAME, 14)
-        c.drawString(10*mm, 240*mm, "Resultados de Prueba de Personalidad")
-        c.setFont(FONT_NAME, 12)
+        c.drawString(10*mm, current_y, "Perfil de Personalidad")
+        current_y -= 10*mm
+        
         try:
-            graph_path = generate_personality_graph(candidate)
-            c.drawImage(graph_path, 10*mm, 140*mm, width=180*mm, preserveAspectRatio=True)
-            y_position = 120*mm
-            for trait, score in candidate.metadata['personality_results'].items():
-                c.drawString(10*mm, y_position, f"{trait.capitalize()}: {score:.2f}")
-                y_position -= 10*mm
+            # Modificar para usar extras en lugar de metadata
+            personality_data = candidate.extras['personality_results']
+            traits = list(personality_data.keys())
+            scores = list(personality_data.values())
+            
+            # Generar gráfico radar temporal
+            num_traits = len(traits)
+            angles = np.linspace(0, 2 * np.pi, num_traits, endpoint=False).tolist()
+            angles += angles[:1]
+            scores += scores[:1]
+            
+            fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(projection='polar'))
+            ax.plot(angles, scores, linewidth=2, linestyle='solid', color='blue')
+            ax.fill(angles, scores, 'blue', alpha=0.3)
+            ax.set_xticks(angles[:-1])
+            ax.set_xticklabels(traits, fontsize=10)
+            ax.set_title('Resultados de Personalidad', size=14, pad=20)
+            ax.set_ylim(0, 5)
+            
+            graph_path = f"/tmp/{candidate.id}_personality_graph.png"
+            plt.savefig(graph_path, bbox_inches='tight')
+            plt.close()
+            
+            c.drawImage(graph_path, 20*mm, current_y - 70*mm, width=160*mm, preserveAspectRatio=True)
+            current_y -= 80*mm  # Espacio para el gráfico
+            
+            c.setFont(FONT_NAME, 10)
+            for trait, score in personality_data.items():
+                c.drawString(15*mm, current_y, f"{trait.capitalize()}: {score:.2f}")
+                current_y -= 5*mm
+                
+            # Eliminar la imagen temporal
             if os.path.exists(graph_path):
                 os.remove(graph_path)
+                
         except Exception as e:
-            c.drawString(10*mm, 120*mm, f"Error al generar gráfico de personalidad: {e}")
-        draw_footer(c, page_num, f"CV - {candidate.full_name}")
+            c.drawString(15*mm, current_y, f"Error al generar gráfico de personalidad: {e}")
+            current_y -= 10*mm
     
-    # Integración del CV original (nueva página)
-    if business_unit in ["huntred", "huntu"] and candidate.cv_file:
-        original_cv_path = f"/home/pablo/app/media/cv/{candidate.cv_file}"
-        if os.path.exists(original_cv_path):
-            c.showPage()
-            page_num += 1
-            draw_header(c, business_unit, f"CV - {candidate.full_name}")
-            c.setFont(FONT_NAME, 14)
-            c.drawString(10*mm, 240*mm, "Anexo: CV Original del Candidato")
-            c.drawImage(original_cv_path, 10*mm, 140*mm, width=180*mm, preserveAspectRatio=True)
-            draw_footer(c, page_num, f"CV - {candidate.full_name}")
+    # Añadir notificación de TruthSense™ si está disponible
+    try:
+        # Obtener datos de verificación (simplificados para la versión legacy)
+        verification_data = await prepare_verification_data(candidate.id)
+        truth_score = verification_data.get('truth_score', 0)
+        
+        if truth_score > 0:
+            c.setFont(FONT_NAME, 8)
+            c.drawString(10*mm, 30*mm, f"Perfil verificado por TruthSense™ - Puntuación: {truth_score}%")
+            c.drawString(10*mm, 27*mm, f"Verificado el: {verification_data.get('verification_date', datetime.datetime.today().strftime('%d/%m/%Y'))}")
+    except Exception as e:
+        # No mostrar errores de verificación en el CV
+        print(f"Error al incluir datos de TruthSense™: {e}")
     
     c.save()
     
@@ -316,6 +492,176 @@ def merge_signed_documents(contract_path, signed_path):
     
     except Exception as e:
         return f"Error al combinar documentos firmados: {e}"
+
+async def prepare_verification_data(person_id: int) -> Dict:
+    """
+    Prepara los datos de verificación social para incluir en el CV.
+    
+    Args:
+        person_id: ID del candidato
+        
+    Returns:
+        Dict con datos de verificación para la plantilla
+    """
+    try:
+        # Obtener el objeto Person
+        # Usando sync_to_async para convertir operaciones síncronas de Django a asíncronas
+        person = await sync_to_async(Person.objects.get)(id=person_id)
+        
+        # Obtener datos de verificación usando TruthSense™
+        verification_data = await truth_analyzer.prepare_cv_verification_data(person)
+        
+        return verification_data
+    except Exception as e:
+        print(f"Error preparando datos de verificación: {e}")
+        # Devolver datos por defecto en caso de error
+        return {
+            'truth_score': 0,
+            'verification_date': datetime.datetime.now().strftime('%d/%m/%Y'),
+            'show_verification': False,
+            'social_verifications': [],
+            'education_verifications': [],
+            'experience_verifications': [],
+            'social_connections': [],
+            'social_connections_json': '[]',
+            'person_id': str(person_id)
+        }
+
+async def format_cv_context(person: Person, business_unit: str = "huntRED") -> Dict:
+    """
+    Formatea el contexto completo para la generación de CV HTML.
+    
+    Args:
+        person: Objeto Person del candidato
+        business_unit: Unidad de negocio (huntRED, huntU, Amigro)
+        
+    Returns:
+        Dict con todo el contexto necesario para la plantilla HTML
+    """
+    # Preparar datos básicos del candidato
+    context = {
+        'name': person.name or '',
+        'email': person.email or '',
+        'phone': person.phone or '',
+        'headline': person.headline or '',
+        'summary': person.summary or '',
+        'language': person.language or 'es',
+        'business_unit': business_unit
+    }
+    
+    # Añadir experiencias profesionales
+    experiences = await sync_to_async(list)(person.experience_set.all().order_by('-id'))
+    context['experience'] = [{
+        'company': exp.company,
+        'position': exp.position,
+        'start_date': exp.start_date,
+        'end_date': exp.end_date or 'Presente',
+        'description': exp.description,
+        'achievements': exp.achievements.split('\n') if exp.achievements else []
+    } for exp in experiences]
+    
+    # Añadir educación
+    education = await sync_to_async(list)(person.education_set.all().order_by('-end_year'))
+    context['education'] = [{
+        'institution': edu.institution,
+        'degree': edu.degree,
+        'field': edu.field,
+        'start_year': edu.start_year,
+        'end_year': edu.end_year or 'Presente',
+        'grade': edu.grade,
+        'description': edu.description
+    } for edu in education]
+    
+    # Añadir habilidades
+    skills = await sync_to_async(list)(person.skill_set.all())
+    context['skills'] = [{
+        'name': skill.name,
+        'proficiency': skill.proficiency * 20 if skill.proficiency else 50,  # Convertir a porcentaje (0-100)
+        'years_experience': skill.years_experience,
+        'description': skill.description,
+        'certification': skill.certification
+    } for skill in skills]
+    
+    # Añadir idiomas
+    languages = await sync_to_async(list)(person.language_set.all())
+    context['languages'] = [{
+        'language': lang.language,
+        'level': lang.level,
+        'level_percentage': {
+            'Básico': 20,
+            'Intermedio': 50,
+            'Avanzado': 80,
+            'Nativo': 100,
+            'Básico': 20,
+            'Intermedio': 50,
+            'Avanzado': 80,
+            'Nativo': 100,
+            'Basic': 20,
+            'Intermediate': 50,
+            'Advanced': 80,
+            'Native': 100
+        }.get(lang.level, 50),
+        'certificate': lang.certification
+    } for lang in languages]
+    
+    # Añadir datos de verificación (TruthSense™, SocialVerify™ y SocialLink™)
+    verification_data = await prepare_verification_data(person.id)
+    context.update(verification_data)
+    
+    # Personalidad y metadata adicional
+    if person.extras and 'personality_results' in person.extras:
+        context['personality'] = person.extras['personality_results']
+    
+    # URLs para QR y logos
+    context['profile_qr_code_url'] = f"/media/qr_codes/{person.id}.png"
+    context['huntred_logo_url'] = f"/static/images/logo_huntred.png"
+    context['business_unit_logo_url'] = f"/static/images/logo_{business_unit.lower()}.png"
+    
+    # Añadir traducciones según idioma
+    context['translations'] = get_cv_translations(person.language or 'es')
+    
+    return context
+
+def get_cv_translations(language: str = 'es') -> Dict:
+    """
+    Obtiene las traducciones para las secciones del CV según el idioma.
+    
+    Args:
+        language: Código de idioma ('es', 'en')
+        
+    Returns:
+        Dict con las traducciones
+    """
+    translations = {
+        'es': {
+            'education': 'Educación',
+            'experience': 'Experiencia Profesional',
+            'skills': 'Habilidades',
+            'languages': 'Idiomas',
+            'certificates': 'Certificaciones',
+            'projects': 'Proyectos',
+            'personality': 'Personalidad',
+            'contact': 'Contacto',
+            'grade': 'Calificación',
+            'verification': 'Verificación',
+            'social_connections': 'Conexiones Sociales'
+        },
+        'en': {
+            'education': 'Education',
+            'experience': 'Professional Experience',
+            'skills': 'Skills',
+            'languages': 'Languages',
+            'certificates': 'Certifications',
+            'projects': 'Projects',
+            'personality': 'Personality',
+            'contact': 'Contact',
+            'grade': 'Grade',
+            'verification': 'Verification',
+            'social_connections': 'Social Connections'
+        }
+    }
+    
+    return translations.get(language, translations['es'])
 
 def generate_personality_report(candidate, unidad_negocio):
     """Genera un reporte independiente de personalidad con gráfico de radar."""

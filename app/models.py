@@ -1,4 +1,5 @@
 # app/models.py
+    
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
@@ -247,48 +248,52 @@ class BusinessUnit(models.Model):
             logger.info(f"Creada ConfiguracionBU por defecto para {self.name}")
 
 class Person(models.Model):
-    number_interaction=models.IntegerField(default=0)
-    ref_num=models.CharField(max_length=50,blank=True,null=True,help_text="Número de referencia para identificar origen del registro")
-    nombre=models.CharField(max_length=100)
-    apellido_paterno=models.CharField(max_length=200,blank=True,null=True)
-    apellido_materno=models.CharField(max_length=200,blank=True,null=True)
-    nacionalidad=models.CharField(max_length=100,blank=True,null=True)
-    fecha_nacimiento=models.DateField(blank=True,null=True)
-    sexo=models.CharField(max_length=20,choices=[('M','Masculino'),('F','Femenino'),('O','Otro')],blank=True,null=True)
-    email=models.EmailField(blank=True,null=True)
+    number_interaction = models.IntegerField(default=0)
+    ref_num = models.CharField(max_length=50, blank=True, null=True, help_text="Número de referencia para identificar origen del registro")
+    nombre = models.CharField(max_length=100)
+    apellido_paterno = models.CharField(max_length=200, blank=True, null=True)
+    apellido_materno = models.CharField(max_length=200, blank=True, null=True)
+    nacionalidad = models.CharField(max_length=100, blank=True, null=True)
+    fecha_nacimiento = models.DateField(blank=True, null=True)
+    sexo = models.CharField(max_length=20, choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')], blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
     company_email = models.EmailField(blank=True, null=True, help_text="Correo empresarial del contacto.")
-    phone=models.CharField(max_length=40,blank=True,null=True)
-    linkedin_url=models.URLField(max_length=200,blank=True,null=True,help_text="URL del perfil de LinkedIn")
-    preferred_language=models.CharField(max_length=5,default='es_MX',help_text="Ej: es_MX, en_US")
-    fecha_creacion=models.DateTimeField(auto_now_add=True)
-    tos_accepted=models.BooleanField(default=False)
-    JOB_SEARCH_STATUS_CHOICES=[
-        ('activa','Activa'),
-        ('pasiva','Pasiva'),
-        ('local','Local'),
-        ('remota','Remota'),
-        ('no_busca','No en búsqueda'),
+    phone = models.CharField(max_length=40, blank=True, null=True)
+    linkedin_url = models.URLField(max_length=200, blank=True, null=True, help_text="URL del perfil de LinkedIn")
+    preferred_language = models.CharField(max_length=5, default='es_MX', help_text="Ej: es_MX, en_US")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    tos_accepted = models.BooleanField(default=False)
+    JOB_SEARCH_STATUS_CHOICES = [
+        ('activa', 'Activa'),
+        ('pasiva', 'Pasiva'),
+        ('local', 'Local'),
+        ('remota', 'Remota'),
+        ('no_busca', 'No en búsqueda'),
     ]
-    job_search_status=models.CharField(max_length=20,choices=JOB_SEARCH_STATUS_CHOICES,blank=True,null=True,help_text="Estado actual de la búsqueda de empleo.")
-    skills=models.TextField(blank=True,null=True,help_text="Listado libre de skills del candidato.")
-    experience_years=models.IntegerField(blank=True,null=True,help_text="Años totales de experiencia.")
-    desired_job_types=models.CharField(max_length=100,blank=True,null=True,help_text="Tipos de trabajo deseados, ej: tiempo completo, medio tiempo, freelance.")
-    cv_file=models.FileField(upload_to='person_files/',blank=True,null=True,help_text="CV u otro documento del candidato.")
-    cv_parsed=models.BooleanField(default=False,help_text="Indica si el CV ha sido analizado.")
-    cv_analysis=models.JSONField(blank=True,null=True,help_text="Datos analizados del CV.")
-    salary_data=models.JSONField(default=dict,blank=True,help_text="Información salarial, beneficios y expectativas.")
-    personality_data=models.JSONField(default=dict,blank=True,help_text="Perfil de personalidad.")
-    experience_data=models.JSONField(default=dict,blank=True,help_text="Experiencia profesional detallada.")
-    metadata=models.JSONField(default=dict,blank=True,help_text="Información adicional del candidato.")
-    hire_date=models.DateField(null=True,blank=True)
-    points=models.IntegerField(default=0)
-    badges=models.ManyToManyField('Badge',blank=True)
-    current_stage=models.ForeignKey('WorkflowStage',on_delete=models.SET_NULL,null=True,blank=True,related_name='candidatos')
-    openness=models.FloatField(default=0)
-    conscientiousness=models.FloatField(default=0)
-    extraversion=models.FloatField(default=0)
-    agreeableness=models.FloatField(default=0)
-    neuroticism=models.FloatField(default=0)
+    job_search_status = models.CharField(max_length=20, choices=JOB_SEARCH_STATUS_CHOICES, blank=True, null=True, help_text="Estado actual de la búsqueda de empleo.")
+    skills = models.TextField(blank=True, null=True, help_text="Listado libre de skills del candidato.")
+    experience_years = models.IntegerField(blank=True, null=True, help_text="Años totales de experiencia.")
+    desired_job_types = models.CharField(max_length=100, blank=True, null=True, help_text="Tipos de trabajo deseados, ej: tiempo completo, medio tiempo, freelance.")
+    cv_file = models.FileField(upload_to='person_files/', blank=True, null=True, help_text="CV u otro documento del candidato.")
+    cv_parsed = models.BooleanField(default=False, help_text="Indica si el CV ha sido analizado.")
+    cv_analysis = models.JSONField(blank=True, null=True, help_text="Datos analizados del CV.")
+    salary_data = models.JSONField(default=dict, blank=True, help_text="Información salarial, beneficios y expectativas.")
+    personality_data = models.JSONField(default=dict, blank=True, help_text="Perfil de personalidad.")
+    experience_data = models.JSONField(default=dict, blank=True, help_text="Experiencia profesional detallada.")
+    metadata = models.JSONField(default=dict, blank=True, help_text="Información adicional del candidato.")
+    hire_date = models.DateField(null=True, blank=True)
+    points = models.IntegerField(default=0)
+    badges = models.ManyToManyField('Badge', blank=True)
+    current_stage = models.ForeignKey('WorkflowStage', on_delete=models.SET_NULL, null=True, blank=True, related_name='candidatos')
+    openness = models.FloatField(default=0)
+    conscientiousness = models.FloatField(default=0)
+    extraversion = models.FloatField(default=0)
+    agreeableness = models.FloatField(default=0)
+    neuroticism = models.FloatField(default=0)
+    social_connections = models.ManyToManyField('self', through='SocialConnection', symmetrical=False, related_name='connected_to')
+    
+    # Ya están definidos arriba
+    # Conexiones sociales para SocialLink™ (principalmente para candidatos Amigro)
     def __str__(self):
         nombre_completo=f"{self.nombre} {self.apellido_paterno or ''} {self.apellido_materno or ''}".strip()
         return nombre_completo
@@ -297,18 +302,61 @@ class Person(models.Model):
         missing_fields=[field for field in required_fields if not getattr(self,field,None)]
         return not missing_fields
 
+class SocialConnection(models.Model):
+    """Modelo para almacenar conexiones sociales entre candidatos (SocialLink™).
+    Principalmente utilizado para candidatos de Amigro que vienen en grupos."""
+    
+    RELATIONSHIP_CHOICES = [
+        ('friend', 'Amigo'),
+        ('family', 'Familiar'),
+        ('colleague', 'Colega'),
+        ('classmate', 'Compañero de estudios'),
+        ('referral', 'Referido')
+    ]
+    
+    from_person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='outgoing_connections')
+    to_person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='incoming_connections')
+    relationship_type = models.CharField(max_length=50, choices=RELATIONSHIP_CHOICES)
+    strength = models.PositiveSmallIntegerField(
+        default=1, 
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Fortaleza de la relación (1-5)"
+    )
+    description = models.TextField(blank=True, null=True, help_text="Descripción adicional de la relación")
+    verified = models.BooleanField(default=False, help_text="Indica si la relación ha sido verificada por ambas partes")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Conexión Social"
+        verbose_name_plural = "Conexiones Sociales"
+        unique_together = ('from_person', 'to_person')  # Evita duplicados
+        indexes = [models.Index(fields=['from_person']), models.Index(fields=['to_person'])]
+    
+    def __str__(self):
+        return f"{self.from_person} → {self.to_person} ({self.get_relationship_type_display()})"
+    
+    def save(self, *args, **kwargs):
+        # Si ambas personas pertenecen a unidades de negocio diferentes, verificar compatibilidad
+        if self.from_person.business_unit and self.to_person.business_unit and \
+           self.from_person.business_unit != self.to_person.business_unit:
+            # Si alguno es Amigro, permitir la conexión, de lo contrario validar
+            if not (self.from_person.business_unit.name.lower() == 'amigro' or \
+                   self.to_person.business_unit.name.lower() == 'amigro'):
+                logger.warning(f"Intento de conexión entre BUs diferentes: {self.from_person.business_unit} y {self.to_person.business_unit}")
+                # No lanzamos error, solo registramos la advertencia
+        super().save(*args, **kwargs)
+
 class Company(models.Model):
     name = models.CharField(max_length=255, unique=True, help_text="Nombre de la empresa.")
     industry = models.CharField(max_length=100, blank=True, null=True, help_text="Industria.")
-    size = models.CharField(max_length=50, blank=True, null=True, help_text="Tamaño.")
-    metadata = models.JSONField(default=dict, blank=True, help_text="Datos adicionales (ej. scrapeados).")
-    fiscal_data = models.JSONField(default=dict, blank=True, help_text="Datos fiscales del trabajador en esta empresa.")
-    fiscal_responsible = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True, related_name='fiscal_responsibilities', help_text="Persona responsable fiscalmente.")
+    size = models.CharField(max_length=50, blank=True, null=True, help_text="Tamaño de la empresa, ej: 1-10, 11-50, 51-200, 201-500, 501+")
+    location = models.CharField(max_length=100, blank=True, null=True, help_text="Ubicación principal.")
+    website = models.URLField(max_length=200, blank=True, null=True, help_text="Sitio web corporativo.")
+    description = models.TextField(blank=True, null=True, help_text="Descripción general de la empresa.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        indexes = [models.Index(fields=['name'])]
+    indexes = [models.Index(fields=['name'])]
 
     def __str__(self):
         return self.name
@@ -2120,6 +2168,224 @@ class DiscountCoupon(models.Model):
     
     def __str__(self):
         return f"Cupon {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
+
+class VerificationService(models.Model):
+    """
+    Modelo que define los tipos de servicios de verificación disponibles.
+    Ejemplos: TruthSense™ (identidad), SocialVerify™ (redes), BackgroundCheck (antecedentes), etc.
+    """
+    CATEGORY_CHOICES = [
+        ('identity', 'Verificación de Identidad'),
+        ('social', 'Verificación de Redes Sociales'),
+        ('education', 'Verificación Educativa'),
+        ('experience', 'Verificación de Experiencia'),
+        ('background', 'Verificación de Antecedentes')
+    ]
+    
+    name = models.CharField(max_length=128)
+    code = models.CharField(max_length=32, unique=True)
+    category = models.CharField(max_length=32, choices=CATEGORY_CHOICES)
+    description = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Servicio de Verificación"
+        verbose_name_plural = "Servicios de Verificación"
+        ordering = ['category', 'name']
+        indexes = [models.Index(fields=['category']), models.Index(fields=['code'])]
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
+
+class VerificationAddon(models.Model):
+    """
+    Modelo que define addons de verificación disponibles para comprar.
+    Cada addon tiene un precio y puede estar asociado a uno o más servicios.
+    Los addons se organizan en niveles: basic, freemium, premium.
+    """
+    TIER_CHOICES = [
+        ('basic', 'Básico'),
+        ('freemium', 'Freemium'),
+        ('premium', 'Premium')
+    ]
+    
+    name = models.CharField(max_length=128)
+    code = models.CharField(max_length=32, unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    tier = models.CharField(max_length=32, choices=TIER_CHOICES, default='basic')
+    description = models.TextField()
+    services = models.ManyToManyField(VerificationService, related_name='addons')
+    max_uses = models.PositiveIntegerField(default=1, help_text="Número máximo de veces que se puede usar este addon por paquete")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Addon de Verificación"
+        verbose_name_plural = "Addons de Verificación"
+        ordering = ['tier', 'price', 'name']
+        indexes = [models.Index(fields=['tier']), models.Index(fields=['code'])]
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_tier_display()}) - ${self.price}"
+    
+    def get_tier_display(self):
+        return dict(self.TIER_CHOICES).get(self.tier, 'Desconocido')
+
+class OpportunityVerificationPackage(models.Model):
+    """
+    Modelo que representa un paquete de verificación para una oportunidad.
+    Contiene la configuración de los addons seleccionados y el precio total.
+    """
+    opportunity = models.ForeignKey('Opportunity', on_delete=models.CASCADE, related_name='verification_packages')
+    name = models.CharField(max_length=128)
+    description = models.TextField(blank=True, null=True)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_packages')
+    status = models.CharField(max_length=32, choices=[
+        ('draft', 'Borrador'),
+        ('active', 'Activo'),
+        ('cancelled', 'Cancelado'),
+        ('completed', 'Completado')
+    ], default='draft')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Paquete de Verificación"
+        verbose_name_plural = "Paquetes de Verificación"
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['opportunity']), models.Index(fields=['status'])]
+    
+    def __str__(self):
+        return f"Paquete de verificación: {self.name} (Oportunidad: {self.opportunity.name})"
+
+class PackageAddonDetail(models.Model):
+    """
+    Modelo que relaciona addons específicos con un paquete de verificación.
+    Almacena el precio individual y cantidad de cada addon.
+    """
+    package = models.ForeignKey(OpportunityVerificationPackage, on_delete=models.CASCADE, related_name='addon_details')
+    addon = models.ForeignKey(VerificationAddon, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Detalle de Addon"
+        verbose_name_plural = "Detalles de Addons"
+        unique_together = ('package', 'addon')
+        indexes = [models.Index(fields=['package']), models.Index(fields=['addon'])]
+    
+    def __str__(self):
+        return f"{self.addon.name} x{self.quantity} - ${self.subtotal}"
+    
+    def save(self, *args, **kwargs):
+        # Calcular el subtotal automáticamente
+        self.subtotal = self.unit_price * self.quantity
+        super().save(*args, **kwargs)
+
+class CandidateVerification(models.Model):
+    """
+    Modelo que relaciona un candidato con un paquete de verificación.
+    Almacena el estado general de la verificación del candidato.
+    """
+    package = models.ForeignKey(OpportunityVerificationPackage, on_delete=models.CASCADE, related_name='candidate_verifications')
+    candidate = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='verifications')
+    status = models.CharField(max_length=32, choices=[
+        ('pending', 'Pendiente'),
+        ('in_progress', 'En Proceso'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido')
+    ], default='pending')
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='assigned_verifications')
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    overall_score = models.FloatField(null=True, blank=True, help_text="Puntuación general de 0 a 1")
+    verification_data = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        verbose_name = "Verificación de Candidato"
+        verbose_name_plural = "Verificaciones de Candidatos"
+        unique_together = ('package', 'candidate')
+        indexes = [models.Index(fields=['package']), models.Index(fields=['candidate']), models.Index(fields=['status'])]
+    
+    def __str__(self):
+        return f"Verificación: {self.candidate.name} ({self.get_status_display()})" 
+    
+    def mark_as_completed(self):
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        self.save()
+
+class CandidateServiceResult(models.Model):
+    """
+    Modelo que almacena los resultados de cada servicio de verificación.
+    Cada verificación de candidato puede tener múltiples resultados de servicios.
+    """
+    verification = models.ForeignKey(CandidateVerification, on_delete=models.CASCADE, related_name='service_results')
+    service = models.ForeignKey(VerificationService, on_delete=models.CASCADE)
+    addon = models.ForeignKey(VerificationAddon, on_delete=models.CASCADE, null=True)
+    status = models.CharField(max_length=32, choices=[
+        ('pending', 'Pendiente'),
+        ('in_progress', 'En Proceso'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido')
+    ], default='pending')
+    score = models.FloatField(null=True, blank=True, help_text="Puntuación de 0 a 1")
+    details = models.JSONField(default=dict, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        verbose_name = "Resultado de Servicio"
+        verbose_name_plural = "Resultados de Servicios"
+        unique_together = ('verification', 'service')
+        indexes = [models.Index(fields=['verification']), models.Index(fields=['service']), models.Index(fields=['status'])]
+    
+    def __str__(self):
+        return f"Resultado de {self.service.name} para {self.verification.candidate.name}"
+
+class SocialNetworkVerification(models.Model):
+    """
+    Modelo para almacenar verificaciones específicas de redes sociales.
+    Contiene información sobre la red, el perfil y los resultados de la verificación.
+    """
+    NETWORK_CHOICES = [
+        ('linkedin', 'LinkedIn'),
+        ('github', 'GitHub'),
+        ('facebook', 'Facebook'),
+        ('twitter', 'Twitter'),
+        ('instagram', 'Instagram'),
+        ('tiktok', 'TikTok'),
+        ('youtube', 'YouTube'),
+        ('other', 'Otra')
+    ]
+    
+    service_result = models.ForeignKey(CandidateServiceResult, on_delete=models.CASCADE, related_name='social_verifications')
+    network = models.CharField(max_length=32, choices=NETWORK_CHOICES)
+    profile_url = models.URLField(max_length=255)
+    profile_name = models.CharField(max_length=128, null=True, blank=True)
+    followers_count = models.PositiveIntegerField(null=True, blank=True)
+    verified_identity = models.BooleanField(default=False)
+    account_age_days = models.PositiveIntegerField(null=True, blank=True)
+    reputation_score = models.FloatField(null=True, blank=True)
+    verification_data = models.JSONField(default=dict, blank=True)
+    verified_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Verificación de Red Social"
+        verbose_name_plural = "Verificaciones de Redes Sociales"
+        unique_together = ('service_result', 'network', 'profile_url')
+        indexes = [models.Index(fields=['service_result']), models.Index(fields=['network'])]
+    
+    def __str__(self):
+        return f"Verificación de {self.get_network_display()} para {self.service_result.verification.candidate.name}"
 
 class AgreementPreference(models.Model):
     """

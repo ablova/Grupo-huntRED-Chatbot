@@ -1,0 +1,333 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Selección de Verificaciones - {{ opportunity.name }}{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'verification/css/verification.css' %}">
+<style>
+    .package-tier {
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .tier-basic {
+        border-left: 5px solid #28a745;
+    }
+    .tier-freemium {
+        border-left: 5px solid #17a2b8;
+    }
+    .tier-premium {
+        border-left: 5px solid #6f42c1;
+    }
+    .addon-card {
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .addon-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    .addon-card.selected {
+        border: 2px solid #007bff;
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+    .price-summary {
+        position: sticky;
+        top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="package-selection">
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="h3 mb-0">Selección de Servicios de Verificación</h1>
+                <p class="text-muted">Oportunidad: {{ opportunity.name }} | Business Unit: {{ business_unit.name }}</p>
+            </div>
+        </div>
+
+        <form action="{% url 'proposal_preview' opportunity.id %}" method="POST" id="packageSelectionForm">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Niveles de Verificación -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h5 class="mb-0">Seleccione los Servicios de Verificación</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Nivel Básico -->
+                            <div class="package-tier tier-basic p-3 mb-4">
+                                <h4>
+                                    <span class="badge bg-success">BÁSICO</span>
+                                    <small class="text-muted ml-2">Verificaciones esenciales</small>
+                                </h4>
+                                <p class="text-muted">Servicios fundamentales para todas las BUs</p>
+                                
+                                <div class="row">
+                                    {% for addon in addons_by_tier.basic %}
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card addon-card h-100" data-addon-id="{{ addon.id }}" data-addon-price="{{ addon.price }}">
+                                            <div class="card-body">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input addon-checkbox" type="checkbox" name="selected_addons" value="{{ addon.id }}" id="addon_{{ addon.id }}">
+                                                    <label class="form-check-label" for="addon_{{ addon.id }}">
+                                                        {{ addon.name }}
+                                                    </label>
+                                                </div>
+                                                <p class="card-text small">{{ addon.description|truncatechars:100 }}</p>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="badge bg-success">{{ addon.get_tier_display }}</span>
+                                                    <strong class="text-primary">${{ addon.price }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Nivel Freemium -->
+                            <div class="package-tier tier-freemium p-3 mb-4">
+                                <h4>
+                                    <span class="badge bg-info">FREEMIUM</span>
+                                    <small class="text-muted ml-2">Verificaciones avanzadas</small>
+                                </h4>
+                                <p class="text-muted">Recomendado para perfiles huntRED y huntRED Executive</p>
+                                
+                                <div class="row">
+                                    {% for addon in addons_by_tier.freemium %}
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card addon-card h-100" data-addon-id="{{ addon.id }}" data-addon-price="{{ addon.price }}">
+                                            <div class="card-body">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input addon-checkbox" type="checkbox" name="selected_addons" value="{{ addon.id }}" id="addon_{{ addon.id }}">
+                                                    <label class="form-check-label" for="addon_{{ addon.id }}">
+                                                        {{ addon.name }}
+                                                    </label>
+                                                </div>
+                                                <p class="card-text small">{{ addon.description|truncatechars:100 }}</p>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="badge bg-info">{{ addon.get_tier_display }}</span>
+                                                    <strong class="text-primary">${{ addon.price }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Nivel Premium -->
+                            <div class="package-tier tier-premium p-3">
+                                <h4>
+                                    <span class="badge bg-purple">PREMIUM</span>
+                                    <small class="text-muted ml-2">Verificaciones premium</small>
+                                </h4>
+                                <p class="text-muted">Recomendado para perfiles huntRED Executive y posiciones críticas</p>
+                                
+                                <div class="row">
+                                    {% for addon in addons_by_tier.premium %}
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card addon-card h-100" data-addon-id="{{ addon.id }}" data-addon-price="{{ addon.price }}">
+                                            <div class="card-body">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input addon-checkbox" type="checkbox" name="selected_addons" value="{{ addon.id }}" id="addon_{{ addon.id }}">
+                                                    <label class="form-check-label" for="addon_{{ addon.id }}">
+                                                        {{ addon.name }}
+                                                    </label>
+                                                </div>
+                                                <p class="card-text small">{{ addon.description|truncatechars:100 }}</p>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="badge bg-purple">{{ addon.get_tier_display }}</span>
+                                                    <strong class="text-primary">${{ addon.price }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <!-- Resumen de Precio -->
+                    <div class="card shadow-sm price-summary">
+                        <div class="card-header bg-gradient-success text-white">
+                            <h5 class="mb-0">Resumen de Precios</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Candidatos: <strong>{{ candidates.count }}</strong></p>
+                            <p>Servicios seleccionados: <strong id="selectedAddonsCount">0</strong></p>
+                            
+                            <hr>
+                            
+                            <h6>Desglose de Precios:</h6>
+                            <div id="priceBreakdown">
+                                <p class="text-muted">Seleccione servicios para ver el desglose</p>
+                            </div>
+                            
+                            <hr>
+                            
+                            <div class="d-flex justify-content-between">
+                                <h5>Subtotal:</h5>
+                                <h5 id="subtotal">$0.00</h5>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <h6>IVA (16%):</h6>
+                                <h6 id="iva">$0.00</h6>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mt-2">
+                                <h4>Total:</h4>
+                                <h4 id="total" class="text-primary">$0.00</h4>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button type="submit" id="continueButton" class="btn btn-success btn-lg btn-block" disabled>
+                                    Continuar <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+$(document).ready(function() {
+    // Variables
+    const candidateCount = {{ candidates.count }};
+    let selectedAddons = [];
+    
+    // Función para actualizar el resumen de precios
+    function updatePriceSummary() {
+        // Contar addons seleccionados
+        selectedAddons = [];
+        $('.addon-checkbox:checked').each(function() {
+            const addonId = $(this).val();
+            const addonCard = $(this).closest('.addon-card');
+            const addonName = addonCard.find('.form-check-label').text().trim();
+            const addonPrice = parseFloat(addonCard.data('addon-price'));
+            
+            selectedAddons.push({
+                id: addonId,
+                name: addonName,
+                price: addonPrice
+            });
+        });
+        
+        // Actualizar contador
+        $('#selectedAddonsCount').text(selectedAddons.length);
+        
+        // Calcular precios
+        let subtotal = 0;
+        let breakdownHtml = '';
+        
+        if (selectedAddons.length > 0) {
+            breakdownHtml = '<ul class="list-group">';
+            
+            selectedAddons.forEach(addon => {
+                const addonTotal = addon.price * candidateCount;
+                subtotal += addonTotal;
+                
+                breakdownHtml += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span>${addon.name}</span>
+                            <small class="d-block text-muted">$${addon.price.toFixed(2)} x ${candidateCount} candidatos</small>
+                        </div>
+                        <span>$${addonTotal.toFixed(2)}</span>
+                    </li>
+                `;
+            });
+            
+            breakdownHtml += '</ul>';
+        } else {
+            breakdownHtml = '<p class="text-muted">Seleccione servicios para ver el desglose</p>';
+        }
+        
+        // Calcular IVA y total
+        const iva = subtotal * 0.16;
+        const total = subtotal + iva;
+        
+        // Actualizar UI
+        $('#priceBreakdown').html(breakdownHtml);
+        $('#subtotal').text('$' + subtotal.toFixed(2));
+        $('#iva').text('$' + iva.toFixed(2));
+        $('#total').text('$' + total.toFixed(2));
+        
+        // Habilitar/deshabilitar botón de continuar
+        if (selectedAddons.length > 0) {
+            $('#continueButton').prop('disabled', false);
+        } else {
+            $('#continueButton').prop('disabled', true);
+        }
+    }
+    
+    // Manejar clic en tarjetas de addon
+    $('.addon-card').click(function() {
+        const checkbox = $(this).find('.addon-checkbox');
+        checkbox.prop('checked', !checkbox.prop('checked'));
+        $(this).toggleClass('selected', checkbox.prop('checked'));
+        updatePriceSummary();
+    });
+    
+    // Evitar que el clic en el checkbox active dos veces
+    $('.addon-checkbox').click(function(e) {
+        e.stopPropagation();
+        $(this).closest('.addon-card').toggleClass('selected', $(this).prop('checked'));
+        updatePriceSummary();
+    });
+    
+    // Inicializar
+    updatePriceSummary();
+    
+    // Calcular precio en tiempo real con AJAX
+    function calculatePriceWithAjax() {
+        const addonIds = selectedAddons.map(addon => addon.id);
+        
+        $.ajax({
+            url: '{% url "ajax_calculate_price" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                opportunity_id: {{ opportunity.id }},
+                selected_addons: addonIds
+            }),
+            headers: {
+                'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
+            },
+            success: function(response) {
+                if (response.pricing) {
+                    $('#subtotal').text('$' + response.pricing.subtotal);
+                    $('#iva').text('$' + response.pricing.iva);
+                    $('#total').text('$' + response.pricing.total);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Error calculando precio:", error);
+            }
+        });
+    }
+    
+    // Calcular precio con AJAX cuando cambia la selección
+    $('.addon-checkbox').change(function() {
+        if (selectedAddons.length > 0) {
+            calculatePriceWithAjax();
+        }
+    });
+});
+</script>
+{% endblock %}

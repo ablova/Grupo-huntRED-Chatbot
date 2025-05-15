@@ -13,11 +13,15 @@ from app.com.utils.signature.pdf_generator import (
     merge_signed_documents,
     generate_personality_report
 )
+from app.com.utils.cv_generator.cv_generator import CVGenerator
+from django.conf import settings
+import os
 from app.com.utils.signature.digital_sign import request_digital_signature
 from app.com.utils.salario import (
     calcular_neto, calcular_bruto, calcular_isr_mensual, calcular_cuotas_imss, 
     obtener_tipo_cambio, DATOS_PPA, DATOS_COLI, DATOS_BIGMAC, UMA_DIARIA_2025
 )
+from app.com.chatbot.validation import truth_analyzer
 # Deferred imports to prevent circular dependencies
 def get_send_functions():
     from app.com.chatbot.integrations.services import send_menu, send_message, send_image, send_options, send_smart_options
@@ -186,7 +190,52 @@ async def finalizar_creacion_perfil(plataforma: str, user_id: str, unidad_negoci
     bu_name = unidad_negocio.name.lower().replace('®', '').strip()
     
     if persona.is_profile_complete():
-        await send_message(plataforma, user_id, "¡Perfil completo! 🎉 Ahora puedes mejorar tu perfil con una prueba de personalidad o explorar oportunidades avanzadas.", bu_name)
+        # Generar CV automáticamente
+        try:
+            # Crear directorio para los documentos si no existe
+            user_doc_dir = os.path.join(settings.MEDIA_ROOT, 'cv', str(persona.id))
+            os.makedirs(user_doc_dir, exist_ok=True)
+            
+            # Generar CV básico
+            cv_filename = f"cv_{persona.id}.pdf"
+            cv_path = os.path.join(user_doc_dir, cv_filename)
+            
+            # Inicializar generador de CV con configuración para incluir plan de desarrollo
+            cv_generator = CVGenerator(include_growth_plan=False)
+            
+            # Generar sólo el CV inicialmente
+            cv_generator.save_cv(persona, cv_path, language='es')
+            
+            # Notificar al usuario
+            await send_message(plataforma, user_id, "¡Perfil completo! 🎉 He generado automáticamente tu CV profesional.", bu_name)
+            
+            # Guardar la referencia al CV en el contexto del chat
+            estado_chat.context["generated_cv_path"] = cv_path
+            await sync_to_async(estado_chat.save)()
+            
+            # Si el usuario tiene test de personalidad completo, generar también el plan de desarrollo
+            if hasattr(persona, 'personality_test') and persona.personality_test and getattr(settings, 'ENABLE_ML_FEATURES', False):
+                try:
+                    # Generar CV con plan de desarrollo incluido
+                    cv_plan_filename = f"cv_plan_{persona.id}.pdf"
+                    cv_plan_path = os.path.join(user_doc_dir, cv_plan_filename)
+                    
+                    # Crear un nuevo generador con plan de desarrollo habilitado
+                    plan_generator = CVGenerator(include_growth_plan=True)
+                    
+                    # Generar CV con plan incorporado
+                    final_path = plan_generator.save_cv(persona, cv_plan_path, language='es')
+                    
+                    # Guardar la referencia al CV con plan en el contexto del chat
+                    estado_chat.context["generated_cv_plan_path"] = final_path
+                    await sync_to_async(estado_chat.save)()
+                    
+                    # Notificar al usuario sobre el documento mejorado
+                    await send_message(plataforma, user_id, "¡Además, basado en tus resultados de personalidad, he creado un Plan de Desarrollo Profesional personalizado! 📈 Lo encontrarás adjunto a tu CV.", bu_name)
+                except Exception as e:
+                    logger.error(f"Error generando plan de desarrollo para {persona.id}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error generando CV para {persona.id}: {str(e)}")
         
         # Evaluar transición a BU superior
         target_bu = await evaluar_transicion(persona, unidad_negocio)
@@ -196,8 +245,13 @@ async def finalizar_creacion_perfil(plataforma: str, user_id: str, unidad_negoci
             estado_chat.context["possible_transitions"] = [target_bu]
             await sync_to_async(estado_chat.save)()
         else:
-            # Ofrecer prueba de personalidad
-            await ofrecer_prueba_personalidad(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            # Ofrecer prueba de personalidad si no la ha realizado
+            if not hasattr(persona, 'personality_test') or not persona.personality_test:
+                await ofrecer_prueba_personalidad(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            else:
+                # Si ya tiene prueba de personalidad, ofrecer otros servicios
+                await send_message(plataforma, user_id, "¿En qué más puedo ayudarte hoy?", bu_name)
+                await send_menu(plataforma, user_id, bu_name)
     else:
         missing_fields = [f for f in ["nombre", "apellido_paterno", "email", "phone", "skills"] if not getattr(persona, f)]
         await send_message(plataforma, user_id, f"Faltan datos: {', '.join(missing_fields)}. Por favor, complétalos.", bu_name)
@@ -336,61 +390,52 @@ async def send_welcome_message(user_id: str, platform: str, business_unit: Busin
     await send_menu(platform, user_id, business_unit.name.lower())
 
     return "Mensaje de bienvenida enviado correctamente."
-
-# =========================================================
 # Manejo de Respuestas
 # =========================================================
 async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler=None):
-    """Maneja la respuesta del usuario en el flujo de creación o actualización de perfil."""
-    bu_name = unidad_negocio.name.lower().replace('®', '').strip()
-    questions = get_questions(bu_name)
-    
-    if texto.lower() == "back_to_menu":
-        estado_chat.state = "initial"
-        await sync_to_async(estado_chat.save)()
-        await send_menu(plataforma, user_id, unidad_negocio)
-        return True
-    
+    """Maneja la respuesta del usuario en el flujo de creación o actualización de perfil.
+
+    Args:
+        plataforma: Plataforma de comunicación.
+        user_id: ID del usuario en la plataforma.
+        texto: Texto de la respuesta del usuario.
+        unidad_negocio: Unidad de negocio actual.
+        estado_chat: Estado actual del chat.
+        persona: Instancia del modelo Person.
+        gpt_handler: Manejador para procesar con GPT.
+    """
+
     async def handle_selecting_method():
-        try:
-            seleccion = int(texto.split(".")[0])
-            opciones = {
-                "huntred": ["dynamic", "template", "cv", "linkedin"],
-                "huntred_executive": ["dynamic", "template", "cv", "linkedin"],
-                "huntu": ["dynamic", "template", "cv", "linkedin"],
-                "amigro": ["dynamic", "template"],
-                "default": ["dynamic", "template", "cv"]
-            }.get(bu_name, opciones["default"])
+        if texto.lower() in ['1', 'dinámico', 'dinamico']:
+            await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            return True
+        
+        elif texto.lower() in ['2', 'template']:
+            if plataforma.lower() != 'whatsapp':
+                await send_message(plataforma, user_id, "Lo siento, el método de plantilla solo está disponible para WhatsApp. Por favor, elige otro método.", bu_name)
+                return False
+            # Implementación pendiente - plantilla de WhatsApp
+            estado_chat.state = "template_method"
+            await sync_to_async(estado_chat.save)()
+            await send_message(plataforma, user_id, "Ahora te guiaré a través de una serie de campos para completar tu perfil. Para cada campo, te mostraré el valor actual (si existe) y podrás actualizarlo.", bu_name)
+            await continuar_registro(plataforma, user_id, unidad_negocio, estado_chat, persona)
+            return True
+        
+        elif texto.lower() in ['3', 'cv']:
+            estado_chat.state = "waiting_for_cv"
+            await sync_to_async(estado_chat.save)()
+            await send_message(plataforma, user_id, "Excelente. Por favor, envía tu CV como un archivo PDF o Word. Extraeré la información relevante automáticamente.", bu_name)
+            return True
+        
+        elif texto.lower() in ['4', 'linkedin'] and bu_name in ["huntred", "huntred_executive", "huntu"]:
+            estado_chat.state = "waiting_for_linkedin"
+            await sync_to_async(estado_chat.save)()
+            await send_message(plataforma, user_id, "Perfecto. Por favor, comparte el enlace a tu perfil de LinkedIn para que pueda extraer tu información profesional.", bu_name)
+            return True
             
-            if 1 <= seleccion <= len(opciones):
-                metodo = opciones[seleccion - 1]
-                estado_chat.context['profile_creation_method'] = metodo
-                await sync_to_async(estado_chat.save)()
-                
-                if metodo == "dynamic":
-                    await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
-                elif metodo == "template" and plataforma == "whatsapp":
-                    template_name = f"registro_{bu_name}"
-                    await send_whatsapp_template(user_id, template_name, unidad_negocio)
-                    estado_chat.state = "waiting_for_template_response"
-                    await sync_to_async(estado_chat.save)()
-                elif metodo == "cv":
-                    await send_message(plataforma, user_id, "Por favor, envía tu CV como archivo adjunto (PDF o Word).", bu_name)
-                    estado_chat.state = "waiting_for_cv"
-                    await sync_to_async(estado_chat.save)()
-                elif metodo == "linkedin":
-                    await send_message(plataforma, user_id, "Proporciona la URL de tu perfil de LinkedIn.", bu_name)
-                    estado_chat.state = "waiting_for_linkedin"
-                    await sync_to_async(estado_chat.save)()
-                else:
-                    await send_message(plataforma, user_id, f"El método {metodo} no está disponible en {plataforma}. Elige otra opción.", bu_name)
-                    estado_chat.state = "selecting_profile_method"
-                    await sync_to_async(estado_chat.save)()
-            else:
-                await send_message(plataforma, user_id, "Selecciona una opción válida (ej. 1, 2, 3).", bu_name)
-        except ValueError:
-            await send_message(plataforma, user_id, "Por favor, responde con un número válido (ej. 1, 2, 3).", bu_name)
-        return True
+        else:
+            await send_message(plataforma, user_id, "No entendí tu elección. Por favor, selecciona una opción válida (1-4).", bu_name)
+            return False
     
     async def handle_profile_creation():
         current_field = estado_chat.state.replace("profile_creation_", "")

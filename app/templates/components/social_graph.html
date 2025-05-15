@@ -1,0 +1,220 @@
+{% comment %}
+Componente SocialLink™ para visualizar la red social de un candidato
+Principalmente utilizado en perfiles de candidatos Amigro
+{% endcomment %}
+
+<section class="section social-network">
+    <h2 class="section-title">{% if language == 'en' %}Social Network{% else %}Red Social{% endif %}</h2>
+    
+    {% if social_connections %}
+    <div class="social-graph-wrapper">
+        <div id="social-graph-container" class="social-graph"></div>
+        <div class="social-graph-legend">
+            <ul>
+                <li><span class="legend-color" style="background-color: #4CAF50;"></span>{% if language == 'en' %}Friend{% else %}Amigo{% endif %}</li>
+                <li><span class="legend-color" style="background-color: #9C27B0;"></span>{% if language == 'en' %}Family{% else %}Familiar{% endif %}</li>
+                <li><span class="legend-color" style="background-color: #2196F3;"></span>{% if language == 'en' %}Colleague{% else %}Colega{% endif %}</li>
+                <li><span class="legend-color" style="background-color: #FF9800;"></span>{% if language == 'en' %}Classmate{% else %}Compañero{% endif %}</li>
+                <li><span class="legend-color" style="background-color: #795548;"></span>{% if language == 'en' %}Referral{% else %}Referido{% endif %}</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="connections-list">
+        <h3>{% if language == 'en' %}Known connections{% else %}Conexiones conocidas{% endif %}</h3>
+        <ul>
+            {% for connection in social_connections %}
+            <li class="connection-item">
+                <div class="connection-avatar">{{ connection.name|slice:":1"|upper }}</div>
+                <div class="connection-info">
+                    <div class="connection-name">{{ connection.name }}</div>
+                    <div class="connection-type">{{ connection.relationship }}</div>
+                    {% if connection.role %}
+                    <div class="connection-role">{{ connection.role }}</div>
+                    {% endif %}
+                </div>
+                {% if connection.verified %}
+                <div class="connection-verified" title="{% if language == 'en' %}Verified Connection{% else %}Conexión Verificada{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        // Cargar los datos de conexiones sociales
+        const socialConnections = {{ social_connections_json|safe }};
+        
+        // Formatear datos para el grafo
+        const graphData = formatSocialConnectionsForGraph('{{ person_id }}', socialConnections);
+        
+        // Inicializar grafo social cuando el documento esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Crear instancia del grafo social
+            const graph = new SocialGraph('social-graph-container', graphData, {
+                width: 400,
+                height: 300,
+                nodeRadius: 25,
+                labels: {
+                    show: true,
+                    fontSize: 10
+                },
+                animations: true
+            });
+            
+            // Interactividad: resaltar conexiones al hacer hover
+            const connectionItems = document.querySelectorAll('.connection-item');
+            connectionItems.forEach(item => {
+                item.addEventListener('mouseover', function() {
+                    const personId = this.getAttribute('data-id');
+                    if (personId) {
+                        graph.highlightNode(personId);
+                    }
+                });
+                
+                item.addEventListener('mouseout', function() {
+                    graph.resetHighlight();
+                });
+            });
+        });
+    </script>
+    {% else %}
+    <p class="no-connections">{% if language == 'en' %}No social connections available{% else %}No hay conexiones sociales disponibles{% endif %}</p>
+    {% endif %}
+    
+    <style>
+        .social-network {
+            margin-top: 30px;
+        }
+        
+        .social-graph-wrapper {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        
+        .social-graph {
+            width: 100%;
+            height: 300px;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .social-graph-legend {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .social-graph-legend ul {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .social-graph-legend li {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .connections-list h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .connections-list ul {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .connection-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .connection-item:hover {
+            background-color: var(--medium-gray);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .connection-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .connection-info {
+            flex: 1;
+        }
+        
+        .connection-name {
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+        
+        .connection-type {
+            font-size: 12px;
+            color: var(--dark-gray);
+        }
+        
+        .connection-role {
+            font-size: 12px;
+            color: var(--dark-gray);
+            font-style: italic;
+        }
+        
+        .connection-verified {
+            color: var(--success-color);
+            margin-left: 10px;
+        }
+        
+        .no-connections {
+            text-align: center;
+            color: var(--dark-gray);
+            font-style: italic;
+            padding: 20px;
+        }
+        
+        @media (max-width: 600px) {
+            .connections-list ul {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</section>

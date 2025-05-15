@@ -4,11 +4,14 @@ from app.com.chatbot.views import ChatbotView
 from app.com.chatbot.workflow.personality import PersonalityAnalyzer
 from app.com.chatbot.components.state_manager import ChatStateManager
 import asyncio
-from unittest.mock import patch, AsyncMock
-from app.models import Person, BusinessUnit
+import os
+from unittest.mock import patch, AsyncMock, MagicMock
+from app.models import Person, BusinessUnit, ChatState
 from app.com.chatbot.chat_state_manager import ChatStateManager
 from app.com.chatbot.intents_handler import IntentProcessor
 from app.com.chatbot.integrations.whatsapp import WhatsAppHandler
+from app.com.chatbot.workflow.common import finalizar_creacion_perfil
+from app.com.utils.cv_generator.cv_generator import CVGenerator
 
 # Mock data for testing
 TEST_USER_ID = 'test_user_123'
@@ -138,3 +141,78 @@ class TestChatbotWorkflow:
             assert response is not None
             assert "error" in response
             assert "Initialization failed" in response.get("error", "")
+    
+    @pytest.mark.asyncio
+    @patch('app.com.utils.cv_generator.cv_generator.CVGenerator.save_cv')
+    @patch('os.makedirs')
+    @patch('app.com.chatbot.workflow.common.send_message', new=AsyncMock())
+    @patch('app.com.chatbot.workflow.common.send_menu', new=AsyncMock())
+    @patch('asgiref.sync.sync_to_async', return_value=AsyncMock())
+    async def test_cv_and_development_plan_generation(self, mock_sync_to_async, mock_makedirs, mock_save_cv):
+        """Test automatic generation of CV and development plan when profile is completed."""
+        # Configure mocks
+        mock_makedirs.return_value = None
+        mock_save_cv.return_value = "/path/to/generated/cv.pdf"
+        
+        # Create test objects
+        persona = MagicMock(spec=Person)
+        persona.id = 123
+        persona.is_profile_complete.return_value = True
+        persona.personality_test = True
+        
+        unidad_negocio = MagicMock(spec=BusinessUnit)
+        unidad_negocio.name = "huntRED®"
+        
+        estado_chat = MagicMock(spec=ChatState)
+        estado_chat.context = {}
+        
+        # Test with ML features enabled
+        with patch('django.conf.settings.ENABLE_ML_FEATURES', True):
+            # Call function
+            await finalizar_creacion_perfil("whatsapp", "525518490291", unidad_negocio, estado_chat, persona)
+            
+            # Verify CV was generated
+            assert mock_save_cv.call_count >= 1, "CV generator should be called at least once"
+            
+            # Check context was updated
+            assert "generated_cv_path" in estado_chat.context, "CV path should be added to chat context"
+            
+            # For personality test users with ML enabled, we should generate the development plan
+            cv_paths = [call_args[0][1] for call_args in mock_save_cv.call_args_list]
+            assert any("cv_plan" in path for path in cv_paths), "Development plan should be generated for users with personality test"
+    
+    @pytest.mark.asyncio
+    @patch('app.com.utils.cv_generator.cv_generator.CVGenerator.save_cv')
+    @patch('os.makedirs')
+    @patch('app.com.chatbot.workflow.common.send_message', new=AsyncMock())
+    @patch('app.com.chatbot.workflow.common.send_menu', new=AsyncMock())
+    @patch('asgiref.sync.sync_to_async', return_value=AsyncMock())
+    async def test_cv_generation_without_development_plan(self, mock_sync_to_async, mock_makedirs, mock_save_cv):
+        """Test generation of CV without development plan when profile is completed but no personality test."""
+        # Configure mocks
+        mock_makedirs.return_value = None
+        mock_save_cv.return_value = "/path/to/generated/cv.pdf"
+        
+        # Create test objects
+        persona = MagicMock(spec=Person)
+        persona.id = 123
+        persona.is_profile_complete.return_value = True
+        persona.personality_test = False
+        
+        unidad_negocio = MagicMock(spec=BusinessUnit)
+        unidad_negocio.name = "huntRED®"
+        
+        estado_chat = MagicMock(spec=ChatState)
+        estado_chat.context = {}
+        
+        # Test with ML features enabled but no personality test
+        with patch('django.conf.settings.ENABLE_ML_FEATURES', True):
+            # Call function
+            await finalizar_creacion_perfil("whatsapp", "12345", unidad_negocio, estado_chat, persona)
+            
+            # Verify only basic CV was generated
+            assert mock_save_cv.call_count == 1, "Only basic CV should be generated"
+            
+            # Check context was updated with only CV path
+            assert "generated_cv_path" in estado_chat.context, "CV path should be added to chat context"
+            assert "generated_cv_plan_path" not in estado_chat.context, "Plan path should not be added when no personality test"

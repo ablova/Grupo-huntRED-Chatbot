@@ -1,207 +1,545 @@
-# Documentación del Sistema de Inteligencia Artificial y Comunicación Conversacional con IA de Grupo huntRED
-## Índice
-
-1. [Introducción](#introducción)
-2. [Arquitectura del Sistema](#arquitectura-del-sistema)
-3. [Estructura del Módulo de Comunicaciones](#estructura-del-módulo-de-comunicaciones)
-4. [Componentes Principales](#componentes-principales)
-5. [Integraciones](#integraciones)
-6. [Flujo de Conversación](#flujo-de-conversación)
-7. [Manejo de Estados](#manejo-de-estados)
-8. [Sistema de Mensajería](#sistema-de-mensajería)
-9. [Visualización y Métricas](#visualización-y-métricas)
-10. [Pruebas y Verificación](#pruebas-y-verificación)
-11. [Configuración y Despliegue](#configuración-y-despliegue)
-12. [Mantenimiento](#mantenimiento)
+<div align="center">
+  <img src="static/images/logo/huntred-logo.png" alt="Grupo huntRED® Logo" width="250">
+  <h1>Sistema Inteligente de Grupo huntRED®</h1>
+  <p>
+    <em>Plataforma de IA para Chatbot, Procesamiento ML, Pagos, Verificación y Publicación</em>
+    <br>
+    <strong>Versión 3.5 (Mayo 2025)</strong>
+  </p>
+</div>
 
 ---
 
-## Introducción
+# Índice
 
-Este documento describe la arquitectura, las funcionalidades y las integraciones del sistema de chatbot de huntred.com. El chatbot está diseñado para interactuar con los usuarios a través de múltiples plataformas de mensajería, proporcionando asistencia en tiempo real, gestión de perfiles, búsqueda de vacantes laborales y más.
+1. [Descripción General](#descripción-general)
+2. [Arquitectura del Sistema](#arquitectura-del-sistema)
+3. [Módulos Principales](#módulos-principales)
+   - [Módulo Chatbot](#módulo-chatbot)
+   - [Módulo ML](#módulo-ml)
+   - [Módulo Pagos](#módulo-pagos)
+   - [Módulo Pricing](#módulo-pricing)
+   - [Módulo Publish](#módulo-publish)
+   - [Módulo Signature](#módulo-signature)
+   - [Módulo SEXSI](#módulo-sexsi)
+4. [Instalación y Configuración](#instalación-y-configuración)
+   - [Requisitos del Sistema](#requisitos-del-sistema)
+   - [Configuración del Entorno](#configuración-del-entorno)
+   - [Instalación Local](#instalación-local)
+   - [Despliegue en la Nube](#despliegue-en-la-nube)
+5. [APIs y Integraciones](#apis-y-integraciones)
+6. [Control de Acceso y Seguridad](#control-de-acceso-y-seguridad)
+7. [Optimización y Rendimiento](#optimización-y-rendimiento)
+8. [Tests y Cobertura](#tests-y-cobertura)
+9. [Planes Futuros](#planes-futuros)
+10. [Contribución](#contribución)
+11. [Licencia](#licencia)
+
+---
+
+## Descripción General
+
+El Sistema Inteligente de Grupo huntRED® es una plataforma integral diseñada para optimizar los procesos de reclutamiento, verificación y gestión de talento a través de múltiples unidades de negocio (BUs): **Amigro**, **huntU**, **huntRED®**, **huntRED Executive**, **SEXSI** y **MilkyLeak**.
+
+El sistema combina tecnologías avanzadas de inteligencia artificial, procesamiento de lenguaje natural, análisis de datos y automatización para proporcionar una experiencia de usuario fluida y eficiente tanto para candidatos como para reclutadores.
 
 ## Arquitectura del Sistema
 
-El sistema de Inteligencia Artificial y Comunicación Conversacional de Grupo huntRED está construido sobre una arquitectura modular y escalable, utilizando Django como framework principal. La estructura actual del sistema incluye:
+El Sistema Inteligente de Grupo huntRED® está construido sobre una arquitectura modular y escalable utilizando Django como framework principal y aprovechando tecnologías de vanguardia para procesamiento asíncrono, caché, machine learning y comunicación en tiempo real.
 
-### Módulos Principales
+### Estructura del Sistema
 
-1. **Comunicaciones (com)**
-   - Gestión de conversaciones multiplataforma
-   - Sistema de estados y transiciones
-   - Procesamiento de mensajes
-   - Integraciones con WhatsApp, Telegram, Slack, etc.
-   - Sistema de notificaciones
+```
+/
+├── ai_huntred/           # Configuración principal de Django
+│   ├── settings/        # Configuraciones por entorno
+│   ├── config/          # Módulos de configuración
+│   ├── urls.py          # Rutas de administración
+│   └── wsgi.py/asgi.py   # Interfaces para servidores
+├── app/                 # Lógica de aplicación principal
+│   ├── models.py         # Modelos centralizados
+│   ├── com/              # Componentes comunes y chatbot
+│   ├── ml/               # Machine learning y scraping
+│   ├── pagos/            # Sistema de pagos y transacciones
+│   ├── pricing/          # Precios, addons y hitos
+│   ├── publish/          # Publicación multiplataforma
+│   ├── sexsi/            # Contratos y verificación SEXSI
+│   ├── templates/        # Plantillas HTML
+│   ├── templatetags/     # Tags personalizados
+│   ├── tests/            # Tests unitarios e integración
+│   └── urls/             # Rutas de la aplicación
+├── deploy/              # Archivos para el despliegue
+├── static/              # Archivos estáticos
+├── media/               # Archivos generados dinámicamente
+├── Dockerfile           # Configuración de Docker
+└── docker-compose.yml   # Orquestación de servicios
+```
 
-2. **Machine Learning (ml)**
-   - Procesamiento de lenguaje natural
-   - Análisis de sentimientos
-   - Clasificación de intenciones
-   - Generación de respuestas
-   - Sistema de embeddings
-   - Optimización de modelos
+### Tecnologías Principales
 
-3. **Pagos (pagos)**
-   - Gestión de transacciones
-   - Sistema de facturación
-   - Integración con gateways de pago
-   - Gestión de hitos de pago
+- **Backend**: Django 4.2+, Django REST Framework
+- **Base de Datos**: PostgreSQL, Redis (cache)
+- **Procesamiento Asíncrono**: Celery, ASGI, asyncio
+- **Machine Learning**: TensorFlow, Scikit-learn, Hugging Face Transformers
+- **Integraciones**: WhatsApp Business API, Telegram Bot API, Stripe, PayPal
+- **Contenerización**: Docker, Docker Compose
+- **Monitoreo**: Sentry, Prometheus, Django Silk
+- **Frontend**: Django Templates + React/Vue.js para componentes interactivos
 
-4. **Precios (pricing)**
-   - Sistema de precios dinámicos
-   - Gestión de addons
-   - Sistema de cupones
-   - Cálculo de hitos de pago
+### Principios Arquitectónicos
 
-5. **Propuestas (proposals)**
-   - Generación de propuestas
-   - Gestión de contratos
-   - Sistema de firmas digitales
-   - Validación de identidad
+1. **Modularidad**: Cada módulo funcional está encapsulado con interfaces bien definidas
+2. **DRY (Don't Repeat Yourself)**: Código y funcionalidad centralizada y reutilizable
+3. **Bajo Acoplamiento**: Componentes independientes con comunicación estandarizada
+4. **Alta Cohesión**: Funcionalidades relacionadas agrupadas en módulos coherentes
+5. **Abstracción por BU**: Personalización para cada unidad de negocio sin duplicar código
 
-6. **Publicación (publish)**
-   - Sistema de publicación multiplataforma
-   - Gestión de contenido
-   - Sistema de programación
-   - Análisis de métricas
+## Módulos Principales
 
-7. **SexSI (sexsi)**
-   - Gestión de contratos
-   - Sistema de pagos
-   - Validación de identidad
-   - Gestión de usuarios
+El sistema está dividido en módulos especializados, cada uno con responsabilidades específicas pero interconectados para formar un ecosistema completo:
 
-8. **Utilidades (utilidades)**
-   - Sistema de scraping
-   - Monitorización
-   - Generación de informes
-   - Validación de datos
+### Módulo Chatbot
 
-### Componentes Principales por Módulo
+El módulo Chatbot (localizado en `app/com/chatbot`) es el núcleo de la comunicación con candidatos y clientes, procesando mensajes en tiempo real a través de múltiples canales de comunicación.
 
-#### Comunicaciones (com)
-- **Gestión de Conversación**
-  - ConversationalFlowManager: Gestiona el flujo de conversación
-  - IntentDetector: Detecta y clasifica intenciones
-  - StateManager: Maneja estados y transiciones
-  - ContextManager: Mantiene contexto de conversación
-  - ResponseGenerator: Genera respuestas dinámicas
+#### Componentes Principales
 
-- **Sistema de Mensajería**
-  - MessageService: Manejo centralizado de mensajes
-  - RateLimiter: Sistema de limitación de tasa
-  - Button: Manejo de elementos interactivos
-  - EmailService: Servicio de correo electrónico
-  - GamificationService: Sistema de gamificación
+- **ChatStateManager**: Administra los estados de la conversación y persiste el contexto
+- **ConversationalFlowManager**: Controla el flujo de conversación y transiciones
+- **WorkflowManager**: Gestiona los flujos de trabajo específicos por BU
+- **IntentDetector**: Detecta y clasifica intenciones del usuario
+- **NLPProcessor**: Procesa lenguaje natural con optimización para CPU
 
-- **Integraciones**
-  - WhatsApp
-  - Telegram
-  - Messenger
-  - Instagram
-  - Slack
-  - LinkedIn
+#### Integraciones de Canales
 
-#### Machine Learning (ml)
-- **Procesamiento de Lenguaje Natural**
-  - NLPProcessor: Procesamiento de texto
-  - IntentClassifier: Clasificación de intenciones
-  - SentimentAnalyzer: Análisis de sentimientos
-  - ResponseGenerator: Generación de respuestas
-  - CVParser: Procesamiento de CVs por BU
-  - LanguageDetector: Detección de idiomas
+- **WhatsApp**: Integración con la API oficial de WhatsApp Business con rate limiting
+- **Telegram**: Bot de Telegram con mensajes interactivos
+- **Web**: Chat incorporado en sitios web de las BUs
+- **Email**: Procesamiento de emails en conversaciones contextuales
 
-- **Sistema de Embeddings**
-  - EmbeddingGenerator: Generación de embeddings
-  - EmbeddingOptimizer: Optimización de embeddings
-  - EmbeddingCache: Sistema de caché
-  - BUEmbedding: Embeddings por unidad de negocio
-  - SkillEmbedding: Embeddings específicos de habilidades
+#### Ejemplo de Flujo de Conversación
 
-- **Optimización**
-  - ModelOptimizer: Optimización de modelos
-  - PipelineOptimizer: Optimización de pipelines
-  - ResourceOptimizer: Optimización de recursos
-  - BUModelOptimizer: Optimización por unidad de negocio
-  - CVModelOptimizer: Optimización de modelos para CV
+```python
+from app.com.chatbot.workflow import WorkflowManager
+from app.com.chatbot.state import ChatStateManager
 
-- **Análisis de Datos**
-  - DataCollector: Colección de datos estructurados
-  - TrendAnalyzer: Análisis de tendencias
-  - MetricGenerator: Generación de métricas
-  - AlertSystem: Sistema de alertas
-  - BUDashboard: Dashboard por unidad de negocio
-  - CVAnalytics: Análisis específico de CVs
+async def process_message(message, channel="whatsapp"):
+    # Inicializar manejadores
+    state_manager = ChatStateManager(user_id=message.user_id)
+    workflow = WorkflowManager(business_unit=await state_manager.get_business_unit())
+    
+    # Cargar o crear estado
+    state = await state_manager.get_state()
+    
+    # Procesar mensaje mediante el flujo de trabajo adecuado
+    response, next_state = await workflow.process_message(message.text, state)
+    
+    # Actualizar estado
+    await state_manager.update_state(next_state)
+    
+    # Devolver respuesta para enviar al usuario
+    return response
+```
 
-- **Procesamiento de CVs**
-  - CVParser: Procesamiento de CVs
-  - SkillExtractor: Extracción de habilidades
-  - ExperienceAnalyzer: Análisis de experiencia
-  - EducationProcessor: Procesamiento de educación
-  - WelcomeMessageGenerator: Generación de mensajes de bienvenida
-  - BUCVProcessor: Procesamiento específico por unidad de negocio
+### Módulo ML
 
-- **Análisis de Datos**
-  - DataCollector: Colección de datos estructurados
-  - TrendAnalyzer: Análisis de tendencias
-  - MetricGenerator: Generación de métricas
-  - AlertSystem: Sistema de alertas
-  - BUDashboard: Dashboard por unidad de negocio
+El módulo de Machine Learning (localizado en `app/ml`) implementa capacidades avanzadas de procesamiento de datos, NLP y análisis predictivo para todas las unidades de negocio.
 
-- **Procesamiento de CVs**
-  - CVParser: Procesamiento de CVs
-  - SkillExtractor: Extracción de habilidades
-  - ExperienceAnalyzer: Análisis de experiencia
-  - EducationProcessor: Procesamiento de educación
-  - WelcomeMessageGenerator: Generación de mensajes de bienvenida
+#### Componentes Principales
 
-#### Pagos (pagos)
-- **Gestión de Transacciones**
-  - TransactionManager: Manejo de transacciones
-  - PaymentProcessor: Procesamiento de pagos
-  - RefundManager: Manejo de devoluciones
+- **MLModel**: Interfaz unificada para modelos de machine learning
+- **MLScraper**: Sistema robusto de extracción de datos de ofertas de empleo
+- **CVParser**: Procesamiento estructurado de currículums
+- **SkillClassifier**: Clasificación automática de habilidades
 
-- **Sistema de Facturación**
-  - InvoiceGenerator: Generación de facturas
-  - ReceiptGenerator: Generación de recibos
-  - TaxCalculator: Cálculo de impuestos
+#### Modelos por BU
 
-#### Precios (pricing)
-- **Sistema de Precios**
-  - PriceCalculator: Cálculo de precios
-  - AddonManager: Gestión de addons
-  - CouponSystem: Sistema de cupones
-  - MilestoneGenerator: Generación de hitos
+- **AmigrosModel**: Optimizado para perfiles técnicos migrantes
+- **HuntUModel**: Especializado en perfiles universitarios y graduados
+- **HuntREDModel**: Enfocado en mandos medios y altos
+- **ExecutiveModel**: Para posiciones de dirección y C-level
 
-#### Propuestas (proposals)
-- **Generación de Propuestas**
-  - ProposalGenerator: Generación de propuestas
-  - ContractManager: Gestión de contratos
-  - SignatureHandler: Sistema de firmas
-  - IdentityValidator: Validación de identidad
+### Módulo Pagos
 
-#### Publicación (publish)
-- **Sistema de Publicación**
-  - ContentManager: Gestión de contenido
-  - Scheduler: Sistema de programación
-  - Analytics: Análisis de métricas
-  - PlatformIntegration: Integraciones multiplataforma
+El módulo Pagos (localizado en `app/pagos`) maneja todas las transacciones monetarias del sistema, integrando múltiples gateways de pago y proporcionando una capa de abstracción para diferentes métodos de pago.
 
-#### SexSI (sexsi)
-- **Gestión de Contratos**
-  - ContractManager: Gestión de contratos
-  - PaymentProcessor: Procesamiento de pagos
-  - IdentityValidator: Validación de identidad
-  - UserManagement: Gestión de usuarios
+#### Componentes Principales
 
-#### Utilidades (utilidades)
-- **Sistema de Scraping**
-  - LinkedInScraper: Scraping de LinkedIn
-  - EmailScraper: Scraping de emails
-  - DataValidator: Validación de datos
+- **PaymentProcessor**: Procesa pagos a través de diferentes gateways
+- **StripeGateway**: Integración con Stripe para pagos con tarjeta
+- **PayPalGateway**: Integración con PayPal para pagos internacionales
+- **MilestoneTracker**: Seguimiento de hitos de pago por proyecto
+- **WebhookHandler**: Manejo de notificaciones de pago en tiempo real
 
-- **Monitorización**
-  - MetricsCollector: Colección de métricas
+#### Modelos del Sistema de Pagos
+
+```python
+# Modelos centralizados en app/models.py
+class PaymentTransaction(models.Model):
+    """Registro de todas las transacciones de pago"""
+    transaction_id = models.CharField(max_length=128, unique=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="MXN")
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES)
+    payment_method = models.CharField(max_length=50)
+    gateway = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # Relaciones
+    milestone = models.ForeignKey('PaymentMilestone', on_delete=models.SET_NULL, null=True)
+```
+
+### Módulo Pricing
+
+El módulo de Pricing (localizado en `app/pricing`) implementa un sistema avanzado para calcular precios dinámicos basados en diferentes modelos de negocio por BU, con soporte para addons, cupones y hitos de pago.
+
+#### Pricing Core
+
+Componente central para cálculo de precios con soporte para dos modelos:
+- **Modelo Porcentaje**: Para huntRED®, basado en salarios y comisiones
+- **Modelo Fijo**: Para huntU y Amigro, con precios predefinidos
+- **Modelo AI**: Para huntRED® Executive con capa de IA para optimización
+
+#### Modelos Principales
+
+- **PricingBaseline**: Líneas base de precio por BU y modelo
+- **Addons**: Servicios adicionales que complementan la oferta base
+- **Coupons**: Sistema de cupones con tipos fijo y porcentaje
+- **PaymentMilestones**: Hitos de pago configurables por BU
+
+#### Funciones Clave
+
+```python
+# Cálculo de precios para una oportunidad
+async def calculate_pricing(opportunity_id):
+    """Calcula precios desglosados por vacante para una oportunidad"""
+    opportunity = await Opportunity.objects.aget(id=opportunity_id)
+    pricing = {
+        'subtotal': Decimal('0.00'),
+        'tax': Decimal('0.00'),
+        'total': Decimal('0.00'),
+        'vacancies': [],
+        'addons': []
+    }
+    
+    # Cálculo de precios según BU y modelo de precios
+    # [Lógica de cálculo especializada por BU]
+    
+    return pricing
+```
+
+### Módulo Publish
+
+El módulo Publish (localizado en `app/publish`) gestiona la publicación de contenido en múltiples plataformas, con soporte para programación y análisis de rendimiento.
+
+#### Componentes Principales
+
+- **ContentManager**: Gestión centralizada de contenidos
+- **PublishScheduler**: Programación de publicaciones
+- **SlackIntegration**: Publicación en canales de Slack
+- **LinkedInPublisher**: Publicación en LinkedIn
+- **WordPressIntegration**: Publicación en blogs corporativos
+
+### Módulo Signature
+
+El módulo Signature (parte de `app/com/utils/signature`) proporciona capacidades de firma digital y verificación de identidad para contratos y documentos legales.
+
+#### Componentes Principales
+
+- **DocumentGenerator**: Genera documentos legales en PDF
+- **SignatureVerifier**: Verifica la validez de firmas digitales
+- **IdentityValidator**: Valida la identidad de los firmantes
+- **ContractTracker**: Seguimiento del estado de contratos
+
+### Módulo SEXSI
+
+El módulo SEXSI (localizado en `app/sexsi`) implementa funcionalidades especializadas para la plataforma de contratos de intimidad SEXSI.
+
+#### Componentes Principales
+
+- **AgreementManager**: Gestión de acuerdos de intimidad
+- **PreferenceEngine**: Motor de compatibilidad de preferencias
+- **ConsentVerifier**: Verificación de consentimiento
+- **PrivacyEnforcer**: Protección de privacidad y datos sensibles
+
+## Instalación y Configuración
+
+### Requisitos del Sistema
+
+#### Software Base
+- Python 3.10+
+- PostgreSQL 14+
+- Redis 6+
+- Docker y Docker Compose (para despliegue)
+
+#### Componentes Opcionales
+- NVIDIA CUDA 11.8+ (para aceleración GPU de los modelos ML)
+- Node.js 16+ (para componentes frontend avanzados)
+- wkhtmltopdf (para generación de PDFs)
+
+### Configuración del Entorno
+
+1. Clone el repositorio:
+```bash
+git clone https://github.com/empresa/Grupo-huntRED-Chatbot.git
+cd Grupo-huntRED-Chatbot
+```
+
+2. Cree un entorno virtual y active:
+```bash
+python -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+```
+
+3. Instale las dependencias:
+```bash
+pip install -r requirements.txt
+```
+
+4. Cree un archivo `.env` basado en `.env-example`:
+```bash
+cp .env-example .env
+# Edite .env con sus configuraciones
+```
+
+5. Configure la base de datos:
+```bash
+createdb g_huntred_ai_db  # Usando PostgreSQL
+python manage.py migrate
+```
+
+6. Cargue datos iniciales:
+```bash
+python manage.py loaddata app/fixtures/initial_data.json
+```
+
+7. Inicie el servidor de desarrollo:
+```bash
+python manage.py runserver
+```
+
+### Despliegue en la Nube
+
+El sistema está preparado para ser desplegado en cualquier proveedor de nube que soporte Docker, como AWS, Google Cloud, Azure o DigitalOcean.
+
+#### Utilizando Docker Compose
+
+1. Asegúrese de tener el archivo `.env` configurado correctamente
+
+2. Construya e inicie los servicios:
+```bash
+docker-compose up -d
+```
+
+3. Verifique que todos los servicios estén funcionando:
+```bash
+docker-compose ps
+```
+
+4. Acceda a la aplicación:
+```
+http://localhost:80/  # O el puerto configurado en docker-compose.yml
+```
+
+#### Verificación del Sistema
+
+Utilice el script de verificación para asegurar que todo está correctamente configurado:
+
+```bash
+python deploy/check_system.py
+```
+
+Este script realizará comprobaciones exhaustivas de:
+- Estructura de directorios
+- Modelos Django
+- Dependencias Python
+- Conexión a base de datos
+- Configuración Docker
+- Variables de entorno
+
+## APIs y Integraciones
+
+El sistema expone y consume múltiples APIs para facilitar la interoperabilidad con diferentes plataformas y servicios.
+
+### APIs Internas
+
+Las siguientes APIs están disponibles para uso interno y entre módulos:
+
+#### API REST de Chatbot
+
+```
+GET  /api/chatbot/state/{user_id}/       # Obtener estado de conversación
+POST /api/chatbot/message/              # Enviar mensaje a un usuario
+POST /api/chatbot/workflow/reset/       # Reiniciar flujo de conversación
+GET  /api/chatbot/metrics/              # Obtener métricas del chatbot
+```
+
+#### API REST de Verificación
+
+```
+POST /api/verification/package/create/  # Crear paquete de verificación
+POST /api/verification/assign/          # Asignar verificación a candidato
+GET  /api/verification/status/{id}/     # Obtener estado de verificación
+```
+
+#### API REST de Pricing
+
+```
+POST /api/pricing/calculate/            # Calcular precio para oportunidad
+POST /api/pricing/apply-coupon/         # Aplicar cupón de descuento
+POST /api/pricing/milestones/generate/  # Generar hitos de pago
+```
+
+### Integraciones Externas
+
+El sistema se integra con los siguientes servicios externos:
+
+#### Servicios de Mensajería
+- **WhatsApp Business API**: Envío y recepción de mensajes de WhatsApp
+- **Telegram Bot API**: Integración con bots de Telegram
+- **Slack API**: Publicación en canales de Slack
+
+#### Servicios de Pago
+- **Stripe API**: Procesamiento de pagos con tarjeta
+- **PayPal API**: Pagos internacionales
+
+#### Servicios de Verificación
+- **BlackTrust API**: Verificación de identidad y antecedentes
+
+#### Publicación
+- **LinkedIn API**: Publicación de vacantes
+- **WordPress API**: Gestión de contenido en blogs corporativos
+
+## Control de Acceso y Seguridad
+
+El sistema implementa un robusto control de acceso basado en roles (RBAC) para garantizar que los usuarios sólo puedan acceder a la funcionalidad y datos autorizados para su rol.
+
+### Roles del Sistema
+
+1. **Super Administrador**
+   - Acceso completo a todas las funcionalidades
+   - Gestión de usuarios y roles
+   - Configuración de BUs
+
+2. **Consultor BU Completo**
+   - Acceso a todos los datos de su unidad de negocio
+   - Gestión de candidatos y oportunidades
+   - Visualización de métricas de BU
+
+3. **Consultor BU División**
+   - Acceso a datos específicos de divisiones dentro de su BU
+   - Funcionalidad limitada según configuración
+
+### Implementación de RBAC
+
+El control de acceso se implementa mediante decoradores Django que verifican permisos antes de ejecutar vistas o acciones:
+
+```python
+from app.com.utils.rbac import role_required
+
+# Ejemplo de vista protegida por RBAC
+@role_required('SUPER_ADMIN', 'BU_COMPLETE')  # Solo permite Super Admin y Consultor BU Completo
+def admin_dashboard(request):
+    # Vista protegida
+    pass
+```
+
+### Seguridad de Datos
+
+- **Encriptación en Reposo**: Datos sensibles encriptados en la base de datos
+- **TLS/SSL**: Toda la comunicación web está protegida con HTTPS
+- **Rate Limiting**: Protección contra ataques de fuerza bruta
+- **Validación de Entrada**: Sanitización de todas las entradas de usuario
+- **Protección CSRF**: Tokens CSRF en todos los formularios
+- **Headers de Seguridad**: Configuraciones de headers HTTP para prevenir XSS, clickjacking, etc.
+
+## Optimización y Rendimiento
+
+El sistema está optimizado para alto rendimiento y baja utilización de recursos:
+
+### Técnicas de Optimización
+
+1. **Operaciones Asíncronas**
+   - Uso de `asyncio` y `aiohttp` para operaciones I/O-bound
+   - Procesamiento paralelo para tareas intensivas
+
+2. **Caché**
+   - Uso de Redis para cachear resultados frecuentes
+   - Invalidación inteligente de caché
+
+3. **Optimización de Base de Datos**
+   - Índices optimizados en columnas frecuentemente consultadas
+   - Uso de `select_related` y `prefetch_related` para reducir queries
+
+4. **Delegación de Tareas Pesadas**
+   - Celery para procesamiento en background
+   - Tareas con reintentos automáticos
+
+### Monitoreo de Rendimiento
+
+- **Django Silk**: Perfilado detallado de vistas y queries SQL
+- **Prometheus**: Métricas de rendimiento en tiempo real
+- **Sentry**: Seguimiento de errores y performance
+
+## Tests y Cobertura
+
+El sistema implementa una amplia batería de tests para garantizar la calidad y robustez del código:
+
+### Marco de Testing
+
+- **pytest**: Framework principal para todos los tests
+- **pytest-django**: Integración con Django
+- **pytest-asyncio**: Soporte para tests asíncronos
+
+### Tipos de Tests
+
+1. **Tests Unitarios**: Verifican componentes individuales
+2. **Tests de Integración**: Prueban la interacción entre componentes
+3. **Tests End-to-End**: Simulan flujos completos de usuario
+
+### Cobertura
+
+El objetivo es mantener una cobertura superior al 90% en todos los módulos críticos:
+
+```bash
+# Ejecutar tests con cobertura
+python -m pytest --cov=app --cov-report=xml --cov-report=term-missing
+```
+
+## Planes Futuros
+
+El sistema continuará evolucionando con nuevas funcionalidades y mejoras:
+
+### Próximas Funcionalidades
+
+1. **Mejoras en IA**
+   - Implementación de modelos GPT-4 para análisis avanzado
+   - Generación automática de propuestas personalizadas
+
+2. **Expansión de Integraciones**
+   - Soporte para más plataformas de reclutamiento
+   - Integración con sistemas ATS populares
+
+3. **Interfaces Mejoradas**
+   - Dashboard interactivo para consultores
+   - Experiencia móvil mejorada
+
+4. **Analíticas Predictivas**
+   - Predicción de éxito de candidatos
+   - Optimización automática de precios
+
+## Contribución
+
+Si desea contribuir al desarrollo del Sistema Inteligente de Grupo huntRED®, por favor siga estas directrices:
+
+1. Discuta cualquier cambio mayor mediante un issue antes de comenzar
+2. Siga las convenciones de código existentes
+3. Escriba tests para todas las nuevas funcionalidades
+4. Documente los cambios en el código y en la documentación
+
+## Licencia
+
+&copy; 2025 Grupo huntRED®. Todos los derechos reservados.
   - AlertSystem: Sistema de alertas
   - PerformanceMonitor: Monitoreo de rendimiento
 

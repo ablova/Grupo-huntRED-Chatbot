@@ -1,0 +1,265 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Verificaciones{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'verification/css/verification.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="verification-dashboard">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="h3 mb-0">Verificaciones: {{ opportunity.name }}</h1>
+                <p class="text-muted">Business Unit: {{ business_unit.name }}</p>
+            </div>
+        </div>
+
+        <!-- Estadísticas de Verificación -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h5 class="mb-0">Estadísticas de Verificación</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="stat-card text-center">
+                                    <h2 class="stat-number">{{ stats.total_candidates }}</h2>
+                                    <p class="stat-label">Candidatos Totales</p>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card text-center">
+                                    <h2 class="stat-number">{{ stats.verified_candidates }}</h2>
+                                    <p class="stat-label">Candidatos Verificados</p>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card text-center">
+                                    <h2 class="stat-number">{{ stats.pending_verifications }}</h2>
+                                    <p class="stat-label">Pendientes</p>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card text-center">
+                                    <h2 class="stat-number">{{ stats.in_progress_verifications }}</h2>
+                                    <p class="stat-label">En Proceso</p>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card text-center">
+                                    <h2 class="stat-number">{{ stats.completed_verifications }}</h2>
+                                    <p class="stat-label">Completadas</p>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="stat-card text-center">
+                                    <h2 class="stat-number">{{ stats.average_score|floatformat:2 }}</h2>
+                                    <p class="stat-label">Puntuación Media</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones Rápidas -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient-success text-white">
+                        <h5 class="mb-0">Acciones Rápidas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="action-buttons">
+                            <a href="{% url 'package_selection' opportunity.id %}" class="btn btn-primary">
+                                <i class="fas fa-plus-circle"></i> Nuevo Paquete de Verificación
+                            </a>
+                            {% if packages %}
+                            <a href="{% url 'assign_candidate_verification' packages.0.id %}" class="btn btn-success">
+                                <i class="fas fa-user-check"></i> Asignar Verificaciones
+                            </a>
+                            {% endif %}
+                            <button class="btn btn-info" id="refreshStats">
+                                <i class="fas fa-sync"></i> Actualizar Estadísticas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paquetes de Verificación -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient-info text-white">
+                        <h5 class="mb-0">Paquetes de Verificación</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if packages %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Fecha de Creación</th>
+                                        <th>Estado</th>
+                                        <th>Precio Total</th>
+                                        <th>Candidatos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for package in packages %}
+                                    <tr>
+                                        <td>{{ package.name }}</td>
+                                        <td>{{ package.created_at|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ package.status|slugify }}">
+                                                {{ package.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>${{ package.total_price }}</td>
+                                        <td>{{ package.candidate_verifications.count }}</td>
+                                        <td>
+                                            <a href="{% url 'assign_candidate_verification' package.id %}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-user-plus"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            No hay paquetes de verificación para esta oportunidad.
+                            <a href="{% url 'package_selection' opportunity.id %}" class="alert-link">Crear el primero</a>.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Candidatos con Verificación -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient-warning text-white">
+                        <h5 class="mb-0">Candidatos con Verificación</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if verifications %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Candidato</th>
+                                        <th>Email</th>
+                                        <th>Teléfono</th>
+                                        <th>Estado</th>
+                                        <th>Puntuación</th>
+                                        <th>Fecha Asignada</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for verification in verifications %}
+                                    <tr>
+                                        <td>{{ verification.candidate.nombre }} {{ verification.candidate.apellido }}</td>
+                                        <td>{{ verification.candidate.email }}</td>
+                                        <td>{{ verification.candidate.telefono }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ verification.status|slugify }}">
+                                                {{ verification.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if verification.overall_score %}
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar {% if verification.overall_score >= 0.7 %}bg-success{% elif verification.overall_score >= 0.4 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ verification.overall_score|floatformat:2|multiply:100 }}%;" 
+                                                    aria-valuenow="{{ verification.overall_score|floatformat:2|multiply:100 }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100">
+                                                    {{ verification.overall_score|floatformat:2 }}
+                                                </div>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted">Pendiente</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ verification.assigned_at|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <a href="{% url 'candidate_verification_detail' verification.id %}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-search"></i>
+                                            </a>
+                                            <a href="{% url 'verification_report' verification.id %}" class="btn btn-sm btn-secondary">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            No hay candidatos con verificación asignada.
+                            {% if packages %}
+                            <a href="{% url 'assign_candidate_verification' packages.0.id %}" class="alert-link">Asignar ahora</a>.
+                            {% else %}
+                            <a href="{% url 'package_selection' opportunity.id %}" class="alert-link">Crear un paquete primero</a>.
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+$(document).ready(function() {
+    // Función para actualizar estadísticas
+    function refreshStats() {
+        $.ajax({
+            url: '{% url "ajax_verification_stats" opportunity.id %}',
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                // Actualizar los números en las tarjetas de estadísticas
+                $('.stat-number').each(function(index) {
+                    let key = $(this).next('.stat-label').text().toLowerCase().replace(' ', '_');
+                    if (data.stats[key] !== undefined) {
+                        $(this).text(data.stats[key]);
+                    }
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error("Error al actualizar estadísticas:", error);
+            }
+        });
+    }
+
+    // Botón de actualizar estadísticas
+    $('#refreshStats').on('click', function() {
+        refreshStats();
+    });
+
+    // Actualizar cada 30 segundos automáticamente
+    setInterval(refreshStats, 30000);
+});
+</script>
+{% endblock %}

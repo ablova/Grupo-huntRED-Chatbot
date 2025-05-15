@@ -1,0 +1,51 @@
+# Directorios y archivos a ignorar en el contexto de Docker
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.env.*
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.DS_Store
+.git
+.gitignore
+.github
+.idea
+.vscode
+
+# Archivos de log y datos
+*.log
+*.sqlite3
+*.db
+db.sqlite3
+media/*
+!media/.gitkeep
+staticfiles/*
+!staticfiles/.gitkeep
+
+# Archivos específicos de Django
+local_settings.py
+celerybeat-schedule
+celerybeat.pid
+
+# Documentación y tests
+*.md
+docs/
+README.md
+LICENSE
+tests/
+
+# Archivos temporales y cachés
+*.swp
+*.swo
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+coverage.xml
+*.cover
