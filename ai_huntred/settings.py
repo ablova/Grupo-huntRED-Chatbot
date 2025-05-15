@@ -272,7 +272,6 @@ SECURE_HSTS_PRELOAD = True
 X_FRAME_OPTIONS = 'DENY'
 
 # Configuración de autenticación
-from app.temp_user_model import CustomUser
 AUTH_USER_MODEL = 'app.CustomUser'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

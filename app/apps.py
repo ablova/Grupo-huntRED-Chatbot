@@ -1,10 +1,7 @@
 # /home/pablo/app/apps.py
-import os
-import sys
 import logging
+import sys
 from django.apps import AppConfig as DjangoAppConfig
-from django.conf import settings
-from app.module_registry import ModuleRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -13,22 +10,24 @@ class AppConfig(DjangoAppConfig):
     name = 'app'
 
     def ready(self):
-        # Inicializar el registro de módulos
-        module_registry = ModuleRegistry()
-        module_registry.auto_register()
-
         # Evitar ejecución en comandos de gestión como migrate, makemigrations, etc.
         if any(arg in sys.argv for arg in ['migrate', 'makemigrations', 'collectstatic']):
+            logger.info("Ejecución mínima durante comandos de migración")
             return
         
-        # Importar signals solo si no es un comando de migración
+        # Inicializar proyecto (gestionar __init__.py y registrar módulos)
+        try:
+            from app.module_registry import init_project
+            init_project()
+            logger.info("Proyecto inicializado correctamente")
+        except Exception as e:
+            logger.error(f"Error inicializando proyecto: {str(e)}")
+        
+        # Importar signals
         try:
             import app.signals
         except ImportError as e:
             logger.error(f"Error importing signals: {str(e)}")
-            
-        # Configurar TensorFlow solo si es necesario (por ejemplo, en runserver o celery)
-        if 'runserver' in sys.argv or 'celery' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
             try:
                 from app.ml.core.optimizers import configure_tensorflow
                 configure_tensorflow()
