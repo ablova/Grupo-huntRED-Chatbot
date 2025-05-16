@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .questions {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .question {
+            margin-bottom: 15px;
+        }
+        .question-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .options {
+            margin-left: 20px;
+        }
+        .footer {
+            margin-top: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Grupo huntRED® - Feedback de Entrevista</h2>
+            <p>Se ha solicitado su feedback para la entrevista realizada el {{ interview_date }}</p>
+        </div>
+
+        <div class="questions">
+            <h3>Entrevista con {{ candidate_name }}</h3>
+            <p>Vacante: {{ vacancy_title }}</p>
+            
+            <div class="question">
+                <div class="question-title">¿El candidato/a le gustó?</div>
+                <div class="options">
+                    <label><input type="radio" name="like" value="YES"> Sí</label><br>
+                    <label><input type="radio" name="like" value="NO"> No</label><br>
+                    <label><input type="radio" name="like" value="PARTIAL"> Parcialmente</label>
+                </div>
+            </div>
+
+            <div class="question">
+                <div class="question-title">¿El candidato cumple con los requerimientos?</div>
+                <div class="options">
+                    <label><input type="radio" name="requirements" value="YES"> Sí</label><br>
+                    <label><input type="radio" name="requirements" value="NO"> No</label><br>
+                    <label><input type="radio" name="requirements" value="PARTIAL"> Parcialmente</label>
+                </div>
+            </div>
+
+            <div class="question">
+                <div class="question-title">¿Qué requisitos faltan? (si aplica)</div>
+                <textarea name="missing_requirements" rows="3" placeholder="Especifique los requisitos que faltan"></textarea>
+            </div>
+
+            <div class="question">
+                <div class="question-title">Comentarios adicionales</div>
+                <textarea name="comments" rows="3" placeholder="Agregue comentarios adicionales"></textarea>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Este es un mensaje automático. Por favor, responda lo antes posible.</p>
+            <p>Grupo huntRED® - {{ business_unit }}</p>
+        </div>
+    </div>
+</body>
+</html>

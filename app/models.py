@@ -51,7 +51,248 @@ PAYMENT_STATUS_CHOICES = [
     ('OVERDUE', 'Vencido'),
     ('CANCELLED', 'Cancelado')
 ]
+
+# Estados de Feedback
+FEEDBACK_STATUS_CHOICES = [
+    ('PENDING', 'Pendiente'),
+    ('COMPLETED', 'Completado'),
+    ('SKIPPED', 'Omitido')
+]
+
+# Tipos de Feedback
+FEEDBACK_TYPE_CHOICES = [
+    ('INTERVIEW', 'Entrevista'),
+    ('CANDIDATE', 'Candidato'),
+    ('PROPOSAL', 'Propuesta'),
+    ('HIRE', 'Contratación')
+]
+
+# Resultados de Feedback
+FEEDBACK_RESULT_CHOICES = [
+    ('YES', 'Sí'),
+    ('NO', 'No'),
+    ('PARTIAL', 'Parcial'),
+    ('NOT_APPLICABLE', 'No Aplica')
+]
+
+# Permisos
 PERMISSION_CHOICES=[('ALL_ACCESS','Acceso Total'),('BU_ACCESS','Acceso a BU'),('DIVISION_ACCESS','Acceso a División')]
+
+# Canales de Notificación
+NOTIFICATION_CHANNEL_CHOICES = [
+    ('WHATSAPP', 'WhatsApp'),
+    ('TELEGRAM', 'Telegram'),
+    ('EMAIL', 'Email'),
+    ('SLACK', 'Slack'),
+    ('NTFY', 'ntfy.sh')
+]
+
+# Estados de Notificación
+NOTIFICATION_STATUS_CHOICES = [
+    ('PENDING', 'Pendiente'),
+    ('SENT', 'Enviada'),
+    ('DELIVERED', 'Entregada'),
+    ('READ', 'Leída'),
+    ('FAILED', 'Fallida')
+]
+
+# Tipos de Notificación
+NOTIFICATION_TYPE_CHOICES = [
+    ('FEEDBACK', 'Feedback'),
+    ('MATCHING', 'Matching'),
+    ('PROPOSAL', 'Propuesta'),
+    ('HIRE', 'Contratación'),
+    ('SYSTEM', 'Sistema')
+]
+
+class NotificationChannel(models.Model):
+    """Modelo para configurar canales de notificación por Business Unit."""
+    
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='notification_channels',
+        help_text="Business Unit asociada a este canal"
+    )
+    
+    channel = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_CHANNEL_CHOICES,
+        help_text="Canal de notificación"
+    )
+    
+    enabled = models.BooleanField(
+        default=True,
+        help_text="¿Este canal está habilitado para esta BU?"
+    )
+    
+    config = models.JSONField(
+        default=dict,
+        help_text="Configuración específica del canal (tokens, URLs, etc.)"
+    )
+    
+    priority = models.IntegerField(
+        default=10,
+        help_text="Prioridad del canal (menor número = mayor prioridad)"
+    )
+    
+    class Meta:
+        verbose_name = "Canal de Notificación"
+        verbose_name_plural = "Canales de Notificación"
+        unique_together = ['business_unit', 'channel']
+        ordering = ['business_unit', 'priority']
+        
+    def __str__(self):
+        return f"{self.business_unit.name} - {self.channel}"
+
+class Notification(models.Model):
+    """Modelo para manejar todas las notificaciones del sistema."""
+    
+    recipient = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        help_text="Destinatario de la notificación"
+    )
+    
+    notification_type = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_TYPE_CHOICES,
+        help_text="Tipo de notificación"
+    )
+    
+    channel = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_CHANNEL_CHOICES,
+        help_text="Canal utilizado para enviar la notificación"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_STATUS_CHOICES,
+        default='PENDING',
+        help_text="Estado de la notificación"
+    )
+    
+    content = models.TextField(
+        help_text="Contenido de la notificación"
+    )
+    
+    metadata = models.JSONField(
+        default=dict,
+        help_text="Datos adicionales de la notificación"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Notificación"
+        verbose_name_plural = "Notificaciones"
+        ordering = ['-created_at']
+        
+    def __str__(self):
+        return f"{self.notification_type} - {self.recipient.nombre} ({self.channel})"
+
+class Feedback(models.Model):
+    """Modelo para almacenar feedback de candidatos y entrevistas."""
+    
+    # Relaciones
+    candidate = models.ForeignKey(
+        'Person', 
+        on_delete=models.CASCADE,
+        related_name='feedbacks',
+        help_text="Candidato asociado al feedback"
+    )
+    
+    interviewer = models.ForeignKey(
+        'Person', 
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='given_feedbacks',
+        help_text="Entrevistador que proporcionó el feedback"
+    )
+    
+    # Tipos de Feedback
+    feedback_type = models.CharField(
+        max_length=20,
+        choices=FEEDBACK_TYPE_CHOICES,
+        default='INTERVIEW',
+        help_text="Tipo de feedback (entrevista, candidato, propuesta, etc.)"
+    )
+    
+    # Estado del Feedback
+    status = models.CharField(
+        max_length=20,
+        choices=FEEDBACK_STATUS_CHOICES,
+        default='PENDING',
+        help_text="Estado del feedback"
+    )
+    
+    # Resultados
+    is_candidate_liked = models.CharField(
+        max_length=20,
+        choices=FEEDBACK_RESULT_CHOICES,
+        default='NOT_APPLICABLE',
+        help_text="¿El candidato/a le gustó al entrevistador?"
+    )
+    
+    meets_requirements = models.CharField(
+        max_length=20,
+        choices=FEEDBACK_RESULT_CHOICES,
+        default='NOT_APPLICABLE',
+        help_text="¿El candidato cumple con los requerimientos?"
+    )
+    
+    # Detalles adicionales
+    missing_requirements = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Descripción de los requisitos que faltan"
+    )
+    
+    additional_comments = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Comentarios adicionales del entrevistador"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Índices
+    class Meta:
+        indexes = [
+            models.Index(fields=['candidate', 'status']),
+            models.Index(fields=['feedback_type', 'status']),
+            models.Index(fields=['created_at', 'status'])
+        ]
+        verbose_name = "Feedback"
+        verbose_name_plural = "Feedbacks"
+        ordering = ['-created_at']
+        
+    def __str__(self):
+        return f"Feedback {self.id} - {self.candidate.nombre} ({self.feedback_type})"
+    
+    def get_status_display(self):
+        """Obtiene el estado formateado."""
+        return dict(FEEDBACK_STATUS_CHOICES).get(self.status, self.status)
+    
+    def get_result_display(self, field):
+        """Obtiene el resultado formateado para un campo específico."""
+        return dict(FEEDBACK_RESULT_CHOICES).get(getattr(self, field), getattr(self, field))
+    
+    def mark_as_completed(self):
+        """Marca el feedback como completado."""
+        self.status = 'COMPLETED'
+        self.save(update_fields=['status'])
+    
+    def skip_feedback(self):
+        """Omite el feedback."""
+        self.status = 'SKIPPED'
+        self.save(update_fields=['status'])
+
 USER_STATUS_CHOICES=[('ACTIVE','Activo'),('INACTIVE','Inactivo'),('PENDING_APPROVAL','Pendiente de Aprobación')]
 VERIFICATION_STATUS_CHOICES=[('PENDING','Pendiente'),('APPROVED','Aprobado'),('REJECTED','Rechazado')]
 DOCUMENT_TYPE_CHOICES=[('ID','Identificación'),('CURP','CURP'),('RFC','RFC'),('PASSPORT','Pasaporte')]
@@ -292,6 +533,11 @@ class Person(models.Model):
     neuroticism = models.FloatField(default=0)
     social_connections = models.ManyToManyField('self', through='SocialConnection', symmetrical=False, related_name='connected_to')
     
+    # Campos para activación de WhatsApp
+    whatsapp_enabled = models.BooleanField(default=False, help_text="¿WhatsApp está activado para este usuario?")
+    whatsapp_activation_token = models.CharField(max_length=36, blank=True, null=True, help_text="Token de activación para WhatsApp")
+    whatsapp_activation_expires = models.DateTimeField(blank=True, null=True, help_text="Fecha de expiración del token de activación")
+    
     # Ya están definidos arriba
     # Conexiones sociales para SocialLink™ (principalmente para candidatos Amigro)
     def __str__(self):
@@ -486,6 +732,347 @@ class Contrato(models.Model):
 
     def __str__(self):
         return f"Contrato para {self.proposal.company} - {self.get_status_display()}"
+
+# Pagos
+
+# Configuraciones de Talento
+
+class WeightingModel(models.Model):
+    """Modelo de ponderación dinámica por nivel de posición y Business Unit."""
+    business_unit = models.ForeignKey(
+        BusinessUnit,
+        on_delete=models.CASCADE,
+        related_name='weightings',
+        help_text="Business Unit asociada a esta ponderación"
+    )
+    position_level = models.CharField(
+        max_length=50,
+        choices=[
+            ('entry_level', 'Nivel de entrada'),
+            ('operativo', 'Nivel operativo'),
+            ('gerencia_media', 'Gerencia media'),
+            ('alta_direccion', 'Alta dirección')
+        ],
+        help_text="Nivel de posición para esta ponderación"
+    )
+    
+    # Ponderaciones dinámicas
+    weight_skills = models.FloatField(
+        default=0.4,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Peso de las habilidades técnicas"
+    )
+    weight_experience = models.FloatField(
+        default=0.3,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Peso de la experiencia"
+    )
+    weight_culture = models.FloatField(
+        default=0.2,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Peso del fit cultural"
+    )
+    weight_location = models.FloatField(
+        default=0.1,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Peso de la ubicación"
+    )
+    
+    # Ponderaciones específicas por nivel
+    culture_importance = models.FloatField(
+        default=0.3,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Importancia del fit cultural para este nivel"
+    )
+    experience_requirement = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Requisito de experiencia para este nivel"
+    )
+    
+    # Campos de auditoría
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_weightings'
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='updated_weightings'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Modelo de Ponderación"
+        verbose_name_plural = "Modelos de Ponderación"
+        unique_together = ['business_unit', 'position_level']
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['business_unit', 'position_level']),
+            models.Index(fields=['business_unit', 'updated_at']),
+            models.Index(fields=['position_level', 'updated_at'])
+        ]
+    
+    def __str__(self):
+        return f"Ponderación {self.position_level} para {self.business_unit.name}"
+    
+    def clean(self):
+        """Validaciones adicionales."""
+        super().clean()
+        
+        # Validar que las ponderaciones sumen 1
+        total_weight = (
+            self.weight_skills +
+            self.weight_experience +
+            self.weight_culture +
+            self.weight_location
+        )
+        
+        if abs(total_weight - 1.0) > 0.01:
+            raise ValidationError(
+                "Las ponderaciones deben sumar 1"
+            )
+            
+        # Validar que los valores estén dentro de rangos razonables
+        if self.culture_importance > 0.6 and self.position_level != 'alta_direccion':
+            raise ValidationError(
+                "La importancia cultural no puede ser tan alta para este nivel"
+            )
+            
+        if self.experience_requirement > 0.7 and self.position_level == 'entry_level':
+            raise ValidationError(
+                "El requisito de experiencia es demasiado alto para nivel de entrada"
+            )
+    
+    def save(self, *args, **kwargs):
+        """Valida y guarda el modelo."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
+    def get_weights(self) -> Dict:
+        """Devuelve las ponderaciones como un diccionario."""
+        return {
+            'skills': self.weight_skills,
+            'experience': self.weight_experience,
+            'culture': self.weight_culture,
+            'location': self.weight_location,
+            'culture_importance': self.culture_importance,
+            'experience_requirement': self.experience_requirement
+        }
+
+    @classmethod
+    def get_cached_weights(cls, business_unit: str, position_level: str) -> Optional[Dict]:
+        """Obtiene ponderaciones desde cache o base de datos."""
+        cache_key = f"weighting:{business_unit}:{position_level}"
+        cached = cache.get(cache_key)
+        
+        if cached:
+            return json.loads(cached)
+            
+        try:
+            weighting = cls.objects.get(
+                business_unit__name=business_unit,
+                position_level=position_level
+            )
+            weights = weighting.get_weights()
+            
+            # Almacenar en cache por 1 hora
+            cache.set(cache_key, json.dumps(weights), 3600)
+            return weights
+            
+        except cls.DoesNotExist:
+            return None
+
+class WeightingHistory(models.Model):
+    """Historial de cambios en ponderaciones."""
+    weighting = models.ForeignKey(
+        WeightingModel,
+        on_delete=models.CASCADE,
+        related_name='history'
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+    changes = models.JSONField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Historial de Ponderación"
+        verbose_name_plural = "Historiales de Ponderación"
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['weighting', 'timestamp']),
+            models.Index(fields=['changed_by', 'timestamp'])
+        ]
+    
+    def __str__(self):
+        return f"Cambio en {self.weighting} el {self.timestamp}"
+
+class TalentConfig(models.Model):
+    """Configuración dinámica para análisis de talento por Business Unit."""
+    business_unit = models.OneToOneField(
+        BusinessUnit,
+        on_delete=models.CASCADE,
+        related_name='talent_config',
+        help_text="Business Unit asociada a esta configuración"
+    )
+    
+    # Configuración general
+    default_weights = models.ForeignKey(
+        WeightingModel,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='default_config',
+        help_text="Ponderaciones por defecto para este BU"
+    )
+    
+    # Parámetros de análisis
+    time_window_days = models.IntegerField(
+        default=30,
+        validators=[MinValueValidator(1)],
+        help_text="Ventana de tiempo para análisis de mensajes (en días)"
+    )
+    min_interactions = models.IntegerField(
+        default=5,
+        validators=[MinValueValidator(1)],
+        help_text="Número mínimo de interacciones para análisis"
+    )
+    sentiment_threshold = models.FloatField(
+        default=0.7,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Umbral de sentimiento para considerar positivo"
+    )
+    
+    # Parámetros de matching
+    match_threshold = models.FloatField(
+        default=0.75,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Umbral mínimo para considerar un match exitoso"
+    )
+    
+    # Configuración de personalidad
+    personality_importance = models.FloatField(
+        default=0.3,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Importancia de la personalidad en el matching"
+    )
+    
+    # Parámetros de optimización
+    cache_ttl = models.IntegerField(
+        default=3600,
+        validators=[MinValueValidator(300)],
+        help_text="Tiempo de vida del cache (en segundos)"
+    )
+    batch_size = models.IntegerField(
+        default=100,
+        validators=[MinValueValidator(1)],
+        help_text="Tamaño del batch para procesamiento asíncrono"
+    )
+    
+    # Campos de auditoría
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración de Talento"
+        verbose_name_plural = "Configuraciones de Talento"
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"Config {self.business_unit.name}"
+    
+    def get_position_level(self, experience_years: int) -> str:
+        """Determina el nivel de posición basado en años de experiencia."""
+        if experience_years >= 15:
+            return 'alta_direccion'
+        elif experience_years >= 8:
+            return 'gerencia_media'
+        elif experience_years >= 2:
+            return 'operativo'
+        return 'entry_level'
+    
+    def get_weighting(self, position_level: str) -> Optional[WeightingModel]:
+        """Obtiene el modelo de ponderación para un nivel de posición."""
+        try:
+            return WeightingModel.objects.get(
+                business_unit=self.business_unit,
+                position_level=position_level
+            )
+        except WeightingModel.DoesNotExist:
+            return None
+
+# Análisis de Oportunidades
+
+OPPORTUNITY_STATUS_CHOICES = [
+    ('NEW', 'Nueva'),
+    ('ANALYZING', 'En Análisis'),
+    ('READY', 'Lista para Contacto'),
+    ('IN_PROGRESS', 'En Progreso'),
+    ('CLOSED', 'Cerrada')
+]
+
+STRATEGY_TYPE_CHOICES = [
+    ('INTERNATIONAL_EXPANSION', 'Expansión Internacional'),
+    ('PRODUCT_INNOVATION', 'Innovación de Producto'),
+    ('TALENT_ACQUISITION', 'Adquisición de Talento'),
+    ('DIGITAL_TRANSFORMATION', 'Transformación Digital'),
+    ('OPERATIONAL_EXCELLENCE', 'Excelencia Operativa')
+]
+
+ACTION_TYPE_CHOICES = [
+    ('EMAIL', 'Email'),
+    ('MEETING', 'Reunión'),
+    ('CALL', 'Llamada'),
+    ('WEBINAR', 'Webinar'),
+    ('DEMO', 'Demostración')
+]
+
+class OpportunityAnalysis(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='opportunity_analyses')
+    status = models.CharField(max_length=20, choices=OPPORTUNITY_STATUS_CHOICES, default='NEW')
+    priority = models.IntegerField(default=0, help_text="Prioridad de la oportunidad (0-100)")
+    value_proposition = models.TextField(blank=True, null=True)
+    key_contacts = models.ManyToManyField(Person, related_name='opportunities')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-priority', '-created_at']
+        
+    def __str__(self):
+        return f"{self.company.name} - {self.get_status_display()}"
+
+class AIStrategy(models.Model):
+    opportunity = models.ForeignKey(OpportunityAnalysis, on_delete=models.CASCADE, related_name='strategies')
+    strategy_type = models.CharField(max_length=50, choices=STRATEGY_TYPE_CHOICES)
+    value_proposition = models.TextField()
+    relevant_bu = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='strategies')
+    success_factors = models.JSONField(default=dict)
+    source_url = models.URLField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.opportunity.company.name} - {self.get_strategy_type_display()}"
+
+class ActionPlan(models.Model):
+    opportunity = models.ForeignKey(OpportunityAnalysis, on_delete=models.CASCADE, related_name='action_plans')
+    action_type = models.CharField(max_length=20, choices=ACTION_TYPE_CHOICES)
+    description = models.TextField()
+    assigned_to = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, related_name='assigned_actions')
+    due_date = models.DateTimeField()
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.opportunity.company.name} - {self.get_action_type_display()}"
 
 # Pagos
 class PaymentMilestone(models.Model):
@@ -1070,15 +1657,187 @@ class IntentTransition(models.Model):
     def __str__(self):
         return f"{self.business_unit.name}: {self.current_intent.name} -> {self.next_intent.name}"
 
-class ContextCondition(models.Model):
-    name=models.CharField(max_length=100)
-    type=models.CharField(max_length=50,choices=CONDITION_TYPE_CHOICES)
-    value=models.TextField()
-    description=models.TextField(blank=True,null=True)
-    created_at=models.DateTimeField(auto_now_add=True)
-    updated_at=models.DateTimeField(auto_now=True)
+class NotificationChannel(models.Model):
+    CHANNEL_CHOICES = [
+        ('WHATSAPP', 'WhatsApp'),
+        ('EMAIL', 'Email'),
+        ('SMS', 'SMS'),
+        ('PUSH', 'Notificación Push')
+    ]
+    
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
+    enabled = models.BooleanField(default=True)
+    priority = models.IntegerField(default=1)
+    config = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
     def __str__(self):
-        return f"{self.name} ({self.type})"
+        return f"{self.channel} - {'Habilitado' if self.enabled else 'Deshabilitado'}"
+
+class MetaAPI(models.Model):
+    """Configuración de la API de Meta para WhatsApp Cloud API."""
+    name = models.CharField(max_length=100, help_text="Nombre descriptivo")
+    app_id = models.CharField(max_length=100, help_text="App ID de Meta")
+    app_secret = models.CharField(max_length=100, help_text="App Secret de Meta")
+    access_token = models.CharField(max_length=500, help_text="Access Token de WhatsApp Cloud API")
+    phone_number_id = models.CharField(max_length=100, help_text="Phone Number ID asignado por Meta")
+    phone_id_formatted = models.CharField(max_length=20, help_text="Número de teléfono formateado (ej: 5215512345678)")
+    business_account_id = models.CharField(max_length=100, help_text="Business Account ID")
+    webhook_verify_token = models.CharField(max_length=100, help_text="Token de verificación para Webhook")
+    active = models.BooleanField(default=True, help_text="Indicador si esta configuración está activa")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración Meta API"
+        verbose_name_plural = "Configuraciones Meta API"
+        
+    def __str__(self):
+        return f"{self.name} - {self.phone_id_formatted} ({'Activo' if self.active else 'Inactivo'})"
+        
+    def save(self, *args, **kwargs):
+        # Solo puede haber una configuración activa a la vez
+        if self.active:
+            MetaAPI.objects.exclude(pk=self.pk).update(active=False)
+        super().save(*args, **kwargs)
+
+class WhatsAppConfig(models.Model):
+    """Configuración de WhatsApp para notificaciones."""
+    name = models.CharField(max_length=100, help_text="Nombre descriptivo")
+    use_custom_activation_page = models.BooleanField(default=True, help_text="Usar página personalizada para activación")
+    activation_url = models.URLField(help_text="URL base para activación personalizada", default="https://huntred.com/activate-whatsapp")
+    template_namespace = models.CharField(max_length=100, help_text="Namespace para templates de WhatsApp", blank=True, null=True)
+    template_language = models.CharField(max_length=10, default="es_MX", help_text="Idioma para templates de WhatsApp")
+    active = models.BooleanField(default=True, help_text="Indicador si esta configuración está activa")
+    
+    # Plantillas registradas
+    templates = models.JSONField(default=dict, blank=True, help_text="Plantillas registradas en WhatsApp API")
+    
+    # Configuración de rate limiting
+    daily_message_limit = models.IntegerField(default=1000, help_text="Límite diario de mensajes")
+    hourly_message_limit = models.IntegerField(default=100, help_text="Límite por hora de mensajes")
+    cooldown_minutes = models.IntegerField(default=60, help_text="Tiempo de espera después de alcanzar límites")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración WhatsApp"
+        verbose_name_plural = "Configuraciones WhatsApp"
+        
+    def __str__(self):
+        return f"{self.name} ({'Activo' if self.active else 'Inactivo'})"
+        
+    def save(self, *args, **kwargs):
+        # Solo puede haber una configuración activa a la vez
+        if self.active:
+            WhatsAppConfig.objects.exclude(pk=self.pk).update(active=False)
+        super().save(*args, **kwargs)
+
+class MessageLog(models.Model):
+    """Registro de mensajes enviados."""
+    MESSAGE_TYPES = [
+        ('WHATSAPP', 'WhatsApp'),
+        ('EMAIL', 'Email'),
+        ('SMS', 'SMS'),
+        ('PUSH', 'Push')
+    ]
+    STATUS_CHOICES = [
+        ('SENT', 'Enviado'),
+        ('DELIVERED', 'Entregado'),
+        ('READ', 'Leído'),
+        ('FAILED', 'Fallido')
+    ]
+    phone = models.CharField(max_length=20, help_text="Número de teléfono", blank=True, null=True)
+    email = models.EmailField(blank=True, null=True, help_text="Email de destino")
+    recipient = models.ForeignKey('Person', on_delete=models.CASCADE, null=True, blank=True, related_name='messages')
+    message = models.TextField(help_text="Contenido del mensaje")
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPES, help_text="Tipo de mensaje")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SENT', help_text="Estado del mensaje")
+    response_data = models.JSONField(default=dict, blank=True, help_text="Datos de respuesta de la API")
+    sent_at = models.DateTimeField(auto_now_add=True, help_text="Fecha de envío")
+    updated_at = models.DateTimeField(auto_now=True, help_text="Última actualización")
+    
+    class Meta:
+        verbose_name = "Log de Mensajes"
+        verbose_name_plural = "Logs de Mensajes"
+        indexes = [
+            models.Index(fields=['phone']),
+            models.Index(fields=['email']),
+            models.Index(fields=['status']),
+            models.Index(fields=['message_type']),
+            models.Index(fields=['sent_at'])
+        ]
+        
+    def __str__(self):
+        recipient = self.phone or self.email or (self.recipient.nombre if self.recipient else "Unknown")
+        return f"{self.message_type} a {recipient} [{self.status}]"
+
+class NotificationConfig(models.Model):
+    """Configuración global del canal de notificaciones."""
+    name = models.CharField(max_length=100, default="Canal de Notificaciones General")
+    whatsapp_channel = models.OneToOneField(
+        NotificationChannel,
+        on_delete=models.CASCADE,
+        related_name='notification_config',
+        null=True,
+        blank=True,
+        help_text="Canal de WhatsApp configurado para notificaciones"
+    )
+    email_channel = models.OneToOneField(
+        NotificationChannel,
+        on_delete=models.CASCADE,
+        related_name='email_config',
+        null=True,
+        blank=True,
+        help_text="Canal de Email configurado para notificaciones"
+    )
+    default_channel = models.CharField(
+        max_length=20,
+        choices=NotificationChannel.CHANNEL_CHOICES,
+        default='WHATSAPP',
+        help_text="Canal por defecto para notificaciones"
+    )
+    retry_attempts = models.IntegerField(
+        default=3,
+        help_text="Número de intentos de reenvío"
+    )
+    retry_delay_minutes = models.IntegerField(
+        default=5,
+        help_text="Tiempo de espera entre reintentos (minutos)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración de Notificaciones"
+        verbose_name_plural = "Configuraciones de Notificaciones"
+        
+    def __str__(self):
+        return self.name
+        
+    def get_default_channel(self):
+        """Obtiene el canal por defecto habilitado."""
+        channel = self.whatsapp_channel if self.default_channel == 'WHATSAPP' else self.email_channel
+        return channel if channel and channel.enabled else None
+        
+    def get_enabled_channels(self):
+        """Obtiene todos los canales habilitados."""
+        channels = []
+        if self.whatsapp_channel and self.whatsapp_channel.enabled:
+            channels.append(self.whatsapp_channel)
+        if self.email_channel and self.email_channel.enabled:
+            channels.append(self.email_channel)
+        return channels
+        
+    def update_channel_config(self, channel_type: str, config: dict):
+        """Actualiza la configuración de un canal específico."""
+        channel = self.whatsapp_channel if channel_type == 'WHATSAPP' else self.email_channel
+        if channel:
+            channel.config.update(config)
+            channel.save()
+            return True
+        return False
 
 class ChatState(models.Model):
     person=models.ForeignKey(Person,on_delete=models.CASCADE,related_name='chat_states')
@@ -1086,35 +1845,37 @@ class ChatState(models.Model):
     state=models.CharField(max_length=50,choices=STATE_TYPE_CHOICES,default='INITIAL')
     last_intent=models.ForeignKey(IntentPattern,on_delete=models.SET_NULL,null=True,blank=True,related_name='chat_states')
     conversation_history=models.JSONField(default=list)
-    last_transition=models.DateTimeField(auto_now=True)
-    created_at=models.DateTimeField(auto_now_add=True)
-    updated_at=models.DateTimeField(auto_now=True)
+    last_transition = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
     class Meta:
-        unique_together=('person','business_unit')
+        unique_together = ('person','business_unit')
+        
     def __str__(self):
         return f"{self.person.nombre} - {self.business_unit.name} ({self.state})"
     def get_available_intents(self):
-        current_state=self.state
-        bu=self.business_unit
-        transitions=StateTransition.objects.filter(current_state=current_state,business_unit=bu)
-        available_intents=IntentPattern.objects.filter(business_units=bu,enabled=True)
-        filtered_intents=[intent for intent in available_intents if IntentTransition.objects.filter(current_intent=intent,business_unit=bu).exists()]
+        current_state = self.state
+        bu = self.business_unit
+        transitions = StateTransition.objects.filter(current_state=current_state, business_unit=bu)
+        available_intents = IntentPattern.objects.filter(business_units=bu, enabled=True)
+        filtered_intents = [intent for intent in available_intents if IntentTransition.objects.filter(current_intent=intent, business_unit=bu).exists()]
         return filtered_intents
-    def validate_transition(self,new_state):
+    def validate_transition(self, new_state):
         try:
-            StateTransition.objects.get(current_state=self.state,next_state=new_state,business_unit=self.business_unit)
+            StateTransition.objects.get(current_state=self.state, next_state=new_state, business_unit=self.business_unit)
             return True
         except StateTransition.DoesNotExist:
             return False
-    def transition_to(self,new_state):
+    def transition_to(self, new_state):
         if self.validate_transition(new_state):
-            self.state=new_state
-            self.last_transition=timezone.now()
+            self.state = new_state
+            self.last_transition = timezone.now()
             self.save()
             return True
         return False
-@receiver(post_save,sender=Person)
-def create_chat_states(sender,instance,created,**kwargs):
+@receiver(post_save, sender=Person)
+def create_chat_states(sender, instance, created, **kwargs):
     """
     Crea estados de chat iniciales para una nueva persona.
     """

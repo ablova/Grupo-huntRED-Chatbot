@@ -22,6 +22,7 @@ from app.com.utils.email_scraper import EmailScraperV2
 from app.models import (
     Configuracion, ConfiguracionBU, Vacante, Person, BusinessUnit,
     DominioScraping, RegistroScraping, Interview, Application,
+    WeightingModel, WeightingHistory
 )
 from app.com.utils.linkedin import (
     process_api_data, fetch_member_profile,
@@ -803,6 +804,61 @@ def enviar_invitaciones_completar_perfil(self, fields=None):
     except Exception as e:
         logger.error(f"Error en el task enviar_invitaciones_completar_perfil: {e}", exc_info=True)
         self.retry(exc=e)
+# =========================================================
+# Tareas para historial de ponderaciones
+# =========================================================
+
+@shared_task
+@with_retry
+async def update_weighting_history_task(weighting_id: int):
+    """
+    Actualiza el historial de cambios en las ponderaciones.
+    
+    Args:
+        weighting_id (int): ID del modelo de ponderación
+    """
+    try:
+        weighting = await WeightingModel.objects.aget(id=weighting_id)
+        
+        # Obtener el historial más reciente
+        last_history = await WeightingHistory.objects.filter(
+            weighting=weighting
+        ).order_by('-timestamp').afirst()
+        
+        if last_history:
+            # Comparar con el historial más reciente
+            changes = {}
+            current_weights = weighting.get_weights()
+            
+            for field in ['weight_skills', 'weight_experience', 'weight_culture', 
+                         'weight_location', 'culture_importance', 'experience_requirement']:
+                old_value = last_history.changes.get(field, {}).get('new', None)
+                new_value = current_weights.get(field)
+                
+                if old_value != new_value:
+                    changes[field] = {
+                        'old': old_value,
+                        'new': float(new_value)
+                    }
+            
+            if changes:
+                await WeightingHistory.objects.acreate(
+                    weighting=weighting,
+                    changed_by=weighting.updated_by,
+                    changes=changes
+                )
+                
+                # Notificar cambios importantes
+                if any(field in changes for field in ['weight_skills', 'weight_experience']):
+                    await send_email(
+                        subject=f"Ponderaciones actualizadas: {weighting.business_unit.name} - {weighting.position_level}",
+                        message=f"Se han actualizado las ponderaciones para {weighting.business_unit.name} - {weighting.position_level}:\n\n" + 
+                              json.dumps(changes, indent=2)
+                    )
+    except Exception as e:
+        logger.error(f"Error actualizando historial de ponderaciones: {str(e)}")
+        raise
+
 # =========================================================
 # Tareas para reportes, limpieza y otros
 # =========================================================

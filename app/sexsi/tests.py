@@ -3,9 +3,8 @@
 # Pruebas para el módulo. Verifica la correcta funcionalidad de componentes específicos.
 
 from django.test import TestCase, Client
-from app.models import Person
+from app.models import Person, ConsentAgreement
 from django.utils.timezone import now, timedelta
-from app.models import ConsentAgreement
 import uuid
 import base64
 
@@ -13,9 +12,16 @@ class SexsiTests(TestCase):
     def setUp(self):
         """Configuración inicial antes de cada prueba"""
         self.client = Client()
-        self.user = User.objects.create_user(username='testuser', password='password123')
+        # Crear un usuario Person para pruebas
+        self.person = Person.objects.create(
+            nombre='Test',
+            apellido_paterno='User',
+            email='test@example.com',
+            phone='5555555555',
+            skills='Usuario SEXSI'
+        )
         self.agreement = ConsentAgreement.objects.create(
-            creator=self.user,
+            creator=self.person,
             invitee_contact="+521234567890",
             agreement_text="Este es un acuerdo de prueba",
             token=uuid.uuid4(),
@@ -24,7 +30,7 @@ class SexsiTests(TestCase):
 
     def test_create_agreement(self):
         """Prueba la creación de un acuerdo"""
-        self.client.login(username='testuser', password='password123')
+        # No necesitamos login ya que usamos Person en lugar de User
         response = self.client.post('/sexsi/create/', {
             'invitee_contact': '+529876543210',
             'agreement_text': 'Nuevo acuerdo de prueba'

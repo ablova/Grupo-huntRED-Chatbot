@@ -1,0 +1,81 @@
+{% extends "base_email.html" %}
+
+{% block content %}
+<h2>Nueva Orden de Compra - Firma de Propuesta</h2>
+
+<p>Se ha firmado una propuesta para el cliente {{ proposal.client_name }}. A continuación, se detallan los datos necesarios para la emisión de la factura:</p>
+
+<h3>Información General</h3>
+<ul>
+    <li><strong>Cliente:</strong> {{ proposal.client_name }}</li>
+    <li><strong>Correo del Cliente:</strong> {{ proposal.client_email }}</li>
+    <li><strong>Fecha de Firma:</strong> {{ proposal.sign_date|date:"d/m/Y" }}</li>
+    <li><strong>Valor Total:</strong> {{ proposal.total_amount|floatformat:"2" }} MXN</li>
+    <li><strong>Moneda:</strong> MXN (Peso Mexicano)</li>
+</ul>
+
+<h3>Desglose de Servicios</h3>
+{% for vacancy in proposal.vacancies.all %}
+<div class="vacancy-item">
+    <h4>{{ vacancy.titulo }}</h4>
+    <ul>
+        <li><strong>Empresa:</strong> {{ vacancy.empresa.name }}</li>
+        <li><strong>Ubicación:</strong> {{ vacancy.ubicacion }}</li>
+        <li><strong>Modalidad:</strong> {{ vacancy.modalidad|default:"No especificada" }}</li>
+        <li><strong>Plazas:</strong> {{ vacancy.numero_plazas }} ({{ vacancy.plazas_restantes }} disponibles)</li>
+        <li><strong>Salario Propuesto:</strong> {{ vacancy.salario|default:"A convenir" }} MXN</li>
+        <li><strong>Beneficios:</strong> {{ vacancy.beneficios|default:"No especificados" }}</li>
+    </ul>
+</div>
+{% endfor %}
+
+<h3>Hitos de Pago</h3>
+{% for milestone in proposal.contrato.payment_milestones.all %}
+<div class="milestone-item">
+    <h4>{{ milestone.name }}</h4>
+    <ul>
+        <li><strong>Porcentaje:</strong> {{ milestone.percentage }}%</li>
+        <li><strong>Monto:</strong> {{ milestone.amount|floatformat:"2" }} MXN</li>
+        <li><strong>Evento Trigger:</strong> {{ milestone.trigger_event }}</li>
+        <li><strong>Días de Offset:</strong> {{ milestone.due_date_offset }} días</li>
+        <li><strong>Estado:</strong> {{ milestone.status }}</li>
+    </ul>
+</div>
+{% endfor %}
+
+<h3>Información Fiscal</h3>
+{% if proposal.fiscal_data %}
+<ul>
+    <li><strong>RFC:</strong> {{ proposal.fiscal_data.rfc }}</li>
+    <li><strong>Razón Social:</strong> {{ proposal.fiscal_data.razon_social }}</li>
+    <li><strong>Dirección Fiscal:</strong> {{ proposal.fiscal_data.direccion }}</li>
+    <li><strong>Regimen Fiscal:</strong> {{ proposal.fiscal_data.regimen_fiscal|default:"No especificado" }}</li>
+</ul>
+{% else %}
+<p><strong>Nota:</strong> No se cuenta con información fiscal del cliente. Se requiere contacto con el cliente para obtener los datos fiscales necesarios.</p>
+{% endif %}
+
+<h3>Información de Contacto</h3>
+<ul>
+    <li><strong>Correo:</strong> {{ proposal.client_email }}</li>
+    <li><strong>Teléfono:</strong> {{ proposal.client_phone }}</li>
+    <li><strong>Persona de Contacto:</strong> {{ proposal.contact_person }}</li>
+    <li><strong>Departamento:</strong> {{ proposal.contact_department|default:"No especificado" }}</li>
+</ul>
+
+<h3>Información Adicional</h3>
+<ul>
+    <li><strong>Unidades de Negocio Involucradas:</strong>
+        {% for bu in proposal.business_units.all %}
+        {{ bu.name }}{% if not forloop.last %}, {% endif %}
+        {% endfor %}
+    </li>
+    <li><strong>Fecha de Inicio Estimada:</strong> {{ proposal.start_date|default:"A definir" }}</li>
+    <li><strong>Fecha de Finalización Estimada:</strong> {{ proposal.end_date|default:"A definir" }}</li>
+</ul>
+
+<p>Por favor, proceda con la emisión de la factura una vez que se hayan validado los datos fiscales. Si es necesario actualizar la información en el sistema, favor de notificar al equipo correspondiente.</p>
+
+<p>Saludos cordiales,</p>
+<p>Sistema de Gestión huntRED®</p>
+{% endblock %}

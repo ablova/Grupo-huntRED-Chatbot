@@ -22,7 +22,7 @@ from app.decorators import (
     super_admin_required, bu_complete_required, bu_division_required,
     role_required
 )
-from app.models import (
+from models import (
     VerificationService, VerificationAddon, OpportunityVerificationPackage,
     CandidateVerification, CandidateServiceResult, Person, SocialNetworkVerification
 )

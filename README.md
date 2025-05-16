@@ -22,18 +22,23 @@
    - [Módulo Publish](#módulo-publish)
    - [Módulo Signature](#módulo-signature)
    - [Módulo SEXSI](#módulo-sexsi)
-4. [Instalación y Configuración](#instalación-y-configuración)
+   - [Módulo Notificaciones](#módulo-notificaciones)
+   - [Módulo Feedback](#módulo-feedback)
+4. [Ciclo Virtuoso](#ciclo-virtuoso)
+5. [Instalación y Configuración](#instalación-y-configuración)
    - [Requisitos del Sistema](#requisitos-del-sistema)
    - [Configuración del Entorno](#configuración-del-entorno)
    - [Instalación Local](#instalación-local)
    - [Despliegue en la Nube](#despliegue-en-la-nube)
-5. [APIs y Integraciones](#apis-y-integraciones)
-6. [Control de Acceso y Seguridad](#control-de-acceso-y-seguridad)
-7. [Optimización y Rendimiento](#optimización-y-rendimiento)
-8. [Tests y Cobertura](#tests-y-cobertura)
-9. [Planes Futuros](#planes-futuros)
-10. [Contribución](#contribución)
-11. [Licencia](#licencia)
+6. [APIs y Integraciones](#apis-y-integraciones)
+   - [Meta WhatsApp API](#meta-whatsapp-api)
+   - [Email API](#email-api)
+7. [Control de Acceso y Seguridad](#control-de-acceso-y-seguridad)
+8. [Optimización y Rendimiento](#optimización-y-rendimiento)
+9. [Tests y Cobertura](#tests-y-cobertura)
+10. [Planes Futuros](#planes-futuros)
+11. [Contribución](#contribución)
+12. [Licencia](#licencia)
 
 ---
 
@@ -46,6 +51,119 @@ El sistema combina tecnologías avanzadas de inteligencia artificial, procesamie
 ## Arquitectura del Sistema
 
 El Sistema Inteligente de Grupo huntRED® está construido sobre una arquitectura modular y escalable utilizando Django como framework principal y aprovechando tecnologías de vanguardia para procesamiento asíncrono, caché, machine learning y comunicación en tiempo real.
+
+### Estructura Organizada
+
+```
+Grupo-huntRED-Chatbot/
+├── config/
+│   ├── docker/
+│   │   ├── Dockerfile
+│   │   ├── docker-compose.yml
+│   │   └── celery_config.py
+│   ├── deployment/
+│   │   ├── .env
+│   │   └── .env-example
+│   ├── scripts/
+│   │   ├── analyze_dependencies.py
+│   │   ├── check_imports.py
+│   │   ├── migrate_structure.py
+│   │   └── organize_files.py
+│   └── validation/
+│       └── pytest.ini
+├── app/
+│   ├── com/
+│   │   ├── chatbot/
+│   │   │   ├── core/
+│   │   │   │   ├── intents/
+│   │   │   │   ├── nlp/
+│   │   │   │   ├── state/
+│   │   │   │   └── workflow/
+│   │   │   ├── services/
+│   │   │   │   ├── response/
+│   │   │   │   └── validation/
+│   │   │   └── utils/
+│   │   ├── communications/
+│   │   │   ├── channels/
+│   │   │   └── networks/
+│   │   ├── models/
+│   │   ├── views/
+│   │   ├── tasks/
+│   │   └── utils/
+│   ├── config/
+│   │   ├── settings/
+│   │   └── dashboards/
+│   ├── modules/
+│   │   ├── ml/
+│   │   ├── payments/
+│   │   ├── publish/
+│   │   └── analytics/
+│   ├── workflows/
+│   │   ├── proposal/
+│   │   ├── contract/
+│   │   └── payment/
+│   └── tasks/
+│       ├── chatbot/
+│       ├── communications/
+│       ├── email/
+│       └── processing/
+└── deploy/
+    ├── docker/
+    ├── scripts/
+    └── logs/
+```
+
+### Componentes Principales
+
+1. **Chatbot**: Sistema de chat multi-canal con personalización por Business Unit
+   - Procesamiento de lenguaje natural avanzado
+   - Sistema de estado persistente
+   - Manejo de contexto multi-sesión
+   - Integración con ML para análisis de sentimiento
+
+2. **Communications**: Manejo inteligente de canales y redes sociales
+   - Sistema de plantillas personalizadas por BU
+   - Manejo de estados de comunicación
+   - Sistema de seguimiento de conversiones
+   - Integración con CRM
+
+3. **Workflows**: Flujos de trabajo optimizados
+   - Sistema de aprobación automática
+   - Manejo de excepciones inteligente
+   - Sistema de notificaciones proactivo
+   - Integración con calendario
+
+4. **Tasks**: Sistema de tareas asíncronas
+   - Procesamiento con Celery
+   - Colas priorizadas
+   - Sistema de reintentos
+   - Monitoreo en tiempo real
+
+5. **Modules**: Módulos específicos
+   - ML: Procesamiento de lenguaje natural y análisis de datos
+   - Payments: Gestión de pagos y suscripciones
+   - Publish: Publicación en redes sociales y canales
+   - Analytics: Análisis de datos y métricas
+
+### Mejoras Recientes
+
+1. **Optimización de Performance**
+   - Implementación de Redis para caché
+   - Optimización de queries SQL
+   - Sistema de rate limiting
+   - Manejo asíncrono de tareas
+
+2. **Seguridad Mejorada**
+   - JWT con tokens de corta duración
+   - Encriptación de datos sensibles
+   - Sistema de auditoría
+   - Control de acceso basado en roles
+
+3. **Integraciones Modernas**
+   - API RESTful con GraphQL
+   - Integración con servicios de mensajería
+   - Sistema de webhooks
+   - Soporte para múltiples canales
 
 ### Estructura del Sistema
 
@@ -345,6 +463,75 @@ El módulo SEXSI (localizado en `app/sexsi`) implementa funcionalidades especial
 - **ConsentVerifier**: Verificación de consentimiento
 - **PrivacyEnforcer**: Protección de privacidad y datos sensibles
 
+## Módulo Notificaciones
+
+El módulo Notificaciones (localizado en `app/notifications`) es un centro unificado de notificaciones que gestiona todas las comunicaciones del sistema hacia candidatos, reclutadores y clientes.
+
+#### Componentes Principales
+
+- **NotificationService**: Servicio centralizado para el manejo de notificaciones
+- **ChannelManager**: Gestión de canales de notificación (email, WhatsApp, SMS)
+- **TemplateEngine**: Motor de plantillas para notificaciones personalizadas
+- **TrackingSystem**: Seguimiento del estado de las notificaciones
+
+#### Integraciones
+
+- **WhatsApp Business API**: Envío de notificaciones a través de WhatsApp
+- **Email API**: Envío de correos electrónicos
+- **SMS Gateway**: Envío de mensajes de texto
+
+#### Ejemplo de Uso
+
+```python
+# Envío de notificación
+notification = await send_notification(
+    recipient_id=123,
+    template_name="new_opportunity",
+    data={"opportunity_name": "Desarrollador Web"}
+)
+```
+
+### Módulo Feedback
+
+El módulo Feedback (localizado en `app/feedback`) gestiona la recopilación, procesamiento y análisis de feedback para mejorar el sistema de matching.
+
+#### Componentes Principales
+
+- **FeedbackService**: Servicio centralizado para el manejo de feedback
+- **SurveyEngine**: Motor de encuestas para recopilar feedback
+- **AnalysisSystem**: Análisis de feedback para identificar patrones y áreas de mejora
+- **ImprovementTracker**: Seguimiento de mejoras implementadas
+
+#### Integraciones
+
+- **Email API**: Envío de encuestas por correo electrónico
+- **Chatbot**: Integración con el chatbot para recopilar feedback
+
+#### Ejemplo de Uso
+
+```python
+# Envío de encuesta
+survey = await send_survey(
+    recipient_id=123,
+    survey_name="post_interview"
+)
+```
+
+## Ciclo Virtuoso
+
+El Sistema Inteligente de Grupo huntRED® implementa un ciclo virtuoso de mejora continua que integra todos los módulos:
+
+1. **Captura de Oportunidades**: Extracción de vacantes mediante scraping, APIs y carga manual.
+2. **Procesamiento ML**: Análisis y enriquecimiento semántico de oportunidades.
+3. **Matching de Candidatos**: Emparejamiento inteligente basado en habilidades, experiencia y personalidad.
+4. **Notificaciones**: Comunicación automática a candidatos y reclutadores.
+5. **Entrevistas**: Programación y seguimiento de procesos de selección.
+6. **Feedback**: Recolección estructurada de retroalimentación.
+7. **Aprendizaje**: Ajuste automático de algoritmos de ML basado en feedback.
+8. **Optimización**: Mejora continua de todo el proceso.
+
+Este ciclo se retroalimenta constantemente, mejorando la precisión y eficiencia del sistema con cada iteración.
+
 ## Instalación y Configuración
 
 ### Requisitos del Sistema
@@ -478,20 +665,20 @@ POST /api/pricing/milestones/generate/  # Generar hitos de pago
 El sistema se integra con los siguientes servicios externos:
 
 #### Servicios de Mensajería
-- **WhatsApp Business API**: Envío y recepción de mensajes de WhatsApp
-- **Telegram Bot API**: Integración con bots de Telegram
-- **Slack API**: Publicación en canales de Slack
+- **WhatsApp**: Integración con la API oficial de WhatsApp Business con rate limiting
+- **Telegram**: Bot de Telegram con mensajes interactivos
+- **Slack**: Publicación en canales de Slack
 
 #### Servicios de Pago
-- **Stripe API**: Procesamiento de pagos con tarjeta
-- **PayPal API**: Pagos internacionales
+- **Stripe**: Procesamiento de pagos con tarjeta
+- **PayPal**: Pagos internacionales
 
 #### Servicios de Verificación
-- **BlackTrust API**: Verificación de identidad y antecedentes
+- **BlackTrust**: Verificación de identidad y antecedentes
 
 #### Publicación
-- **LinkedIn API**: Publicación de vacantes
-- **WordPress API**: Gestión de contenido en blogs corporativos
+- **LinkedIn**: Publicación de vacantes
+- **WordPress**: Gestión de contenido en blogs corporativos
 
 ## Control de Acceso y Seguridad
 
@@ -591,12 +778,14 @@ python -m pytest --cov=app --cov-report=xml --cov-report=term-missing
 
 ## Planes Futuros
 
-El sistema continuará evolucionando con nuevas funcionalidades y mejoras:
+El roadmap de desarrollo del Sistema Inteligente de Grupo huntRED® incluye:
 
-### Próximas Funcionalidades
+### Corto Plazo (3-6 meses)
 
-1. **Mejoras en IA**
-   - Implementación de modelos GPT-4 para análisis avanzado
+- **Mejoras en Matching ML**: Implementación de modelos de embedding más sofisticados
+- **Expansión de Canales**: Integración con nuevas plataformas de mensajería
+- **Optimización de Rendimiento**: Mejoras en caché y procesamiento asíncrono
+- **Plantillas Avanzadas**: Sistema de plantillas dinámicas con lógica condicional
    - Generación automática de propuestas personalizadas
 
 2. **Expansión de Integraciones**

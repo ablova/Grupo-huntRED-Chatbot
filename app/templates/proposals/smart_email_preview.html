@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="email-preview">
+    <h2>Preview del Correo</h2>
+    
+    <div class="email-header">
+        <h3>Asunto: {{ email_content.subject }}</h3>
+    </div>
+    
+    <div class="email-body">
+        {{ email_content.body|safe }}
+    </div>
+    
+    <div class="metadata">
+        <h3>Metadatos</h3>
+        <ul>
+            <li><strong>Unidades de Negocio Relevantes:</strong> {{ email_content.metadata.bu_relevant|join:", " }}</li>
+            <li><strong>Acciones Sugeridas:</strong> {{ email_content.metadata.action_items|join:", " }}</li>
+        </ul>
+    </div>
+    
+    <div class="actions">
+        <form method="post" action=".">
+            {% csrf_token %}
+            <button type="submit">Enviar Correo</button>
+            <button type="button" onclick="window.history.back()">Volver</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

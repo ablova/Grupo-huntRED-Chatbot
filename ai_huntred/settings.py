@@ -13,6 +13,61 @@ from ai_huntred.config.logging import setup_logging
 from ai_huntred.config.optimization import OptimizationConfig
 from ai_huntred.config.monitoring import MonitoringConfig
 
+
+# --- Configuración de NLP ---
+# Switch para controlar el uso de Spacy vs Tabiya
+NLP_USE_TABIYA = env.bool('NLP_USE_TABIYA', default=True)  # Habilitar/deshabilitar Tabiya
+NLP_MIN_TEXT_LENGTH = env.int('NLP_MIN_TEXT_LENGTH', default=100)  # Longitud mínima para usar Tabiya
+NLP_MAX_REQUESTS_PER_MINUTE = env.int('NLP_MAX_REQUESTS_PER_MINUTE', default=100)  # Limite de requests a Tabiya
+
+# --- Configuración de Tabiya Technologies ---
+TABIYA_API_KEY = env('TABIYA_API_KEY', default='')  # Solo necesario si NLP_USE_TABIYA=True
+TABIYA_API_URL = env('TABIYA_API_URL', default='https://api.tabiya.ai')
+TABIYA_TIMEOUT = env.int('TABIYA_TIMEOUT', default=30)  # Timeout en segundos
+TABIYA_RETRY_ATTEMPTS = env.int('TABIYA_RETRY_ATTEMPTS', default=3)
+TABIYA_CACHE_TTL = env.int('TABIYA_CACHE_TTL', default=3600)  # TTL del cache en segundos
+
+# Configuración específica por unidad de negocio
+# Solo se usa si NLP_USE_TABIYA=True
+TABIYA_CONFIG = {
+    'amigro': {
+        'model_version': 'v1.0',
+        'skills_threshold': 0.7,
+        'experience_threshold': 0.6,
+        'culture_threshold': 0.8
+    },
+    'huntu': {
+        'model_version': 'v1.1',
+        'skills_threshold': 0.75,
+        'experience_threshold': 0.65,
+        'culture_threshold': 0.85
+    },
+    'huntred': {
+        'model_version': 'v2.0',
+        'skills_threshold': 0.8,
+        'experience_threshold': 0.7,
+        'culture_threshold': 0.9
+    },
+    'huntred_executive': {
+        'model_version': 'v2.1',
+        'skills_threshold': 0.85,
+        'experience_threshold': 0.75,
+        'culture_threshold': 0.95
+    },
+    'sexsi': {
+        'model_version': 'v1.5',
+        'skills_threshold': 0.7,
+        'experience_threshold': 0.6,
+        'culture_threshold': 0.8
+    },
+    'milkyleak': {
+        'model_version': 'v1.2',
+        'skills_threshold': 0.7,
+        'experience_threshold': 0.6,
+        'culture_threshold': 0.8
+    }
+}
+
 # --- Configuración temprana de TensorFlow ---
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
 tf.config.threading.set_intra_op_parallelism_threads(1)
@@ -86,13 +141,6 @@ def get_channel_config(business_unit, channel_type):
     """
     if channel_type == 'WHATSAPP':
         return get_whatsapp_api_config(business_unit)
-    elif channel_type == 'TELEGRAM':
-        return get_telegram_api_config(business_unit)
-    elif channel_type == 'PAYPAL':
-        return get_paypal_config(business_unit)
-    return None
-
-# Configuración de PayPal (opcional)
 PAYPAL_CONFIG = {
     'mode': env('PAYPAL_MODE', default='sandbox'),
     'client_id': env('PAYPAL_CLIENT_ID', default=None),
@@ -364,9 +412,11 @@ except ImportError:
     try:
         from ai_huntred.celery_config import app as celery_app
     except ImportError:
-        # If celery app is not available, define a placeholder to prevent startup errors
-        celery_app = None
-        logging.warning("Celery app could not be imported. Celery tasks will not be available.")
+        pass
+
+# Configuración de emails
+FINANCE_EMAIL = 'finanzas@huntred.com'  # Email para notificaciones de finanzas
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@huntred.com')
 
 __all__ = ('celery_app',)
 

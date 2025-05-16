@@ -8,12 +8,14 @@ from django.core.mail import send_mail
 from django.conf import settings
 from app.models import (
     Person, Application, EnhancedNetworkGamificationProfile,
-    Vacante, BusinessUnit, WorkflowStage, Notification
+    Vacante, BusinessUnit, WorkflowStage, Notification,
+    WeightingModel, WeightingHistory
 )
 from app.com.utils.parser import CVParser
 from app.tasks import (
     train_matchmaking_model_task, send_mass_email_task,
-    update_matchmaking_scores_task, update_engagement_scores_task
+    update_matchmaking_scores_task, update_engagement_scores_task,
+    update_weighting_history_task
 )
 import logging
 from app.com.chatbot.integrations.services import send_message
@@ -339,6 +341,50 @@ def update_workflow_metrics(sender, instance, created, **kwargs):
                 
         except Exception as e:
             logger.error(f"Error actualizando métricas de workflow: {e}")
+
+# Funciones auxiliares
+
+def get_current_user():
+    """Obtiene el usuario actual de la request."""
+    from threading import local
+    _thread_locals = local()
+    
+    def get_current_request():
+        return getattr(_thread_locals, 'request', None)
+    
+    def get_current_user():
+        request = get_current_request()
+        if request:
+            return request.user
+        return None
+    
+    return get_current_user()
+
+@receiver(post_save, sender=WeightingModel)
+def log_weighting_change(sender, instance, created, **kwargs):
+    """Registra cambios en ponderaciones."""
+    if not created:
+        # Obtener valores anteriores
+        old_instance = WeightingModel.objects.get(pk=instance.pk)
+        
+        # Comparar y registrar cambios
+        changes = {}
+        for field in ['weight_skills', 'weight_experience', 'weight_culture', 'weight_location',
+                     'culture_importance', 'experience_requirement']:
+            old_value = getattr(old_instance, field)
+            new_value = getattr(instance, field)
+            if old_value != new_value:
+                changes[field] = {
+                    'old': float(old_value),
+                    'new': float(new_value)
+                }
+        
+        if changes:
+            WeightingHistory.objects.create(
+                weighting=instance,
+                changed_by=get_current_user(),
+                changes=changes
+            )
 
 # Funciones auxiliares
 

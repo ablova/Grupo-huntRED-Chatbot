@@ -8,21 +8,99 @@ from app.models import Person, Vacante, BusinessUnit
 
 logger = logging.getLogger(__name__)
 
+import spacy
+from app.com.utils.skills import create_skill_processor
+from app.com.utils.skills.base import Skill, Competency
+
 class NLPProcessor:
-    def __init__(self, language: str = "es", mode: str = "opportunity", analysis_depth: str = "deep"):
+    def __init__(self, business_unit: BusinessUnit, language: str = "es", mode: str = "opportunity", analysis_depth: str = "deep"):
         """
-        Inicializa el procesador de NLP.
+        Inicializa el procesador de NLP híbrido (Spacy + Tabiya + SkillClassifier).
         
         Args:
+            business_unit: Unidad de negocio para el análisis
             language: Idioma para el procesamiento ("es" o "en")
             mode: Modo de procesamiento ("opportunity" o "candidate")
             analysis_depth: Profundidad del análisis ("quick" o "deep")
         """
+        self.business_unit = business_unit
         self.language = language
         self.mode = mode
         self.analysis_depth = analysis_depth
-        self.nlp = None
-        self.vectorizer = TfidfVectorizer(stop_words="english")
+        
+        # Inicializar procesadores
+        self.spacy_model = self._load_spacy_model()
+        self.skill_processor = create_skill_processor(
+            business_unit.name,
+            language=language,
+            mode='executive' if business_unit.name == 'huntRED Executive' else 'technical'
+        )
+        
+    async def analyze(self, text: str) -> Dict:
+        """
+        Analiza un texto usando el procesador de habilidades.
+        
+        Args:
+            text: Texto a analizar
+            
+        Returns:
+            Dict con el análisis realizado
+        """
+        try:
+            # Extraer habilidades
+            skills = await self._extract_skills(text)
+            
+            # Clasificar habilidades
+            competencies = await self._classify_skills(skills)
+            
+            # Analizar habilidades y competencias
+            analysis = await self.skill_processor.analyze_skills(skills)
+            competency_analysis = await self.skill_processor.analyze_competencies(competencies)
+            
+            return {
+                "skills": [skill.to_dict() for skill in skills],
+                "competencies": [comp.to_dict() for comp in competencies],
+                "skill_analysis": analysis,
+                "competency_analysis": competency_analysis,
+                "mode": self.mode,
+                "business_unit": self.business_unit.name
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en análisis de habilidades: {str(e)}")
+            return {
+                "skills": [],
+                "competencies": [],
+                "skill_analysis": {},
+                "competency_analysis": {},
+                "mode": self.mode,
+                "business_unit": self.business_unit.name
+            }
+            
+    async def _extract_skills(self, text: str) -> List[Skill]:
+        """Extrae habilidades del texto usando el procesador apropiado."""
+        if self.analysis_depth == "quick":
+            extractor = SpacySkillExtractor(self.business_unit.name, self.language)
+        else:
+            extractor = TabiyaSkillExtractor(self.business_unit.name, self.language)
+            
+        return await extractor.extract_skills(text)
+            
+    async def _classify_skills(self, skills: List[Skill]) -> List[Competency]:
+        """Clasifica habilidades en competencias."""
+        if self.business_unit.name == 'huntRED Executive':
+            classifier = ExecutiveSkillClassifier(self.business_unit.name)
+        else:
+            classifier = BaseSkillClassifier(self.business_unit.name)
+            
+        return await classifier.classify_skills(skills)
+        
+    def _load_spacy_model(self):
+        """Carga el modelo de Spacy según el idioma."""
+        if self.language == "es":
+            return spacy.load("es_core_news_md")
+        else:  # en
+            return spacy.load("en_core_web_md")
         self._initialize_nlp()
         self._initialize_models()
 
@@ -37,7 +115,7 @@ class NLPProcessor:
 
     async def analyze(self, text: str) -> Dict:
         """
-        Analiza un texto y devuelve información relevante.
+        Analiza un texto usando el procesador más apropiado según la profundidad.
         
         Args:
             text: Texto a analizar
@@ -46,39 +124,73 @@ class NLPProcessor:
             Dict con el análisis realizado
         """
         try:
-            doc = self.nlp(text)
-            
-            result = {
-                "entities": self._extract_entities(doc),
-                "sentiment": self._analyze_sentiment(text),
-                "keywords": self._extract_keywords(text),
-                "skills": await self._extract_skills(doc)
-            }
-            
-            if self.analysis_depth == "deep":
-                if self.mode == "opportunity":
-                    result.update({
-                        "job_classification": await self.job_classifier.classify(text),
-                        "salary_estimate": await self.salary_estimator.estimate(text),
-                        "requirements": await self._extract_requirements(doc)
-                    })
-                else:  # candidate
-                    result.update({
-                        "education": await self.education_extractor.extract(text),
-                        "experience": await self.experience_analyzer.analyze(text),
-                        "achievements": await self._extract_achievements(doc)
-                    })
-            
-            return result
-            
+            if self.analysis_depth == "quick":
+                # Usar Spacy para análisis rápido
+                return await self._analyze_with_spacy(text)
+            else:
+                # Usar Tabiya para análisis profundo
+                return await self._analyze_with_tabiya(text)
+                
         except Exception as e:
             logger.error(f"Error en análisis NLP: {str(e)}")
             return {
                 "entities": [],
                 "sentiment": {},
                 "keywords": [],
+                "skills": [],
+                "experience": {},
+                "culture": {},
+                "requirements": [],
+                "benefits": [],
+                "education": [],
+                "achievements": []
+            }
+            
+    async def _analyze_with_spacy(self, text: str) -> Dict:
+        """Analiza usando Spacy para análisis rápido."""
+        try:
+            doc = self.spacy_model(text)
+            
+            return {
+                "entities": self._extract_entities(doc),
+                "sentiment": self._analyze_sentiment(doc),
+                "keywords": self._extract_keywords(doc),
+                "skills": self._extract_skills(doc)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en análisis con Spacy: {str(e)}")
+            return {
+                "entities": [],
+                "sentiment": {},
+                "keywords": [],
                 "skills": []
             }
+            
+    async def _analyze_with_tabiya(self, text: str) -> Dict:
+        """Analiza usando Tabiya para análisis profundo."""
+        try:
+            # Usar Tabiya para análisis profundo
+            result = await self.tabiya.analyze(text)
+            
+            # Añadir análisis adicionales
+            if self.mode == "opportunity":
+                result.update({
+                    "requirements": await self._extract_requirements(text),
+                    "benefits": await self._extract_benefits(text)
+                })
+            else:  # candidate
+                result.update({
+                    "education": await self._extract_education(text),
+                    "achievements": await self._extract_achievements(text)
+                })
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error en análisis con Tabiya: {str(e)}")
+            # Si falla Tabiya, caer a Spacy
+            return await self._analyze_with_spacy(text)
 
     def _initialize_nlp(self):
         """Inicializa el modelo de spaCy."""
@@ -174,26 +286,25 @@ class NLPProcessor:
             logger.error(f"Error extrayendo keywords: {str(e)}")
             return []
 
-    async def _extract_skills(self, doc) -> List[str]:
-        """Extrae habilidades del documento usando múltiples fuentes."""
-        skills = []
-        for token in doc:
-            if token.pos_ in ["NOUN", "ADJ"] and len(token.text) > 2:
-                skills.append(token.text.lower())
+    async def _extract_requirements(self, text: str) -> List[Dict]:
+        """Extrae requisitos específicos del texto."""
+        # Implementación específica para requisitos
+        return []
         
-        # Mejorar la detección de habilidades usando patrones
-        skill_patterns = [
-            r"\b(?:python|java|sql|javascript|typescript|c\+\+|c#|ruby|php|go|rust|swift)\b",
-            r"\b(?:machine\slearning|deep\slearning|ai|artificial\sintelligence)\b",
-            r"\b(?:cloud|aws|azure|gcp|docker|kubernetes)\b",
-            r"\b(?:devops|ci/cd|testing|qa)\b"
-        ]
+    async def _extract_benefits(self, text: str) -> List[Dict]:
+        """Extrae beneficios específicos del texto."""
+        # Implementación específica para beneficios
+        return []
         
-        for pattern in skill_patterns:
-            matches = re.findall(pattern, text.lower())
-            skills.extend(matches)
+    async def _extract_education(self, text: str) -> List[Dict]:
+        """Extrae información de educación del texto."""
+        # Implementación específica para educación
+        return []
         
-        return list(set(skills))
+    async def _extract_achievements(self, text: str) -> List[Dict]:
+        """Extrae logros y logros específicos del texto."""
+        # Implementación específica para logros
+        return []
 
     def _determine_intent(self, text: str) -> str:
         """Determina el intent del mensaje."""
