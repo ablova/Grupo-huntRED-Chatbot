@@ -16,7 +16,17 @@ from django.conf import settings
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
 
-from app.models import Person, Experience, Skill, ChatState, SocialConnection
+# Importar modelos desde app.models
+from app.models import (
+    Person,
+    Experience,
+    Skill,
+    PersonSkill,
+    ChatState,
+    SocialConnection,
+    Company
+)
+
 from app.com.utils.nlp import NLPProcessor
 
 logger = logging.getLogger(__name__)

@@ -308,44 +308,68 @@ class MentorMatcher:
         """Analiza compatibilidad multifactorial entre candidato y mentor."""
         # Analizar diferentes factores de compatibilidad
         
-        # 1. Alineación de carrera
+        # 1. Alineación de carrera y trayectoria
         career_alignment = self._calculate_career_alignment(
             person_data.get('career_trajectory', {}),
             mentor
         )
         
-        # 2. Match de habilidades
+        # 2. Match de habilidades y competencias
         skill_match = self._calculate_skill_match(
             person_data.get('skills', []),
             mentor.get('skills', [])
         )
         
-        # 3. Compatibilidad de personalidad
+        # 3. Compatibilidad de personalidad y valores
         personality_compatibility = self._calculate_personality_compatibility(
             person_data.get('personality', {}).get('type', 'Equilibrado'),
-            mentor.get('personality_type', 'Equilibrado')
+            mentor.get('personality_type', 'Equilibrado'),
+            person_data.get('values', {}),
+            mentor.get('values', {})
         )
         
-        # 4. Experiencia en industria
-        industry_experience = self._calculate_industry_experience(
+        # 4. Experiencia y contexto
+        experience_match = self._calculate_experience_match(
+            person_data.get('experience', {}),
+            mentor.get('experience', {}),
             person_data.get('industry', ''),
-            mentor.get('industry', ''),
-            mentor.get('years_experience', 0)
+            mentor.get('industry', '')
         )
         
-        # 5. Estilo de mentoría vs. necesidades
+        # 5. Estilo de mentoría y objetivos
         mentoring_style = self._calculate_mentoring_style_match(
             goal,
-            mentor.get('mentoring_types', [])
+            mentor.get('mentoring_types', []),
+            person_data.get('learning_style', {}),
+            mentor.get('teaching_style', {})
+        )
+        
+        # 6. Compatibilidad cultural y de equipo
+        cultural_fit = self._calculate_cultural_fit(
+            person_data.get('cultural_preferences', {}),
+            mentor.get('team_culture', {}),
+            person_data.get('work_style', {}),
+            mentor.get('work_style', {})
+        )
+        
+        # 7. Potencial de crecimiento
+        growth_potential = self._calculate_growth_potential(
+            person_data.get('career_goals', {}),
+            mentor.get('expertise_areas', []),
+            person_data.get('learning_curve', {}),
+            mentor.get('mentoring_approach', {})
         )
         
         # Calcular puntuación global ponderada
+        weights = self._get_dynamic_weights(person_data, mentor, goal)
         overall_score = (
-            career_alignment * self.COMPATIBILITY_FACTORS['career_alignment'] +
-            skill_match * self.COMPATIBILITY_FACTORS['skill_match'] +
-            personality_compatibility * self.COMPATIBILITY_FACTORS['personality_compatibility'] +
-            industry_experience * self.COMPATIBILITY_FACTORS['industry_experience'] +
-            mentoring_style * self.COMPATIBILITY_FACTORS['mentoring_style']
+            career_alignment * weights['career_alignment'] +
+            skill_match * weights['skill_match'] +
+            personality_compatibility * weights['personality_compatibility'] +
+            experience_match * weights['experience_match'] +
+            mentoring_style * weights['mentoring_style'] +
+            cultural_fit * weights['cultural_fit'] +
+            growth_potential * weights['growth_potential']
         )
         
         return {
@@ -354,8 +378,10 @@ class MentorMatcher:
                 'career_alignment': career_alignment,
                 'skill_match': skill_match,
                 'personality_compatibility': personality_compatibility,
-                'industry_experience': industry_experience,
-                'mentoring_style': mentoring_style
+                'experience_match': experience_match,
+                'mentoring_style': mentoring_style,
+                'cultural_fit': cultural_fit,
+                'growth_potential': growth_potential
             },
             'compatibility_reasons': self._generate_compatibility_reasons(
                 person_data,
@@ -365,8 +391,10 @@ class MentorMatcher:
                     'career_alignment': career_alignment,
                     'skill_match': skill_match,
                     'personality_compatibility': personality_compatibility,
-                    'industry_experience': industry_experience,
-                    'mentoring_style': mentoring_style
+                    'experience_match': experience_match,
+                    'mentoring_style': mentoring_style,
+                    'cultural_fit': cultural_fit,
+                    'growth_potential': growth_potential
                 }
             )
         }
@@ -449,8 +477,9 @@ class MentorMatcher:
         # Combinar match de habilidades con diferencia de nivel
         return (match_percentage * 0.6) + (level_score * 0.4)
     
-    def _calculate_personality_compatibility(self, person_type: str, mentor_type: str) -> float:
-        """Calcula compatibilidad de personalidades."""
+    def _calculate_personality_compatibility(self, person_type: str, mentor_type: str,
+                                          person_values: Dict, mentor_values: Dict) -> float:
+        """Calcula compatibilidad de personalidades y valores."""
         # Matriz de compatibilidad (simplificada)
         compatibility_matrix = {
             'Analítico': {
@@ -491,16 +520,25 @@ class MentorMatcher:
         mentor_type = mentor_type if mentor_type in compatibility_matrix.get(person_type, {}) else 'Equilibrado'
         
         # Obtener compatibilidad
-        return compatibility_matrix.get(person_type, {}).get(mentor_type, 70)
+        compatibility = compatibility_matrix.get(person_type, {}).get(mentor_type, 70)
+        
+        # Ajustar por valores
+        person_values_score = sum(person_values.get(value, 0) for value in mentor_values)
+        mentor_values_score = sum(mentor_values.get(value, 0) for value in person_values)
+        
+        values_compatibility = (person_values_score + mentor_values_score) / 2
+        
+        return compatibility * values_compatibility
     
-    def _calculate_industry_experience(self, person_industry: str, mentor_industry: str, mentor_years: int) -> float:
-        """Calcula relevancia de la experiencia en industria."""
+    def _calculate_experience_match(self, person_experience: Dict, mentor_experience: Dict,
+                                  person_industry: str, mentor_industry: str) -> float:
+        """Calcula coincidencia entre experiencia del candidato y mentor."""
         # Base: años de experiencia
-        if mentor_years <= 5:
+        if mentor_experience.get('years_experience', 0) <= 5:
             base_score = 50
-        elif mentor_years <= 10:
+        elif mentor_experience.get('years_experience', 0) <= 10:
             base_score = 70
-        elif mentor_years <= 15:
+        elif mentor_experience.get('years_experience', 0) <= 15:
             base_score = 85
         else:
             base_score = 95
@@ -528,7 +566,8 @@ class MentorMatcher:
         
         return min(100, base_score * industry_factor)
     
-    def _calculate_mentoring_style_match(self, goal: str, mentoring_types: List[str]) -> float:
+    def _calculate_mentoring_style_match(self, goal: str, mentoring_types: List[str],
+                                      person_learning_style: Dict, mentor_teaching_style: Dict) -> float:
         """Calcula coincidencia entre objetivo y tipos de mentoría."""
         if not mentoring_types:
             return 50  # Valor neutral si no hay datos
@@ -577,6 +616,111 @@ class MentorMatcher:
         
         return match_percentage
     
+    def _calculate_cultural_fit(self, person_culture: Dict, mentor_culture: Dict,
+                              person_work_style: Dict, mentor_work_style: Dict) -> float:
+        """Calcula la compatibilidad cultural y de estilo de trabajo."""
+        if not all([person_culture, mentor_culture, person_work_style, mentor_work_style]):
+            return 50  # Valor neutral si faltan datos
+            
+        # Calcular alineación de valores culturales
+        cultural_alignment = self._calculate_values_alignment(
+            person_culture.get('values', []),
+            mentor_culture.get('values', [])
+        )
+        
+        # Calcular compatibilidad de estilo de trabajo
+        work_style_compatibility = self._calculate_work_style_compatibility(
+            person_work_style,
+            mentor_work_style
+        )
+        
+        # Calcular dinámica de equipo
+        team_dynamics = self._calculate_team_dynamics(
+            person_culture.get('team_preferences', {}),
+            mentor_culture.get('team_approach', {})
+        )
+        
+        # Combinar factores con pesos
+        return (
+            cultural_alignment * 0.4 +
+            work_style_compatibility * 0.4 +
+            team_dynamics * 0.2
+        )
+
+    def _calculate_growth_potential(self, person_goals: Dict, mentor_expertise: List,
+                                  person_learning: Dict, mentor_approach: Dict) -> float:
+        """Calcula el potencial de crecimiento y desarrollo."""
+        if not all([person_goals, mentor_expertise, person_learning, mentor_approach]):
+            return 50  # Valor neutral si faltan datos
+            
+        # Calcular alineación de objetivos
+        goals_alignment = self._calculate_goals_alignment(
+            person_goals.get('short_term', []),
+            person_goals.get('long_term', []),
+            mentor_expertise
+        )
+        
+        # Calcular compatibilidad de aprendizaje
+        learning_compatibility = self._calculate_learning_compatibility(
+            person_learning.get('style', ''),
+            person_learning.get('pace', ''),
+            mentor_approach.get('teaching_style', ''),
+            mentor_approach.get('mentoring_approach', '')
+        )
+        
+        # Calcular potencial de desarrollo
+        development_potential = self._calculate_development_potential(
+            person_goals.get('career_path', {}),
+            mentor_expertise,
+            mentor_approach.get('development_focus', [])
+        )
+        
+        # Combinar factores con pesos
+        return (
+            goals_alignment * 0.4 +
+            learning_compatibility * 0.3 +
+            development_potential * 0.3
+        )
+
+    def _get_dynamic_weights(self, person_data: Dict, mentor: Dict, goal: str) -> Dict:
+        """Obtiene pesos dinámicos basados en el contexto y objetivos."""
+        # Pesos base
+        base_weights = {
+            'career_alignment': 0.25,
+            'skill_match': 0.20,
+            'personality_compatibility': 0.15,
+            'experience_match': 0.15,
+            'mentoring_style': 0.10,
+            'cultural_fit': 0.10,
+            'growth_potential': 0.05
+        }
+        
+        # Ajustar pesos según el objetivo
+        if 'carrera' in goal.lower():
+            base_weights['career_alignment'] += 0.05
+            base_weights['growth_potential'] += 0.05
+            base_weights['skill_match'] -= 0.05
+            base_weights['experience_match'] -= 0.05
+        elif 'habilidades' in goal.lower():
+            base_weights['skill_match'] += 0.05
+            base_weights['experience_match'] += 0.05
+            base_weights['career_alignment'] -= 0.05
+            base_weights['growth_potential'] -= 0.05
+        elif 'liderazgo' in goal.lower():
+            base_weights['personality_compatibility'] += 0.05
+            base_weights['cultural_fit'] += 0.05
+            base_weights['skill_match'] -= 0.05
+            base_weights['mentoring_style'] -= 0.05
+            
+        # Ajustar pesos según la experiencia del mentor
+        if mentor.get('years_experience', 0) > 10:
+            base_weights['experience_match'] += 0.05
+            base_weights['career_alignment'] -= 0.05
+            
+        # Normalizar pesos
+        total = sum(base_weights.values())
+        return {k: v/total for k, v in base_weights.items()}
+    
     def _generate_compatibility_reasons(self, person_data: Dict, mentor: Dict, 
                                       goal: str, factors: Dict) -> List[str]:
         """Genera razones de compatibilidad para explicar el match."""
@@ -610,7 +754,7 @@ class MentorMatcher:
                     person_type = person_data.get('personality', {}).get('type', 'Equilibrado')
                     reasons.append(f"Compatibilidad entre {person_type} y {mentor['personality_type']}")
                     
-            elif factor_name == 'industry_experience' and score > 70:
+            elif factor_name == 'experience_match' and score > 70:
                 if 'years_experience' in mentor and 'industry' in mentor:
                     reasons.append(f"{mentor['years_experience']} años en {mentor['industry']}")
                     

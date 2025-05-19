@@ -68,52 +68,139 @@ ML_CONFIG = {
                 'WEIGHT': 1.0,
                 'PRIORITY': 1,
                 'MATCHING_WEIGHTS': {
-                    'SKILLS': 0.4,
-                    'CULTURAL_FIT': 0.3,
-                    'EXPERIENCE': 0.2,
-                    'LOCATION': 0.1
+                    'SKILLS': {
+                        'HARD_SKILLS': 0.25,
+                        'SOFT_SKILLS': 0.15,
+                        'TECHNICAL_EXPERTISE': 0.20
+                    },
+                    'CULTURAL_FIT': {
+                        'VALUES_ALIGNMENT': 0.15,
+                        'TEAM_DYNAMICS': 0.10,
+                        'COMMUNICATION_STYLE': 0.05
+                    },
+                    'EXPERIENCE': {
+                        'YEARS': 0.10,
+                        'INDUSTRY': 0.05,
+                        'ROLE_SPECIFIC': 0.15
+                    },
+                    'LOCATION': {
+                        'GEOGRAPHIC': 0.05,
+                        'REMOTE_COMPATIBILITY': 0.05
+                    }
                 }
             },
             'HUNTU': {
                 'WEIGHT': 1.2,
                 'PRIORITY': 2,
                 'MATCHING_WEIGHTS': {
-                    'SKILLS': 0.45,
-                    'CULTURAL_FIT': 0.3,
-                    'EXPERIENCE': 0.15,
-                    'LOCATION': 0.1
+                    'SKILLS': {
+                        'HARD_SKILLS': 0.30,
+                        'SOFT_SKILLS': 0.15,
+                        'TECHNICAL_EXPERTISE': 0.20
+                    },
+                    'CULTURAL_FIT': {
+                        'VALUES_ALIGNMENT': 0.15,
+                        'TEAM_DYNAMICS': 0.10,
+                        'COMMUNICATION_STYLE': 0.05
+                    },
+                    'EXPERIENCE': {
+                        'YEARS': 0.10,
+                        'INDUSTRY': 0.05,
+                        'ROLE_SPECIFIC': 0.15
+                    },
+                    'LOCATION': {
+                        'GEOGRAPHIC': 0.05,
+                        'REMOTE_COMPATIBILITY': 0.05
+                    }
                 }
             },
             'HUNTRED': {
                 'WEIGHT': 1.5,
                 'PRIORITY': 3,
                 'MATCHING_WEIGHTS': {
-                    'SKILLS': 0.5,
-                    'CULTURAL_FIT': 0.3,
-                    'EXPERIENCE': 0.15,
-                    'LOCATION': 0.05
+                    'SKILLS': {
+                        'HARD_SKILLS': 0.35,
+                        'SOFT_SKILLS': 0.15,
+                        'TECHNICAL_EXPERTISE': 0.20
+                    },
+                    'CULTURAL_FIT': {
+                        'VALUES_ALIGNMENT': 0.15,
+                        'TEAM_DYNAMICS': 0.10,
+                        'COMMUNICATION_STYLE': 0.05
+                    },
+                    'EXPERIENCE': {
+                        'YEARS': 0.10,
+                        'INDUSTRY': 0.05,
+                        'ROLE_SPECIFIC': 0.15
+                    },
+                    'LOCATION': {
+                        'GEOGRAPHIC': 0.05,
+                        'REMOTE_COMPATIBILITY': 0.05
+                    }
                 }
             },
             'HUNTRED_EXECUTIVE': {
                 'WEIGHT': 2.0,
                 'PRIORITY': 4,
                 'MATCHING_WEIGHTS': {
-                    'SKILLS': 0.6,
-                    'CULTURAL_FIT': 0.2,
-                    'EXPERIENCE': 0.15,
-                    'LOCATION': 0.05
+                    'SKILLS': {
+                        'HARD_SKILLS': 0.40,
+                        'SOFT_SKILLS': 0.20,
+                        'TECHNICAL_EXPERTISE': 0.20
+                    },
+                    'CULTURAL_FIT': {
+                        'VALUES_ALIGNMENT': 0.20,
+                        'TEAM_DYNAMICS': 0.15,
+                        'COMMUNICATION_STYLE': 0.10
+                    },
+                    'EXPERIENCE': {
+                        'YEARS': 0.15,
+                        'INDUSTRY': 0.10,
+                        'ROLE_SPECIFIC': 0.20
+                    },
+                    'LOCATION': {
+                        'GEOGRAPHIC': 0.05,
+                        'REMOTE_COMPATIBILITY': 0.10
+                    }
                 }
             }
         },
         'MATCHING': {
             'DEFAULT_WEIGHTS': {
-                'SKILLS': 0.4,
-                'CULTURAL_FIT': 0.3,
-                'EXPERIENCE': 0.2,
-                'LOCATION': 0.1
+                'SKILLS': {
+                    'HARD_SKILLS': 0.30,
+                    'SOFT_SKILLS': 0.15,
+                    'TECHNICAL_EXPERTISE': 0.20
+                },
+                'CULTURAL_FIT': {
+                    'VALUES_ALIGNMENT': 0.15,
+                    'TEAM_DYNAMICS': 0.10,
+                    'COMMUNICATION_STYLE': 0.05
+                },
+                'EXPERIENCE': {
+                    'YEARS': 0.10,
+                    'INDUSTRY': 0.05,
+                    'ROLE_SPECIFIC': 0.15
+                },
+                'LOCATION': {
+                    'GEOGRAPHIC': 0.05,
+                    'REMOTE_COMPATIBILITY': 0.05
+                }
             },
-            'MIN_SCORE': 0.5,
-            'MAX_RECOMMENDATIONS': 10
+            'MIN_SCORE': 0.7,
+            'MAX_RECOMMENDATIONS': 10,
+            'DYNAMIC_WEIGHT_ADJUSTMENT': {
+                'ENABLED': True,
+                'LEARNING_RATE': 0.01,
+                'UPDATE_FREQUENCY': 'WEEKLY',
+                'MIN_SAMPLES': 100,
+                'CONFIDENCE_THRESHOLD': 0.8
+            },
+            'FEATURE_IMPORTANCE': {
+                'ENABLED': True,
+                'UPDATE_FREQUENCY': 'MONTHLY',
+                'MIN_SAMPLES': 500
+            }
         }
     },
     'ANALYTICS': {

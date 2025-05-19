@@ -3508,3 +3508,212 @@ class OnboardingTask(models.Model):
 
 # Importando el User estándar de Django para módulos como SEXSI
 from django.contrib.auth.models import User
+
+class Experience(models.Model):
+    """
+    Modelo para almacenar la experiencia laboral de los candidatos.
+    """
+    person = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='experiences',
+        help_text="Persona asociada a esta experiencia laboral"
+    )
+    company = models.ForeignKey(
+        'Company',
+        on_delete=models.CASCADE,
+        related_name='experiences',
+        help_text="Empresa asociada a esta experiencia laboral"
+    )
+    position = models.CharField(
+        max_length=255,
+        help_text="Puesto o cargo ocupado"
+    )
+    start_date = models.DateField(
+        help_text="Fecha de inicio"
+    )
+    end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Fecha de finalización (dejar en blanco si es el trabajo actual)"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Descripción de las responsabilidades y logros"
+    )
+    location = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Ubicación del trabajo"
+    )
+    EMPLOYMENT_TYPE_CHOICES = [
+        ('full_time', 'Tiempo completo'),
+        ('part_time', 'Medio tiempo'),
+        ('self_employed', 'Autónomo'),
+        ('freelance', 'Freelance'),
+        ('contract', 'Contrato'),
+        ('internship', 'Pasantía'),
+        ('apprenticeship', 'Aprendiz'),
+        ('seasonal', 'Temporal/Estacional'),
+    ]
+    employment_type = models.CharField(
+        max_length=20,
+        choices=EMPLOYMENT_TYPE_CHOICES,
+        default='full_time',
+        help_text="Tipo de empleo"
+    )
+    is_current = models.BooleanField(
+        default=False,
+        help_text="¿Es el trabajo actual?"
+    )
+    skills = models.ManyToManyField(
+        'Skill',
+        related_name='experiences',
+        blank=True,
+        help_text="Habilidades utilizadas en este trabajo"
+    )
+    verification_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pendiente'),
+            ('verified', 'Verificado'),
+            ('rejected', 'Rechazado')
+        ],
+        default='pending',
+        help_text="Estado de verificación de la experiencia"
+    )
+    verification_date = models.DateTimeField(null=True, blank=True)
+    verification_notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        verbose_name = "Experiencia Laboral"
+        verbose_name_plural = "Experiencias Laborales"
+        ordering = ['-end_date', '-start_date']
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['company']),
+            models.Index(fields=['position']),
+            models.Index(fields=['start_date']),
+            models.Index(fields=['end_date']),
+            models.Index(fields=['verification_status'])
+        ]
+    def __str__(self):
+        return f"{self.position} en {self.company.name} ({self.start_date} - {self.end_date or 'Presente'})"
+    @property
+    def duration_years(self) -> float:
+        end_date = self.end_date if self.end_date else timezone.now().date()
+        total_days = (end_date - self.start_date).days
+        return round(total_days / 365.25, 1)
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'company': self.company.name,
+            'position': self.position,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'is_current': self.is_current,
+            'description': self.description,
+            'location': self.location,
+            'employment_type': self.employment_type,
+            'duration_years': self.duration_years,
+            'skills': [skill.name for skill in self.skills.all()],
+            'verification_status': self.verification_status,
+            'verification_date': self.verification_date,
+            'verification_notes': self.verification_notes
+        }
+    def verify(self, notes=None):
+        self.verification_status = 'verified'
+        self.verification_date = timezone.now()
+        self.verification_notes = notes
+        self.save()
+    def reject(self, notes=None):
+        self.verification_status = 'rejected'
+        self.verification_date = timezone.now()
+        self.verification_notes = notes
+        self.save()
+
+class Skill(models.Model):
+    """
+    Modelo para almacenar habilidades técnicas y profesionales.
+    """
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Nombre de la habilidad"
+    )
+    category = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Categoría de la habilidad (ej: Programación, Diseño, etc.)"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Descripción de la habilidad"
+    )
+    is_technical = models.BooleanField(
+        default=True,
+        help_text="¿Es una habilidad técnica?"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        verbose_name = "Habilidad"
+        verbose_name_plural = "Habilidades"
+        ordering = ['name']
+    def __str__(self):
+        return self.name
+    @classmethod
+    def get_or_create_skills(cls, skill_names: list) -> list:
+        if not skill_names:
+            return []
+        skills = []
+        for name in skill_names:
+            if not name.strip():
+                continue
+            skill, created = cls.objects.get_or_create(
+                name__iexact=name.strip(),
+                defaults={'name': name.strip()}
+            )
+            skills.append(skill)
+        return skills
+
+class PersonSkill(models.Model):
+    """Modelo para relacionar personas con sus habilidades y niveles."""
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='skills')
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name='people')
+    level = models.CharField(
+        max_length=20,
+        choices=Skill.level_choices,
+        default='intermediate'
+    )
+    years_experience = models.FloatField(default=0)
+    is_verified = models.BooleanField(default=False)
+    verification_date = models.DateTimeField(null=True, blank=True)
+    verification_notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Habilidad de Persona"
+        verbose_name_plural = "Habilidades de Personas"
+        unique_together = ['person', 'skill']
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['skill']),
+            models.Index(fields=['is_verified'])
+        ]
+
+    def __str__(self):
+        return f"{self.person.nombre} - {self.skill.name} ({self.get_level_display()})"
+
+    def verify(self, notes=None):
+        """Marca la habilidad como verificada."""
+        self.is_verified = True
+        self.verification_date = timezone.now()
+        self.verification_notes = notes
+        self.save()

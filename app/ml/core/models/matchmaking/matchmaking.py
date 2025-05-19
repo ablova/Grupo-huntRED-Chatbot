@@ -24,118 +24,153 @@ class MatchmakingModel(BaseModel):
 
     def _initialize_model(self) -> None:
         """
-        Inicializa el modelo de aprendizaje profundo.
-        
-        La arquitectura del modelo está diseñada para:
-        - Manejar características de alta dimensionalidad
-        - Reducir overfitting con regularización y dropout
-        - Mantener la estabilidad con batch normalization
-        - Proporcionar predicciones probabilísticas
+        Inicializa el modelo de aprendizaje profundo con una arquitectura mejorada.
         """
-        self.model = models.Sequential([
-            layers.Input(shape=(512,)),  # 512 características (embedding size)
-            layers.Dense(256, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dropout(0.3),
-            layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dropout(0.2),
-            layers.Dense(64, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dense(1, activation='sigmoid')
-        ])
+        # Capa de entrada para características del candidato
+        candidate_input = layers.Input(shape=(256,), name='candidate_input')
+        
+        # Capa de entrada para características de la vacante
+        vacancy_input = layers.Input(shape=(256,), name='vacancy_input')
+        
+        # Procesamiento del candidato
+        candidate_features = layers.Dense(128, activation='relu')(candidate_input)
+        candidate_features = layers.BatchNormalization()(candidate_features)
+        candidate_features = layers.Dropout(0.3)(candidate_features)
+        
+        # Procesamiento de la vacante
+        vacancy_features = layers.Dense(128, activation='relu')(vacancy_input)
+        vacancy_features = layers.BatchNormalization()(vacancy_features)
+        vacancy_features = layers.Dropout(0.3)(vacancy_features)
+        
+        # Fusión de características
+        merged = layers.Concatenate()([candidate_features, vacancy_features])
+        
+        # Capas ocultas con skip connections
+        x = layers.Dense(256, activation='relu')(merged)
+        x = layers.BatchNormalization()(x)
+        x = layers.Dropout(0.4)(x)
+        
+        # Skip connection
+        skip = x
+        
+        x = layers.Dense(128, activation='relu')(x)
+        x = layers.BatchNormalization()(x)
+        x = layers.Dropout(0.3)(x)
+        
+        # Combinar con skip connection
+        x = layers.Add()([x, skip])
+        
+        # Capa de salida
+        output = layers.Dense(1, activation='sigmoid')(x)
+        
+        # Crear modelo
+        self.model = models.Model(
+            inputs=[candidate_input, vacancy_input],
+            outputs=output
+        )
+        
+        # Compilar modelo con optimizador Adam y learning rate adaptativo
+        optimizer = tf.keras.optimizers.Adam(
+            learning_rate=tf.keras.optimizers.schedules.ExponentialDecay(
+                initial_learning_rate=0.001,
+                decay_steps=1000,
+                decay_rate=0.9
+            )
+        )
         
         self.model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+            optimizer=optimizer,
             loss='binary_crossentropy',
-            metrics=['accuracy', tf.keras.metrics.AUC()]
+            metrics=[
+                'accuracy',
+                tf.keras.metrics.AUC(),
+                tf.keras.metrics.Precision(),
+                tf.keras.metrics.Recall()
+            ]
         )
 
-    def _build_model(self) -> models.Sequential:
+    def train(self, X_candidate: np.ndarray, X_vacancy: np.ndarray, y: np.ndarray,
+              validation_split: float = 0.2, epochs: int = 100, batch_size: int = 32) -> Dict:
         """
-        Construye el modelo de aprendizaje profundo.
-        
-        La arquitectura del modelo está diseñada para:
-        - Manejar características de alta dimensionalidad
-        - Reducir overfitting con regularización y dropout
-        - Mantener la estabilidad con batch normalization
-        - Proporcionar predicciones probabilísticas
-        """
-        model = models.Sequential([
-            layers.Input(shape=(512,)),  # 512 características (embedding size)
-            layers.Dense(256, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dropout(0.3),
-            layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dropout(0.2),
-            layers.Dense(64, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dense(1, activation='sigmoid')
-        ])
-        
-        model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-            loss='binary_crossentropy',
-            metrics=['accuracy', tf.keras.metrics.AUC()]
-        )
-        return model
-
-    def train(self, X: np.ndarray, y: np.ndarray, epochs: int = 10, batch_size: int = 32) -> None:
-        """
-        Entrena el modelo con los datos proporcionados.
+        Entrena el modelo con datos de candidatos y vacantes.
         
         Args:
-            X: Características de entrada
-            y: Etiquetas objetivo
+            X_candidate: Características de los candidatos
+            X_vacancy: Características de las vacantes
+            y: Etiquetas (1 para match exitoso, 0 para no match)
+            validation_split: Proporción de datos para validación
             epochs: Número de épocas de entrenamiento
             batch_size: Tamaño del batch
+            
+        Returns:
+            Dict con historial de entrenamiento
         """
-        try:
-            # Escalar características
-            X_scaled = self.scaler.fit_transform(X)
-            
-            # Entrenar modelo con early stopping
-            self.model.fit(
-                X_scaled, y,
-                epochs=epochs,
-                batch_size=batch_size,
-                validation_split=0.2,
-                callbacks=[
-                    tf.keras.callbacks.EarlyStopping(
-                        monitor='val_loss',
-                        patience=3,
-                        restore_best_weights=True
-                    )
-                ]
+        # Escalar características
+        X_candidate_scaled = self.scaler.fit_transform(X_candidate)
+        X_vacancy_scaled = self.scaler.transform(X_vacancy)
+        
+        # Callbacks para mejor entrenamiento
+        callbacks = [
+            tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss',
+                patience=10,
+                restore_best_weights=True
+            ),
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=0.5,
+                patience=5
             )
-            
-        except Exception as e:
-            logger.error(f"Error entrenando modelo: {e}")
-            raise
+        ]
+        
+        # Entrenar modelo
+        history = self.model.fit(
+            [X_candidate_scaled, X_vacancy_scaled],
+            y,
+            validation_split=validation_split,
+            epochs=epochs,
+            batch_size=batch_size,
+            callbacks=callbacks
+        )
+        
+        return history.history
 
-    def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
+    def predict(self, X_candidate: np.ndarray, X_vacancy: np.ndarray) -> np.ndarray:
+        """
+        Realiza predicciones de compatibilidad.
+        
+        Args:
+            X_candidate: Características de los candidatos
+            X_vacancy: Características de las vacantes
+            
+        Returns:
+            Array con probabilidades de match
+        """
+        X_candidate_scaled = self.scaler.transform(X_candidate)
+        X_vacancy_scaled = self.scaler.transform(X_vacancy)
+        
+        return self.model.predict([X_candidate_scaled, X_vacancy_scaled])
+
+    def evaluate(self, X_candidate: np.ndarray, X_vacancy: np.ndarray, y: np.ndarray) -> Dict:
         """
         Evalúa el rendimiento del modelo.
         
         Args:
-            X: Características de entrada
-            y: Etiquetas objetivo
+            X_candidate: Características de los candidatos
+            X_vacancy: Características de las vacantes
+            y: Etiquetas reales
             
         Returns:
-            Dict[str, float]: Métricas de evaluación
+            Dict con métricas de evaluación
         """
-        try:
-            # Escalar características
-            X_scaled = self.scaler.transform(X)
-            
-            # Evaluar
-            metrics = self.model.evaluate(X_scaled, y, return_dict=True)
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"Error evaluando modelo: {e}")
-            return {}
+        X_candidate_scaled = self.scaler.transform(X_candidate)
+        X_vacancy_scaled = self.scaler.transform(X_vacancy)
+        
+        return self.model.evaluate(
+            [X_candidate_scaled, X_vacancy_scaled],
+            y,
+            return_dict=True
+        )
 
     def save(self, filepath: str) -> None:
         """
@@ -245,108 +280,6 @@ class MatchmakingModel(BaseModel):
         except Exception as e:
             logger.error(f"Error optimizando parámetros: {e}")
             return {}
-
-    def _initialize_model(self) -> None:
-        """
-        Inicializa el modelo de aprendizaje profundo.
-        """
-        self.model = models.Sequential([
-            layers.Input(shape=(512,)),  # 512 características (embedding size)
-            layers.Dense(256, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dropout(0.3),
-            layers.Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dropout(0.2),
-            layers.Dense(64, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-            layers.BatchNormalization(),
-            layers.Dense(1, activation='sigmoid')
-        ])
-        
-        self.model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-            loss='binary_crossentropy',
-            metrics=['accuracy', tf.keras.metrics.AUC()]
-        )
-
-    def train(self, X: np.ndarray, y: np.ndarray, epochs: int = 10, batch_size: int = 32) -> None:
-        """
-        Entrena el modelo con los datos proporcionados.
-        
-        Args:
-            X: Características de entrada
-            y: Etiquetas objetivo
-            epochs: Número de épocas de entrenamiento
-            batch_size: Tamaño del batch
-        """
-        X_scaled = self.scaler.fit_transform(X)
-        self.model.fit(
-            X_scaled, y,
-            epochs=epochs,
-            batch_size=batch_size,
-            validation_split=0.2,
-            callbacks=[
-                tf.keras.callbacks.EarlyStopping(
-                    monitor='val_loss',
-                    patience=3,
-                    restore_best_weights=True
-                )
-            ]
-        )
-
-    def predict(self, person: Person, vacancy: Vacante) -> float:
-        """
-        Predice la probabilidad de coincidencia entre un candidato y una vacante.
-        
-        Args:
-            person: Objeto Person
-            vacancy: Objeto Vacante
-            
-        Returns:
-            float: Probabilidad de coincidencia (0-1)
-        """
-        # Extraer características
-        features = self._extract_features(person, vacancy)
-        features_scaled = self.scaler.transform([features])
-        
-        # Predecir
-        prediction = self.model.predict(features_scaled)[0][0]
-        return float(prediction)
-
-    def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
-        """
-        Evalúa el rendimiento del modelo.
-        
-        Args:
-            X: Características de entrada
-            y: Etiquetas objetivo
-            
-        Returns:
-            Dict[str, float]: Métricas de evaluación
-        """
-        X_scaled = self.scaler.transform(X)
-        metrics = self.model.evaluate(X_scaled, y, return_dict=True)
-        return metrics
-
-    def save(self, filepath: str) -> None:
-        """
-        Guarda el modelo y el escalador.
-        
-        Args:
-            filepath: Ruta donde guardar el modelo
-        """
-        self.model.save(filepath)
-        joblib.dump(self.scaler, filepath + '.scaler')
-
-    def load(self, filepath: str) -> None:
-        """
-        Carga el modelo y el escalador.
-        
-        Args:
-            filepath: Ruta del archivo del modelo
-        """
-        self.model = models.load_model(filepath)
-        self.scaler = joblib.load(filepath + '.scaler')
 
     def get_feature_importance(self) -> Dict[str, float]:
         """
