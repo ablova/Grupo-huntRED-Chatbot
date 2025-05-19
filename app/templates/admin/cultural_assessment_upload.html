@@ -1,0 +1,117 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style type="text/css">
+    .upload-form {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    .instructions {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        border-left: 4px solid #0e3b5e;
+    }
+    .instructions h3 {
+        margin-top: 0;
+        color: #0e3b5e;
+    }
+    .instructions ul {
+        margin-bottom: 0;
+    }
+    .submit-row {
+        margin-top: 20px;
+        text-align: right;
+    }
+    .helptext {
+        font-size: 12px;
+        color: #666;
+        display: block;
+        margin-top: 5px;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .button {
+        background: #0e3b5e;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        color: #fff;
+        cursor: pointer;
+    }
+    .button:hover {
+        background: #0a2e4a;
+    }
+    .csv-example {
+        font-family: monospace;
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        margin-top: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='models_cultural' %}">{% trans 'Cultural Analysis' %}</a>
+    &rsaquo; <a href="{% url 'admin:models_cultural_culturalassessment_changelist' %}">{% trans 'Cultural Assessments' %}</a>
+    &rsaquo; {% trans 'Upload Participants' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="upload-form">
+        <h1>{{ title }}</h1>
+        
+        <div class="instructions">
+            <h3>Instrucciones</h3>
+            <p>Utilice este formulario para cargar participantes para la evaluación cultural desde un archivo CSV.</p>
+            <ul>
+                <li>El archivo CSV debe tener una cabecera y seguir el siguiente formato:</li>
+                <div class="csv-example">nombre,apellido,correo,teléfono,cargo,departamento,equipo</div>
+                <li>Solo los campos nombre, apellido y correo son obligatorios.</li>
+                <li>El sistema creará automáticamente departamentos y equipos si no existen.</li>
+                <li>Si marca "Enviar invitaciones inmediatamente", los participantes recibirán un correo con un enlace para completar la evaluación.</li>
+            </ul>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            {% for field in form %}
+            <div class="form-group">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}
+                <span class="helptext">{{ field.help_text }}</span>
+                {% endif %}
+                {% if field.errors %}
+                <span class="errors">{{ field.errors }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <div class="submit-row">
+                <input type="submit" value="Cargar participantes" class="button">
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

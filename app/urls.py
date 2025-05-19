@@ -67,6 +67,9 @@ from .views.publish_views import (
 )
 from .com.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_view
 
+# Importación para Análisis Cultural
+from app.cultural_assessment import views as cultural_views
+
 logger = logging.getLogger(__name__)
 
 # -------------------------------
@@ -252,6 +255,13 @@ urlpatterns += [
 # ----------------------------------------
 urlpatterns += [
     path('kanban/', include('app.kanban.urls', namespace='kanban')),
+]
+
+# ----------------------------------------
+# 📌 RUTAS DE ANÁLISIS CULTURAL (CULTURAL FIT)
+# ----------------------------------------
+urlpatterns += [
+    path('cultural-assessment/', include('app.cultural_assessment.urls')),
 ]
 
 # ------------------------

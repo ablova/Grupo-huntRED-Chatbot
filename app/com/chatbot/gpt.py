@@ -45,11 +45,146 @@ CIRCUIT_BREAKER_TIMEOUT = 60  # segundos
 PROMPT_CACHE_SIZE = 100
 TOKEN_USAGE_ALERT_THRESHOLD = 0.8  # 80% del límite
 
-# Cache para evitar llamadas repetidas a la API
-response_cache = {}
+# Cache mediante el sistema de caché de Django (en lugar de memoria local)
+# Funciones para gestionar cache de respuestas
+def get_cached_response(model, prompt, business_unit=None):
+    """Obtiene respuesta cacheada con soporte para BU"""
+    bu_id = getattr(business_unit, 'id', None) or getattr(business_unit, 'name', '')
+    cache_key = f"gpt:{model}:{bu_id}:{hash(prompt[:200])}"
+    return cache.get(cache_key)
 
-# Estado del circuit breaker para cada API
+def cache_response(model, prompt, response, business_unit=None, ttl=3600):
+    """Almacena respuesta en caché con TTL y soporte para BU"""
+    bu_id = getattr(business_unit, 'id', None) or getattr(business_unit, 'name', '')
+    cache_key = f"gpt:{model}:{bu_id}:{hash(prompt[:200])}"
+    cache.set(cache_key, response, ttl)
+    
+# Caché en memoria TTL para respuestas frecuentes (más rápida que Django cache)
+PROMPT_CACHE_SIZE = 1000
+try:
+    from cachetools import TTLCache
+    TTLCACHE_AVAILABLE = True
+except ImportError:
+    TTLCACHE_AVAILABLE = False
+
+if TTLCACHE_AVAILABLE:
+    # TTLCache es más eficiente para respuestas frecuentes (1 hora de TTL)
+    memory_cache = TTLCache(maxsize=PROMPT_CACHE_SIZE, ttl=3600)
+else:
+    # Fallback a diccionario simple si TTLCache no está disponible
+    memory_cache = {}
+    
+# ThreadPool para operaciones bloqueantes
+thread_pool = ThreadPoolExecutor(max_workers=5)
+
+# Estado del circuit breaker para cada API (se mantiene en memoria para velocidad)
 service_circuit_breakers = {}
+
+# Constantes de configuración del circuit breaker
+CIRCUIT_BREAKER_THRESHOLD = 5  # Número de fallos consecutivos para abrir el circuito
+CIRCUIT_BREAKER_TIMEOUT = 60    # Segundos que el circuito permanece abierto
+MAX_CONCURRENT_REQUESTS = 5     # Máximo de solicitudes simultáneas
+
+# HTTP Session compartida para mejorar rendimiento de conexiones
+_http_session = None
+
+async def get_http_session():
+    """Obtiene una sesión HTTP compartida para todas las peticiones"""
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = ClientSession(
+            connector=TCPConnector(
+                ssl=False,
+                limit=MAX_CONCURRENT_REQUESTS,  # Máximo de conexiones simultáneas
+                keepalive_timeout=30
+            )
+        )
+    return _http_session
+
+
+class PromptManager:
+    """Manejador de prompts con cache y optimización para cada BU."""
+    
+    def __init__(self, business_unit=None):
+        self.business_unit = business_unit
+        self.templates = self._load_templates()
+        
+    def _load_templates(self) -> Dict:
+        """Cargar templates de prompts específicos por BU."""
+        templates = {
+            'huntred': {
+                'job_analysis': """Analiza la posición laboral y genera una descripción detallada.
+                Contexto: {context}
+                Requisitos: {requirements}
+                Salario: {salary}
+                Responde en formato JSON con: nombre, descripción, requisitos, salario, beneficios.""",
+                'candidate_evaluation': """Evalúa al candidato basado en su perfil y la posición.
+                Candidato: {candidate_profile}
+                Posición: {job_description}
+                Responde con una evaluación detallada en formato JSON."""
+            },
+            'amigro': {
+                'migration_assistance': """Proporciona asistencia para migrantes.
+                Documentos: {documents}
+                Proceso: {process}
+                Responde con pasos detallados en formato JSON.""",
+                'job_search': """Busca oportunidades laborales para migrantes.
+                Perfil: {profile}
+                Ubicación: {location}
+                Responde con lista de trabajos en formato JSON."""
+            },
+            'huntrex': {
+                'executive_search': """Busca candidatos ejecutivos según los criterios.
+                Posición: {position}
+                Empresa: {company}
+                Requisitos: {requirements}
+                Responde con estrategia de búsqueda en formato JSON."""
+            }
+        }
+        
+        # Intentar cargar templates desde la base de datos si está disponible
+        try:
+            from app.models import ConfiguracionBU
+            if self.business_unit:
+                config = ConfiguracionBU.objects.filter(business_unit=self.business_unit).first()
+                if config and hasattr(config, 'config'):
+                    config_data = json.loads(config.config)
+                    if 'prompt_templates' in config_data:
+                        # Fusionar con los templates existentes
+                        bu_name = self.business_unit.name.lower()
+                        if bu_name not in templates:
+                            templates[bu_name] = {}
+                        templates[bu_name].update(config_data['prompt_templates'])
+        except Exception as e:
+            logger.warning(f"No se pudieron cargar templates desde la BD: {e}")
+            
+        return templates
+    
+    def get_template(self, template_name, bu_name=None):
+        """Obtiene un template por nombre y BU."""
+        if not bu_name and self.business_unit:
+            bu_name = self.business_unit.name.lower()
+            
+        bu_name = bu_name.lower() if bu_name else 'huntred'  # Default
+        
+        if bu_name in self.templates and template_name in self.templates[bu_name]:
+            return self.templates[bu_name][template_name]
+        else:
+            # Buscar en templates genéricos
+            return self.templates.get('huntred', {}).get(
+                template_name, 
+                "Por favor responde a la siguiente consulta: {prompt}"
+            )
+    
+    def format_prompt(self, template_name, **kwargs):
+        """Formatea un template con los datos proporcionados."""
+        template = self.get_template(template_name)
+        try:
+            return template.format(**kwargs)
+        except KeyError as e:
+            logger.warning(f"Falta parámetro {e} para template {template_name}")
+            # Devolver template con datos parciales o mensaje de error
+            return f"Error en template {template_name}: {e}"
 
 class BaseHandler:
     def __init__(self, config: GptApi):
@@ -74,34 +209,100 @@ class BaseHandler:
 
     @log_async_function_call(logger)
     async def generate_response(self, prompt: str, business_unit=None) -> str:
+        """Generate a response from the OpenAI API."""
+        # Verificar circuit breaker
+        if self._check_circuit_breaker():
+            return "⚠️ Servicio temporalmente no disponible. Intente más tarde."
+        
+        # Verificar caché con sistema de caché de Django
+        model = self.config.model
+        cached_response = get_cached_response(model, prompt, business_unit)
+        if cached_response:
+            logger.info(f"Respuesta obtenida de caché para modelo {model} y BU {getattr(business_unit, 'name', '...')}")
+            return cached_response
+        
+        # Implementación específica del handler
         raise NotImplementedError("Método 'generate_response' debe ser implementado.")
         
     def _check_circuit_breaker(self):
-        """Verifica si el circuit breaker está abierto"""
-        if self.is_circuit_open:
-            # Verifica si ha pasado suficiente tiempo para reintentar
-            if time.time() - self.circuit_open_time > CIRCUIT_BREAKER_TIMEOUT:
-                logger.info(f"Reseteando circuit breaker para {self.config.model}")
-                self.is_circuit_open = False
-                self.failures = 0
+        """Verifica si el circuit breaker está abierto para esta API."""
+        if not self.circuit_breaker_key:
+            return False
+            
+        breaker = service_circuit_breakers.get(self.circuit_breaker_key, {})
+        # Verificar si el circuito está abierto
+        if breaker.get('is_open', False):
+            open_time = breaker.get('open_time', 0)
+            # Si han pasado más de CIRCUIT_BREAKER_TIMEOUT segundos, intentar cerrar el circuit breaker
+            if time.time() - open_time > CIRCUIT_BREAKER_TIMEOUT:
+                service_circuit_breakers[self.circuit_breaker_key]['is_open'] = False
+                service_circuit_breakers[self.circuit_breaker_key]['failures'] = 0
+                logger.info(f"Circuit breaker cerrado para {self.circuit_breaker_key} después de {CIRCUIT_BREAKER_TIMEOUT}s")
                 return False
+            # El circuito sigue abierto
+            logger.warning(f"Circuit breaker abierto para {self.circuit_breaker_key}, evitando llamada")
             return True
         return False
-    
+        
     def _increment_failure(self):
-        """Incrementa el contador de fallos y abre el circuit breaker si es necesario"""
-        self.failures += 1
-        if self.failures >= CIRCUIT_BREAKER_THRESHOLD:
-            logger.warning(f"Circuit breaker abierto para {self.config.model} después de {self.failures} fallos")
-            self.is_circuit_open = True
-            self.circuit_open_time = time.time()
+        """Incrementa el contador de fallos y abre el circuit breaker si es necesario."""
+        if not self.circuit_breaker_key:
+            return
+            
+        if self.circuit_breaker_key not in service_circuit_breakers:
+            service_circuit_breakers[self.circuit_breaker_key] = {'failures': 0, 'is_open': False}
+            
+        service_circuit_breakers[self.circuit_breaker_key]['failures'] += 1
+        failures = service_circuit_breakers[self.circuit_breaker_key]['failures']
+        
+        # Si supera el umbral, abrir el circuit breaker
+        if failures >= CIRCUIT_BREAKER_THRESHOLD:
+            service_circuit_breakers[self.circuit_breaker_key]['is_open'] = True
+            service_circuit_breakers[self.circuit_breaker_key]['open_time'] = time.time()
+            logger.warning(f"Circuit breaker abierto para {self.circuit_breaker_key} por {failures} fallos")
+            
+    def _reset_failures(self):
+        """Resetea el contador de fallos tras una llamada exitosa."""
+        if not self.circuit_breaker_key:
+            return
+            
+        if self.circuit_breaker_key in service_circuit_breakers:
+            service_circuit_breakers[self.circuit_breaker_key]['failures'] = 0
     
-    def _update_token_usage(self, tokens: int):
-        """Actualiza el contador de uso de tokens y alerta si se acerca al límite"""
+    def _update_token_usage(self, tokens: int, business_unit=None):
+        """Actualiza contador de tokens por BU y total"""
         self.token_usage += tokens
+        
+        # Contador global del modelo
         usage_percent = self.token_usage / self.token_limit
         if usage_percent >= TOKEN_USAGE_ALERT_THRESHOLD:
             logger.warning(f"Uso de tokens al {usage_percent*100:.1f}% del límite para {self.config.model}")
+        
+        # Contador específico por BU
+        if business_unit:
+            bu_id = getattr(business_unit, 'id', None) or getattr(business_unit, 'name', '')
+            if bu_id:
+                bu_key = f"token_usage:{self.config.model}:{bu_id}"
+                current_usage = cache.get(bu_key) or 0
+                new_usage = current_usage + tokens
+                
+                # Obtener límite por BU (configuración o default)
+                bu_limit = self.token_limit  # Default
+                try:
+                    from app.models import ConfiguracionBU
+                    config = ConfiguracionBU.objects.filter(business_unit=business_unit).first()
+                    if config and hasattr(config, 'config'):
+                        bu_config = json.loads(config.config)
+                        bu_limit = bu_config.get('token_limit', self.token_limit)
+                except Exception:
+                    pass
+                    
+                cache.set(bu_key, new_usage, 86400)  # 24 horas
+                
+                # Alertar si está cerca del límite
+                bu_usage_percent = new_usage / bu_limit
+                if bu_usage_percent >= TOKEN_USAGE_ALERT_THRESHOLD:
+                    logger.warning(f"BU {bu_id}: Uso de tokens al {bu_usage_percent*100:.1f}%")
 
     async def close(self):
         """Limpia recursos"""
@@ -110,34 +311,53 @@ class BaseHandler:
 class OpenAIHandler(BaseHandler):
     @log_async_function_call(logger)
     async def initialize(self):
+        """Inicializa el cliente con configuración optimizada."""
         try:
-            self.client = OpenAI(api_key=self.config.api_token, organization=self.config.organization)
-            logger.info(f"OpenAIHandler configurado con modelo: {self.config.model}")
-            # Registrar estado de memoria al inicializar
-            ResourceMonitor.log_memory_usage(logger, f"OpenAIHandler-{self.config.model}")
-            return True
+            # Establecer API key de la configuración
+            self.api_key = self.config.api_key
+            self.organization = getattr(self.config, 'organization', None)
+            
+            # Obtener timeout adaptativo según carga del sistema
+            timeout = self.config.timeout or GPT_DEFAULTS["timeout"]
+            
+            # Verificar carga del sistema para timeout adaptativo
+            try:
+                import psutil
+                cpu_load = psutil.cpu_percent(interval=None) / 100.0
+                if cpu_load > 0.8:  # Más del 80% de CPU
+                    timeout *= 1.5  # Aumentar 50%
+                    logger.info(f"Timeout aumentado por alta carga de CPU ({cpu_load:.1%})")
+            except ImportError:
+                pass
+                
+            # Crear cliente con configuración optimizada
+            self.client = OpenAI(
+                api_key=self.api_key,
+                organization=self.organization,
+                max_retries=MAX_RETRIES,
+                timeout=timeout
+            )
+            logger.info(f"Cliente OpenAI inicializado para {self.config.model} con timeout {timeout}s")
         except Exception as e:
-            logger.error(f"Error inicializando OpenAIHandler: {str(e)}", exc_info=True)
-            return False
+            logger.error(f"Error inicializando OpenAI: {str(e)}")
+            self._increment_failure()
+            self.client = None
 
     @log_async_function_call(logger)
     @backoff.on_exception(backoff.expo, OpenAIError, max_tries=MAX_RETRIES)
     async def generate_response(self, prompt: str, business_unit=None) -> str:
         # Verificar circuit breaker
         if self._check_circuit_breaker():
-            logger.warning(f"Circuit breaker abierto para {self.config.model}, evitando llamada")
-            return "⚠ Servicio temporalmente no disponible. Intente más tarde."
-            
-        if not self.client:
-            logger.error("Cliente OpenAI no inicializado")
-            return "⚠ GPT no inicializado."
-            
-        # Verificar cache
-        cache_key = f"{prompt[:100]}_{business_unit.id if business_unit else 'general'}"
-        if cache_key in response_cache[self.config.model]:
-            logger.info(f"Respuesta encontrada en caché para {self.config.model}")
-            return response_cache[self.config.model][cache_key]
-            
+            return "⚠️ Servicio temporalmente no disponible. Intente más tarde."
+        
+        # Verificar caché con sistema de caché de Django
+        model = self.config.model
+        cached_response = get_cached_response(model, prompt, business_unit)
+        if cached_response:
+            logger.info(f"Respuesta obtenida de caché para modelo {model} y BU {getattr(business_unit, 'name', '...')}")
+            return cached_response
+        
+        # Implementación específica del handler
         bu_name = business_unit.name if business_unit else "General"
         full_prompt = (
             f"Unidad de Negocio: {bu_name}\n"
@@ -168,23 +388,20 @@ class OpenAIHandler(BaseHandler):
                 timeout=GPT_DEFAULTS["timeout"]
             )
             
-            # Actualizar contadores de tokens
-            tokens_used = response.usage.total_tokens
-            self._update_token_usage(tokens_used)
+            # Actualizar contador de tokens
+            completion_tokens = response.usage.completion_tokens
+            prompt_tokens = response.usage.prompt_tokens
+            total_tokens = completion_tokens + prompt_tokens
+            self._update_token_usage(total_tokens, business_unit)
             
-            # Registrar métricas
-            elapsed_time = time.time() - start_time
-            logger.info(f"Respuesta OpenAI recibida en {elapsed_time:.2f}s, {tokens_used} tokens", 
-                       extra={"data": {"elapsed_time": elapsed_time, "tokens": tokens_used}})
+            # Guardar en caché Django (persistente y compartida)
+            response_text = response.choices[0].message.content.strip()
+            cache_response(model, prompt, response_text, business_unit)
             
-            # Guardar en caché
-            result = response.choices[0].message.content.strip()
-            if len(response_cache[self.config.model]) < PROMPT_CACHE_SIZE:
-                response_cache[self.config.model][cache_key] = result
-                
-            # Resetear contador de fallos
-            self.failures = 0
-            return result
+            # Log de finalización con identificador de BU
+            bu_name = getattr(business_unit, 'name', 'ninguna') if business_unit else 'ninguna'
+            logger.debug(f"Respuesta generada para BU '{bu_name}': {len(response_text)} caracteres")
+            return response_text
             
         except RateLimitError as e:
             self._increment_failure()

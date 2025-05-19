@@ -2,73 +2,172 @@
 # Modelos relacionados con el análisis cultural
 # Este archivo debe ser importado desde models.py
 
+"""Modelos de datos para el Sistema de Análisis de Cultura Organizacional de Grupo huntRED
+
+Este módulo define los modelos de datos necesarios para la evaluación, análisis y 
+reporte de compatibilidad cultural entre personas y organizaciones.
+
+Optimizado para bajo uso de CPU y alta escalabilidad, siguiendo reglas globales.
+"""
+
 from django.db import models
 from django.utils import timezone
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils.crypto import get_random_string
+from app.models import Person, BusinessUnit, Organization, Application, Vacante, Team, Department, User
+import uuid
+import hashlib
 
-class PersonCulturalProfile(models.Model):
-    """
-    Modelo para almacenar el perfil cultural de una persona.
-    Almacena los resultados del test cultural y las preferencias del candidato.
-    """
-    person = models.OneToOneField(
-        'Person',
-        on_delete=models.CASCADE,
-        related_name='cultural_profile',
-        help_text="Persona a la que pertenece este perfil cultural"
-    )
+
+class CulturalDimension(models.Model):
+    """Define una dimensión cultural para evaluación y análisis"""
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    category = models.CharField(max_length=50, default='general')
+    weight = models.FloatField(default=1.0, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
+    icon = models.CharField(max_length=50, help_text="Nombre del icono para UI", null=True, blank=True)
+    active = models.BooleanField(default=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    # Puntajes por dimensión cultural (escala 1-5)
+    class Meta:
+        ordering = ['category', 'name']
+        indexes = [models.Index(fields=['business_unit', 'active'])]
+    
+    def __str__(self):
+        return f"{self.name} ({self.category})"
+
+
+class CulturalValue(models.Model):
+    """Representa un valor cultural específico dentro de una dimensión"""
+    dimension = models.ForeignKey(CulturalDimension, on_delete=models.CASCADE, related_name='values')
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    positive_statement = models.TextField(help_text="Afirmación positiva para evaluación")
+    negative_statement = models.TextField(help_text="Afirmación negativa para evaluación", null=True, blank=True)
+    weight = models.FloatField(default=1.0, validators=[MinValueValidator(0.1), MaxValueValidator(5.0)])
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['dimension', 'name']
+        indexes = [models.Index(fields=['dimension', 'active'])]
+    
+    def __str__(self):
+        return f"{self.name} ({self.dimension.name})"
+
+
+class OrganizationalCulture(models.Model):
+    """Define el perfil cultural de una organización"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='cultural_profiles')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    is_current = models.BooleanField(default=True, help_text="Si es el perfil cultural actual")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_assessment_date = models.DateTimeField(null=True, blank=True)
+    completion_percentage = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    confidence_score = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    status = models.CharField(max_length=50, default='in_progress', choices=[
+        ('not_started', 'No iniciado'),
+        ('in_progress', 'En progreso'),
+        ('partial', 'Datos parciales (>80%)'),
+        ('complete', 'Completo')
+    ])
+    cultural_insights = JSONField(default=dict, help_text="Insights culturales agregados")
+    
+    class Meta:
+        ordering = ['-is_current', '-updated_at']
+        indexes = [models.Index(fields=['organization', 'is_current'])]
+    
+    def __str__(self):
+        return f"Perfil cultural: {self.organization.name} ({self.status})"
+
+    def update_completion_status(self):
+        """Actualiza el estado de compleción basado en el porcentaje"""
+        if self.completion_percentage >= 100:
+            self.status = 'complete'
+        elif self.completion_percentage >= 80:
+            self.status = 'partial'
+        elif self.completion_percentage > 0:
+            self.status = 'in_progress'
+        else:
+            self.status = 'not_started'
+        self.save(update_fields=['status'])
+
+
+class CulturalProfile(models.Model):
+    """Representa un perfil cultural de una persona"""
+    person = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='cultural_profile')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_assessment_date = models.DateTimeField(null=True, blank=True)
+    
+    # Puntajes por dimensión cultural (escala 0-5)
     values_score = models.FloatField(
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
-        help_text="Puntaje en la dimensión de valores (1-5)"
+        help_text="Puntaje en la dimensión de valores (0-5)"
     )
-    
     motivators_score = models.FloatField(
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
-        help_text="Puntaje en la dimensión de motivadores (1-5)"
+        help_text="Puntaje en la dimensión de motivadores (0-5)"
     )
-    
     interests_score = models.FloatField(
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
-        help_text="Puntaje en la dimensión de intereses (1-5)"
+        help_text="Puntaje en la dimensión de intereses (0-5)"
     )
-    
     work_style_score = models.FloatField(
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
-        help_text="Puntaje en la dimensión de estilo de trabajo (1-5)"
+        help_text="Puntaje en la dimensión de estilo de trabajo (0-5)"
     )
-    
     social_impact_score = models.FloatField(
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
-        help_text="Puntaje en la dimensión de impacto social (1-5)"
+        help_text="Puntaje en la dimensión de impacto social (0-5)"
     )
-    
     generational_values_score = models.FloatField(
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
-        help_text="Puntaje en la dimensión de valores generacionales (1-5)"
+        help_text="Puntaje en la dimensión de valores generacionales (0-5)"
+    )
+    
+    # Datos de transformación y liderazgo
+    leadership_potential = models.FloatField(
+        default=0.0, 
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
+        help_text="Potencial de liderazgo (0-100)"
+    )
+    transformation_potential = models.FloatField(
+        default=0.0, 
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
+        help_text="Potencial como agente de transformación (0-100)"
+    )
+    risk_factor = models.FloatField(
+        default=0.0, 
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
+        help_text="Factor de riesgo cultural (0-100)"
     )
     
     # Datos estructurados del perfil
-    compatibility_data = models.JSONField(
+    compatibility_data = JSONField(
         default=dict,
-        help_text="Datos de compatibilidad con diferentes unidades de negocio"
+        help_text="Datos de compatibilidad con diferentes culturas organizacionales"
     )
     
     strengths = models.JSONField(
         default=list,
-        help_text="Lista de fortalezas culturales identificadas"
+        help_text="Fortalezas culturales identificadas"
     )
     
-    areas_for_improvement = models.JSONField(
+    areas_of_improvement = models.JSONField(
         default=list,
-        help_text="Lista de áreas de mejora cultural identificadas"
+        help_text="Áreas de mejora cultural identificadas"
     )
     
     recommendations = models.JSONField(

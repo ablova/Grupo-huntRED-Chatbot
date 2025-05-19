@@ -1,27 +1,62 @@
 # /home/pablo/app/signals.py
+"""
+Archivo de compatibilidad para señales de Django.
+Este archivo importa todas las señales desde los módulos específicos 
+en app/signals/ para mantener compatibilidad con el código existente.
 
+NOTA: Este archivo será eliminado eventualmente. Todo el código nuevo debe
+usar directamente los módulos específicos.
+"""
+
+import logging
+import warnings
 from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
-from django.db.models import Q
-from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
-from app.models import (
-    Person, Application, EnhancedNetworkGamificationProfile,
-    Vacante, BusinessUnit, WorkflowStage, Notification,
-    WeightingModel, WeightingHistory
-)
-from app.com.utils.parser import CVParser
-from app.tasks import (
-    train_matchmaking_model_task, send_mass_email_task,
-    update_matchmaking_scores_task, update_engagement_scores_task,
-    update_weighting_history_task
-)
-import logging
-from app.com.chatbot.integrations.services import send_message
-from app.com.chatbot.utils import get_nlp_processor
+from django.utils.deprecation import RemovedInNextVersionWarning
 
+# Advertencia de deprecación
+warnings.warn(
+    "El archivo app/signals.py está obsoleto. Usa los módulos específicos en app/signals/",
+    RemovedInNextVersionWarning, stacklevel=2
+)
+
+# Configuración de logging
 logger = logging.getLogger(__name__)
+
+# Notificar la carga del archivo deprecado
+logger.warning(
+    "El archivo app/signals.py está obsoleto. Se recomienda usar los módulos específicos en app/signals/"
+)
+
+# Importar desde cada módulo específico
+from app.signals.core import (
+    initialize_signals, register_signal_handler,
+    business_unit_changed, candidate_state_changed,
+    document_processed, notification_sent, payment_processed,
+    whatsapp_message_received
+)
+
+from app.signals.chatbot import process_chat_message, initialize_chat_session
+from app.signals.vacancies import (
+    vacancy_published, vacancy_matched,
+    update_vacancy_timestamps, vacancy_tags_changed, application_created
+)
+from app.signals.payments import (
+    payment_processed, payment_failed, invoice_generated,
+    handle_payment_update, handle_invoice_creation
+)
+from app.signals.user import (
+    profile_completed, cv_analyzed,
+    analyze_cv, create_person_profile
+)
+from app.signals.publish import (
+    publication_created, publication_updated, publication_failed,
+    auto_publish_vacancy, handle_publication_result
+)
+from app.signals.notifications import (
+    notification_created, notification_sent, notification_failed,
+    handle_notification_created, process_notification_queue
+)
 
 
 @receiver(post_save, sender=Person)

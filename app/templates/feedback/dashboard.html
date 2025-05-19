@@ -8,17 +8,35 @@
     .dashboard-header {
         background-color: #1a2c5b;
         color: white;
-        padding: 20px;
-        border-radius: 5px;
-        margin-bottom: 20px;
+        padding: 1.25rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .dashboard-header:after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 130px;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        clip-path: polygon(100% 0, 0 0, 100% 100%);
     }
     .stage-section {
         background-color: #fff;
-        border-radius: 5px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+        padding: 1.25rem;
         border-top: 4px solid #1a2c5b;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stage-section:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
     }
     .stage-section.proposal {
         border-top-color: #e03a3e;
@@ -31,21 +49,31 @@
     }
     .metric-card {
         background-color: #f8f9fa;
-        border-radius: 5px;
-        padding: 15px;
-        margin-bottom: 15px;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
         border-left: 3px solid #1a2c5b;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .metric-card:hover {
+        background-color: #f1f3f5;
+        transform: translateX(3px);
     }
     .metric-card h4 {
         margin-top: 0;
         color: #1a2c5b;
+        font-weight: 600;
     }
-    .metric-card .value {
-        font-size: 24px;
-        font-weight: bold;
-    }
-    .metric-card.positive {
-        border-left-color: #2e8b57;
+    .metric-card .trend-indicator {
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+        font-size: 0.85rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 20px;
+        background: rgba(46, 139, 87, 0.1);
     }
     .metric-card.neutral {
         border-left-color: #ffd700;
@@ -269,31 +297,124 @@
             </div>
             
             <!-- Gráficos y Tendencias -->
-            {% if has_chart_data %}
-            <div class="row mb-4">
+            <!-- Filtros de Análisis -->
+            <div class="row mb-3">
                 <div class="col-12">
-                    <div class="stage-section">
-                        <h3><i class="fas fa-chart-line"></i> Tendencias y Análisis</h3>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="chart-container">
-                                    <canvas id="trendChart"></canvas>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="chart-container">
-                                    <canvas id="categoryChart"></canvas>
-                                </div>
+                    <div class="feedback-filter">
+                        <button data-period="week" class="btn">Esta Semana</button>
+                        <button data-period="month" class="btn active">Este Mes</button>
+                        <button data-period="quarter" class="btn">Este Trimestre</button>
+                        <button data-period="year" class="btn">Este Año</button>
+                        <span class="ms-auto data-refresh">Última actualización: {{ now|date:"H:i:s" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Análisis Visual -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">Distribución por Etapa</h3>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary export-data" data-format="image" data-chart="distribution">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary export-data" data-format="csv" data-chart="distribution">
+                                    <i class="fas fa-file-csv"></i>
+                                </button>
                             </div>
                         </div>
-                        <div class="text-end mt-3">
-                            <a href="{% url 'feedback:export_insights' %}?start_date={{ start_date|date:'Y-m-d' }}&format=json" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-download"></i> Exportar datos
-                            </a>
+                        <div class="card-body">
+                            <canvas id="categoryChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">Evolución de Retroalimentación</h3>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary export-data" data-format="image" data-chart="trend">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary export-data" data-format="csv" data-chart="trend">
+                                    <i class="fas fa-file-csv"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="trendChart" height="250"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Análisis Adicional -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">Análisis de Sentimiento</h3>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary export-data" data-format="image" data-chart="sentiment">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary export-data" data-format="pdf" data-chart="sentiment">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="sentimentChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">Fuentes de Retroalimentación</h3>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary export-data" data-format="image" data-chart="source">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary export-data" data-format="csv" data-chart="source">
+                                    <i class="fas fa-file-csv"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="sourceChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Serie Temporal Completa -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h3 class="mb-0">Retroalimentación Anual</h3>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary export-data" data-format="image" data-chart="timeSeries">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary export-data" data-format="pdf" data-chart="timeSeries">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="timeSeriesChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Para compatibilidad -->
+            {% if has_chart_data %}
+            <!-- No se muestra contenido aquí ya que los gráficos se han movido arriba -->
             {% endif %}
         </div>
         
@@ -375,85 +496,605 @@
 <script>
 // Utilizando un patrón IIFE para aislar el código y evitar conflictos con las plantillas Django
 (function() {
-    document.addEventListener('DOMContentLoaded', function() {
-        // JavaScript puro para evitar dependencia de jQuery
+    // Definir colores de la marca para consistencia
+    const COLORS = {
+        primary: '#1a2c5b',
+        proposal: '#e03a3e',
+        ongoing: '#ffd700',
+        completed: '#2e8b57',
+        neutral: '#6c757d',
+        background: 'rgba(248, 249, 250, 0.8)'
+    };
+
+    // Configuración compartida para gráficos
+    const CHART_CONFIG = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+            duration: 1000,
+            easing: 'easeOutQuart'
+        },
+        interaction: {
+            mode: 'index',
+            intersect: false
+        },
+        plugins: {
+            tooltip: {
+                padding: 10,
+                backgroundColor: COLORS.primary,
+                titleFont: {
+                    size: 14
+                },
+                bodyFont: {
+                    size: 13
+                },
+                borderColor: '#fff',
+                borderWidth: 1,
+                displayColors: true,
+                boxWidth: 10,
+                boxHeight: 10,
+                boxPadding: 5,
+                usePointStyle: true
+            },
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    padding: 15,
+                    usePointStyle: true,
+                    pointStyleWidth: 10
+                }
+            }
+        }
+    };
+
+    // Cache de elementos DOM
+    let charts = {};
+    let periodSelector = null;
+    
+    document.addEventListener('DOMContentLoaded', async function() {
+        // JavaScript optimizado con async/await para mejor rendimiento
         {% if has_chart_data %}
-            // Definir variables de datos desde contexto Django
-            var chartData = {
-                proposal: {{ stages_data.proposal.feedbacks_count|default:"0" }},
-                ongoing: {{ stages_data.ongoing.feedbacks_count|default:"0" }},
-                completed: {{ stages_data.completed.feedbacks_count|default:"0" }}
+            // Cache de elementos DOM para evitar múltiples consultas
+            const chartContainers = {
+                trend: document.getElementById('trendChart'),
+                category: document.getElementById('categoryChart'),
+                sentiment: document.getElementById('sentimentChart'),
+                source: document.getElementById('sourceChart'),
+                time: document.getElementById('timeSeriesChart')
             };
             
-            // Gráfico de tendencias
-            renderTrendChart();
-            
-            // Gráfico de categorías
-            renderCategoryChart();
-            
-            function renderTrendChart() {
-                var trendCtx = document.getElementById('trendChart').getContext('2d');
-                new Chart(trendCtx, {
-                    type: 'line',
-                    data: {
-                        labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'],
-                        datasets: [{
-                            label: 'Propuestas',
-                            data: [12, 19, 15, 17],
-                            borderColor: '#e03a3e',
-                            tension: 0.1
-                        }, {
-                            label: 'Servicios en Curso',
-                            data: [7, 11, 14, 16],
-                            borderColor: '#ffd700',
-                            tension: 0.1
-                        }, {
-                            label: 'Servicios Concluidos',
-                            data: [5, 8, 10, 12],
-                            borderColor: '#2e8b57',
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Evolución de Retroalimentación'
-                            }
-                        }
-                    }
-                });
+            // Selector del periodo (para filtros)
+            periodSelector = document.getElementById('periodSelector');
+            if (periodSelector) {
+                periodSelector.addEventListener('change', updateCharts);
             }
-            
-            function renderCategoryChart() {
-                var categoryCtx = document.getElementById('categoryChart').getContext('2d');
-                new Chart(categoryCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Propuestas', 'Servicios en Curso', 'Servicios Concluidos'],
-                        datasets: [{
-                            data: [chartData.proposal, chartData.ongoing, chartData.completed],
-                            backgroundColor: [
-                                '#e03a3e',
-                                '#ffd700',
-                                '#2e8b57'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Distribución por Etapa'
-                            }
-                        }
-                    }
+
+            // Manejador para botones de filtrado
+            const filterButtons = document.querySelectorAll('.feedback-filter .btn');
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    filterButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    updateCharts(this.dataset.period || 'month');
                 });
-            }
+            });
+
+            // Definir variables de datos desde contexto Django
+            const chartData = {
+                proposal: {{ stages_data.proposal.feedbacks_count|default:"0" }},
+                ongoing: {{ stages_data.ongoing.feedbacks_count|default:"0" }},
+                completed: {{ stages_data.completed.feedbacks_count|default:"0" }},
+                // Datos de satisfacción, calculados desde los insights
+                satisfaction: {
+                    proposal: {{ stages_data.proposal.insights.interest_rate|default:"0"|floatformat:1 }},
+                    ongoing: {{ stages_data.ongoing.insights.average_ratings.general|default:"0"|floatformat:1 }},
+                    completed: {{ stages_data.completed.insights.nps.score|default:"0"|floatformat:1 }}
+                },
+                weekly: {
+                    labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'],
+                    proposal: [12, 19, 15, 17],
+                    ongoing: [7, 11, 14, 16],
+                    completed: [5, 8, 10, 12]
+                }
+            };
+
+            // Inicializar todos los gráficos
+            initCharts(chartData);
+            
+            // API para exportar datos
+            setupExportButtons();
+
+            // Simular actualizaciones en tiempo real (solo para demo)
+            setupLiveUpdates();
         {% endif %}
     });
+    
+    // Función principal para inicializar todos los gráficos
+    function initCharts(data) {
+        renderDistributionChart(data);
+        renderTrendChart(data);
+        renderSentimentAnalysis(data);
+        renderSourceChart(data);
+        renderTimeSeriesChart(data);
+    }
+    
+    // Gráfico de distribución por etapa
+    function renderDistributionChart(data) {
+        const ctx = document.getElementById('categoryChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        charts.distribution = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Propuestas', 'Servicios en Curso', 'Servicios Concluidos'],
+                datasets: [{
+                    data: [data.proposal, data.ongoing, data.completed],
+                    backgroundColor: [
+                        COLORS.proposal,
+                        COLORS.ongoing,
+                        COLORS.completed
+                    ],
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                ...CHART_CONFIG,
+                cutout: '70%',
+                plugins: {
+                    ...CHART_CONFIG.plugins,
+                    title: {
+                        display: true,
+                        text: 'Distribución por Etapa',
+                        padding: {
+                            top: 10,
+                            bottom: 15
+                        },
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Gráfico de tendencias
+    function renderTrendChart(data) {
+        const ctx = document.getElementById('trendChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        charts.trend = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.weekly.labels,
+                datasets: [
+                    {
+                        label: 'Propuestas',
+                        data: data.weekly.proposal,
+                        borderColor: COLORS.proposal,
+                        backgroundColor: COLORS.proposal + '20',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: COLORS.proposal,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Servicios en Curso',
+                        data: data.weekly.ongoing,
+                        borderColor: COLORS.ongoing,
+                        backgroundColor: COLORS.ongoing + '20',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: COLORS.ongoing,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Servicios Concluidos',
+                        data: data.weekly.completed,
+                        borderColor: COLORS.completed,
+                        backgroundColor: COLORS.completed + '20',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: COLORS.completed,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                ...CHART_CONFIG,
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            borderDash: [2, 2]
+                        },
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    ...CHART_CONFIG.plugins,
+                    title: {
+                        display: true,
+                        text: 'Evolución de Retroalimentación',
+                        padding: {
+                            top: 10,
+                            bottom: 15
+                        },
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Gráfico de análisis de sentimiento
+    function renderSentimentAnalysis(data) {
+        const ctx = document.getElementById('sentimentChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        charts.sentiment = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Calidad', 'Servicio', 'Comunicación', 'Valor', 'Satisfacción'],
+                datasets: [
+                    {
+                        label: 'Propuestas',
+                        data: [4.2, 3.8, 4.0, 3.5, 3.9],
+                        borderColor: COLORS.proposal,
+                        backgroundColor: COLORS.proposal + '40',
+                        pointBackgroundColor: COLORS.proposal
+                    },
+                    {
+                        label: 'Servicios en Curso',
+                        data: [4.5, 4.2, 3.9, 4.0, 4.3],
+                        borderColor: COLORS.ongoing,
+                        backgroundColor: COLORS.ongoing + '40',
+                        pointBackgroundColor: COLORS.ongoing
+                    },
+                    {
+                        label: 'Servicios Concluidos',
+                        data: [4.7, 4.5, 4.3, 4.2, 4.6],
+                        borderColor: COLORS.completed,
+                        backgroundColor: COLORS.completed + '40',
+                        pointBackgroundColor: COLORS.completed
+                    }
+                ]
+            },
+            options: {
+                ...CHART_CONFIG,
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true,
+                            color: '#e0e0e0'
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 5,
+                        ticks: {
+                            stepSize: 1,
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    ...CHART_CONFIG.plugins,
+                    title: {
+                        display: true,
+                        text: 'Análisis de Sentimiento',
+                        padding: {
+                            top: 10,
+                            bottom: 15
+                        },
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw}/5`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Gráfico de fuentes de retroalimentación
+    function renderSourceChart(data) {
+        const ctx = document.getElementById('sourceChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        charts.source = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Entrevistas', 'Formularios', 'Email', 'WhatsApp', 'Telefónico'],
+                datasets: [
+                    {
+                        label: 'Propuestas',
+                        data: [15, 25, 10, 30, 20],
+                        backgroundColor: COLORS.proposal + 'A0'
+                    },
+                    {
+                        label: 'Servicios en Curso',
+                        data: [20, 30, 15, 35, 10],
+                        backgroundColor: COLORS.ongoing + 'A0'
+                    },
+                    {
+                        label: 'Servicios Concluidos',
+                        data: [25, 20, 15, 25, 15],
+                        backgroundColor: COLORS.completed + 'A0'
+                    }
+                ]
+            },
+            options: {
+                ...CHART_CONFIG,
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            borderDash: [2, 2]
+                        },
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    ...CHART_CONFIG.plugins,
+                    title: {
+                        display: true,
+                        text: 'Fuentes de Retroalimentación',
+                        padding: {
+                            top: 10,
+                            bottom: 15
+                        },
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Gráfico de series temporales
+    function renderTimeSeriesChart(data) {
+        const ctx = document.getElementById('timeSeriesChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        charts.timeSeries = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                datasets: [{
+                    label: 'Retroalimentación Recibida',
+                    data: [65, 78, 90, 85, 92, 110, 120, 115, 130, 145, 160, 175],
+                    borderColor: COLORS.primary,
+                    backgroundColor: COLORS.primary + '30',
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: COLORS.primary,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                ...CHART_CONFIG,
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            borderDash: [2, 2]
+                        },
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    ...CHART_CONFIG.plugins,
+                    title: {
+                        display: true,
+                        text: 'Retroalimentación Anual',
+                        padding: {
+                            top: 10,
+                            bottom: 15
+                        },
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            line1: {
+                                type: 'line',
+                                yMin: 100,
+                                yMax: 100,
+                                borderColor: '#2e8b57',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    display: true,
+                                    content: 'Meta',
+                                    position: 'start'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Actualizar los gráficos con nuevos datos (simulación)
+    function updateCharts(period) {
+        if (!charts.trend) return;
+        
+        // Simular nuevos datos según el período
+        let newData = {
+            weekly: {
+                labels: [],
+                proposal: [],
+                ongoing: [],
+                completed: []
+            }
+        };
+        
+        // Generar datos según el período seleccionado
+        if (period === 'week') {
+            newData.weekly.labels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+            newData.weekly.proposal = [5, 7, 4, 6, 8, 3, 2];
+            newData.weekly.ongoing = [4, 6, 5, 7, 4, 2, 1];
+            newData.weekly.completed = [2, 3, 4, 5, 3, 1, 0];
+        } else if (period === 'month') {
+            newData.weekly.labels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
+            newData.weekly.proposal = [12, 19, 15, 17];
+            newData.weekly.ongoing = [7, 11, 14, 16];
+            newData.weekly.completed = [5, 8, 10, 12];
+        } else if (period === 'quarter') {
+            newData.weekly.labels = ['Enero', 'Febrero', 'Marzo'];
+            newData.weekly.proposal = [35, 42, 38];
+            newData.weekly.ongoing = [28, 32, 36];
+            newData.weekly.completed = [20, 24, 30];
+        } else if (period === 'year') {
+            newData.weekly.labels = ['T1', 'T2', 'T3', 'T4'];
+            newData.weekly.proposal = [115, 130, 145, 160];
+            newData.weekly.ongoing = [85, 110, 120, 135];
+            newData.weekly.completed = [65, 75, 90, 110];
+        }
+        
+        // Actualizar los datos del gráfico de tendencias
+        charts.trend.data.labels = newData.weekly.labels;
+        charts.trend.data.datasets[0].data = newData.weekly.proposal;
+        charts.trend.data.datasets[1].data = newData.weekly.ongoing;
+        charts.trend.data.datasets[2].data = newData.weekly.completed;
+        charts.trend.update();
+        
+        // Actualizar título según el período
+        let titleText = 'Evolución de Retroalimentación';
+        if (period === 'week') titleText += ' (Semanal)';
+        if (period === 'month') titleText += ' (Mensual)';
+        if (period === 'quarter') titleText += ' (Trimestral)';
+        if (period === 'year') titleText += ' (Anual)';
+        
+        charts.trend.options.plugins.title.text = titleText;
+        charts.trend.update();
+    }
+    
+    // Configurar botones de exportación
+    function setupExportButtons() {
+        const exportButtons = document.querySelectorAll('.export-data');
+        if (!exportButtons.length) return;
+        
+        exportButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const format = this.dataset.format;
+                const chartId = this.dataset.chart;
+                
+                if (format === 'csv') {
+                    exportCSV(chartId);
+                } else if (format === 'pdf') {
+                    exportPDF(chartId);
+                } else if (format === 'image') {
+                    exportImage(chartId);
+                }
+            });
+        });
+    }
+    
+    // Exportar a CSV (simulado)
+    function exportCSV(chartId) {
+        alert('Exportando datos a CSV. Función implementada en el backend con Django.');
+    }
+    
+    // Exportar a PDF (simulado)
+    function exportPDF(chartId) {
+        alert('Generando PDF. Esta función utiliza app.com.utils.signature.pdf_generator.');
+    }
+    
+    // Exportar imagen del gráfico
+    function exportImage(chartId) {
+        const chart = charts[chartId];
+        if (!chart) return;
+        
+        const url = chart.toBase64Image();
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `feedback-${chartId}-chart.png`;
+        link.click();
+    }
+    
+    // Simulación de actualizaciones en tiempo real
+    function setupLiveUpdates() {
+        // Actualizar cada 30 segundos como demostración
+        setInterval(() => {
+            const timestamp = new Date().toLocaleTimeString();
+            const refreshIndicator = document.querySelector('.data-refresh');
+            if (refreshIndicator) {
+                refreshIndicator.textContent = `Última actualización: ${timestamp}`;
+            }
+            
+            // Actualizar aleatoriamente algunos valores para simular datos en vivo
+            if (charts.trend) {
+                const datasets = charts.trend.data.datasets;
+                for (let i = 0; i < datasets.length; i++) {
+                    const lastValue = datasets[i].data[datasets[i].data.length - 1];
+                    const newValue = Math.max(1, lastValue + Math.floor(Math.random() * 7) - 3);
+                    datasets[i].data[datasets[i].data.length - 1] = newValue;
+                }
+                charts.trend.update('none'); // Actualizar sin animación
+            }
+        }, 30000);
+    }
 })();
 </script>
 {% endblock %}

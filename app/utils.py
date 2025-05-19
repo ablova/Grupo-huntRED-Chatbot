@@ -1,15 +1,65 @@
-from django.db.models import Q, F
-from django.utils import timezone
-from datetime import timedelta
-from app.models import (
-    Person, Application, Vacante, BusinessUnit,
-    EnhancedNetworkGamificationProfile, ChatState, WorkflowStage,
-    GamificationAchievement, GamificationBadge, GamificationEvent
-)
-import logging
-from typing import Dict, List, Optional
+"""
+Archivo de compatibilidad para utilidades de Grupo huntRED®.
+Este archivo importa funciones desde los módulos específicos en app/utils/
+para mantener compatibilidad con el código existente.
 
+NOTA: Este archivo será eliminado eventualmente. Todo el código nuevo debe
+usar directamente los módulos específicos.
+"""
+
+import os
+import re
+import json
+import pytz
+import requests
+import hashlib
+import logging
+import base64
+from io import BytesIO
+from datetime import datetime, timedelta
+from django.conf import settings
+from django.utils import timezone
+from django.utils.deprecation import RemovedInNextVersionWarning
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.http import HttpResponse, JsonResponse
+from app.models import BusinessUnit, Vacante, Person
+import warnings
+
+# Advertencia de deprecación
+warnings.warn(
+    "El archivo app/utils.py está obsoleto. Usa los módulos específicos en app/utils/",
+    RemovedInNextVersionWarning, stacklevel=2
+)
+
+# Configuración de logging
 logger = logging.getLogger(__name__)
+
+# Notificar la carga del archivo deprecado
+logger.warning(
+    "El archivo app/utils.py está obsoleto. Se recomienda usar los módulos específicos en app/utils/"
+)
+
+# Importar desde módulos específicos para mantener compatibilidad
+from app.utils.common import (
+    format_duration, truncate_text, get_business_unit,
+    sanitize_string, format_currency
+)
+
+from app.utils.http import (
+    fetch_data_async, post_data_async,
+    handle_api_response, retry_request
+)
+
+from app.utils.date import (
+    get_local_now, format_date_for_locale,
+    get_next_business_day, calculate_date_difference
+)
+
+from app.utils.analysis import (
+    calculate_similarity_score, extract_keywords,
+    analyze_text_sentiment
+)
 
 class SystemUtils:
     @staticmethod

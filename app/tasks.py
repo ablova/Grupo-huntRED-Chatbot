@@ -1,69 +1,86 @@
 # /home/pablo/app/tasks.py
-import logging
-import asyncio
-import random
-from celery import shared_task, chain, group, chord
-from celery.schedules import crontab
-from django_celery_beat.models import PeriodicTask, CrontabSchedule, IntervalSchedule
-from celery.exceptions import MaxRetriesExceededError
-from celery import current_app
-from datetime import datetime, timedelta
-from django.conf import settings
-from django.db.models import Q
-from django.utils import timezone
-from asgiref.sync import sync_to_async, async_to_sync
-from app.com.chatbot.integrations.services import send_email, send_message
-from app.com.chatbot.chatbot import ChatBotHandler
-from app.com.chatbot.utils import get_nlp_processor
-from app.com.chatbot.integrations.invitaciones import enviar_invitacion_completar_perfil
-from app.com.utils.vacantes import VacanteManager
-from app.com.utils.parser import CVParser, IMAPCVProcessor
-from app.com.utils.email_scraper import EmailScraperV2
-from app.models import (
-    Configuracion, ConfiguracionBU, Vacante, Person, BusinessUnit,
-    DominioScraping, RegistroScraping, Interview, Application,
-    WeightingModel, WeightingHistory
-)
-from app.com.utils.linkedin import (
-    process_api_data, fetch_member_profile,
-    process_csv, slow_scrape_from_csv,
-    scrape_linkedin_profile, deduplicate_candidates,
-)
-from app.com.chatbot.workflow.amigro import (
-    generate_candidate_summary_task, send_migration_docs_task,
-    follow_up_migration_task
-)
-from app.com.utils.scraping import (
-    validar_url, ScrapingPipeline, scrape_and_publish, process_domain
-)
-from app.com.utils.scraping_utils import ScrapingMetrics
-from app.ml.utils.scrape import MLScraper
-from app.com.chatbot.utils import haversine_distance, sanitize_business_unit_name
-from app.ml.core.models.matchmaking import GrupohuntREDMLPipeline, MatchmakingLearningSystem
-from app.ml.core.optimizers import check_system_load, configure_tensorflow_based_on_load
-from app.com.utils.catalogs import DIVISIONES
-import json
-import os
-import pandas as pd
-import aiohttp
-from email.message import EmailMessage
+"""
+Archivo de compatibilidad para tareas de Celery.
+Este archivo importa todas las tareas desde los módulos específicos 
+en app/tasks/ para mantener compatibilidad con el código existente.
 
+NOTA: Este archivo será eliminado eventualmente. Todo el código nuevo debe
+usar directamente los módulos específicos.
+"""
+
+import logging
+import warnings
+
+# Advertencia de deprecación
+warnings.warn(
+    "El archivo app/tasks.py está obsoleto. Usa los módulos específicos en app/tasks/",
+    DeprecationWarning, stacklevel=2
+)
+
+# Importar todas las tareas desde los módulos específicos
+from app.tasks.base import with_retry, add
+from app.tasks.notifications import (
+    send_ntfy_notification, send_linkedin_login_link,
+    send_whatsapp_message_task, send_telegram_message_task, send_messenger_message_task
+)
+from app.tasks.scraping import (
+    ejecutar_scraping, retrain_ml_scraper, verificar_dominios_scraping,
+    procesar_scraping_dominio, procesar_sublinks_task, execute_ml_and_scraping,
+    execute_email_scraper, process_cv_emails_task
+)
+from app.tasks.ml import (
+    train_ml_task, ejecutar_ml, train_matchmaking_model_task,
+    predict_top_candidates_task, sync_jobs_with_api
+)
+from app.tasks.onboarding import (
+    process_client_feedback_task, update_client_metrics_task,
+    generate_client_feedback_reports_task, process_onboarding_ml_data_task,
+    generate_employee_satisfaction_reports_task
+)
+from app.tasks.reports import (
+    generate_weekly_report_task, generate_scraping_efficiency_report_task,
+    generate_conversion_funnel_report_task
+)
 # Configuración de logging
 logger = logging.getLogger(__name__)
 
-# Decorador para manejo de errores y reintentos
-@shared_task(bind=True)
-def with_retry(task_function):
-    def wrapper(self, *args, **kwargs):
-        try:
-            return task_function(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error en {task_function.__name__}: {str(e)}")
-            if self.request.retries < self.max_retries:
-                raise self.retry(exc=e, countdown=2 ** self.request.retries * 60)
-            else:
-                raise
-    return wrapper
+# Notificar la carga del archivo deprecado
+logger.warning(
+    "El archivo app/tasks.py está obsoleto. Se recomienda usar los módulos específicos en app/tasks/"
+)
+
+# Mantenemos get_business_unit por compatibilidad
+from app.tasks.utils import get_business_unit
+
+# Definir __all__ para controlar qué se importa con 'from app.tasks import *'
+__all__ = [
+    # Utilitarios
+    'with_retry', 'add', 'get_business_unit',
+    
+    # Tareas de notificaciones
+    'send_ntfy_notification', 'send_linkedin_login_link',
+    'send_whatsapp_message_task', 'send_telegram_message_task', 'send_messenger_message_task',
+    
+    # Tareas de ML
+    'train_ml_task', 'ejecutar_ml', 'train_matchmaking_model_task',
+    'predict_top_candidates_task', 'sync_jobs_with_api',
+    
+    # Tareas de scraping
+    'ejecutar_scraping', 'retrain_ml_scraper', 'verificar_dominios_scraping',
+    'procesar_scraping_dominio', 'procesar_sublinks_task', 'execute_ml_and_scraping',
+    'execute_email_scraper', 'process_cv_emails_task',
+    
+    # Tareas de onboarding
+    'process_client_feedback_task', 'update_client_metrics_task',
+    'generate_client_feedback_reports_task', 'process_onboarding_ml_data_task',
+    'generate_employee_satisfaction_reports_task',
+    
+    # Tareas de reportes
+    'generate_weekly_report_task', 'generate_scraping_efficiency_report_task',
+    'generate_conversion_funnel_report_task'
+]
+
+# El decorador with_retry se ha movido a app.tasks.base
 
 logger = logging.getLogger(__name__)
 

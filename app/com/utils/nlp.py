@@ -1,16 +1,34 @@
+# /home/pablo/app/com/utils/nlp.py
 import spacy
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any, Union
 import logging
+import time
+import functools
+from django.core.cache import cache
+
 from app.models import Person, Vacante, BusinessUnit
 
 logger = logging.getLogger(__name__)
 
-import spacy
 from app.com.utils.skills import create_skill_processor
 from app.com.utils.skills.base import Skill, Competency
+
+# Intenta importar psutil para monitoreo de recursos (opcional)
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    
+# Caché global para modelos de spaCy para evitar carga repetida
+SPACY_MODELS = {}
+
+# Caché para embeddings y análisis
+EMBEDDING_CACHE_TTL = 3600  # 1 hora
+ANALYSIS_CACHE_TTL = 300    # 5 minutos
 
 class NLPProcessor:
     def __init__(self, business_unit: BusinessUnit, language: str = "es", mode: str = "opportunity", analysis_depth: str = "deep"):
@@ -46,6 +64,28 @@ class NLPProcessor:
         Returns:
             Dict con el análisis realizado
         """
+        if not text or len(text.strip()) == 0:
+            return {
+                "skills": [],
+                "competencies": [],
+                "skill_analysis": {},
+                "competency_analysis": {},
+                "mode": self.mode,
+                "business_unit": self.business_unit.name,
+                "cached": False
+            }
+            
+        # Verificar caché
+        cache_key = f"nlp:skills:{self.business_unit.id}:{self.mode}:{self.analysis_depth}:{hash(text[:200])}"
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            logger.debug(f"Resultado obtenido de caché para BU '{self.business_unit.name}'")
+            cached_result["cached"] = True
+            return cached_result
+            
+        # Medir tiempo de ejecución
+        start_time = time.time()
+        
         try:
             # Extraer habilidades
             skills = await self._extract_skills(text)
@@ -57,14 +97,22 @@ class NLPProcessor:
             analysis = await self.skill_processor.analyze_skills(skills)
             competency_analysis = await self.skill_processor.analyze_competencies(competencies)
             
-            return {
+            # Crear resultado
+            result = {
                 "skills": [skill.to_dict() for skill in skills],
                 "competencies": [comp.to_dict() for comp in competencies],
                 "skill_analysis": analysis,
                 "competency_analysis": competency_analysis,
                 "mode": self.mode,
-                "business_unit": self.business_unit.name
+                "business_unit": self.business_unit.name,
+                "execution_time": time.time() - start_time,
+                "cached": False
             }
+            
+            # Guardar en caché
+            cache.set(cache_key, result, ANALYSIS_CACHE_TTL)
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error en análisis de habilidades: {str(e)}")
@@ -74,7 +122,10 @@ class NLPProcessor:
                 "skill_analysis": {},
                 "competency_analysis": {},
                 "mode": self.mode,
-                "business_unit": self.business_unit.name
+                "business_unit": self.business_unit.name,
+                "execution_time": time.time() - start_time,
+                "error": str(e),
+                "cached": False
             }
             
     async def _extract_skills(self, text: str) -> List[Skill]:
@@ -96,11 +147,36 @@ class NLPProcessor:
         return await classifier.classify_skills(skills)
         
     def _load_spacy_model(self):
-        """Carga el modelo de Spacy según el idioma."""
-        if self.language == "es":
-            return spacy.load("es_core_news_md")
-        else:  # en
-            return spacy.load("en_core_web_md")
+        """Carga el modelo de Spacy según el idioma, con caché global y monitoreo de recursos."""
+        model_name = "es_core_news_md" if self.language == "es" else "en_core_web_md"
+        
+        # Verificar si ya está en caché global
+        if model_name in SPACY_MODELS:
+            logger.debug(f"Usando modelo {model_name} desde caché global")
+            return SPACY_MODELS[model_name]
+        
+        # Monitorear recursos disponibles
+        should_use_light_model = False
+        if PSUTIL_AVAILABLE:
+            # Si queda poca RAM disponible, usar modelo ligero
+            mem = psutil.virtual_memory()
+            if mem.available < 500 * 1024 * 1024:  # Menos de 500MB disponibles
+                should_use_light_model = True
+                logger.warning(f"Memoria baja ({mem.available/1024/1024:.1f}MB), usando modelo ligero")
+        
+        # Cambiar a modelo ligero si es necesario
+        if should_use_light_model:
+            model_name = model_name.replace("_md", "_sm")
+        
+        # Cargar modelo con componentes selectivos
+        disabled_components = ["ner"] if self.analysis_depth == "quick" else []
+        model = spacy.load(model_name, disable=disabled_components)
+        
+        # Guardar en caché global
+        SPACY_MODELS[model_name] = model
+        logger.info(f"Modelo {model_name} cargado y almacenado en caché global")
+        
+        return model
         self._initialize_nlp()
         self._initialize_models()
 
@@ -341,17 +417,44 @@ class NLPProcessor:
         Returns:
             float: Puntaje de similitud (0-1)
         """
+        if not text1 or not text2:
+            return 0.0
+            
+        # Verificar caché
+        cache_key = f"nlp:similarity:{self.business_unit.id}:{hash(text1[:100])}:{hash(text2[:100])}"
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+            
         try:
-            tfidf_matrix = self.vectorizer.fit_transform([text1, text2])
-            return cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+            if not self.spacy_model:
+                self.spacy_model = self._load_spacy_model()
+            
+            # Usar versiones truncadas si son muy largas para ahorrar memoria
+            if len(text1) > 5000 or len(text2) > 5000:
+                text1 = text1[:5000]
+                text2 = text2[:5000]
+                logger.debug("Textos truncados para comparación (>5000 caracteres)")
+                
+            # Procesar textos
+            doc1 = self.spacy_model(text1)
+            doc2 = self.spacy_model(text2)
+            
+            # Calcular similitud
+            similarity = doc1.similarity(doc2)
+            
+            # Guardar en caché
+            cache.set(cache_key, similarity, EMBEDDING_CACHE_TTL)
+            
+            return similarity
         except Exception as e:
-            logger.error(f"Error comparando textos: {str(e)}")
+            logger.error(f"Error en comparación de textos: {str(e)}")
             return 0.0
 
     async def extract_job_requirements(self, job_description: str) -> Dict:
         """
         Extrae requisitos de una descripción de trabajo.
-        
+{{ ... }}
         Args:
             job_description: Descripción del trabajo
             

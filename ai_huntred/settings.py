@@ -13,6 +13,21 @@ from ai_huntred.config.logging import setup_logging
 from ai_huntred.config.optimization import OptimizationConfig
 from ai_huntred.config.monitoring import MonitoringConfig
 
+# --- Configuración de entorno ---
+env = environ.Env()
+BASE_DIR = Path(__file__).resolve().parent.parent
+env_file = os.path.join(BASE_DIR, '.env')
+
+# Validar existencia del archivo .env
+if not os.path.exists(env_file):
+    raise FileNotFoundError(f"Environment file not found: {env_file}")
+
+if not os.access(env_file, os.R_OK):
+    raise PermissionError(f"Environment file not readable: {env_file}")
+
+# Cargar variables de entorno
+environ.Env.read_env(env_file)
+
 
 # --- Configuración de NLP ---
 # Switch para controlar el uso de Spacy vs Tabiya
@@ -75,11 +90,99 @@ tf.config.threading.set_inter_op_parallelism_threads(1)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-# --- Configuración de entorno ---
-env = environ.Env()
-BASE_DIR = Path(__file__).resolve().parent.parent
-env_file = os.path.join(BASE_DIR, '.env')
+# --- Configuración de Django ---
+SECRET_KEY = env('SECRET_KEY', default='your-secret-key')
+DEBUG = env.bool('DEBUG', default=False)
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
+# Aplicaciones instaladas
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'app',
+    'rest_framework',
+    'corsheaders',
+    'django_celery_results',
+    'django_celery_beat',
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'ai_huntred.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'ai_huntred.wsgi.application'
+
+# Base de datos
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME', default='huntred'),
+        'USER': env('DB_USER', default='postgres'),
+        'PASSWORD': env('DB_PASSWORD', default='postgres'),
+        'HOST': env('DB_HOST', default='localhost'),
+        'PORT': env('DB_PORT', default='5432'),
+    }
+}
+
+# Validadores de contraseña
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+# Archivos estáticos
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'static' / 'staticfiles'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'static' / 'media'
+
+# Campo de clave primaria por defecto
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Configuración de REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
+
+# Configuración CORS
+CORS_ALLOW_ALL_ORIGINS = True
 
 # --- Funciones para obtener configuración de la base de datos
 # Funciones de configuración de API
@@ -168,7 +271,52 @@ WORDPRESS_ENABLED = all(
     for value in [WORDPRESS_CONFIG['api_url'], WORDPRESS_CONFIG['username'], WORDPRESS_CONFIG['password']]
 )
 
-# --- Configuración de entorno ---
+# --- Configuraciones avanzadas ---
+
+# Configuración de Stripe
+STRIPE_CONFIG = {
+    'api_key': env('STRIPE_API_KEY', default=''),
+    'webhook_secret': env('STRIPE_WEBHOOK_SECRET', default=''),
+    'currency': env('STRIPE_CURRENCY', default='mxn'),
+    'success_url': env('STRIPE_SUCCESS_URL', default='/payments/success/'),
+    'cancel_url': env('STRIPE_CANCEL_URL', default='/payments/cancel/')
+}
+
+# Verificar si Stripe está configurado
+STRIPE_ENABLED = all([STRIPE_CONFIG['api_key'], STRIPE_CONFIG['webhook_secret']])
+
+# Configuración de X (Twitter)
+X_CONFIG = {
+    'api_key': env('X_API_KEY', default=''),
+    'api_secret': env('X_API_SECRET', default=''),
+    'access_token': env('X_ACCESS_TOKEN', default=''),
+    'access_token_secret': env('X_ACCESS_TOKEN_SECRET', default='')
+}
+
+# Configuración de Redis para caching
+REDIS_CONFIG = {
+    'host': env('REDIS_HOST', default='localhost'),
+    'port': env.int('REDIS_PORT', default=6379),
+    'db': env.int('REDIS_DB', default=0),
+    'ttl': env.int('REDIS_TTL', default=3600)
+}
+
+# Configuración de QR
+QR_CONFIG = {
+    'version': env.int('QR_VERSION', default=1),
+    'error_correction': env('QR_ERROR_CORRECTION', default='L'),
+    'box_size': env.int('QR_BOX_SIZE', default=10),
+    'border': env.int('QR_BORDER', default=4),
+    'upload_path': env('QR_UPLOAD_PATH', default='proposals/qr/')
+}
+
+# Configuración de análisis
+ANALYTICS_CONFIG = {
+    'time_window': env.int('ANALYTICS_TIME_WINDOW', default=30),
+    'open_threshold': env.float('ANALYTICS_OPEN_THRESHOLD', default=0.7),
+    'response_threshold': env.int('ANALYTICS_RESPONSE_THRESHOLD', default=24),
+    'max_discount': env.float('ANALYTICS_MAX_DISCOUNT', default=0.10)
+}
 
 # Configuración de localización para Ciudad de México
 TIME_ZONE = 'America/Mexico_City'
@@ -177,9 +325,13 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
-# Validar existencia del archivo .env (sin usar logger aún)
-if not os.path.exists(env_file):
-    raise FileNotFoundError(f"Environment file not found: {env_file}")
+# Configuración de correo electrónico
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 
 # Configuración de Celery
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
@@ -194,11 +346,6 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_TRACK_STARTED = True
 CELERY_WORKER_CONCURRENCY = env.int('CELERY_WORKER_CONCURRENCY', default=2)
-if not os.access(env_file, os.R_OK):
-    raise PermissionError(f"Environment file not readable: {env_file}")
-
-# Cargar variables de entorno
-environ.Env.read_env(env_file)
 
 # Configuración de formato de fecha y hora para México
 DATE_FORMAT = 'd/m/Y'
@@ -351,10 +498,6 @@ USE_I18N = True
 USE_TZ = True
 
 # Archivos estáticos y multimedia
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Directorios

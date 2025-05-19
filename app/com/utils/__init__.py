@@ -10,6 +10,9 @@ lazy_imports.register('linkedin', '.linkedin')
 lazy_imports.register('scraping', '.scraping')
 lazy_imports.register('signature', '.signature')
 
+# Registrar optimizadores para NLP y GPT
+lazy_imports.register('optimizers', '.optimizers')
+
 # Exportar todas las funciones y clases
 __all__ = [
     'ScrapingMetrics', 'SystemHealthMonitor', 'ScrapingCache',
@@ -27,7 +30,9 @@ __all__ = [
     'save_vacantes', 'validar_url', 'extract_skills',
     'associate_divisions', 'extract_field', 'get_scraper',
     'publish_to_internal_system', 'scrape_and_publish',
-    'process_domain', 'run_all_scrapers'
+    'process_domain', 'run_all_scrapers',
+    # Optimizadores del sistema
+    'get_optimized_nlp', 'get_optimized_gpt', 'initialize_optimizations'
 ]
 
 # Función para obtener importaciones de LinkedIn de manera lazy
@@ -53,3 +58,39 @@ def get_scraping_imports():
         'process_domain': scraping.process_domain,
         'run_all_scrapers': scraping.run_all_scrapers
     }
+
+# Función para obtener optimizadores de NLP/GPT de manera lazy
+def get_optimized_nlp():
+    optimizers = get_module('optimizers')
+    # Intentar obtener conector optimizado
+    try:
+        import app.com.chatbot.optimized_connectors
+        return app.com.chatbot.optimized_connectors.OptimizedNLPConnector
+    except ImportError:
+        # Llamar a inicializador de optimizadores
+        optimizers.initialize_optimizers()
+        return None
+
+# Función para obtener modelo GPT optimizado de manera lazy
+def get_optimized_gpt():
+    optimizers = get_module('optimizers')
+    # Intentar obtener conector optimizado
+    try:
+        import app.com.chatbot.optimized_connectors
+        return app.com.chatbot.optimized_connectors.OptimizedGPTConnector
+    except ImportError:
+        # Llamar a inicializador de optimizadores
+        optimizers.initialize_optimizers()
+        return None
+
+# Función para inicializar optimizaciones
+def initialize_optimizations():
+    optimizers = get_module('optimizers')
+    return optimizers.initialize_optimizers()
+
+# Inicializar optimizaciones de forma sigilosa sin bloquear la carga
+try:
+    import threading
+    threading.Thread(target=lambda: get_module('optimizers')).start()
+except Exception:
+    pass
