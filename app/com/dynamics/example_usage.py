@@ -1,4 +1,4 @@
-from .core import DynamicsManager
+from app.com.dynamics.core import DynamicsManager
 from app.models import BusinessUnit
 
 async def process_chat_message(message: Dict, business_unit: BusinessUnit) -> Dict:

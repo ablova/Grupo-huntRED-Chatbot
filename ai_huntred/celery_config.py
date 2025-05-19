@@ -4,7 +4,7 @@
 # Mantiene la compatibilidad con el código existente que utiliza `app` directamente.
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
-from .celery_app import app as celery_app
+from ai_huntred.celery_app import app as celery_app
 
 # Opcional: Si quieres mantener retrocompatibilidad con código que usa `app` directamente desde celery.py
 app = celery_app

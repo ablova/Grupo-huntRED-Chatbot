@@ -17,7 +17,7 @@ from app.models import (
 )
 from app.com.pricing.models import PaymentMilestone
 
-from .managers import (
+from app.com.notifications.managersmanagers import (
     VacanteManager, ProcesoNotificationManager, ClienteNotificationManager,
     ConsultorNotificationManager, PagosNotificationManager, CandidatoNotificationManager
 )

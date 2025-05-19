@@ -1,4 +1,4 @@
-from .base import BaseTemplate
+from app.notifications.templates.basebase import BaseTemplate
 import logging
 
 logger = logging.getLogger('app.notifications.templates.fiscal')

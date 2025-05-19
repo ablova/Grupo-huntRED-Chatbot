@@ -1,6 +1,6 @@
 from celery import shared_task
-from .notifications_manager import NotificationsManager
-from .config import NotificationsConfig
+from app.notifications.notifications_managernotifications_manager import NotificationsManager
+from app.notifications.notifications_managerconfig import NotificationsConfig
 import logging
 
 logger = logging.getLogger('app.notifications.tasks')

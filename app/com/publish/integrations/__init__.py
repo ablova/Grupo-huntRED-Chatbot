@@ -32,8 +32,8 @@ def register_integrations():
     if not apps.ready:
         return
         
-    from . import whatsapp, telegram
-    from .linkedin import LinkedInIntegration
+    from app.com.publish.integrations import whatsapp, telegram
+    from app.com.publish.integrations.linkedin import LinkedInIntegration
     
     # Registrar integraciones
     register_integration('whatsapp', whatsapp.WhatsAppIntegration())

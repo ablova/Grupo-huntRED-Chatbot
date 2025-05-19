@@ -1,5 +1,5 @@
 from typing import Dict, List
-from .candidate_flow import CandidateFlow
+from app.com.utils.candidate_flow import CandidateFlow
 from app.com.utils.cv_generator import CVGenerator
 from app.com.utils.signature import DigitalSignature
 from app.com.utils import logger_utils

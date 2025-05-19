@@ -27,7 +27,7 @@ from app.models import (
     Worker
 )
 
-from .admin_business_unit import BusinessUnitFilter
+from app.com.utils.admin_business_unit import BusinessUnitFilter
 
 class StateFilter(SimpleListFilter):
     title = _('Estado')

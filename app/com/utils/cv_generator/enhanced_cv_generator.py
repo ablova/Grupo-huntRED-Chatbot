@@ -19,9 +19,9 @@ from datetime import datetime
 from django.conf import settings
 from django.template.loader import render_to_string
 
-from .cv_generator import CVGenerator
-from .cv_data import CVData
-from .career_analyzer import career_analyzer
+from app.com.utils.cv_generator.cv_generator import CVGenerator
+from app.com.utils.cv_generator.cv_data import CVData
+from app.com.utils.cv_generator.career_analyzer import career_analyzer
 from app.com.chatbot.core.values import ValuesPrinciples
 
 logger = logging.getLogger(__name__)
@@ -149,7 +149,7 @@ class EnhancedCVGenerator(CVGenerator):
         try:
             # Cambiar template si es necesario
             if template_name != original_template:
-                from .cv_template import CVTemplate
+                from app.com.utils.cv_generator.career_analyzercv_template import CVTemplate
                 self.template = CVTemplate(template_name)
             
             # Usar la implementación original con datos enriquecidos
@@ -160,7 +160,7 @@ class EnhancedCVGenerator(CVGenerator):
         finally:
             # Restaurar template original
             if template_name != original_template:
-                from .cv_template import CVTemplate
+                from app.com.utils.cv_generator.career_analyzercv_template import CVTemplate
                 self.template = CVTemplate(original_template)
     
     def _extract_candidate_id(self, cv_data):

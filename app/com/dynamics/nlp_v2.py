@@ -4,7 +4,7 @@ import transformers
 import torch
 from typing import Dict, Any, Optional, List, Union
 from app.models import BusinessUnit
-from .core import DynamicModule
+from app.com.dynamics.corecore import DynamicModule
 from cachetools import TTLCache
 from concurrent.futures import ThreadPoolExecutor
 import asyncio

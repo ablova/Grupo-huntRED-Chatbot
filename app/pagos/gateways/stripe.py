@@ -1,7 +1,7 @@
 import stripe
 from django.conf import settings
 from app.models import ApiConfig
-from .base import PaymentGateway
+from app.pagos.gateways.basebase import PaymentGateway
 
 class StripeGateway(PaymentGateway):
     def __init__(self, business_unit=None):

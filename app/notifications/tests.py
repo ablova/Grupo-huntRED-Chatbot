@@ -4,11 +4,11 @@
 
 from django.test import TestCase
 from django.contrib.auth.models import User
-from .notifications_manager import NotificationsManager
-from .config import NotificationsConfig
-from .recipients import CandidateRecipient, ConsultantRecipient, ClientRecipient
-from .channels import EmailChannel, WhatsAppChannel, XChannel
-from .templates import ProposalTemplate, PaymentTemplate, OpportunityTemplate
+from app.notifications.notifications_manager import NotificationsManager
+from app.notifications.config import NotificationsConfig
+from app.notifications.recipients import CandidateRecipient, ConsultantRecipient, ClientRecipient
+from app.notifications.channels import EmailChannel, WhatsAppChannel, XChannel
+from app.notifications.templates import ProposalTemplate, PaymentTemplate, OpportunityTemplate
 import logging
 
 logger = logging.getLogger('app.notifications.tests')

@@ -5,7 +5,7 @@ Define las rutas para acceder al dashboard interactivo y sus APIs.
 """
 
 from django.urls import path
-from . import dashboard_views, dashboard_api
+from app.com.onboarding import dashboard_views, dashboard_api
 
 urlpatterns = [
     # Vistas del dashboard

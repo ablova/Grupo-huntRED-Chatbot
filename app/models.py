@@ -1,6 +1,7 @@
 # app/models.py
     
 from django.db import models
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import JSONField
@@ -21,6 +22,7 @@ from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AbstractUser, BaseUserManager, User
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Union, Any, Tuple
 import re
 import uuid
 import logging

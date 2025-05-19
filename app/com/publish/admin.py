@@ -61,7 +61,7 @@ class JobChannelAdmin(admin.ModelAdmin):
         """
         Publica las oportunidades seleccionadas
         """
-        from .tasks import publish_job_opportunity
+        from app.com.publish.tasks import publish_job_opportunity
         
         for job_channel in queryset:
             publish_job_opportunity.delay(job_channel.id)

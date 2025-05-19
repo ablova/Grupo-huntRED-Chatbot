@@ -13,7 +13,7 @@ from django.db.models import Q
 from datetime import datetime, timedelta
 
 from app.models import Person, BusinessUnit, Vacante, User, Company, Notification, NotificationType, NotificationStatus
-from .core import send_notification, schedule_notification
+from app.com.notifications.corecore import send_notification, schedule_notification
 
 logger = logging.getLogger('notifications')
 

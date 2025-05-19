@@ -3,9 +3,9 @@ from django.core.cache import cache
 from django.db import transaction
 import logging
 from typing import Dict, Any, Optional
-from ..models import Conversation, Message, Notification, Person, BusinessUnit
-from ..tasks import process_message, send_notification
-from ..utils.visualization.report_generator import ReportGenerator
+from app.com.utils.visualization.report_generator.models import Conversation, Message, Notification, Person, BusinessUnit
+from app.com.utils.visualization.report_generator.tasks import process_message, send_notification
+from app.com.utils.visualization.report_generator.utils.visualization.report_generator import ReportGenerator
 from app.com.chatbot.chat_state_manager import ChatStateManager
 from app.com.chatbot.context_manager import ContextManager
 from app.com.chatbot.conversational_flow import ConversationalFlowManager

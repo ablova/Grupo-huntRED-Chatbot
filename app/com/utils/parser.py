@@ -27,8 +27,8 @@ from app.com.chatbot.workflow.common import get_possible_transitions, process_bu
 from app.com.chatbot.workflow.huntred import process_huntred_candidate
 from app.com.chatbot.workflow.huntu import process_huntu_candidate
 from app.com.chatbot.workflow.sexsi import process_sexsi_payment
-from ..tasks import process_message
-from ..utils.visualization.report_generator import ReportGenerator
+from app.com.tasks import process_message
+from app.com.utils.visualization.report_generator import ReportGenerator
 try:
     import trafilatura
 except ImportError:

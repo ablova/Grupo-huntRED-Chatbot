@@ -1,5 +1,5 @@
 from django.db.models import Count, Avg, Max, Min
-from ..models import Conversation, Message, Notification, WorkflowState, Metric
+from app.com.utils.models.models import Conversation, Message, Notification, WorkflowState, Metric
 from datetime import datetime, timedelta
 import logging
 

@@ -1,5 +1,5 @@
-from ..base.base_extractor import BaseSkillExtractor
-from ..base.base_models import Skill, SkillSource, SkillContext
+from app.com.utils.skills.base.base_extractor.base.base_extractor import BaseSkillExtractor
+from app.com.utils.skills.base.base_extractor.base.base_models import Skill, SkillSource, SkillContext
 import spacy
 from typing import List, Dict
 import logging

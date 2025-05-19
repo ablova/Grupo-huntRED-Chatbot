@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from .base_integration import BaseIntegration
+from app.com.publish.integrations.base_integration import BaseIntegration
 from app.models import WhatsAppAPI
 from app.com.chatbot.integrations.whatsapp import fetch_whatsapp_user_data
 
@@ -36,7 +36,7 @@ class WhatsAppIntegration(BaseIntegration):
         """
         Registra un canal de WhatsApp
         """
-        from ..models import Channel, ChannelCredential
+        from app.com.publish.models import Channel, ChannelCredential
         
         channel = Channel.objects.create(
             type=channel_type,
@@ -81,5 +81,5 @@ class WhatsAppIntegration(BaseIntegration):
         """
         Registra la integración de WhatsApp
         """
-        from ..integrations import register_integration
+        from app.com.publish.integrations import register_integration
         register_integration('whatsapp', WhatsAppIntegration())

@@ -4,7 +4,7 @@
 
 from rest_framework import viewsets, permissions
 from app.models import Channel, Bot, JobChannel
-from .serializers import ChannelSerializer, BotSerializer, JobChannelSerializer
+from app.com.publish.serializers import ChannelSerializer, BotSerializer, JobChannelSerializer
 
 class ChannelViewSet(viewsets.ModelViewSet):
     """

@@ -1,5 +1,5 @@
-from .content_adapters import ContentAdapter, WhatsAppAdapter, TelegramAdapter, SocialMediaAdapter
-from .content_adapters import get_adapter
+from app.com.publish.utils.content_adapters import ContentAdapter, WhatsAppAdapter, TelegramAdapter, SocialMediaAdapter
+from app.com.publish.utils.content_adapters import get_adapter
 
 def get_content_adapter(channel_type: str) -> ContentAdapter:
     """

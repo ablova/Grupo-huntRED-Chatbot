@@ -1,24 +1,24 @@
-# /home/pablo/app/views/__init__.py
+# /Users/pablollh/MEGA/GitHub/Grupo-huntRED-Chatbot/app/views/__init__.py
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
 # ATS
-from .ats.views import ATSViews
+from app.views.ats.views import ATSViews
 
-# Chatbot
-from .chatbot.views import ChatbotViews
+# Vistas del chatbot
+from app.views.chatbot.views import ChatbotViews
 
-# Propuestas y Contratos
-from .proposals.views import ProposalViews
+# Vistas de propuestas
+from app.views.proposals.views import ProposalViews
 
-# Utilidades
-from .utils.decorators import (
-    login_required,
-    bu_complete_required,
-    bu_division_required,
-    permission_required,
-    verified_user_required
+# Utilidades y decoradores
+from app.views.utils.decorators import (
+    login_required_json,
+    chatbot_permission_required,
+    role_required,
+    bu_required,
+    verify_token
 )
 
 # Vistas principales
-from .main_views import MainViews
+from app.views.main_views import MainViews

@@ -1,5 +1,5 @@
 # /home/pablo/ai_huntred/settings/production.py
-from .settings import *
+from ai_huntred.settings import *
 
 # Production-specific settings
 DEBUG = False

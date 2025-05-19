@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from app.models import JobOpportunity
-from .tasks import process_new_opportunity
+from app.publish.tasks import process_new_opportunity
 
 @receiver(post_save, sender=JobOpportunity)
 def handle_job_opportunity_creation(sender, instance, created, **kwargs):

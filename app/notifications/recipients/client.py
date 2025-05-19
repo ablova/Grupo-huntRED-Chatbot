@@ -1,4 +1,4 @@
-from .base import BaseRecipient
+from app.notifications.recipients.basebase import BaseRecipient
 from app.models import Person
 
 class ClientRecipient(BaseRecipient):

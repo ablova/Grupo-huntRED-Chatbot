@@ -5,7 +5,7 @@
 """
 Tests para el módulo de pagos.
 """
-from .test_gateways import *
-from .test_views import *
-from .test_services import *
-from .test_models import *
+from app.tests.test_pagos.test_gateways import *
+from app.tests.test_pagos.test_views import *
+from app.tests.test_pagos.test_services import *
+from app.tests.test_pagos.test_models import *

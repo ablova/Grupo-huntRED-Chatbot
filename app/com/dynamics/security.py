@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional, List
 import logging
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
-from .core import DynamicModule
+from app.com.dynamics.corecore import DynamicModule
 from app.models import BusinessUnit
 
 logger = logging.getLogger(__name__)

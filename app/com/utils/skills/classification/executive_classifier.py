@@ -1,5 +1,5 @@
-from ..base.base_classifier import BaseSkillClassifier
-from ..base.base_models import Skill, Competency, SkillCategory, CompetencyLevel
+from app.com.utils.skills.base.base_models.base.base_classifier import BaseSkillClassifier
+from app.com.utils.skills.base.base_models.base.base_models import Skill, Competency, SkillCategory, CompetencyLevel
 from typing import List, Dict
 import logging
 

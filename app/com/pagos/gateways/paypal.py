@@ -1,9 +1,11 @@
 from django.conf import settings
+from django.utils import timezone
 from app.models import ApiConfig
-from app.pagos.models import Pago
+from app.models import Pago
+from app.com.pagos.gateways.base import PaymentGateway
 from paypalrestsdk import Api, Payment, Payout
 
-class PayPalGateway:
+class PayPalGateway(PaymentGateway):
     def __init__(self, business_unit=None):
         """
         Inicializa el gateway de PayPal.
@@ -11,7 +13,7 @@ class PayPalGateway:
         Args:
             business_unit: Unidad de negocio asociada (opcional)
         """
-        self.business_unit = business_unit
+        super().__init__(business_unit)
         self.api = self._get_api_config()
     
     def _get_api_config(self):

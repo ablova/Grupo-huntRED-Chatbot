@@ -23,7 +23,7 @@ from app.com.chatbot.utils import get_nlp_processor  # Importar desde utils.py
 from app.com.utils.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
-from .scraping_utils import (
+from app.com.utils.scraping_utils import (
     PlaywrightAntiDeteccion,
     inicializar_contexto_playwright,
     visitar_pagina_humanizada,
@@ -888,11 +888,13 @@ class LinkedInScraper:
             description = await self.page.evaluate('() => document.querySelector(".job-details-jobs-unified-top-card__job-description")?.textContent?.trim()')
             
             # Extraer requisitos
-            requirements = await self.page.evaluate('() => {
-                const reqs = Array.from(document.querySelectorAll(".job-details-jobs-unified-top-card__job-description li"))
-                    .map(li => li.textContent.trim());
-                return reqs;
-            }')
+            requirements = await self.page.evaluate('''
+                () => {
+                    const reqs = Array.from(document.querySelectorAll(".job-details-jobs-unified-top-card__job-description li"))
+                        .map(li => li.textContent.trim());
+                    return reqs;
+                }
+            ''')
             
             return {
                 'title': title,

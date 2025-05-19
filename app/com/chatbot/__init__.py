@@ -6,13 +6,13 @@
 # ... (previous manual registrations removed)
 
 # Exports for chatbot module
-from .chatbot import Chatbot
-from .conversational_flow_manager import ConversationalFlowManager
-from .intents_handler import IntentsHandler
-from .intents_optimizer import IntentsOptimizer
-from .context_manager import ContextManager
-from .response_generator import ResponseGenerator
-from .state_manager import StateManager
+from app.com.chatbot.chatbot import Chatbot
+from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
+from app.com.chatbot.intents_handler import IntentsHandler
+from app.com.chatbot.intents_optimizer import IntentsOptimizer
+from app.com.chatbot.context_manager import ContextManager
+from app.com.chatbot.response_generator import ResponseGenerator
+from app.com.chatbot.state_manager import StateManager
 
 __all__ = [
     'Chatbot',

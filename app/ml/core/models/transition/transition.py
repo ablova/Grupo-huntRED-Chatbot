@@ -4,7 +4,7 @@ from tensorflow.keras import layers, models
 from sklearn.preprocessing import StandardScaler
 from typing import Dict, List, Optional
 from app.models import Person, Vacante
-from .base import BaseModel
+from app.ml.core.models.transition.basebase import BaseModel
 
 class TransitionModel(BaseModel):
     """

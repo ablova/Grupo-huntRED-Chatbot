@@ -1,8 +1,8 @@
-from .services.matching import MatchmakingService
-from .services.transition import TransitionService
-from .services.analytics import PredictiveAnalytics
-from .services.features import FeatureExtractor
-from .services.optimizers import PerformanceOptimizer
+from app.ml.core.services.matching import MatchmakingService
+from app.ml.core.services.transition import TransitionService
+from app.ml.core.services.analytics import PredictiveAnalytics
+from app.ml.core.services.features import FeatureExtractor
+from app.ml.core.services.optimizers import PerformanceOptimizer
 
 __all__ = [
     'MatchmakingService',

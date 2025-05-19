@@ -5,6 +5,6 @@ Este paquete contiene middlewares para interceptar y procesar mensajes
 antes de que lleguen al flujo principal del chatbot.
 """
 
-from .notification_handler import NotificationMiddleware
+from app.com.chatbot.middleware.notification_handler import NotificationMiddleware
 
 __all__ = ['NotificationMiddleware']

@@ -4,7 +4,7 @@
 # Configura la base de datos, permisos y modo de desarrollo.
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
-from ..settings import *
+from ai_huntred.settings import *
 
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']

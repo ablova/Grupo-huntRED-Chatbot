@@ -8,8 +8,8 @@ sistema de retroalimentación para comprender por qué los clientes contratan o 
 """
 
 from django.urls import path
-from . import views
-from . import feedback_views
+from app.com.pricing import views
+from app.com.pricing import feedback_views
 
 app_name = 'pricing'
 

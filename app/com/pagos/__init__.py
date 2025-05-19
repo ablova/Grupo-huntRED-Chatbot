@@ -7,6 +7,6 @@
 
 # Exports for pagos module
 from app.models import Pago, EstadoPago, TipoPago, MetodoPago
-from .services import PagoService
+from app.com.pagos.services import PagoService
 
 __all__ = ['Pago', 'EstadoPago', 'TipoPago', 'MetodoPago', 'PagoService']

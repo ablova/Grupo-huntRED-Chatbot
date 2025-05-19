@@ -7,8 +7,8 @@ incluyendo formularios de feedback, panel de administración, y gestión de reco
 """
 
 from django.urls import path
-from . import views
-from . import process_views
+from app.com.feedback import views
+from app.com.feedback import process_views
 
 app_name = 'feedback'
 

@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional, List
 import logging
-from .core import DynamicModule
+from app.com.dynamics.corecore import DynamicModule
 from app.models import BusinessUnit
 
 logger = logging.getLogger(__name__)

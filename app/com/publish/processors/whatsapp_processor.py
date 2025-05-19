@@ -5,8 +5,8 @@ import httpx
 from typing import Dict, Any
 from django.conf import settings
 from django.db import models
-from .base_processor import BaseProcessor
-from ..utils.content_adapters import WhatsAppAdapter
+from app.com.publish.processors.base_processor import BaseProcessor
+from app.com.publish.utils.content_adapters import WhatsAppAdapter
 
 class WhatsAppProcessor(BaseProcessor):
     """

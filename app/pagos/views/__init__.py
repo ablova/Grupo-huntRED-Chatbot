@@ -5,4 +5,4 @@
 """
 Vistas para el módulo de pagos.
 """
-from .payment_views import *
+from app.pagos.views.payment_views import *

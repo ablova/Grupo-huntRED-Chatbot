@@ -1,8 +1,8 @@
 from celery import shared_task
 from django.utils import timezone
 from app.models import JobChannel, JobOpportunity, Channel, ChannelAnalytics
-from .processors import get_processor
-from .utils.content_adapters import ContentAdapter
+from app.com.publish.processors import get_processor
+from app.com.publish.utils.content_adapters import ContentAdapter
 import logging
 
 logger = logging.getLogger(__name__)

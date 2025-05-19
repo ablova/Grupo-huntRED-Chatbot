@@ -1,6 +1,6 @@
 # /home/pablo/ai_huntred/settings/production.py
 import logging
-from .settings import *
+from ai_huntred.settings import *
 
 # Production-specific settings
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'

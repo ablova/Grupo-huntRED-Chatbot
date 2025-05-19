@@ -1,6 +1,6 @@
-from .base_processor import BaseProcessor
-from .whatsapp_processor import WhatsAppProcessor
-from .telegram_processor import TelegramProcessor
+from app.publish.processors.base_processor import BaseProcessor
+from app.publish.processors.whatsapp_processor import WhatsAppProcessor
+from app.publish.processors.telegram_processor import TelegramProcessor
 
 def get_processor(channel_type: str) -> BaseProcessor:
     """

@@ -4,7 +4,7 @@ Define las rutas para las vistas y APIs del sistema Kanban de gestión de candid
 """
 
 from django.urls import path
-from . import views
+from app.kanban import views
 
 app_name = 'kanban'
 

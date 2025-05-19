@@ -9,8 +9,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .notifications_manager import NotificationsManager
-from .config import NotificationsConfig
+from app.notifications.notifications_manager import NotificationsManager
+from app.notifications.config import NotificationsConfig
 import logging
 
 logger = logging.getLogger('app.notifications.views')

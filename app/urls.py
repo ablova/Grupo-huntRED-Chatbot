@@ -58,14 +58,14 @@ from app.sexsi.views import (
     request_revision, revoke_agreement, paypal_webhook
 )
 from django.urls import path
-from .views.publish_views import (
+from app.views.publish_views import (
     job_opportunities_list,
     create_job_opportunity,
     publish_job_opportunity,
     update_job_opportunity_status,
     webhook_job_opportunity
 )
-from .com.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_view
+from app.com.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_view
 
 # Importación para Análisis Cultural
 from app.cultural_assessment import views as cultural_views

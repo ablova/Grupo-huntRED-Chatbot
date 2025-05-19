@@ -1,3 +1,3 @@
-from .transition import TransitionModel
+from app.ml.core.models.transition.transition import TransitionModel
 
 __all__ = ['TransitionModel']

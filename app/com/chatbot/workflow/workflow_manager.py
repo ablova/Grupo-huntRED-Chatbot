@@ -13,14 +13,23 @@ import importlib
 import inspect
 
 from app.com.chatbot.workflow.base_workflow import BaseWorkflow
-from app.com.chatbot.core.values import get_value_driven_response
+from app.com.chatbot.core.values_integration import get_value_driven_response
 
 # Si existen en el sistema, añadimos estas importaciones
+# Importación con manejo de errores para cada módulo individual
 try:
     from app.com.chatbot.workflow.talent_analysis_workflow import TalentAnalysisWorkflow
-    from app.com.chatbot.workflow.cultural_fit_workflow import CulturalFitWorkflow
+    has_talent_workflow = True
 except ImportError:
-    logging.warning("No se pudieron importar algunos workflows específicos.")
+    has_talent_workflow = False
+    logging.warning("No se pudo importar TalentAnalysisWorkflow.")
+
+try:
+    from app.com.chatbot.workflow.cultural_fit_workflow import CulturalFitWorkflow
+    has_cultural_workflow = True
+except ImportError:
+    has_cultural_workflow = False
+    logging.warning("No se pudo importar CulturalFitWorkflow.")
 
 logger = logging.getLogger(__name__)
 
@@ -62,9 +71,12 @@ class WorkflowManager:
         # Buscamos clases que hereden de BaseWorkflow en este módulo
         workflow_module = importlib.import_module('app.com.chatbot.workflow')
         
-        # Registramos workflows específicos
-        self.register_workflow("talent_analysis", TalentAnalysisWorkflow)
-        self.register_workflow("cultural_fit", CulturalFitWorkflow)
+        # Registramos workflows específicos solo si están disponibles
+        if has_talent_workflow:
+            self.register_workflow("talent_analysis", TalentAnalysisWorkflow)
+            
+        if has_cultural_workflow:
+            self.register_workflow("cultural_fit", CulturalFitWorkflow)
         
         # Registramos dinámicamente todos los workflows que se encuentren
         self._discover_and_register_workflows()

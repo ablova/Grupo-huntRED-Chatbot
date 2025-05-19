@@ -6,10 +6,10 @@ del sistema, asegurando la comunicación efectiva entre los usuarios
 en diferentes puntos del proceso de reclutamiento y ventas.
 """
 
-from .handlers import NotificationHandler, EmailNotificationHandler, WhatsAppNotificationHandler
-from .managers import NotificationManager
-from .core import send_notification, schedule_notification
-from .templates import get_notification_template
+from app.com.notifications.handlers import NotificationHandler, EmailNotificationHandler, WhatsAppNotificationHandler
+from app.com.notifications.managers import NotificationManager
+from app.com.notifications.core import send_notification, schedule_notification
+from app.com.notifications.templates import get_notification_template
 # Correcting imports to reference models from app/models.py or correct module
 # from .models import Notification, NotificationStatus, NotificationPreference
 # Import from the correct location

@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any
 from django.conf import settings
 from django.db import models
-from ..utils.content_adapters import ContentAdapter
+from app.com.publish.utils.content_adapters import ContentAdapter
 
 class BaseProcessor:
     """

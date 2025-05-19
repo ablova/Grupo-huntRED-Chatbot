@@ -1,8 +1,8 @@
 from typing import Dict, List, Optional
-from .recipients import BaseRecipient
-from .channels import BaseChannel
-from .templates import BaseTemplate
-from .config import NotificationsConfig
+from app.notifications.recipients import BaseRecipient
+from app.notifications.channels import BaseChannel
+from app.notifications.templates import BaseTemplate
+from app.notifications.config import NotificationsConfig
 import logging
 
 logger = logging.getLogger('app.notifications.manager')
@@ -40,7 +40,7 @@ class NotificationsManager:
     
     def _get_channel_class(self, channel_type: str) -> BaseChannel:
         """Obtiene la clase correspondiente a un canal."""
-        from .channels import EmailChannel, WhatsAppChannel, XChannel
+        from app.notifications.channels import EmailChannel, WhatsAppChannel, XChannel
         
         channel_classes = {
             'email': EmailChannel,
@@ -52,7 +52,7 @@ class NotificationsManager:
     
     def _get_template_class(self, template_type: str) -> BaseTemplate:
         """Obtiene la clase correspondiente a un template."""
-        from .templates import ProposalTemplate, PaymentTemplate, OpportunityTemplate
+        from app.notifications.templates import ProposalTemplate, PaymentTemplate, OpportunityTemplate
         
         template_classes = {
             'proposal': ProposalTemplate,

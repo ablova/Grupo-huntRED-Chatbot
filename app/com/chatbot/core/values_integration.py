@@ -150,3 +150,40 @@ class ChatStateValuesExtension:
         logger.info(f"ChatStateManager extended with values functionality for user {state_manager.user.id}")
         
         return state_manager
+
+
+async def get_value_driven_response(message_text, user_data=None, context='career', state_manager=None):
+    """
+    Genera una respuesta enriquecida con los valores fundamentales de Grupo huntRED®.
+    
+    Función de compatibilidad para los módulos de workflow que dependen de esta interfaz.
+    Utiliza la funcionalidad de ValuesIntegrator y ValuesChatMiddleware.
+    
+    Args:
+        message_text (str): Texto del mensaje o prompt original
+        user_data (dict, optional): Datos del usuario para personalización
+        context (str, optional): Contexto de la interacción (career, operational, etc.)
+        state_manager (obj, optional): Instancia de ChatStateManager si está disponible
+        
+    Returns:
+        str: Respuesta enriquecida con valores fundamentales
+    """
+    try:
+        # Obtener metadatos de valores
+        values_metadata = await ValuesIntegrator.process_incoming_message(
+            message_text, 
+            user_data
+        )
+        
+        # Aplicar valores a la respuesta (la respuesta base es el mensaje original)
+        enhanced_response = await ValuesIntegrator.apply_values_to_response(
+            message_text,
+            values_metadata
+        )
+        
+        logger.info(f"Generated value-driven response with context: {context}")
+        return enhanced_response
+        
+    except Exception as e:
+        logger.error(f"Error generating value-driven response: {str(e)}")
+        return message_text  # En caso de error, devolver el mensaje original

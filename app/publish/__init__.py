@@ -4,7 +4,7 @@ Módulo de publicación y campañas digitales
 
 __version__ = "1.0.0"
 
-from ..lazy_imports import lazy_imports, register_module, get_module
+from app.lazy_imports import LazyImporter, register_module, get_module
 
 # Establecer el paquete actual
 register_module('publish', '.', package='app.publish')

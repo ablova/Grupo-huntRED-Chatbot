@@ -5,6 +5,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from django.test import TestCase
+from django.conf import settings
+import stripe
 from app.pagos.gateways import PaymentGateway, StripeGateway, PayPalGateway, MercadoPagoGateway
 from app.models import ApiConfig
 

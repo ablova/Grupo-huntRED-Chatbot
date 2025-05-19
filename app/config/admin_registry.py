@@ -11,12 +11,12 @@ import importlib
 import logging
 
 # Importando clases base y mixins
-from .admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
-from .admin_cache import CachedAdminMixin, OptimizedQuerysetMixin, setup_cache_signals
-from .admin_rbac import RBACModelMixin, setup_rbac_groups, rbac_admin_site
+from app.config.admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
+from app.config.admin_cache import CachedAdminMixin, OptimizedQuerysetMixin, setup_cache_signals
+from app.config.admin_rbac import RBACModelMixin, setup_rbac_groups, rbac_admin_site
 
 # Importando administradores desde diferentes módulos
-from .admin_core import (
+from app.config.admin_core import (
     # Core models
     PersonAdmin, 
     ApplicationAdmin, 
@@ -38,14 +38,14 @@ from .admin_core import (
 )
 
 # Importando administradores de scraping
-from .admin_scraping import (
+from app.config.admin_scraping import (
     DominioScrapingAdmin,
     RegistroScrapingAdmin,
     ReporteScrapingAdmin
 )
 
 # Importando administradores de pricing
-from .admin_pricing import (
+from app.config.admin_pricing import (
     PricingBaselineAdmin,
     AddonsAdmin,
     CouponsAdmin,

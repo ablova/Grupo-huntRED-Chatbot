@@ -17,12 +17,12 @@ from django.db import transaction
 from asgiref.sync import sync_to_async
 
 from app.models import Person, BusinessUnit, Vacante, User, Notification, NotificationType, NotificationStatus, NotificationChannel, NotificationPreference
-from .handlers import (
+from app.com.notifications.handlershandlers import (
     NotificationHandler, EmailNotificationHandler, WhatsAppNotificationHandler,
     SMSNotificationHandler, TelegramNotificationHandler, AppNotificationHandler,
     SlackNotificationHandler
 )
-from .templates import get_notification_template
+from app.com.notifications.handlerstemplates import get_notification_template
 
 logger = logging.getLogger('notifications')
 

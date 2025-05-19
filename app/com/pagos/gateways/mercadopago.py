@@ -1,7 +1,8 @@
 import mercadopago
 from django.conf import settings
 from app.models import ApiConfig
-from .base import PaymentGateway
+from app.com.pagos.gateways.base import PaymentGateway
+from typing import Dict, Any
 
 class MercadoPagoGateway(PaymentGateway):
     def __init__(self, business_unit=None):

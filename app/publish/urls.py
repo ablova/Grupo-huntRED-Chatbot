@@ -4,7 +4,7 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ChannelViewSet, BotViewSet, JobChannelViewSet
+from app.publish.views import ChannelViewSet, BotViewSet, JobChannelViewSet
 
 router = DefaultRouter()
 router.register(r'channels', ChannelViewSet)

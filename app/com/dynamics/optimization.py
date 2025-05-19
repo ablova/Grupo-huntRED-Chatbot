@@ -3,7 +3,7 @@ import logging
 import asyncio
 import redis
 from celery import Celery
-from .core import DynamicModule
+from app.com.dynamics.corecore import DynamicModule
 
 logger = logging.getLogger(__name__)
 

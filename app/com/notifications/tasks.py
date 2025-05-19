@@ -13,8 +13,8 @@ from asgiref.sync import async_to_sync
 from celery import shared_task
 
 from app.models import BusinessUnit, Person, Vacante, User, Notification, NotificationStatus
-from .core import send_notification
-from .handlers import (
+from app.com.notifications.managerscore import send_notification
+from app.com.notifications.managershandlers import (
     EmailNotificationHandler, WhatsAppNotificationHandler,
     SMSNotificationHandler, TelegramNotificationHandler,
     AppNotificationHandler, SlackNotificationHandler
@@ -130,7 +130,7 @@ def send_daily_status_reports():
     Envía reportes diarios de estado para cada proceso activo.
     """
     from app.models import Vacante
-    from .managers import ConsultorNotificationManager
+    from app.com.notifications.managersmanagers import ConsultorNotificationManager
     
     # Obtenemos todas las vacantes activas
     vacantes_activas = Vacante.objects.filter(status='active')
@@ -193,7 +193,7 @@ def send_payment_reminders():
     Envía recordatorios de pago para facturas próximas a vencer.
     """
     from app.com.pagos.models import Invoice
-    from .managers import PagosNotificationManager
+    from app.com.notifications.managersmanagers import PagosNotificationManager
     
     # Obtenemos facturas que vencen en los próximos 5 días y no están pagadas
     now = timezone.now()

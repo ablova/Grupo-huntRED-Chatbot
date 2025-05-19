@@ -1,4 +1,8 @@
-from app.lazy_imports import lazy_imports, register_module, get_module
+# /home/pablo/app/com/utils/__init__.py
+from app.lazy_imports import LazyImporter
+
+# Crear instancia del importador lazy
+lazy_imports = LazyImporter()
 
 # Registrar todos los módulos que necesitan importaciones lazy
 lazy_imports.register('scraping_utils', '.scraping_utils')
@@ -37,12 +41,12 @@ __all__ = [
 
 # Función para obtener importaciones de LinkedIn de manera lazy
 def get_linkedin_imports():
-    linkedin = get_module('linkedin')
+    linkedin = lazy_imports.get_module('linkedin')
     return linkedin.LinkedInScraper, linkedin.process_linkedin_jobs
 
 # Función para obtener importaciones de scraping de manera lazy
 def get_scraping_imports():
-    scraping = get_module('scraping')
+    scraping = lazy_imports.get_module('scraping')
     return {
         'ScrapingPipeline': scraping.ScrapingPipeline,
         'assign_business_unit': scraping.assign_business_unit,
@@ -61,7 +65,7 @@ def get_scraping_imports():
 
 # Función para obtener optimizadores de NLP/GPT de manera lazy
 def get_optimized_nlp():
-    optimizers = get_module('optimizers')
+    optimizers = lazy_imports.get_module('optimizers')
     # Intentar obtener conector optimizado
     try:
         import app.com.chatbot.optimized_connectors
@@ -73,7 +77,7 @@ def get_optimized_nlp():
 
 # Función para obtener modelo GPT optimizado de manera lazy
 def get_optimized_gpt():
-    optimizers = get_module('optimizers')
+    optimizers = lazy_imports.get_module('optimizers')
     # Intentar obtener conector optimizado
     try:
         import app.com.chatbot.optimized_connectors
@@ -85,12 +89,12 @@ def get_optimized_gpt():
 
 # Función para inicializar optimizaciones
 def initialize_optimizations():
-    optimizers = get_module('optimizers')
+    optimizers = lazy_imports.get_module('optimizers')
     return optimizers.initialize_optimizers()
 
 # Inicializar optimizaciones de forma sigilosa sin bloquear la carga
 try:
     import threading
-    threading.Thread(target=lambda: get_module('optimizers')).start()
+    threading.Thread(target=lambda: lazy_imports.get_module('optimizers')).start()
 except Exception:
     pass

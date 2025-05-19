@@ -2,7 +2,7 @@
 import importlib
 import sys
 import ast
-from typing import Dict, Any, Callable, Optional, Set
+from typing import Dict, Any, Callable, Optional, Set, List
 from pathlib import Path
 import logging
 import os
@@ -25,13 +25,76 @@ logger.addHandler(ch)
 
 # Define package structure
 PACKAGE_STRUCTURE = {
-    'root': ['models', 'views', 'forms', 'admin', 'apps'],
-    'com': [
-        'chatbot', 'notifications', 'pagos', 'proposals', 'analytics'
+    'root': [
+        'com',
+        'ml',
+        'notifications',
+        'pagos',
+        'utils',
+        'views',
+        'tests'
     ],
-    'ml': ['models', 'services', 'trainers'],
-    'sexsi': ['models', 'services', 'templates'],
-    'publish': ['models', 'services', 'templates']
+    'com': [
+        'notifications',
+        'pagos',
+        'utils',
+        'dynamics',
+        'talent',
+        'feedback',
+        'onboarding'
+    ],
+    'ml': [
+        'core',
+        'models',
+        'features',
+        'analyzers'
+    ],
+    'notifications': [
+        'channels',
+        'recipients',
+        'templates'
+    ],
+    'pagos': [
+        'gateways',
+        'views',
+        'services'
+    ]
+}
+
+# Mapeo de importaciones relativas a absolutas
+IMPORT_MAPPINGS = {
+    # Notificaciones
+    'notifications.handlers': 'app.com.notifications.handlers',
+    'notifications.managers': 'app.com.notifications.managers',
+    'notifications.core': 'app.com.notifications.core',
+    'notifications.templates': 'app.com.notifications.templates',
+    
+    # Pagos
+    'pagos.views': 'app.com.pagos.views',
+    'pagos.gateways': 'app.com.pagos.gateways',
+    'pagos.services': 'app.com.pagos.services',
+    
+    # ML
+    'ml.core': 'app.ml.core',
+    'ml.models': 'app.ml.core.models',
+    'ml.features': 'app.ml.core.features',
+    'ml.analyzers': 'app.ml.core.analyzers',
+    
+    # Utils
+    'utils.skills': 'app.com.utils.skills',
+    'utils.cv_generator': 'app.com.utils.cv_generator',
+    'utils.third_parties': 'app.com.utils.third_parties'
+}
+
+# Reglas de importación
+IMPORT_RULES = {
+    'prefer_absolute': True,  # Preferir importaciones absolutas
+    'max_relative_level': 1,  # Máximo nivel de importación relativa permitido
+    'exclude_patterns': [
+        '__init__.py',  # Excluir archivos __init__.py
+        'tests/',       # Excluir directorio de tests
+        'migrations/'   # Excluir directorio de migraciones
+    ]
 }
 
 class ModuleRegistry:
@@ -190,10 +253,10 @@ class ModuleRegistry:
         with open(file_path, 'r') as f:
             content = f.read()
         
-        # Try to fix common circular import patterns
-        content = content.replace('from app.models import', 'from .models import')
-        content = content.replace('from app.views import', 'from .views import')
-        content = content.replace('from app.forms import', 'from .forms import')
+        # Fix import patterns to use absolute imports consistently
+        content = content.replace('from .models import', 'from app.models import')
+        content = content.replace('from .views import', 'from app.views import')
+        content = content.replace('from .forms import', 'from app.forms import')
         
         with open(file_path, 'w') as f:
             f.write(content)
@@ -370,3 +433,74 @@ def get_profile_creator():
 # Register essential modules at startup
 if os.environ.get('DJANGO_SETTINGS_MODULE'):
     validate_imports()
+
+def get_absolute_import(relative_path: str) -> str:
+    """
+    Convierte una ruta relativa en una importación absoluta.
+    
+    Args:
+        relative_path: Ruta relativa del módulo
+        
+    Returns:
+        Ruta absoluta para la importación
+    """
+    for rel, abs_path in IMPORT_MAPPINGS.items():
+        if relative_path.startswith(rel):
+            return relative_path.replace(rel, abs_path)
+    return f"app.{relative_path}"
+
+def validate_import_structure() -> Dict[str, List[str]]:
+    """
+    Valida la estructura de importaciones del proyecto.
+    
+    Returns:
+        Diccionario con errores encontrados por módulo
+    """
+    errors = {}
+    base_dir = Path(__file__).parent
+    
+    for package, subpackages in PACKAGE_STRUCTURE.items():
+        if package == 'root':
+            continue
+            
+        package_dir = base_dir / package
+        if not package_dir.exists():
+            errors[package] = [f"Directorio {package} no encontrado"]
+            continue
+            
+        for subpackage in subpackages:
+            subpackage_dir = package_dir / subpackage
+            if not subpackage_dir.exists():
+                if package not in errors:
+                    errors[package] = []
+                errors[package].append(f"Subdirectorio {subpackage} no encontrado en {package}")
+                
+    return errors
+
+def get_import_path(file_path: Path) -> str:
+    """
+    Obtiene la ruta de importación para un archivo.
+    
+    Args:
+        file_path: Ruta al archivo
+        
+    Returns:
+        Ruta de importación
+    """
+    rel_path = file_path.relative_to(Path(__file__).parent)
+    return '.'.join(rel_path.parts[:-1] + (rel_path.stem,))
+
+def should_process_file(file_path: Path) -> bool:
+    """
+    Determina si un archivo debe ser procesado según las reglas.
+    
+    Args:
+        file_path: Ruta al archivo
+        
+    Returns:
+        True si el archivo debe ser procesado
+    """
+    for pattern in IMPORT_RULES['exclude_patterns']:
+        if pattern in str(file_path):
+            return False
+    return True

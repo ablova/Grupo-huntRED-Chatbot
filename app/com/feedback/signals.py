@@ -15,9 +15,9 @@ from django.dispatch import receiver
 
 from app.com.pricing.models import Proposal
 from app.models import Opportunity, ServiceContract, ServiceMilestone
-from .feedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
-from .ongoing_tracker import get_ongoing_service_tracker
-from .completion_tracker import get_service_completion_tracker
+from app.com.feedback.feedback_modelsfeedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
+from app.com.feedback.feedback_modelsongoing_tracker import get_ongoing_service_tracker
+from app.com.feedback.feedback_modelscompletion_tracker import get_service_completion_tracker
 from app.com.pricing.proposal_tracker import get_proposal_tracker
 from app.utilidades.logging_utils import get_logger
 

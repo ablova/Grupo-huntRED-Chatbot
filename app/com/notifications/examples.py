@@ -13,8 +13,8 @@ from django.utils import timezone
 from asgiref.sync import async_to_sync
 
 from app.models import Person, BusinessUnit, Vacante, User, Company, Notification, NotificationType, NotificationStatus
-from .core import send_notification, schedule_notification
-from .managers import (
+from app.com.notifications.corecore import send_notification, schedule_notification
+from app.com.notifications.coremanagers import (
     ProcesoNotificationManager, 
     ClienteNotificationManager,
     ConsultorNotificationManager,

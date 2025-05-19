@@ -3,7 +3,7 @@
 # Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
 
 from django.urls import path
-from . import views
+from app.notifications import views
 
 app_name = 'notifications'
 

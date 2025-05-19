@@ -12,8 +12,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 from app.models import Pago, Empleador, Worker, Oportunidad
-from .gateways.paypal import PayPalGateway
-from .sync.wordpress import WordPressSync
+from app.com.pagos.sync.wordpressgateways.paypal import PayPalGateway
+from app.com.pagos.sync.wordpresssync.wordpress import WordPressSync
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PagoListView(LoginRequiredMixin, ListView):

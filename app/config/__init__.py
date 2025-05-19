@@ -8,4 +8,4 @@ de carpetas existente y la adición de "app/config" para facilitar el panel admi
 """
 
 # Importando el registrador de configuraciones administrativas
-from .admin_registry import initialize_admin
+from app.config.admin_registry import initialize_admin

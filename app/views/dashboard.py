@@ -8,7 +8,7 @@ from django.db.models import Count, Q, F
 from django.utils import timezone
 from datetime import timedelta, datetime
 from calendar import monthrange
-from .models import (
+from app.models import (
     Person, Vacante, Application, Interview, CartaOferta,
     ChatState, IntentPattern, StateTransition, ConfiguracionBU
 )

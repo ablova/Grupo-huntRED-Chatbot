@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
-from app.models import Person, BusinessUnit, Vacante, User, Notification, NotificationStatus, NotificationType, NotificationChannel
+from app.models import Person, BusinessUnit, Vacante, User, Notification, NotificationStatus, NotificationType, NotificationChannel, ChatState
 from app.com.chatbot.integrations.services import send_message_async, send_whatsapp
 
 logger = logging.getLogger('notifications')
@@ -142,9 +142,6 @@ class WhatsAppNotificationHandler(NotificationHandler):
             
             # Registramos esta notificación en el sistema de ChatState para crear un tiempo de gracia
             try:
-                from app.models import ChatState
-                from django.utils import timezone
-                
                 # Buscamos si ya existe un ChatState para este usuario
                 chat_state = ChatState.objects.filter(user_id=recipient_phone, channel='whatsapp').first()
                 

@@ -4,8 +4,8 @@ from telegram.error import TelegramError
 from typing import Dict, Any
 from django.conf import settings
 from django.db import models
-from .base_processor import BaseProcessor
-from ..utils.content_adapters import TelegramAdapter
+from app.com.publish.processors.base_processor import BaseProcessor
+from app.com.publish.utils.content_adapters import TelegramAdapter
 
 class TelegramProcessor(BaseProcessor):
     """

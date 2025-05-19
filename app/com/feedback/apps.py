@@ -22,7 +22,7 @@ class FeedbackConfig(AppConfig):
         Conecta todas las señales necesarias.
         """
         # Importar señales para asegurar que se registren
-        from . import signals
+        from app.com.feedback import signals
         
         # Conectar las señales
         signals.connect_feedback_signals()

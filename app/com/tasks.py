@@ -4,7 +4,7 @@
 #
 from celery import shared_task
 from app.models import Conversation, Message, Notification, Metric
-from .config import ComConfig
+from app.com.config import ComConfig
 import logging
 
 logger = logging.getLogger('app.com.tasks')

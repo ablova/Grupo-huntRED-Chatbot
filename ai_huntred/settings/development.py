@@ -1,5 +1,5 @@
 # /home/pablo/ai_huntred/settings/development.py
-from ..settings import *
+from ai_huntred.settings import *
 
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']

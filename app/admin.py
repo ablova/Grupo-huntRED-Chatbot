@@ -46,7 +46,7 @@ from app.models import (
 )
 
 # Admin Mixins
-from .mixins import EnhancedAdminMixin, BulkActionsMixin, DateRangeFilter, StatusFilter
+from app.admin.mixins import EnhancedAdminMixin, BulkActionsMixin, DateRangeFilter, StatusFilter
 
 # Service Imports
 from app.com.chatbot.integrations.services import send_email, send_message
@@ -71,7 +71,7 @@ initialize_admin(force_register=True)
 # El registro de ConfiguracionAdmin ahora se maneja en app/config/admin_registry.py
 
 # Importar el admin de BusinessUnit desde su módulo específico
-from .business_unit import BusinessUnitAdmin
+from app.admin.business_unit import BusinessUnitAdmin
 
 # Personalizar el admin site
 admin.site.site_header = "Grupo huntRED® Admin"

@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from ..utils.visualization.report_generator import ReportGenerator
+from app.com.utils.visualization.report_generator.utils.visualization.report_generator import ReportGenerator
 import logging
 
 logger = logging.getLogger('app.com.views.visualization')

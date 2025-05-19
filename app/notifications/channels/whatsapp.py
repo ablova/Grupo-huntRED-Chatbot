@@ -1,4 +1,4 @@
-from .base import BaseChannel
+from app.notifications.channels.basebase import BaseChannel
 import logging
 
 logger = logging.getLogger('app.notifications.channels.whatsapp')

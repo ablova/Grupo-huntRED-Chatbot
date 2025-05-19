@@ -14,9 +14,9 @@ from weasyprint import HTML
 from django.conf import settings
 from django.template.loader import render_to_string
 
-from .cv_template import CVTemplate
-from .cv_utils import CVUtils
-from .cv_data import CVData
+from app.com.utils.cv_generator.cv_templatecv_template import CVTemplate
+from app.com.utils.cv_generator.cv_templatecv_utils import CVUtils
+from app.com.utils.cv_generator.cv_templatecv_data import CVData
 from app.kanban.ml_integration import get_candidate_growth_data
 
 logger = logging.getLogger(__name__)

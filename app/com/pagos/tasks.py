@@ -3,8 +3,8 @@ from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 import logging
-from .models import SincronizacionLog, SincronizacionError
-from .sync.wordpress import WordPressSync
+from app.models import SincronizacionLog, SincronizacionError
+from app.com.pagos.sync.wordpress import WordPressSync
 from app.pagos.models import Empleador, Oportunidad, Candidato
 from typing import Dict, Any
 
