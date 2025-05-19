@@ -1,7 +1,13 @@
 # /home/pablo/app/com/utils/skills/prediction.py
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from .base_models import Skill, SkillSource, SkillContext, CompetencyLevel, SkillCategory
+from app.com.utils.skills.base.base_models import (
+    Skill,
+    SkillSource,
+    SkillContext,
+    CompetencyLevel,
+    SkillCategory
+)
 
 class SkillPredictor:
     """Clase base para la predicción de habilidades."""

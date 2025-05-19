@@ -1,6 +1,10 @@
+# /home/pablo/app/com/utils/skills/base/base_extractor.py
+"""
+Clase base para extractores de habilidades.
+"""
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
-from ..base_models.base_models import Skill, SkillSource, SkillContext
+from app.com.utils.skills.base.base_models import Skill, SkillSource, SkillContext
 import logging
 
 logger = logging.getLogger(__name__)

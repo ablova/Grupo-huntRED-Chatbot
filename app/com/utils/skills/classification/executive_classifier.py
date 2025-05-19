@@ -1,6 +1,7 @@
+# /home/pablo/app/com/utils/skills/classification/executive_classifier.py
 from app.com.utils.skills.base.base_classifier import BaseSkillClassifier
 from app.com.utils.skills.base.base_models import Skill, Competency, SkillCategory, CompetencyLevel
-from typing import List, Dict
+from typing import List, Dict, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)

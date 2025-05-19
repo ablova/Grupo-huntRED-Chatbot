@@ -11,7 +11,7 @@ Dependencias:
     - datetime: Para manejo de fechas y timestamps
 """
 
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Type, Any
 
 # Constantes del sistema
 PROCESSING_MODES = {
@@ -25,7 +25,7 @@ SUPPORTED_LANGUAGES = {
     'ENGLISH': 'en'
 }
 
-# Modelos base
+# Importaciones base
 from app.com.utils.skills.base.base_models import (
     Competency,
     CompetencyLevel,
@@ -35,16 +35,9 @@ from app.com.utils.skills.base.base_models import (
     SkillSource
 )
 
-# Interfaces base
 from app.com.utils.skills.base.base_analyzer import BaseSkillAnalyzer
 from app.com.utils.skills.base.base_classifier import BaseSkillClassifier
 from app.com.utils.skills.base.base_extractor import BaseSkillExtractor
-
-# Implementaciones específicas
-from app.com.utils.skills.analysis.executive_analyzer import ExecutiveSkillAnalyzer
-from app.com.utils.skills.classification.executive_classifier import ExecutiveSkillClassifier
-from app.com.utils.skills.extraction.spacy_extractor import SpacySkillExtractor
-from app.com.utils.skills.extraction.tabiya_extractor import TabiyaSkillExtractor
 
 __all__ = [
     # Constantes
@@ -63,12 +56,6 @@ __all__ = [
     'BaseSkillAnalyzer',
     'BaseSkillClassifier',
     'BaseSkillExtractor',
-    
-    # Implementaciones específicas
-    'ExecutiveSkillAnalyzer',
-    'ExecutiveSkillClassifier',
-    'SpacySkillExtractor',
-    'TabiyaSkillExtractor',
     
     # Funciones de fábrica
     'create_skill_processor'
@@ -92,7 +79,20 @@ def create_skill_processor(
         
     Raises:
         ValueError: Si el modo o idioma especificado no es válido
+        ImportError: Si las dependencias necesarias no están disponibles
     """
+    # Importaciones tardías para evitar ciclos
+    try:
+        from app.com.utils.skills.analysis.executive_analyzer import ExecutiveSkillAnalyzer
+        from app.com.utils.skills.classification.executive_classifier import ExecutiveSkillClassifier
+        from app.com.utils.skills.extraction.spacy_extractor import SpacySkillExtractor
+        from app.com.utils.skills.extraction.tabiya_extractor import TabiyaSkillExtractor
+    except ImportError as e:
+        raise ImportError(
+            f"No se pudieron importar las dependencias necesarias: {str(e)}. "
+            "Asegúrese de que todas las dependencias estén instaladas."
+        )
+        
     if mode not in PROCESSING_MODES.values():
         raise ValueError(
             f"Modo no válido: {mode}. "
@@ -115,16 +115,6 @@ def create_skill_processor(
         analyzer = BaseSkillAnalyzer(business_unit)
         
     return analyzer
-
-# Importaciones básicas que sabemos que existen
-from .base_models import (
-    Skill,
-    SkillSource,
-    SkillContext,
-    CompetencyLevel,
-    SkillCategory,
-    Competency
-)
 
 # Intentar importar módulos opcionales
 try:
