@@ -1,0 +1,34 @@
+SU OPINIÓN ES VALIOSA PARA NOSOTROS
+============================
+
+Estimado/a {{ contact_name }},
+
+Hace unos días le enviamos una propuesta de Análisis de Talento 360° para {{ company_name }}.
+
+Nos gustaría saber su opinión sobre nuestra propuesta, independientemente de si ha decidido avanzar con nuestros servicios. Sus comentarios nos ayudarán a mejorar constantemente nuestras soluciones.
+
+Le tomará menos de 2 minutos responder y nos sería de gran ayuda.
+
+Para compartir su opinión, visite: {{ feedback_url }}
+
+-----------
+
+¿DESEA HABLAR DIRECTAMENTE CON NUESTRO MANAGING DIRECTOR?
+
+Reserve una reunión personal con Pablo Lelo de Larrea H. - Sr. Managing Partner de Grupo huntRED® para discutir su estrategia de reclutamiento y resolver cualquier duda.
+
+Para agendar una reunión, visite: {{ managing_director_calendar }}
+
+-----------
+
+Agradecemos su tiempo y quedamos a su disposición para cualquier consulta.
+
+Atentamente,
+
+Equipo de Talento 360°
+Grupo huntRED®
+contacto@huntred.com
+
+-----------
+© {{ now.year }} Grupo huntRED®. Todos los derechos reservados.
+Si no desea recibir más correos como este, puede cancelar su suscripción: {{ unsubscribe_url }}

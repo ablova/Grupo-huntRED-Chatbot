@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuesta de Satisfacción - Grupo huntRED®</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #f8f9fa;
+            --accent-color: #28a745;
+            --text-color: #333;
+            --hover-color: #004494;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: #f5f5f5;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .logo {
+            max-width: 180px;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .intro {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .question-container {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .question {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .option {
+            flex: 1;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .radio-btn {
+            display: none;
+        }
+        
+        .radio-btn + label {
+            display: inline-block;
+            width: 100%;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .radio-btn:checked + label {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .radio-btn + label:hover {
+            background-color: #e9ecef;
+        }
+        
+        .radio-btn:checked + label:hover {
+            background-color: var(--hover-color);
+        }
+        
+        .comment-area {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 100px;
+            margin-top: 10px;
+            resize: vertical;
+        }
+        
+        .submit-btn {
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            margin: 30px auto;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .submit-btn:hover {
+            background-color: #218838;
+        }
+        
+        .rating {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .rating input {
+            display: none;
+        }
+        
+        .rating label {
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            color: #666;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .rating input:checked ~ label,
+        .rating label:hover,
+        .rating input:checked + label:hover,
+        .rating input:checked ~ label:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .thank-you {
+            text-align: center;
+            padding: 30px;
+            margin-top: 20px;
+            background-color: #e9f7ef;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+            }
+            
+            .options {
+                flex-direction: column;
+            }
+            
+            .option {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ logo_url }}" alt="Grupo huntRED Logo" class="logo">
+            <h1>Encuesta de Satisfacción</h1>
+            <p class="subtitle">Día {{ day_count }} en {{ company }}</p>
+        </div>
+        
+        <div class="intro">
+            <p>Hola <strong>{{ person_name }}</strong>,</p>
+            <p>Tu opinión es muy importante para nosotros. Por favor, tómate unos minutos para completar esta breve encuesta sobre tu experiencia hasta ahora en {{ company }}.</p>
+        </div>
+        
+        <form id="satisfaction-form" action="{{ form_action }}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="token" value="{{ token }}">
+            <input type="hidden" name="onboarding_id" value="{{ onboarding_id }}">
+            <input type="hidden" name="period" value="{{ period }}">
+            
+            <div class="question-container">
+                <p class="question">1. ¿Cómo calificarías tu experiencia general hasta ahora?</p>
+                <div class="rating">
+                    <input type="radio" id="r10" name="general_satisfaction" value="10">
+                    <label for="r10">10</label>
+                    <input type="radio" id="r9" name="general_satisfaction" value="9">
+                    <label for="r9">9</label>
+                    <input type="radio" id="r8" name="general_satisfaction" value="8">
+                    <label for="r8">8</label>
+                    <input type="radio" id="r7" name="general_satisfaction" value="7">
+                    <label for="r7">7</label>
+                    <input type="radio" id="r6" name="general_satisfaction" value="6">
+                    <label for="r6">6</label>
+                    <input type="radio" id="r5" name="general_satisfaction" value="5">
+                    <label for="r5">5</label>
+                    <input type="radio" id="r4" name="general_satisfaction" value="4">
+                    <label for="r4">4</label>
+                    <input type="radio" id="r3" name="general_satisfaction" value="3">
+                    <label for="r3">3</label>
+                    <input type="radio" id="r2" name="general_satisfaction" value="2">
+                    <label for="r2">2</label>
+                    <input type="radio" id="r1" name="general_satisfaction" value="1">
+                    <label for="r1">1</label>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">2. ¿La posición y sus responsabilidades coinciden con lo que te fue comunicado durante el proceso de contratación?</p>
+                <div class="options">
+                    <div class="option">
+                        <input type="radio" id="match-yes" name="position_match" value="yes" class="radio-btn">
+                        <label for="match-yes">Sí, completamente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="match-partly" name="position_match" value="partly" class="radio-btn">
+                        <label for="match-partly">Parcialmente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="match-no" name="position_match" value="no" class="radio-btn">
+                        <label for="match-no">No</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">3. ¿Te sientes correctamente integrado en el equipo?</p>
+                <div class="options">
+                    <div class="option">
+                        <input type="radio" id="team-yes" name="team_integration" value="yes" class="radio-btn">
+                        <label for="team-yes">Sí</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="team-partly" name="team_integration" value="partly" class="radio-btn">
+                        <label for="team-partly">En proceso</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="team-no" name="team_integration" value="no" class="radio-btn">
+                        <label for="team-no">No</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">4. ¿Has recibido el entrenamiento y recursos necesarios para desempeñar tu trabajo?</p>
+                <div class="options">
+                    <div class="option">
+                        <input type="radio" id="resources-yes" name="resources" value="yes" class="radio-btn">
+                        <label for="resources-yes">Sí, suficientes</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="resources-partly" name="resources" value="partly" class="radio-btn">
+                        <label for="resources-partly">Parcialmente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="resources-no" name="resources" value="no" class="radio-btn">
+                        <label for="resources-no">No</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">5. ¿Cómo calificarías el proceso de onboarding hasta ahora?</p>
+                <div class="rating">
+                    <input type="radio" id="o10" name="onboarding_quality" value="10">
+                    <label for="o10">10</label>
+                    <input type="radio" id="o9" name="onboarding_quality" value="9">
+                    <label for="o9">9</label>
+                    <input type="radio" id="o8" name="onboarding_quality" value="8">
+                    <label for="o8">8</label>
+                    <input type="radio" id="o7" name="onboarding_quality" value="7">
+                    <label for="o7">7</label>
+                    <input type="radio" id="o6" name="onboarding_quality" value="6">
+                    <label for="o6">6</label>
+                    <input type="radio" id="o5" name="onboarding_quality" value="5">
+                    <label for="o5">5</label>
+                    <input type="radio" id="o4" name="onboarding_quality" value="4">
+                    <label for="o4">4</label>
+                    <input type="radio" id="o3" name="onboarding_quality" value="3">
+                    <label for="o3">3</label>
+                    <input type="radio" id="o2" name="onboarding_quality" value="2">
+                    <label for="o2">2</label>
+                    <input type="radio" id="o1" name="onboarding_quality" value="1">
+                    <label for="o1">1</label>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">6. ¿Hay algo específico que podríamos mejorar o que te gustaría comentar?</p>
+                <textarea name="comments" class="comment-area" placeholder="Tus comentarios son valiosos para mejorar nuestro proceso..."></textarea>
+            </div>
+            
+            <button type="submit" class="submit-btn">Enviar Respuestas</button>
+        </form>
+        
+        <div id="thank-you" class="thank-you">
+            <h2>¡Gracias por tus respuestas!</h2>
+            <p>Tu feedback es muy valioso para seguir mejorando nuestro proceso de onboarding.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Si tienes alguna pregunta, por favor contacta a tu consultor de Grupo huntRED®.</p>
+            <p>&copy; {{ year }} Grupo huntRED® - Todos los derechos reservados</p>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('satisfaction-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Aquí iría el código para enviar los datos por AJAX
+            // Por simplicidad, solo mostraremos el mensaje de agradecimiento
+            
+            document.getElementById('satisfaction-form').style.display = 'none';
+            document.getElementById('thank-you').style.display = 'block';
+            
+            // Enviamos formulario de forma asíncrona
+            const formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>

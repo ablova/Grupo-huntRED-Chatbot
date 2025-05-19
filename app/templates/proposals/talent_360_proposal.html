@@ -1,0 +1,257 @@
+{% extends "proposals/proposal_template.html" %}
+
+{% block pricing_addon_section %}
+<section class="mb-12 page-break" id="pricing">
+    <h2 class="text-2xl font-bold mb-6 accent-gradient">Análisis de Talento 360° - Propuesta Comercial</h2>
+    <div class="section-divider"></div>
+    
+    <div class="p-6 bg-white rounded-lg shadow-md mb-8">
+        <h3 class="text-xl font-bold mb-4">Potencia tu Capital Humano con Análisis Integral</h3>
+        
+        <p class="mb-4">
+            El <strong>Análisis de Talento 360°</strong> de Grupo huntRED® combina inteligencia artificial avanzada con nuestra expertise en recursos humanos para ofrecer una evaluación completa de cada colaborador. Nuestro sistema analiza diversos aspectos clave:
+        </p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="border p-4 rounded-lg shadow-sm">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-brain text-blue-600 mr-2"></i>
+                    <h4 class="font-bold">Análisis de Compatibilidad Cultural</h4>
+                </div>
+                <p>Evaluación de alineación de valores, preferencias de trabajo y motivadores con la cultura organizacional.</p>
+            </div>
+            
+            <div class="border p-4 rounded-lg shadow-sm">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-chart-line text-green-600 mr-2"></i>
+                    <h4 class="font-bold">Trayectoria Profesional</h4>
+                </div>
+                <p>Análisis de carrera, identificación de patrones de éxito y proyección de desarrollo futuro.</p>
+            </div>
+            
+            <div class="border p-4 rounded-lg shadow-sm">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-users text-purple-600 mr-2"></i>
+                    <h4 class="font-bold">Sinergia de Equipo</h4>
+                </div>
+                <p>Evaluación de dinámicas grupales, compatibilidad entre miembros y potencial colaborativo.</p>
+            </div>
+            
+            <div class="border p-4 rounded-lg shadow-sm">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-graduation-cap text-amber-600 mr-2"></i>
+                    <h4 class="font-bold">Recomendaciones de Aprendizaje</h4>
+                </div>
+                <p>Sugerencias personalizadas para desarrollo de habilidades y cierre de brechas.</p>
+            </div>
+        </div>
+        
+        <div class="bg-gray-50 p-4 rounded-lg mb-6">
+            <h4 class="font-bold text-lg mb-2">Alineado con los Valores de huntRED®</h4>
+            <ul class="list-disc pl-6">
+                <li><strong>Apoyo:</strong> Brindamos herramientas concretas para el crecimiento profesional</li>
+                <li><strong>Solidaridad:</strong> Facilitamos la integración y desarrollo igualitario</li>
+                <li><strong>Sinergia:</strong> Potenciamos las fortalezas colectivas del equipo</li>
+            </ul>
+        </div>
+        
+        <h3 class="text-xl font-bold mb-4">Inversión</h3>
+        
+        <div class="overflow-x-auto mb-6">
+            <table class="w-full border-collapse">
+                <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                    <tr>
+                        <th class="border border-gray-300 p-2 text-left">Cantidad de Usuarios</th>
+                        <th class="border border-gray-300 p-2 text-right">Precio Base</th>
+                        <th class="border border-gray-300 p-2 text-right">Descuento</th>
+                        <th class="border border-gray-300 p-2 text-right">Precio Final</th>
+                        <th class="border border-gray-300 p-2 text-right">Ahorro Total*</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-gray-300 p-2">1-11 usuarios</td>
+                        <td class="border border-gray-300 p-2 text-right">$900.00</td>
+                        <td class="border border-gray-300 p-2 text-center">-</td>
+                        <td class="border border-gray-300 p-2 text-right font-bold">$900.00</td>
+                        <td class="border border-gray-300 p-2 text-right">-</td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="border border-gray-300 p-2">12-99 usuarios</td>
+                        <td class="border border-gray-300 p-2 text-right">$900.00</td>
+                        <td class="border border-gray-300 p-2 text-center text-green-600 font-bold">11%</td>
+                        <td class="border border-gray-300 p-2 text-right font-bold">$801.00</td>
+                        <td class="border border-gray-300 p-2 text-right text-green-600">$1,188+ <small>por 12 usuarios</small></td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-300 p-2">100-199 usuarios</td>
+                        <td class="border border-gray-300 p-2 text-right">$900.00</td>
+                        <td class="border border-gray-300 p-2 text-center text-green-600 font-bold">22%</td>
+                        <td class="border border-gray-300 p-2 text-right font-bold">$702.00</td>
+                        <td class="border border-gray-300 p-2 text-right text-green-600">$19,800+ <small>por 100 usuarios</small></td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="border border-gray-300 p-2">200+ usuarios</td>
+                        <td class="border border-gray-300 p-2 text-right">$900.00</td>
+                        <td class="border border-gray-300 p-2 text-center text-green-600 font-bold">33%</td>
+                        <td class="border border-gray-300 p-2 text-right font-bold">$603.00</td>
+                        <td class="border border-gray-300 p-2 text-right text-green-600">$59,400+ <small>por 200 usuarios</small></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        {% if proposal.user_count %}
+        <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border border-blue-100 mb-6">
+            <h4 class="font-bold text-lg mb-3">Tu Propuesta Personalizada</h4>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-gray-600">Usuarios totales:</p>
+                    <p class="font-bold text-xl">{{ proposal.user_count }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-600">Precio por usuario:</p>
+                    <p class="font-bold text-xl">${{ proposal.price_per_user }} MXN</p>
+                </div>
+                <div>
+                    <p class="text-gray-600">Subtotal:</p>
+                    <p class="font-bold text-xl">${{ proposal.subtotal }} MXN</p>
+                </div>
+                <div>
+                    <p class="text-gray-600">IVA (16%):</p>
+                    <p class="font-bold text-xl">${{ proposal.tax }} MXN</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-blue-100">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-lg">Total:</span>
+                    <span class="font-bold text-2xl">${{ proposal.total }} MXN</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="bg-blue-50 p-4 rounded-lg mb-6">
+            <h4 class="font-bold mb-2">¿Qué incluye?</h4>
+            <ul class="list-disc pl-6">
+                <li>Evaluación completa por usuario</li>
+                <li>Reportes individuales detallados</li>
+                <li>Dashboard para RRHH con análisis global</li>
+                <li>Recomendaciones específicas para cada colaborador</li>
+                <li>Sesión de interpretación de resultados</li>
+                <li>Soporte prioritario durante 30 días</li>
+            </ul>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <p class="italic text-gray-600">Los precios son válidos por 30 días a partir de la fecha de emisión de esta propuesta.</p>
+            <div class="mt-4">
+                <a href="#contact" class="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition">
+                    Agendar Demostración
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block benefits_section %}
+<section class="mb-12" id="benefits">
+    <h2 class="text-2xl font-bold mb-6 accent-gradient">Beneficios del Análisis de Talento 360°</h2>
+    <div class="section-divider"></div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-8">
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-start mb-4">
+                <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                    <i class="fas fa-chart-pie text-blue-600 text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-2">Decisiones Basadas en Datos</h3>
+                    <p>Accede a insights objetivos sobre tu capital humano para tomar decisiones informadas de promociones, reubicaciones y desarrollo.</p>
+                </div>
+            </div>
+            <ul class="mt-4 pl-6 list-disc">
+                <li>Reduce sesgos en evaluaciones</li>
+                <li>Identifica potencial oculto</li>
+                <li>Optimiza asignación de recursos</li>
+            </ul>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-start mb-4">
+                <div class="bg-green-100 p-3 rounded-lg mr-4">
+                    <i class="fas fa-users-cog text-green-600 text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-2">Potencia Equipos de Alto Rendimiento</h3>
+                    <p>Construye equipos equilibrados con perfiles complementarios que maximicen la sinergia y productividad grupal.</p>
+                </div>
+            </div>
+            <ul class="mt-4 pl-6 list-disc">
+                <li>Mejora colaboración interdepartamental</li>
+                <li>Aumenta cohesión cultural</li>
+                <li>Reduce conflictos interpersonales</li>
+            </ul>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-start mb-4">
+                <div class="bg-purple-100 p-3 rounded-lg mr-4">
+                    <i class="fas fa-user-graduate text-purple-600 text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-2">Desarrollo Personalizado</h3>
+                    <p>Ofrece planes de crecimiento adaptados a las fortalezas, áreas de oportunidad y motivaciones únicas de cada colaborador.</p>
+                </div>
+            </div>
+            <ul class="mt-4 pl-6 list-disc">
+                <li>Aumenta compromiso del empleado</li>
+                <li>Acelera curvas de aprendizaje</li>
+                <li>Optimiza presupuesto de capacitación</li>
+            </ul>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-start mb-4">
+                <div class="bg-red-100 p-3 rounded-lg mr-4">
+                    <i class="fas fa-medal text-red-600 text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-2">Retención de Talento Crítico</h3>
+                    <p>Identifica predictivamente riesgos de rotación y genera estrategias personalizadas para conservar a tu personal clave.</p>
+                </div>
+            </div>
+            <ul class="mt-4 pl-6 list-disc">
+                <li>Reduce costos de rotación</li>
+                <li>Preserva conocimiento organizacional</li>
+                <li>Mejora clima laboral</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-8 rounded-lg shadow-lg">
+        <div class="flex flex-col md:flex-row items-center">
+            <div class="md:w-2/3 mb-6 md:mb-0 md:pr-6">
+                <h3 class="text-2xl font-bold mb-4">ROI Comprobable</h3>
+                <p class="mb-4">Nuestros clientes reportan en promedio:</p>
+                <ul class="list-disc pl-6 mb-4">
+                    <li>22% reducción en rotación no deseada</li>
+                    <li>31% incremento en promociones internas exitosas</li>
+                    <li>18% mejora en índices de compromiso laboral</li>
+                    <li>27% aumento en efectividad de capacitación</li>
+                </ul>
+                <p class="italic">*Basado en datos recopilados de implementaciones en empresas comparables durante 2024-2025.</p>
+            </div>
+            <div class="md:w-1/3 flex justify-center">
+                <div class="w-40 h-40 rounded-full bg-white bg-opacity-20 flex items-center justify-center p-4">
+                    <div class="text-center">
+                        <span class="block text-3xl font-bold">4x</span>
+                        <span class="block text-sm">Retorno promedio sobre inversión</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

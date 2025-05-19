@@ -1,3 +1,5 @@
+# /home/pablo/app/com/pricing/utils.py
+
 from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 from datetime import timedelta
@@ -303,3 +305,113 @@ def create_payment_milestones(contract):
             milestone.due_date = contract.start_date + timedelta(days=config.due_date_offset)
         
         milestone.save()
+
+
+# Registro global de servicios addon
+_REGISTERED_ADDONS = {}
+
+
+def register_addon_service(addon_id, name, description, model_class, pricing_class, template_name):
+    """
+    Registra un servicio addon en el sistema global de addons.
+    
+    Esta función permite que nuevos tipos de servicios addon (como el Análisis de Talento 360°)
+    se registren dinámicamente en el sistema de pricing y propuestas.
+    
+    Args:
+        addon_id: Identificador único del addon
+        name: Nombre visible del servicio
+        description: Descripción breve del servicio
+        model_class: Clase del modelo Django para este addon
+        pricing_class: Clase que implementa la lógica de pricing
+        template_name: Nombre de la plantilla HTML para propuestas
+    """
+    global _REGISTERED_ADDONS
+    
+    _REGISTERED_ADDONS[addon_id] = {
+        'id': addon_id,
+        'name': name,
+        'description': description,
+        'model': model_class,
+        'pricing': pricing_class,
+        'template': template_name,
+        'registered_at': timezone.now()
+    }
+    
+    # Log registro exitoso
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Addon '{name}' (ID: {addon_id}) registrado exitosamente.")
+
+
+def get_registered_addon(addon_id):
+    """
+    Obtiene la información de un addon registrado por su ID.
+    
+    Args:
+        addon_id: ID del addon a obtener
+        
+    Returns:
+        dict: Información del addon o None si no existe
+    """
+    return _REGISTERED_ADDONS.get(addon_id)
+
+
+def get_all_registered_addons():
+    """
+    Obtiene todos los addons registrados en el sistema.
+    
+    Returns:
+        dict: Mapa de addon_id a información de addon
+    """
+    return _REGISTERED_ADDONS
+
+
+def calculate_addon_pricing(addon_id, **kwargs):
+    """
+    Calcula el precio de un addon específico.
+    
+    Args:
+        addon_id: ID del addon
+        **kwargs: Parámetros específicos para el cálculo de precio
+        
+    Returns:
+        dict: Datos de pricing calculados
+    """
+    addon_info = get_registered_addon(addon_id)
+    if not addon_info:
+        raise ValueError(f"Addon '{addon_id}' no registrado en el sistema.")
+        
+    pricing_class = addon_info['pricing']
+    if hasattr(pricing_class, 'calculate_total'):
+        return pricing_class.calculate_total(**kwargs)
+    
+    raise NotImplementedError(f"La clase de pricing para '{addon_id}' no implementa calculate_total().")
+
+
+def generate_addon_proposal(addon_id, **kwargs):
+    """
+    Genera los datos para una propuesta de addon.
+    
+    Args:
+        addon_id: ID del addon
+        **kwargs: Datos necesarios para la propuesta
+        
+    Returns:
+        dict: Datos completos para la propuesta
+    """
+    addon_info = get_registered_addon(addon_id)
+    if not addon_info:
+        raise ValueError(f"Addon '{addon_id}' no registrado en el sistema.")
+        
+    pricing_class = addon_info['pricing']
+    if hasattr(pricing_class, 'generate_proposal_data'):
+        return pricing_class.generate_proposal_data(**kwargs)
+    
+    # Fallback a un cálculo básico
+    pricing_data = calculate_addon_pricing(addon_id, **kwargs)
+    return {
+        'addon': addon_info,
+        'pricing': pricing_data,
+        'template': addon_info['template']
+    }

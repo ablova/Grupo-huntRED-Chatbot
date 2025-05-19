@@ -1,3 +1,7 @@
+# /home/pablo/app/com/listener.py
+#
+# Escucha tweets relacionados con oportunidades de trabajo.
+#
 import tweepy
 from app.models import Opportunity
 

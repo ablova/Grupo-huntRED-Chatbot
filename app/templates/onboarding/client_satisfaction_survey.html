@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuesta de Satisfacción para Clientes - Grupo huntRED®</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #f8f9fa;
+            --accent-color: #28a745;
+            --text-color: #333;
+            --hover-color: #004494;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: #f5f5f5;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .logo {
+            max-width: 180px;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .intro {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .question-container {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .question {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .option {
+            flex: 1;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .radio-btn {
+            display: none;
+        }
+        
+        .radio-btn + label {
+            display: inline-block;
+            width: 100%;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .radio-btn:checked + label {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .radio-btn + label:hover {
+            background-color: #e9ecef;
+        }
+        
+        .radio-btn:checked + label:hover {
+            background-color: var(--hover-color);
+        }
+        
+        .comment-area {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 100px;
+            margin-top: 10px;
+            resize: vertical;
+        }
+        
+        .submit-btn {
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            margin: 30px auto;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .submit-btn:hover {
+            background-color: #218838;
+        }
+        
+        .rating {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .rating input {
+            display: none;
+        }
+        
+        .rating label {
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            color: #666;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .rating input:checked ~ label,
+        .rating label:hover,
+        .rating input:checked + label:hover,
+        .rating input:checked ~ label:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .thank-you {
+            text-align: center;
+            padding: 30px;
+            margin-top: 20px;
+            background-color: #e9f7ef;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+            }
+            
+            .options {
+                flex-direction: column;
+            }
+            
+            .option {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ logo_url }}" alt="Grupo huntRED Logo" class="logo">
+            <h1>Encuesta de Satisfacción del Cliente</h1>
+            <p class="subtitle">Business Unit: {{ business_unit.name }}</p>
+        </div>
+        
+        <div class="intro">
+            <p>Estimado <strong>{{ client_name }}</strong>,</p>
+            <p>Valoramos su opinión sobre nuestros servicios de recursos humanos. Por favor, tómese unos minutos para completar esta encuesta de satisfacción que nos ayudará a mejorar continuamente nuestros procesos.</p>
+        </div>
+        
+        <form id="satisfaction-form" action="{{ form_action }}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="token" value="{{ token }}">
+            <input type="hidden" name="business_unit_id" value="{{ business_unit.id }}">
+            <input type="hidden" name="client_id" value="{{ client_id }}">
+            
+            <div class="question-container">
+                <p class="question">1. ¿Cómo calificaría su experiencia general con nuestros servicios?</p>
+                <div class="rating">
+                    <input type="radio" id="r10" name="general_satisfaction" value="10">
+                    <label for="r10">10</label>
+                    <input type="radio" id="r9" name="general_satisfaction" value="9">
+                    <label for="r9">9</label>
+                    <input type="radio" id="r8" name="general_satisfaction" value="8">
+                    <label for="r8">8</label>
+                    <input type="radio" id="r7" name="general_satisfaction" value="7">
+                    <label for="r7">7</label>
+                    <input type="radio" id="r6" name="general_satisfaction" value="6">
+                    <label for="r6">6</label>
+                    <input type="radio" id="r5" name="general_satisfaction" value="5">
+                    <label for="r5">5</label>
+                    <input type="radio" id="r4" name="general_satisfaction" value="4">
+                    <label for="r4">4</label>
+                    <input type="radio" id="r3" name="general_satisfaction" value="3">
+                    <label for="r3">3</label>
+                    <input type="radio" id="r2" name="general_satisfaction" value="2">
+                    <label for="r2">2</label>
+                    <input type="radio" id="r1" name="general_satisfaction" value="1">
+                    <label for="r1">1</label>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">2. ¿Cómo valoraría la calidad de los candidatos proporcionados?</p>
+                <div class="rating">
+                    <input type="radio" id="c10" name="candidate_quality" value="10">
+                    <label for="c10">10</label>
+                    <input type="radio" id="c9" name="candidate_quality" value="9">
+                    <label for="c9">9</label>
+                    <input type="radio" id="c8" name="candidate_quality" value="8">
+                    <label for="c8">8</label>
+                    <input type="radio" id="c7" name="candidate_quality" value="7">
+                    <label for="c7">7</label>
+                    <input type="radio" id="c6" name="candidate_quality" value="6">
+                    <label for="c6">6</label>
+                    <input type="radio" id="c5" name="candidate_quality" value="5">
+                    <label for="c5">5</label>
+                    <input type="radio" id="c4" name="candidate_quality" value="4">
+                    <label for="c4">4</label>
+                    <input type="radio" id="c3" name="candidate_quality" value="3">
+                    <label for="c3">3</label>
+                    <input type="radio" id="c2" name="candidate_quality" value="2">
+                    <label for="c2">2</label>
+                    <input type="radio" id="c1" name="candidate_quality" value="1">
+                    <label for="c1">1</label>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">3. ¿Cómo calificaría la velocidad y eficiencia de nuestro proceso de reclutamiento?</p>
+                <div class="rating">
+                    <input type="radio" id="t10" name="recruitment_speed" value="10">
+                    <label for="t10">10</label>
+                    <input type="radio" id="t9" name="recruitment_speed" value="9">
+                    <label for="t9">9</label>
+                    <input type="radio" id="t8" name="recruitment_speed" value="8">
+                    <label for="t8">8</label>
+                    <input type="radio" id="t7" name="recruitment_speed" value="7">
+                    <label for="t7">7</label>
+                    <input type="radio" id="t6" name="recruitment_speed" value="6">
+                    <label for="t6">6</label>
+                    <input type="radio" id="t5" name="recruitment_speed" value="5">
+                    <label for="t5">5</label>
+                    <input type="radio" id="t4" name="recruitment_speed" value="4">
+                    <label for="t4">4</label>
+                    <input type="radio" id="t3" name="recruitment_speed" value="3">
+                    <label for="t3">3</label>
+                    <input type="radio" id="t2" name="recruitment_speed" value="2">
+                    <label for="t2">2</label>
+                    <input type="radio" id="t1" name="recruitment_speed" value="1">
+                    <label for="t1">1</label>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">4. ¿La comunicación durante el proceso fue clara y oportuna?</p>
+                <div class="options">
+                    <div class="option">
+                        <input type="radio" id="comm-yes" name="clear_communication" value="yes" class="radio-btn">
+                        <label for="comm-yes">Sí, excelente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="comm-partly" name="clear_communication" value="partly" class="radio-btn">
+                        <label for="comm-partly">Parcialmente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="comm-no" name="clear_communication" value="no" class="radio-btn">
+                        <label for="comm-no">No, deficiente</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">5. ¿Los candidatos contratados se han adaptado bien a su organización?</p>
+                <div class="options">
+                    <div class="option">
+                        <input type="radio" id="adapt-yes" name="candidate_adaptation" value="yes" class="radio-btn">
+                        <label for="adapt-yes">Sí, totalmente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="adapt-partly" name="candidate_adaptation" value="partly" class="radio-btn">
+                        <label for="adapt-partly">Parcialmente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="adapt-no" name="candidate_adaptation" value="no" class="radio-btn">
+                        <label for="adapt-no">No, problemas de adaptación</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">6. ¿Recomendaría los servicios de Grupo huntRED® a otras empresas?</p>
+                <div class="options">
+                    <div class="option">
+                        <input type="radio" id="rec-yes" name="would_recommend" value="yes" class="radio-btn">
+                        <label for="rec-yes">Sí, definitivamente</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="rec-maybe" name="would_recommend" value="maybe" class="radio-btn">
+                        <label for="rec-maybe">Quizás</label>
+                    </div>
+                    <div class="option">
+                        <input type="radio" id="rec-no" name="would_recommend" value="no" class="radio-btn">
+                        <label for="rec-no">No</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="question-container">
+                <p class="question">7. ¿Qué aspectos de nuestro servicio considera que podríamos mejorar?</p>
+                <textarea name="improvement_suggestions" class="comment-area" placeholder="Sus sugerencias son muy valiosas para mejorar nuestros servicios..."></textarea>
+            </div>
+            
+            <button type="submit" class="submit-btn">Enviar Respuestas</button>
+        </form>
+        
+        <div id="thank-you" class="thank-you">
+            <h2>¡Gracias por sus respuestas!</h2>
+            <p>Su feedback es muy valioso para seguir mejorando nuestros servicios.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Si tiene alguna pregunta, por favor contacte a su consultor asignado de Grupo huntRED®.</p>
+            <p>&copy; {{ year }} Grupo huntRED® - Todos los derechos reservados</p>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('satisfaction-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Código para enviar los datos por AJAX
+            const formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                document.getElementById('satisfaction-form').style.display = 'none';
+                document.getElementById('thank-you').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Hubo un error al enviar la encuesta. Por favor, inténtelo nuevamente.');
+            });
+        });
+    </script>
+</body>
+</html>

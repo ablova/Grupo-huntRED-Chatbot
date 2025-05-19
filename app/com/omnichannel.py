@@ -1,3 +1,7 @@
+# /home/pablo/app/com/omnichannel.py
+#
+# Gestiona la comunicación omnicanal.
+#
 from django.core.mail import send_mail
 import requests
 from app.models import Person

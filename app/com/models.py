@@ -1,3 +1,7 @@
+# /home/pablo/app/com/models.py
+#
+# Modelos para el módulo de comunicaciones.
+#
 from django.db import models
 from django.contrib.auth.models import User
 from app.models import Person

@@ -37,6 +37,12 @@ from app.com.chatbot.workflow.huntred import process_huntred_candidate
 from app.com.chatbot.workflow.executive import process_executive_candidate
 from app.com.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 
+# Importamos el gestor de workflows y clases relacionadas
+from app.com.chatbot.workflow import (
+    WorkflowManager, get_workflow_manager, create_workflow, handle_workflow_message,
+    TalentAnalysisWorkflow, CulturalFitWorkflow
+)
+
 logger = logging.getLogger('chatbot')
 
 # Configuración simplificada en el mismo archivo
@@ -54,7 +60,10 @@ class ChatBotHandler:
             "huntu": process_huntu_candidate,
             "huntred": process_huntred_candidate,
             "huntred executive": process_executive_candidate,
-            "sexsi": iniciar_flujo_sexsi
+            "sexsi": iniciar_flujo_sexsi,
+            # Nuevos workflows gestionados por el WorkflowManager
+            "talent_analysis": self.start_talent_analysis_workflow,
+            "cultural_fit": self.start_cultural_fit_workflow
         }
         self.initial_messages = {
             "default": [
@@ -77,6 +86,10 @@ class ChatBotHandler:
         self.message_service = get_message_service()()
         self.gamification_service = get_gamification_service()()
         self.cv_parser = get_cv_parser()()
+        
+        # Inicializar el gestor de workflows
+        self.workflow_manager = get_workflow_manager()
+        self.active_workflows = {}
         
         try:
             self.nlp_processor = NLPProcessor(language='es', mode='candidate', analysis_depth='quick')
@@ -260,7 +273,31 @@ class ChatBotHandler:
                     intent_processor = IntentProcessor(user, business_unit)
                     response = await intent_processor.process_intent(intent, text)
                     return response
-
+                    
+                # Verificamos si hay un workflow activo para este usuario
+                # En ese caso, delegamos el manejo del mensaje al workflow correspondiente
+                if chat_state.state in ["TALENT_ANALYSIS_WORKFLOW", "CULTURAL_FIT_WORKFLOW"] and \
+                   'active_workflow' in chat_state.context:
+                    
+                    # Delegamos el mensaje al gestor de workflows
+                    workflow_handled = await self.handle_workflow_message(
+                        platform, user_id, text, chat_state, business_unit, user
+                    )
+                    
+                    if workflow_handled:
+                        # El mensaje fue manejado por un workflow, no continuamos con el procesamiento normal
+                        return
+                
+                # Detectamos si el usuario quiere iniciar un análisis cultural o de talento
+                if re.search(r'(analisis\s+cultural|cultural\s+fit|compatibilidad\s+cultural)', text.lower()):
+                    # El usuario quiere iniciar un análisis cultural
+                    await self.start_cultural_fit_workflow(platform, user_id, business_unit, chat_state, user)
+                    return
+                elif re.search(r'(analisis\s+de\s+talento|talent\s+analysis|analisis\s+360|360\s+grados)', text.lower()):
+                    # El usuario quiere iniciar un análisis de talento
+                    await self.start_talent_analysis_workflow(platform, user_id, business_unit, chat_state, user)
+                    return
+                
                 # Fallback a NLP con manejo robusto
                 if NLP_ENABLED and self.nlp_processor:
                     try:
@@ -904,6 +941,215 @@ class ChatBotHandler:
             business_unit = user.chat_state.business_unit if hasattr(user, 'chat_state') else user.businessunit_set.first()
             if platform and business_unit:
                 await send_message(platform, user.phone, message, self.get_business_unit_key(business_unit))
+    
+    # Métodos para gestión de workflows
+    async def start_talent_analysis_workflow(self, platform: str, user_id: str, business_unit: BusinessUnit, chat_state: ChatState, person: Person, **kwargs):
+        """
+        Inicia un nuevo workflow de análisis de talento para el usuario.
+        
+        Args:
+            platform: Plataforma desde la que se inicia el workflow
+            user_id: ID del usuario
+            business_unit: Unidad de negocio
+            chat_state: Estado actual del chat
+            person: Persona asociada
+            **kwargs: Argumentos adicionales para el workflow
+        
+        Returns:
+            str: Mensaje inicial del workflow
+        """
+        try:
+            # Creamos el contexto para el workflow
+            workflow_context = {
+                'user_id': user_id,
+                'person_id': person.id,
+                'business_unit': self.get_business_unit_key(business_unit),
+                'chat_id': chat_state.id,
+                'platform': platform,
+                'created_at': timezone.now().isoformat()
+            }
+            
+            # Añadimos argumentos adicionales al contexto
+            workflow_context.update(kwargs)
+            
+            # Creamos una instancia del workflow
+            workflow = await create_workflow('talent_analysis', **workflow_context)
+            
+            if not workflow:
+                logger.error(f"No se pudo crear el workflow de análisis de talento para {user_id}")
+                return "Lo siento, ha ocurrido un error al iniciar el análisis de talento. Por favor, inténtalo de nuevo más tarde."
+                
+            # Generamos un ID único para esta sesión de workflow
+            session_id = f"talent_{user_id}_{timezone.now().strftime('%Y%m%d%H%M%S')}"
+            
+            # Almacenamos la referencia al workflow activo
+            self.active_workflows[session_id] = {
+                'workflow': workflow,
+                'user_id': user_id,
+                'type': 'talent_analysis',
+                'start_time': timezone.now(),
+                'last_activity': timezone.now()
+            }
+            
+            # Actualizamos el estado del chat
+            chat_state.state = "TALENT_ANALYSIS_WORKFLOW"
+            chat_state.context['active_workflow'] = session_id
+            chat_state.context['workflow_type'] = 'talent_analysis'
+            await sync_to_async(chat_state.save)()
+            
+            # Inicializamos el workflow y obtenemos el mensaje inicial
+            initial_message = await workflow.initialize(workflow_context)
+            
+            # Enviamos el mensaje inicial
+            await self.send_message(platform, user_id, {'text': initial_message}, business_unit)
+            
+            return initial_message
+            
+        except Exception as e:
+            logger.error(f"Error iniciando workflow de análisis de talento: {e}", exc_info=True)
+            return "Lo siento, ha ocurrido un error al iniciar el análisis de talento. Por favor, inténtalo de nuevo más tarde."
+    
+    async def start_cultural_fit_workflow(self, platform: str, user_id: str, business_unit: BusinessUnit, chat_state: ChatState, person: Person, **kwargs):
+        """
+        Inicia un nuevo workflow de compatibilidad cultural para el usuario.
+        
+        Args:
+            platform: Plataforma desde la que se inicia el workflow
+            user_id: ID del usuario
+            business_unit: Unidad de negocio
+            chat_state: Estado actual del chat
+            person: Persona asociada
+            **kwargs: Argumentos adicionales para el workflow
+            
+        Returns:
+            str: Mensaje inicial del workflow
+        """
+        try:
+            # Creamos el contexto para el workflow
+            workflow_context = {
+                'user_id': user_id,
+                'person_id': person.id,
+                'business_unit': self.get_business_unit_key(business_unit),
+                'chat_id': chat_state.id,
+                'platform': platform,
+                'domain': kwargs.get('domain', 'general'),
+                'created_at': timezone.now().isoformat()
+            }
+            
+            # Si hay una empresa objetivo, la añadimos al contexto
+            if 'target_company_id' in kwargs:
+                workflow_context['target_entity_type'] = 'COMPANY'
+                workflow_context['target_entity_id'] = kwargs['target_company_id']
+                
+            # Creamos una instancia del workflow
+            workflow = await create_workflow('cultural_fit', **workflow_context)
+            
+            if not workflow:
+                logger.error(f"No se pudo crear el workflow de compatibilidad cultural para {user_id}")
+                return "Lo siento, ha ocurrido un error al iniciar el análisis de compatibilidad cultural. Por favor, inténtalo de nuevo más tarde."
+                
+            # Generamos un ID único para esta sesión de workflow
+            session_id = f"cultural_{user_id}_{timezone.now().strftime('%Y%m%d%H%M%S')}"
+            
+            # Almacenamos la referencia al workflow activo
+            self.active_workflows[session_id] = {
+                'workflow': workflow,
+                'user_id': user_id,
+                'type': 'cultural_fit',
+                'start_time': timezone.now(),
+                'last_activity': timezone.now()
+            }
+            
+            # Actualizamos el estado del chat
+            chat_state.state = "CULTURAL_FIT_WORKFLOW"
+            chat_state.context['active_workflow'] = session_id
+            chat_state.context['workflow_type'] = 'cultural_fit'
+            await sync_to_async(chat_state.save)()
+            
+            # Inicializamos el workflow y obtenemos el mensaje inicial
+            initial_message = await workflow.initialize(workflow_context)
+            
+            # Enviamos el mensaje inicial
+            await self.send_message(platform, user_id, {'text': initial_message}, business_unit)
+            
+            return initial_message
+            
+        except Exception as e:
+            logger.error(f"Error iniciando workflow de compatibilidad cultural: {e}", exc_info=True)
+            return "Lo siento, ha ocurrido un error al iniciar el análisis de compatibilidad cultural. Por favor, inténtalo de nuevo más tarde."
+    
+    async def handle_workflow_message(self, platform: str, user_id: str, message_text: str, chat_state: ChatState, business_unit: BusinessUnit, person: Person):
+        """
+        Maneja un mensaje dentro de un workflow activo.
+        
+        Args:
+            platform: Plataforma desde la que llega el mensaje
+            user_id: ID del usuario
+            message_text: Texto del mensaje
+            chat_state: Estado actual del chat
+            business_unit: Unidad de negocio
+            person: Persona asociada
+            
+        Returns:
+            bool: True si el mensaje fue manejado por un workflow, False en caso contrario
+        """
+        # Verificamos si hay un workflow activo
+        session_id = chat_state.context.get('active_workflow')
+        
+        if not session_id or session_id not in self.active_workflows:
+            return False
+            
+        workflow_info = self.active_workflows[session_id]
+        workflow_info['last_activity'] = timezone.now()
+        
+        try:
+            # Procesamos el mensaje con el workflow
+            response = await handle_workflow_message(session_id, message_text)
+            
+            if response:
+                # Enviamos la respuesta al usuario
+                await self.send_message(platform, user_id, {'text': response}, business_unit)
+                
+                # Verificamos si el workflow ha finalizado
+                workflow = workflow_info.get('workflow')
+                if workflow and await workflow.is_completed():
+                    # Limpiamos el workflow
+                    self.active_workflows.pop(session_id, None)
+                    
+                    # Actualizamos el estado del chat
+                    chat_state.state = "CONVERSACIONAL"  # Volvemos al estado normal
+                    chat_state.context.pop('active_workflow', None)
+                    await sync_to_async(chat_state.save)()
+                    
+                    # Notificamos que se ha completado el workflow
+                    logger.info(f"Workflow {workflow_info['type']} completado para {user_id}")
+                    
+                    # Gamificación por completar el workflow
+                    await self.award_gamification_points(person, f"completar_{workflow_info['type']}")
+                
+                return True
+        except Exception as e:
+            logger.error(f"Error procesando mensaje en workflow: {e}", exc_info=True)
+            
+            # Enviamos un mensaje de error y abortamos el workflow
+            await self.send_message(
+                platform, 
+                user_id, 
+                {'text': "Lo siento, ha ocurrido un error procesando tu mensaje. Por favor, intenta de nuevo más tarde."}, 
+                business_unit
+            )
+            
+            # Limpiamos el workflow
+            self.active_workflows.pop(session_id, None)
+            
+            # Actualizamos el estado del chat
+            chat_state.state = "CONVERSACIONAL"  # Volvemos al estado normal
+            chat_state.context.pop('active_workflow', None)
+            await sync_to_async(chat_state.save)()
+            
+            return True
+            
+        return False
 
     async def store_user_message(self, chat_state, text: str):
         """Almacena el mensaje del usuario usando el ContextManager."""

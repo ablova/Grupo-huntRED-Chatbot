@@ -3,15 +3,19 @@
 # Módulo para manejar la integración con WhatsApp Business API.
 # Procesa mensajes entrantes, envía respuestas, y gestiona interacciones como botones y listas.
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+# Incluye soporte para carruseles de vacantes y manejo de documentos (CV).
 
 import json
 import logging
 import asyncio
 import httpx
+import time
+import os
 from typing import Optional, Dict, Any, List
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
+from django.conf import settings
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, WhatsAppAPI, ChatState
@@ -20,6 +24,7 @@ from app.import_config import (
     get_intent_processor,
     get_rate_limiter
 )
+from app.com.chatbot.integrations.document_processor import DocumentProcessor
 
 logger = logging.getLogger('chatbot')
 
@@ -262,6 +267,224 @@ class WhatsAppHandler:
             return False
         finally:
             await self.rate_limiter.release()
+            
+    async def send_vacancy_carousel(self, user_id: str, vacancies: List[Dict]) -> bool:
+        """
+        Envía un conjunto de vacantes en formato visual atractivo.
+        Simula un carrusel con mensajes secuenciales enriquecidos.
+        """
+        try:
+            await self.initialize()
+            success_count = 0
+            
+            # Mensaje introductorio
+            intro_text = "*Vacantes que coinciden con tu perfil* 📋\n\nRevisa las siguientes oportunidades:\n"
+            await self.send_text_message(user_id, intro_text)
+            await asyncio.sleep(0.5)  # Breve pausa para separar mensajes
+            
+            # Limitamos a 5 vacantes para evitar spam
+            for vacancy in vacancies[:5]:  
+                await self.rate_limiter.acquire()
+                
+                # Preparamos los botones para cada vacante
+                buttons = [
+                    {"title": "Ver Detalles", "payload": f"view_vacancy_{vacancy['id']}"},
+                    {"title": "Postularme", "payload": f"apply_vacancy_{vacancy['id']}"},
+                    {"title": "Guardar", "payload": f"save_vacancy_{vacancy['id']}"}
+                ]
+                
+                # Formateamos el mensaje de la vacante
+                vacancy_message = (
+                    f"*{vacancy['title']}*\n\n"
+                    f"🏢 *Empresa:* {vacancy.get('company', 'Confidencial')}\n"
+                    f"📍 *Ubicación:* {vacancy.get('location', 'No especificada')}\n"
+                    f"💰 *Salario:* {vacancy.get('salary_range', 'A convenir')}\n\n"
+                    f"{vacancy.get('short_description', '')[:150]}..."
+                )
+                
+                # Enviamos mensaje con botones
+                sent = await self.send_whatsapp_buttons(user_id, vacancy_message, buttons)
+                if sent:
+                    success_count += 1
+                    await asyncio.sleep(0.8)  # Pausa para simular efecto carrusel
+                await self.rate_limiter.release()
+            
+            # Mensaje final con CTA si enviamos al menos una vacante
+            if success_count > 0:
+                more_options = [
+                    {"title": "Ver Más Vacantes", "payload": "more_vacancies"},
+                    {"title": "Filtrar Resultados", "payload": "filter_vacancies"},
+                    {"title": "Actualizar CV", "payload": "update_cv"}
+                ]
+                await self.send_whatsapp_buttons(
+                    user_id, 
+                    "¿Qué te gustaría hacer ahora?", 
+                    more_options
+                )
+            
+            return success_count > 0
+        except Exception as e:
+            logger.error(f"Error enviando carrusel de vacantes: {str(e)}", exc_info=True)
+            return False
+    
+    async def send_text_message(self, user_id: str, message: str) -> bool:
+        """
+        Envía un mensaje de texto simple a un usuario de WhatsApp.
+        """
+        try:
+            await self.rate_limiter.acquire()
+            await self.initialize()
+            
+            payload = {
+                "to": user_id,
+                "type": "text",
+                "text": {
+                    "body": message
+                }
+            }
+            
+            async with self.session.post(f"{self.api_base_url}/messages", json=payload) as resp:
+                if resp.status == 200:
+                    logger.info(f"Text message sent to {user_id}")
+                    return True
+                else:
+                    error_text = await resp.text()
+                    logger.error(f"Failed to send text message to {user_id}: {resp.status} - {error_text}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error sending text message: {str(e)}", exc_info=True)
+            return False
+        finally:
+            await self.rate_limiter.release()
+    
+    async def handle_document(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Procesa un documento adjunto recibido vía WhatsApp (CV u otros).
+        """
+        try:
+            document = message.get('document', {})
+            if not document:
+                return {"success": False, "error": "No document found in message"}
+                
+            document_id = document.get('id')
+            mime_type = document.get('mime_type', '')
+            filename = document.get('filename', f"doc_{int(time.time())}.pdf")
+            
+            # Verificamos si el documento es un tipo soportado
+            supported_types = [
+                'application/pdf', 
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ]
+            
+            if mime_type not in supported_types:
+                await self.send_text_message(
+                    self.user_id,
+                    "Lo siento, solo puedo procesar documentos en formato PDF o Word (.docx/.doc). Por favor, envía tu archivo en alguno de estos formatos."
+                )
+                return {"success": False, "error": "Unsupported document type"}
+            
+            # Descargamos el documento
+            file_data = await self._download_media(document_id)
+            if not file_data:
+                return {"success": False, "error": "Failed to download document"}
+            
+            # Procesamos el documento usando el DocumentProcessor
+            processor = DocumentProcessor(self.user_id, self.business_unit.id if self.business_unit else None)
+            result = await processor.process_document(file_data, filename, mime_type)
+            
+            # Si es un CV procesado correctamente, enviamos feedback al usuario
+            if result.get("success") and result.get("processed") and result.get("cv_data"):
+                await self._send_cv_confirmation(result["cv_data"])
+                
+            return result
+        except Exception as e:
+            logger.error(f"Error processing document: {str(e)}", exc_info=True)
+            await self.send_text_message(
+                self.user_id,
+                "Lo siento, ocurrió un error al procesar tu documento. Por favor, intenta nuevamente más tarde."
+            )
+            return {"success": False, "error": str(e)}
+    
+    async def _download_media(self, media_id: str) -> Optional[bytes]:
+        """
+        Descarga un archivo multimedia desde la API de WhatsApp.
+        """
+        try:
+            # Primero obtenemos la URL del medio
+            media_url = await self._get_media_url(media_id)
+            if not media_url:
+                return None
+                
+            # Descargamos el contenido del archivo
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {self.api_token}"}
+                response = await client.get(media_url, headers=headers)
+                
+                if response.status_code == 200:
+                    return response.content
+                else:
+                    logger.error(f"Error downloading media: {response.status_code} - {response.text}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error downloading media: {str(e)}", exc_info=True)
+            return None
+    
+    async def _get_media_url(self, media_id: str) -> Optional[str]:
+        """
+        Obtiene la URL para descargar un archivo multimedia.
+        """
+        try:
+            await self.initialize()
+            async with self.session.get(f"{self.api_base_url}/{media_id}") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return data.get('url')
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Failed to get media URL: {response.status} - {error_text}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error getting media URL: {str(e)}", exc_info=True)
+            return None
+    
+    async def _send_cv_confirmation(self, cv_data: Dict[str, Any]) -> bool:
+        """
+        Envía confirmación de recepción de CV con datos extraídos.
+        """
+        try:
+            # Lista de habilidades detectadas
+            skills_text = "\n"
+            if cv_data.get('skills'):
+                for skill in cv_data.get('skills', [])[:5]:
+                    skills_text += f"• {skill}\n"
+            else:
+                skills_text = "No se detectaron habilidades específicas\n"
+            
+            # Mensaje de confirmación
+            message = (
+                f"✅ *CV Recibido Correctamente*\n\n"
+                f"He extraído la siguiente información de tu documento:\n\n"
+                f"👤 *Nombre:* {cv_data.get('nombre', 'No detectado')}\n"
+                f"📧 *Email:* {cv_data.get('email', 'No detectado')}\n"
+                f"📞 *Teléfono:* {cv_data.get('telefono', 'No detectado')}\n"
+                f"🎓 *Nivel de estudios:* {cv_data.get('nivel_estudios', 'No detectado')}\n\n"
+                f"*Habilidades detectadas:*{skills_text}\n"
+                f"¿Es correcta esta información?"
+            )
+            
+            # Botones de confirmación
+            buttons = [
+                {"title": "✅ Sí, es correcta", "payload": "cv_data_confirm"},
+                {"title": "❌ No, actualizar", "payload": "cv_data_update"}
+            ]
+            
+            # Enviar mensaje con opciones
+            return await self.send_whatsapp_buttons(self.user_id, message, buttons)
+            
+        except Exception as e:
+            logger.error(f"Error sending CV confirmation: {str(e)}", exc_info=True)
+            return False
 
 @csrf_exempt
 async def whatsapp_webhook(request):

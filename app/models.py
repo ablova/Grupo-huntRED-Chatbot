@@ -5,6 +5,14 @@ from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import JSONField
 from django.utils import timezone
+
+# Importar modelos culturales
+try:
+    from app.models_cultural import PersonCulturalProfile, CulturalFitReport
+except ImportError:
+    # Si los modelos culturales no están disponibles, definirlos como None
+    PersonCulturalProfile = None
+    CulturalFitReport = None
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -3207,6 +3215,294 @@ class Preference(models.Model):
         """Obtiene la representación legible de la categoría."""
         return dict(self.PREFERENCE_TYPES).get(self.category, 'Desconocido')
 
+
+# Constantes para el sistema de Onboarding
+SATISFACTION_PERIODS = [3, 7, 15, 30, 60, 90, 180, 365]  # Días para encuestas de satisfacción
+
+ONBOARDING_STATUS_CHOICES = [
+    ('PENDING', 'Pendiente'),
+    ('IN_PROGRESS', 'En Progreso'),
+    ('COMPLETED', 'Completado'),
+    ('CANCELLED', 'Cancelado')
+]
+
+TASK_STATUS_CHOICES = [
+    ('PENDING', 'Pendiente'),
+    ('IN_PROGRESS', 'En Progreso'),
+    ('COMPLETED', 'Completado'),
+    ('OVERDUE', 'Vencido'),
+    ('CANCELLED', 'Cancelado')
+]
+
+class OnboardingProcess(models.Model):
+    """
+    Modelo para gestionar el proceso de onboarding y seguimiento de satisfacción de candidatos.
+    Almacena información general sobre el proceso y las encuestas de satisfacción asociadas.
+    """
+    person = models.ForeignKey(
+        'Person', 
+        on_delete=models.CASCADE,
+        related_name='onboarding_processes',
+        help_text="Candidato asociado al proceso de onboarding"
+    )
+    
+    vacancy = models.ForeignKey(
+        'Vacante',
+        on_delete=models.CASCADE,
+        related_name='onboarding_processes',
+        help_text="Vacante para la que fue contratado el candidato"
+    )
+    
+    consultant = models.ForeignKey(
+        'Person',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultant_onboardings',
+        help_text="Consultor responsable del proceso de onboarding"
+    )
+    
+    hire_date = models.DateTimeField(
+        help_text="Fecha de contratación del candidato"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=ONBOARDING_STATUS_CHOICES,
+        default='PENDING',
+        help_text="Estado actual del proceso de onboarding"
+    )
+    
+    survey_responses = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Respuestas a las encuestas de satisfacción en formato JSON"
+    )
+    
+    last_survey_date = models.DateTimeField(
+        null=True, 
+        blank=True,
+        help_text="Fecha de la última encuesta enviada"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        help_text="Notas adicionales sobre el proceso de onboarding"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Proceso de Onboarding"
+        verbose_name_plural = "Procesos de Onboarding"
+        ordering = ['-hire_date']
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['vacancy']),
+            models.Index(fields=['hire_date']),
+            models.Index(fields=['status'])
+        ]
+    
+    def __str__(self):
+        return f"Onboarding de {self.person} para {self.vacancy.title}"
+    
+    def get_satisfaction_score(self, period_days=None):
+        """Calcula puntaje de satisfacción (0-10) basado en respuestas"""
+        if not self.survey_responses:
+            return None
+            
+        if period_days:
+            # Si se especifica un período, devuelve solo el puntaje para ese período
+            period_key = str(period_days)
+            if period_key in self.survey_responses:
+                responses = self.survey_responses[period_key]
+                if 'general_satisfaction' in responses:
+                    return float(responses['general_satisfaction'])
+                return None
+        else:
+            # Si no se especifica período, calcula promedio de todos los períodos
+            total_score = 0
+            count = 0
+            
+            for period, responses in self.survey_responses.items():
+                if 'general_satisfaction' in responses:
+                    total_score += float(responses['general_satisfaction'])
+                    count += 1
+            
+            return round(total_score / count, 1) if count > 0 else None
+    
+    def get_all_periods_scores(self):
+        """Devuelve scores de todos los períodos disponibles"""
+        result = []
+        
+        for period in SATISFACTION_PERIODS:
+            period_key = str(period)
+            score = None
+            
+            if period_key in self.survey_responses:
+                responses = self.survey_responses[period_key]
+                if 'general_satisfaction' in responses:
+                    score = float(responses['general_satisfaction'])
+            
+            result.append({
+                'days': period,
+                'score': score
+            })
+        
+        return result
+    
+    def record_survey_response(self, period_days, response_data):
+        """Registra una respuesta de encuesta para un período específico"""
+        if not self.survey_responses:
+            self.survey_responses = {}
+            
+        period_key = str(period_days)
+        self.survey_responses[period_key] = response_data
+        self.last_survey_date = timezone.now()
+        self.save(update_fields=['survey_responses', 'last_survey_date'])
+        return True
+    
+    def get_surveys_status(self):
+        """Obtiene el estado de las encuestas programadas"""
+        result = {}
+        today = timezone.now().date()
+        hire_date = self.hire_date.date()
+        
+        for period in SATISFACTION_PERIODS:
+            target_date = hire_date + timedelta(days=period)
+            period_key = str(period)
+            
+            if period_key in self.survey_responses:
+                result[period] = {
+                    'status': 'COMPLETED',
+                    'date': target_date.strftime('%Y-%m-%d'),
+                    'responses': self.survey_responses[period_key]
+                }
+            elif today >= target_date:
+                result[period] = {
+                    'status': 'PENDING',
+                    'date': target_date.strftime('%Y-%m-%d')
+                }
+            else:
+                result[period] = {
+                    'status': 'SCHEDULED',
+                    'date': target_date.strftime('%Y-%m-%d')
+                }
+                
+        return result
+
+class OnboardingTask(models.Model):
+    """
+    Modelo para gestionar tareas específicas durante el proceso de onboarding.
+    Permite seguimiento detallado de actividades como capacitaciones,
+    documentación, entrega de equipo, etc.
+    """
+    onboarding = models.ForeignKey(
+        OnboardingProcess,
+        on_delete=models.CASCADE,
+        related_name='tasks',
+        help_text="Proceso de onboarding al que pertenece esta tarea"
+    )
+    
+    title = models.CharField(
+        max_length=100,
+        help_text="Título de la tarea de onboarding"
+    )
+    
+    description = models.TextField(
+        blank=True,
+        help_text="Descripción detallada de la tarea"
+    )
+    
+    assigned_to = models.ForeignKey(
+        'Person',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_onboarding_tasks',
+        help_text="Persona responsable de completar la tarea"
+    )
+    
+    due_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha límite para completar la tarea"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=TASK_STATUS_CHOICES,
+        default='PENDING',
+        help_text="Estado actual de la tarea"
+    )
+    
+    completion_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha en que se completó la tarea"
+    )
+    
+    priority = models.IntegerField(
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Prioridad de la tarea (1-10, donde 10 es la más alta)"
+    )
+    
+    calendar_event_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="ID del evento en Google Calendar si está asociado"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        help_text="Notas adicionales sobre la tarea"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Tarea de Onboarding"
+        verbose_name_plural = "Tareas de Onboarding"
+        ordering = ['priority', 'due_date']
+        indexes = [
+            models.Index(fields=['onboarding']),
+            models.Index(fields=['status']),
+            models.Index(fields=['due_date']),
+            models.Index(fields=['priority'])
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.get_status_display()}"
+    
+    def complete_task(self, notes=None):
+        """Marca la tarea como completada"""
+        self.status = 'COMPLETED'
+        self.completion_date = timezone.now()
+        if notes:
+            self.notes += f"\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] {notes}"
+        self.save(update_fields=['status', 'completion_date', 'notes'])
+        return True
+    
+    def is_overdue(self):
+        """Verifica si la tarea está vencida"""
+        if self.due_date and self.status != 'COMPLETED':
+            return timezone.now() > self.due_date
+        return False
+    
+    def get_days_remaining(self):
+        """Obtiene días restantes para la fecha límite"""
+        if not self.due_date:
+            return None
+        
+        if self.status == 'COMPLETED':
+            return 0
+            
+        delta = self.due_date - timezone.now()
+        return max(0, delta.days)
 
 # Importando el User estándar de Django para módulos como SEXSI
 from django.contrib.auth.models import User

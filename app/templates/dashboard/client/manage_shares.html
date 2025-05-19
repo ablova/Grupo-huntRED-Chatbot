@@ -1,0 +1,662 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Dashboards Compartidos - Grupo huntRED®{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0 text-gray-800">Gestión de Dashboards Compartidos</h1>
+            <p class="text-muted">Administre los enlaces para compartir dashboards con sus clientes.</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Crear Nuevo Enlace</h6>
+                </div>
+                <div class="card-body">
+                    <form id="createShareForm">
+                        <div class="form-group mb-3">
+                            <label for="business_unit">Unidad de Negocio</label>
+                            <select class="form-control" id="business_unit" name="business_unit_id" required>
+                                <option value="">Seleccione una unidad de negocio</option>
+                                {% for bu in business_units %}
+                                <option value="{{ bu.id }}">{{ bu.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="empresa">Empresa</label>
+                            <select class="form-control" id="empresa" name="empresa_id" required disabled>
+                                <option value="">Primero seleccione una unidad de negocio</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="name">Nombre del Enlace</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                placeholder="Ej: Dashboard Mayo 2025" required>
+                            <small class="form-text text-muted">Un nombre descriptivo para identificar este enlace</small>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="expiry_days">Caducidad del Enlace</label>
+                            <select class="form-control" id="expiry_days" name="expiry_days">
+                                <option value="7">7 días</option>
+                                <option value="30" selected>30 días</option>
+                                <option value="90">90 días</option>
+                                <option value="180">180 días</option>
+                                <option value="365">365 días</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label>Vistas Permitidas</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="allow_satisfaction" name="allow_satisfaction" checked>
+                                <label class="form-check-label" for="allow_satisfaction">
+                                    Satisfacción
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="allow_onboarding" name="allow_onboarding" checked>
+                                <label class="form-check-label" for="allow_onboarding">
+                                    Onboarding
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="allow_recommendations" name="allow_recommendations" checked>
+                                <label class="form-check-label" for="allow_recommendations">
+                                    Recomendaciones
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="require_auth" name="require_auth">
+                                <label class="form-check-label" for="require_auth">
+                                    Requerir autenticación adicional (código OTP)
+                                </label>
+                                <small class="form-text text-muted">Se enviará un código de un solo uso al correo registrado</small>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-link"></i> Generar Enlace
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Enlaces Compartidos Activos</h6>
+                    <div class="dropdown no-arrow">
+                        <button class="btn btn-sm btn-primary" id="refreshList">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if shares_by_empresa %}
+                        <div class="accordion" id="empresaAccordion">
+                            {% for empresa_id, data in shares_by_empresa.items %}
+                                <div class="accordion-item mb-3 border">
+                                    <h2 class="accordion-header" id="heading{{ empresa_id }}">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse{{ empresa_id }}" aria-expanded="false" aria-controls="collapse{{ empresa_id }}">
+                                            <strong>{{ data.empresa.name }}</strong> 
+                                            <span class="badge bg-primary ms-2">{{ data.shares|length }} enlace(s)</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse{{ empresa_id }}" class="accordion-collapse collapse" 
+                                        aria-labelledby="heading{{ empresa_id }}" data-bs-parent="#empresaAccordion">
+                                        <div class="accordion-body p-0">
+                                            <div class="table-responsive">
+                                                <table class="table table-striped mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Nombre</th>
+                                                            <th>Creado</th>
+                                                            <th>Expira</th>
+                                                            <th>Accesos</th>
+                                                            <th>Acciones</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for share in data.shares %}
+                                                            <tr class="{% if share.is_expired %}table-danger{% endif %}">
+                                                                <td>{{ share.name }}</td>
+                                                                <td>{{ share.created_date|date:"d/m/Y" }}</td>
+                                                                <td>
+                                                                    {{ share.expiry_date|date:"d/m/Y" }}
+                                                                    {% if share.is_expired %}
+                                                                        <span class="badge bg-danger">Expirado</span>
+                                                                    {% else %}
+                                                                        <small class="text-muted d-block">
+                                                                            Quedan {{ share.days_remaining }} días
+                                                                        </small>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {{ share.access_count }}
+                                                                    {% if share.last_accessed %}
+                                                                        <small class="text-muted d-block">
+                                                                            Último: {{ share.last_accessed|date:"d/m/Y H:i" }}
+                                                                        </small>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td class="text-nowrap">
+                                                                    <button class="btn btn-sm btn-info copy-link" data-id="{{ share.id }}" 
+                                                                        data-url="{{ settings.SITE_URL }}/onboarding/dashboard/client/share/{{ share.token }}/">
+                                                                        <i class="fas fa-copy"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-sm btn-primary share-options" data-id="{{ share.id }}">
+                                                                        <i class="fas fa-share-alt"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-sm btn-success extend-expiry" data-id="{{ share.id }}">
+                                                                        <i class="fas fa-calendar-plus"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-sm btn-secondary view-stats" data-id="{{ share.id }}">
+                                                                        <i class="fas fa-chart-bar"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-sm btn-danger delete-share" data-id="{{ share.id }}">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-link fa-3x text-muted mb-3"></i>
+                            <h5>No hay enlaces compartidos</h5>
+                            <p class="text-muted">Utilice el formulario para crear un nuevo enlace para compartir.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales -->
+<!-- Modal de compartir -->
+<div class="modal fade" id="shareOptionsModal" tabindex="-1" aria-labelledby="shareOptionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareOptionsModalLabel">Compartir Dashboard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="shareUrl" class="form-label">Enlace para compartir</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="shareUrl" readonly>
+                        <button class="btn btn-outline-secondary copy-modal-url" type="button">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">
+                        Este enlace es válido hasta: <span id="shareExpiry"></span>
+                    </small>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" id="whatsappShare" type="button">
+                        <i class="fab fa-whatsapp me-2"></i> Compartir por WhatsApp
+                    </button>
+                    <button class="btn btn-primary" id="emailShare" type="button">
+                        <i class="fas fa-envelope me-2"></i> Compartir por Correo
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de estadísticas -->
+<div class="modal fade" id="shareStatsModal" tabindex="-1" aria-labelledby="shareStatsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareStatsModalLabel">Estadísticas de Acceso</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center py-3" id="statsLoading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2">Cargando estadísticas...</p>
+                </div>
+                
+                <div id="statsContent" style="display: none;">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Información del Enlace</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Nombre:</th>
+                                    <td id="stat-name"></td>
+                                </tr>
+                                <tr>
+                                    <th>Empresa:</th>
+                                    <td id="stat-empresa"></td>
+                                </tr>
+                                <tr>
+                                    <th>BU:</th>
+                                    <td id="stat-bu"></td>
+                                </tr>
+                                <tr>
+                                    <th>Creado:</th>
+                                    <td id="stat-created"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Estadísticas de Uso</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Total de Accesos:</th>
+                                    <td id="stat-count"></td>
+                                </tr>
+                                <tr>
+                                    <th>Último Acceso:</th>
+                                    <td id="stat-last"></td>
+                                </tr>
+                                <tr>
+                                    <th>Caducidad:</th>
+                                    <td id="stat-expiry"></td>
+                                </tr>
+                                <tr>
+                                    <th>Estado:</th>
+                                    <td id="stat-status"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <h6>Historial de Accesos</h6>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm" id="accessLogsTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha y Hora</th>
+                                    <th>Dirección IP</th>
+                                    <th>Navegador</th>
+                                    <th>Referencia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de extensión de caducidad -->
+<div class="modal fade" id="extendExpiryModal" tabindex="-1" aria-labelledby="extendExpiryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="extendExpiryModalLabel">Extender Caducidad</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="extendExpiryForm">
+                    <input type="hidden" id="extendShareId" name="share_id">
+                    <div class="form-group mb-3">
+                        <label for="extendDays">Extender Caducidad</label>
+                        <select class="form-control" id="extendDays" name="days">
+                            <option value="7">7 días más</option>
+                            <option value="30" selected>30 días más</option>
+                            <option value="90">90 días más</option>
+                            <option value="180">180 días más</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirmExtend">Extender</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar empresas al seleccionar una BU
+        document.getElementById('business_unit').addEventListener('change', function() {
+            const buId = this.value;
+            const empresaSelect = document.getElementById('empresa');
+            
+            if (!buId) {
+                empresaSelect.innerHTML = '<option value="">Primero seleccione una unidad de negocio</option>';
+                empresaSelect.disabled = true;
+                return;
+            }
+            
+            // Mostrar spinner
+            empresaSelect.innerHTML = '<option value="">Cargando empresas...</option>';
+            empresaSelect.disabled = true;
+            
+            // Hacer fetch de las empresas de esta BU
+            fetch(`/api/empresas/?business_unit_id=${buId}`)
+                .then(response => response.json())
+                .then(data => {
+                    empresaSelect.innerHTML = '';
+                    if (data.length === 0) {
+                        empresaSelect.innerHTML = '<option value="">No hay empresas disponibles</option>';
+                        empresaSelect.disabled = true;
+                    } else {
+                        empresaSelect.innerHTML = '<option value="">Seleccione una empresa</option>';
+                        data.forEach(empresa => {
+                            const option = document.createElement('option');
+                            option.value = empresa.id;
+                            option.textContent = empresa.name;
+                            empresaSelect.appendChild(option);
+                        });
+                        empresaSelect.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error cargando empresas:', error);
+                    empresaSelect.innerHTML = '<option value="">Error al cargar empresas</option>';
+                    empresaSelect.disabled = true;
+                });
+        });
+        
+        // Crear nuevo enlace compartido
+        document.getElementById('createShareForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Enviar petición para crear enlace
+            fetch('/onboarding/dashboard/client/share/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                    return;
+                }
+                
+                // Mostrar éxito y recargar la página
+                alert('Enlace creado correctamente. La página se actualizará para mostrar el nuevo enlace.');
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error creando enlace:', error);
+                alert('Ocurrió un error al crear el enlace. Por favor, inténtelo nuevamente.');
+            });
+        });
+        
+        // Copiar enlace al portapapeles
+        document.querySelectorAll('.copy-link').forEach(button => {
+            button.addEventListener('click', function() {
+                const url = this.getAttribute('data-url');
+                copyToClipboard(url);
+                alert('Enlace copiado al portapapeles');
+            });
+        });
+        
+        // Modal de opciones de compartir
+        document.querySelectorAll('.share-options').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const row = this.closest('tr');
+                const url = row.querySelector('.copy-link').getAttribute('data-url');
+                const expiry = row.querySelector('td:nth-child(3)').innerText.split('\n')[0];
+                
+                document.getElementById('shareUrl').value = url;
+                document.getElementById('shareExpiry').textContent = expiry;
+                
+                // Configurar botones de compartir
+                document.getElementById('whatsappShare').onclick = function() {
+                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Te comparto el dashboard de satisfacción de Grupo huntRED®: ${url}`)}`;
+                    window.open(whatsappUrl, '_blank');
+                };
+                
+                document.getElementById('emailShare').onclick = function() {
+                    const subject = encodeURIComponent('Dashboard de Satisfacción - Grupo huntRED®');
+                    const body = encodeURIComponent(`Te comparto el dashboard de satisfacción de Grupo huntRED®.\n\nPuedes acceder a través del siguiente enlace:\n${url}\n\nEste enlace estará disponible hasta: ${expiry}`);
+                    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                };
+                
+                // Mostrar modal
+                const modal = new bootstrap.Modal(document.getElementById('shareOptionsModal'));
+                modal.show();
+            });
+        });
+        
+        // Copiar URL desde el modal
+        document.querySelector('.copy-modal-url').addEventListener('click', function() {
+            const url = document.getElementById('shareUrl').value;
+            copyToClipboard(url);
+            alert('Enlace copiado al portapapeles');
+        });
+        
+        // Ver estadísticas
+        document.querySelectorAll('.view-stats').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                
+                // Mostrar modal con loader
+                document.getElementById('statsLoading').style.display = 'block';
+                document.getElementById('statsContent').style.display = 'none';
+                
+                const modal = new bootstrap.Modal(document.getElementById('shareStatsModal'));
+                modal.show();
+                
+                // Cargar estadísticas
+                fetch(`/onboarding/dashboard/client/share/${id}/stats/`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                        return;
+                    }
+                    
+                    // Llenar datos básicos
+                    document.getElementById('stat-name').textContent = data.share.name;
+                    document.getElementById('stat-empresa').textContent = data.share.empresa;
+                    document.getElementById('stat-bu').textContent = data.share.business_unit;
+                    document.getElementById('stat-created').textContent = data.share.created_date;
+                    document.getElementById('stat-count').textContent = data.share.access_count;
+                    document.getElementById('stat-last').textContent = data.share.last_accessed;
+                    document.getElementById('stat-expiry').textContent = data.share.expiry_date;
+                    
+                    const statusElement = document.getElementById('stat-status');
+                    if (data.share.is_expired) {
+                        statusElement.innerHTML = '<span class="badge bg-danger">Expirado</span>';
+                    } else {
+                        statusElement.innerHTML = `<span class="badge bg-success">Activo</span> <small class="text-muted">(${data.share.days_remaining} días restantes)</small>`;
+                    }
+                    
+                    // Llenar tabla de logs
+                    const logsTable = document.getElementById('accessLogsTable').querySelector('tbody');
+                    logsTable.innerHTML = '';
+                    
+                    if (data.access_logs.length === 0) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = '<td colspan="4" class="text-center">No hay registros de acceso</td>';
+                        logsTable.appendChild(row);
+                    } else {
+                        data.access_logs.forEach(log => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${log.date}</td>
+                                <td>${log.ip}</td>
+                                <td>${truncateString(log.user_agent, 50)}</td>
+                                <td>${truncateString(log.referrer, 50)}</td>
+                            `;
+                            logsTable.appendChild(row);
+                        });
+                    }
+                    
+                    // Mostrar contenido
+                    document.getElementById('statsLoading').style.display = 'none';
+                    document.getElementById('statsContent').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error cargando estadísticas:', error);
+                    alert('Ocurrió un error al cargar las estadísticas. Por favor, inténtelo nuevamente.');
+                });
+            });
+        });
+        
+        // Extender caducidad
+        document.querySelectorAll('.extend-expiry').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                document.getElementById('extendShareId').value = id;
+                
+                const modal = new bootstrap.Modal(document.getElementById('extendExpiryModal'));
+                modal.show();
+            });
+        });
+        
+        // Confirmar extensión de caducidad
+        document.getElementById('confirmExtend').addEventListener('click', function() {
+            const id = document.getElementById('extendShareId').value;
+            const days = document.getElementById('extendDays').value;
+            
+            fetch(`/onboarding/dashboard/client/share/${id}/extend/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `days=${days}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                    return;
+                }
+                
+                // Mostrar éxito y recargar la página
+                alert('Caducidad extendida correctamente. La página se actualizará.');
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error extendiendo caducidad:', error);
+                alert('Ocurrió un error al extender la caducidad. Por favor, inténtelo nuevamente.');
+            });
+        });
+        
+        // Eliminar enlace
+        document.querySelectorAll('.delete-share').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                
+                if (confirm('¿Está seguro de que desea eliminar este enlace? Esta acción no se puede deshacer.')) {
+                    fetch(`/onboarding/dashboard/client/share/${id}/`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(`Error: ${data.error}`);
+                            return;
+                        }
+                        
+                        // Mostrar éxito y recargar la página
+                        alert('Enlace eliminado correctamente. La página se actualizará.');
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error eliminando enlace:', error);
+                        alert('Ocurrió un error al eliminar el enlace. Por favor, inténtelo nuevamente.');
+                    });
+                }
+            });
+        });
+        
+        // Actualizar lista
+        document.getElementById('refreshList').addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Función para copiar al portapapeles
+        function copyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
+        
+        // Función para truncar texto
+        function truncateString(str, num) {
+            if (!str) return '-';
+            if (str.length <= num) return str;
+            return str.slice(0, num) + '...';
+        }
+        
+        // Función para obtener cookie (para CSRF)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,394 @@
+{% extends "dashboard/client/base.html" %}
+
+{% block title %}Métricas de Onboarding - Dashboard Cliente - Grupo huntRED®{% endblock %}
+
+{% block page_title %}Métricas de Procesos de Onboarding{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Onboarding</li>
+{% endblock %}
+
+{% block content %}
+<!-- Key Metrics Cards -->
+<div class="row">
+    <!-- Total de Procesos -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-value" id="total_processes">-</div>
+                <div class="stat-title">Procesos de Onboarding</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Total de Tareas -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="stat-value" id="total_tasks">-</div>
+                <div class="stat-title">Tareas de Onboarding</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tasa de Compleción -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-value" id="completion_rate">-</div>
+                <div class="stat-title">Tasa de Compleción</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tiempo Promedio -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-value" id="avg_completion_days">-</div>
+                <div class="stat-title">Días Promedio</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Status and Priority -->
+<div class="row">
+    <!-- Estado de Tareas -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Estado de Tareas</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="taskStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Prioridad de Tareas -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Distribución por Prioridad</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="taskPriorityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tareas Más Comunes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span>Tareas Más Comunes</span>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary" id="exportTasks">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="commonTasksChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline de Actividades -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span>Cronología de Actividades</span>
+            </div>
+            <div class="card-body">
+                <div class="timeline" id="activity_timeline">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p>Cargando actividades...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Charts
+    let taskStatusChart = null;
+    let taskPriorityChart = null;
+    let commonTasksChart = null;
+    
+    function initializeCharts() {
+        // Task Status Chart
+        const statusCtx = document.getElementById('taskStatusChart').getContext('2d');
+        taskStatusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completada', 'En Progreso', 'Pendiente', 'Retrasada'],
+                datasets: [
+                    {
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#28a745',
+                            '#0056b3',
+                            '#6c757d',
+                            '#dc3545'
+                        ]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    }
+                }
+            }
+        });
+        
+        // Task Priority Chart
+        const priorityCtx = document.getElementById('taskPriorityChart').getContext('2d');
+        taskPriorityChart = new Chart(priorityCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Alta', 'Media', 'Baja'],
+                datasets: [
+                    {
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            '#dc3545',
+                            '#ffc107',
+                            '#6c757d'
+                        ]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    }
+                }
+            }
+        });
+        
+        // Common Tasks Chart
+        const tasksCtx = document.getElementById('commonTasksChart').getContext('2d');
+        commonTasksChart = new Chart(tasksCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Frecuencia',
+                        data: [],
+                        backgroundColor: '#0056b3',
+                        borderColor: '#0056b3',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Número de tareas'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    }
+                }
+            }
+        });
+    }
+    
+    // Load Onboarding Metrics
+    function loadOnboardingMetrics() {
+        const businessUnitId = document.getElementById('business_unit').value;
+        const empresaId = document.getElementById('empresa').value;
+        const timePeriod = document.getElementById('time_period').value;
+        
+        fetch(`/api/dashboard/data/?data_type=onboarding_metrics&business_unit_id=${businessUnitId}&empresa_id=${empresaId}&days=${timePeriod}`)
+            .then(response => response.json())
+            .then(data => {
+                updateOnboardingMetrics(data);
+            })
+            .catch(error => {
+                console.error('Error fetching onboarding metrics:', error);
+            });
+    }
+    
+    // Update Onboarding Metrics
+    function updateOnboardingMetrics(data) {
+        // Update key metrics
+        document.getElementById('total_processes').textContent = data.total_processes || 0;
+        document.getElementById('total_tasks').textContent = data.total_tasks || 0;
+        
+        // Calculate completion rate
+        let completionRate = 0;
+        if (data.task_status && data.total_tasks > 0) {
+            const completedTasks = data.task_status.COMPLETED || 0;
+            completionRate = Math.round((completedTasks / data.total_tasks) * 100);
+        }
+        document.getElementById('completion_rate').textContent = completionRate + '%';
+        
+        // Average completion days
+        document.getElementById('avg_completion_days').textContent = data.avg_completion_days ? data.avg_completion_days.toFixed(1) : '-';
+        
+        // Update task status chart
+        if (taskStatusChart && data.task_status) {
+            taskStatusChart.data.datasets[0].data = [
+                data.task_status.COMPLETED || 0,
+                data.task_status.IN_PROGRESS || 0,
+                data.task_status.PENDING || 0,
+                data.task_status.OVERDUE || 0
+            ];
+            taskStatusChart.update();
+        }
+        
+        // Update task priority chart
+        if (taskPriorityChart && data.task_priority) {
+            taskPriorityChart.data.datasets[0].data = [
+                data.task_priority.HIGH || 0,
+                data.task_priority.MEDIUM || 0,
+                data.task_priority.LOW || 0
+            ];
+            taskPriorityChart.update();
+        }
+        
+        // Update common tasks chart
+        if (commonTasksChart && data.common_tasks) {
+            const labels = [];
+            const values = [];
+            
+            data.common_tasks.forEach(task => {
+                labels.push(task.title);
+                values.push(task.count);
+            });
+            
+            commonTasksChart.data.labels = labels;
+            commonTasksChart.data.datasets[0].data = values;
+            commonTasksChart.update();
+        }
+        
+        // Update activity timeline
+        const timelineContainer = document.getElementById('activity_timeline');
+        
+        // This would normally be populated with real activity data from the API
+        // For now, we'll generate a placeholder timeline
+        let timelineHTML = '';
+        const activities = [
+            {
+                date: '2025-05-15',
+                title: 'Integración de nuevo empleado',
+                description: 'Santiago Martínez ha comenzado su proceso de onboarding como Desarrollador Full Stack.'
+            },
+            {
+                date: '2025-05-14',
+                title: 'Capacitación completada',
+                description: 'Mariana López ha completado su capacitación inicial de sistemas internos.'
+            },
+            {
+                date: '2025-05-13',
+                title: 'Documentos pendientes',
+                description: 'Carlos Ramírez tiene documentos pendientes de entrega para completar su expediente.'
+            },
+            {
+                date: '2025-05-10',
+                title: 'Evaluación de período de prueba',
+                description: 'Se ha programado evaluación de período de prueba para 3 empleados recientemente contratados.'
+            },
+            {
+                date: '2025-05-05',
+                title: 'Actualización de procesos',
+                description: 'Se han actualizado los procesos de onboarding para incluir nuevas etapas de seguimiento.'
+            }
+        ];
+        
+        activities.forEach(activity => {
+            const date = new Date(activity.date).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            timelineHTML += `
+                <div class="timeline-item">
+                    <div class="timeline-content">
+                        <div class="timeline-date">${date}</div>
+                        <h5>${activity.title}</h5>
+                        <p>${activity.description}</p>
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (timelineHTML) {
+            timelineContainer.innerHTML = timelineHTML;
+        } else {
+            timelineContainer.innerHTML = '<p class="text-center">No hay actividades recientes para mostrar.</p>';
+        }
+    }
+    
+    // Document ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize charts
+        initializeCharts();
+        
+        // Load data
+        loadOnboardingMetrics();
+        
+        // Handle refresh button
+        document.getElementById('refreshData').addEventListener('click', loadOnboardingMetrics);
+        
+        // Update dashboard when filters change
+        document.getElementById('business_unit').addEventListener('change', loadOnboardingMetrics);
+        document.getElementById('empresa').addEventListener('change', loadOnboardingMetrics);
+        document.getElementById('time_period').addEventListener('change', loadOnboardingMetrics);
+        
+        // Handle export tasks button
+        document.getElementById('exportTasks').addEventListener('click', function() {
+            alert('La exportación de tareas estará disponible próximamente.');
+        });
+    });
+</script>
+{% endblock %}

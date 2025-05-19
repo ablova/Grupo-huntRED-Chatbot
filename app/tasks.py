@@ -649,6 +649,276 @@ def execute_ml_and_scraping(self):
 # Tareas de Notificaciones
 # =========================================================
 
+# =========================================================
+# Tareas de Onboarding y Satisfacción
+# =========================================================
+
+@shared_task(bind=True, max_retries=3)
+def send_satisfaction_survey(self, onboarding_id, period_days):
+    """
+    Envía encuesta de satisfacción a un candidato en proceso de onboarding.
+    
+    Args:
+        onboarding_id: ID del proceso de onboarding
+        period_days: Días transcurridos desde contratación para esta encuesta
+    """
+    try:
+        from app.com.onboarding.satisfaction_tracker import SatisfactionTracker
+        
+        logger.info(f"Enviando encuesta de satisfacción para onboarding {onboarding_id} a {period_days} días")
+        tracker = SatisfactionTracker()
+        
+        # Ejecutar función asíncrona
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(tracker.send_satisfaction_survey(onboarding_id, period_days))
+            if result:
+                logger.info(f"Encuesta enviada correctamente para onboarding {onboarding_id}")
+                return {"status": "success", "message": "Encuesta enviada correctamente"}
+            else:
+                logger.warning(f"No se pudo enviar encuesta para onboarding {onboarding_id}")
+                return {"status": "warning", "message": "No se pudo enviar la encuesta"}
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error enviando encuesta de satisfacción: {e}")
+        # Reintentar en caso de error
+        if self.request.retries < self.max_retries:
+            # Retraso exponencial: 5min, 25min, 125min
+            countdown = 5 * 60 * (5 ** self.request.retries)
+            raise self.retry(exc=e, countdown=countdown)
+        return {"status": "error", "message": str(e)}
+
+@shared_task(bind=True, max_retries=2)
+def generate_client_satisfaction_report(self, company_id, period='6_months'):
+    """
+    Genera reporte de satisfacción para clientes basado en datos recolectados.
+    
+    Args:
+        company_id: ID de la empresa para la que generar el reporte
+        period: Período de tiempo a considerar ('1_month', '3_months', '6_months', '1_year')
+    """
+    try:
+        from app.com.onboarding.satisfaction_tracker import SatisfactionTracker
+        from app.models import Company
+        from app.com.utils.email_sender import EmailSender
+        
+        logger.info(f"Generando reporte de satisfacción para empresa {company_id}")
+        
+        # Obtener empresa
+        try:
+            company = Company.objects.get(id=company_id)
+        except Company.DoesNotExist:
+            logger.error(f"Empresa con ID {company_id} no encontrada")
+            return {"status": "error", "message": "Empresa no encontrada"}
+        
+        # Obtener datos de tendencias
+        tracker = SatisfactionTracker()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            trends = loop.run_until_complete(tracker.get_satisfaction_trends(company_id, period))
+            
+            # Verificar si hay datos
+            if not trends.get('average_score'):
+                logger.warning(f"No hay datos de satisfacción para empresa {company.name}")
+                return {"status": "warning", "message": "No hay datos de satisfacción"}
+                
+            # Generar PDF
+            from app.com.utils.pdf_generator import generate_pdf
+            pdf_content = loop.run_until_complete(generate_pdf(
+                'onboarding/satisfaction_company_report.html',
+                {
+                    'company': company,
+                    'trends': trends,
+                    'period': period,
+                    'date': datetime.now().strftime('%d/%m/%Y')
+                }
+            ))
+            
+            # Enviar por correo
+            client_email = getattr(company, 'client_contact_email', None)
+            if client_email:
+                email_sender = EmailSender()
+                subject = f"Reporte de Satisfacción - {company.name} - {period}"
+                
+                send_result = loop.run_until_complete(email_sender.send_email(
+                    recipients=[client_email],
+                    subject=subject,
+                    template='onboarding/satisfaction_company_report_email.html',
+                    context={
+                        'company': company,
+                        'trends': trends,
+                        'period': period
+                    },
+                    attachments=[
+                        {
+                            'filename': f'reporte_satisfaccion_{company.name.replace(" ", "_")}.pdf',
+                            'content': pdf_content
+                        }
+                    ]
+                ))
+                
+                if send_result:
+                    logger.info(f"Reporte enviado a {client_email}")
+                    return {"status": "success", "message": "Reporte enviado correctamente"}
+                else:
+                    logger.warning(f"No se pudo enviar reporte a {client_email}")
+                    return {"status": "warning", "message": "No se pudo enviar el reporte"}
+            else:
+                logger.warning(f"Empresa {company.name} no tiene email de contacto")
+                return {"status": "warning", "message": "Empresa sin email de contacto"}
+                
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error generando reporte de satisfacción: {e}")
+        if self.request.retries < self.max_retries:
+            countdown = 5 * 60 * (5 ** self.request.retries)
+            raise self.retry(exc=e, countdown=countdown)
+        return {"status": "error", "message": str(e)}
+
+@shared_task(bind=True)
+def process_onboarding_ml_data(self):
+    """
+    Procesa datos de onboarding para alimentar modelos de ML.
+    Extrae encuestas de satisfacción, datos de retención, y entrena modelos predictivos.
+    """
+    try:
+        from app.ml.onboarding_processor import OnboardingMLProcessor
+        
+        logger.info("Procesando datos de onboarding para ML")
+        processor = OnboardingMLProcessor()
+        
+        # Ejecutar procesamiento asíncrono
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Procesar datos de satisfacción
+            result = loop.run_until_complete(processor.process_satisfaction_data())
+            
+            # Entrenar modelos si hay suficientes datos
+            if result.get('success') and result.get('row_count', 0) >= 30:
+                training_result = loop.run_until_complete(processor.train_models(result.get('file_path')))
+                result['training'] = training_result
+                
+            logger.info(f"Procesamiento ML de onboarding completado: {result.get('row_count', 0)} registros procesados")
+            return result
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error procesando datos de onboarding para ML: {e}")
+        return {"status": "error", "message": str(e)}
+
+@shared_task(bind=True)
+def schedule_periodic_onboarding_tasks(self):
+    """
+    Programa tareas periódicas relacionadas con onboarding.
+    - Envío de reportes de satisfacción mensuales a clientes
+    - Procesamiento de datos para ML
+    """
+    try:
+        from app.models import Company
+        from django_celery_beat.models import PeriodicTask, CrontabSchedule
+        import json
+        
+        # Programar procesamiento de datos para ML (cada lunes a las 3 AM)
+        schedule, _ = CrontabSchedule.objects.get_or_create(
+            minute='0',
+            hour='3',
+            day_of_week='1',  # Lunes
+            day_of_month='*',
+            month_of_year='*',
+        )
+        
+        PeriodicTask.objects.update_or_create(
+            name='Procesar datos de onboarding para ML',
+            defaults={
+                'crontab': schedule,
+                'task': 'app.tasks.process_onboarding_ml_data',
+                'enabled': True,
+            }
+        )
+        
+        # Programar generación de reportes mensuales para cada empresa activa
+        # El día 1 de cada mes a las 7 AM
+        report_schedule, _ = CrontabSchedule.objects.get_or_create(
+            minute='0',
+            hour='7',
+            day_of_week='*',
+            day_of_month='1',  # Día 1 de cada mes
+            month_of_year='*',
+        )
+        
+        # Obtener empresas activas
+        active_companies = Company.objects.filter(activa=True)
+        
+        for company in active_companies:
+            PeriodicTask.objects.update_or_create(
+                name=f'Reporte mensual de satisfacción - {company.name}',
+                defaults={
+                    'crontab': report_schedule,
+                    'task': 'app.tasks.generate_client_satisfaction_report',
+                    'args': json.dumps([company.id, '1_month']),
+                    'enabled': True,
+                }
+            )
+            
+        return {
+            "status": "success", 
+            "message": f"Tareas programadas para {active_companies.count()} empresas"
+        }
+            
+    except Exception as e:
+        logger.error(f"Error programando tareas periódicas de onboarding: {e}")
+        return {"status": "error", "message": str(e)}
+
+@shared_task(bind=True, max_retries=2)
+def create_onboarding_event(self, person_id, vacancy_id, event_type, start_time, end_time, consultant_id=None):
+    """
+    Crea un evento en Google Calendar para una actividad de onboarding.
+    
+    Args:
+        person_id: ID de la persona (candidato)
+        vacancy_id: ID de la vacante
+        event_type: Tipo de evento ('introduction', 'training', 'followup')
+        start_time: Hora de inicio (formato ISO)
+        end_time: Hora de fin (formato ISO)
+        consultant_id: ID del consultor responsable (opcional)
+    """
+    try:
+        from app.com.utils.google_calendar import create_onboarding_event
+        
+        logger.info(f"Creando evento de onboarding tipo {event_type} para persona {person_id}")
+        
+        # Ejecutar creación asíncrona
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(create_onboarding_event(
+                person_id, vacancy_id, event_type, start_time, end_time, consultant_id
+            ))
+            
+            if result.get('success'):
+                logger.info(f"Evento creado exitosamente: {result.get('event_id')}")
+                return result
+            else:
+                logger.warning(f"No se pudo crear evento: {result.get('error')}")
+                return result
+                
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logger.error(f"Error creando evento de onboarding: {e}")
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=e, countdown=60)
+        return {"success": False, "error": str(e)}
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
 def send_notification_task(self, platform, recipient, message):
     try:
@@ -1152,6 +1422,234 @@ def send_signature_reminders():
         send_message("whatsapp", person.phone, "⚠️ Tienes un documento pendiente de firma. Revísalo y firma lo antes posible.", person.business_unit)
 
     return f"Recordatorios enviados a {pending_signatures.count()} personas."
+
+# =========================================================
+# Tareas relacionadas con Onboarding y Satisfacción
+# =========================================================
+
+@shared_task(bind=True, max_retries=3)
+def send_satisfaction_survey_task(self, onboarding_id, period):
+    """
+    Envía una encuesta de satisfacción a un candidato para un período específico.
+    
+    Args:
+        onboarding_id (int): ID del proceso de onboarding
+        period (int): Período de días desde contratación (3, 7, 15, 30, 60, 90, 180, 365)
+    """
+    from app.models import OnboardingProcess
+    from app.com.onboarding.onboarding_controller import OnboardingController
+    
+    try:
+        # Obtener proceso de onboarding
+        process = OnboardingProcess.objects.get(id=onboarding_id)
+        
+        # Verificar si ya se ha enviado para este período
+        if str(period) in process.survey_responses:
+            logger.info(f"Encuesta para período {period} ya fue respondida en proceso {onboarding_id}")
+            return f"Encuesta ya respondida para período {period}"
+        
+        # Generar enlace seguro
+        survey_url = asyncio.run(OnboardingController.generate_secure_survey_link(onboarding_id, period))
+        if not survey_url:
+            raise ValueError(f"No se pudo generar el enlace para la encuesta ID: {onboarding_id}, período: {period}")
+        
+        # Preparar mensaje
+        person = process.person
+        vacancy = process.vacancy
+        company_name = vacancy.empresa.name if hasattr(vacancy, 'empresa') and vacancy.empresa else "la empresa"
+        
+        message = f"👋 Hola {person.first_name},\n\n"
+        message += f"Han pasado {period} días desde tu incorporación a {company_name} y nos gustaría conocer tu experiencia.\n\n"
+        message += f"📝 Por favor, completa esta breve encuesta de satisfacción: {survey_url}\n\n"
+        message += "Tu opinión es muy importante para nosotros.\n\n"
+        message += "Gracias,\nEquipo Grupo huntRED®"
+        
+        # Intentar enviar por WhatsApp primero
+        sent = False
+        if person.whatsapp:
+            try:
+                send_message("whatsapp", person.whatsapp, message, None)
+                sent = True
+                logger.info(f"Encuesta enviada por WhatsApp a {person.whatsapp} para proceso {onboarding_id}, período {period}")
+            except Exception as e:
+                logger.warning(f"No se pudo enviar por WhatsApp: {str(e)}")
+        
+        # Si no se envió por WhatsApp, intentar por email
+        if not sent and person.email:
+            try:
+                email_subject = f"Encuesta de satisfacción - Día {period}"
+                send_email(person.email, email_subject, message)
+                sent = True
+                logger.info(f"Encuesta enviada por email a {person.email} para proceso {onboarding_id}, período {period}")
+            except Exception as e:
+                logger.warning(f"No se pudo enviar por email: {str(e)}")
+        
+        if not sent:
+            raise ValueError(f"No se pudo enviar la encuesta al candidato {person.id} por ningún canal")
+        
+        return f"Encuesta de satisfacción enviada para proceso {onboarding_id}, período {period}"
+        
+    except Exception as e:
+        logger.error(f"Error enviando encuesta de satisfacción: {str(e)}")
+        self.retry(exc=e, countdown=60 * 5)  # Reintentar en 5 minutos
+
+@shared_task(bind=True)
+def check_satisfaction_surveys_task(self):
+    """
+    Revisa los procesos de onboarding activos y programa encuestas de satisfacción
+    según los períodos definidos (3, 7, 15, 30, 60, 90, 180, 365 días).
+    """
+    from app.models import OnboardingProcess, SATISFACTION_PERIODS
+    from django.db.models import Q
+    
+    try:
+        today = timezone.now().date()
+        count = 0
+        
+        # Obtener procesos activos
+        active_processes = OnboardingProcess.objects.filter(
+            Q(status='IN_PROGRESS') | Q(status='COMPLETED')
+        )
+        
+        for process in active_processes:
+            hire_date = process.hire_date.date()
+            surveys_status = process.get_surveys_status()
+            
+            for period in SATISFACTION_PERIODS:
+                target_date = hire_date + timedelta(days=period)
+                
+                # Si hoy es el día para enviar y no se ha enviado
+                if today == target_date and surveys_status.get(period, {}).get('status') == 'SCHEDULED':
+                    # Programar tarea para enviar encuesta
+                    send_satisfaction_survey_task.delay(process.id, period)
+                    count += 1
+                    logger.info(f"Programada encuesta para onboarding {process.id}, período {period}")
+        
+        return f"Programadas {count} encuestas de satisfacción"
+    
+    except Exception as e:
+        logger.error(f"Error verificando encuestas de satisfacción: {str(e)}")
+        return f"Error: {str(e)}"
+
+@shared_task(bind=True)
+def generate_client_satisfaction_reports_task(self):
+    """
+    Genera reportes de satisfacción mensuales para los clientes con procesos activos.
+    """
+    from app.models import OnboardingProcess, Person
+    from app.com.onboarding.onboarding_controller import OnboardingController
+    import uuid
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+    from django.conf import settings
+    import os
+    
+    try:
+        # Obtener procesos activos agrupados por empresa
+        processes = OnboardingProcess.objects.filter(
+            Q(status='IN_PROGRESS') | Q(status='COMPLETED')
+        ).order_by('vacancy__empresa')
+        
+        if not processes.exists():
+            return "No hay procesos de onboarding activos para generar reportes"
+        
+        reports_generated = 0
+        current_month = timezone.now().strftime('%B_%Y').lower()
+        
+        # Agrupar por empresa
+        company_processes = {}
+        for process in processes:
+            company = getattr(process.vacancy, 'empresa', None)
+            if company:
+                company_id = company.id
+                if company_id not in company_processes:
+                    company_processes[company_id] = []
+                company_processes[company_id].append(process)
+        
+        # Generar reporte para cada empresa
+        for company_id, processes in company_processes.items():
+            if not processes:
+                continue
+                
+            # Tomar primer proceso para obtener datos de la empresa
+            sample_process = processes[0]
+            company = sample_process.vacancy.empresa
+            
+            # Crear directorio si no existe
+            reports_dir = os.path.join(settings.MEDIA_ROOT, 'satisfaction_reports')
+            os.makedirs(reports_dir, exist_ok=True)
+            
+            # Generar reporte consolidado
+            report_filename = f"{company.name.lower().replace(' ', '_')}_{current_month}.html"
+            report_path = os.path.join(reports_dir, report_filename)
+            
+            # Contenido del reporte
+            with open(report_path, 'w') as f:
+                f.write("<!DOCTYPE html>\n<html>\n<head>")
+                f.write(f"<title>Reporte de Satisfacción {company.name} - {current_month}</title>")
+                f.write("<style>")
+                # Estilos CSS para el reporte
+                f.write("body { font-family: Arial, sans-serif; }")
+                f.write("h1, h2 { color: #0056b3; }")
+                f.write("table { border-collapse: collapse; width: 100%; }")
+                f.write("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }")
+                f.write("th { background-color: #f2f2f2; }")
+                f.write("</style>")
+                f.write("</head>\n<body>")
+                
+                f.write(f"<h1>Reporte de Satisfacción - {company.name}</h1>")
+                f.write(f"<p>Período: {current_month}</p>")
+                
+                # Tabla de procesos
+                f.write("<h2>Procesos de Onboarding Activos</h2>")
+                f.write("<table>")
+                f.write("<tr><th>Colaborador</th><th>Posición</th><th>Días desde contratación</th><th>Satisfacción</th></tr>")
+                
+                for process in processes:
+                    days_since_hire = (timezone.now().date() - process.hire_date.date()).days
+                    satisfaction = process.get_satisfaction_score() or "N/A"
+                    satisfaction_display = f"{satisfaction}/10" if satisfaction != "N/A" else "N/A"
+                    
+                    f.write(f"<tr>")
+                    f.write(f"<td>{process.person.first_name} {process.person.last_name}</td>")
+                    f.write(f"<td>{process.vacancy.title}</td>")
+                    f.write(f"<td>{days_since_hire}</td>")
+                    f.write(f"<td>{satisfaction_display}</td>")
+                    f.write(f"</tr>")
+                
+                f.write("</table>")
+                
+                # Más contenido aquí según necesidad
+                
+                f.write("</body>\n</html>")
+            
+            reports_generated += 1
+            logger.info(f"Generado reporte de satisfacción para {company.name}: {report_path}")
+        
+        return f"Generados {reports_generated} reportes de satisfacción"
+    
+    except Exception as e:
+        logger.error(f"Error generando reportes de satisfacción: {str(e)}")
+        return f"Error: {str(e)}"
+
+@shared_task(bind=True)
+def process_onboarding_ml_data_task(self):
+    """
+    Procesa datos de onboarding para machine learning, incluyendo actualización de modelos
+    predictivos de satisfacción y retención.
+    """
+    from app.ml.onboarding_processor import OnboardingMLProcessor
+    
+    try:
+        processor = OnboardingMLProcessor()
+        results = asyncio.run(processor.process_all_onboarding_data())
+        
+        return f"Datos de onboarding procesados: {results}"
+        
+    except Exception as e:
+        logger.error(f"Error procesando datos de onboarding para ML: {str(e)}")
+        return f"Error: {str(e)}"
+
 
 # =========================================================
 # Tareas para obtención de oportunidades, scraping, 

@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Análisis de Trayectoria Profesional - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<style>
+    .career-path {
+        position: relative;
+        padding: 0;
+        margin: 30px 0;
+    }
+    .path-item {
+        position: relative;
+        padding: 15px 20px 15px 70px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        border-left: 4px solid #D62839;
+    }
+    .path-item::before {
+        content: "";
+        position: absolute;
+        left: 30px;
+        top: 0;
+        height: 100%;
+        width: 2px;
+        background-color: #E0E0E0;
+    }
+    .path-item::after {
+        content: "";
+        position: absolute;
+        left: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 14px;
+        width: 14px;
+        border-radius: 50%;
+        background-color: #D62839;
+    }
+    .path-item.current {
+        background-color: #FFF0F0;
+        border-left-width: 6px;
+    }
+    .path-item.current::after {
+        height: 18px;
+        width: 18px;
+        left: 22px;
+        background-color: #D62839;
+    }
+    .decision-point {
+        position: relative;
+        background-color: #F0F7FF;
+        border-left: 4px solid #4361EE;
+        padding: 15px 20px;
+        margin: 25px 0 25px 40px;
+        border-radius: 8px;
+    }
+    .decision-point::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: -20px;
+        width: 16px;
+        height: 2px;
+        background-color: #E0E0E0;
+    }
+    .timeline-month {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: #f0f0f0;
+        color: #666;
+        font-size: 0.8rem;
+        padding: 2px 5px;
+        border-radius: 3px;
+    }
+    .skill-bar {
+        height: 25px;
+        background: linear-gradient(90deg, #D62839 0%, #F46036 100%);
+        border-radius: 12px;
+        margin-bottom: 8px;
+    }
+    .financial-chart {
+        height: 250px;
+        margin: 20px 0;
+    }
+    .forecast-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 5px;
+    }
+    .report-header {
+        border-bottom: 2px solid #D62839;
+        padding-bottom: 15px;
+        margin-bottom: 30px;
+    }
+    .trajectory-score-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto;
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #4361EE 0%, #3A0CA3 100%);
+    }
+    .mentor-card {
+        border: 1px solid #E0E0E0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+    }
+    .mentor-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .mentor-match {
+        display: inline-block;
+        font-weight: bold;
+        padding: 3px 8px;
+        border-radius: 12px;
+        background-color: #4361EE;
+        color: white;
+        font-size: 0.9rem;
+    }
+    @media print {
+        .page-break { 
+            page-break-before: always; 
+        }
+        .chart-container {
+            break-inside: avoid;
+        }
+        .decision-point {
+            break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <!-- Encabezado del Reporte -->
+    <div class="report-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4">Análisis de Trayectoria Profesional</h1>
+                <p class="lead text-muted">
+                    {% if analysis_data.person_name %}
+                        {{ analysis_data.person_name }} | 
+                    {% endif %}
+                    {{ analysis_data.current_position }}
+                </p>
+                <p class="small text-muted">Generado el {{ generated_at }} | Horizonte: {{ analysis_data.time_horizon }} meses</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <img src="{% static 'img/logo-huntRED.png' %}" alt="Logo Grupo huntRED" height="80">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen Ejecutivo -->
+    <div class="row mb-5">
+        <div class="col-md-4 text-center">
+            <div class="trajectory-score-circle">
+                {{ analysis_data.potential_score|floatformat:0 }}
+            </div>
+            <div class="score-label">Potencial de Desarrollo</div>
+        </div>
+        <div class="col-md-8">
+            <h2>Resumen Ejecutivo</h2>
+            <p class="lead">
+                {% if analysis_data.values_message %}
+                    {{ analysis_data.values_message }}
+                {% else %}
+                    Este análisis de trayectoria profesional identifica el camino óptimo de desarrollo basado en su perfil, habilidades actuales y potencial, considerando tendencias del mercado laboral.
+                {% endif %}
+            </p>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h5>Fortalezas Clave</h5>
+                    <ul>
+                        {% for skill in analysis_data.key_strengths|slice:":3" %}
+                            <li>{{ skill.name }} ({{ skill.level|floatformat:0 }}/100)</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h5>Próxima Posición Recomendada</h5>
+                    <p class="mb-1"><strong>{{ analysis_data.optimal_path.next_position }}</strong></p>
+                    <p class="text-muted">Tiempo estimado: {{ analysis_data.optimal_path.timeframe }} meses</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Trayectoria Profesional Óptima -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Trayectoria Profesional Óptima</h2>
+            
+            <div class="career-path">
+                {% for position in analysis_data.optimal_path.positions %}
+                    <div class="path-item {% if position.is_current %}current{% endif %}">
+                        <span class="timeline-month">{% if position.is_current %}Actual{% else %}+{{ position.start_month }}m{% endif %}</span>
+                        
+                        <h4>{{ position.position }}</h4>
+                        <p>{{ position.description }}</p>
+                        
+                        {% if position.decision_points %}
+                            {% for point in position.decision_points %}
+                                <div class="decision-point">
+                                    <h5>Punto de Decisión: Mes {{ point.month }}</h5>
+                                    <p>{{ point.description }}</p>
+                                    
+                                    <div class="mt-3">
+                                        <h6>Opciones:</h6>
+                                        <ul>
+                                            {% for option in point.options %}
+                                                <li>{{ option }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <h6>Preparación Recomendada:</h6>
+                                        <ul>
+                                            {% for activity in point.preparation_activities %}
+                                                <li>{{ activity }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Rutas Alternativas -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Rutas Alternativas</h2>
+            
+            <div class="row">
+                {% for path in analysis_data.top_paths|slice:":2" %}
+                    {% if not forloop.first %}  <!-- Saltar el primer elemento que es el óptimo -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h4 class="card-title">{{ path.path_type }}</h4>
+                                <p>{{ path.description }}</p>
+                                
+                                <h6>Posiciones:</h6>
+                                <ol class="ps-3">
+                                    {% for position in path.positions %}
+                                        <li>{{ position.position }} <span class="text-muted">({% if forloop.first %}Actual{% else %}+{{ position.start_month }}m{% endif %})</span></li>
+                                    {% endfor %}
+                                </ol>
+                                
+                                <div class="d-flex justify-content-between mt-3">
+                                    <div>
+                                        <h6>Satisfacción Proyectada:</h6>
+                                        <span class="badge bg-primary">{{ path.satisfaction_score|floatformat:0 }}/100</span>
+                                    </div>
+                                    <div>
+                                        <h6>Dificultad:</h6>
+                                        <span class="badge {% if path.difficulty > 75 %}bg-danger{% elif path.difficulty > 50 %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ path.difficulty|floatformat:0 }}/100
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="page-break"></div>
+    
+    <!-- Habilidades Críticas -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Habilidades Críticas a Desarrollar</h2>
+            
+            <div class="row">
+                {% for skill in analysis_data.critical_skills %}
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5>{{ skill.name }}</h5>
+                            
+                            <div class="d-flex justify-content-between">
+                                <span>Nivel Actual: {{ skill.current_level|floatformat:0 }}/100</span>
+                                <span>Nivel Requerido: {{ skill.required_level|floatformat:0 }}/100</span>
+                            </div>
+                            
+                            <div class="progress mt-2 mb-4">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ skill.current_level }}%;" 
+                                     aria-valuenow="{{ skill.current_level }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            
+                            <h6>Plan de Desarrollo:</h6>
+                            <ul>
+                                {% for action in skill.development_actions %}
+                                <li>{{ action }}</li>
+                                {% endfor %}
+                            </ul>
+                            
+                            <div class="mt-3">
+                                <h6>Impacto en Trayectoria:</h6>
+                                <span class="badge bg-{% if skill.impact == 'high' %}danger{% elif skill.impact == 'medium' %}warning{% else %}info{% endif %} me-2">
+                                    {{ skill.impact|title }}
+                                </span>
+                                <span class="small text-muted">{{ skill.impact_description }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Proyección Financiera -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Proyección Financiera</h2>
+            
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center">
+                            <h5>Salario Actual</h5>
+                            <h3>{{ analysis_data.financial_projection.initial_salary|floatformat:0 }}</h3>
+                            
+                            <h5 class="mt-4">Salario Proyectado</h5>
+                            <h3>{{ analysis_data.financial_projection.final_salary|floatformat:0 }}</h3>
+                            
+                            <div class="mt-4">
+                                <h6>Crecimiento Proyectado</h6>
+                                <h4 class="text-success">+{{ analysis_data.financial_projection.growth_rate|floatformat:0 }}%</h4>
+                                <p class="small text-muted">En {{ analysis_data.time_horizon }} meses</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-8">
+                    {% if include_graphics %}
+                    <div class="financial-chart">
+                        <!-- Aquí se renderizaría el gráfico de proyección salarial -->
+                        <img src="{% if analysis_data.visualizations.financial_projection %}{{ analysis_data.visualizations.financial_projection }}{% else %}{% static 'img/placeholder_financial.png' %}{% endif %}" 
+                             alt="Proyección Financiera" class="img-fluid">
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <h5>Factores de Influencia</h5>
+                        <div class="row">
+                            {% for factor in analysis_data.financial_projection.influencing_factors %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6>{{ factor.name }}</h6>
+                                        <p class="small mb-0">{{ factor.description }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mentores Recomendados -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Mentores Recomendados</h2>
+            
+            <div class="row">
+                {% for mentor in analysis_data.recommended_mentors %}
+                <div class="col-md-4 mb-4">
+                    <div class="mentor-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5>{{ mentor.name }}</h5>
+                                <p class="mb-2">{{ mentor.position }}</p>
+                            </div>
+                            <span class="mentor-match">{{ mentor.match_score|floatformat:0 }}%</span>
+                        </div>
+                        
+                        <h6 class="mt-3">Áreas de Expertise</h6>
+                        <div>
+                            {% for area in mentor.expertise %}
+                            <span class="badge bg-secondary me-1">{{ area }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        <h6 class="mt-3">¿Por qué es un buen match?</h6>
+                        <p>{{ mentor.reason }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Demanda del Mercado -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Análisis de Demanda del Mercado</h2>
+            
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5>Demanda General</h5>
+                            <h3>{{ analysis_data.market_analysis.overall_demand|floatformat:0 }}/100</h3>
+                            
+                            <div class="mt-4">
+                                <h6>Sectores con Mayor Demanda</h6>
+                                <ul>
+                                    {% for sector in analysis_data.market_analysis.high_demand_sectors %}
+                                    <li>{{ sector.name }} ({{ sector.demand_score|floatformat:0 }}/100)</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <h6>Tendencia a {{ analysis_data.time_horizon }} meses</h6>
+                                <p>
+                                    <span class="badge bg-{% if analysis_data.market_analysis.trend == 'increasing' %}success{% elif analysis_data.market_analysis.trend == 'decreasing' %}danger{% else %}secondary{% endif %} me-2">
+                                        {% if analysis_data.market_analysis.trend == 'increasing' %}Creciente{% elif analysis_data.market_analysis.trend == 'decreasing' %}Decreciente{% else %}Estable{% endif %}
+                                    </span>
+                                    {{ analysis_data.market_analysis.trend_description }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-7">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5>Demanda por Posición</h5>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Posición</th>
+                                            <th>Demanda</th>
+                                            <th>Compensación Promedio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for position in analysis_data.market_analysis.position_demands %}
+                                        <tr>
+                                            <td>{{ position.title }}</td>
+                                            <td>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-{% if position.demand_score > 75 %}success{% elif position.demand_score > 50 %}info{% elif position.demand_score > 25 %}warning{% else %}danger{% endif %}" 
+                                                         style="width: {{ position.demand_score }}%;" 
+                                                         aria-valuenow="{{ position.demand_score }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        {{ position.demand_score|floatformat:0 }}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ position.avg_compensation }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="page-break"></div>
+    
+    <!-- Recomendaciones Finales -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-4">Recomendaciones Finales</h2>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h4>Próximos Pasos Recomendados</h4>
+                    <ol>
+                        {% for step in analysis_data.recommendations.next_steps %}
+                            <li class="mb-3">
+                                <strong>{{ step.title }}</strong>
+                                <p>{{ step.description }}</p>
+                                
+                                {% if step.timeline %}
+                                <p class="small text-muted mb-0">Plazo recomendado: {{ step.timeline }}</p>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h4>Recomendaciones de Desarrollo</h4>
+                    
+                    <div class="row mt-3">
+                        {% for rec in analysis_data.recommendations.development %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body">
+                                        <h5>{{ rec.title }}</h5>
+                                        <p>{{ rec.description }}</p>
+                                        
+                                        {% if rec.resources %}
+                                        <h6>Recursos Recomendados:</h6>
+                                        <ul>
+                                            {% for resource in rec.resources %}
+                                                <li>{{ resource }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Valores de Grupo huntRED® -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h4 class="text-center mb-4">Alineado con los Valores de Grupo huntRED®</h4>
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3">
+                            <h5>Apoyo</h5>
+                            <p>Este análisis brinda apoyo personalizado para el desarrollo profesional, identificando trayectorias óptimas y habilitando decisiones informadas.</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <h5>Solidaridad</h5>
+                            <p>Las recomendaciones fomentan un desarrollo profesional integral considerando el impacto positivo en equipos y organizaciones.</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <h5>Sinergia</h5>
+                            <p>La trayectoria propuesta optimiza la sinergia entre fortalezas personales, objetivos profesionales y oportunidades del mercado.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pie de Página -->
+    <footer class="text-center mt-5">
+        <p class="small text-muted">Este análisis fue generado por el sistema de talent analytics de Grupo huntRED®.</p>
+        <p class="small text-muted">Los datos presentados son confidenciales y para uso exclusivo de la persona evaluada.</p>
+        <img src="{% static 'img/logo-huntRED-small.png' %}" alt="Logo Grupo huntRED" class="footer-logo" height="40">
+    </footer>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Aquí iría código JavaScript para renderizar gráficos dinámicos
+        // utilizando los datos de análisis si se requiere
+        console.log('Reporte de trayectoria profesional cargado correctamente');
+    });
+</script>
+{% endblock %}

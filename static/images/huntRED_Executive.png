@@ -1,0 +1,2515 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Grupo hunt<span class="text-red">RED®</span> - {{ client.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --hunt-blue: #1f3544;
+            --hunt-red: #ff3300;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .text-red {
+            color: var(--hunt-red);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f4f4f4;
+            box-shadow: 0 0 20px rgba(70, 37, 37, 0.1);
+            min-height: 100vh;
+            position: relative;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 1200px;
+            background: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+        .footer img {
+            height: 20px;
+        }
+        .cover-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 90vh;
+            text-align: center;
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(240,240,245,1) 100%);
+        }
+        .cover-logos {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .cover-logo img {
+            max-height: 100px;
+            max-width: 100%;
+        }
+        .cover-title {
+            margin: 4rem 0;
+        }
+        .cover-title h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        .cover-title h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #3498db;
+            margin-bottom: 2rem;
+        }
+        .cover-meta {
+            background: rgba(52, 152, 219, 0.05);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: inline-block;
+            margin: 0 auto;
+        }
+        .cover-meta p {
+            margin: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cover-meta i {
+            margin-right: 0.5rem;
+            color: #3498db;
+        }
+        .cover-footer {
+            margin-top: 4rem;
+            color: #666;
+        }
+        .toc-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .toc-line {
+            flex-grow: 1;
+            border-bottom: 1px dotted #ccc;
+            margin: 0 0.5rem;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--hunt-blue);
+        }
+        .timeline-item {
+            position: relative;
+            padding-bottom: 2rem;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2rem;
+            top: 0.25rem;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid var(--hunt-blue);
+        }
+        .accent-gradient {
+            background: linear-gradient(135deg, var(--hunt-blue) 0%, #000000 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
+        .qr-code {
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            display: inline-block;
+            background: #fff;
+        }
+        .section-divider {
+            height: 4px;
+            width: 60px;
+            background: linear-gradient(90deg, var(--hunt-blue), var(--hunt-red));
+            margin: 1rem 0 2rem;
+        }
+        @media print {
+            .footer {
+                position: fixed;
+                bottom: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        @media (max-width: 768px) {
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+            .footer img {
+                margin: 5px 0;
+            }
+            .cover-logos {
+                flex-direction: column;
+            }
+            .cover-logo img {
+                margin-bottom: 1rem;
+            }
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .accordion-content.open {
+            max-height: 500px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto">
+        <!-- Página de Portada -->
+        <style>
+        .portada-background {
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-image: url('https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=1950&q=80');
+            z-index: 0;
+        }
+        
+        .portada-background::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: linear-gradient(135deg, rgba(31, 53, 68, 0.92) 0%, rgba(31, 53, 68, 0.85) 100%);
+            z-index: -1;
+        }
+        
+        .portada-content {
+            position: relative;
+            z-index: 1;
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 4rem 2rem;
+        }
+        
+        .cover-title h1, .cover-title h2 {
+            color: white !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .cover-meta {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .cover-meta i {
+            color: var(--hunt-red);
+        }
+        
+        .cover-footer {
+            color: white;
+        }
+        </style>
+
+        <section class="cover-page page-break portada-background">
+            <div class="portada-content">
+                <div class="cover-top">
+                    <div class="cover-logos">
+                        <div class="cover-logo">
+                            <img src="{{ company.logo_url }}" alt="{{ company.name }} Logo" style="filter: brightness(0) invert(1);">
+                        </div>
+                        <div class="cover-logo">
+                            <img src="{{ client.logo_url }}" alt="{{ client.name }} Logo">
+                        </div>
+                    </div>
+                    
+                    <div class="cover-title">
+                        <h1>Propuesta de Servicios</h1>
+                        <h2>Solución de Reclutamiento Especializado</h2>
+                        <div class="section-divider mx-auto" style="background: linear-gradient(90deg, white, var(--hunt-red));"></div>
+                        <p class="text-xl mt-4 text-white">Preparada exclusivamente para</p>
+                        <p class="text-2xl font-bold mt-2 text-white">{{ client.name }}</p>
+                    </div>
+                </div>
+                
+                <div class="cover-meta">
+                    <p><i class="fas fa-file-contract"></i> <strong>Propuesta #:</strong> {{ proposal.id }}</p>
+                    <p><i class="fas fa-calendar-alt"></i> <strong>Fecha:</strong> {{ proposal.created_at|date:"d/m/Y" }}</p>
+                    <p><i class="fas fa-hourglass-end"></i> <strong>Válida hasta:</strong> {{ proposal.valid_until|date:"d/m/Y" }}</p>
+                    <p><i class="fas fa-user-tie"></i> <strong>Consultor:</strong> {{ company.account_manager }}</p>
+                </div>
+                
+                <div class="cover-footer">
+                    <p class="text-sm">CONFIDENCIAL - {{ proposal.created_at|date:"Y" }} &copy; Grupo hunt<span class="text-red">RED®</span></p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Unidades de Negocio -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">3. Nuestras Unidades de Negocio</h2>
+            <div class="section-divider"></div>
+            
+            <!-- huntRED Executive -->
+            <div class="mb-10 bg-white rounded-lg shadow-sm overflow-hidden">
+                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, #000000 100%);" class="p-4 text-white">
+                    <h3 class="text-xl font-semibold">hunt<span class="text-red">RED®</span> Executive</h3>
+                    <p class="text-sm opacity-80">Reclutamiento para posiciones C-Level y Directivas</p>
+                </div>
+                
+                <div class="p-6">
+                    <div class="flex items-start mb-4">
+                        <div class="mr-6 flex-shrink-0">
+                            <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                                <i class="fas fa-crown text-2xl" style="color: var(--hunt-blue);"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-gray-700 mb-3">Nuestro servicio premium para la identificación y atracción de talento ejecutivo de primer nivel. Especializado en posiciones de alta dirección, consejeros y miembros de comités.</p>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Executive Search</div>
+                                    <p class="text-xs text-gray-600">Búsqueda directa y confidencial</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Board Services</div>
+                                    <p class="text-xs text-gray-600">Miembros de consejos</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">C-Suite</div>
+                                    <p class="text-xs text-gray-600">CEO, CFO, COO, CTO</p>
+                                </div>
+                            </div>
+                            
+                            <div class="text-right">
+                                <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Tiempo promedio de colocación: 45-60 días</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- huntRED -->
+            <div class="mb-10 bg-white rounded-lg shadow-sm overflow-hidden">
+                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, #2c3e50 100%);" class="p-4 text-white">
+                    <h3 class="text-xl font-semibold">hunt<span class="text-red">RED®</span></h3>
+                    <p class="text-sm opacity-80">Reclutamiento para posiciones gerenciales y mandos medios</p>
+                </div>
+                
+                <div class="p-6">
+                    <div class="flex items-start mb-4">
+                        <div class="mr-6 flex-shrink-0">
+                            <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                                <i class="fas fa-user-tie text-2xl" style="color: var(--hunt-blue);"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-gray-700 mb-3">Servicio especializado en la identificación y atracción de gerentes, mandos medios y especialistas con experiencia. Ideal para posiciones clave a nivel operativo y táctico.</p>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Gerentes</div>
+                                    <p class="text-xs text-gray-600">Operaciones y proyectos</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Jefes de Área</div>
+                                    <p class="text-xs text-gray-600">Departamentos funcionales</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Especialistas</div>
+                                    <p class="text-xs text-gray-600">Roles técnicos y funcionales</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Coordinadores</div>
+                                    <p class="text-xs text-gray-600">Roles de supervisión</p>
+                                </div>
+                            </div>
+                            
+                            <div class="text-right">
+                                <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Tiempo promedio de colocación: 30-45 días</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- huntU -->
+            <div class="mb-10 bg-white rounded-lg shadow-sm overflow-hidden">
+                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, #3498db 100%);" class="p-4 text-white">
+                    <h3 class="text-xl font-semibold">huntU</h3>
+                    <p class="text-sm opacity-80">Reclutamiento de jóvenes profesionales y recién egresados</p>
+                </div>
+                
+                <div class="p-6">
+                    <div class="flex items-start mb-4">
+                        <div class="mr-6 flex-shrink-0">
+                            <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                                <i class="fas fa-graduation-cap text-2xl" style="color: var(--hunt-blue);"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-gray-700 mb-3">Servicio dedicado a identificar y atraer talento joven con alto potencial. Ideal para programas de trainee, posiciones entry-level y profesionales con menos de 3 años de experiencia.</p>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Trainees</div>
+                                    <p class="text-xs text-gray-600">Programas de formación</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Analistas</div>
+                                    <p class="text-xs text-gray-600">Roles de análisis y soporte</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Practicantes</div>
+                                    <p class="text-xs text-gray-600">Prácticas profesionales</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Jr. Specialists</div>
+                                    <p class="text-xs text-gray-600">Roles junior especializados</p>
+                                </div>
+                            </div>
+                            
+                            <div class="text-right">
+                                <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Tiempo promedio de colocación: 15-30 días</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Amigro -->
+            <div class="mb-10 bg-white rounded-lg shadow-sm overflow-hidden">
+                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, #4a6782 100%);" class="p-4 text-white">
+                    <h3 class="text-xl font-semibold">Amigro</h3>
+                    <p class="text-sm opacity-80">Oportunidades laborales para migrantes</p>
+                </div>
+                
+                <div class="p-6">
+                    <div class="flex items-start mb-4">
+                        <div class="mr-6 flex-shrink-0">
+                            <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                                <i class="fas fa-globe text-2xl" style="color: var(--hunt-blue);"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-gray-700 mb-3">Plataforma especializada en conectar talento migrante con oportunidades laborales. Ofrecemos asesoría legal, acompañamiento y soporte para empresas y candidatos en procesos de contratación transnacional.</p>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Empleos formales</div>
+                                    <p class="text-xs text-gray-600">Con documentación legal</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Asesoría legal</div>
+                                    <p class="text-xs text-gray-600">Trámites migratorios</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Multinacionales</div>
+                                    <p class="text-xs text-gray-600">Traslados entre países</p>
+                                </div>
+                                <div class="border border-gray-200 rounded p-3 text-center">
+                                    <div class="font-semibold mb-1" style="color: var(--hunt-blue);">Onboarding</div>
+                                    <p class="text-xs text-gray-600">Integración completa</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center mt-4">
+                                <div class="text-xs text-gray-500">Operaciones en 6 países de Latinoamérica</div>
+                                <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Más de 1,200 contrataciones exitosas</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gráfico de ML sobre contrataciones exitosas -->
+            <div class="mt-8 mb-4">
+                <h3 class="text-lg font-semibold mb-3" style="color: var(--hunt-blue);">Análisis Predictivo de Éxito</h3>
+                <p class="text-sm text-gray-600 mb-4">Nuestro sistema de inteligencia artificial analiza patrones de contrataciones exitosas por industria y posición:</p>
+                
+                <div class="bg-white rounded-lg border border-gray-200 p-4">
+                    <div class="text-center">
+                        <canvas id="mlChart" width="800" height="300"></canvas>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2 text-center">* Datos basados en nuestro historial de colocaciones exitosas con permanencia mayor a 1 año</p>
+                </div>
+                
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Datos de ML sobre tasas de éxito de contratación por industria y posición
+                    const ctx = document.getElementById('mlChart').getContext('2d');
+                    
+                    // Creamos el gráfico con datos basados en ML
+                    const mlChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Tecnología', 'Finanzas', 'Manufactura', 'Retail', 'Servicios', '{{ client.industry }}'],
+                            datasets: [{
+                                label: 'Tasa de Éxito (%)',
+                                data: [87, 82, 75, 79, 81, 92],
+                                backgroundColor: [
+                                    'rgba(31, 53, 68, 0.7)',
+                                    'rgba(31, 53, 68, 0.6)',
+                                    'rgba(31, 53, 68, 0.5)',
+                                    'rgba(31, 53, 68, 0.4)',
+                                    'rgba(31, 53, 68, 0.3)',
+                                    'rgba(255, 51, 0, 0.7)'
+                                ],
+                                borderColor: [
+                                    'rgba(31, 53, 68, 1)',
+                                    'rgba(31, 53, 68, 1)',
+                                    'rgba(31, 53, 68, 1)',
+                                    'rgba(31, 53, 68, 1)',
+                                    'rgba(31, 53, 68, 1)',
+                                    'rgba(255, 51, 0, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: {
+                                        display: true,
+                                        text: 'Tasa de Éxito (%)',
+                                        color: '#1f3544'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Industria',
+                                        color: '#1f3544'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `Tasa de éxito: ${context.raw}%`;
+                                        },
+                                        afterLabel: function(context) {
+                                            const industry = context.label;
+                                            if (industry === '{{ client.industry }}') {
+                                                return 'Predicción ML para su industria';
+                                            }
+                                            return null;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+                </script>
+            </div>
+        </section>
+        
+        <!-- Tabla de Contenidos -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-6 accent-gradient">Tabla de Contenidos</h2>
+            <div class="section-divider"></div>
+            
+            <div class="my-8">
+                <div class="toc-item">
+                    <span class="font-medium">1. Información del Cliente</span>
+                    <span class="toc-line"></span>
+                    <span>3</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">2. huntRED® & huntRED® Executive Search</span>
+                    <span class="toc-line"></span>
+                    <span>4</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">3. El Proceso de Reclutamiento</span>
+                    <span class="toc-line"></span>
+                    <span>6</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">4. huntU - Inteligencia Artificial en Reclutamiento</span>
+                    <span class="toc-line"></span>
+                    <span>8</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">5. Amigro</span>
+                    <span class="toc-line"></span>
+                    <span>9</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">6. Descripción del Puesto</span>
+                    <span class="toc-line"></span>
+                    <span>10</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">7. Servicios y Estructura de Costos</span>
+                    <span class="toc-line"></span>
+                    <span>11</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">8. Cronograma del Proceso</span>
+                    <span class="toc-line"></span>
+                    <span>14</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">9. Casos de Éxito</span>
+                    <span class="toc-line"></span>
+                    <span>15</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">10. Preguntas Frecuentes</span>
+                    <span class="toc-line"></span>
+                    <span>16</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">11. Condiciones Generales</span>
+                    <span class="toc-line"></span>
+                    <span>17</span>
+                </div>
+                <div class="toc-item">
+                    <span class="font-medium">12. Anexos</span>
+                    <span class="toc-line"></span>
+                    <span>20</span>
+                </div>
+            </div>
+            
+            <div class="mt-12 text-center">
+                <div class="qr-code inline-block">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://grupohuntred.com/verify/{{ proposal.id }}" alt="Código QR de verificación">
+                </div>
+                <p class="text-sm text-gray-600 mt-2">Escanee para verificar la autenticidad de esta propuesta</p>
+            </div>
+        </section>
+        
+        <!-- Introducción a Grupo huntRED® -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">1. Sobre Grupo hunt<span class="text-red">RED®</span></h2>
+            <div class="section-divider"></div>
+            
+            <div class="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+                <div class="flex items-start mb-6">
+                    <div class="flex-shrink-0 mr-6">
+                        <img src="{{ company.logo_url }}" alt="Grupo huntRED® Logo" class="w-32">
+                    </div>
+                    <div>
+                        <p class="text-gray-700 mb-4">Grupo hunt<span class="text-red">RED®</span> es una consultoría especializada en reclutamiento y selección de talento con más de 15 años de experiencia en el mercado. Nuestras soluciones están diseñadas para cubrir las necesidades de capital humano en todos los niveles organizacionales, desde puestos operativos hasta posiciones de alta dirección.</p>
+                        
+                        <p class="text-gray-700 mb-4">A través de nuestro proceso riguroso y metodología basada en datos, ayudamos a nuestros clientes a identificar y atraer al talento que necesitan para alcanzar sus objetivos de negocio.</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-center mb-6">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-gray-700 mb-2">15+</div>
+                        <p class="text-sm text-gray-600">Años de experiencia</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-gray-700 mb-2">500+</div>
+                        <p class="text-sm text-gray-600">Clientes satisfechos</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-gray-700 mb-2">5,000+</div>
+                        <p class="text-sm text-gray-600">Posiciones cubiertas</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="text-3xl font-bold text-gray-700 mb-2">92%</div>
+                        <p class="text-sm text-gray-600">Tasa de retención a 1 año</p>
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <p class="text-sm text-gray-500 italic">"Conectamos a los mejores profesionales con las organizaciones más destacadas de la región"</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Información del Cliente -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">2. Información del Cliente</h2>
+            <div class="section-divider"></div>
+            
+            <div class="bg-gray-50 rounded-lg p-6 mt-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="mb-2"><strong>Empresa:</strong> {{ client.name }}</p>
+                        <p class="mb-2"><strong>Industria:</strong> {{ client.industry }}</p>
+                        <p class="mb-2"><strong>Dirección:</strong> {{ client.address }}, {{ client.city }}</p>
+                        <p class="mb-2"><strong>Teléfono:</strong> {{ client.phone }}</p>
+                    </div>
+                    <div>
+                        <p class="mb-2"><strong>Contacto Principal:</strong> {{ client.primary_contact_name }}</p>
+                        <p class="mb-2"><strong>Cargo:</strong> {{ client.primary_contact_position }}</p>
+                        <p class="mb-2"><strong>Email:</strong> {{ client.email }}</p>
+                        <p class="mb-2"><strong>Gestor de Cuenta:</strong> {{ company.account_manager }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Conocimiento del Cliente -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">3. Entendiendo su Negocio</h2>
+            <div class="section-divider"></div>
+            
+            <div class="p-2">
+                <p class="text-gray-700 mb-4">En hunt<span class="text-red">RED®</span>, creemos firmemente que un reclutamiento exitoso comienza con un profundo entendimiento de su organización, sus objetivos estratégicos y su cultura corporativa. Nuestro análisis de {{ client.name }} nos ha permitido identificar los siguientes elementos clave que informarán nuestra estrategia de reclutamiento:</p>
+                
+                <!-- Tarjetas de entendimiento -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <!-- Desafíos y Oportunidades -->
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                        <div class="p-5 bg-gradient-to-r from-blue-500 to-blue-700 text-white">
+                            <h3 class="text-lg font-semibold">Desafíos del Mercado</h3>
+                        </div>
+                        <div class="p-5">
+                            <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                                <li>Escasez de talento especializado en {{ client.industry }}</li>
+                                <li>Alta competencia por profesionales calificados</li>
+                                <li>Necesidad de incorporación rápida para cumplir objetivos de crecimiento</li>
+                                <li>Equilibrio entre habilidades técnicas y ajuste cultural</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Prioridades Estratégicas -->
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                        <div class="p-5 bg-gradient-to-r from-blue-700 to-purple-700 text-white">
+                            <h3 class="text-lg font-semibold">Prioridades Estratégicas</h3>
+                        </div>
+                        <div class="p-5">
+                            <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                                <li>Fortalecer posicionamiento en el mercado de {{ client.industry }}</li>
+                                <li>Digitalizar procesos clave para aumentar eficiencia</li>
+                                <li>Expandir capacidades en áreas emergentes e innovadoras</li>
+                                <li>Retener y desarrollar talento clave para liderazgo futuro</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Cultura y Valores -->
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                        <div class="p-5 bg-gradient-to-r from-purple-700 to-red-700 text-white">
+                            <h3 class="text-lg font-semibold">Cultura y Valores</h3>
+                        </div>
+                        <div class="p-5">
+                            <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                                <li>Enfoque en innovación y mejora continua</li>
+                                <li>Colaboración y trabajo en equipo multidisciplinario</li>
+                                <li>Orientación a resultados con ética y responsabilidad</li>
+                                <li>Compromiso con la diversidad e inclusión</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Análisis de Datos -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 mb-6">
+                    <div class="p-4 bg-gray-50 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800">Análisis Predictivo del Mercado Laboral en {{ client.industry }}</h3>
+                    </div>
+                    <div class="p-5">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Gráfico o Visualización -->
+                            <div>
+                                <canvas id="talentMarketChart" height="250"></canvas>
+                            </div>
+                            
+                            <!-- Insights -->
+                            <div>
+                                <h4 class="text-md font-semibold mb-3" style="color: var(--hunt-blue);">Insights Clave:</h4>
+                                <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                                    <li>Nuestro análisis de mercado muestra una <strong>escasez del 27%</strong> de profesionales en posiciones similares a las requeridas</li>
+                                    <li>El salario promedio para estos roles ha aumentado un <strong>12% en el último año</strong></li>
+                                    <li>La tasa de rotación en la industria es del <strong>18%</strong>, por encima del promedio nacional</li>
+                                    <li>Hemos identificado <strong>tres clusters</strong> de talento pasivo que coinciden con sus necesidades</li>
+                                </ul>
+                                <div class="mt-4">
+                                    <p class="text-sm text-gray-600 italic">Basado en datos recopilados por hunt<span class="text-red">RED®</span> AI de más de 500,000 perfiles profesionales y 1,200 empresas del sector.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Nuestro Enfoque Personalizado -->
+                <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-5 border border-gray-200">
+                    <h3 class="text-lg font-semibold mb-3" style="color: var(--hunt-blue);">Nuestro Enfoque Personalizado para {{ client.name }}</h3>
+                    <p class="text-gray-700 mb-3">Con base en nuestro análisis, hemos diseñado una estrategia de reclutamiento a medida que:</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mr-3">
+                                <i class="fas fa-search text-white"></i>
+                            </div>
+                            <p class="text-sm text-gray-700"><strong>Prioriza fuentes específicas</strong> donde se concentran los profesionales con las competencias exactas que requiere {{ client.name }}</p>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mr-3">
+                                <i class="fas fa-chart-line text-white"></i>
+                            </div>
+                            <p class="text-sm text-gray-700"><strong>Incorpora análisis predictivos</strong> para identificar candidatos con mayor probabilidad de éxito y permanencia en su organización</p>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mr-3">
+                                <i class="fas fa-user-check text-white"></i>
+                            </div>
+                            <p class="text-sm text-gray-700"><strong>Evaluáa el ajuste cultural</strong> utilizando métricas específicas compatibles con los valores y la cultura de {{ client.name }}</p>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center mr-3">
+                                <i class="fas fa-bolt text-white"></i>
+                            </div>
+                            <p class="text-sm text-gray-700"><strong>Acelera el proceso</strong> mediante el uso de inteligencia artificial para reducir drásticamente los tiempos de reclutamiento</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Unidades de Negocio -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">4. Nuestras Unidades de Negocio</h2>
+            <div class="section-divider"></div>
+
+        <!-- Client Information -->
+        <section class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Información del Cliente</h3>
+            <p><strong>Empresa:</strong> {{ client.name }}</p>
+            <p><strong>Industria:</strong> {{ client.industry }}</p>
+            <p><strong>Contacto Principal:</strong> {{ client.primary_contact_name }} ({{ client.primary_contact_position }})</p>
+            <p><strong>Gestor de Cuenta:</strong> {{ client.account_manager }}</p>
+        </section>
+
+        <!-- huntRED® & huntRED® Executive Search -->
+        <section class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">huntRED® & huntRED® Executive Search</h3>
+            <p class="text-gray-600">
+                huntRED® es mucho más que solamente un headhunter, es una nueva forma de reclutamiento especializado, que a través de la tecnología, la experiencia y conocimientos de cada uno de los consultores, ofrecemos soluciones integrales al mercado laboral mexicano.
+            </p>
+            
+            <div class="p-4 mt-3 mb-4 rounded-lg" style="background: linear-gradient(135deg, rgba(31, 53, 68, 0.05) 0%, rgba(255, 51, 0, 0.05) 100%); border: 1px solid rgba(31, 53, 68, 0.1);">
+                <h4 class="text-md font-bold mb-2" style="color: var(--hunt-red);">NUEVO: Proceso Completo de Reclutamiento y Selección</h4>
+                <p class="text-gray-700 mb-2">huntRED® ofrece ahora un proceso completo e integral de reclutamiento y selección que incluye:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <h5 class="font-semibold text-sm text-gray-800">Fase Estratégica</h5>
+                        <ul class="list-disc pl-4 text-sm text-gray-600 mt-1 space-y-1">
+                            <li>Entendimiento profundo del negocio</li>
+                            <li>Análisis organizacional</li>
+                            <li>Mapeo de competencias</li>
+                            <li>Diseño de perfiles avanzados</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <h5 class="font-semibold text-sm text-gray-800">Fase de Atracción</h5>
+                        <ul class="list-disc pl-4 text-sm text-gray-600 mt-1 space-y-1">
+                            <li>Búsqueda activa multicanal</li>
+                            <li>Estrategias de sourcing avanzado</li>
+                            <li>Hunting especializado por industria</li>
+                            <li>Assessment inicial automatizado</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <h5 class="font-semibold text-sm text-gray-800">Fase de Evaluación</h5>
+                        <ul class="list-disc pl-4 text-sm text-gray-600 mt-1 space-y-1">
+                            <li>Entrevistas por competencias</li>
+                            <li>Evaluaciones psicométricas</li>
+                            <li>Assessment center (grupal/individual)</li>
+                            <li>Verificación exhaustiva</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <h5 class="font-semibold text-sm text-gray-800">Fase de Integración</h5>
+                        <ul class="list-disc pl-4 text-sm text-gray-600 mt-1 space-y-1">
+                            <li>Negociación de ofertas</li>
+                            <li>Onboarding estructurado</li>
+                            <li>Seguimiento a 30, 60 y 90 días</li>
+                            <li>Coaching de adaptación</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 mb-3 rounded-lg" style="background: linear-gradient(135deg, rgba(31, 53, 68, 0.08) 0%, rgba(255, 51, 0, 0.08) 100%); border: 1px solid rgba(255, 51, 0, 0.15);">
+                <div class="flex items-start">
+                    <div class="text-red-500 mr-3 mt-1">
+                        <i class="fas fa-robot text-2xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-md font-bold mb-2" style="color: var(--hunt-red);">huntRED® AI: Potenciando el reclutamiento con IA</h4>
+                        <p class="text-gray-700 mb-2">Nuestro más reciente modelo de inteligencia artificial revoluciona el proceso de selección:</p>
+                        <ul class="list-disc pl-4 text-gray-700 space-y-1">
+                            <li><strong>Matching predictivo</strong> con 94% de precisión entre candidatos y posiciones</li>
+                            <li><strong>Análisis de soft skills</strong> mediante procesamiento de lenguaje natural</li>
+                            <li><strong>Predicción de permanencia</strong> basada en patrones históricos y ajuste cultural</li>
+                            <li><strong>Reducción del 60%</strong> en tiempos de reclutamiento sin sacrificar calidad</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-gray-600 mt-3">
+                Sin importar el tamaño, públicas o privadas, locales o internacionales, cada empresa u organización requiere de un equipo de liderazgo eficaz. Nuestros clientes se benefician de nuestra experiencia en la búsqueda de ejecutivos y la evaluación a través de nuestra metodología única.
+            </p>
+            <p class="text-gray-600 mt-2">
+                El compromiso de huntRED® y de todos sus integrantes van mucho más allá de otorgar valor en cada proceso o asistencia que brindamos. Siempre fundamentado en mejorar la calidad de vida e impulsar a nuestros candidatos, no solo en el ámbito profesional sino en el personal en la medida que nos lo permitan.
+            </p>
+        </section>
+
+        <!-- Recruitment Process -->
+        <section class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">El Proceso de Reclutamiento tiene un nuevo integrante</h3>
+            <p class="text-gray-600">
+                Nuestro proceso de reclutamiento posee un componente que lo hace único, el Networking, de esta manera se integran no solo las experiencias laborales sino también los intereses de los candidatos, haciéndolo más efectivo, al precio más asequible.
+            </p>
+            <h4 class="text-md font-medium text-gray-700 mt-4 mb-2">Las Redes Sociales</h4>
+            <p class="text-gray-600">
+                Actualmente el 80% de los cibernáutas en México utilizan las redes sociales, el 63% de estos busca empleo a través de la Internet, por lo que el modelo de negocio de huntRED resulta sumamente atractivo. Encontrar el líder indicado para la posición correcta en el momento adecuado es un reto complejo, es lo que mejor hacemos.
+            </p>
+            <h4 class="text-md font-medium text-gray-700 mt-4 mb-2">Modelo de Especialización</h4>
+            <p class="text-gray-600">
+                El modelo de especialización de huntRED® tiene dos aristas o pilares primordiales:
+            </p>
+            <ul class="list-disc pl-5 text-gray-600 mt-2">
+                <li><strong>Definición de la Vacante:</strong> De fundamental importancia, esta primera etapa nos permite comprender mejor la estructura del cliente, sus objetivos, su cultura y su posicionamiento. Nos permite también analizar el funcionamiento del negocio y sus peculiaridades.</li>
+                <li><strong>Inicio del proceso de reclutamiento:</strong> Nuestros consultores, a través de una o más reuniones con las personas involucradas en el proceso, definirán los detalles de la posición:</li>
+            </ul>
+            <ul class="list-circle pl-10 text-gray-600 mt-2">
+                <li>Principales responsabilidades;</li>
+                <li>Determinar requisitos técnicos y psicológicos;</li>
+                <li>Definir el paquete de remuneración – fijo, variable y otros beneficios;</li>
+                <li>Definir medidas de desempeño;</li>
+                <li>Definir etapas del proceso;</li>
+                <li>Formalizar el tiempo para conclusión del proceso.</li>
+            </ul>
+            <h4 class="text-md font-medium text-gray-700 mt-4 mb-2">Etapas del Proceso</h4>
+            <p class="text-gray-600">
+                Posterior a la prospección y la realización de las entrevistas con los candidatos, presentaremos la lista de candidatos finalistas, que juzgamos los más apropiados para la misión. Esta lista contemplará un análisis crítico para el cargo buscado:
+            </p>
+            <ul class="list-disc pl-5 text-gray-600 mt-2">
+                <li>Calificaciones técnicas y personales, motivaciones, paquete de remuneración actual y expectativa salarial de cada candidato.</li>
+                <li>La lista final compuesta de 3 candidatos para cada una de las vacantes que posteriormente se describirán, serán enviada en el plazo máximo de 2 a 3 semanas, contados a partir de la fecha de iniciado el proyecto.</li>
+            </ul>
+        </section>
+
+        <!-- huntU Section -->
+        <section class="mb-8 page-break">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">huntU - Inteligencia Artificial en Reclutamiento</h3>
+            <p class="text-gray-600">
+                huntU surge de la necesidad de crear una plataforma para asistir a estudiantes y recién egresados a las mejores alternativas laborales, sin importar ubicación, o seguimiento constante a la búsqueda. De una manera simplificada tanto para el aplicante como el empleador. Toda la tecnología es propia de huntU.
+            </p>
+            <p class="text-gray-600 mt-2">
+                huntU es una plataforma digital basada en la nube la cual acerca a estudiantes y recién egresados a las mejores alternativas laborales, mediante el uso de inteligencia artificial y tecnología de punta para seleccionar a los candidatos ideales e integrarlos de manera sencilla y sin el uso salvo de un celular inteligente y 5 minutos a una alternativa laboral viable para el candidato basado en sus preferencias, intereses personales, ubicación geográfica, etc.
+            </p>
+            <p class="text-gray-600 mt-2">
+                Todo esto se hace en cuestión de segundos al momento de la publicación por parte de nuestros clientes de una oferta laboral. Dicha oferta está integrada por una descripción de puesto y unos parámetros muy sencillos así como la dirección del empleo.
+            </p>
+            <p class="text-gray-600 mt-2">
+                Con dicha información el sistema de Inteligencia Artificial identifica en 3 niveles los candidatos que cumplen los requisitos para la misma y los invita mediante 3 métodos de comunicación a integrarse al proceso: Facebook Messenger, Whatsapp, Email. Y en un futuro cercano integrando otros canales de comunicación (Telegram, Instagram, Tiktok, etc).
+            </p>
+            <h4 class="text-md font-medium text-gray-700 mt-4 mb-2">Chatbot - huntUman</h4>
+            <p class="text-gray-600">
+                Una vez identificados los candidatos más aptos para la posición, la plataforma sin interacción alguna lanza una campaña de contacto con dichos candidatos potenciales, mediante 3 tecnologías: Facebook Messenger, Whatsapp, Email. De manera ordenada y escalonada, brindando el tiempo suficiente para que los interesados puedan responder una conversación guiada dentro de nuestro chatbot - huntUman.
+            </p>
+            <p class="text-gray-600 mt-2">
+                A lo largo de la conversación con huntUman se analizan una serie de valores requeridos para el proceso de selección: Nombre, Apellido, Correo Electrónico, Ubicación (mediante geolocalización). Adicionalmente se pueden cotejar y validar todos los valores comprendidos en la base de datos. Dicha conversación no toma más de 1 minuto.
+            </p>
+            <p class="text-gray-600 mt-2">
+                Una vez realizado esto, se definen los intereses laborales del candidato para validar si la alternativa laboral será realmente de su interés. Si esto es correcto se le presentará una alternativa de entrevista, la cual fue definida por el empleador, y se agendará enviando un correo electrónico con la información completa.
+            </p>
+        </section>
+
+        <!-- Amigro Section -->
+        <section class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Amigro</h3>
+            <p class="text-gray-600">
+                [Aquí se puede incluir una descripción detallada de Amigro cuando se proporcione más información. Por ahora, se deja como placeholder.]
+            </p>
+        </section>
+
+        <!-- Job Description Section -->
+        <section class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Descripción del Puesto</h3>
+            <h4 class="text-md font-medium text-gray-700 mb-2">{{ position.title }}</h4>
+            <p><strong>Reporta a:</strong> {{ position.reports_to }}</p>
+            <p><strong>Ubicación:</strong> {{ position.location }}</p>
+            <p><strong>Objetivo:</strong> {{ position.objective }}</p>
+            <h5 class="text-sm font-medium text-gray-700 mt-4 mb-2">Principales Responsabilidades:</h5>
+            <ul class="list-disc pl-5 text-gray-600">
+                {% for responsibility in position.responsibilities %}
+                <li>{{ responsibility }}</li>
+                {% endfor %}
+            </ul>
+            <h5 class="text-sm font-medium text-gray-700 mt-4 mb-2">Paquete de Remuneración:</h5>
+            <p><strong>Salario Mensual:</strong> {{ position.salary_range }}</p>
+            <p><strong>Aguinaldo:</strong> {{ position.aguinaldo }}</p>
+            <p><strong>Prestaciones Adicionales:</strong> {{ position.benefits }}</p>
+            <h5 class="text-sm font-medium text-gray-700 mt-4 mb-2">Perfil del Candidato Ideal:</h5>
+            <ul class="list-disc pl-5 text-gray-600">
+                {% for requirement in position.requirements %}
+                <li>{{ requirement }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <!-- Services & Pricing Section -->
+        <section class="mb-8 page-break">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Servicios Disponibles</h3>
+            
+            <!-- Servicios Disponibles -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {% for service in available_services %}
+                <div class="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <h4 class="text-md font-medium text-gray-700 mb-2">{{ service.name }}</h4>
+                    <p class="text-sm text-gray-600 mb-2">{{ service.description }}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-semibold">{{ pricing.currency }} {{ service.base_price|floatformat:"2" }}</span>
+                        <span class="inline-block px-2 py-1 text-xs rounded {% if service.selected %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">{{ service.business_unit }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-2 text-center py-4 text-gray-500">No hay servicios adicionales disponibles</div>
+                {% endfor %}
+            </div>
+
+            <!-- Estructura de Costos -->
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Estructura de Costos</h3>
+            
+            <!-- Pestañas para Visualización -->
+            <div class="mb-4 border-b border-gray-200">
+                <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+                    <li class="mr-2">
+                        <a href="#" class="inline-block p-4 border-b-2 border-blue-600 rounded-t-lg active text-blue-600" id="tab-summary">Resumen</a>
+                    </li>
+                    <li class="mr-2">
+                        <a href="#" class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="tab-details">Detalles por Posición</a>
+                    </li>
+                    <li class="mr-2">
+                        <a href="#" class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="tab-milestones">Hitos de Pago</a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Resumen de Costos -->
+            <div id="panel-summary" class="mb-6">
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">Base</p>
+                            <p class="text-lg font-bold">{{ pricing.currency }} {{ pricing.subtotal|floatformat:"2" }}</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">Addons</p>
+                            <p class="text-lg font-bold">{{ pricing.currency }} {{ pricing.addons_total|floatformat:"2" }}</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">Descuentos</p>
+                            <p class="text-lg font-bold">{{ pricing.currency }} {{ pricing.discount_amount|floatformat:"2" }}</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">Total</p>
+                            <p class="text-lg font-bold text-blue-600">{{ pricing.currency }} {{ pricing.total|floatformat:"2" }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border rounded-lg overflow-hidden">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border-b p-3 text-left text-sm font-semibold text-gray-700">Posición</th>
+                                <th class="border-b p-3 text-right text-sm font-semibold text-gray-700">BU</th>
+                                <th class="border-b p-3 text-right text-sm font-semibold text-gray-700">Modelo</th>
+                                <th class="border-b p-3 text-right text-sm font-semibold text-gray-700">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in pricing.items %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="border-b p-3 text-sm text-gray-700">{{ item.vacancy.title }}</td>
+                                <td class="border-b p-3 text-sm text-gray-700 text-right">{{ item.vacancy.business_unit.name }}</td>
+                                <td class="border-b p-3 text-sm text-gray-700 text-right">{{ item.model_type }}</td>
+                                <td class="border-b p-3 text-sm text-gray-700 text-right font-medium">{{ pricing.currency }} {{ item.total|floatformat:"2" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-gray-50">
+                                <td colspan="3" class="p-3 text-right text-sm font-semibold text-gray-700">Subtotal:</td>
+                                <td class="p-3 text-right text-sm font-semibold text-gray-700">{{ pricing.currency }} {{ pricing.subtotal|floatformat:"2" }}</td>
+                            </tr>
+                            <tr class="bg-gray-50">
+                                <td colspan="3" class="p-3 text-right text-sm font-semibold text-gray-700">Impuestos ({{ pricing.tax_rate }}%):</td>
+                                <td class="p-3 text-right text-sm font-semibold text-gray-700">{{ pricing.currency }} {{ pricing.tax_amount|floatformat:"2" }}</td>
+                            </tr>
+                            <tr class="bg-gray-50">
+                                <td colspan="3" class="p-3 text-right text-sm font-semibold text-gray-700">Total:</td>
+                                <td class="p-3 text-right text-sm font-semibold text-blue-600">{{ pricing.currency }} {{ pricing.total|floatformat:"2" }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Detalles por Posición (inicialmente oculto) -->
+            <div id="panel-details" class="mb-6 hidden">
+                {% for item in pricing.items %}
+                <div class="border rounded-lg mb-4 overflow-hidden">
+                    <div class="bg-gray-100 p-3 flex justify-between items-center">
+                        <h4 class="text-md font-semibold text-gray-800">{{ item.vacancy.title }}</h4>
+                        <span class="text-sm font-medium text-gray-600">{{ item.vacancy.business_unit.name }}</span>
+                    </div>
+                    
+                    <div class="p-4">
+                        <!-- Parámetros Salariales y de Cálculo -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="p-3 bg-gray-50 rounded">
+                                <h5 class="text-sm font-medium text-gray-700 mb-2">Parámetros Salariales</h5>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    <span class="text-gray-600">Salario Mínimo:</span>
+                                    <span class="text-gray-800 font-medium">{{ pricing.currency }} {{ item.salary_parameters.min|floatformat:"0" }}</span>
+                                    <span class="text-gray-600">Salario Máximo:</span>
+                                    <span class="text-gray-800 font-medium">{{ pricing.currency }} {{ item.salary_parameters.max|floatformat:"0" }}</span>
+                                    <span class="text-gray-600">Aguinaldo:</span>
+                                    <span class="text-gray-800 font-medium">{{ item.salary_parameters.aguinaldo }} días</span>
+                                    <span class="text-gray-600">Bonos:</span>
+                                    <span class="text-gray-800 font-medium">{{ pricing.currency }} {{ item.salary_parameters.bonus|floatformat:"0" }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="p-3 bg-gray-50 rounded">
+                                <h5 class="text-sm font-medium text-gray-700 mb-2">Modelo de Pricing</h5>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    <span class="text-gray-600">Tipo:</span>
+                                    <span class="text-gray-800 font-medium">{{ item.model_type }}</span>
+                                    <span class="text-gray-600">Base:</span>
+                                    <span class="text-gray-800 font-medium">{{ pricing.currency }} {{ item.base_price|floatformat:"2" }}</span>
+                                    {% if item.model_type == 'Porcentaje' %}
+                                    <span class="text-gray-600">Porcentaje:</span>
+                                    <span class="text-gray-800 font-medium">{{ item.percentage }}%</span>
+                                    {% endif %}
+                                    {% if item.model_type == 'AI' %}
+                                    <span class="text-gray-600">Modelo AI:</span>
+                                    <span class="text-gray-800 font-medium">{{ item.ai_model }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="p-3 bg-gray-50 rounded">
+                                <h5 class="text-sm font-medium text-gray-700 mb-2">Totales</h5>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    <span class="text-gray-600">Base:</span>
+                                    <span class="text-gray-800 font-medium">{{ pricing.currency }} {{ item.base_price|floatformat:"2" }}</span>
+                                    <span class="text-gray-600">Addons:</span>
+                                    <span class="text-gray-800 font-medium">{{ pricing.currency }} {{ item.addons_total|floatformat:"2" }}</span>
+                                    <span class="text-gray-600">Total:</span>
+                                    <span class="text-gray-800 font-medium">{{ pricing.currency }} {{ item.total|floatformat:"2" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Addons -->
+                        <div class="mt-4">
+                            <h5 class="text-sm font-medium text-gray-700 mb-2">Servicios Adicionales (Addons)</h5>
+                            <div class="border rounded overflow-hidden">
+                                <table class="w-full border-collapse">
+                                    <thead>
+                                        <tr class="bg-gray-50">
+                                            <th class="p-2 text-left text-xs font-medium text-gray-700">Addon</th>
+                                            <th class="p-2 text-left text-xs font-medium text-gray-700">Descripción</th>
+                                            <th class="p-2 text-right text-xs font-medium text-gray-700">Precio</th>
+                                            <th class="p-2 text-center text-xs font-medium text-gray-700">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for addon in item.addons %}
+                                        <tr class="border-t hover:bg-gray-50">
+                                            <td class="p-2 text-sm text-gray-700">{{ addon.name }}</td>
+                                            <td class="p-2 text-sm text-gray-600">{{ addon.description }}</td>
+                                            <td class="p-2 text-sm text-gray-700 text-right">{{ pricing.currency }} {{ addon.price|floatformat:"2" }}</td>
+                                            <td class="p-2 text-center">
+                                                <span class="inline-block w-3 h-3 rounded-full {% if addon.active %}bg-green-500{% else %}bg-gray-300{% endif %}"></span>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="p-4 text-center text-gray-500">No hay addons disponibles para este servicio</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Hitos de Pago (inicialmente oculto) -->
+            <div id="panel-milestones" class="mb-6 hidden">
+                <div class="border rounded-lg overflow-hidden">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border-b p-3 text-left text-sm font-semibold text-gray-700">Hito</th>
+                                <th class="border-b p-3 text-left text-sm font-semibold text-gray-700">Evento</th>
+                                <th class="border-b p-3 text-center text-sm font-semibold text-gray-700">Porcentaje</th>
+                                <th class="border-b p-3 text-right text-sm font-semibold text-gray-700">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for milestone in pricing.milestones %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="border-b p-3 text-sm text-gray-700">{{ milestone.name }}</td>
+                                <td class="border-b p-3 text-sm text-gray-700">
+                                    <span class="inline-block px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">{{ milestone.trigger_event }}</span>
+                                </td>
+                                <td class="border-b p-3 text-sm text-gray-700 text-center">{{ milestone.percentage }}%</td>
+                                <td class="border-b p-3 text-sm text-gray-700 text-right">{{ pricing.currency }} {{ milestone.amount|floatformat:"2" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Estructura de Pago -->
+                <div class="mt-6">
+                    <h4 class="text-md font-medium text-gray-700 mb-3">Estructuras de Pago Disponibles</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Estructura Regular -->
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="bg-gray-100 p-3">
+                                <h5 class="text-sm font-semibold text-gray-800">Estructura Regular</h5>
+                            </div>
+                            <div class="p-4">
+                                <ul class="space-y-2">
+                                    {% for item in pricing.items %}
+                                    <li class="text-sm">
+                                        <strong>{{ item.vacancy.title }}:</strong>
+                                        <ul class="ml-4 mt-1 space-y-1 text-gray-600">
+                                            <li>Inicio: {{ item.payment_structure.regular.start }}% ({{ pricing.currency }} {{ item.payment_structure.regular.start_amount|floatformat:"2" }})</li>
+                                            <li>Contratación: {{ item.payment_structure.regular.hiring }}% ({{ pricing.currency }} {{ item.payment_structure.regular.hiring_amount|floatformat:"2" }})</li>
+                                        </ul>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- Estructura Fraccionada -->
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="bg-gray-100 p-3">
+                                <h5 class="text-sm font-semibold text-gray-800">Estructura Fraccionada</h5>
+                            </div>
+                            <div class="p-4">
+                                <ul class="space-y-2">
+                                    {% for item in pricing.items %}
+                                    <li class="text-sm">
+                                        <strong>{{ item.vacancy.title }}:</strong>
+                                        <ul class="ml-4 mt-1 space-y-1 text-gray-600">
+                                            <li>Inicio: {{ item.payment_structure.fractioned.start }}% ({{ pricing.currency }} {{ item.payment_structure.fractioned.start_amount|floatformat:"2" }})</li>
+                                            <li>2do Mes: {{ item.payment_structure.fractioned.second_month }}% ({{ pricing.currency }} {{ item.payment_structure.fractioned.second_month_amount|floatformat:"2" }})</li>
+                                            <li>Contratación: {{ item.payment_structure.fractioned.hiring }}% ({{ pricing.currency }} {{ item.payment_structure.fractioned.hiring_amount|floatformat:"2" }})</li>
+                                        </ul>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sección de firma para la estructura de costos -->
+            <div class="mt-8 border-t pt-4">
+                <p class="text-sm text-gray-700 mb-4">Al firmar, reconozco haber revisado y aceptado los términos de precio, las condiciones de pago y los servicios seleccionados para esta propuesta.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">{{ client.primary_contact_name }} ({{ client.primary_contact_position }}):</p>
+                        <div class="mt-2 border-b border-gray-400 h-10"></div>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Fecha:</p>
+                        <div class="mt-2 border-b border-gray-400 h-10"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Cronograma del Proceso -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">8. Cronograma del Proceso</h2>
+            <div class="section-divider"></div>
+            
+            <p class="text-gray-700 mb-6">El siguiente cronograma ilustra los tiempos estimados para cada fase del proceso de reclutamiento. Los tiempos pueden variar dependiendo de la complejidad de la posición y la disponibilidad de candidatos calificados.</p>
+            
+            <div class="timeline mt-8">
+                <div class="timeline-item">
+                    <h3 class="text-lg font-semibold text-blue-600">Fase 1: Inicio y Definición</h3>
+                    <p class="text-sm text-gray-500">Días 1-3</p>
+                    <div class="mt-2 ml-4">
+                        <ul class="list-disc text-gray-700 text-sm space-y-1">
+                            <li>Firma de propuesta y contrato</li>
+                            <li>Reunión inicial para definir detalles de la posición</li>
+                            <li>Establecimiento de perfiles y criterios de búsqueda</li>
+                            <li>Configuración de la estrategia de reclutamiento</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <h3 class="text-lg font-semibold text-blue-600">Fase 2: Búsqueda y Evaluación</h3>
+                    <p class="text-sm text-gray-500">Días 4-14</p>
+                    <div class="mt-2 ml-4">
+                        <ul class="list-disc text-gray-700 text-sm space-y-1">
+                            <li>Activación de canales de búsqueda (headhunting, redes, bases de datos)</li>
+                            <li>Evaluación preliminar de candidatos</li>
+                            <li>Entrevistas iniciales con consultores huntRED®</li>
+                            <li>Evaluación técnica y de competencias</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <h3 class="text-lg font-semibold text-blue-600">Fase 3: Presentación de Candidatos</h3>
+                    <p class="text-sm text-gray-500">Días 15-17</p>
+                    <div class="mt-2 ml-4">
+                        <ul class="list-disc text-gray-700 text-sm space-y-1">
+                            <li>Preparación de lista corta de candidatos finalistas</li>
+                            <li>Presentación de expedientes al cliente</li>
+                            <li>Coordinación de entrevistas con el cliente</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <h3 class="text-lg font-semibold text-blue-600">Fase 4: Entrevistas con Cliente</h3>
+                    <p class="text-sm text-gray-500">Días 18-23</p>
+                    <div class="mt-2 ml-4">
+                        <ul class="list-disc text-gray-700 text-sm space-y-1">
+                            <li>Realización de entrevistas cliente-candidato</li>
+                            <li>Retroalimentación y seguimiento</li>
+                            <li>Segunda ronda de entrevistas (si aplica)</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <h3 class="text-lg font-semibold text-blue-600">Fase 5: Selección Final</h3>
+                    <p class="text-sm text-gray-500">Días 24-28</p>
+                    <div class="mt-2 ml-4">
+                        <ul class="list-disc text-gray-700 text-sm space-y-1">
+                            <li>Evaluaciones adicionales (si se requieren)</li>
+                            <li>Verificación de referencias</li>
+                            <li>Negociación de oferta</li>
+                            <li>Preparación del candidato para la incorporación</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <h3 class="text-lg font-semibold text-blue-600">Fase 6: Contratación</h3>
+                    <p class="text-sm text-gray-500">Día 29-30</p>
+                    <div class="mt-2 ml-4">
+                        <ul class="list-disc text-gray-700 text-sm space-y-1">
+                            <li>Formalización de la oferta</li>
+                            <li>Firma del contrato</li>
+                            <li>Coordinación de inicio de labores</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <h3 class="text-lg font-semibold text-blue-600">Fase 7: Seguimiento</h3>
+                    <p class="text-sm text-gray-500">Post-contratación (3 meses)</p>
+                    <div class="mt-2 ml-4">
+                        <ul class="list-disc text-gray-700 text-sm space-y-1">
+                            <li>Acompañamiento durante el periodo de garantía</li>
+                            <li>Evaluación de adaptación y desempeño</li>
+                            <li>Retroalimentación final del proceso</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-12 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Cronograma Comparativo: Proceso Tradicional vs. hunt<span style="color: var(--hunt-red);">RED®</span> AI</h3>
+                
+                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+                    <table class="w-full">
+                        <thead class="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 text-left">Fase del Proceso</th>
+                                <th class="py-3 px-4 text-center">Método Tradicional</th>
+                                <th class="py-3 px-4 text-center" style="background: linear-gradient(90deg, #1f3544, #ff3300);">hunt<span style="color: white;">RED®</span> AI</th>
+                                <th class="py-3 px-4 text-center">Reducción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="py-3 px-4 font-medium">Inicio y Definición</td>
+                                <td class="py-3 px-4 text-center">3 días</td>
+                                <td class="py-3 px-4 text-center font-medium" style="color: var(--hunt-red);">1 día</td>
+                                <td class="py-3 px-4 text-center">66%</td>
+                            </tr>
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="py-3 px-4 font-medium">Búsqueda y Evaluación</td>
+                                <td class="py-3 px-4 text-center">11 días</td>
+                                <td class="py-3 px-4 text-center font-medium" style="color: var(--hunt-red);">4 días</td>
+                                <td class="py-3 px-4 text-center">64%</td>
+                            </tr>
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="py-3 px-4 font-medium">Presentación de Candidatos</td>
+                                <td class="py-3 px-4 text-center">3 días</td>
+                                <td class="py-3 px-4 text-center font-medium" style="color: var(--hunt-red);">1 día</td>
+                                <td class="py-3 px-4 text-center">66%</td>
+                            </tr>
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="py-3 px-4 font-medium">Entrevistas con Cliente</td>
+                                <td class="py-3 px-4 text-center">6 días</td>
+                                <td class="py-3 px-4 text-center font-medium" style="color: var(--hunt-red);">3 días</td>
+                                <td class="py-3 px-4 text-center">50%</td>
+                            </tr>
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="py-3 px-4 font-medium">Selección Final</td>
+                                <td class="py-3 px-4 text-center">5 días</td>
+                                <td class="py-3 px-4 text-center font-medium" style="color: var(--hunt-red);">2 días</td>
+                                <td class="py-3 px-4 text-center">60%</td>
+                            </tr>
+                            <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                <td class="py-3 px-4 font-medium">Contratación</td>
+                                <td class="py-3 px-4 text-center">2 días</td>
+                                <td class="py-3 px-4 text-center font-medium" style="color: var(--hunt-red);">1 día</td>
+                                <td class="py-3 px-4 text-center">50%</td>
+                            </tr>
+                            <tr class="bg-gray-50">
+                                <td class="py-3 px-4 font-bold">TIEMPO TOTAL</td>
+                                <td class="py-3 px-4 text-center font-bold">30 días</td>
+                                <td class="py-3 px-4 text-center font-bold" style="color: var(--hunt-red);">12 días</td>
+                                <td class="py-3 px-4 text-center font-bold">60%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex items-start">
+                        <div class="text-red-500 mr-3">
+                            <i class="fas fa-robot text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-md font-semibold mb-1" style="color: var(--hunt-red);">huntRED® AI: Reclutamiento potenciado por Inteligencia Artificial</h4>
+                            <p class="text-sm text-gray-700">Nuestro modelo de IA propietario acelera significativamente el proceso de reclutamiento mediante:
+                                <ul class="list-disc ml-5 mt-2 text-sm">
+                                    <li><strong>Búsqueda inteligente</strong> que identifica candidatos pasivos con precisión del 94%</li>
+                                    <li><strong>Evaluación automatizada</strong> de habilidades técnicas y blandas</li>
+                                    <li><strong>Análisis predictivo</strong> de ajuste cultural y permanencia</li>
+                                    <li><strong>Matching avanzado</strong> entre requisitos del puesto y competencias del candidato</li>
+                                </ul>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div class="flex items-start">
+                    <div class="text-blue-500 mr-3">
+                        <i class="fas fa-info-circle text-2xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-md font-semibold text-blue-700 mb-1">Nota sobre el cronograma</h4>
+                        <p class="text-sm text-gray-700">El cronograma presentado es una referencia y puede ajustarse según las necesidades específicas del cliente y la complejidad de la búsqueda. Para posiciones de alta dirección o perfiles altamente especializados, los tiempos pueden extenderse. La opción de huntRED® AI está disponible para potenciar cualquier proceso de reclutamiento.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Casos de Éxito -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">5. Casos de Éxito</h2>
+            <div class="section-divider"></div>
+            
+            <p class="text-gray-700 mb-8">En Grupo huntRED® nos enorgullece nuestra trayectoria de éxito en la búsqueda y selección de talento para empresas de diversos sectores. A continuación, presentamos algunos casos recientes relevantes para su industria.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                <!-- Caso 1 -->
+                <div class="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-700 p-4">
+                        <h3 class="text-white font-bold text-lg">Director Comercial para Empresa de Tecnología</h3>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex justify-between mb-3">
+                            <span class="text-sm text-gray-500">Industria:</span>
+                            <span class="text-sm font-medium">Tecnología / SaaS</span>
+                        </div>
+                        <div class="flex justify-between mb-3">
+                            <span class="text-sm text-gray-500">Tiempo de búsqueda:</span>
+                            <span class="text-sm font-medium">25 días</span>
+                        </div>
+                        <div class="flex justify-between mb-3">
+                            <span class="text-sm text-gray-500">Candidatos presentados:</span>
+                            <span class="text-sm font-medium">5</span>
+                        </div>
+                        <div class="flex justify-between mb-4">
+                            <span class="text-sm text-gray-500">Permanencia:</span>
+                            <span class="text-sm font-medium">Actualmente (2+ años)</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-4">
+                            Una empresa de tecnología en expansión necesitaba un Director Comercial con experiencia en SaaS. Encontramos al candidato ideal que incrementó las ventas en un 43% durante su primer año, estableciendo nuevos canales de distribución y mejorando la estrategia comercial.                            
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Caso 2 -->
+                <div class="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-4">
+                        <h3 class="text-white font-bold text-lg">Equipo de Desarrollo para Startup Fintech</h3>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex justify-between mb-3">
+                            <span class="text-sm text-gray-500">Industria:</span>
+                            <span class="text-sm font-medium">Fintech</span>
+                        </div>
+                        <div class="flex justify-between mb-3">
+                            <span class="text-sm text-gray-500">Tiempo de búsqueda:</span>
+                            <span class="text-sm font-medium">45 días</span>
+                        </div>
+                        <div class="flex justify-between mb-3">
+                            <span class="text-sm text-gray-500">Candidatos presentados:</span>
+                            <span class="text-sm font-medium">12 (para 4 posiciones)</span>
+                        </div>
+                        <div class="flex justify-between mb-4">
+                            <span class="text-sm text-gray-500">Permanencia:</span>
+                            <span class="text-sm font-medium">18 meses promedio</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-4">
+                            Una startup fintech necesitaba conformar rápidamente un equipo de desarrollo. Reclutamos un Tech Lead y tres desarrolladores con experiencia específica en tecnologías financieras. El equipo logró lanzar la plataforma antes de lo previsto, permitiendo a la empresa captar una ronda de inversión importante.                            
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Resultado Específico de Interés para {{ client.name }}</h3>
+                <div class="flex items-start">
+                    <div class="hidden md:block mr-6">
+                        <div class="rounded-full bg-blue-100 p-4 text-blue-600">
+                            <i class="fas fa-chart-line text-3xl"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-gray-700 mb-4">Para una empresa en el sector {{ client.industry }} similar a la suya, logramos encontrar talento especializado que contribuyó significativamente a sus objetivos de negocio:</p>
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li class="text-gray-700">Reducción del tiempo de contratación en un <span class="font-semibold">67%</span> comparado con procesos anteriores</li>
+                            <li class="text-gray-700">Aumento del <span class="font-semibold">83%</span> en la retención de personal clave</li>
+                            <li class="text-gray-700">Mejora del <span class="font-semibold">41%</span> en indicadores de desempeño de personal contratado</li>
+                            <li class="text-gray-700">Optimización de costos de contratación en un <span class="font-semibold">23%</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+                        
+            <div class="text-center mt-8">
+                <p class="text-sm text-gray-500 mb-2">Algunos de nuestros clientes satisfechos</p>
+                <div class="flex justify-center flex-wrap gap-6 mt-4">
+                    <!-- Estas imágenes se reemplazarían por logotipos reales de clientes -->
+                    <div class="w-32 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">Logo Cliente 1</div>
+                    <div class="w-32 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">Logo Cliente 2</div>
+                    <div class="w-32 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">Logo Cliente 3</div>
+                    <div class="w-32 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">Logo Cliente 4</div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Preguntas Frecuentes -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">11. Preguntas Frecuentes</h2>
+            <div class="section-divider"></div>
+            
+            <p class="text-gray-700 mb-6">Respondemos a las consultas más comunes sobre nuestro proceso de reclutamiento y selección:</p>
+            
+            <div class="space-y-4">
+                <!-- Pregunta 1 -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
+                        <span class="font-medium">¿Cuál es el tiempo promedio para cubrir una vacante?</span>
+                        <i class="fas fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="accordion-content p-4 border-t border-gray-200 bg-white">
+                        <p class="text-gray-700">El tiempo promedio para cubrir una vacante gerencial o directiva es de 30 días. Sin embargo, este plazo puede variar dependiendo de la complejidad del puesto, la disponibilidad de candidatos en el mercado, y los requisitos específicos de la posición. Para puestos altamente especializados o de alta dirección, el proceso puede extenderse hasta 45-60 días.</p>
+                    </div>
+                </div>
+                
+                <!-- Pregunta 2 -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
+                        <span class="font-medium">¿Qué garantía ofrece huntRED® si el candidato contratado no funciona?</span>
+                        <i class="fas fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="accordion-content p-4 border-t border-gray-200 bg-white">
+                        <p class="text-gray-700">Ofrecemos una garantía de reemplazo de 3 meses. Si durante este periodo el candidato contratado renuncia o es despedido por motivos de desempeño, reanudaremos el proceso de búsqueda sin costo adicional (exceptuando gastos de publicidad u otros previamente acordados). Esta garantía está sujeta a las condiciones detalladas en el contrato, como la notificación oportuna de la terminación y el pago completo de nuestros servicios.</p>
+                    </div>
+                </div>
+                
+                <!-- Pregunta 3 -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
+                        <span class="font-medium">¿Cómo se diferencia huntRED® de otras empresas de reclutamiento?</span>
+                        <i class="fas fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="accordion-content p-4 border-t border-gray-200 bg-white">
+                        <p class="text-gray-700 mb-3">huntRED® se diferencia por:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                            <li>Nuestro enfoque de networking activo que nos permite llegar a candidatos pasivos de alta calidad</li>
+                            <li>El uso de inteligencia artificial y tecnología avanzada para mejorar la precisión en la búsqueda de candidatos</li>
+                            <li>Consultores especializados por industria con profundo conocimiento del mercado</li>
+                            <li>Nuestro proceso de evaluación integral que analiza tanto competencias técnicas como de liderazgo y ajuste cultural</li>
+                            <li>Un enfoque personalizado para cada cliente, adaptando nuestras estrategias a sus necesidades específicas</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Pregunta 4 -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
+                        <span class="font-medium">¿Cómo evalúan a los candidatos?</span>
+                        <i class="fas fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="accordion-content p-4 border-t border-gray-200 bg-white">
+                        <p class="text-gray-700 mb-3">Nuestro proceso de evaluación es riguroso y multidimensional, incluyendo:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                            <li>Entrevistas por competencias conducidas por consultores experimentados</li>
+                            <li>Evaluaciones técnicas adaptadas al rol específico</li>
+                            <li>Pruebas psicometrías y de personalidad cuando son relevantes</li>
+                            <li>Verificación exhaustiva de referencias profesionales</li>
+                            <li>Análisis de alineación con la cultura organizacional del cliente</li>
+                            <li>Evaluación de potencial de desarrollo para roles futuros</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Pregunta 5 -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
+                        <span class="font-medium">¿Qué información recibiré sobre los candidatos?</span>
+                        <i class="fas fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="accordion-content p-4 border-t border-gray-200 bg-white">
+                        <p class="text-gray-700 mb-3">Para cada candidato finalista, recibirá:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                            <li>CV detallado y actualizado</li>
+                            <li>Informe de evaluación con análisis de fortalezas y áreas de desarrollo</li>
+                            <li>Resumen de entrevista con hallazgos clave</li>
+                            <li>Expectativas salariales y de beneficios</li>
+                            <li>Disponibilidad para inicio de labores</li>
+                            <li>Informe de verificación de referencias (con autorización del candidato)</li>
+                            <li>Recomendaciones para la entrevista con el cliente</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 text-center">
+                <p class="text-sm text-gray-500 mb-6">¿Tiene otras preguntas? Contáctenos al <a href="tel:+525512345678" class="text-blue-600">+52 55 1234 5678</a> o escriba a <a href="mailto:info@grupohuntred.com" class="text-blue-600">info@grupohuntred.com</a></p>
+                
+                <!-- Botón para agendar reunión con el Managing Director -->
+                <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 max-w-2xl mx-auto">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">¿Desea hablar directamente con nuestro Managing Director?</h3>
+                    <p class="text-gray-700 mb-4">Reserve una reunión personal con Pablo Lelo de Larrea H. - Sr. Managing Partner Grupo huntRED® para discutir su estrategia de reclutamiento y resolver cualquier duda.</p>
+                    <a href="https://huntred.com/agenda-pllh/" target="_blank" class="inline-block px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium rounded-md hover:from-red-700 hover:to-red-800 transition-all shadow-md">
+                        <i class="fas fa-calendar-check mr-2"></i>Agendar Reunión Estratégica
+                    </a>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Anexos -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">11. Anexos</h2>
+            <div class="section-divider"></div>
+            
+            <!-- Anexo 1: Metodología -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Anexo 1: Metodología de Selección</h3>
+                
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <p class="text-gray-700 mb-4">En Grupo huntRED® aplicamos una metodología especializada de selección que combina técnicas tradicionales con tecnología avanzada:</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- Etapa 1 -->
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 rounded-full w-10 h-10 flex items-center justify-center text-blue-600 mr-3">
+                                    <span class="font-bold">1</span>
+                                </div>
+                                <h4 class="font-semibold">Perfil y Sourcing</h4>
+                            </div>
+                            <ul class="text-sm text-gray-700 space-y-2 pl-4">
+                                <li>Análisis detallado del puesto</li>
+                                <li>Definición de competencias clave</li>
+                                <li>Mapeo de mercado y talento</li>
+                                <li>Activación de fuentes de reclutamiento</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Etapa 2 -->
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 rounded-full w-10 h-10 flex items-center justify-center text-blue-600 mr-3">
+                                    <span class="font-bold">2</span>
+                                </div>
+                                <h4 class="font-semibold">Evaluación</h4>
+                            </div>
+                            <ul class="text-sm text-gray-700 space-y-2 pl-4">
+                                <li>Entrevistas por competencias</li>
+                                <li>Evaluaciones técnicas</li>
+                                <li>Assessment centers (cuando aplica)</li>
+                                <li>Pruebas psicometrías</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Etapa 3 -->
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 rounded-full w-10 h-10 flex items-center justify-center text-blue-600 mr-3">
+                                    <span class="font-bold">3</span>
+                                </div>
+                                <h4 class="font-semibold">Validación y Selección</h4>
+                            </div>
+                            <ul class="text-sm text-gray-700 space-y-2 pl-4">
+                                <li>Verificación de referencias</li>
+                                <li>Validación de credenciales</li>
+                                <li>Entrevistas con cliente</li>
+                                <li>Toma de decisión</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <h4 class="font-semibold text-gray-800 mb-2">Herramientas y tecnologías utilizadas:</h4>
+                        <div class="flex flex-wrap gap-3 mt-3">
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">IA para matching de candidatos</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Evaluación 360°</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Plataforma de entrevistas virtuales</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Tests DISC y competencias</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Verificación digital de antecedentes</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Anexo 2: Perfil de Consultores -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Anexo 2: Perfil de Consultores Asignados</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Consultor 1 -->
+                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4">
+                            <h4 class="font-semibold">{{ company.account_manager }}</h4>
+                            <p class="text-sm text-blue-100">Consultor Principal</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex items-start mb-4">
+                                <div class="bg-gray-200 rounded-full w-16 h-16 mr-4 flex items-center justify-center text-gray-400">
+                                    <i class="fas fa-user text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-2">Más de 8 años de experiencia en reclutamiento ejecutivo en los sectores de tecnología, finanzas y retail. Especialista en posiciones gerenciales y directivas.</p>
+                                    <div class="flex flex-wrap gap-2 mt-2">
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Executive Search</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">{{ client.industry }}</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Headhunting</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Consultor 2 -->
+                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4">
+                            <h4 class="font-semibold">Consultor de Apoyo</h4>
+                            <p class="text-sm text-blue-100">Especialista Técnico</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex items-start mb-4">
+                                <div class="bg-gray-200 rounded-full w-16 h-16 mr-4 flex items-center justify-center text-gray-400">
+                                    <i class="fas fa-user text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-2">5 años de experiencia en evaluación técnica de candidatos para posiciones especializadas. Experto en procesos de selección para puestos de alta complejidad técnica.</p>
+                                    <div class="flex flex-wrap gap-2 mt-2">
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Evaluación Técnica</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">{{ position.title }}</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Entrevistas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Anexo 3: Información Adicional -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Anexo 3: Información de Contacto y Soporte</h3>
+                
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Contacto Principal -->
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-3">Su Equipo de Soporte</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-user-tie"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">{{ company.account_manager }}</p>
+                                        <p class="text-sm text-gray-600">Consultor Principal</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-phone"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">+52 55 1234 5678</p>
+                                        <p class="text-sm text-gray-600">Línea directa</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-envelope"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">{{ company.email }}</p>
+                                        <p class="text-sm text-gray-600">Email principal</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-building"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">{{ company.address }}</p>
+                                        <p class="text-sm text-gray-600">Oficinas centrales</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Canales y Horarios -->
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-3">Canales de Comunicación</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <p class="font-medium">Horario de Atención</p>
+                                    <p class="text-sm text-gray-600">Lunes a Viernes: 9:00 - 18:00<br>Sábado: 9:00 - 13:00</p>
+                                </div>
+                                <div>
+                                    <p class="font-medium">Plataforma de Seguimiento</p>
+                                    <p class="text-sm text-gray-600">Acceso 24/7 a nuestra plataforma digital<br>dashboard.grupohuntred.com</p>
+                                </div>
+                                <div>
+                                    <p class="font-medium">Soporte de Emergencia</p>
+                                    <p class="text-sm text-gray-600">Teléfono: +52 55 9876 5432<br>WhatsApp: +52 55 1234 5678</p>
+                                </div>
+                                <div class="flex gap-3 mt-4">
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-linkedin text-xl"></i></a>
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-twitter text-xl"></i></a>
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-facebook text-xl"></i></a>
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-instagram text-xl"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enlace Directo de Contacto -->
+                    <div class="mt-8 border-t border-gray-200 pt-6 text-center">
+                        <div class="inline-block text-center">
+                            <a href="https://ai.huntred.com/contacto" target="_blank" class="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all shadow-md">
+                                <i class="fas fa-headset mr-2"></i> Contactar a nuestro equipo
+                            </a>
+                            <p class="text-sm text-gray-600 mt-3">Contáctenos directamente para resolver cualquier duda adicional</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- JavaScript para el cambio de pestañas y acordeones -->
+        <!-- JavaScript para el gráfico de análisis predictivo -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar el gráfico de análisis de mercado laboral
+            const ctx = document.getElementById('talentMarketChart').getContext('2d');
+            
+            const talentMarketChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Disponibilidad', 'Demanda', 'Rotación', 'Tiempo de Contratación', 'Ajuste Cultural'],
+                    datasets: [{
+                        label: 'Mercado General',
+                        data: [45, 75, 25, 45, 65],
+                        backgroundColor: 'rgba(53, 162, 235, 0.5)',
+                        borderColor: 'rgba(53, 162, 235, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Nuestra Solución',
+                        data: [72, 85, 18, 20, 90],
+                        backgroundColor: 'rgba(255, 51, 0, 0.5)',
+                        borderColor: 'rgba(255, 51, 0, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Índice de Eficacia (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Comparativa de Eficacia en Reclutamiento',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Elementos de pestaña
+            const tabSummary = document.getElementById('tab-summary');
+            const tabDetails = document.getElementById('tab-details');
+            const tabMilestones = document.getElementById('tab-milestones');
+            
+            // Paneles de contenido
+            const panelSummary = document.getElementById('panel-summary');
+            const panelDetails = document.getElementById('panel-details');
+            const panelMilestones = document.getElementById('panel-milestones');
+            
+            // Función para activar una pestaña
+            function activateTab(tab, panel) {
+                // Desactivar todas las pestañas
+                [tabSummary, tabDetails, tabMilestones].forEach(t => {
+                    t.classList.remove('border-blue-600', 'text-blue-600');
+                    t.classList.add('border-transparent');
+                });
+                
+                // Ocultar todos los paneles
+                [panelSummary, panelDetails, panelMilestones].forEach(p => {
+                    p.classList.add('hidden');
+                });
+                
+                // Activar la pestaña seleccionada
+                tab.classList.add('border-blue-600', 'text-blue-600');
+                tab.classList.remove('border-transparent');
+                
+                // Mostrar el panel seleccionado
+                panel.classList.remove('hidden');
+            }
+            
+            // Event listeners para pestañas
+            tabSummary.addEventListener('click', function(e) {
+                e.preventDefault();
+                activateTab(tabSummary, panelSummary);
+            });
+            
+            tabDetails.addEventListener('click', function(e) {
+                e.preventDefault();
+                activateTab(tabDetails, panelDetails);
+            });
+            
+            tabMilestones.addEventListener('click', function(e) {
+                e.preventDefault();
+                activateTab(tabMilestones, panelMilestones);
+            });
+            
+            // Manejo de acordeones en preguntas frecuentes
+            const accordionHeaders = document.querySelectorAll('.accordion-header');
+            
+            accordionHeaders.forEach(header => {
+                header.addEventListener('click', function() {
+                    // Encontrar el elemento de contenido correspondiente
+                    const content = this.nextElementSibling;
+                    
+                    // Toggle visibilidad
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        this.querySelector('i').classList.replace('fa-chevron-up', 'fa-chevron-down');
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                        this.querySelector('i').classList.replace('fa-chevron-down', 'fa-chevron-up');
+                    }
+                });
+            });
+            
+            // Funcionalidad para el botón de guardar propuesta
+            const btnGuardarPropuesta = document.getElementById('btnGuardarPropuesta');
+            if (btnGuardarPropuesta) {
+                btnGuardarPropuesta.addEventListener('click', function() {
+                    // Verificar si hay firmas antes de guardar
+                    const clienteSignature = document.querySelector('.firma-cliente');
+                    const consultor = document.querySelector('.firma-consultor');
+                    
+                    if (!clienteSignature || !consultor) {
+                        alert('Por favor, asegúrese de que la propuesta esté firmada por ambas partes antes de guardar.');
+                        return;
+                    }
+                    
+                    // Simular la acción de guardar con una animación
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+                    this.disabled = true;
+                    
+                    // Simular una solicitud al servidor
+                    setTimeout(() => {
+                        // Mostrar mensaje de éxito
+                        this.innerHTML = '<i class="fas fa-check mr-2"></i>Propuesta Guardada';
+                        this.classList.remove('bg-red-600', 'hover:bg-red-700');
+                        this.classList.add('bg-green-600', 'hover:bg-green-700');
+                        
+                        // Notificar al usuario
+                        alert('La propuesta ha sido guardada exitosamente. Se ha enviado una copia a su correo electrónico.');
+                        
+                        // Volver al estado original después de unos segundos
+                        setTimeout(() => {
+                            this.innerHTML = originalText;
+                            this.classList.remove('bg-green-600', 'hover:bg-green-700');
+                            this.classList.add('bg-red-600', 'hover:bg-red-700');
+                            this.disabled = false;
+                        }, 3000);
+                    }, 2000);
+                });
+            }
+        });
+        </script>
+
+                </p>
+                
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold text-center text-gray-800 mb-2">11. Condiciones Generales</h3>
+                        <h4 class="text-md font-medium text-center text-gray-600 mb-5 italic">Contrato de prestación de servicios de selección y reclutamiento de profesionales</h4>
+                        
+                        <div class="text-xs text-gray-700">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Columna 1 -->
+                                <div class="space-y-3">
+                                    <p class="mb-2"><span class="font-semibold">1.</span> Las presentes condiciones generales serán de aplicación a todos los servicios de selección de personal que sean aceptados y realizados por Grupo huntRED®. Con cada solicitud de servicio Grupo huntRED® acordará o pactará expresamente por escrito las condiciones generales y especiales, donde se expresarán las características de la prestación de servicios, consistente en el método de búsqueda de candidatos, remuneración del candidato, los honorarios específicos del encargo, gastos de publicidad, jurisdicción aplicable en caso de conflicto, así como cualquier otra que consideren oportunas las partes.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">2.</span> En caso de conflicto, las condiciones especiales pactadas expresamente por escrito y contenidas en este Contrato y las condiciones generales del mismo, prevalecerán las primeras sobre las condiciones generales, sin embargo, en todo lo no previsto en dichas condiciones especiales, entonces serán aplicables las condiciones generales.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">3.</span> Los honorarios derivados de la prestación del servicio por parte de Grupo huntRED® y sus empresas, consistirán en un tanto por ciento de la remuneración bruta anual fijada para el candidato o un monto fijo establecido puntualmente para cada caso, entendiéndose que para el cálculo de dicha remuneración, se incluirán los bonos fijos o variables pactados, así como cualquier otro tipo de remuneración en especie o en dinero establecido fuera del Compensación Mensual. El tanto por ciento anteriormente referido y que constituyen los honorarios a pagar por el Cliente, será fijado de común acuerdo por las partes, en las condiciones especiales contempladas en el Contrato.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">4.</span> El Cliente abonará los honorarios que corresponden a Grupo huntRED® conforme se vayan devengando, y de la forma siguiente:</p>
+                                    <p class="pl-4 mb-1"><span class="font-semibold">a)</span> Al inicio de la prestación de servicios, el Cliente abonará una provisión de honorarios, no reembolsable, previamente acordada con Grupo huntRED®, consistente en un tanto por ciento de la remuneración bruta anual fijada para el candidato por el primer año de trabajo, de acuerdo a las descripciones elaboradas por el Cliente respecto al entorno del puesto.</p>
+                                    <p class="pl-4 mb-1"><span class="font-semibold">b)</span> El resto de honorarios pactados se abonará por el Cliente, en el momento de firma del contrato laboral realizada por el Cliente, que conste por escrito, y aunque dicha oferta de empleo tenga carácter mercantil, o se trate de cualquier tipo de acuerdo de colaboración entre el Cliente y el candidato.</p>
+                                    <p class="pl-4 mb-2">Para el pago de los honorarios por el Cliente, huntRED® emitirá la factura por los referidos importes, cumpliendo con las disposiciones fiscales aplicables y añadiendo el IVA o impuesto equivalente, vigente en ese momento.</p>
+                                    <p class="pl-4 mb-2">Lo anterior estará debidamente pactado en el Contrato de Prestación de Servicios Profesionales. Para el caso de los honorarios de los procesos realizados mediante nuestras estructuras de inteligencia artificial, se generará el cargo y facturación al inicio del proceso de selección.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">5.</span> El Cliente igualmente abonará a Grupo huntRED® los honorarios previstos en la cláusula 3 anterior, si el candidato presentado por huntRED® no fuese aceptado por el Cliente o éste rechazase la oferta de empleo (o de colaboración) y posteriormente resultase contratado por (o colabora con) el Cliente dentro de un plazo de 12 meses a partir de la fecha de la primera entrevista con el mismo, por entenderse que se ha cumplido el servicio.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">6.</span> En el supuesto que el Cliente decidiera contratar (o hacer colaborar) a más candidatos de los que se hubieran previsto contractualmente, el Cliente deberá pagar a Grupo huntRED® los honorarios correspondientes a cada uno de los candidatos contratados estableciéndose como honorarios a pagar por cada uno de ellos, los pactados en las condiciones especiales para el candidato inicial, y en la forma prevista en la cláusula 3 anterior.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">7.</span> Para el caso que el Cliente presentara o cediese el candidato que ha sido seleccionado para él, a otra persona o sociedad vinculada directa o indirectamente ó sin ninguna clase de vinculación a la misma y con beneficio hacia el cliente, y si el candidato es contratado (o colabora) con esa persona o sociedad dentro de un plazo de 18 meses a contar desde la fecha de la primera presentación del candidato al Cliente, el Cliente deberá pagar igualmente a Grupo huntRED® los honorarios previstos en la cláusula 3 anterior, por considerarse que el servicio ha sido realizado.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">8.</span> En caso de cancelación o anulación del servicio de selección de candidatos por parte del Cliente, éste deberá pagar a Grupo huntRED® los gastos publicitarios pendientes o de cualquier otro orden en que se hubiera incurrido como consecuencia del servicio. El Cliente deberá abonar esta cantidad sin perjuicio de la provisión de fondos referida en la cláusula 3 anterior.</p>
+                                </div>
+                                
+                                <!-- Columna 2 -->
+                                <div class="space-y-3">
+                                    <p class="mb-2"><span class="font-semibold">9.</span> Los servicios de selección no podrán tener una duración superior a 6 meses a contar desde la firma del contrato, a menos que específicamente y en las condiciones especiales se estipule lo contrario. Si transcurrido dicho periodo, ninguno de los candidatos presentados por Grupo huntRED® hubiera sido contratado por el Cliente, el servicio será considerado anulado por el Cliente, siendo, en tal caso aplicable lo dispuesto en la cláusula novena anterior.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">10.</span> Grupo HuntRED®, a petición del Cliente, pone a disposición del mismo la posibilidad de la utilización de un servicio de publicidad como medio de captación de candidatos, cuyos gastos de ejecución correrán siempre a cargo del Cliente, con independencia de los honorarios pactados. La anulación de un anuncio será aceptada por Grupo huntRED® siempre que ésta tenga tiempo suficiente para impedir su publicación sin coste alguno. Los gastos de publicidad serán abonados por el Cliente en un plazo de siete días a contar desde la fecha de la factura correspondiente.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">11.</span> En el supuesto de que en un proceso de selección los candidatos o los Consultores de huntRED® tuvieran que realizar algún tipo de gasto de desplazamiento u otros similares, tales gastos serán asumidos por cuenta del Cliente, por lo que huntRED® facturará directamente dichos importes al Cliente.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">12.</span> En caso de que el contrato de trabajo o colaboración firmado entre el Cliente y el candidato fuera rescindido o terminado por alguno de éstos durante el periodo de garantía definido en las condiciones particulares, Grupo huntRED® ofrecerá al Cliente la posibilidad de poner a su disposición, y durante un plazo no superior al pactado para la duración del servicio de selección de candidato, todos los recursos necesarios para encontrar un sustituto de acuerdo con las necesidades pactadas, sin que ello suponga gastos adicionales al Cliente, (salvo aquellos gastos publicitarios previamente acordados entre Grupo huntRED® y el Cliente), y siempre que:</p>
+                                    <p class="pl-4 mb-1"><span class="font-semibold">a)</span> El Cliente haya notificado a Grupo huntRED®, por escrito, la rescisión o terminación del contrato de trabajo del candidato en un plazo de siete días desde la fecha en que tuvo lugar la resolución.</p>
+                                    <p class="pl-4 mb-1"><span class="font-semibold">b)</span> El Cliente, una de sus filiales u otra sociedad del grupo no contraten al candidato dentro de un plazo de 12 meses a contar desde el fin del contrato. En este caso Grupo huntRED® podrá exigir los honorarios del candidato repuesto en los términos de la cláusula tercera anterior.</p>
+                                    <p class="pl-4 mb-1"><span class="font-semibold">c)</span> La rescisión o terminación del contrato no sea imputable a un exceso de personal.</p>
+                                    <p class="pl-4 mb-2"><span class="font-semibold">d)</span> Todos los honorarios e importes debidos por el Cliente hayan sido abonados conforme a las presentes condiciones generales y a las especiales aplicables.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">13.</span> Todo lo relacionado con los exámenes médicos de los candidatos y las medidas necesarias para que los candidatos puedan obtener el correspondiente permiso de trabajo o cualquier otra autorización que sea necesaria, será responsabilidad única del Cliente, quien deberá favorecer la realización de cualquier acto encaminado a la consecución de los referidos permisos o autorizaciones. Además, el Cliente deberá asegurarse que la contratación del candidato no implica en modo alguno el incumplimiento de la legislación laboral vigente, siendo de su exclusiva responsabilidad cualquier incumplimiento en este sentido.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">14.</span> Grupo huntRED® no será responsable en ningún caso frente al Cliente de los daños, perjuicios, costes, reclamaciones o gastos soportados a cargo del Cliente o reclamados por terceros, como consecuencia de la selección o contratación de los candidatos por el Cliente.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">15.</span> Sin perjuicio de las condiciones previstas en la cláusula 11 anterior, todos los honorarios derivados de la ejecución del servicio serán abonados por el Cliente dentro de un plazo de quince días desde la fecha de factura.</p>
+                                    
+                                    <p class="mb-2"><span class="font-semibold">16.</span> Este contrato no significa ninguna relación laboral entre las partes.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Firma y Aceptación -->
+                <section class="mb-12 page-break mt-16">
+                    <h2 class="text-2xl font-bold mb-4 accent-gradient">11. Firma y Aceptación</h2>
+                    <div class="section-divider"></div>
+                    
+                    <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                        <div class="mb-6">
+                            <p class="text-gray-700 mb-4">Al firmar esta propuesta, acepto los términos y condiciones establecidos para la contratación de los servicios de reclutamiento y selección de Grupo hunt<span class="text-red">RED®</span>.</p>
+                            
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-8">
+                                <p class="text-sm text-gray-600 italic">Este documento tiene validez legal una vez firmado por ambas partes y puede ser firmado de manera presencial o digital. La firma electrónica de este documento tiene la misma validez legal que una firma manuscrita.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                            <!-- Cliente -->
+                            <div class="border rounded-lg overflow-hidden">
+                                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, #3a4a5a 100%);" class="p-3 text-white">
+                                    <h3 class="font-semibold">Cliente</h3>
+                                </div>
+                                <div class="p-4">
+                                    <div class="grid grid-cols-1 gap-4 mb-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ client.primary_contact_name }}</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ client.primary_contact_position }}</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Empresa:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ client.name }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-12 mb-2 border-t border-gray-300 pt-2">
+                                        <p class="text-center text-sm">Firma</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Grupo huntRED -->
+                            <div class="border rounded-lg overflow-hidden">
+                                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, var(--hunt-red) 100%);" class="p-3 text-white">
+                                    <h3 class="font-semibold">Grupo hunt<span class="text-white">RED®</span></h3>
+                                </div>
+                                <div class="p-4">
+                                    <div class="grid grid-cols-1 gap-4 mb-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ company.account_manager }}</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo:</label>
+                                            <p class="p-2 border-b border-gray-300">Consultor Principal</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Unidad de Negocio:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ vacancy.business_unit.name }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-12 mb-2 border-t border-gray-300 pt-2">
+                                        <p class="text-center text-sm">Firma</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center mt-8">
+                            <div class="text-sm text-gray-500">
+                                <span>Fecha: {{ proposal.created_at|date:"d/m/Y" }}</span>
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                <span>Propuesta válida hasta: {{ proposal.valid_until|date:"d/m/Y" }}</span>
+                            </div>
+                            <div>
+                                <a href="https://ai.huntred.com/propuesta/{{ client.name|slugify }}/{{ proposal.id }}" target="_blank" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-link mr-2"></i>Verificar documento
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <p>
+                    HuntRED®, a petición del Cliente, pone a disposición del mismo la posibilidad de la utilización de un servicio de publicidad como medio de captación de candidatos, cuyos gastos de ejecución correrán siempre a cargo del Cliente, con independencia de los honorarios pactados. La anulación de un anuncio será aceptada por huntRED® siempre que ésta tenga tiempo suficiente para impedir su publicación sin coste alguno. Los gastos de publicidad serán abonados por el Cliente en un plazo de siete días a contar desde la fecha de la factura correspondiente.
+                </p>
+                <p>
+                    En el supuesto de que en un proceso de selección los candidatos o los Consultores de huntRED® tuvieran que realizar algún tipo de gasto de desplazamiento u otros similares, tales gastos serán asumidos por cuenta del Cliente, por lo que huntRED® facturará directamente dichos importes al Cliente.
+                </p>
+                <p>
+                    En caso de que el contrato de trabajo o colaboración firmado entre el Cliente y el candidato fuera rescindido o terminado por alguno de éstos durante el periodo de garantía definido en las condiciones particulares, huntRED® ofrecerá al Cliente la posibilidad de poner a su disposición, y durante un plazo no superior al pactado para la duración del servicio de selección de candidato, todos los recursos necesarios para encontrar un sustituto de acuerdo con las necesidades pactadas, sin que ello suponga gastos adicionales al Cliente, (salvo aquellos gastos publicitarios previamente acordados entre huntRED® y el Cliente), y siempre que:
+                </p>
+                <ul class="list-disc pl-6 space-y-2">
+                    <li>El Cliente haya notificado a huntRED®, por escrito, la rescisión o terminación del contrato de trabajo del candidato en un plazo de siete días desde la fecha en que tuvo lugar la resolución.</li>
+                    <li>El Cliente, una de sus filiales u otra sociedad del grupo no contraten al candidato dentro de un plazo de 12 meses a contar desde el fin del contrato. En este caso huntRED® podrá exigir los honorarios del candidato repuesto en los términos de la cláusula tercera anterior.</li>
+                    <li>La rescisión o terminación del contrato no sea imputable a un exceso de personal.</li>
+                    <li>Todos los honorarios e importes debidos por el Cliente hayan sido abonados conforme a las presentes condiciones generales y a las especiales aplicables.</li>
+                </ul>
+                <p>
+                    Todo lo relacionado con los exámenes médicos de los candidatos y las medidas necesarias para que los candidatos puedan obtener el correspondiente permiso de trabajo o cualquier otra autorización que sea necesaria, será responsabilidad única del Cliente, quien deberá favorecer la realización de cualquier acto encaminado a la consecución de los referidos permisos o autorizaciones. Además, el Cliente deberá asegurarse que la contratación del candidato no implica en modo alguno el incumplimiento de la legislación laboral vigente, siendo de su exclusiva responsabilidad cualquier incumplimiento en este sentido.
+                </p>
+                <p>
+                    huntRED® no será responsable en ningún caso frente al Cliente de los daños, perjuicios, costes, reclamaciones o gastos soportados a cargo del Cliente o reclamados por terceros, como consecuencia de la selección o contratación de los candidatos por el Cliente.
+                </p>
+                <p>
+                    Sin perjuicio de las condiciones previstas en la cláusula 11 anterior, todos los honorarios derivados de la ejecución del servicio serán abonados por el Cliente dentro de un plazo de quince días desde la fecha de factura.
+                </p>
+                <p>
+                    Este contrato no significa ninguna relación laboral entre las partes.
+                </p>
+            </div>
+            
+            <!-- Sección de firma para las condiciones generales - Tabla con ambas partes -->
+            <div class="mt-8 pt-4">
+                <p class="text-sm text-gray-700 mb-4">Al firmar, las partes reconocen haber leído y aceptado todas las condiciones generales establecidas en este documento y se comprometen a cumplir con las obligaciones estipuladas.</p>
+                
+                <!-- Tabla de firmas con dos lados: cliente y representante -->
+                <div class="border rounded overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-3 text-sm font-semibold text-gray-700 text-left border-r">Por parte del Cliente</th>
+                                <th class="p-3 text-sm font-semibold text-gray-700 text-left">Por parte de Grupo huntRED®</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="p-4 border-r">
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-600 mb-1">Nombre:</p>
+                                        <p class="font-medium">{{ client.primary_contact_name }}</p>
+                                    </div>
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-600 mb-1">Cargo:</p>
+                                        <p class="font-medium">{{ client.primary_contact_position }}</p>
+                                    </div>
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-600 mb-1">Empresa:</p>
+                                        <p class="font-medium">{{ client.name }}</p>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm text-gray-600 mb-1">Fecha:</p>
+                                        <div class="border-b border-gray-400 h-8"></div>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-600 mb-1">Firma:</p>
+                                        <div class="border border-gray-300 h-24 w-full"></div>
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-600 mb-1">Nombre:</p>
+                                        <p class="font-medium">{{ company.account_manager }}</p>
+                                    </div>
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-600 mb-1">Cargo:</p>
+                                        <p class="font-medium">Consultor Autorizado</p>
+                                    </div>
+                                    <div class="mb-4">
+                                        <p class="text-sm text-gray-600 mb-1">Empresa:</p>
+                                        <p class="font-medium">Grupo huntRED® a través de {{ company.name }}</p>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm text-gray-600 mb-1">Fecha:</p>
+                                        <div class="border-b border-gray-400 h-8"></div>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-600 mb-1">Firma:</p>
+                                        <div class="border border-gray-300 h-24 w-full"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Espacio para sello o certificación digital -->
+                <div class="mt-6 text-center">
+                    <p class="text-xs text-gray-500 mb-2">Este documento cuenta con certificación digital y es legalmente válido.</p>
+                    <div class="mx-auto w-48 h-16 border border-dashed border-gray-300 flex items-center justify-center">
+                        <p class="text-xs text-gray-400">Certificación Digital / Blockchain</p>
+                    </div>
+                </div>
+                
+                <!-- Botón de Guardar -->
+                <div class="mt-8 text-center">
+                    <button id="btnGuardarPropuesta" class="px-6 py-3 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 transition-colors shadow-md flex items-center justify-center mx-auto">
+                        <i class="fas fa-save mr-2"></i>Guardar Propuesta Firmada
+                    </button>
+                    <p class="text-xs text-gray-500 mt-2">Al guardar esta propuesta, confirma su aceptación de los términos y condiciones.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <!-- Footer -->
+        <footer class="footer">
+            <span>{{ client.name }}   -   Grupo huntRED® a través de {{ company.name }} </span>
+            <span class="page-number"></span>
+        </footer>
+    </div>
+ <!-- 
+    ==================================================
+    DOCUMENTACIÓN DE PLACEHOLDERS DISPONIBLES
+    ==================================================
+    
+    Este comentario contiene todos los placeholders disponibles para usar en esta plantilla.
+    No será visible en la propuesta final, solo es una referencia para el desarrollo.
+    
+    VARIABLES DE PROPUESTA
+    ---------------------
+    {{ proposal.id }} - ID único de la propuesta
+    {{ proposal.created_at }} - Fecha de creación (formato timestamp)
+    {{ proposal.created_at|date:"Y-m-d" }} - Fecha formateada (YYYY-MM-DD)
+    {{ proposal.status }} - Estado de la propuesta (draft, sent, accepted, rejected)
+    {{ proposal.valid_until }} - Fecha de validez
+    {{ proposal.notes }} - Notas internas
+    {{ proposal.terms_accepted }} - Si se aceptaron los términos (boolean)
+    {{ proposal.title }} - Título de la propuesta
+    {{ proposal.description }} - Descripción detallada de la propuesta
+    {{ proposal.custom_message }} - Mensaje personalizado para el cliente
+    {{ proposal.reference_code }} - Código de referencia interno
+    
+    VARIABLES DE EMPRESA/CLIENTE
+    ---------------------------
+    {{ company.name }} - Nombre de la empresa
+    {{ company.address }} - Dirección
+    {{ company.city }} - Ciudad
+    {{ company.state }} - Estado/Provincia
+    {{ company.zip_code }} - Código postal
+    {{ company.email }} - Email de contacto
+    {{ company.phone }} - Teléfono de contacto
+    {{ company.website }} - Sitio web
+    {{ company.tax_id }} - ID fiscal/RFC
+    {{ company.industry }} - Industria/Sector
+    {{ company.logo_url }} - URL del logo (si está disponible)
+    {{ company.primary_contact_name }} - Nombre del contacto principal
+    {{ company.primary_contact_position }} - Posición del contacto principal
+    {{ company.account_manager }} - Gestor de cuenta asignado
+    
+    VARIABLES DE PRECIOS
+    -------------------
+    {{ pricing.currency }} - Moneda (MXN, USD, etc.)
+    {{ pricing.total }} - Monto total
+    {{ pricing.total|floatformat:"2" }} - Monto total con 2 decimales
+    {{ pricing.tax_rate }} - Tasa de impuesto aplicada
+    {{ pricing.tax_amount }} - Monto de impuestos
+    {{ pricing.subtotal }} - Subtotal antes de impuestos
+    {{ pricing.discount_amount }} - Monto de descuento (si aplica)
+    {{ pricing.discount_reason }} - Razón del descuento
+    
+    BUCLES Y ESTRUCTURAS DE DATOS
+    ----------------------------
+    {% for item in pricing.items %} ... {% endfor %} - Para iterar sobre elementos de precio
+        {{ item.vacancy.title }} - Título de la vacante
+        {{ item.vacancy.business_unit.name }} - Unidad de negocio
+        {{ item.vacancy.location }} - Ubicación
+        {{ item.vacancy.contract_type }} - Tipo de contrato
+        {{ item.vacancy.seniority }} - Nivel de experiencia
+        {{ item.base_price }} - Precio base
+        {{ item.total }} - Total para este ítem
+        
+        {% for addon in item.addons %} ... {% endfor %} - Para iterar sobre addons
+            {{ addon.name }} - Nombre del addon
+            {{ addon.description }} - Descripción del addon
+            {{ addon.price }} - Precio del addon
+            {{ addon.is_recurring }} - Si es recurrente (boolean)
+    
+    {% for milestone in pricing.milestones %} ... {% endfor %} - Para iterar sobre hitos de pago
+        {{ milestone.name }} - Nombre del hito
+        {{ milestone.percentage }} - Porcentaje del pago
+        {{ milestone.amount }} - Monto a pagar
+        {{ milestone.trigger_event }} - Evento que desencadena el pago
+        {{ milestone.due_date_offset }} - Días después del evento
+    
+    VARIABLES DE DASHBOARD (ADDON)
+    ----------------------------
+    {{ dashboard_addon.enabled }} - Si el addon de dashboard está habilitado
+    {{ dashboard_addon.price }} - Precio del addon de dashboard
+    {{ dashboard_addon.description }} - Descripción detallada
+    {{ dashboard_addon.sample_url }} - URL de ejemplo del dashboard
+    
+    VARIABLES DE SERVICIOS ADICIONALES
+    --------------------------------
+    {{ additional_services }} - Lista de servicios adicionales ofrecidos
+    
+    FUNCIONES Y FILTROS ÚTILES
+    ------------------------
+    {{ value|floatformat:"2" }} - Formatear números con 2 decimales
+    {{ date|date:"Y-m-d" }} - Formatear fechas
+    {{ string|upper }} - Convertir a mayúsculas
+    {{ string|lower }} - Convertir a minúsculas
+    {{ string|title }} - Convertir a formato título
+    {{ number|add:10 }} - Sumar a un número
+    {{ list|length }} - Obtener longitud de una lista
+    
+    -->
+    <script>
+        // Simulación de número de página (actualizar según necesidades de impresión)
+        document.querySelectorAll('.page-number').forEach((el, index) => {
+            el.textContent = index + 1;
+        });
+    </script>
+    <!-- Contraportada -->
+    <section class="cover-page page-break contraportada">
+        <div style="min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 4rem 2rem; background: linear-gradient(135deg, var(--hunt-blue) 0%, #0b1217 100%); color: white;">
+            <!-- Logo Principal -->
+            <div class="text-center mb-12 mt-8">
+                <img src="/static/proposals/Grupo_huntred.png" onerror="this.onerror=null; this.src='{{ company.logo_url }}'" alt="Grupo huntRED® Logo" style="max-width: 360px; max-height: 140px;">
+                <h2 class="text-xl mt-6 font-light" style="color: var(--hunt-red);">Encontrar el líder indicado para la posición correcta en el momento adecuado es un reto complejo, es lo que mejor hacemos.
+                </h2>
+            </div>
+            
+            <!-- Empresas del Grupo - Primera Fila -->
+            <div class="mb-8 w-full">
+                <h3 class="text-center text-sm font-light mb-6 uppercase tracking-wider">Nuestras Unidades de Negocio</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+                    <div class="flex justify-center">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg w-40 h-28 flex items-center justify-center">
+                            <img src="...huntRED_Executive.png" onerror="this.onerror=null; this.src=''; this.alt='huntRED® Executive'" alt="huntRED Executive" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg w-40 h-28 flex items-center justify-center">
+                            <img src="/static/proposals/huntRED.png" onerror="this.onerror=null; this.src=''; this.alt='huntRED®'" alt="huntRED" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg w-40 h-28 flex items-center justify-center">
+                            <img src="/static/proposals/huntRED_Inspirations.png" onerror="this.onerror=null; this.src=''; this.alt='huntRED® Inspirations'" alt="huntRED Inspirations" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg w-40 h-28 flex items-center justify-center">
+                            <img src="/static/proposals/huntRED_Experience.png" onerror="this.onerror=null; this.src=''; this.alt='huntRED® Experience'" alt="huntRED Experience" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Segunda Fila -->
+                <div class="grid grid-cols-3 gap-8 justify-items-center">
+                    <div class="flex justify-center">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg w-40 h-28 flex items-center justify-center">
+                            <img src="/static/proposals/huntU.png" onerror="this.onerror=null; this.src=''; this.alt='huntU®'" alt="huntU" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg w-40 h-28 flex items-center justify-center">
+                            <img src="/static/proposals/huntRED_Solutions.png" onerror="this.onerror=null; this.src=''; this.alt='huntRED® Solutions'" alt="huntRED Solutions" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="bg-white bg-opacity-10 p-4 rounded-lg w-40 h-28 flex items-center justify-center">
+                            <img src="/static/proposals/amigro.png" onerror="this.onerror=null; this.src=''; this.alt='amigro®'" alt="amigro" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sello Hecho en México e Información de contacto -->
+            <div class="text-center mt-8">
+                <div class="flex items-center justify-center mb-6">
+                    <div class="inline-block p-2 rounded-full" style="background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%); border: 1px solid rgba(255,255,255,0.2);">
+                        <div style="width: 240px; height: 120px; border-radius: 50%; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            <!-- Colores de la bandera mexicana -->
+                            <div style="position: absolute; width: 100%; height: 100%; z-index: 1;">
+                                <div style="position: absolute; top: 0; left: 0; width: 33.33%; height: 100%; background: linear-gradient(90deg, rgba(0,104,71,0.7) 0%, rgba(0,104,71,0.7) 100%);"></div>
+                                <div style="position: absolute; top: 0; left: 33.33%; width: 33.33%; height: 100%; background: linear-gradient(90deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.7) 100%);"></div>
+                                <div style="position: absolute; top: 0; left: 66.66%; width: 33.33%; height: 100%; background: linear-gradient(90deg, rgba(206,17,38,0.7) 0%, rgba(206,17,38,0.7) 100%);"></div>
+                            </div>
+                            <!-- Texto del sello -->
+                            <div style="position: relative; z-index: 2; text-align: center; padding: 15px;">
+                                <div style="border: 2px solid white; border-radius: 50%; padding: 25px;">
+                                    <span class="text-base font-bold text-white" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">ORGULLOSAMENTE <BR>HECHO EN MÉXICO</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <p class="text-sm"><i class="fas fa-globe"></i> www.huntred.com</p>
+                    <p class="text-sm mt-1"><i class="fas fa-envelope"></i> hola@huntred.com</p>
+                    <p class="text-sm mt-1"><i class="fas fa-phone"></i> +52 (55) 5914-0089</p>
+                    <p class="text-sm mt-4 opacity-75">&copy; {{ proposal.created_at|date:"Y" }} Grupo hunt<span style="color: var(--hunt-red);">RED&reg;</span> - Todos los derechos reservados</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <script>
+        // Simulación de número de página (actualizar según necesidades de impresión)
+        document.querySelectorAll('.page-number').forEach((el, index) => {
+            el.textContent = index + 1;
+        });
+    </script>
+</body>
+</html>

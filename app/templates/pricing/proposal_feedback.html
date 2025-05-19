@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Retroalimentación de Propuesta - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<style>
+    .feedback-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .feedback-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .feedback-header img {
+        max-width: 200px;
+        margin-bottom: 20px;
+    }
+    .form-group {
+        margin-bottom: 25px;
+    }
+    .radio-group {
+        display: flex;
+        flex-direction: column;
+    }
+    .radio-option {
+        margin: 5px 0;
+        padding: 10px;
+        border-radius: 5px;
+        transition: background-color 0.2s;
+    }
+    .radio-option:hover {
+        background-color: #f5f5f5;
+    }
+    .feedback-submit {
+        text-align: center;
+        margin-top: 30px;
+    }
+    .btn-primary {
+        background-color: #1a2c5b;
+        border-color: #1a2c5b;
+        padding: 10px 25px;
+    }
+    .btn-primary:hover {
+        background-color: #131f40;
+        border-color: #131f40;
+    }
+    .meeting-section {
+        background-color: #f9f9f9;
+        border-left: 4px solid #e03a3e;
+        padding: 20px;
+        margin: 25px 0;
+        border-radius: 4px;
+    }
+    .meeting-section h3 {
+        color: #1a2c5b;
+        margin-top: 0;
+    }
+    .btn-meeting {
+        background-color: #e03a3e;
+        border-color: #e03a3e;
+    }
+    .btn-meeting:hover {
+        background-color: #c0272d;
+        border-color: #c0272d;
+    }
+    .thank-you-container {
+        text-align: center;
+        padding: 40px;
+    }
+    .thank-you-container i {
+        font-size: 72px;
+        color: #4CAF50;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    {% if submitted %}
+    <div class="feedback-container thank-you-container">
+        <i class="fas fa-check-circle"></i>
+        <h2>¡Gracias por su retroalimentación!</h2>
+        <p>Sus comentarios son muy valiosos para nosotros y nos ayudarán a mejorar nuestros servicios.</p>
+        
+        {% if meeting_requested %}
+        <div class="meeting-section mt-4">
+            <h3>Reunión con nuestro Managing Director</h3>
+            <p>Hemos recibido su solicitud para una reunión con Pablo Lelo de Larrea H. Pronto recibirá un correo de confirmación con los detalles.</p>
+        </div>
+        {% endif %}
+        
+        <div class="mt-4">
+            <a href="https://huntred.com" class="btn btn-outline-primary">Volver a huntred.com</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="feedback-container">
+        <div class="feedback-header">
+            <img src="{% static 'img/logo_huntred.png' %}" alt="Grupo huntRED®">
+            <h2>Valoramos su opinión</h2>
+            <p>Gracias por tomarse el tiempo para compartir sus comentarios sobre nuestra propuesta. Esta información nos ayudará a mejorar nuestros servicios.</p>
+        </div>
+        
+        <form method="post" id="feedbackForm">
+            {% csrf_token %}
+            <input type="hidden" name="token" value="{{ token }}">
+            
+            <div class="form-group">
+                <label for="interest_level" class="form-label">¿Cuál es su interés en nuestro servicio de Análisis de Talento 360°?</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="interest_level" id="interest_1" value="interested" class="form-check-input" required>
+                        <label for="interest_1" class="form-check-label">Interesado - Solicitaré el servicio</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="interest_level" id="interest_2" value="considering" class="form-check-input">
+                        <label for="interest_2" class="form-check-label">Considerando - Evaluando opciones</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="interest_level" id="interest_3" value="not_now" class="form-check-input">
+                        <label for="interest_3" class="form-check-label">No por ahora - Podría considerar en el futuro</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="interest_level" id="interest_4" value="not_interested" class="form-check-input">
+                        <label for="interest_4" class="form-check-label">No interesado - No es relevante actualmente</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="interest_level" id="interest_5" value="went_competitor" class="form-check-input">
+                        <label for="interest_5" class="form-check-label">Elegí otro proveedor</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group rejection-reason-group" style="display: none;">
+                <label for="rejection_reason" class="form-label">¿Cuál es la principal razón por la que no contratará el servicio ahora?</label>
+                <select name="rejection_reason" id="rejection_reason" class="form-select">
+                    <option value="">Seleccione una razón</option>
+                    <option value="price">Precio demasiado alto</option>
+                    <option value="timing">No es el momento adecuado</option>
+                    <option value="features">Faltan características/servicios clave</option>
+                    <option value="needs">No se ajusta a nuestras necesidades</option>
+                    <option value="budget">Sin presupuesto actualmente</option>
+                    <option value="internal_process">Proceso interno de aprobación</option>
+                    <option value="competitor">Elegí una solución de la competencia</option>
+                    <option value="clarity">Falta de claridad en la propuesta</option>
+                    <option value="other">Otra razón</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="price_perception" class="form-label">¿Cómo percibe nuestros precios?</label>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Muy accesible</span>
+                    <span>Justo</span>
+                    <span>Muy costoso</span>
+                </div>
+                <div class="range-container d-flex justify-content-between">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="price_perception" id="price_1" value="1">
+                        <label class="form-check-label" for="price_1">1</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="price_perception" id="price_2" value="2">
+                        <label class="form-check-label" for="price_2">2</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="price_perception" id="price_3" value="3">
+                        <label class="form-check-label" for="price_3">3</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="price_perception" id="price_4" value="4">
+                        <label class="form-check-label" for="price_4">4</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="price_perception" id="price_5" value="5">
+                        <label class="form-check-label" for="price_5">5</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="improvement" class="form-label">¿En qué podríamos mejorar nuestra propuesta o servicio?</label>
+                <textarea name="improvement" id="improvement" class="form-control" rows="3" placeholder="Sugerencias, características faltantes, información que le hubiera gustado recibir..."></textarea>
+            </div>
+            
+            <div class="meeting-section">
+                <h3>¿Desea hablar directamente con nuestro Managing Director?</h3>
+                <p>Reserve una reunión personal con <strong>Pablo Lelo de Larrea H. - Sr. Managing Partner</strong> Grupo huntRED® para discutir su estrategia de reclutamiento y resolver cualquier duda.</p>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="meeting_requested" id="meeting_requested" value="1">
+                    <label class="form-check-label" for="meeting_requested">
+                        Sí, me gustaría agendar una reunión personal
+                    </label>
+                </div>
+                
+                <div id="meetingFields" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="meeting_type">Tema principal de la reunión</label>
+                                <select name="meeting_type" id="meeting_type" class="form-select">
+                                    <option value="proposal_review">Revisión de Propuesta</option>
+                                    <option value="service_explanation">Explicación Detallada del Servicio</option>
+                                    <option value="pricing_discussion">Discusión de Precios/Términos</option>
+                                    <option value="custom_solution">Solución Personalizada</option>
+                                    <option value="general">Conversación General</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="contact_phone">Teléfono de contacto</label>
+                                <input type="tel" name="contact_phone" id="contact_phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="meeting_notes">Temas específicos que le gustaría tratar</label>
+                        <textarea name="meeting_notes" id="meeting_notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ calendar_url }}" target="_blank" class="btn btn-meeting">Agendar Reunión Estratégica</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="feedback-submit">
+                <button type="submit" class="btn btn-primary btn-lg">Enviar Retroalimentación</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mostrar/ocultar campo de razón de rechazo
+        const interestRadios = document.querySelectorAll('input[name="interest_level"]');
+        const rejectionGroup = document.querySelector('.rejection-reason-group');
+        
+        interestRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'not_now' || this.value === 'not_interested' || this.value === 'went_competitor') {
+                    rejectionGroup.style.display = 'block';
+                } else {
+                    rejectionGroup.style.display = 'none';
+                }
+            });
+        });
+        
+        // Mostrar/ocultar campos de reunión
+        const meetingCheck = document.getElementById('meeting_requested');
+        const meetingFields = document.getElementById('meetingFields');
+        
+        if (meetingCheck) {
+            meetingCheck.addEventListener('change', function() {
+                if (this.checked) {
+                    meetingFields.style.display = 'block';
+                } else {
+                    meetingFields.style.display = 'none';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

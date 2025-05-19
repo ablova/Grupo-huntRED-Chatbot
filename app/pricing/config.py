@@ -1,3 +1,4 @@
+# /home/pablo/app/pricing/config.py
 import os
 from django.conf import settings
 

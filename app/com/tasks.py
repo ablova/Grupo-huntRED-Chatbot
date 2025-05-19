@@ -1,3 +1,7 @@
+# /home/pablo/app/com/tasks.py
+#
+# Tareas programadas para el módulo de comunicaciones.
+#
 from celery import shared_task
 from app.models import Conversation, Message, Notification, Metric
 from .config import ComConfig

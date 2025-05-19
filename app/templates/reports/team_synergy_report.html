@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Análisis de Sinergia de Equipo - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        height: 350px;
+        margin: 20px 0;
+    }
+    .synergy-score-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto;
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #D62839 0%, #F46036 100%);
+    }
+    .score-label {
+        font-size: 1rem;
+        margin-top: 8px;
+        text-align: center;
+    }
+    .team-member-card {
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #D62839;
+        background-color: #f9f9f9;
+    }
+    .dimension-bar {
+        height: 30px;
+        border-radius: 15px;
+        margin-bottom: 10px;
+        background: linear-gradient(90deg, #D62839 0%, #F46036 100%);
+    }
+    .value-tag {
+        display: inline-block;
+        padding: 5px 10px;
+        margin: 5px;
+        border-radius: 15px;
+        background-color: #F46036;
+        color: white;
+    }
+    .recommendation-card {
+        border-left: 4px solid #4361EE;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: #f0f7ff;
+    }
+    .footer-logo {
+        height: 40px;
+        margin-top: 20px;
+    }
+    .report-header {
+        border-bottom: 2px solid #D62839;
+        padding-bottom: 15px;
+        margin-bottom: 30px;
+    }
+    @media print {
+        .page-break { 
+            page-break-before: always; 
+        }
+        .chart-container {
+            break-inside: avoid;
+        }
+        .recommendation-card {
+            break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <!-- Encabezado del Reporte -->
+    <div class="report-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4">Análisis de Sinergia de Equipo</h1>
+                <p class="lead text-muted">
+                    {% if analysis_data.business_unit %}
+                        Unidad de Negocio: {{ analysis_data.business_unit }} | 
+                    {% endif %}
+                    Equipo de {{ analysis_data.team_size }} miembros
+                </p>
+                <p class="small text-muted">Generado el {{ generated_at }}</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <img src="{% static 'img/logo-huntRED.png' %}" alt="Logo Grupo huntRED" height="80">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen Ejecutivo -->
+    <div class="row mb-5">
+        <div class="col-md-4 text-center">
+            <div class="synergy-score-circle">
+                {{ analysis_data.synergy_score|floatformat:0 }}
+            </div>
+            <div class="score-label">Puntuación de Sinergia</div>
+        </div>
+        <div class="col-md-8">
+            <h2>Resumen Ejecutivo</h2>
+            <p class="lead">
+                {% if analysis_data.synergy_score >= 80 %}
+                    Este equipo presenta un excelente nivel de sinergia, con una composición balanceada y complementaria que potencia sus fortalezas colectivas.
+                {% elif analysis_data.synergy_score >= 60 %}
+                    Este equipo muestra un buen nivel de sinergia, aunque hay áreas específicas que podrían optimizarse para mejorar su rendimiento colectivo.
+                {% else %}
+                    Este equipo presenta oportunidades significativas de mejora en su sinergia, con desafíos en la composición y complementariedad que requieren atención.
+                {% endif %}
+            </p>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h5>Fortalezas</h5>
+                    <ul>
+                        {% for skill, level in analysis_data.skills_analysis.top_skills %}
+                            <li>{{ skill }} ({{ level|floatformat:0 }}/100)</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h5>Áreas de Oportunidad</h5>
+                    <ul>
+                        {% for skill in analysis_data.skills_analysis.skill_gaps|slice:":3" %}
+                            <li>{{ skill }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Análisis Detallado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-4">Análisis Detallado</h2>
+        </div>
+        
+        <!-- Composición de Habilidades -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Composición de Habilidades</h4>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5>Cobertura</h5>
+                            <h3>{{ analysis_data.skills_analysis.coverage_score|floatformat:0 }}/100</h3>
+                        </div>
+                        <div>
+                            <h5>Balance</h5>
+                            <h3>{{ analysis_data.skills_analysis.balance_score|floatformat:0 }}/100</h3>
+                        </div>
+                    </div>
+                    
+                    {% if include_graphics %}
+                    <div class="chart-container">
+                        <!-- Aquí se renderizaría el gráfico radar de habilidades -->
+                        <img src="{% if analysis_data.visualizations.skill_radar %}{{ analysis_data.visualizations.skill_radar }}{% else %}{% static 'img/placeholder_radar.png' %}{% endif %}" 
+                             alt="Gráfico de habilidades" class="img-fluid">
+                    </div>
+                    {% endif %}
+                    
+                    <h5 class="mt-3">Brechas de Habilidades</h5>
+                    <ul>
+                        {% for skill in analysis_data.skills_analysis.skill_gaps %}
+                            <li>{{ skill }}</li>
+                        {% empty %}
+                            <li>No se detectaron brechas significativas</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Personalidades -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Distribución de Personalidades</h4>
+                    <p>Diversidad: {{ analysis_data.personality_analysis.diversity_score|floatformat:0 }}/100</p>
+                    
+                    {% if include_graphics %}
+                    <div class="chart-container">
+                        <!-- Aquí se renderizaría el gráfico donut de personalidades -->
+                        <img src="{% if analysis_data.visualizations.personality_distribution %}{{ analysis_data.visualizations.personality_distribution }}{% else %}{% static 'img/placeholder_donut.png' %}{% endif %}" 
+                             alt="Gráfico de personalidades" class="img-fluid">
+                    </div>
+                    {% endif %}
+                    
+                    <h5 class="mt-3">Personalidad Dominante</h5>
+                    <p>{{ analysis_data.personality_analysis.dominant_personality }}</p>
+                    
+                    {% if analysis_data.personality_analysis.ideal_additions %}
+                    <h5>Perfiles Complementarios Recomendados</h5>
+                    <p>
+                        {% for profile in analysis_data.personality_analysis.ideal_additions %}
+                            <span class="badge bg-primary me-2">{{ profile }}</span>
+                        {% endfor %}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <!-- Diversidad Generacional -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Diversidad Generacional</h4>
+                    <p>Puntuación: {{ analysis_data.generation_analysis.diversity_score|floatformat:0 }}/100</p>
+                    
+                    {% if include_graphics %}
+                    <div class="chart-container">
+                        <!-- Aquí se renderizaría el gráfico de barras generacional -->
+                        <img src="{% if analysis_data.visualizations.generation_distribution %}{{ analysis_data.visualizations.generation_distribution }}{% else %}{% static 'img/placeholder_generations.png' %}{% endif %}" 
+                             alt="Gráfico generacional" class="img-fluid">
+                    </div>
+                    {% endif %}
+                    
+                    <h5 class="mt-3">Ventajas</h5>
+                    <ul>
+                        {% for advantage in analysis_data.generation_analysis.advantages %}
+                            <li>{{ advantage }}</li>
+                        {% empty %}
+                            <li>No se identificaron ventajas específicas</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alineación de Propósito -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Alineación de Propósito y Valores</h4>
+                    <p>Alineación: {{ analysis_data.purpose_analysis.alignment_score|floatformat:0 }}/100</p>
+                    
+                    <h5 class="mt-3">Valores Compartidos</h5>
+                    <div>
+                        {% for value in analysis_data.purpose_analysis.common_values %}
+                            <div class="value-tag">{{ value }}</div>
+                        {% empty %}
+                            <p>No se identificaron valores compartidos</p>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if analysis_data.purpose_analysis.dominant_purpose %}
+                    <h5 class="mt-4">Propósito Dominante</h5>
+                    <p>{{ analysis_data.purpose_analysis.dominant_purpose }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Red de Conexiones del Equipo -->
+    {% if include_graphics and analysis_data.visualizations.team_network %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title">Red de Conexiones del Equipo</h4>
+                    <div class="chart-container">
+                        <img src="{{ analysis_data.visualizations.team_network }}" 
+                             alt="Red de conexiones" class="img-fluid">
+                    </div>
+                    <p class="text-muted">
+                        La visualización muestra cómo las habilidades, personalidades y propósitos se conectan
+                        entre los miembros del equipo. Conexiones más fuertes indican mayor complementariedad.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="page-break"></div>
+    
+    <!-- Recomendaciones -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-4">Recomendaciones para Optimizar la Sinergia</h2>
+            
+            {% for rec in analysis_data.recommendations %}
+            <div class="recommendation-card">
+                <h4>{{ rec.title }}</h4>
+                <p>{{ rec.description }}</p>
+                
+                <h5>Acciones Recomendadas:</h5>
+                <ul>
+                    {% for action in rec.actions %}
+                    <li>{{ action }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% empty %}
+            <div class="alert alert-info">
+                No hay recomendaciones específicas para este equipo.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Valores de Grupo huntRED® -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h4 class="text-center mb-4">Alineado con los Valores de Grupo huntRED®</h4>
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3">
+                            <h5>Apoyo</h5>
+                            <p>Este análisis busca potenciar el apoyo entre los miembros del equipo, identificando cómo pueden complementarse en base a sus fortalezas.</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <h5>Solidaridad</h5>
+                            <p>Las recomendaciones fomentan un espíritu solidario donde cada miembro contribuye desde sus capacidades únicas al éxito colectivo.</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <h5>Sinergia</h5>
+                            <p>Todo el análisis está enfocado en maximizar la sinergia para que el resultado del equipo sea mayor que la suma de las partes.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pie de Página -->
+    <footer class="text-center mt-5">
+        <p class="small text-muted">Este análisis fue generado por el sistema de talent analytics de Grupo huntRED®.</p>
+        <p class="small text-muted">Los datos presentados son confidenciales y para uso exclusivo de la organización.</p>
+        <img src="{% static 'img/logo-huntRED-small.png' %}" alt="Logo Grupo huntRED" class="footer-logo">
+    </footer>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Aquí iría código JavaScript para renderizar gráficos dinámicos
+        // utilizando los datos de análisis si se requiere
+        console.log('Reporte de sinergia cargado correctamente');
+    });
+</script>
+{% endblock %}

@@ -17,6 +17,7 @@ from app.com.chatbot.import_config import (
     get_slack_handler,
     get_workflow_context
 )
+from app.com.chatbot.core.values import ValuesIntegrator, ValuesPrinciples
 
 # Get handlers using deferred imports
 WhatsAppHandler = get_whatsapp_handler()
@@ -258,47 +259,58 @@ class ChatStateManager:
     async def process_message(self, message: str) -> Dict[str, Any]:
         """Procesa un mensaje y actualiza el estado del chat."""
         try:
-            # Get or initialize state
-            if not self.current_state:
-                await self.initialize()
+            # Primero analizamos los valores fundamentales presentes en el mensaje
+            values_metadata = await ValuesIntegrator.process_incoming_message(
+                message, 
+                {'user': self.user, 'bu': self.business_unit}
+            )
             
-            # Analyze message
-            analysis = await ChatbotUtils.analyze_text(message, method='nlp')
-            
-            # Get intent
-            intent = await self._get_intent(analysis)
-            
-            # Update metrics
-            self.metrics.increment('messages_processed')
-            self.metrics.track_transition(self.current_state, intent)
-            
-            # Update state based on intent
-            if intent:
-                new_state = await self._get_next_state(intent)
-                if new_state:
-                    await self.update_state(new_state, intent)
-            
-            # Update context
-            self.context.update(analysis.get('context', {}))
-            
-            # Save state to Redis
-            await self.set_state({
-                'state': self.current_state,
-                'last_intent': self.last_intent,
-                'history': self.conversation_history,
-                'context': self.context,
-                'context_stack': self.context_stack,
-                'metrics': dict(self.metrics)
+            # Almacenamos los metadatos de valores en el contexto
+            if not 'values' in self.context:
+                self.context['values'] = {}
+                
+            self.context['values'].update({
+                'emotional_context': values_metadata.get('emotional_context', 'neutral'),
+                'career_stage': values_metadata.get('career_stage', 'exploring'),
+                'value_opportunities': values_metadata.get('value_opportunities', []),
+                'last_updated': timezone.now().isoformat()
             })
             
-            return {
-                'state': self.current_state,
+            # Analyze the message for intents, entities, sentiment
+            analysis = await ChatbotUtils.analyze_text(message, self.business_unit)
+            intent = await self._get_intent(analysis)
+            
+            # Update analytics
+            self.metrics.increment('messages_processed')
+            self.conversation_history.append({
+                'text': message,
+                'timestamp': timezone.now().isoformat(),
                 'intent': intent,
-                'analysis': analysis
-            }
+                'values': self.context.get('values', {})
+            })
+            
+            # If we have a valid intent, update the state
+            if intent:
+                self.metrics.increment(f'intent_{intent}')
+                # Get all transitions for this intent
+                transitions = await IntentTransition.objects.filter(
+                    intent__name=intent,
+                    business_unit=self.business_unit
+                ).select_related('target_state').async_all()
+                
+                # Find valid transition
+                for transition in transitions:
+                    # Check conditions
+                    if await self._check_conditions(transition.conditions):
+                        # Update state
+                        new_state = transition.target_state.name
+                        await self.update_state(new_state, intent)
+                        return
+            
+            logger.info(f"No valid transition found for intent: {intent}")
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
-            raise
+            self.error_count += 1
 
     async def _is_valid_transition(self, current_state: str, new_state: str) -> bool:
         """Verifica si una transición de estado es válida."""

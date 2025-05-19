@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard de Cliente - Grupo huntRED®{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --huntred-primary: #3b007a;
+            --huntred-secondary: #0056b3;
+            --huntred-accent: #ff5722;
+            --huntred-light: #f8f9fa;
+            --huntred-dark: #343a40;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+        }
+        
+        .header {
+            background-color: var(--huntred-primary);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            max-height: 50px;
+        }
+        
+        .main-content {
+            padding: 30px 15px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-weight: 600;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .card-header .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        .stat-card {
+            text-align: center;
+        }
+        
+        .stat-card .stat-icon {
+            font-size: 2rem;
+            color: var(--huntred-secondary);
+            margin-bottom: 15px;
+        }
+        
+        .stat-card .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .stat-title {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .trend-up {
+            color: #28a745;
+        }
+        
+        .trend-down {
+            color: #dc3545;
+        }
+        
+        .trend-neutral {
+            color: #6c757d;
+        }
+        
+        .filter-bar {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .filter-bar .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .filter-bar label {
+            margin-bottom: 0;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .page-title {
+            margin-bottom: 25px;
+        }
+        
+        .page-title h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--huntred-dark);
+        }
+        
+        .page-title .breadcrumb {
+            margin-bottom: 0;
+        }
+        
+        /* Data visualization */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .recommendation-card {
+            border-left: 4px solid var(--huntred-accent);
+        }
+        
+        .comment-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .comment-box p {
+            margin-bottom: 5px;
+        }
+        
+        .comment-meta {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .bar-chart-horizontal {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        
+        .bar-chart-horizontal .bar {
+            height: 100%;
+            background-color: var(--huntred-secondary);
+            border-radius: 10px;
+            text-align: right;
+            padding-right: 10px;
+            color: white;
+            line-height: 20px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        
+        .expired-message {
+            max-width: 500px;
+            margin: 100px auto;
+            text-align: center;
+        }
+        
+        .footer {
+            background-color: var(--huntred-light);
+            padding: 20px 0;
+            text-align: center;
+            margin-top: 50px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .footer p {
+            margin-bottom: 0;
+            color: #6c757d;
+        }
+        
+        .tab-menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .tab-button {
+            background-color: var(--huntred-light);
+            color: var(--huntred-dark);
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .tab-button:hover {
+            background-color: var(--huntred-secondary);
+            color: white;
+        }
+        
+        .tab-button.active {
+            background-color: var(--huntred-primary);
+            color: white;
+        }
+        
+        .tab-button i {
+            margin-right: 5px;
+        }
+        
+        .expiry-banner {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .expiry-banner i {
+            margin-right: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .card-header .card-actions {
+                margin-top: 10px;
+            }
+            
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-bar .ms-auto {
+                margin-top: 10px;
+            }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <img src="https://grupohuntred.com/wp-content/uploads/2021/11/logo-white.png" alt="Grupo huntRED®" class="logo me-3">
+                        <h1 class="m-0 fs-4">Dashboard de Satisfacción - {{ empresa.name }}</h1>
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                    <p class="m-0">{{ business_unit.name }}</p>
+                    <small class="text-white-50">Datos actualizados: {% now "d/m/Y H:i" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container">
+            {% if share and share.days_remaining < 7 and not share.is_expired %}
+            <div class="expiry-banner">
+                <div>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Este enlace caducará en {{ share.days_remaining }} día(s). Después de esta fecha, ya no podrá acceder a este dashboard.
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Tab Menu -->
+            <div class="tab-menu">
+                <a href="{{ request.path }}" class="tab-button {% if not tab or tab == 'summary' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt"></i> Resumen
+                </a>
+                
+                {% if allow_satisfaction %}
+                <a href="{{ request.path }}?tab=satisfaction" class="tab-button {% if tab == 'satisfaction' %}active{% endif %}">
+                    <i class="fas fa-smile"></i> Satisfacción
+                </a>
+                {% endif %}
+                
+                {% if allow_onboarding %}
+                <a href="{{ request.path }}?tab=onboarding" class="tab-button {% if tab == 'onboarding' %}active{% endif %}">
+                    <i class="fas fa-users"></i> Onboarding
+                </a>
+                {% endif %}
+                
+                {% if allow_recommendations %}
+                <a href="{{ request.path }}?tab=recommendations" class="tab-button {% if tab == 'recommendations' %}active{% endif %}">
+                    <i class="fas fa-lightbulb"></i> Recomendaciones
+                </a>
+                {% endif %}
+            </div>
+            
+            <!-- Page Content -->
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="container">
+            <p>© {% now "Y" %} Grupo huntRED® - Todos los derechos reservados | Este dashboard es confidencial y solo para uso del cliente destinatario.</p>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

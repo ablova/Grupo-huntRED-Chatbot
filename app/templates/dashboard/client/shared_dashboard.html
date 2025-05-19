@@ -1,0 +1,438 @@
+{% extends "dashboard/client/shared_base.html" %}
+
+{% block title %}Dashboard de Satisfacción - {{ empresa.name }} - Grupo huntRED®{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="mb-3">Bienvenido al Dashboard de Satisfacción</h4>
+                <p>Este dashboard le proporciona una visión detallada de las métricas de satisfacción y onboarding de su empresa con Grupo huntRED®. Los datos se actualizan en tiempo real para ofrecerle la información más actualizada.</p>
+                <p class="mb-0">Utilice las pestañas superiores para navegar entre las diferentes secciones del dashboard y obtener información detallada sobre cada aspecto.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Performance Indicators -->
+<div class="row">
+    <!-- Satisfacción Candidatos -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="stat-value" id="candidate_satisfaction">-</div>
+                <div class="stat-title">Satisfacción de Candidatos</div>
+                <div class="mt-2" id="candidate_satisfaction_trend"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Satisfacción Clientes -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <div class="stat-value" id="client_satisfaction">-</div>
+                <div class="stat-title">Satisfacción de Clientes</div>
+                <div class="mt-2" id="client_satisfaction_trend"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tasa de Compleción de Tareas -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="stat-value" id="task_completion_rate">-</div>
+                <div class="stat-title">Tasa de Compleción de Tareas</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Candidatos Contratados -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-value" id="total_candidates">-</div>
+                <div class="stat-title">Candidatos Contratados</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trend Charts -->
+<div class="row">
+    <!-- Tendencia de Satisfacción -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <span>Tendencia de Satisfacción</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="satisfactionTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Satisfacción por Período de Onboarding -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <span>Satisfacción por Período</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="satisfactionByPeriodChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendations and Tasks -->
+<div class="row">
+    <!-- Top 3 Recomendaciones -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Recomendaciones Destacadas</span>
+            </div>
+            <div class="card-body">
+                <div id="recommendations_container">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p>Cargando recomendaciones...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estado de Tareas de Onboarding -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Estado de Tareas de Onboarding</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="taskStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-info" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Este dashboard es confidencial.</strong> La información presentada aquí es exclusiva para su organización y no debe ser compartida con terceros. El enlace de acceso caducará el {{ share.expiry_date|date:"d/m/Y" }}.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Charts
+    let satisfactionTrendChart = null;
+    let satisfactionByPeriodChart = null;
+    let taskStatusChart = null;
+    
+    function initializeCharts() {
+        // Satisfaction Trend Chart
+        const trendCtx = document.getElementById('satisfactionTrendChart').getContext('2d');
+        satisfactionTrendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Candidatos',
+                        data: [],
+                        borderColor: '#3b007a',
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: 'Clientes',
+                        data: [],
+                        borderColor: '#0056b3',
+                        tension: 0.3,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        min: 0,
+                        max: 10,
+                        title: {
+                            display: true,
+                            text: 'Satisfacción (0-10)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw + '/10';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Satisfaction by Period Chart
+        const periodCtx = document.getElementById('satisfactionByPeriodChart').getContext('2d');
+        satisfactionByPeriodChart = new Chart(periodCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Satisfacción',
+                        data: [],
+                        backgroundColor: '#0056b3',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        min: 0,
+                        max: 10,
+                        title: {
+                            display: true,
+                            text: 'Satisfacción (0-10)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Satisfacción: ' + context.raw + '/10';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Task Status Chart
+        const taskCtx = document.getElementById('taskStatusChart').getContext('2d');
+        taskStatusChart = new Chart(taskCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completada', 'En Progreso', 'Pendiente', 'Retrasada'],
+                datasets: [
+                    {
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#28a745',
+                            '#0056b3',
+                            '#6c757d',
+                            '#dc3545'
+                        ]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    }
+                }
+            }
+        });
+    }
+    
+    // Load Dashboard Data
+    function loadDashboardData() {
+        // Cargar datos para este cliente específico usando el ID de empresa del contexto
+        const empresaId = '{{ empresa.id }}';
+        
+        // Fetch summary data
+        fetch(`/api/dashboard/data/?data_type=summary&empresa_id=${empresaId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update KPIs
+                updateKPIs(data);
+            })
+            .catch(error => {
+                console.error('Error fetching summary data:', error);
+            });
+        
+        // Fetch trend data
+        fetch(`/api/dashboard/data/?data_type=satisfaction_trend&empresa_id=${empresaId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update trend charts
+                updateTrendCharts(data);
+            })
+            .catch(error => {
+                console.error('Error fetching trend data:', error);
+            });
+        
+        // Fetch onboarding metrics
+        fetch(`/api/dashboard/data/?data_type=onboarding_metrics&empresa_id=${empresaId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update task status chart
+                updateTaskChart(data);
+            })
+            .catch(error => {
+                console.error('Error fetching onboarding metrics:', error);
+            });
+        
+        // Fetch recommendations
+        fetch(`/api/dashboard/data/?data_type=recommendations&empresa_id=${empresaId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update recommendations section
+                updateRecommendations(data);
+            })
+            .catch(error => {
+                console.error('Error fetching recommendations:', error);
+            });
+    }
+    
+    // Update KPIs
+    function updateKPIs(data) {
+        // Candidate satisfaction
+        document.getElementById('candidate_satisfaction').textContent = `${data.candidate_satisfaction}/10`;
+        
+        // Candidate satisfaction trend
+        const candidateTrend = document.getElementById('candidate_satisfaction_trend');
+        if (data.candidate_satisfaction_trend > 0) {
+            candidateTrend.innerHTML = `<span class="trend-up"><i class="fas fa-arrow-up"></i> ${data.candidate_satisfaction_trend}%</span>`;
+        } else if (data.candidate_satisfaction_trend < 0) {
+            candidateTrend.innerHTML = `<span class="trend-down"><i class="fas fa-arrow-down"></i> ${Math.abs(data.candidate_satisfaction_trend)}%</span>`;
+        } else {
+            candidateTrend.innerHTML = `<span class="trend-neutral"><i class="fas fa-minus"></i> 0%</span>`;
+        }
+        
+        // Client satisfaction
+        document.getElementById('client_satisfaction').textContent = `${data.client_satisfaction}/10`;
+        
+        // Client satisfaction trend
+        const clientTrend = document.getElementById('client_satisfaction_trend');
+        if (data.client_satisfaction_trend > 0) {
+            clientTrend.innerHTML = `<span class="trend-up"><i class="fas fa-arrow-up"></i> ${data.client_satisfaction_trend}%</span>`;
+        } else if (data.client_satisfaction_trend < 0) {
+            clientTrend.innerHTML = `<span class="trend-down"><i class="fas fa-arrow-down"></i> ${Math.abs(data.client_satisfaction_trend)}%</span>`;
+        } else {
+            clientTrend.innerHTML = `<span class="trend-neutral"><i class="fas fa-minus"></i> 0%</span>`;
+        }
+        
+        // Task completion rate
+        document.getElementById('task_completion_rate').textContent = `${data.task_completion_rate}%`;
+        
+        // Total candidates
+        document.getElementById('total_candidates').textContent = data.total_candidates;
+    }
+    
+    // Update trend charts
+    function updateTrendCharts(data) {
+        // Update satisfaction trend chart
+        if (satisfactionTrendChart) {
+            satisfactionTrendChart.data.labels = data.monthly_trend.labels;
+            satisfactionTrendChart.data.datasets[0].data = data.monthly_trend.candidate_data;
+            satisfactionTrendChart.data.datasets[1].data = data.monthly_trend.client_data;
+            satisfactionTrendChart.update();
+        }
+        
+        // Update satisfaction by period chart
+        if (satisfactionByPeriodChart) {
+            satisfactionByPeriodChart.data.labels = data.period_trend.labels;
+            satisfactionByPeriodChart.data.datasets[0].data = data.period_trend.data;
+            satisfactionByPeriodChart.update();
+        }
+    }
+    
+    // Update task status chart
+    function updateTaskChart(data) {
+        if (taskStatusChart && data.task_status) {
+            taskStatusChart.data.datasets[0].data = [
+                data.task_status.COMPLETED || 0,
+                data.task_status.IN_PROGRESS || 0,
+                data.task_status.PENDING || 0,
+                data.task_status.OVERDUE || 0
+            ];
+            taskStatusChart.update();
+        }
+    }
+    
+    // Update recommendations section
+    function updateRecommendations(data) {
+        const recommendationsContainer = document.getElementById('recommendations_container');
+        
+        if (data.recommendations && data.recommendations.length > 0) {
+            let html = '';
+            
+            data.recommendations.slice(0, 3).forEach((recommendation, index) => {
+                html += `
+                    <div class="recommendation-card mb-3 p-3">
+                        <h5><i class="fas fa-lightbulb text-warning me-2"></i> ${recommendation.title}</h5>
+                        <p>${recommendation.description}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">${recommendation.category}</small>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            recommendationsContainer.innerHTML = html;
+        } else {
+            recommendationsContainer.innerHTML = '<p class="text-center">No hay recomendaciones disponibles actualmente.</p>';
+        }
+    }
+    
+    // Document ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize charts
+        initializeCharts();
+        
+        // Load dashboard data
+        loadDashboardData();
+        
+        // Set up auto-refresh timer (refresh every 5 minutes)
+        setInterval(loadDashboardData, 5 * 60 * 1000);
+    });
+</script>
+{% endblock %}

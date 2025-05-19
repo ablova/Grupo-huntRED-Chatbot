@@ -1,3 +1,7 @@
+# /home/pablo/app/com/import_config.py
+#
+# Importador de módulos para el módulo de comunicaciones.
+#
 from typing import Any, Callable
 from app.import_config import register_module
 

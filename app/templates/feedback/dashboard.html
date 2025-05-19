@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Panel de Retroalimentación - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        background-color: #1a2c5b;
+        color: white;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .stage-section {
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+        border-top: 4px solid #1a2c5b;
+    }
+    .stage-section.proposal {
+        border-top-color: #e03a3e;
+    }
+    .stage-section.ongoing {
+        border-top-color: #ffd700;
+    }
+    .stage-section.completed {
+        border-top-color: #2e8b57;
+    }
+    .metric-card {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 3px solid #1a2c5b;
+    }
+    .metric-card h4 {
+        margin-top: 0;
+        color: #1a2c5b;
+    }
+    .metric-card .value {
+        font-size: 24px;
+        font-weight: bold;
+    }
+    .metric-card.positive {
+        border-left-color: #2e8b57;
+    }
+    .metric-card.neutral {
+        border-left-color: #ffd700;
+    }
+    .metric-card.negative {
+        border-left-color: #e03a3e;
+    }
+    .chart-container {
+        height: 250px;
+        margin-bottom: 20px;
+    }
+    .suggestions-card {
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .suggestions-card .card-header {
+        background-color: #1a2c5b;
+        color: white;
+        border-radius: 5px 5px 0 0;
+        padding: 10px 15px;
+    }
+    .suggestions-card .card-body {
+        padding: 15px;
+    }
+    .suggestion-item {
+        border-bottom: 1px solid #eee;
+        padding: 10px 0;
+    }
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+    .pending-reminders {
+        background-color: #f8d7da;
+        border-radius: 5px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+    .trend-indicator {
+        font-size: 18px;
+        margin-left: 5px;
+    }
+    .trend-up {
+        color: #2e8b57;
+    }
+    .trend-down {
+        color: #e03a3e;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="dashboard-header">
+        <div class="row">
+            <div class="col-md-6">
+                <h1><i class="fas fa-chart-line"></i> Sistema Integral de Retroalimentación</h1>
+                <p>Panel centralizado de análisis y gestión de feedback para Grupo huntRED®</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <form method="get" class="d-flex justify-content-end" id="filterForm">
+                    <div class="me-2">
+                        <label for="start_date" class="form-label text-white">Desde</label>
+                        <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="me-2">
+                        <label for="end_date" class="form-label text-white">Hasta</label>
+                        <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="me-2">
+                        <label for="stage" class="form-label text-white">Etapa</label>
+                        <select id="stage" name="stage" class="form-select">
+                            <option value="">Todas</option>
+                            {% for key, info in stage_options.items %}
+                                <option value="{{ key }}" {% if stage_filter == key %}selected{% endif %}>{{ info.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="service_type" class="form-label text-white">Servicio</label>
+                        <select id="service_type" name="service_type" class="form-select">
+                            <option value="">Todos</option>
+                            {% for key, name in service_options.items %}
+                                <option value="{{ key }}" {% if service_type_filter == key %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="align-self-end ms-2">
+                        <button type="submit" class="btn btn-light"><i class="fas fa-filter"></i> Filtrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Resumen general -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <h4>Total Retroalimentación</h4>
+                        <div class="value">{{ total_feedbacks }}</div>
+                        <div class="trend">
+                            {% if trend_percentage > 0 %}
+                                <span class="text-success">+{{ trend_percentage|floatformat:1 }}% <i class="fas fa-arrow-up trend-indicator trend-up"></i></span>
+                            {% elif trend_percentage < 0 %}
+                                <span class="text-danger">{{ trend_percentage|floatformat:1 }}% <i class="fas fa-arrow-down trend-indicator trend-down"></i></span>
+                            {% else %}
+                                <span class="text-muted">0% <i class="fas fa-equals"></i></span>
+                            {% endif %}
+                            <small class="text-muted">vs. período anterior</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card {% if overall_rating >= 80 %}positive{% elif overall_rating >= 60 %}neutral{% else %}negative{% endif %}">
+                        <h4>Satisfacción General</h4>
+                        <div class="value">{{ overall_rating|floatformat:1 }}%</div>
+                        <small class="text-muted">Ponderada en todas las etapas</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <h4>Recordatorios Pendientes</h4>
+                        <div class="value">{{ pending_reminders|default:"0" }}</div>
+                        <a href="{% url 'feedback:pending_reminders' %}" class="btn btn-sm btn-outline-primary mt-2">Ver detalles</a>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <h4>Solicitudes Críticas</h4>
+                        <div class="value">{{ critical_reminders|default:"0" }}</div>
+                        <small class="text-muted">Sin respuesta > 30 días</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ciclo de Feedback -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h2 class="mb-3">Ciclo Completo de Retroalimentación</h2>
+                </div>
+                
+                <!-- Propuestas -->
+                {% if 'proposal' in stages_data %}
+                <div class="col-md-4">
+                    <div class="stage-section proposal">
+                        <h3><i class="fas fa-file-contract"></i> Propuestas</h3>
+                        <div class="metric-card">
+                            <h4>Total Evaluaciones</h4>
+                            <div class="value">{{ stages_data.proposal.feedbacks_count }}</div>
+                        </div>
+                        <div class="metric-card {% if stages_data.proposal.insights.interest_rate >= 70 %}positive{% elif stages_data.proposal.insights.interest_rate >= 40 %}neutral{% else %}negative{% endif %}">
+                            <h4>Tasa de Interés</h4>
+                            <div class="value">{{ stages_data.proposal.insights.interest_rate|floatformat:1 }}%</div>
+                            <small class="text-muted">Clientes interesados o considerando</small>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{% url 'feedback:feedback_list' %}?stage=proposal" class="btn btn-outline-primary btn-sm">Ver detalles</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Servicios en Curso -->
+                {% if 'ongoing' in stages_data %}
+                <div class="col-md-4">
+                    <div class="stage-section ongoing">
+                        <h3><i class="fas fa-tasks"></i> Servicios en Curso</h3>
+                        <div class="metric-card">
+                            <h4>Total Evaluaciones</h4>
+                            <div class="value">{{ stages_data.ongoing.feedbacks_count }}</div>
+                        </div>
+                        <div class="metric-card {% if stages_data.ongoing.insights.average_ratings.general >= 4 %}positive{% elif stages_data.ongoing.insights.average_ratings.general >= 3 %}neutral{% else %}negative{% endif %}">
+                            <h4>Satisfacción Promedio</h4>
+                            <div class="value">{{ stages_data.ongoing.insights.average_ratings.general|floatformat:1 }}/5</div>
+                        </div>
+                        <div class="metric-card {% if stages_data.ongoing.insights.urgent_issues.percentage <= 10 %}positive{% elif stages_data.ongoing.insights.urgent_issues.percentage <= 25 %}neutral{% else %}negative{% endif %}">
+                            <h4>Problemas Urgentes</h4>
+                            <div class="value">{{ stages_data.ongoing.insights.urgent_issues.percentage|floatformat:1 }}%</div>
+                            <small class="text-muted">{{ stages_data.ongoing.insights.urgent_issues.count }} reportes</small>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{% url 'feedback:feedback_list' %}?stage=ongoing" class="btn btn-outline-primary btn-sm">Ver detalles</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Servicios Concluidos -->
+                {% if 'completed' in stages_data %}
+                <div class="col-md-4">
+                    <div class="stage-section completed">
+                        <h3><i class="fas fa-check-circle"></i> Servicios Concluidos</h3>
+                        <div class="metric-card">
+                            <h4>Total Evaluaciones</h4>
+                            <div class="value">{{ stages_data.completed.feedbacks_count }}</div>
+                        </div>
+                        <div class="metric-card {% if stages_data.completed.insights.nps.score >= 50 %}positive{% elif stages_data.completed.insights.nps.score >= 0 %}neutral{% else %}negative{% endif %}">
+                            <h4>NPS</h4>
+                            <div class="value">{{ stages_data.completed.insights.nps.score }}</div>
+                            <small class="text-muted">
+                                <span class="text-success">{{ stages_data.completed.insights.nps.promoters_percentage|floatformat:1 }}% promotores</span> | 
+                                <span class="text-danger">{{ stages_data.completed.insights.nps.detractors_percentage|floatformat:1 }}% detractores</span>
+                            </small>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Testimoniales</h4>
+                            <div class="value">{{ stages_data.completed.insights.testimonials.total }}</div>
+                            <small class="text-muted">{{ stages_data.completed.insights.testimonials.public }} públicos</small>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{% url 'feedback:feedback_list' %}?stage=completed" class="btn btn-outline-primary btn-sm">Ver detalles</a>
+                            <a href="{% url 'feedback:testimonials_list' %}" class="btn btn-outline-success btn-sm">Ver testimoniales</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Gráficos y Tendencias -->
+            {% if has_chart_data %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stage-section">
+                        <h3><i class="fas fa-chart-line"></i> Tendencias y Análisis</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <canvas id="trendChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <canvas id="categoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-3">
+                            <a href="{% url 'feedback:export_insights' %}?start_date={{ start_date|date:'Y-m-d' }}&format=json" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-download"></i> Exportar datos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Recomendaciones e Insights -->
+            <div class="suggestions-card mb-4">
+                <div class="card-header">
+                    <h3 class="m-0"><i class="fas fa-lightbulb"></i> Recomendaciones basadas en datos</h3>
+                </div>
+                <div class="card-body">
+                    {% if insights_list %}
+                        <ul class="ps-3">
+                            {% for insight in insights_list %}
+                                <li class="mb-2">{{ insight }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">No hay suficientes datos para generar recomendaciones en el período seleccionado.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Sugerencias de Mejora Recientes -->
+            <div class="suggestions-card">
+                <div class="card-header">
+                    <h3 class="m-0"><i class="fas fa-comment-dots"></i> Sugerencias de Mejora Recientes</h3>
+                </div>
+                <div class="card-body">
+                    {% if recent_suggestions %}
+                        {% for suggestion in recent_suggestions %}
+                            <div class="suggestion-item">
+                                <h5>{{ suggestion.title }}</h5>
+                                <p>{{ suggestion.description|truncatechars:100 }}</p>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">{{ suggestion.created_at|date:"d/m/Y" }}</small>
+                                    <span class="badge {% if suggestion.status == 'new' %}bg-primary{% elif suggestion.status == 'planned' %}bg-success{% elif suggestion.status == 'implemented' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ suggestion.get_status_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <div class="text-center mt-3">
+                            <a href="{% url 'feedback:suggestions_list' %}" class="btn btn-outline-primary btn-sm">Ver todas las sugerencias</a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No hay sugerencias recientes.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Acciones Rápidas -->
+            <div class="stage-section mt-4">
+                <h3><i class="fas fa-bolt"></i> Acciones Rápidas</h3>
+                <div class="list-group">
+                    <a href="{% url 'feedback:pending_reminders' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-bell"></i> Gestionar recordatorios pendientes
+                        </div>
+                        <span class="badge bg-danger">{{ pending_reminders|default:"0" }}</span>
+                    </a>
+                    <a href="{% url 'feedback:testimonials_list' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-star"></i> Testimoniales para marketing
+                    </a>
+                    <a href="{% url 'feedback:suggestions_list' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-lightbulb"></i> Ideas para nuevos servicios
+                    </a>
+                    <a href="{% url 'feedback:feedback_list' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-search"></i> Buscar retroalimentación
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Utilizando un patrón IIFE para aislar el código y evitar conflictos con las plantillas Django
+(function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        // JavaScript puro para evitar dependencia de jQuery
+        {% if has_chart_data %}
+            // Definir variables de datos desde contexto Django
+            var chartData = {
+                proposal: {{ stages_data.proposal.feedbacks_count|default:"0" }},
+                ongoing: {{ stages_data.ongoing.feedbacks_count|default:"0" }},
+                completed: {{ stages_data.completed.feedbacks_count|default:"0" }}
+            };
+            
+            // Gráfico de tendencias
+            renderTrendChart();
+            
+            // Gráfico de categorías
+            renderCategoryChart();
+            
+            function renderTrendChart() {
+                var trendCtx = document.getElementById('trendChart').getContext('2d');
+                new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'],
+                        datasets: [{
+                            label: 'Propuestas',
+                            data: [12, 19, 15, 17],
+                            borderColor: '#e03a3e',
+                            tension: 0.1
+                        }, {
+                            label: 'Servicios en Curso',
+                            data: [7, 11, 14, 16],
+                            borderColor: '#ffd700',
+                            tension: 0.1
+                        }, {
+                            label: 'Servicios Concluidos',
+                            data: [5, 8, 10, 12],
+                            borderColor: '#2e8b57',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Evolución de Retroalimentación'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function renderCategoryChart() {
+                var categoryCtx = document.getElementById('categoryChart').getContext('2d');
+                new Chart(categoryCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Propuestas', 'Servicios en Curso', 'Servicios Concluidos'],
+                        datasets: [{
+                            data: [chartData.proposal, chartData.ongoing, chartData.completed],
+                            backgroundColor: [
+                                '#e03a3e',
+                                '#ffd700',
+                                '#2e8b57'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Distribución por Etapa'
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+<!-- Sección de encabezado (header.html) -->
+<div class="proposal-header">
+    <div class="logo-container">
+        <img src="/static/img/huntRED-logo.png" alt="Grupo huntRED®" class="brand-logo">
+    </div>
+    
+    <div class="header-info">
+        <div class="proposal-title">
+            <h2>{{ proposal_data.service.name }}</h2>
+            <div class="title-border"></div>
+        </div>
+        
+        <div class="company-info">
+            <p><strong>Preparado para:</strong> {{ proposal_data.company.name }}</p>
+            <p><strong>Fecha:</strong> {{ generation_date }}</p>
+            <p><strong>Ref:</strong> #{{ proposal_data.opportunities.0.id|default:'00000' }}</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .proposal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 1.5rem 0;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .logo-container {
+        flex: 0 0 auto;
+    }
+    
+    .brand-logo {
+        max-height: 60px;
+        max-width: 160px;
+    }
+    
+    .header-info {
+        flex: 1 1 auto;
+        text-align: right;
+    }
+    
+    .proposal-title h2 {
+        font-size: 1.6rem;
+        color: var(--hunt-blue);
+        margin-bottom: 0.5rem;
+    }
+    
+    .title-border {
+        height: 3px;
+        width: 80px;
+        background: var(--hunt-red);
+        margin-left: auto;
+        margin-bottom: 1rem;
+    }
+    
+    .company-info p {
+        margin: 0.25rem 0;
+        color: #555;
+        font-size: 0.9rem;
+    }
+    
+    @media print {
+        .proposal-header {
+            padding-top: 0;
+        }
+    }
+</style>

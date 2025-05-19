@@ -1,0 +1,138 @@
+<!-- Sección de portada (cover.html) -->
+<div class="cover-page">
+    <div class="cover-logos">
+        <div class="cover-logo">
+            <img src="/static/img/huntRED-logo.png" alt="Grupo huntRED®">
+        </div>
+        {% if proposal_data.company.logo %}
+        <div class="cover-logo">
+            <img src="{{ proposal_data.company.logo }}" alt="{{ proposal_data.company.name }}">
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="cover-title">
+        <h1>Propuesta <span class="text-red">{{ proposal_data.service.name }}</span></h1>
+        <h2>Preparada especialmente para {{ proposal_data.company.name }}</h2>
+        
+        <div class="cover-meta">
+            <p><i class="fas fa-calendar-alt mr-2"></i> Fecha: {{ generation_date }}</p>
+            <p><i class="fas fa-hourglass-end mr-2"></i> Vigencia: {{ valid_until }}</p>
+            {% if proposal_data.company.contact.name %}
+            <p><i class="fas fa-user mr-2"></i> Contacto: {{ proposal_data.company.contact.name }}</p>
+            {% endif %}
+            {% if proposal_data.consultant %}
+            <p><i class="fas fa-id-badge mr-2"></i> Consultor: {{ proposal_data.consultant.name }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="cover-values">
+        <div class="flex justify-center space-x-8">
+            <div class="value-card">
+                <h3><i class="fas fa-hands-helping mr-2"></i> Apoyo</h3>
+                <p>Acompañamiento continuo en tu proceso</p>
+            </div>
+            <div class="value-card">
+                <h3><i class="fas fa-people-carry mr-2"></i> Solidaridad</h3>
+                <p>Compromiso con el crecimiento sostenible</p>
+            </div>
+            <div class="value-card">
+                <h3><i class="fas fa-sync-alt mr-2"></i> Sinergia</h3>
+                <p>Potenciamos resultados trabajando juntos</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Información de contacto de la empresa -->
+    <div class="cover-footer">
+        <p>© {{ generation_date|slice:"-4:" }} Grupo huntRED® | Todos los derechos reservados</p>
+        <p>contacto@grupohuntred.com | +52 55 1234 5678 | www.grupohuntred.com</p>
+    </div>
+</div>
+
+<style>
+    .cover-page {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 90vh;
+        text-align: center;
+        padding: 4rem 2rem;
+        background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(240,240,245,1) 100%);
+    }
+    .cover-logos {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    .cover-logo img {
+        max-height: 100px;
+        max-width: 100%;
+    }
+    .cover-title {
+        margin: 4rem 0;
+    }
+    .cover-title h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: #2c3e50;
+    }
+    .cover-title h2 {
+        font-size: 1.5rem;
+        font-weight: 400;
+        color: #3498db;
+        margin-bottom: 2rem;
+    }
+    .cover-meta {
+        background: rgba(52, 152, 219, 0.05);
+        border-radius: 8px;
+        padding: 1.5rem;
+        display: inline-block;
+        margin: 0 auto;
+    }
+    .cover-meta p {
+        margin: 0.5rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .cover-meta i {
+        margin-right: 0.5rem;
+        color: var(--hunt-red);
+    }
+    .cover-values {
+        margin-top: 4rem;
+    }
+    .value-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        width: 180px;
+        transition: all 0.3s ease;
+    }
+    .value-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+    }
+    .value-card h3 {
+        color: var(--hunt-blue);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .value-card p {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    .cover-footer {
+        margin-top: 4rem;
+        color: #666;
+        font-size: 0.9rem;
+    }
+    .cover-footer p {
+        margin: 0.25rem 0;
+    }
+</style>

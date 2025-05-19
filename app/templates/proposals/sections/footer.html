@@ -1,0 +1,124 @@
+<!-- Sección de pie de página (footer.html) -->
+<div class="proposal-footer">
+    <div class="footer-content">
+        <div class="footer-logo">
+            <img src="/static/img/huntRED-logo-small.png" alt="Grupo huntRED®">
+        </div>
+        
+        <div class="footer-info">
+            <div class="contact-info">
+                <p>
+                    <i class="fas fa-envelope"></i> contacto@grupohuntred.com
+                    <i class="fas fa-phone ml-3"></i> +52 55 1234 5678
+                    <i class="fas fa-globe ml-3"></i> www.grupohuntred.com
+                </p>
+            </div>
+            
+            <div class="footer-divider"></div>
+            
+            <div class="footer-values">
+                <span class="value-item">Apoyo</span>
+                <span class="value-separator">•</span>
+                <span class="value-item">Solidaridad</span>
+                <span class="value-separator">•</span>
+                <span class="value-item">Sinergia</span>
+            </div>
+        </div>
+        
+        <div class="footer-page-info">
+            <p>Página <span class="page-number"></span></p>
+            <p>Confidencial</p>
+        </div>
+    </div>
+    
+    <div class="footer-copyright">
+        <p>© {{ generation_date|slice:"-4:" }} Grupo huntRED® | Todos los derechos reservados</p>
+    </div>
+</div>
+
+<style>
+    .proposal-footer {
+        margin-top: 4rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e0e0e0;
+        font-size: 0.8rem;
+        color: #555;
+    }
+    
+    .footer-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .footer-logo img {
+        height: 24px;
+    }
+    
+    .footer-info {
+        text-align: center;
+    }
+    
+    .contact-info {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .contact-info p {
+        margin: 0;
+    }
+    
+    .contact-info i {
+        color: var(--hunt-red);
+        margin-right: 0.25rem;
+    }
+    
+    .footer-divider {
+        height: 1px;
+        background: #e0e0e0;
+        margin: 0.5rem 0;
+    }
+    
+    .footer-values {
+        color: var(--hunt-blue);
+    }
+    
+    .value-item {
+        font-weight: 600;
+    }
+    
+    .value-separator {
+        margin: 0 0.5rem;
+        opacity: 0.5;
+    }
+    
+    .footer-page-info {
+        text-align: right;
+    }
+    
+    .footer-page-info p {
+        margin: 0;
+    }
+    
+    .footer-copyright {
+        text-align: center;
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        color: #777;
+    }
+    
+    /* Estilos para números de página en PDF */
+    @media print {
+        .proposal-footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: white;
+        }
+        
+        .page-number:after {
+            content: counter(page);
+        }
+    }
+</style>

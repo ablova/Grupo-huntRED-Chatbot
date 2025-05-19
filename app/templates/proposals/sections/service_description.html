@@ -1,0 +1,348 @@
+<!-- Sección de descripción del servicio (service_description.html) -->
+<div class="service-section" id="service-description">
+    <h2 class="section-title">Nuestro Servicio</h2>
+    
+    <div class="service-overview">
+        <div class="service-description">
+            <h3>{{ proposal_data.service.name }}</h3>
+            <p class="service-tagline">{{ proposal_data.service.description }}</p>
+            
+            <div class="service-details">
+                <p>En {{ proposal_data.business_unit.name }}, entendemos que cada organización tiene necesidades únicas. 
+                Nuestra propuesta está diseñada específicamente para {{ proposal_data.company.name }}, 
+                tomando en cuenta los requerimientos y objetivos compartidos durante nuestras conversaciones iniciales.</p>
+            </div>
+        </div>
+        
+        <div class="service-highlights">
+            <div class="service-image">
+                <img src="/static/img/proposals/service-{{ proposal_data.service.type|default:'general' }}.jpg" 
+                     alt="{{ proposal_data.service.name }}" 
+                     onerror="this.src='/static/img/proposals/service-general.jpg';">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Características del servicio -->
+    <div class="features-section">
+        <h3>Características del Servicio</h3>
+        
+        <div class="features-container">
+            {% for feature in proposal_data.service.features %}
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="feature-text">
+                    <p>{{ feature }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Beneficios -->
+    <div class="benefits-section">
+        <h3>Beneficios</h3>
+        
+        <div class="benefits-container">
+            {% for benefit in proposal_data.service.benefits %}
+            <div class="benefit-item">
+                <div class="benefit-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="benefit-content">
+                    <p>{{ benefit }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Si es un servicio de reclutamiento, mostrar las vacantes -->
+    {% if proposal_data.service.type == 'recruitment' and proposal_data.vacancies %}
+    <div class="vacancies-section">
+        <h3>Posiciones Requeridas</h3>
+        
+        <div class="vacancies-table-container">
+            <table class="vacancies-table">
+                <thead>
+                    <tr>
+                        <th>Posición</th>
+                        <th>Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vacancy in proposal_data.vacancies %}
+                    <tr>
+                        <td>{{ vacancy.position_name }}</td>
+                        <td>{{ vacancy.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Si hay un proceso definido, mostrarlo -->
+    {% if proposal_data.service.process %}
+    <div class="process-section">
+        <h3>Nuestro Proceso</h3>
+        
+        <div class="process-steps">
+            {% for step in proposal_data.service.process %}
+            <div class="process-step">
+                <div class="step-number">{{ step.step }}</div>
+                <div class="step-content">
+                    <h4>{{ step.name }}</h4>
+                    <p>{{ step.description }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .service-section {
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .section-title {
+        text-align: center;
+        font-size: 2rem;
+        color: var(--hunt-blue);
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    
+    .section-title:after {
+        content: '';
+        display: block;
+        width: 80px;
+        height: 4px;
+        background: var(--hunt-red);
+        margin: 0.5rem auto;
+        border-radius: 2px;
+    }
+    
+    .service-overview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+    
+    .service-description {
+        flex: 1 1 60%;
+    }
+    
+    .service-highlights {
+        flex: 1 1 30%;
+    }
+    
+    .service-image img {
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .service-description h3 {
+        color: var(--hunt-blue);
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .service-tagline {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #555;
+        margin-bottom: 1.5rem;
+        font-style: italic;
+    }
+    
+    .service-details {
+        color: #333;
+        line-height: 1.6;
+    }
+    
+    /* Características */
+    .features-section, .benefits-section {
+        margin: 2.5rem 0;
+    }
+    
+    .features-section h3, .benefits-section h3 {
+        color: var(--hunt-blue);
+        font-size: 1.4rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .features-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .feature-card {
+        display: flex;
+        background: #f8f9fa;
+        padding: 1.25rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        transition: transform 0.2s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    
+    .feature-icon {
+        margin-right: 0.75rem;
+        color: var(--hunt-red);
+        font-size: 1.1rem;
+    }
+    
+    /* Beneficios */
+    .benefits-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+    
+    .benefit-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 1rem;
+        background: #fff;
+        border-left: 3px solid var(--hunt-red);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        border-radius: 0 4px 4px 0;
+    }
+    
+    .benefit-icon {
+        color: var(--hunt-red);
+        margin-right: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    
+    /* Tabla de vacantes */
+    .vacancies-section {
+        margin: 2.5rem 0;
+    }
+    
+    .vacancies-section h3 {
+        color: var(--hunt-blue);
+        font-size: 1.4rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .vacancies-table-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .vacancies-table {
+        width: 100%;
+        border-collapse: collapse;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .vacancies-table th {
+        background: var(--hunt-blue);
+        color: white;
+        text-align: left;
+        padding: 0.75rem 1rem;
+    }
+    
+    .vacancies-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .vacancies-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    
+    .vacancies-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    /* Proceso */
+    .process-section {
+        margin: 3rem 0;
+    }
+    
+    .process-section h3 {
+        color: var(--hunt-blue);
+        font-size: 1.4rem;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .process-steps {
+        position: relative;
+    }
+    
+    .process-steps:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 20px;
+        width: 2px;
+        background: #e0e0e0;
+    }
+    
+    .process-step {
+        display: flex;
+        position: relative;
+        margin-bottom: 2rem;
+    }
+    
+    .process-step:last-child {
+        margin-bottom: 0;
+    }
+    
+    .step-number {
+        width: 40px;
+        height: 40px;
+        background: var(--hunt-red);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        z-index: 1;
+        margin-right: 1.5rem;
+    }
+    
+    .step-content {
+        flex: 1;
+        padding-top: 0.5rem;
+    }
+    
+    .step-content h4 {
+        color: var(--hunt-blue);
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Responsividad */
+    @media (max-width: 768px) {
+        .service-overview {
+            flex-direction: column;
+        }
+        
+        .service-highlights {
+            order: -1;
+        }
+    }
+</style>

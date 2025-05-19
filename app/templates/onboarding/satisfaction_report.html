@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Satisfacción - {{ person.first_name }} {{ person.last_name }}</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 20px;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+        .title {
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: #0056b3;
+        }
+        .subtitle {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #0056b3;
+        }
+        .info-box {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #0056b3;
+        }
+        .summary-box {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .summary-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin: 0 10px;
+        }
+        .summary-item.positive {
+            border-bottom: 4px solid #28a745;
+        }
+        .summary-item.neutral {
+            border-bottom: 4px solid #ffc107;
+        }
+        .summary-item.negative {
+            border-bottom: 4px solid #dc3545;
+        }
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .summary-label {
+            font-size: 14px;
+            color: #666;
+        }
+        .question {
+            margin-bottom: 25px;
+        }
+        .question-text {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .response {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .trend {
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        .trend.up {
+            color: #28a745;
+        }
+        .trend.down {
+            color: #dc3545;
+        }
+        .trend.stable {
+            color: #6c757d;
+        }
+        .trend-arrow {
+            margin-right: 5px;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .recommendations {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e9f7ef;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        .recommendations h3 {
+            margin-top: 0;
+            color: #28a745;
+        }
+        @media print {
+            .pagebreak {
+                page-break-before: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="data:image/png;base64,{{ logo_base64 }}" alt="Grupo huntRED Logo" class="logo">
+        <h1 class="title">Reporte de Satisfacción</h1>
+        <h2 class="subtitle">{{ period }} días desde contratación</h2>
+    </div>
+
+    <div class="info-box">
+        <p><strong>Colaborador:</strong> {{ person.first_name }} {{ person.last_name }}</p>
+        <p><strong>Posición:</strong> {{ vacancy.title }}</p>
+        <p><strong>Empresa:</strong> {{ company.name }}</p>
+        <p><strong>Fecha de Contratación:</strong> {{ onboarding.hire_date|date:"d/m/Y" }}</p>
+        <p><strong>Fecha del Reporte:</strong> {{ date }}</p>
+    </div>
+
+    <div class="summary-box">
+        <div class="summary-item {% if report.satisfaction_score >= 7.5 %}positive{% elif report.satisfaction_score >= 5 %}neutral{% else %}negative{% endif %}">
+            <div class="summary-label">Satisfacción General</div>
+            <div class="summary-value">{{ report.satisfaction_score|floatformat:1 }}/10</div>
+            {% if report.trend %}
+            <div class="trend {{ report.trend }}">
+                <span class="trend-arrow">
+                    {% if report.trend == 'up' %}↑{% elif report.trend == 'down' %}↓{% else %}→{% endif %}
+                </span>
+                {% if report.trend_percent %}{{ report.trend_percent|floatformat:1 }}%{% else %}Estable{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if report.responses %}
+    <h3>Respuestas a la Encuesta</h3>
+
+    {% for question_id, data in report.responses.items %}
+    <div class="question">
+        <div class="question-text">{{ data.question }}</div>
+        <div class="response">
+            {% for value_data in data.values %}
+                {% if value_data.period == period %}
+                    {{ value_data.value }}
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="info-box">
+        <p>No hay respuestas disponibles para este período.</p>
+    </div>
+    {% endif %}
+
+    {% if report.periods|length > 1 %}
+    <div class="pagebreak"></div>
+    <h3>Historial de Satisfacción</h3>
+    <div style="margin-bottom: 30px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="border-bottom: 2px solid #ddd; padding: 10px; text-align: left;">Período (días)</th>
+                    <th style="border-bottom: 2px solid #ddd; padding: 10px; text-align: left;">Satisfacción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for period_data in report.periods %}
+                <tr>
+                    <td style="border-bottom: 1px solid #ddd; padding: 10px;">{{ period_data.days }}</td>
+                    <td style="border-bottom: 1px solid #ddd; padding: 10px;">
+                        {% if period_data.score %}
+                            {{ period_data.score|floatformat:1 }}/10
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="recommendations">
+        <h3>Recomendaciones</h3>
+        <ul>
+            {% if report.satisfaction_score < 5 %}
+            <li>Agendar una reunión de seguimiento inmediata para identificar problemas críticos.</li>
+            <li>Revisar si existen barreras de comunicación o integración en el equipo.</li>
+            {% elif report.satisfaction_score < 7.5 %}
+            <li>Mantener comunicación regular para entender áreas de oportunidad.</li>
+            <li>Evaluar expectativas vs. realidad del puesto.</li>
+            {% else %}
+            <li>Continuar con el plan de integración actual, que muestra resultados positivos.</li>
+            <li>Identificar fortalezas para potenciar el desarrollo del colaborador.</li>
+            {% endif %}
+
+            {% if report.trend == 'down' %}
+            <li>Atención: Se observa una tendencia negativa que requiere análisis detallado.</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>Este reporte ha sido generado automáticamente por el sistema de Grupo huntRED®</p>
+        <p>Contacto: soporte@huntred.com | www.huntred.com</p>
+    </div>
+</body>
+</html>

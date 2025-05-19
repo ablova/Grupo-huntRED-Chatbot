@@ -12,6 +12,7 @@ from app.views.main_views import (
     index, interacciones_por_unidad, finalize_candidates, 
     submit_application, home
 )
+from app.views.proposal_views import download_proposal_pdf
 from app.views.auth_views import (
     login_view, logout_view, user_management,
     approve_user, profile, change_password,
@@ -205,7 +206,7 @@ urlpatterns += [
 ]
 
 # ------------------------
-# 📌 RUTAS DE CARTAS DE OFERTA
+# 📌 RUTAS DE CARTAS DE OFERTA Y PROPUESTAS
 # ------------------------
 urlpatterns += [
     path('admin/cartas_oferta/', gestion_cartas_oferta, name='gestion_cartas_oferta'),
@@ -213,6 +214,7 @@ urlpatterns += [
     path('admin/cartas_oferta/<int:carta_id>/reenviar/', reenviar_carta, name='reenviar_carta'),
     path('admin/cartas_oferta/<int:carta_id>/ver/', ver_carta, name='ver_carta'),
     path('admin/cartas_oferta/preview/', generar_preview, name='generar_preview'),
+    path('proposal/pdf/<int:proposal_id>/', download_proposal_pdf, name='download_proposal_pdf'),
 ]
 
 # ------------------------
@@ -224,6 +226,15 @@ urlpatterns += [
     path('publish/jobs/<int:opportunity_id>/publish/', publish_job_opportunity, name='publish_job_opportunity'),
     path('publish/jobs/<int:opportunity_id>/status/', update_job_opportunity_status, name='update_job_opportunity_status'),
     path('webhook/job_opportunity/', webhook_job_opportunity, name='webhook_job_opportunity'),
+]
+
+# ---------------------------------------
+# 📌 RUTAS DEL SISTEMA DE RETROALIMENTACIÓN
+# ---------------------------------------
+urlpatterns += [
+    path('feedback/', include('app.com.feedback.urls', namespace='feedback')),
+    # Ruta de compatibilidad para mantener URLs existentes
+    path('pricing/feedback/', include('app.com.feedback.urls', namespace='pricing_feedback')),
 ]
 
 # ------------------------
@@ -264,9 +275,29 @@ urlpatterns += [
 # -------------------------------
 # 📌 MANEJO DE ARCHIVOS ESTÁTICOS
 # -------------------------------
+# ------------------------
+# 📌 RUTAS DE ONBOARDING
+# ------------------------
+urlpatterns += [
+    path('onboarding/', include('app.com.onboarding.urls')),
+]
+
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # -------------------------------
 # 📌 MANEJO DE ERRORES
 # -------------------------------
 handler404 = 'app.views.main_views.Custom404View.as_view'
+
+
+from app.views.talent import talent_views
+
+urlpatterns += [
+    path('api/talent/team-synergy', talent_views.analyze_team_synergy, name='analyze_team_synergy'),
+    path('api/talent/career-trajectory/<int:person_id>', talent_views.analyze_career_trajectory, name='analyze_career_trajectory'),
+    path('api/talent/cultural-fit', talent_views.analyze_cultural_fit, name='analyze_cultural_fit'),
+    path('api/talent/learning-plan/<int:person_id>', talent_views.generate_learning_plan, name='generate_learning_plan'),
+    path('api/talent/mentor-match/<int:person_id>', talent_views.find_mentors, name='find_mentors'),
+    path('api/talent/retention-risk/<int:person_id>', talent_views.analyze_retention_risk, name='analyze_retention_risk'),
+    path('api/talent/intervention-plan/<int:person_id>', talent_views.generate_intervention_plan, name='generate_intervention_plan'),
+]

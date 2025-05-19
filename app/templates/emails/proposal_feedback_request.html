@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Su opinión es importante para Grupo huntRED®</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            background-color: #1a2c5b;
+            padding: 20px;
+            text-align: center;
+        }
+        .header img {
+            max-width: 200px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .footer {
+            background-color: #f5f5f5;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .button {
+            display: inline-block;
+            background-color: #e03a3e;
+            color: white;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .meeting-section {
+            background-color: #f9f9f9;
+            border-left: 4px solid #e03a3e;
+            padding: 15px;
+            margin: 25px 0;
+        }
+        .meeting-button {
+            display: inline-block;
+            background-color: #1a2c5b;
+            color: white;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="https://huntred.com/wp-content/uploads/2022/09/logo_huntred_blanco.png" alt="Grupo huntRED®">
+    </div>
+    
+    <div class="content">
+        <h2>Su opinión es valiosa para nosotros</h2>
+        
+        <p>Estimado/a {{ contact_name }},</p>
+        
+        <p>Hace unos días le enviamos una propuesta de <strong>Análisis de Talento 360°</strong> para {{ company_name }}.</p>
+        
+        <p>Nos gustaría saber su opinión sobre nuestra propuesta, independientemente de si ha decidido avanzar con nuestros servicios. Sus comentarios nos ayudarán a mejorar constantemente nuestras soluciones.</p>
+        
+        <p>Le tomará menos de 2 minutos responder y nos sería de gran ayuda:</p>
+        
+        <div style="text-align: center;">
+            <a href="{{ feedback_url }}" class="button">Compartir mi opinión</a>
+        </div>
+        
+        <div class="meeting-section">
+            <h3>¿Desea hablar directamente con nuestro Managing Director?</h3>
+            
+            <p>Reserve una reunión personal con <strong>Pablo Lelo de Larrea H. - Sr. Managing Partner</strong> de Grupo huntRED® para discutir su estrategia de reclutamiento y resolver cualquier duda.</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ managing_director_calendar }}" class="meeting-button">Agendar Reunión Estratégica</a>
+            </div>
+        </div>
+        
+        <p>Agradecemos su tiempo y quedamos a su disposición para cualquier consulta.</p>
+        
+        <p>Atentamente,</p>
+        
+        <p>
+            <strong>Equipo de Talento 360°</strong><br>
+            Grupo huntRED®<br>
+            <a href="mailto:contacto@huntred.com">contacto@huntred.com</a>
+        </p>
+    </div>
+    
+    <div class="footer">
+        <p>© {{ now.year }} Grupo huntRED®. Todos los derechos reservados.</p>
+        <p>Si no desea recibir más correos como este, puede <a href="{{ unsubscribe_url }}">cancelar su suscripción</a>.</p>
+    </div>
+</body>
+</html>

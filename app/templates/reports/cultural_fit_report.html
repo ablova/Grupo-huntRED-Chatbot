@@ -1,0 +1,527 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte de Compatibilidad Cultural - Grupo huntRED® {% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos específicos del reporte cultural */
+    :root {
+        --primary-color: #BF202F;
+        --secondary-color: #7D141D;
+        --accent-color: #E24952;
+        --text-color: #333333;
+        --light-gray: #f4f4f4;
+        --medium-gray: #e0e0e0;
+        --dark-gray: #666666;
+    }
+    
+    body {
+        font-family: 'Montserrat', 'Arial', sans-serif;
+        color: var(--text-color);
+        line-height: 1.6;
+    }
+    
+    .report-header {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border-radius: 5px;
+    }
+    
+    .report-section {
+        margin-bottom: 2.5rem;
+        padding: 1.5rem;
+        background-color: white;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .report-title {
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+    }
+    
+    .compatibility-gauge {
+        position: relative;
+        height: 150px;
+        margin: 2rem 0;
+    }
+    
+    .dimension-chart {
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+    
+    .dimension-item {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--medium-gray);
+    }
+    
+    .dimension-title {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .recommendation-card {
+        background-color: var(--light-gray);
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 1rem;
+        border-left: 4px solid var(--accent-color);
+    }
+    
+    .progress {
+        height: 10px;
+        margin: 0.5rem 0 1.5rem 0;
+    }
+    
+    .progress-bar {
+        background-color: var(--primary-color);
+    }
+    
+    .profile-summary {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .profile-image {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 1.5rem;
+        border: 3px solid var(--primary-color);
+    }
+    
+    .profile-details {
+        flex: 1;
+    }
+    
+    .badge-cultural {
+        background-color: var(--accent-color);
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        display: inline-block;
+    }
+    
+    .values-list {
+        display: flex;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+    
+    .footer-section {
+        background-color: var(--light-gray);
+        padding: 2rem;
+        text-align: center;
+        border-radius: 5px;
+        margin-top: 2rem;
+    }
+    
+    @media print {
+        .no-print {
+            display: none;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 100%;
+        }
+        
+        .report-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <!-- Cabecera del reporte -->
+    <div class="report-header">
+        <div class="text-center">
+            <img src="{% static 'logo_huntred.png' %}" alt="Grupo huntRED® Logo" height="80">
+            <h1 class="mt-3">Reporte de Compatibilidad Cultural</h1>
+            <h4>Basado en valores: Apoyo, Solidaridad, Sinergia</h4>
+            <h5 class="mt-3">Fecha: {{ report.created_at|date:"d/m/Y" }}</h5>
+        </div>
+    </div>
+    
+    <!-- Resumen de compatibilidad -->
+    <div class="report-section">
+        <h3 class="report-title">Resumen de Compatibilidad</h3>
+        
+        <div class="profile-summary">
+            {% if person.profile_image %}
+                <img src="{{ person.profile_image.url }}" alt="{{ person.nombre }}" class="profile-image">
+            {% else %}
+                <img src="{% static 'default_profile.png' %}" alt="{{ person.nombre }}" class="profile-image">
+            {% endif %}
+            
+            <div class="profile-details">
+                <h4>{{ person.nombre }} {{ person.apellido_paterno }} {{ person.apellido_materno }}</h4>
+                <p><strong>Nivel de compatibilidad:</strong> <span class="text-{% if report.compatibility_score >= 80 %}success{% elif report.compatibility_score >= 60 %}primary{% elif report.compatibility_score >= 40 %}warning{% else %}danger{% endif %}">{{ report.get_compatibility_level }}</span></p>
+                <p><strong>Puntuación global:</strong> {{ report.compatibility_score|floatformat:1 }}/100</p>
+                {% if report.business_unit %}
+                    <p><strong>Unidad de negocio:</strong> {{ report.business_unit.name }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="compatibility-gauge" id="compatibilityGauge"></div>
+        
+        <div class="text-center mt-4">
+            <h5>Fortalezas Culturales</h5>
+            <div class="values-list">
+                {% for strength in report_data.strengths %}
+                    <span class="badge-cultural">{{ strength }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dimensiones culturales -->
+    <div class="report-section">
+        <h3 class="report-title">Dimensiones Culturales</h3>
+        <p class="mb-4">Este análisis evalúa seis dimensiones culturales clave que definen la compatibilidad cultural del candidato.</p>
+        
+        <div class="dimension-chart" id="dimensionsChart"></div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="dimension-item">
+                    <div class="dimension-title">
+                        <span>Valores</span>
+                        <span>{{ report_data.scores.values|floatformat:1 }}/5</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ report_data.scores.values|floatformat:0|mul:20 }}%;" 
+                             aria-valuenow="{{ report_data.scores.values|floatformat:0|mul:20 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p>Valores fundamentales, ética, principios y creencias que guían comportamientos y decisiones.</p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="dimension-item">
+                    <div class="dimension-title">
+                        <span>Motivadores</span>
+                        <span>{{ report_data.scores.motivators|floatformat:1 }}/5</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ report_data.scores.motivators|floatformat:0|mul:20 }}%;" 
+                             aria-valuenow="{{ report_data.scores.motivators|floatformat:0|mul:20 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p>Factores que impulsan y mantienen el compromiso, la pasión y la dedicación profesional.</p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="dimension-item">
+                    <div class="dimension-title">
+                        <span>Intereses</span>
+                        <span>{{ report_data.scores.interests|floatformat:1 }}/5</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ report_data.scores.interests|floatformat:0|mul:20 }}%;" 
+                             aria-valuenow="{{ report_data.scores.interests|floatformat:0|mul:20 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p>Áreas de curiosidad, entusiasmo y pasión que definen preferencias profesionales y personales.</p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="dimension-item">
+                    <div class="dimension-title">
+                        <span>Estilo de Trabajo</span>
+                        <span>{{ report_data.scores.work_style|floatformat:1 }}/5</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ report_data.scores.work_style|floatformat:0|mul:20 }}%;" 
+                             aria-valuenow="{{ report_data.scores.work_style|floatformat:0|mul:20 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p>Forma de abordar tareas, resolver problemas y colaborar con otros en el entorno laboral.</p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="dimension-item">
+                    <div class="dimension-title">
+                        <span>Impacto Social</span>
+                        <span>{{ report_data.scores.social_impact|floatformat:1 }}/5</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ report_data.scores.social_impact|floatformat:0|mul:20 }}%;" 
+                             aria-valuenow="{{ report_data.scores.social_impact|floatformat:0|mul:20 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p>Inclinación hacia contribuciones sociales y preocupación por el impacto del trabajo en la comunidad.</p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="dimension-item">
+                    <div class="dimension-title">
+                        <span>Valores Generacionales</span>
+                        <span>{{ report_data.scores.generational_values|floatformat:1 }}/5</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ report_data.scores.generational_values|floatformat:0|mul:20 }}%;" 
+                             aria-valuenow="{{ report_data.scores.generational_values|floatformat:0|mul:20 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p>Perspectivas y expectativas definidas por la generación (Baby Boomers, X, Millennials, Z).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Compatibilidad por unidad de negocio -->
+    {% if report_data.compatibility and report_data.compatibility|length > 1 %}
+    <div class="report-section">
+        <h3 class="report-title">Compatibilidad por Unidad de Negocio</h3>
+        <p class="mb-4">Análisis de compatibilidad con las diferentes unidades de negocio de Grupo huntRED®.</p>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Unidad de Negocio</th>
+                        <th>Compatibilidad</th>
+                        <th>Nivel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bu, score in report_data.compatibility.items %}
+                    <tr>
+                        <td>
+                            {% if bu == 'general' %}
+                                General
+                            {% elif bu == 'consumer' %}
+                                Consumer
+                            {% elif bu == 'pharma' %}
+                                Pharma
+                            {% elif bu == 'service' %}
+                                Service
+                            {% else %}
+                                {{ bu|title }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar bg-{% if score >= 80 %}success{% elif score >= 60 %}primary{% elif score >= 40 %}warning{% else %}danger{% endif %}" 
+                                     style="width: {{ score }}%;" 
+                                     aria-valuenow="{{ score }}" aria-valuemin="0" aria-valuemax="100">
+                                    {{ score|floatformat:0 }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if score >= 85 %}
+                                <span class="badge bg-success">Excelente</span>
+                            {% elif score >= 70 %}
+                                <span class="badge bg-primary">Muy bueno</span>
+                            {% elif score >= 50 %}
+                                <span class="badge bg-info">Bueno</span>
+                            {% elif score >= 30 %}
+                                <span class="badge bg-warning">Regular</span>
+                            {% else %}
+                                <span class="badge bg-danger">Bajo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Recomendaciones -->
+    <div class="report-section">
+        <h3 class="report-title">Recomendaciones Personalizadas</h3>
+        <p class="mb-4">Con base en el análisis cultural, recomendamos las siguientes acciones para optimizar la compatibilidad:</p>
+        
+        {% for recommendation in report_data.recommendations %}
+        <div class="recommendation-card">
+            <h5><i class="fas fa-lightbulb text-warning"></i> {{ recommendation }}</h5>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Áreas de mejora -->
+    <div class="report-section">
+        <h3 class="report-title">Áreas de Oportunidad</h3>
+        <p class="mb-4">Aspectos que pueden mejorarse para incrementar la compatibilidad cultural:</p>
+        
+        <div class="row">
+            {% for area in report_data.areas_for_improvement %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-arrow-circle-up text-primary"></i> {{ area }}</h5>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Metodología -->
+    <div class="report-section">
+        <h3 class="report-title">Metodología de Evaluación</h3>
+        <p>Este reporte ha sido generado utilizando la metodología de Análisis Cultural 360° de Grupo huntRED®, basada en nuestros valores fundamentales de Apoyo, Solidaridad y Sinergia.</p>
+        <p>El análisis considera seis dimensiones clave: Valores, Motivadores, Intereses, Estilo de Trabajo, Impacto Social y Valores Generacionales. Cada dimensión se evalúa mediante un cuestionario personalizado y se pondera según su relevancia para cada unidad de negocio.</p>
+        <p>Los resultados representan la compatibilidad cultural entre el perfil del candidato y las características culturales organizacionales o de equipo, proporcionando una visión holística del potencial de integración y sinergia.</p>
+    </div>
+    
+    <!-- Pie de página -->
+    <div class="footer-section">
+        <p><strong>Grupo huntRED® - Soluciones Integrales de Talento</strong></p>
+        <p>Este reporte es confidencial y está destinado exclusivamente al uso interno o del destinatario autorizado.</p>
+        <p>© {{ report.created_at|date:"Y" }} Grupo huntRED®. Todos los derechos reservados.</p>
+    </div>
+    
+    <!-- Botones de acción (no imprimibles) -->
+    <div class="mt-4 mb-5 text-center no-print">
+        <button class="btn btn-primary me-2" onclick="window.print()"><i class="fas fa-print"></i> Imprimir Reporte</button>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Volver al Dashboard</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gráfico de compatibilidad (gauge)
+        const compatibilityScore = {{ report.compatibility_score }};
+        const ctx1 = document.getElementById('compatibilityGauge').getContext('2d');
+        
+        new Chart(ctx1, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [compatibilityScore, 100 - compatibilityScore],
+                    backgroundColor: [
+                        compatibilityScore >= 80 ? '#28a745' : 
+                        compatibilityScore >= 60 ? '#007bff' : 
+                        compatibilityScore >= 40 ? '#ffc107' : '#dc3545',
+                        '#f4f4f4'
+                    ],
+                    borderWidth: 0,
+                    cutout: '75%'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        enabled: false
+                    },
+                    legend: {
+                        display: false
+                    },
+                    datalabels: {
+                        formatter: () => {
+                            return null; // No mostrar etiquetas en el gráfico
+                        }
+                    }
+                }
+            },
+            plugins: [{
+                id: 'centerText',
+                afterDraw: function(chart) {
+                    const width = chart.width;
+                    const height = chart.height;
+                    const ctx = chart.ctx;
+                    
+                    ctx.restore();
+                    ctx.font = 'bold 24px Montserrat';
+                    ctx.textBaseline = 'middle';
+                    ctx.textAlign = 'center';
+                    
+                    const text = `${compatibilityScore.toFixed(1)}%`;
+                    const textX = width / 2;
+                    const textY = height / 2;
+                    
+                    ctx.fillStyle = '#333333';
+                    ctx.fillText(text, textX, textY);
+                    
+                    ctx.font = '16px Montserrat';
+                    ctx.fillText('Compatibilidad', textX, textY + 30);
+                    
+                    ctx.save();
+                }
+            }]
+        });
+        
+        // Gráfico de radar para dimensiones
+        const ctx2 = document.getElementById('dimensionsChart').getContext('2d');
+        
+        new Chart(ctx2, {
+            type: 'radar',
+            data: {
+                labels: ['Valores', 'Motivadores', 'Intereses', 'Estilo de Trabajo', 'Impacto Social', 'Valores Generacionales'],
+                datasets: [{
+                    label: 'Perfil Cultural',
+                    data: [
+                        {{ report_data.scores.values }}, 
+                        {{ report_data.scores.motivators }}, 
+                        {{ report_data.scores.interests }}, 
+                        {{ report_data.scores.work_style }}, 
+                        {{ report_data.scores.social_impact }}, 
+                        {{ report_data.scores.generational_values }}
+                    ],
+                    backgroundColor: 'rgba(191, 32, 47, 0.2)',
+                    borderColor: 'rgba(191, 32, 47, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(191, 32, 47, 1)',
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 5,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.parsed.r}/5`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

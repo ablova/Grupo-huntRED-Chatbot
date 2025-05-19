@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 2cm;
             padding: 0;
+            color: #333;
+            line-height: 1.5;
         }
         .header {
             text-align: center;
@@ -33,38 +35,78 @@
         .content {
             margin-bottom: 1cm;
         }
+        .intro-message {
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #444;
+            margin-bottom: 1.5em;
+            text-align: justify;
+        }
         .section {
             margin-bottom: 1.5cm;
-            padding: 10px;
+            padding: 15px;
             border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         .section h3 {
-            color: #333;
+            color: #1a73e8;
             margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
         }
         .signature {
             text-align: center;
-            margin-top: 2cm;
+            margin-top: 1cm;
+            width: 30%;
+            display: inline-block;
+            vertical-align: top;
         }
         .signature-line {
             border-top: 1px solid #000;
-            width: 200px;
-            margin: 1cm auto;
+            width: 80%;
+            margin: 0.5cm auto;
+        }
+        .multi-signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2cm;
+            flex-wrap: wrap;
+        }
+        .acceptance-section {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 1.5cm 0;
+            border-left: 4px solid #1a73e8;
+        }
+        .acceptance-section h3 {
+            color: #1a73e8;
+            margin-top: 0;
+        }
+        .acceptance-section p:last-child {
+            font-weight: 500;
         }
         .terms {
             margin-top: 2cm;
             font-size: 0.9em;
             line-height: 1.4;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
         }
         .terms h4 {
             color: #333;
-            margin-top: 1em;
+            margin-top: 0;
         }
         .terms ol {
             margin-left: 20px;
         }
         .terms li {
-            margin-bottom: 0.5em;
+            margin-bottom: 0.8em;
+        }
+        .signatures-container {
+            margin-top: 2cm;
         }
     </style>
 </head>
@@ -94,13 +136,17 @@
     <div class="content">
         <h2>Oferta de Empleo</h2>
         
-        <p>Estimado/a {{ user.nombre }},</p>
+        <p>Estimado/a {{ user.nombre }}:</p>
+        
+        <p class="intro-message">Por medio de la presente nos complace comunicarte que has sido el ganador en el proceso de reclutamiento y selección para <strong>{{ vacancy.empresa }}</strong> para el puesto de {{ vacancy.tipo_posicion|default:"" }} <strong>{{ vacancy.titulo }}</strong>. Estamos convencidos que tienes las cualidades personales y profesionales para hacer una contribución importante en esta organización. También estamos seguros que las oportunidades que en un futuro se generen, te proporcionarán los retos y desarrollo que buscas en tu carrera profesional.</p>
 
         <div class="section">
             <h3>Posición</h3>
             <p>{{ vacancy.titulo }}</p>
             <p><strong>Ubicación:</strong> {{ vacancy.ubicacion }}</p>
             <p><strong>Modalidad:</strong> {{ vacancy.modalidad|default:"Presencial" }}</p>
+            <p><strong>Tipo de Posición:</strong> {{ vacancy.tipo_posicion|default:"" }}</p>
+            <p><strong>Descripción de la Posición:</strong> {{ vacancy.descripcion_posicion|default:"" }}</p>
         </div>
 
         <div class="section">
@@ -130,17 +176,44 @@
             </ul>
         </div>
 
-        <p>Para aceptar esta oferta, por favor firme y devuelva esta carta a más tardar el {{ end_date|date:"d/m/Y" }}.</p>
+        <div class="acceptance-section">
+            <h3>Aceptación</h3>
+            <p>Esta carta de oferta caducará en {{ days_valid|default:"5" }} días contados desde hoy y no establece ninguna relación laboral. Para su contratación, durante este periodo debe demostrar el cumplimiento de los requisitos establecidos en nuestras políticas internas y en la normativa vigente.</p>
+            
+            <p>Se aclara que no hay acuerdo verbal entre las partes que no sea la mencionada, conforme a lo descrito en esta carta propuesta. Al firmar, acepto los términos de mi contratación, esperando al momento de mi ingreso o de ser posible previamente la firma del contrato laboral entre ambas partes.</p>
+            
+            <p><strong>Queremos felicitarte por recibir esta oferta ya que es un reflejo de tus logros, capacidades y potencial futuro. Sin duda esperamos aceptes nuestra propuesta, estamos entusiasmados con la posibilidad de que te unas a esta empresa.</strong></p>
+        </div>
 
-        <p>Atentamente,</p>
-        <div class="signature">
-            <div class="signature-line"></div>
-            <p>{{ business_unit.name }}</p>
-            <p>Grupo huntRED®</p>
+        <div class="signatures-container">
+            <p>Fecha compromiso de ingreso: {{ start_date|date:"d/m/Y" }}</p>
+            
+            <div class="multi-signatures">
+                <div class="signature">
+                    <div class="signature-line"></div>
+                    <p>{{ user.nombre }} {{ user.apellido_paterno }}</p>
+                    <p>{{ user.email }}</p> / {{ user.phone }}
+                    <p>Candidato</p>
+                </div>
+                
+                <div class="signature">
+                    <div class="signature-line"></div>
+                    <p>{{ vacancy.responsable }}</p>
+                    <p>{{ vacancy.empresa }}</p>
+                    <p>Cliente</p>
+                </div>
+                
+                <div class="signature">
+                    <div class="signature-line"></div>
+                    <p>{{ consultant.nombre|default:"Pablo Lelo de Larrea H." }}</p>
+                    <p>{{ business_unit.name }} - Grupo huntRED®</p>
+                    <p> En Caracter de Testigo </p>
+                </div>
+            </div>
         </div>
 
         <div class="terms">
-            <h4>Cláusulas Adicionales</h4>
+            <h5>Cláusulas Adicionales</h5>
             <ol>
                 <li>Esta oferta es válida únicamente hasta la fecha de expiración indicada.</li>
                 <li>La aceptación de esta oferta implica el compromiso de presentar documentación completa.</li>

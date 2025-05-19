@@ -1,0 +1,716 @@
+{% extends "dashboard/client/base.html" %}
+
+{% block title %}Satisfacción - Dashboard Cliente - Grupo huntRED®{% endblock %}
+
+{% block page_title %}Análisis de Satisfacción{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Satisfacción</li>
+{% endblock %}
+
+{% block content %}
+<!-- Satisfaction Overview Cards -->
+<div class="row">
+    <!-- Distribución de Satisfacción de Candidatos -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Distribución de Satisfacción - Candidatos</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="candidateSatisfactionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Distribución de Satisfacción de Clientes -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Distribución de Satisfacción - Clientes</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="clientSatisfactionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Análisis Detallado -->
+<div class="row">
+    <!-- Gráfico de Tendencia Temporal -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span>Tendencia de Satisfacción en el Tiempo</span>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleTrendView">
+                        <i class="fas fa-chart-line"></i> Vista Mensual/Trimestral
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="satisfactionTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Satisfacción por Preguntas -->
+<div class="row">
+    <!-- Satisfacción de Candidatos por Pregunta -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Respuestas de Candidatos</span>
+            </div>
+            <div class="card-body">
+                <h5 class="mb-3">¿El puesto coincide con tus expectativas?</h5>
+                <div class="mb-4" id="position_match_chart">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Sí</span>
+                        <span id="position_match_yes">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="position_match_yes_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Parcialmente</span>
+                        <span id="position_match_partly">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="position_match_partly_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>No</span>
+                        <span id="position_match_no">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="position_match_no_bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-3">¿Te sientes integrado con tu equipo?</h5>
+                <div class="mb-4" id="team_integration_chart">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Sí</span>
+                        <span id="team_integration_yes">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="team_integration_yes_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Parcialmente</span>
+                        <span id="team_integration_partly">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="team_integration_partly_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>No</span>
+                        <span id="team_integration_no">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="team_integration_no_bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Satisfacción de Clientes por Pregunta -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Respuestas de Clientes</span>
+            </div>
+            <div class="card-body">
+                <h5 class="mb-3">¿La comunicación fue clara durante el proceso?</h5>
+                <div class="mb-4" id="clear_communication_chart">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Sí</span>
+                        <span id="clear_communication_yes">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="clear_communication_yes_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Parcialmente</span>
+                        <span id="clear_communication_partly">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="clear_communication_partly_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>No</span>
+                        <span id="clear_communication_no">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="clear_communication_no_bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <h5 class="mb-3">¿Recomendaría nuestros servicios?</h5>
+                <div class="mb-4" id="would_recommend_chart">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Sí</span>
+                        <span id="would_recommend_yes">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="would_recommend_yes_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tal vez</span>
+                        <span id="would_recommend_maybe">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="would_recommend_maybe_bar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>No</span>
+                        <span id="would_recommend_no">-</span>
+                    </div>
+                    <div class="bar-chart-horizontal">
+                        <div class="bar" id="would_recommend_no_bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Calidad de Candidatos y Velocidad de Reclutamiento -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span>Métricas de Calidad y Velocidad</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <canvas id="candidateQualityChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <canvas id="recruitmentSpeedChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comentarios y Sugerencias -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Comentarios de Candidatos</span>
+            </div>
+            <div class="card-body">
+                <div id="candidate_comments">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p>Cargando comentarios...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <span>Sugerencias de Clientes</span>
+            </div>
+            <div class="card-body">
+                <div id="client_suggestions">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p>Cargando sugerencias...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Charts
+    let candidateSatisfactionChart = null;
+    let clientSatisfactionChart = null;
+    let satisfactionTimeChart = null;
+    let candidateQualityChart = null;
+    let recruitmentSpeedChart = null;
+    
+    // Toggle state for time view
+    let timeViewMonthly = true;
+    
+    function initializeCharts() {
+        // Candidate Satisfaction Distribution Chart
+        const candidateCtx = document.getElementById('candidateSatisfactionChart').getContext('2d');
+        candidateSatisfactionChart = new Chart(candidateCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Alta (8-10)', 'Media (5-7)', 'Baja (1-4)'],
+                datasets: [{
+                    data: [0, 0, 0],
+                    backgroundColor: [
+                        '#28a745',
+                        '#0056b3',
+                        '#dc3545'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+        
+        // Client Satisfaction Distribution Chart
+        const clientCtx = document.getElementById('clientSatisfactionChart').getContext('2d');
+        clientSatisfactionChart = new Chart(clientCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Alta (8-10)', 'Media (5-7)', 'Baja (1-4)'],
+                datasets: [{
+                    data: [0, 0, 0],
+                    backgroundColor: [
+                        '#28a745',
+                        '#0056b3',
+                        '#dc3545'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+        
+        // Satisfaction Time Chart
+        const timeCtx = document.getElementById('satisfactionTimeChart').getContext('2d');
+        satisfactionTimeChart = new Chart(timeCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Satisfacción de Candidatos',
+                        data: [],
+                        borderColor: '#3b007a',
+                        backgroundColor: 'rgba(59, 0, 122, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    },
+                    {
+                        label: 'Satisfacción de Clientes',
+                        data: [],
+                        borderColor: '#0056b3',
+                        backgroundColor: 'rgba(0, 86, 179, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        min: 0,
+                        max: 10,
+                        title: {
+                            display: true,
+                            text: 'Satisfacción (0-10)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw + '/10';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Candidate Quality Chart
+        const qualityCtx = document.getElementById('candidateQualityChart').getContext('2d');
+        candidateQualityChart = new Chart(qualityCtx, {
+            type: 'gauge',
+            data: {
+                datasets: [{
+                    value: 0,
+                    data: [3, 2, 5],
+                    backgroundColor: ['#dc3545', '#ffc107', '#28a745'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                title: {
+                    display: true,
+                    text: 'Calidad de Candidatos'
+                },
+                layout: {
+                    padding: {
+                        bottom: 30
+                    }
+                },
+                needle: {
+                    radiusPercentage: 2,
+                    widthPercentage: 3.2,
+                    lengthPercentage: 80,
+                    color: 'rgba(0, 0, 0, 1)'
+                },
+                valueLabel: {
+                    display: true,
+                    formatter: function(value) {
+                        return value.toFixed(1) + '/10';
+                    },
+                    color: 'rgba(0, 0, 0, 1)',
+                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                    borderRadius: 5,
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+        
+        // Recruitment Speed Chart
+        const speedCtx = document.getElementById('recruitmentSpeedChart').getContext('2d');
+        recruitmentSpeedChart = new Chart(speedCtx, {
+            type: 'gauge',
+            data: {
+                datasets: [{
+                    value: 0,
+                    data: [3, 2, 5],
+                    backgroundColor: ['#dc3545', '#ffc107', '#28a745'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                title: {
+                    display: true,
+                    text: 'Velocidad de Reclutamiento'
+                },
+                layout: {
+                    padding: {
+                        bottom: 30
+                    }
+                },
+                needle: {
+                    radiusPercentage: 2,
+                    widthPercentage: 3.2,
+                    lengthPercentage: 80,
+                    color: 'rgba(0, 0, 0, 1)'
+                },
+                valueLabel: {
+                    display: true,
+                    formatter: function(value) {
+                        return value.toFixed(1) + '/10';
+                    },
+                    color: 'rgba(0, 0, 0, 1)',
+                    backgroundColor: 'rgba(0, 0, 0, 0)',
+                    borderRadius: 5,
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+    }
+    
+    // Load Satisfaction Data
+    function loadSatisfactionData() {
+        const businessUnitId = document.getElementById('business_unit').value;
+        const empresaId = document.getElementById('empresa').value;
+        const timePeriod = document.getElementById('time_period').value;
+        
+        // Fetch candidate satisfaction data
+        fetch(`/api/dashboard/data/?data_type=candidate_satisfaction&business_unit_id=${businessUnitId}&empresa_id=${empresaId}&days=${timePeriod}`)
+            .then(response => response.json())
+            .then(data => {
+                updateCandidateSatisfactionData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching candidate satisfaction data:', error);
+            });
+        
+        // Fetch client satisfaction data
+        fetch(`/api/dashboard/data/?data_type=client_satisfaction&business_unit_id=${businessUnitId}&empresa_id=${empresaId}&days=${timePeriod}`)
+            .then(response => response.json())
+            .then(data => {
+                updateClientSatisfactionData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching client satisfaction data:', error);
+            });
+        
+        // Fetch trend data
+        fetch(`/api/dashboard/data/?data_type=satisfaction_trend&business_unit_id=${businessUnitId}&empresa_id=${empresaId}&days=${timePeriod}`)
+            .then(response => response.json())
+            .then(data => {
+                updateSatisfactionTrendData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching satisfaction trend data:', error);
+            });
+    }
+    
+    // Update Candidate Satisfaction Data
+    function updateCandidateSatisfactionData(data) {
+        // Update distribution chart
+        if (candidateSatisfactionChart && data.satisfaction_distribution) {
+            candidateSatisfactionChart.data.datasets[0].data = [
+                data.satisfaction_distribution.high,
+                data.satisfaction_distribution.medium,
+                data.satisfaction_distribution.low
+            ];
+            candidateSatisfactionChart.update();
+        }
+        
+        // Update question responses
+        if (data.question_data) {
+            // Position match
+            if (data.question_data.position_match) {
+                document.getElementById('position_match_yes').textContent = data.question_data.position_match.yes + '%';
+                document.getElementById('position_match_partly').textContent = data.question_data.position_match.partly + '%';
+                document.getElementById('position_match_no').textContent = data.question_data.position_match.no + '%';
+                
+                document.getElementById('position_match_yes_bar').style.width = data.question_data.position_match.yes + '%';
+                document.getElementById('position_match_partly_bar').style.width = data.question_data.position_match.partly + '%';
+                document.getElementById('position_match_no_bar').style.width = data.question_data.position_match.no + '%';
+            }
+            
+            // Team integration
+            if (data.question_data.team_integration) {
+                document.getElementById('team_integration_yes').textContent = data.question_data.team_integration.yes + '%';
+                document.getElementById('team_integration_partly').textContent = data.question_data.team_integration.partly + '%';
+                document.getElementById('team_integration_no').textContent = data.question_data.team_integration.no + '%';
+                
+                document.getElementById('team_integration_yes_bar').style.width = data.question_data.team_integration.yes + '%';
+                document.getElementById('team_integration_partly_bar').style.width = data.question_data.team_integration.partly + '%';
+                document.getElementById('team_integration_no_bar').style.width = data.question_data.team_integration.no + '%';
+            }
+        }
+        
+        // Update comments
+        const commentsContainer = document.getElementById('candidate_comments');
+        
+        if (data.recent_comments && data.recent_comments.length > 0) {
+            let html = '';
+            
+            data.recent_comments.forEach(comment => {
+                // Determine satisfaction class
+                let satisfactionClass = 'text-secondary';
+                if (comment.satisfaction >= 8) {
+                    satisfactionClass = 'text-success';
+                } else if (comment.satisfaction <= 4) {
+                    satisfactionClass = 'text-danger';
+                } else if (comment.satisfaction >= 5) {
+                    satisfactionClass = 'text-primary';
+                }
+                
+                html += `
+                    <div class="comment-box">
+                        <p><strong class="${satisfactionClass}">Satisfacción: ${comment.satisfaction}/10</strong></p>
+                        <p>${comment.comment}</p>
+                        <div class="comment-meta">
+                            <span>Período: ${comment.period} días</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            commentsContainer.innerHTML = html;
+        } else {
+            commentsContainer.innerHTML = '<p class="text-center">No hay comentarios disponibles.</p>';
+        }
+    }
+    
+    // Update Client Satisfaction Data
+    function updateClientSatisfactionData(data) {
+        // Update distribution chart
+        if (clientSatisfactionChart && data.satisfaction_distribution) {
+            clientSatisfactionChart.data.datasets[0].data = [
+                data.satisfaction_distribution.high,
+                data.satisfaction_distribution.medium,
+                data.satisfaction_distribution.low
+            ];
+            clientSatisfactionChart.update();
+        }
+        
+        // Update question responses
+        if (data.question_data) {
+            // Clear communication
+            if (data.question_data.clear_communication) {
+                document.getElementById('clear_communication_yes').textContent = data.question_data.clear_communication.yes + '%';
+                document.getElementById('clear_communication_partly').textContent = data.question_data.clear_communication.partly + '%';
+                document.getElementById('clear_communication_no').textContent = data.question_data.clear_communication.no + '%';
+                
+                document.getElementById('clear_communication_yes_bar').style.width = data.question_data.clear_communication.yes + '%';
+                document.getElementById('clear_communication_partly_bar').style.width = data.question_data.clear_communication.partly + '%';
+                document.getElementById('clear_communication_no_bar').style.width = data.question_data.clear_communication.no + '%';
+            }
+            
+            // Would recommend
+            if (data.question_data.would_recommend) {
+                document.getElementById('would_recommend_yes').textContent = data.question_data.would_recommend.yes + '%';
+                document.getElementById('would_recommend_maybe').textContent = data.question_data.would_recommend.maybe + '%';
+                document.getElementById('would_recommend_no').textContent = data.question_data.would_recommend.no + '%';
+                
+                document.getElementById('would_recommend_yes_bar').style.width = data.question_data.would_recommend.yes + '%';
+                document.getElementById('would_recommend_maybe_bar').style.width = data.question_data.would_recommend.maybe + '%';
+                document.getElementById('would_recommend_no_bar').style.width = data.question_data.would_recommend.no + '%';
+            }
+        }
+        
+        // Update quality and speed gauges
+        if (candidateQualityChart && data.avg_candidate_quality) {
+            candidateQualityChart.data.datasets[0].value = data.avg_candidate_quality;
+            candidateQualityChart.update();
+        }
+        
+        if (recruitmentSpeedChart && data.avg_recruitment_speed) {
+            recruitmentSpeedChart.data.datasets[0].value = data.avg_recruitment_speed;
+            recruitmentSpeedChart.update();
+        }
+        
+        // Update suggestions
+        const suggestionsContainer = document.getElementById('client_suggestions');
+        
+        if (data.recent_suggestions && data.recent_suggestions.length > 0) {
+            let html = '';
+            
+            data.recent_suggestions.forEach(suggestion => {
+                // Determine satisfaction class
+                let satisfactionClass = 'text-secondary';
+                if (suggestion.satisfaction >= 8) {
+                    satisfactionClass = 'text-success';
+                } else if (suggestion.satisfaction <= 4) {
+                    satisfactionClass = 'text-danger';
+                } else if (suggestion.satisfaction >= 5) {
+                    satisfactionClass = 'text-primary';
+                }
+                
+                html += `
+                    <div class="comment-box">
+                        <p><strong class="${satisfactionClass}">Satisfacción: ${suggestion.satisfaction}/10</strong></p>
+                        <p>${suggestion.suggestion}</p>
+                        <div class="comment-meta">
+                            <span>Empresa: ${suggestion.empresa}</span>
+                            ${suggestion.date ? `<span class="ms-3">Fecha: ${new Date(suggestion.date).toLocaleDateString()}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            suggestionsContainer.innerHTML = html;
+        } else {
+            suggestionsContainer.innerHTML = '<p class="text-center">No hay sugerencias disponibles.</p>';
+        }
+    }
+    
+    // Update Satisfaction Trend Data
+    function updateSatisfactionTrendData(data) {
+        if (satisfactionTimeChart) {
+            // Apply the correct dataset based on the current view (monthly or quarterly)
+            const trendData = timeViewMonthly ? data.monthly_trend : data.quarterly_trend;
+            
+            satisfactionTimeChart.data.labels = trendData.labels;
+            satisfactionTimeChart.data.datasets[0].data = trendData.candidate_data;
+            satisfactionTimeChart.data.datasets[1].data = trendData.client_data;
+            satisfactionTimeChart.update();
+        }
+    }
+    
+    // Toggle Time View
+    function toggleTimeView() {
+        timeViewMonthly = !timeViewMonthly;
+        
+        // Update the chart with new data based on the view type
+        const businessUnitId = document.getElementById('business_unit').value;
+        const empresaId = document.getElementById('empresa').value;
+        const timePeriod = document.getElementById('time_period').value;
+        
+        fetch(`/api/dashboard/data/?data_type=satisfaction_trend&business_unit_id=${businessUnitId}&empresa_id=${empresaId}&days=${timePeriod}`)
+            .then(response => response.json())
+            .then(data => {
+                updateSatisfactionTrendData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching satisfaction trend data:', error);
+            });
+    }
+    
+    // Document ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize charts
+        initializeCharts();
+        
+        // Load data
+        loadSatisfactionData();
+        
+        // Handle toggle time view button
+        document.getElementById('toggleTrendView').addEventListener('click', toggleTimeView);
+        
+        // Handle refresh button
+        document.getElementById('refreshData').addEventListener('click', loadSatisfactionData);
+        
+        // Update dashboard when filters change
+        document.getElementById('business_unit').addEventListener('change', loadSatisfactionData);
+        document.getElementById('empresa').addEventListener('change', loadSatisfactionData);
+        document.getElementById('time_period').addEventListener('change', loadSatisfactionData);
+    });
+</script>
+{% endblock %}

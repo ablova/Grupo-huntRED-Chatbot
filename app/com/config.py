@@ -1,3 +1,7 @@
+# /home/pablo/app/com/config.py
+#
+# Configuración centralizada para el módulo de comunicaciones.
+#
 from django.conf import settings
 from typing import Dict, List, Tuple
 import logging

@@ -1,0 +1,386 @@
+<!-- Sección de pricing (pricing.html) -->
+<div class="pricing-section" id="pricing">
+    <h2 class="section-title">Propuesta Económica</h2>
+    <p class="section-description">
+        A continuación presentamos nuestra propuesta económica basada en las necesidades específicas de 
+        {{ proposal_data.company.name }} y alineada con nuestros principios de Apoyo, Solidaridad y Sinergia.
+    </p>
+
+    <div class="pricing-container">
+        <!-- Información del servicio -->
+        <div class="service-summary">
+            <h3>{{ proposal_data.service.name }}</h3>
+            <p>{{ proposal_data.service.description }}</p>
+            
+            {% if proposal_data.pricing.user_count %}
+            <div class="metrics">
+                <div class="metric">
+                    <i class="fas fa-users"></i>
+                    <span>{{ proposal_data.pricing.user_count }} usuarios</span>
+                </div>
+                <div class="metric">
+                    <i class="fas fa-tag"></i>
+                    <span>${{ proposal_data.pricing.price_per_user|floatformat:2 }} MXN por usuario</span>
+                </div>
+                {% if proposal_data.pricing.discount_percentage > 0 %}
+                <div class="metric highlight">
+                    <i class="fas fa-percentage"></i>
+                    <span>{{ proposal_data.pricing.discount_percentage|floatformat:0 }}% de descuento aplicado</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if proposal_data.pricing.volume %}
+            <!-- Pricing con descuentos por volumen para múltiples vacantes -->
+            <div class="volume-pricing">
+                <h4>Detalle de posiciones:</h4>
+                <table class="pricing-table">
+                    <thead>
+                        <tr>
+                            <th>Posición</th>
+                            <th>Cantidad</th>
+                            <th>Precio unitario</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for position in proposal_data.pricing.volume.positions %}
+                        <tr>
+                            <td>{{ position.position_name }}</td>
+                            <td>{{ position.count }}</td>
+                            <td>${{ position.price_per_unit|floatformat:2 }}</td>
+                            <td>${{ position.subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if proposal_data.pricing.volume.discount_applied %}
+                <div class="discount-info">
+                    <p><i class="fas fa-gift"></i> Se aplicó un descuento por volumen de {{ proposal_data.pricing.volume.discount_pct|floatformat:1 }}%</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if proposal_data.pricing.addons and proposal_data.pricing.addons|length > 0 %}
+            <!-- Servicios adicionales (addons) -->
+            <div class="addons-section">
+                <h4>Servicios adicionales incluidos:</h4>
+                <ul class="addons-list">
+                    {% for addon in proposal_data.pricing.addons %}
+                    <li>
+                        <div class="addon-name">{{ addon.name }}</div>
+                        <div class="addon-description">{{ addon.description }}</div>
+                        <div class="addon-price">${{ addon.price.total|floatformat:2 }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Resumen de precios -->
+        <div class="pricing-summary">
+            <div class="pricing-card">
+                <h3>Resumen</h3>
+                
+                <div class="pricing-details">
+                    <div class="price-row">
+                        <span>Subtotal</span>
+                        <span>${{ proposal_data.pricing.subtotal|floatformat:2 }} MXN</span>
+                    </div>
+                    <div class="price-row">
+                        <span>IVA (16%)</span>
+                        <span>${{ proposal_data.pricing.iva|floatformat:2 }} MXN</span>
+                    </div>
+                    <div class="price-row total">
+                        <span>Total</span>
+                        <span>${{ proposal_data.pricing.total|floatformat:2 }} MXN</span>
+                    </div>
+                </div>
+                
+                <div class="pricing-notes">
+                    <p><i class="fas fa-info-circle"></i> Precios expresados en pesos mexicanos (MXN)</p>
+                    <p><i class="fas fa-calendar-check"></i> Propuesta válida hasta: {{ valid_until }}</p>
+                </div>
+            </div>
+            
+            {% if proposal_data.payment_schedule %}
+            <!-- Plan de pagos -->
+            <div class="payment-schedule">
+                <h4>Plan de pagos</h4>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th>Monto</th>
+                            <th>Fecha estimada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for milestone in proposal_data.payment_schedule.milestones %}
+                        <tr>
+                            <td>{{ milestone.description }}</td>
+                            <td>${{ milestone.amount|floatformat:2 }}</td>
+                            <td>{{ milestone.due_date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if proposal_data.payment_schedule.notes %}
+                <div class="schedule-notes">
+                    <p>{{ proposal_data.payment_schedule.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .pricing-section {
+        padding: 3rem 0;
+        background: #f8f9fa;
+        border-radius: 12px;
+        margin: 2rem 0;
+    }
+    .section-title {
+        text-align: center;
+        font-size: 2rem;
+        color: var(--hunt-blue);
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    .section-title:after {
+        content: '';
+        display: block;
+        width: 80px;
+        height: 4px;
+        background: var(--hunt-red);
+        margin: 0.5rem auto;
+        border-radius: 2px;
+    }
+    .section-description {
+        text-align: center;
+        max-width: 800px;
+        margin: 0 auto 2rem;
+        color: #555;
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+    .pricing-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        max-width: 1100px;
+        margin: 0 auto;
+        gap: 2rem;
+    }
+    .service-summary {
+        flex: 1 1 60%;
+        background: white;
+        border-radius: 8px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .service-summary h3 {
+        color: var(--hunt-blue);
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #eaeaea;
+        padding-bottom: 0.5rem;
+    }
+    .metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin: 1.5rem 0;
+    }
+    .metric {
+        display: flex;
+        align-items: center;
+        background: #f0f4f8;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+    .metric i {
+        margin-right: 0.75rem;
+        color: var(--hunt-blue);
+        font-size: 1.2rem;
+    }
+    .metric.highlight {
+        background: #fff3e0;
+        color: #ff6f00;
+    }
+    .metric.highlight i {
+        color: #ff6f00;
+    }
+    .pricing-summary {
+        flex: 1 1 30%;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    .pricing-card {
+        background: linear-gradient(135deg, var(--hunt-blue) 0%, #2c3e50 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 2rem;
+        box-shadow: 0 10px 20px rgba(44, 62, 80, 0.15);
+    }
+    .pricing-card h3 {
+        text-align: center;
+        font-size: 1.6rem;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+    }
+    .pricing-details {
+        margin-bottom: 1.5rem;
+    }
+    .price-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .price-row.total {
+        border-bottom: none;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+        padding-top: 1rem;
+        border-top: 2px solid rgba(255,255,255,0.2);
+    }
+    .pricing-notes {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-top: 1.5rem;
+    }
+    .pricing-notes p {
+        margin: 0.5rem 0;
+        display: flex;
+        align-items: center;
+    }
+    .pricing-notes i {
+        margin-right: 0.5rem;
+    }
+    .volume-pricing {
+        margin: 1.5rem 0;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .volume-pricing h4 {
+        color: var(--hunt-blue);
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    .pricing-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+    }
+    .pricing-table th {
+        background: var(--hunt-blue);
+        color: white;
+        padding: 0.75rem;
+        text-align: left;
+    }
+    .pricing-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+    .pricing-table tr:last-child td {
+        border-bottom: none;
+    }
+    .discount-info {
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-top: 1rem;
+        font-weight: 500;
+    }
+    .discount-info i {
+        margin-right: 0.5rem;
+    }
+    .addons-section {
+        margin-top: 2rem;
+    }
+    .addons-section h4 {
+        color: var(--hunt-blue);
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    .addons-list {
+        list-style: none;
+        padding: 0;
+    }
+    .addons-list li {
+        background: #f0f4f8;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+    }
+    .addon-name {
+        font-weight: 600;
+        color: var(--hunt-blue);
+    }
+    .addon-description {
+        font-size: 0.9rem;
+        color: #555;
+        margin: 0.25rem 0 0.5rem;
+    }
+    .addon-price {
+        font-weight: 500;
+        color: var(--hunt-red);
+    }
+    .payment-schedule {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .payment-schedule h4 {
+        color: var(--hunt-blue);
+        margin-bottom: 1rem;
+        font-weight: 600;
+        text-align: center;
+    }
+    .schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+    }
+    .schedule-table th {
+        background: #f0f4f8;
+        color: var(--hunt-blue);
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+    }
+    .schedule-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #eee;
+    }
+    .schedule-notes {
+        font-size: 0.9rem;
+        color: #666;
+        font-style: italic;
+    }
+    
+    /* Responsividad */
+    @media (max-width: 992px) {
+        .pricing-container {
+            flex-direction: column;
+        }
+        .service-summary, .pricing-summary {
+            width: 100%;
+        }
+    }
+</style>
