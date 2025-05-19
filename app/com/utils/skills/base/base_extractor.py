@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
-from app.com.utils.skills.base_models.base_models import Skill, SkillSource, SkillContext
+from ..base_models.base_models import Skill, SkillSource, SkillContext
 import logging
 
 logger = logging.getLogger(__name__)

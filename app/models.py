@@ -3639,6 +3639,14 @@ class Skill(models.Model):
     """
     Modelo para almacenar habilidades técnicas y profesionales.
     """
+    # Niveles de habilidad
+    LEVEL_CHOICES = [
+        ('beginner', 'Principiante'),
+        ('intermediate', 'Intermedio'),
+        ('advanced', 'Avanzado'),
+        ('expert', 'Experto')
+    ]
+    
     name = models.CharField(
         max_length=100,
         unique=True,
@@ -3658,6 +3666,12 @@ class Skill(models.Model):
     is_technical = models.BooleanField(
         default=True,
         help_text="¿Es una habilidad técnica?"
+    )
+    default_level = models.CharField(
+        max_length=20,
+        choices=LEVEL_CHOICES,
+        default='intermediate',
+        help_text="Nivel de habilidad por defecto"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -3684,17 +3698,42 @@ class Skill(models.Model):
 
 class PersonSkill(models.Model):
     """Modelo para relacionar personas con sus habilidades y niveles."""
-    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='skills')
-    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name='people')
+    person = models.ForeignKey(
+        Person, 
+        on_delete=models.CASCADE, 
+        related_name='person_skills',
+        help_text="Persona asociada a esta habilidad"
+    )
+    skill = models.ForeignKey(
+        Skill, 
+        on_delete=models.CASCADE, 
+        related_name='person_skills',
+        help_text="Habilidad asociada"
+    )
     level = models.CharField(
         max_length=20,
-        choices=Skill.level_choices,
-        default='intermediate'
+        choices=Skill.LEVEL_CHOICES,
+        default='intermediate',
+        help_text="Nivel de competencia en esta habilidad"
     )
-    years_experience = models.FloatField(default=0)
-    is_verified = models.BooleanField(default=False)
-    verification_date = models.DateTimeField(null=True, blank=True)
-    verification_notes = models.TextField(blank=True, null=True)
+    years_experience = models.FloatField(
+        default=0,
+        help_text="Años de experiencia con esta habilidad"
+    )
+    is_verified = models.BooleanField(
+        default=False,
+        help_text="Indica si la habilidad ha sido verificada"
+    )
+    verification_date = models.DateTimeField(
+        null=True, 
+        blank=True,
+        help_text="Fecha de verificación de la habilidad"
+    )
+    verification_notes = models.TextField(
+        blank=True, 
+        null=True,
+        help_text="Notas sobre la verificación de la habilidad"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

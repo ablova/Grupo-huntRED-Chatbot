@@ -1,15 +1,15 @@
-from app.com.utils.skills.base import *
-from app.com.utils.skills.extraction import *
-from app.com.utils.skills.classification import *
-from app.com.utils.skills.analysis import *
-from app.com.utils.skills.validation import *
-from app.com.utils.skills.learning import *
-from app.com.utils.skills.context import *
-from app.com.utils.skills.prediction import *
-from app.com.utils.skills.feedback import *
-from app.com.utils.skills.recommendation import *
-from app.com.utils.skills.role_mapping import *
-from app.com.utils.skills.impact_analysis import *
+from .base import *
+from .extraction import *
+from .classification import *
+from .analysis import *
+from .validation import *
+from .learning import *
+from .context import *
+from .prediction import *
+from .feedback import *
+from .recommendation import *
+from .role_mapping import *
+from .impact_analysis import *
 
 __all__ = [
     # Base
