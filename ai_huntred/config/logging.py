@@ -1,3 +1,4 @@
+# /home/pablo/ai_huntred/config/logging.py
 import logging
 import os
 from datetime import datetime
@@ -29,8 +30,7 @@ def setup_logging():
                 'datefmt': DATE_FORMAT
             },
             'mexico': {
-                'format': ('%(asctime)s [%(levelname)s] %(name)s '
-                         '[%(hostname)s] %(filename)s:%(lineno)d - %(message)s'),
+                'format': ('%(asctime)s [%(levelname)s] %(name)s %(filename)s:%(lineno)d - %(message)s'),
                 'datefmt': DATE_FORMAT
             }
         },

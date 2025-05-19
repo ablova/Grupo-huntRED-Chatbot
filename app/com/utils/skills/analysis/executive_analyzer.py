@@ -1,5 +1,5 @@
-from app.com.utils.skills.base.base_analyzer.base.base_analyzer import BaseSkillAnalyzer
-from app.com.utils.skills.base.base_analyzer.base.base_models import Skill, Competency, SkillCategory, CompetencyLevel
+from app.com.utils.skills.base.base_analyzer import BaseSkillAnalyzer
+from app.com.utils.skills.base.base_models import Skill, Competency, SkillCategory, CompetencyLevel
 from typing import List, Dict
 import logging
 

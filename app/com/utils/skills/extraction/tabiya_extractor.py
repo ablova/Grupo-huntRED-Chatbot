@@ -1,5 +1,5 @@
-from app.com.utils.skills.base.base_models.base.base_extractor import BaseSkillExtractor
-from app.com.utils.skills.base.base_models.base.base_models import Skill, SkillSource, SkillContext
+from app.com.utils.skills.base.base_extractor import BaseSkillExtractor
+from app.com.utils.skills.base.base_models import Skill, SkillSource, SkillContext
 from app.com.utils.tabiya import TabiyaNLPAdapter
 from typing import List, Dict
 import logging
