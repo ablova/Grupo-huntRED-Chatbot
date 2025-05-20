@@ -830,12 +830,12 @@ class {class_name}(BaseHandler):
         self.connected = False
         self.messages_sent = 0
         self.messages_received = 0
-        logger.info(f"Inicializado {class_name} (implementación genérica)")
+        logger.info(f"Inicializado {{self.__class__.__name__}} (implementación genérica)")
     
     async def connect(self, api_key: Optional[str] = None) -> bool:
         """Conecta con la API de {module_name}."""
         self.api_key = api_key or "MOCK_API_KEY"  # En producción, obtener de ENV
-        logger.info(f"[MOCK] Conectando a {module_name.capitalize()} API con API Key: {self.api_key[:4]}...")
+        logger.info(f"[MOCK] Conectando a {{module_name.capitalize()}} API con API Key: {{self.api_key[:4] if self.api_key else 'None'}}...")
         # Simulación de conexión
         await asyncio.sleep(0.5)
         self.connected = True
@@ -847,10 +847,10 @@ class {class_name}(BaseHandler):
             await self.connect()
             
         # Simulación de envío de mensaje
-        logger.info(f"[MOCK] Enviando mensaje a {{user_id}} vía {module_name}: {{message[:50]}}...")
+        logger.info(f"[MOCK] Enviando mensaje a {{user_id}} vía {{self.handler_type}}: {{message[:50]}}...")
         self.messages_sent += 1
         
-        message_id = f"{module_name}-{{user_id}}-{{int(time.time())}}"
+        message_id = f"{{self.handler_type}}-{{user_id}}-{{int(time.time())}}"
         return {{
             "success": True,
             "message_id": message_id,
@@ -860,7 +860,7 @@ class {class_name}(BaseHandler):
     async def process_incoming(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Procesa un mensaje entrante."""
         self.messages_received += 1
-        logger.info(f"[MOCK] Procesando mensaje entrante vía {module_name}: {{json.dumps(message_data)[:100]}}...")
+        logger.info(f"[MOCK] Procesando mensaje entrante vía {{self.handler_type}}: {{json.dumps(message_data)[:100]}}...")
         
         # Extracción de datos simulada
         sender = message_data.get("sender", "unknown")
@@ -869,7 +869,7 @@ class {class_name}(BaseHandler):
         return {{
             "user_id": sender,
             "message": message,
-            "channel": "{module_name}",
+            "channel": self.handler_type,
             "timestamp": message_data.get("timestamp", time.time())
         }}
         
@@ -879,14 +879,14 @@ class {class_name}(BaseHandler):
         return True
         
     async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
-        """Obtiene el perfil de un usuario en {module_name}."""
-        logger.info(f"[MOCK] Obteniendo perfil de {{user_id}} en {module_name}")
+        """Obtiene el perfil de un usuario."""
+        logger.info(f"[MOCK] Obteniendo perfil de {{user_id}} en {{self.handler_type}}")
         
         return {{
             "user_id": user_id,
-            "name": f"Usuario de {module_name.capitalize()}",
-            "profile_url": f"https://{module_name}.com/users/{{user_id}}",
-            "channel": "{module_name}"
+            "name": f"Usuario de {{self.handler_type.capitalize()}}",
+            "profile_url": f"https://{{self.handler_type}}.com/users/{{user_id}}",
+            "channel": self.handler_type
         }}
 '''
         
