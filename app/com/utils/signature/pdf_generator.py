@@ -20,8 +20,11 @@ import numpy as np
 from django.core.files.storage import default_storage
 from asgiref.sync import sync_to_async
 
-from app.models import Person
-from app.com.chatbot.validation.truth_analyzer import truth_analyzer
+from app.models import Person, BusinessUnit
+from app.com.chatbot.validation import get_truth_analyzer
+
+# Obtener la instancia del analizador cuando sea necesario
+truth_analyzer = get_truth_analyzer()
 
 # Intentar registrar la fuente SF Pro Display; usar Helvetica si falla
 FONT_NAME = "Helvetica"
@@ -33,10 +36,10 @@ try:
 except Exception as e:
     print(f"Advertencia: No se pudo cargar la fuente SFProDisplay: {e}. Usando Helvetica.")
 
-def draw_header(c, business_unit, title):
+def draw_header(c, business_unit: BusinessUnit, title: str):
     """Dibuja el encabezado con los logos y el título del documento."""
     huntred_logo_path = "/home/pablo/media/Grupo_huntRED.png"
-    bu_logo_path = f"/home/pablo/media/{business_unit.lower()}.png"
+    bu_logo_path = f"/home/pablo/media/{business_unit.name.lower()}.png"
     
     # Logo de huntRED® a la izquierda
     if os.path.exists(huntred_logo_path):
@@ -116,13 +119,13 @@ def generate_candidate_summary(candidate):
     
     return output_path
 
-async def generate_cv_pdf(candidate, business_unit, html_template="modern"):
+async def generate_cv_pdf(candidate: Person, business_unit: BusinessUnit, html_template: str = "modern"):
     """
     Genera un CV en formato HTML y PDF para el candidato usando TruthSense™ y SocialVerify™.
     
     Args:
         candidate: Persona/candidato a generar el CV
-        business_unit: Unidad de negocio (huntRED, huntU, Amigro)
+        business_unit: Unidad de negocio (objeto BusinessUnit)
         html_template: Nombre de la plantilla HTML a utilizar
         
     Returns:
@@ -143,8 +146,8 @@ async def generate_cv_pdf(candidate, business_unit, html_template="modern"):
         html_content = await sync_to_async(render_to_string)(template_path, context)
         
         # Definir rutas de salida
-        html_output_path = f"/tmp/{candidate.id}_{business_unit.lower()}_cv.html"
-        pdf_output_path = f"/tmp/{candidate.id}_{business_unit.lower()}_cv.pdf"
+        html_output_path = f"/tmp/{candidate.id}_{business_unit.name.lower()}_cv.html"
+        pdf_output_path = f"/tmp/{candidate.id}_{business_unit.name.lower()}_cv.pdf"
         
         # Guardar HTML
         with open(html_output_path, 'w', encoding='utf-8') as html_file:
@@ -186,18 +189,18 @@ async def generate_cv_pdf(candidate, business_unit, html_template="modern"):
         # Guardar en almacenamiento por defecto (para acceso posterior)
         with open(pdf_output_path, "rb") as f:
             pdf_content = f.read()
-            await sync_to_async(default_storage.save)(f"cvs/{candidate.id}_{business_unit.lower()}_cv.pdf", ContentFile(pdf_content))
+            await sync_to_async(default_storage.save)(f"cvs/{candidate.id}_{business_unit.name.lower()}_cv.pdf", ContentFile(pdf_content))
         
         with open(html_output_path, "rb") as f:
             html_content_bytes = f.read()
-            await sync_to_async(default_storage.save)(f"cvs/{candidate.id}_{business_unit.lower()}_cv.html", ContentFile(html_content_bytes))
+            await sync_to_async(default_storage.save)(f"cvs/{candidate.id}_{business_unit.name.lower()}_cv.html", ContentFile(html_content_bytes))
         
         # Devolver rutas a los archivos generados
         return {
             'html_path': html_output_path,
             'pdf_path': pdf_output_path,
-            'storage_path': f"cvs/{candidate.id}_{business_unit.lower()}_cv.pdf",
-            'html_storage_path': f"cvs/{candidate.id}_{business_unit.lower()}_cv.html"
+            'storage_path': f"cvs/{candidate.id}_{business_unit.name.lower()}_cv.pdf",
+            'html_storage_path': f"cvs/{candidate.id}_{business_unit.name.lower()}_cv.html"
         }
         
     except ImportError as e:
@@ -209,9 +212,9 @@ async def generate_cv_pdf(candidate, business_unit, html_template="modern"):
         # En caso de error, usar la versión legacy
         return await generate_cv_pdf_legacy(candidate, business_unit)
 
-async def generate_cv_pdf_legacy(candidate, business_unit):
+async def generate_cv_pdf_legacy(candidate: Person, business_unit: BusinessUnit):
     """Genera un CV en PDF para el candidato usando el método tradicional (ReportLab)."""
-    output_path = f"/tmp/{candidate.id}_{business_unit.lower()}_cv.pdf"
+    output_path = f"/tmp/{candidate.id}_{business_unit.name.lower()}_cv.pdf"
     c = canvas.Canvas(output_path, pagesize=A4)
     
     # Encabezado
@@ -416,9 +419,9 @@ async def generate_cv_pdf_legacy(candidate, business_unit):
     
     return output_path
 
-def generate_contract_pdf(candidate, client, job_position, business_unit):
+def generate_contract_pdf(candidate: Person, client: Any, job_position: Any, business_unit: BusinessUnit):
     """Genera la Carta Propuesta con información del candidato y la vacante."""
-    output_path = f"/tmp/{business_unit.lower()}_contracts/{candidate.id}.pdf"
+    output_path = f"/tmp/{business_unit.name.lower()}_contracts/{candidate.id}.pdf"
     c = canvas.Canvas(output_path, pagesize=A4)
     
     # Encabezado
@@ -527,13 +530,13 @@ async def prepare_verification_data(person_id: int) -> Dict:
             'person_id': str(person_id)
         }
 
-async def format_cv_context(person: Person, business_unit: str = "huntRED") -> Dict:
+async def format_cv_context(person: Person, business_unit: BusinessUnit) -> Dict:
     """
     Formatea el contexto completo para la generación de CV HTML.
     
     Args:
         person: Objeto Person del candidato
-        business_unit: Unidad de negocio (huntRED, huntU, Amigro)
+        business_unit: Unidad de negocio (objeto BusinessUnit)
         
     Returns:
         Dict con todo el contexto necesario para la plantilla HTML
@@ -546,7 +549,7 @@ async def format_cv_context(person: Person, business_unit: str = "huntRED") -> D
         'headline': person.headline or '',
         'summary': person.summary or '',
         'language': person.language or 'es',
-        'business_unit': business_unit
+        'business_unit': business_unit.name
     }
     
     # Añadir experiencias profesionales
@@ -615,7 +618,7 @@ async def format_cv_context(person: Person, business_unit: str = "huntRED") -> D
     # URLs para QR y logos
     context['profile_qr_code_url'] = f"/media/qr_codes/{person.id}.png"
     context['huntred_logo_url'] = f"/static/images/logo_huntred.png"
-    context['business_unit_logo_url'] = f"/static/images/logo_{business_unit.lower()}.png"
+    context['business_unit_logo_url'] = f"/static/images/logo_{business_unit.name.lower()}.png"
     
     # Añadir traducciones según idioma
     context['translations'] = get_cv_translations(person.language or 'es')
@@ -663,13 +666,13 @@ def get_cv_translations(language: str = 'es') -> Dict:
     
     return translations.get(language, translations['es'])
 
-def generate_personality_report(candidate, unidad_negocio):
+def generate_personality_report(candidate: Person, business_unit: BusinessUnit):
     """Genera un reporte independiente de personalidad con gráfico de radar."""
     output_path = f"/tmp/{candidate.id}_personality_report.pdf"
     c = canvas.Canvas(output_path, pagesize=A4)
     
     # Encabezado
-    draw_header(c, unidad_negocio, f"Reporte de Personalidad - {candidate.full_name}")
+    draw_header(c, business_unit, f"Reporte de Personalidad - {candidate.full_name}")
     
     # Título
     c.setFont(FONT_NAME, 12)

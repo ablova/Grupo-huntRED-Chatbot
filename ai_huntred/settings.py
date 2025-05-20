@@ -16,7 +16,7 @@ from ai_huntred.config.monitoring import MonitoringConfig
 # --- Configuración de entorno ---
 env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
-env_file = os.path.join(BASE_DIR, '.env')
+env_file = os.path.join(BASE_DIR, '.env')  # Usar el archivo .env en la raíz del proyecto
 
 # Validar existencia del archivo .env
 if not os.path.exists(env_file):

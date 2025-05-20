@@ -24,10 +24,12 @@ from app.models import (
     PersonSkill,
     ChatState,
     SocialConnection,
-    Company
+    Company,
+    BusinessUnit
 )
 
 from app.com.utils.nlp import NLPProcessor
+from app.com.utils.skills import create_skill_processor
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +39,24 @@ class TruthAnalyzer:
     proporcionada por candidatos durante el proceso de creación de perfil.
     """
     
-    def __init__(self):
-        """Inicializa el analizador con el procesador NLP y los proveedores de verificación social."""
-        self.nlp_processor = NLPProcessor()
+    def __init__(self, business_unit: BusinessUnit):
+        """
+        Inicializa el analizador de verdad.
+        
+        Args:
+            business_unit (BusinessUnit): Unidad de negocio para la que se configura el analizador.
+                                         Determina el conjunto de habilidades y el origen de la solicitud.
+        """
+        if not isinstance(business_unit, BusinessUnit):
+            raise ValueError("business_unit debe ser una instancia de BusinessUnit")
+            
+        self.business_unit = business_unit
+        self.nlp_processor = NLPProcessor(business_unit=business_unit)
+        self.skill_processor = create_skill_processor(
+            business_unit=business_unit.name,
+            language="es",
+            mode="executive"
+        )
         self.consistency_threshold = getattr(settings, 'TRUTH_CONSISTENCY_THRESHOLD', 0.7)
         self.verification_enabled = getattr(settings, 'ENABLE_VERIFICATION', True)
         self.social_verification_enabled = getattr(settings, 'ENABLE_SOCIAL_VERIFICATION', True)
@@ -74,6 +91,8 @@ class TruthAnalyzer:
         
         # Caché para respuestas de APIs (evitar llamadas repetidas)
         self.cache_ttl = 3600 * 24  # 24 horas
+        
+        logger.info(f"TruthAnalyzer inicializado para unidad de negocio: {business_unit.name}")
     
     async def verify_consistency(self, persona: Person, current_question: str, 
                                 response: str, chat_history: List[Dict]) -> Dict:
@@ -923,7 +942,3 @@ class TruthAnalyzer:
             })
             
         return result
-
-
-# Singleton para uso en la aplicación
-truth_analyzer = TruthAnalyzer()

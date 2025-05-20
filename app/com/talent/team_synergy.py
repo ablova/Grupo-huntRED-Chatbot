@@ -1,3 +1,4 @@
+# /home/pablo/app/com/talent/team_synergy.py
 """
 Analizador de Sinergia de Equipos.
 
@@ -122,7 +123,7 @@ class TeamSynergyAnalyzer:
                 personality_analysis,
                 generation_analysis,
                 purpose_analysis
-        )
+            )
             
             # Generar red de conexiones del equipo
             connection_network = await self._generate_connection_network(members_data)
@@ -135,7 +136,7 @@ class TeamSynergyAnalyzer:
                 generation_analysis,
                 purpose_analysis,
                 synergy_score
-        )
+            )
             
             # Crear visualizaciones
             visualizations = await self._create_team_visualizations(
@@ -145,9 +146,9 @@ class TeamSynergyAnalyzer:
                 generation_analysis,
                 purpose_analysis,
                 connection_network
-        )
+            )
             
-        return {
+            return {
                 'team_size': len(members_data),
                 'business_unit': business_unit,
                 'synergy_score': synergy_score,
@@ -158,11 +159,10 @@ class TeamSynergyAnalyzer:
                 'connection_network': connection_network,
                 'recommendations': recommendations,
                 'visualizations': visualizations,
-            'analyzed_at': datetime.now().isoformat()
-        }
-            
+                'analyzed_at': datetime.now().isoformat()
+            }
         except Exception as e:
-            logger.error(f"Error analizando sinergia de equipo: {str(e)}")
+            logger.error(f"Error analizando sinergia del equipo: {str(e)}")
             return self._get_default_analysis()
     
     async def _get_team_members_data(self, member_ids: List[int]) -> List[Dict]:

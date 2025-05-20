@@ -3696,6 +3696,123 @@ class Skill(models.Model):
             skills.append(skill)
         return skills
 
+class Team(models.Model):
+    """
+    Modelo para equipos de trabajo dentro de una BU o compañía.
+    Utilizado para análisis de sinergia y gestión de equipos.
+    """
+    name = models.CharField(
+        max_length=100,
+        help_text="Nombre del equipo"
+    )
+    description = models.TextField(
+        blank=True, 
+        null=True,
+        help_text="Descripción del equipo"
+    )
+    business_unit = models.ForeignKey(
+        'BusinessUnit', 
+        on_delete=models.CASCADE,
+        related_name='teams',
+        null=True, 
+        blank=True,
+        help_text="Business Unit asociada al equipo"
+    )
+    company = models.ForeignKey(
+        'Company', 
+        on_delete=models.CASCADE,
+        related_name='teams',
+        null=True, 
+        blank=True,
+        help_text="Compañía asociada al equipo"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Indica si el equipo está activo"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Equipo"
+        verbose_name_plural = "Equipos"
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['business_unit']),
+            models.Index(fields=['company']),
+            models.Index(fields=['is_active'])
+        ]
+    
+    def __str__(self):
+        return self.name
+    
+    def get_members_count(self):
+        """Retorna el número de miembros activos del equipo."""
+        return self.team_members.filter(is_active=True).count()
+
+
+class TeamMember(models.Model):
+    """
+    Modelo para relacionar personas con equipos y roles dentro del equipo.
+    Utilizado para análisis de sinergia y gestión de equipos.
+    """
+    ROLE_CHOICES = [
+        ('LEADER', 'Líder'),
+        ('MEMBER', 'Miembro'),
+        ('COLLABORATOR', 'Colaborador')
+    ]
+    
+    team = models.ForeignKey(
+        Team, 
+        on_delete=models.CASCADE,
+        related_name='team_members',
+        help_text="Equipo al que pertenece el miembro"
+    )
+    person = models.ForeignKey(
+        'Person', 
+        on_delete=models.CASCADE,
+        related_name='team_memberships',
+        help_text="Persona miembro del equipo"
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='MEMBER',
+        help_text="Rol dentro del equipo"
+    )
+    joined_date = models.DateField(
+        null=True, 
+        blank=True,
+        help_text="Fecha de incorporación al equipo"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Indica si el miembro está activo en el equipo"
+    )
+    notes = models.TextField(
+        blank=True, 
+        null=True,
+        help_text="Notas sobre el miembro del equipo"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Miembro de Equipo"
+        verbose_name_plural = "Miembros de Equipo"
+        unique_together = ['team', 'person']
+        ordering = ['team', 'role', 'person']
+        indexes = [
+            models.Index(fields=['team']),
+            models.Index(fields=['person']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['role'])
+        ]
+    
+    def __str__(self):
+        return f"{self.person.nombre} - {self.get_role_display()} en {self.team.name}"
+
+
 class PersonSkill(models.Model):
     """Modelo para relacionar personas con sus habilidades y niveles."""
     person = models.ForeignKey(
