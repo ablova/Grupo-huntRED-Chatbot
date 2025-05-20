@@ -328,6 +328,53 @@ def fix_syntax_errors():
         except Exception as e:
             logger.error(f"Error corrigiendo sintaxis en {file_path}: {e}")
 
+def fix_import_config_path():
+    """
+    Corrige la ruta de importación incorrecta de import_config en chat_state_manager.py.
+    El error es que intenta importar desde app.com.chatbot.import_config cuando el archivo
+    está realmente en app.import_config.
+    """
+    chat_state_manager_path = APP_ROOT / "com" / "chatbot" / "chat_state_manager.py"
+    
+    if not chat_state_manager_path.exists():
+        logger.warning(f"Archivo no encontrado: {chat_state_manager_path}")
+        return False
+        
+    try:
+        # Hacer backup
+        backup_path = chat_state_manager_path.parent / (chat_state_manager_path.name + ".bak")
+        shutil.copy2(chat_state_manager_path, backup_path)
+        
+        # Leer el contenido
+        with open(chat_state_manager_path, "r") as f:
+            content = f.read()
+            
+        # Buscar importación incorrecta
+        if "from app.com.chatbot.import_config import" in content:
+            # Corregir la importación
+            fixed_content = content.replace(
+                "from app.com.chatbot.import_config import", 
+                "# FIXED: Corregida ruta de importación - v2025.05.19\nfrom app.import_config import"
+            )
+            
+            # Guardar el archivo corregido
+            with open(chat_state_manager_path, "w") as f:
+                f.write(fixed_content)
+                
+            logger.info(f"Corregida ruta de importación en {chat_state_manager_path}")
+            return True
+        else:
+            logger.info(f"No se encontró importación incorrecta en {chat_state_manager_path}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error corrigiendo ruta de importación: {e}", exc_info=True)
+        # Restaurar backup si hubo error
+        if 'backup_path' in locals() and backup_path.exists():
+            shutil.copy2(backup_path, chat_state_manager_path)
+            logger.info(f"Restaurado backup de {chat_state_manager_path}")
+        return False
+
 def fix_missing_models():
     """
     Corrige la importación de modelos inexistentes como ContextCondition.
@@ -456,24 +503,30 @@ def main():
     else:
         logger.error("❌ Paso 2: Error corrigiendo import_config.py")
     
-    # 3. Corregir modelos faltantes (ContextCondition)
+    # 3. Corregir rutas de importación incorrectas (app.com.chatbot.import_config)
+    if fix_import_config_path():
+        logger.info("✅ Paso 3: Corrección de rutas de importación completada")
+    else:
+        logger.info("ℹ️ Paso 3: No se encontraron rutas de importación incorrectas")
+    
+    # 4. Corregir modelos faltantes (ContextCondition)
     if fix_missing_models():
-        logger.info("✅ Paso 3: Corrección de modelos faltantes completada")
+        logger.info("✅ Paso 4: Corrección de modelos faltantes completada")
     else:
-        logger.info("ℹ️ Paso 3: No se encontraron modelos faltantes para corregir")
+        logger.info("ℹ️ Paso 4: No se encontraron modelos faltantes para corregir")
     
-    # 4. Actualizar estructura de administradores
+    # 5. Actualizar estructura de administradores
     if update_manager_structure():
-        logger.info("✅ Paso 4: Actualización de estructura de administradores completada")
+        logger.info("✅ Paso 5: Actualización de estructura de administradores completada")
     else:
-        logger.error("❌ Paso 4: Error actualizando estructura de administradores")
+        logger.error("❌ Paso 5: Error actualizando estructura de administradores")
     
-    # 5. Corregir errores de sintaxis en archivos específicos
+    # 6. Corregir errores de sintaxis en archivos específicos
     try:
         fix_syntax_errors()
-        logger.info("✅ Paso 5: Corrección de errores de sintaxis completada")
+        logger.info("✅ Paso 6: Corrección de errores de sintaxis completada")
     except Exception as e:
-        logger.error(f"❌ Paso 5: Error corrigiendo errores de sintaxis: {e}")
+        logger.error(f"❌ Paso 6: Error corrigiendo errores de sintaxis: {e}")
     
     logger.info("=== REPARACIÓN DEL SERVIDOR COMPLETADA ===")
     logger.info("")
