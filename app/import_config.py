@@ -504,3 +504,29 @@ def should_process_file(file_path: Path) -> bool:
         if pattern in str(file_path):
             return False
     return True
+
+# Compatibilidad con código legacy
+# Siguiendo reglas globales de Grupo huntRED® para mantenimiento
+
+# Si get_state_manager existe, creamos un alias get_chat_state_manager
+if 'get_state_manager' in globals():
+    # Alias para mantener compatibilidad
+    def get_chat_state_manager(*args, **kwargs):
+        import logging
+        logging.getLogger('import_compatibility').warning(
+            "Uso de función renombrada: get_chat_state_manager -> get_state_manager"
+        )
+        return get_state_manager(*args, **kwargs)
+
+# Soporte para ConversationalFlowManager
+try:
+    from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
+    # Alias para mantener compatibilidad
+    def get_conversational_flow_manager(*args, **kwargs):
+        import logging
+        logging.getLogger('import_compatibility').warning(
+            "Uso de función renombrada: get_conversational_flow_manager"
+        )
+        return ConversationalFlowManager
+except (ImportError, ModuleNotFoundError):
+    pass
