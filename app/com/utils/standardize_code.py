@@ -44,7 +44,7 @@ CORE_MODULES = [
 
 def add_standard_header(file_path: str, description: str = None, dry_run: bool = False) -> bool:
     """
-    Añade un encabezado estándar al archivo con la ruta completa y una descripción.
+Añade un encabezado estándar al archivo con la ruta completa y una descripción.
     
     Args:
         file_path: Ruta completa al archivo

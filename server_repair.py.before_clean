@@ -779,26 +779,11 @@ def fix_missing_handler_functions():
 def get_{handler}(*args, **kwargs):
     """Obtiene un handler para {handler.replace('_', ' ')} con importación diferida."""
     try:
-        compatibility_logger.warning(f"Uso de función creada automáticamente: get_{handler} -> get_{best_match}")
-        # Importación directa desde el módulo apropiado siguiendo reglas de Grupo huntRED
-        module_name = best_match.replace('_handler', '').replace('_', '')
-        class_name = best_match.replace('_handler', '').replace('_', '').capitalize() + 'Handler'
-        
-        # Corregir capitalización para casos especiales
-        if 'whatsapp' in best_match:
-            class_name = 'WhatsAppHandler'
-        elif 'youtube' in best_match:
-            class_name = 'YouTubeHandler'
-        elif 'tiktok' in best_match:
-            class_name = 'TikTokHandler'
-        
-        # Importar directamente del módulo correcto
-        import_statement = f"from app.com.chatbot.integrations.{module_name} import {class_name}"
-        exec(import_statement)
-        handler_class = eval(class_name)
-        return handler_class(*args, **kwargs)
+        compatibility_logger.warning("Uso de función creada automáticamente: get_{handler} -> get_{best_match}")
+        from app.import_config import get_{best_match}
+        return get_{best_match}(*args, **kwargs)
     except ImportError as e:
-        compatibility_logger.error(f"Error al importar handler para {best_match}: {e}")
+        compatibility_logger.error(f"Error al importar get_{best_match}: {{e}}")
         return None
 '''
             else:
@@ -2193,43 +2178,33 @@ def load_intent_patterns_from_db():
     except Exception as e:
         logger.error(f"Error actualizando intents_handler.py: {e}")
         return False
-
-# Función para migrar intents a la base de datos (ahora implementada en server_repair2.py)
-def migrate_intent_patterns_to_database():
+def fix_missing_specific_handlers():
     """
-    Migra los patrones de intents definidos en el diccionario INTENT_PATTERNS a la base de datos.
-    Esta función ahora está implementada en server_repair2.py para mejor modularidad.
+    Función genérica para corregir problemas de importación de diversos handlers
+    creando stubs si es necesario o corrigiendo las importaciones.
+    Maneja GPTHandler, NLPHandler y otros handlers comunes.
     
     Returns:
-        bool: True si la migración fue exitosa, False en caso contrario
+        bool: True si al menos una corrección fue exitosa, False si todas fallaron
     """
-    try:
-        logger.info("Iniciando migración de patrones de intents a la base de datos...")
-        logger.info("Esta funcionalidad ahora se implementa en server_repair2.py")
-        
-        # Verificar si puede importar Django y los modelos necesarios
-        import importlib
-        if importlib.util.find_spec("django") is None:
-            logger.warning("Django no está instalado correctamente, la migración se realizará en server_repair2.py")
-            return False
-            
-        # Intentar import IntentPattern model
+    handlers = [
+        ('GPTHandler', 'com/chatbot/gpt.py'),
+        ('NLPHandler', 'com/chatbot/nlp.py'),
+        ('BlackTrustHandler', 'com/chatbot/blacktrust.py'),
+        ('PersonalityAnalysisHandler', 'com/chatbot/personality.py'),
+        ('CultureFitHandler', 'com/chatbot/culture_fit.py')
+    ]
+    
+    results = []
+    for handler_name, module_path in handlers:
+        logger.info(f"Verificando handler: {handler_name}")
         try:
-            from app.models import IntentPattern
-            logger.info("Modelo IntentPattern disponible, la migración se completará en server_repair2.py")
-        except ImportError:
-            logger.warning("No se puede importar el modelo IntentPattern, se intentará en server_repair2.py")
+            # Verificar si el archivo del handler existe
+            handler_file_path = APP_ROOT / module_path
+            handler_dir_path = handler_file_path.parent
             
-        return True  # El resultado real dependerá de la ejecución de server_repair2.py
-        
-    except Exception as e:
-        logger.error(f"Error en migrate_intent_patterns_to_database: {e}")
-        return False
-
-
-
-# A continuación, la función principal que ejecuta todas las reparaciones
-def main():
+            # Asegurarse de que el directorio exista
+            if not handler_dir_path.exists():
                 os.makedirs(handler_dir_path, exist_ok=True)
                 logger.info(f"Creado directorio {handler_dir_path}")
             

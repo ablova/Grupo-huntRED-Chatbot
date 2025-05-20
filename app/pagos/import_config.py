@@ -1,25 +1,18 @@
-from typing import Any, Callable
-from app.import_config import register_module
+# /home/pablo/app/pagos/import_config.py
+#
+# NOTA: Este archivo está obsoleto y se mantiene temporalmente para compatibilidad.
+# El registro de módulos ahora es gestionado automáticamente por ModuleRegistry en app/module_registry.py
+#
+# De acuerdo con las reglas globales de Grupo huntRED®:
+# - No Redundancies: Se evitan duplicaciones en el código
+# - Code Consistency: Se siguen estándares de Django
+# - Modularity: Se usa código modular y reusable
 
-# Register Pagos modules at startup
-register_module('payment_processor', 'app.pagos.payment_processor.PaymentProcessor')
-register_module('stripe_gateway', 'app.pagos.gateways.stripe_gateway.StripeGateway')
-register_module('payment_validator', 'app.pagos.payment_validator.PaymentValidator')
-register_module('subscription_manager', 'app.pagos.subscription_manager.SubscriptionManager')
-register_module('discount_calculator', 'app.pagos.discount_calculator.DiscountCalculator')
-register_module('payment_history', 'app.pagos.payment_history.PaymentHistory')
-register_module('webhook_handler', 'app.pagos.webhook_handler.WebhookHandler')
-register_module('refund_processor', 'app.pagos.refund_processor.RefundProcessor')
+# Manteniendo estas funciones temporalmente para compatibilidad
 
 def get_payment_processor():
     """Get PaymentProcessor instance."""
-    from app.pagos.payment_processor import PaymentProcessor
-    return PaymentProcessor
-
-def get_stripe_gateway():
-    """Get StripeGateway instance."""
-    from app.pagos.gateways.stripe_gateway import StripeGateway
-    return StripeGateway
+{{ ... }}
 
 def get_payment_validator():
     """Get PaymentValidator instance."""
@@ -30,7 +23,7 @@ def get_subscription_manager():
     """Get SubscriptionManager instance."""
     from app.pagos.subscription_manager import SubscriptionManager
     return SubscriptionManager
-
+{{ ... }}
 def get_discount_calculator():
     """Get DiscountCalculator instance."""
     from app.pagos.discount_calculator import DiscountCalculator

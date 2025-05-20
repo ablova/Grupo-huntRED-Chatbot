@@ -9,7 +9,7 @@ Optimizado para bajo uso de CPU siguiendo reglas globales.
 import logging
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from app.models_cultural import (
+from app.models import (
     CulturalAssessment, OrganizationalCulture, CulturalProfile, CulturalReport
 )
 

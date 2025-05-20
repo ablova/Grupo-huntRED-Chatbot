@@ -17,7 +17,7 @@ logger = logging.getLogger('asgi')
 if not SECURITY_CONFIG['SECURE_SSL_REDIRECT']:
     logger.warning("SSL redirection is disabled")
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings.production')
 
 # Middleware de seguridad
 class SecureHeadersMiddleware:
@@ -31,10 +31,15 @@ class SecureHeadersMiddleware:
                     (b'x-frame-options', b'DENY'),
                     (b'x-content-type-options', b'nosniff'),
                     (b'referrer-policy', b'strict-origin-when-cross-origin'),
+                    (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'),
+                    (b'content-security-policy', b"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"),
                 ])
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
 
+# Obtener la aplicación ASGI
 application = get_asgi_application()
+
+# Aplicar middleware de seguridad
 application = SecureHeadersMiddleware(application)

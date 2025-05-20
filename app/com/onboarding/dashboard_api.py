@@ -18,8 +18,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from asgiref.sync import sync_to_async
 
-from app.models import Person, Vacante, BusinessUnit, OnboardingProcess, OnboardingTask
-from app.models_client_feedback import ClientFeedback, ClientFeedbackSchedule
+from app.models import Person, Vacante, BusinessUnit, OnboardingProcess, OnboardingTask, ClientFeedback, ClientFeedbackSchedule
 from app.ml.onboarding_processor import OnboardingMLProcessor
 
 logger = logging.getLogger(__name__)

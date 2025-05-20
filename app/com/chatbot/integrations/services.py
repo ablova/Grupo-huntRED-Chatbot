@@ -28,15 +28,11 @@ from app.models import (
     EnhancedNetworkGamificationProfile
 )
 
-from app.import_config import (
-    get_whatsapp_handler,
-    get_fetch_whatsapp_user_data,
-    get_telegram_handler,
-    get_fetch_telegram_user_data,
-    get_instagram_handler,
-    get_fetch_instagram_user_data,
-    get_fetch_slack_user_data
-)
+# Importaciones directas siguiendo estándares de Django
+from app.com.chatbot.integrations.whatsapp import WhatsAppHandler, fetch_whatsapp_user_data
+from app.com.chatbot.integrations.telegram import TelegramHandler, fetch_telegram_user_data
+from app.com.chatbot.integrations.instagram import InstagramHandler, fetch_instagram_user_data
+from app.com.chatbot.integrations.slack import fetch_slack_user_data
 
 import tracemalloc
 tracemalloc.start()

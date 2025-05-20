@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from app.models import (
     Person, Vacante, Application, BusinessUnit, WorkflowStage
 )
-from app.models_kanban import (
+from app.models import (
     KanbanBoard, KanbanColumn, KanbanCard
 )
 from app.ml.ml_model import MatchmakingLearningSystem

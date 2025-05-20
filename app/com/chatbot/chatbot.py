@@ -10,16 +10,19 @@ from asgiref.sync import sync_to_async
 from django.core.cache import cache
 import time
 
-from app.import_config import (
-    get_conversational_flow_manager,
-    get_intents_handler,
-    get_context_manager,
-    get_response_generator,
-    get_state_manager,
-    get_gpt_handler,
-    get_channel_config,
-    get_rate_limiter
-)
+# Importaciones directas siguiendo estándares de Django - v2025.05.20
+from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
+from app.com.chatbot.intents_handler import IntentsHandler
+from app.com.chatbot.components.context_manager import ContextManager
+from app.com.chatbot.response_generator import ResponseGenerator
+from app.com.chatbot.chat_state_manager import ChatStateManager
+from app.com.chatbot.gpt import GPTHandler
+from app.com.chatbot.channel_config import ChannelConfig
+from app.com.chatbot.rate_limiter import RateLimiter
+from app.com.chatbot.integrations.services import MessageService
+from app.com.chatbot.service import GamificationService
+from app.com.chatbot.integrations.document_processor import CVParser
+from app.com.chatbot.nlp import NLPProcessor
 
 from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, ConfiguracionBU, Vacante,
@@ -54,7 +57,7 @@ NLP_ENABLED = True
 
 class ChatBotHandler:
     def __init__(self):
-        self.gpt_handler = get_gpt_handler()()
+        self.gpt_handler = GPTHandler()
         self.workflow_mapping = {
             "amigro": process_amigro_candidate,
             "huntu": process_huntu_candidate,
@@ -78,17 +81,19 @@ class ChatBotHandler:
         }
         
         # Inicializar componentes del nuevo sistema modular
-        self.conversational_flow = get_conversational_flow_manager()()
-        self.intent_detector = get_intent_detector()()
-        self.context_manager = get_context_manager()()
-        self.response_generator = get_response_generator()()
-        self.state_manager = get_state_manager()()
-        self.message_service = get_message_service()()
-        self.gamification_service = get_gamification_service()()
-        self.cv_parser = get_cv_parser()()
+        self.conversational_flow = ConversationalFlowManager()
+        self.intents_manager = IntentsHandler()
+        self.context_manager = ContextManager()
+        self.response_generator = ResponseGenerator()
+        self.state_manager = ChatStateManager()
+        self.message_service = MessageService()
+        self.gamification_service = GamificationService()
+        self.cv_parser = CVParser()
         
         # Inicializar el gestor de workflows
-        self.workflow_manager = get_workflow_manager()
+        # Importación a nivel de método para evitar dependencias circulares
+        from app.com.chatbot.workflow import WorkflowManager
+        self.workflow_manager = WorkflowManager()
         self.active_workflows = {}
         
         try:

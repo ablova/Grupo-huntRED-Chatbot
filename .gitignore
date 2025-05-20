@@ -48,3 +48,56 @@ no_borrar.json
 .chainlit/
 logs/
 app/migrations/
+
+# Archivos temporales
+.tmp.driveupload/
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Entornos virtuales
+venv/
+ENV/
+env/
+.env
+
+# Archivos de IDE
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Archivos de base de datos
+*.sqlite3
+*.db
+
+# Archivos de logs
+*.log
+logs/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db

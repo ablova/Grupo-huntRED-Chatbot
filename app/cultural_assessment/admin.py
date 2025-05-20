@@ -20,11 +20,11 @@ import io
 from datetime import timedelta
 import logging
 
-from app.models_cultural import (
+from app.models import (
     CulturalAssessment, OrganizationalCulture, CulturalDimension, 
-    CulturalValue, CulturalProfile, CulturalReport
+    CulturalValue, CulturalProfile, CulturalReport, Person, BusinessUnit, Organization, Team, Department
 )
-from app.models import Person, BusinessUnit, Organization, Team, Department
+
 
 logger = logging.getLogger(__name__)
 

@@ -1,3 +1,4 @@
+# /home/pablo/app/com/chatbot/intents_handler.py
 """
 Manejo de intents para el chatbot de Amigro/HuntRED/HuntU/SEXSI.
 Este módulo combina las mejores características de los sistemas de intents anteriores,
@@ -23,7 +24,7 @@ from datetime import datetime, timedelta
 from app.models import (
     Person, Vacante, Application, BusinessUnit,
     EnhancedNetworkGamificationProfile, ChatState,
-    WorkflowStage, ConfiguracionBU, Template, Intent
+    WorkflowStage, ConfiguracionBU, Template
 )
 from app.com.chatbot.utils import ChatbotUtils
 from app.com.chatbot.integrations.services import send_message, send_smart_options, send_options, send_menu

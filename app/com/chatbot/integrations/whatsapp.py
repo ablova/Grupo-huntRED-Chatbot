@@ -19,11 +19,9 @@ from django.conf import settings
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, WhatsAppAPI, ChatState
-from app.import_config import (
-    get_chat_state_manager,
-    get_intent_processor,
-    get_rate_limiter
-)
+# Importaciones directas siguiendo estándares de Django
+from app.com.chatbot.chat_state_manager import ChatStateManager
+from app.com.chatbot.intents_handler import IntentProcessor
 from app.com.chatbot.integrations.document_processor import DocumentProcessor
 
 logger = logging.getLogger('chatbot')
@@ -41,12 +39,15 @@ class WhatsAppHandler:
         self.phone_number_id = phone_number_id
         self.business_unit = business_unit
         self.user: Optional[Person] = None
-        self.chat_manager = get_chat_state_manager()
-        self.intent_processor = get_intent_processor()
+        self.chat_manager = ChatStateManager()
+        self.intent_processor = IntentProcessor()
         self.whatsapp_api: Optional[WhatsAppAPI] = None
         self.user_data: Dict[str, Any] = {}
         self.api_base_url = settings.WHATSAPP_API_URL
         self.api_token = settings.WHATSAPP_API_TOKEN
+        
+        # Importación a nivel de método para evitar dependencias circulares
+        from app.com.chatbot.rate_limiter import RateLimiter
         self.rate_limiter = RateLimiter(requests_per_minute=settings.WHATSAPP_RATE_LIMIT)
         self.session = None
         logger.info("WhatsAppHandler initialized")

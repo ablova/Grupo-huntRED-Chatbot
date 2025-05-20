@@ -7,9 +7,6 @@ del tablero y las tarjetas Kanban.
 from django.shortcuts import render, get_object_or_404, redirect
 from django.conf import settings
 from django.core.cache import cache
-import logging
-
-from app.kanban.ml_integration import KanbanMLIntegration, get_ml_recommendations
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -21,17 +18,21 @@ from django.db.models import Q, F, Count, Prefetch
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.contrib.auth.models import User
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from typing import Dict, List, Any, Optional
-import json
 import logging
 import asyncio
+import json
 
-from app.models import Person, Vacante, Application, BusinessUnit, WorkflowStage
-from app.models_kanban import (
+# Importaciones directas siguiendo reglas de Grupo huntRED®
+from app.models import (
     KanbanBoard, KanbanColumn, KanbanCard, KanbanCardHistory,
-    KanbanComment, KanbanAttachment, KanbanNotification
+    KanbanComment, KanbanAttachment, KanbanNotification,
+    Person, Vacante, Application, BusinessUnit, WorkflowStage
 )
+from app.kanban.ml_integration import KanbanMLIntegration, get_ml_recommendations
+from app.utils.rbac import check_permission, has_organization_access
+from app.utils.cache import cache_result
 from app.com.utils.logger_utils import get_module_logger
 from app.com.chatbot.integrations.services import send_message
 

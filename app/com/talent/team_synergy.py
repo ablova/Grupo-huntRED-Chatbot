@@ -222,6 +222,24 @@ class TeamSynergyAnalyzer:
             personality_type = self._simplify_personality_type(personality_result.get('type', 'Equilibrado'))
             
         return {
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
                 'type': personality_type,
                 'traits': personality_result.get('traits', {}),
                 'communication_style': personality_result.get('communication_style', 'Directo')

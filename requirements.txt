@@ -20,8 +20,8 @@ kombu==5.5.3
 # Machine Learning & Data Processing
 numpy==1.26.3
 pandas==2.2.1
-scikit-learn==1.4.1
-tensorflow==2.16.2
+scikit-learn==1.4.2
+tensorflow-cpu==2.16.2
 tensorboard==2.16.0
 tensorflow-hub==0.16.1
 joblib==1.4.2
@@ -36,9 +36,9 @@ aiosqlite==0.19.0
 uvloop==0.19.0
 
 # Testing & Development Tools
-pytest==7.4.4
-pytest-asyncio==0.25.2
-pytest-django==4.7.1
+pytest>=8.2,<9
+pytest-asyncio>=0.25.2
+pytest-django>=4.11.0
 pytest-cov==4.1.0
 coverage==7.4.0
 black==23.12.1
@@ -49,7 +49,7 @@ bandit==1.7.6
 safety==2.3.4
 
 # Natural Language Processing & AI
-spacy==3.5.3
+spacy==3.7.4
 spacy-legacy==3.0.12
 spacy-loggers==1.0.5
 nltk==3.9.1
@@ -67,7 +67,7 @@ requests-oauthlib==2.0.0
 aioimaplib==2.0.1
 IMAPClient==3.0.1
 email_validator==2.2.0
-tweepy==4.13.0
+tweepy==4.15.0
 
 # File Processing & Storage
 Pillow==10.2.0
@@ -81,7 +81,7 @@ pdfkit==1.0.0
 qrcode==7.4.2
 
 # Monitoring & Logging
-sentry-sdk==1.47.0
+sentry-sdk>=2.29.0
 prometheus-client==0.20.0
 
 # Web Scraping

@@ -13,7 +13,7 @@ from django.db.models import Avg, Count, Q, F, Sum
 from django.db import transaction
 from django.conf import settings
 from celery import shared_task
-from app.models_cultural import (
+from app.models import (
     CulturalAssessment, OrganizationalCulture, CulturalReport,
     CulturalDimension, CulturalValue
 )

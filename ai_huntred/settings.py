@@ -6,7 +6,6 @@ import environ
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from pathlib import Path
-import tensorflow as tf
 import sys
 from ai_huntred.config.security import SecurityConfig
 from ai_huntred.config.logging import setup_logging
@@ -36,11 +35,17 @@ NLP_USE_TABIYA = env.bool('NLP_USE_TABIYA', default=True)  # Habilitar/deshabili
 NLP_FALLBACK_TO_SPACY = env.bool('NLP_FALLBACK_TO_SPACY', default=True)  # Usar spaCy como fallback si Tabiya falla
 
 # --- Configuración temprana de TensorFlow ---
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+# Solo cargar TensorFlow si no estamos en un comando de gestión
+if not any(arg in sys.argv for arg in ['migrate', 'makemigrations', 'collectstatic']):
+    try:
+        import tensorflow as tf
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+    except ImportError:
+        pass
 
 # --- Configuración de Django ---
 SECRET_KEY = env('SECRET_KEY', default='your-secret-key')

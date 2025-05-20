@@ -779,26 +779,11 @@ def fix_missing_handler_functions():
 def get_{handler}(*args, **kwargs):
     """Obtiene un handler para {handler.replace('_', ' ')} con importación diferida."""
     try:
-        compatibility_logger.warning(f"Uso de función creada automáticamente: get_{handler} -> get_{best_match}")
-        # Importación directa desde el módulo apropiado siguiendo reglas de Grupo huntRED
-        module_name = best_match.replace('_handler', '').replace('_', '')
-        class_name = best_match.replace('_handler', '').replace('_', '').capitalize() + 'Handler'
-        
-        # Corregir capitalización para casos especiales
-        if 'whatsapp' in best_match:
-            class_name = 'WhatsAppHandler'
-        elif 'youtube' in best_match:
-            class_name = 'YouTubeHandler'
-        elif 'tiktok' in best_match:
-            class_name = 'TikTokHandler'
-        
-        # Importar directamente del módulo correcto
-        import_statement = f"from app.com.chatbot.integrations.{module_name} import {class_name}"
-        exec(import_statement)
-        handler_class = eval(class_name)
-        return handler_class(*args, **kwargs)
+        compatibility_logger.warning("Uso de función creada automáticamente: get_{handler} -> get_{best_match}")
+        from app.import_config import get_{best_match}
+        return get_{best_match}(*args, **kwargs)
     except ImportError as e:
-        compatibility_logger.error(f"Error al importar handler para {best_match}: {e}")
+        compatibility_logger.error(f"Error al importar get_{best_match}: {{e}}")
         return None
 '''
             else:

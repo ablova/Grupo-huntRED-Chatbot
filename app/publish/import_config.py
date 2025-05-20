@@ -1,15 +1,19 @@
-from typing import Any, Callable
-from app.import_config import register_module
+# /home/pablo/app/publish/import_config.py
+#
+# NOTA: Este archivo está obsoleto y se mantiene temporalmente para compatibilidad.
+# El registro de módulos ahora es gestionado automáticamente por ModuleRegistry en app/module_registry.py
+#
+# Siguiendo las reglas globales de Grupo huntRED®:
+# - No Redundancies: Verificar antes de añadir funciones que no existan en el código
+# - Modularity: Escribir código modular, reutilizable; evitar duplicar funcionalidad
+# - Code Consistency: Seguir estándares de Django
 
-# Register Publish modules at startup
-register_module('telegram_publisher', 'app.publish.integrations.telegram.TelegramPublisher')
-register_module('slack_publisher', 'app.publish.integrations.slack.SlackPublisher')
-register_module('instagram_publisher', 'app.publish.integrations.instagram.InstagramPublisher')
-register_module('whatsapp_publisher', 'app.publish.integrations.whatsapp.WhatsAppPublisher')
-register_module('email_publisher', 'app.publish.integrations.email.EmailPublisher')
-register_module('publisher_manager', 'app.publish.publisher_manager.PublisherManager')
-register_module('publish_scheduler', 'app.publish.publish_scheduler.PublishScheduler')
-register_module('content_formatter', 'app.publish.content_formatter.ContentFormatter')
+# Los módulos de Publish deben ser importados directamente:
+# from app.publish.integrations.telegram import TelegramPublisher
+# from app.publish.integrations.whatsapp import WhatsAppPublisher
+# from app.publish.publisher_manager import PublisherManager
+# etc.
+
 
 def get_telegram_publisher():
     """Get TelegramPublisher instance."""

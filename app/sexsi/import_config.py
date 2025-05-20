@@ -1,15 +1,19 @@
-from typing import Any, Callable
-from app.import_config import register_module
+# /home/pablo/app/sexsi/import_config.py
+#
+# NOTA: Este archivo está obsoleto y se mantiene temporalmente para compatibilidad.
+# El registro de módulos ahora es gestionado automáticamente por ModuleRegistry en app/module_registry.py
+# Ver MEMORY[3c0a8858-351a-4fd1-85d8-615be684afab]
+#
+# De acuerdo con las reglas globales de Grupo huntRED®:
+# - No Redundancies: Se evitan duplicaciones en el código
+# - Code Consistency: Se siguen estándares de Django
+# - Modularity: Se usa código modular y reusable
 
-# Register SEXSI modules at startup
-register_module('contract_generator', 'app.sexsi.contract_generator.ContractGenerator')
-register_module('contract_validator', 'app.sexsi.contract_validator.ContractValidator')
-register_module('sexsi_payment_processor', 'app.sexsi.payment_processor.SEXSIPaymentProcessor')
-register_module('contract_manager', 'app.sexsi.contract_manager.ContractManager')
-register_module('signature_handler', 'app.sexsi.signature_handler.SignatureHandler')
-register_module('contract_analyzer', 'app.sexsi.contract_analyzer.ContractAnalyzer')
-register_module('contract_template_manager', 'app.sexsi.contract_template_manager.ContractTemplateManager')
-register_module('contract_history', 'app.sexsi.contract_history.ContractHistory')
+# La nueva forma de registrar módulos es a través de ModuleRegistry:
+# from app.module_registry import module_registry
+# module_registry.register_module('contract_generator', 'app.sexsi.contract_generator.ContractGenerator')
+
+# Estas llamadas a register_module ya no son necesarias, el registro es automático
 
 def get_contract_generator():
     """Get ContractGenerator instance."""

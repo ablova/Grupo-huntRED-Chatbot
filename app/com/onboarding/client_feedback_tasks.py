@@ -13,7 +13,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.db.models import Q
 
-from app.models_client_feedback import ClientFeedback, ClientFeedbackSchedule
+from app.models import ClientFeedback, ClientFeedbackSchedule
 from app.com.onboarding.client_feedback_controller import ClientFeedbackController
 
 logger = logging.getLogger(__name__)

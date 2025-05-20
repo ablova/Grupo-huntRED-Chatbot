@@ -7,9 +7,9 @@ Created: 2025-05-15
 Updated: 2025-05-15
 """
 
-from app.com.chatbot.core.nlp.processor import NLPProcessor
-from app.com.chatbot.core.state.manager import ChatStateManager
-from app.com.chatbot.services.response.generator import ResponseGenerator
+from app.com.chatbot.nlp import NLPProcessor
+from app.com.chatbot.chat_state_manager import ChatStateManager
+from app.com.chatbot.components.response_generator import ResponseGenerator
 
 class IntentHandler:
     def __init__(self):

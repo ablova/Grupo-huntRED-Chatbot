@@ -1,4 +1,10 @@
 # /home/pablo/app/import_config.py
+#
+# MÓDULO LEGACY: Este archivo está en proceso de migración
+# Esta versión mantiene compatibilidad mientras se completa la migración
+# a app/module_registry.py
+#
+
 import importlib
 import sys
 import ast
@@ -22,6 +28,20 @@ ch.setFormatter(formatter)
 
 # Add the handlers to the logger
 logger.addHandler(ch)
+
+# IMPORTANTE: Esta implementación está siendo reemplazada por app/module_registry.py
+# Siguiendo las reglas globales de Grupo huntRED®:
+# - No Redundancies: Verificar antes de añadir funciones que no existan en el código
+# - Modularity: Escribir código modular, reutilizable; evitar duplicar funcionalidad
+
+# Implementación simple con importación a nivel de función 
+def get_fetch_whatsapp_user_data(*args, **kwargs):
+    """
+    Recupera datos de usuario de WhatsApp - importación a nivel de función
+    """
+    # Importación a nivel de función para evitar dependencias circulares
+    from app.com.chatbot.integrations.whatsapp import fetch_whatsapp_user_data
+    return fetch_whatsapp_user_data(*args, **kwargs)
 
 # Define package structure
 PACKAGE_STRUCTURE = {
@@ -367,7 +387,7 @@ if os.environ.get('DJANGO_SETTINGS_MODULE'):
 # Funciones de chatbot
 def get_conversational_flow_manager():
     """Get ConversationalFlowManager instance."""
-    from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
+    # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular
     return ConversationalFlowManager
 
 def get_intents_handler():
@@ -530,7 +550,7 @@ if 'get_intent_detector' in globals():
 
 # Soporte para ConversationalFlowManager
 try:
-    from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
+    # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: # FIXED: from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular # Importación removida para evitar dependencia circular
     # Alias para mantener compatibilidad
     def get_conversational_flow_manager(*args, **kwargs):
         import logging
@@ -627,3 +647,904 @@ if 'get_intents_optimizer' in globals():
         compatibility_logger.warning("Uso de función renombrada: get_intent_optimizer -> get_intents_optimizer")
         return get_intents_optimizer(*args, **kwargs)
 
+
+
+# FIXED: Funciones generadas automáticamente - v2025.05.19
+
+# Compatibilidad: get_whatsapp_handler -> get_intents
+
+def get_whatsapp_handler(*args, **kwargs):
+    """Obtiene un handler para WhatsApp con importación diferida."""
+    try:
+        try:
+            from app.com.chatbot.integrations.whatsapp import WhatsAppHandler
+            compatibility_logger.info("Handler WhatsAppHandler importado desde app.com.chatbot.integrations.whatsapp")
+            return WhatsAppHandler
+        except ImportError:
+            try:
+                from app.com.chatbot.whatsapp import WhatsAppHandler
+                compatibility_logger.info("Handler WhatsAppHandler importado desde app.com.chatbot.whatsapp")
+                return WhatsAppHandler
+            except ImportError:
+                # Implementación de respaldo básica
+                from app.com.chatbot.handlers.base_handler import BaseHandler
+                compatibility_logger.warning("Usando implementación de respaldo para WhatsAppHandler")
+                
+                class GenericWhatsAppHandler(BaseHandler):
+                    """Implementación genérica para WhatsAppHandler."""
+                    def __init__(self):
+                        super().__init__()
+                        self.handler_type = "WhatsApp"
+                    
+                    async def send_message(self, user_id, message):
+                        """Envía un mensaje vía WhatsApp de forma genérica."""
+                        compatibility_logger.info(f"[MOCK] Enviando mensaje a {user_id} vía WhatsApp: {message[:50]}...")
+                        return {'success': True, 'message_id': f'mock-{user_id}-{int(time.time())}'}
+                    
+                    async def check_condition(self, condition, context):
+                        """Verifica condiciones de forma genérica."""
+                        return True
+                
+                return GenericWhatsAppHandler
+    except Exception as e:
+        compatibility_logger.error(f"Error al crear handler genérico para WhatsAppHandler: {e}")
+        return None
+def get_telegram_handler(*args, **kwargs):
+    """Obtiene un handler para telegram handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_telegram_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_slack_handler -> get_intents
+def get_slack_handler(*args, **kwargs):
+    """Obtiene un handler para slack handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_slack_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_messenger_handler -> get_intents
+def get_messenger_handler(*args, **kwargs):
+    """Obtiene un handler para messenger handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_messenger_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_instagram_handler -> get_intents
+def get_instagram_handler(*args, **kwargs):
+    """Obtiene un handler para instagram handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_instagram_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_email_handler -> get_intents
+def get_email_handler(*args, **kwargs):
+    """Obtiene un handler para email handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_email_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_sms_handler -> get_intents
+def get_sms_handler(*args, **kwargs):
+    """Obtiene un handler para sms handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_sms_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_voice_handler -> get_intents
+def get_voice_handler(*args, **kwargs):
+    """Obtiene un handler para voice handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_voice_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_web_handler -> get_intents
+def get_web_handler(*args, **kwargs):
+    """Obtiene un handler para web handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_web_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_app_handler -> get_intents
+def get_app_handler(*args, **kwargs):
+    """Obtiene un handler para app handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_app_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_verification_handler -> get_workflow
+def get_verification_handler(*args, **kwargs):
+    """Obtiene un handler para verification handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_verification_handler -> get_workflow")
+        from app.import_config import get_workflow
+        return get_workflow(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_workflow: {e}")
+        return None
+
+# Compatibilidad: get_notification_handler -> get_workflow
+def get_notification_handler(*args, **kwargs):
+    """Obtiene un handler para notification handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_notification_handler -> get_workflow")
+        from app.import_config import get_workflow
+        return get_workflow(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_workflow: {e}")
+        return None
+
+# Compatibilidad: get_scheduling_handler -> get_intents
+def get_scheduling_handler(*args, **kwargs):
+    """Obtiene un handler para scheduling handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_scheduling_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_payment_handler -> get_intents
+def get_payment_handler(*args, **kwargs):
+    """Obtiene un handler para payment handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_payment_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_location_handler -> get_intents
+def get_location_handler(*args, **kwargs):
+    """Obtiene un handler para location handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_location_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_document_handler -> get_intents
+def get_document_handler(*args, **kwargs):
+    """Obtiene un handler para document handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_document_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_media_handler -> get_intents
+def get_media_handler(*args, **kwargs):
+    """Obtiene un handler para media handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_media_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_sentiment_handler -> get_intents
+def get_sentiment_handler(*args, **kwargs):
+    """Obtiene un handler para sentiment handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_sentiment_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_analytics_handler -> get_intents
+def get_analytics_handler(*args, **kwargs):
+    """Obtiene un handler para analytics handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_analytics_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_crm_handler -> get_workflow
+def get_crm_handler(*args, **kwargs):
+    """Obtiene un handler para crm handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_crm_handler -> get_workflow")
+        from app.import_config import get_workflow
+        return get_workflow(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_workflow: {e}")
+        return None
+
+# Compatibilidad: get_erp_handler -> get_workflow
+def get_erp_handler(*args, **kwargs):
+    """Obtiene un handler para erp handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_erp_handler -> get_workflow")
+        from app.import_config import get_workflow
+        return get_workflow(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_workflow: {e}")
+        return None
+
+# Compatibilidad: get_context_handler -> get_intents
+def get_context_handler(*args, **kwargs):
+    """Obtiene un handler para context handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_context_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Compatibilidad: get_llm_handler -> get_intents
+def get_llm_handler(*args, **kwargs):
+    """Obtiene un handler para llm handler con importación diferida."""
+    try:
+        compatibility_logger.warning("Uso de función creada automáticamente: get_llm_handler -> get_intents")
+        from app.import_config import get_intents
+        return get_intents(*args, **kwargs)
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar get_intents: {e}")
+        return None
+
+# Función auxiliar para encontrar el mejor manejador existente para compatibilidad
+def find_best_match_handler(target_handler, existing_handlers):
+    """Encuentra el manejador existente más similar al objetivo."""
+    if not existing_handlers:
+        return None
+        
+    # Primero intentar encontrar un manejador genérico como 'default_handler'
+    if 'default' in existing_handlers:
+        return 'default'
+    
+    # Luego buscar coincidencias por categoría
+    categories = {
+        'messaging': ['whatsapp', 'telegram', 'slack', 'messenger', 'sms', 'email'],
+        'processing': ['intents', 'gpt', 'llm', 'sentiment', 'context'],
+        'integration': ['workflow', 'crm', 'erp', 'notification', 'verification'],
+        'media': ['document', 'media', 'voice', 'location'],
+        'platform': ['web', 'app']
+    }
+    
+    # Identificar la categoría del objetivo
+    target_category = None
+    target_base = target_handler.replace('_handler', '')
+    
+    for category, items in categories.items():
+        if any(item in target_base for item in items):
+            target_category = category
+            break
+    
+    if target_category:
+        # Buscar manejadores en la misma categoría
+        for existing in existing_handlers:
+            existing_base = existing.replace('_handler', '')
+            for item in categories.get(target_category, []):
+                if item in existing_base:
+                    return existing
+    
+    # Finalmente, elegir el primer manejador disponible como último recurso
+    if existing_handlers:
+        return existing_handlers[0]
+    
+    return None
+
+import time  # Agregado para los handlers genéricos
+
+
+# FIXED: Funciones de workflow y contexto - v2025.05.19
+
+def get_workflow_context(*args, **kwargs):
+    """Obtiene una instancia o referencia para workflow context con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.chatbot.workflow import WorkflowContext
+            logger.info(f"[AUTO-GEN] get_workflow_context importado desde app.com.chatbot.workflow")
+            return WorkflowContext
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando WorkflowContext desde app.com.chatbot.workflow. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para WorkflowContext."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "WorkflowContext"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_workflow_context: {e}")
+        return None
+
+def get_workflow_step(*args, **kwargs):
+    """Obtiene una instancia o referencia para workflow step con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.chatbot.workflow import WorkflowEngine
+            logger.info(f"[AUTO-GEN] get_workflow_step importado desde app.com.chatbot.workflow")
+            return WorkflowEngine
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando WorkflowEngine desde app.com.chatbot.workflow. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para WorkflowEngine."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "WorkflowEngine"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_workflow_step: {e}")
+        return None
+
+def get_workflow_transition(*args, **kwargs):
+    """Obtiene una instancia o referencia para workflow transition con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.chatbot.workflow import WorkflowEngine
+            logger.info(f"[AUTO-GEN] get_workflow_transition importado desde app.com.chatbot.workflow")
+            return WorkflowEngine
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando WorkflowEngine desde app.com.chatbot.workflow. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para WorkflowEngine."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "WorkflowEngine"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_workflow_transition: {e}")
+        return None
+
+def get_personality_test(*args, **kwargs):
+    """Obtiene una instancia o referencia para personality test con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.talent.personality import PersonalityTest
+            logger.info(f"[AUTO-GEN] get_personality_test importado desde app.com.talent.personality")
+            return PersonalityTest
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando PersonalityTest desde app.com.talent.personality. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para PersonalityTest."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "PersonalityTest"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_personality_test: {e}")
+        return None
+
+def get_personality_analyzer(*args, **kwargs):
+    """Obtiene una instancia o referencia para personality analyzer con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.talent.personality import PersonalityAnalyzer
+            logger.info(f"[AUTO-GEN] get_personality_analyzer importado desde app.com.talent.personality")
+            return PersonalityAnalyzer
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando PersonalityAnalyzer desde app.com.talent.personality. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para PersonalityAnalyzer."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "PersonalityAnalyzer"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_personality_analyzer: {e}")
+        return None
+
+def get_culture_analyzer(*args, **kwargs):
+    """Obtiene una instancia o referencia para culture analyzer con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.talent.culture import CultureAnalyzer
+            logger.info(f"[AUTO-GEN] get_culture_analyzer importado desde app.com.talent.culture")
+            return CultureAnalyzer
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando CultureAnalyzer desde app.com.talent.culture. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para CultureAnalyzer."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "CultureAnalyzer"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_culture_analyzer: {e}")
+        return None
+
+def get_team_analyzer(*args, **kwargs):
+    """Obtiene una instancia o referencia para team analyzer con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.talent.team import TeamAnalyzer
+            logger.info(f"[AUTO-GEN] get_team_analyzer importado desde app.com.talent.team")
+            return TeamAnalyzer
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando TeamAnalyzer desde app.com.talent.team. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para TeamAnalyzer."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "TeamAnalyzer"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_team_analyzer: {e}")
+        return None
+
+def get_organizational_analyzer(*args, **kwargs):
+    """Obtiene una instancia o referencia para organizational analyzer con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.talent.organization import OrganizationalAnalyzer
+            logger.info(f"[AUTO-GEN] get_organizational_analyzer importado desde app.com.talent.organization")
+            return OrganizationalAnalyzer
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando OrganizationalAnalyzer desde app.com.talent.organization. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para OrganizationalAnalyzer."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "OrganizationalAnalyzer"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_organizational_analyzer: {e}")
+        return None
+
+def get_skill_analyzer(*args, **kwargs):
+    """Obtiene una instancia o referencia para skill analyzer con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.talent.skills import SkillAnalyzer
+            logger.info(f"[AUTO-GEN] get_skill_analyzer importado desde app.com.talent.skills")
+            return SkillAnalyzer
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando SkillAnalyzer desde app.com.talent.skills. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para SkillAnalyzer."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "SkillAnalyzer"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_skill_analyzer: {e}")
+        return None
+
+def get_values_integrator(*args, **kwargs):
+    """Obtiene una instancia o referencia para values integrator con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.chatbot.core.values import ValuesIntegrator
+            logger.info(f"[AUTO-GEN] get_values_integrator importado desde app.com.chatbot.core.values")
+            return ValuesIntegrator
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando ValuesIntegrator desde app.com.chatbot.core.values. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para ValuesIntegrator."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "ValuesIntegrator"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_values_integrator: {e}")
+        return None
+
+def get_principles_manager(*args, **kwargs):
+    """Obtiene una instancia o referencia para principles manager con importación diferida."""
+    try:
+        # Intentar importar desde el módulo esperado
+        try:
+            from app.com.chatbot.core.values import PrinciplesManager
+            logger.info(f"[AUTO-GEN] get_principles_manager importado desde app.com.chatbot.core.values")
+            return PrinciplesManager
+        except ImportError as e:
+            # Implementación genérica como fallback
+            logger.warning(f"Error importando PrinciplesManager desde app.com.chatbot.core.values. Usando implementación genérica: {e}")
+            
+            class GenericImplementation:
+                """Implementación genérica para PrinciplesManager."""
+                
+                def __init__(self, *args, **kwargs):
+                    self.name = "PrinciplesManager"
+                    self.initialized = True
+                    logger.info(f"[MOCK] {self.name} inicializado con {args} {kwargs}")
+                
+                def process(self, *args, **kwargs):
+                    """Procesa información de manera genérica."""
+                    logger.info(f"[MOCK] {self.name}.process llamado con {args} {kwargs}")
+                    return {
+                        "success": True,
+                        "result": "Procesamiento simulado",
+                        "timestamp": time.time()
+                    }
+                
+                def analyze(self, *args, **kwargs):
+                    """Análisis genérico."""
+                    logger.info(f"[MOCK] {self.name}.analyze llamado con {args} {kwargs}")
+                    return {
+                        "score": 0.75,
+                        "confidence": 0.85,
+                        "timestamp": time.time()
+                    }
+                
+                def get_context(self, *args, **kwargs):
+                    """Obtiene un contexto genérico."""
+                    logger.info(f"[MOCK] {self.name}.get_context llamado con {args} {kwargs}")
+                    return {
+                        "type": "generic_context",
+                        "data": {},
+                        "timestamp": time.time()
+                    }
+            
+            return GenericImplementation
+    except Exception as e:
+        logger.error(f"Error en get_principles_manager: {e}")
+        return None

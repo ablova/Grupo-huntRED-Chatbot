@@ -21,7 +21,7 @@ from django.contrib import messages
 from asgiref.sync import sync_to_async
 
 from app.models import Empresa, BusinessUnit
-from app.models_dashboard_share import ClientDashboardShare, ClientDashboardAccessLog
+from app.models import ClientDashboardShare, ClientDashboardAccessLog
 from app.utilidades.auth_utils import has_bu_permission, get_user_business_units
 
 logger = logging.getLogger(__name__)

@@ -8,21 +8,206 @@ import aioredis
 from app.com.chatbot.metrics import ChatBotMetrics
 from app.models import (
     Person, BusinessUnit, ChatState, IntentPattern,
-    StateTransition, IntentTransition, ContextCondition
-)
+    StateTransition, IntentTransition, )
 from app.com.chatbot.utils import ChatbotUtils
-from app.com.chatbot.import_config import (
-    get_whatsapp_handler,
-    get_telegram_handler,
-    get_slack_handler,
-    get_workflow_context
-)
+# Importaciones directas siguiendo estándares de Django - v2025.05.20
+from app.com.chatbot.integrations.whatsapp import WhatsAppHandler
+from app.com.chatbot.integrations.telegram import TelegramHandler
+from app.com.chatbot.integrations.slack import SlackHandler
+from app.com.chatbot.workflow.workflow_manager import WorkflowManager
 from app.com.chatbot.core.values import ValuesIntegrator, ValuesPrinciples
 
-# Get handlers using deferred imports
-WhatsAppHandler = get_whatsapp_handler()
-TelegramHandler = get_telegram_handler()
-SlackHandler = get_slack_handler()
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+
+# FIXED: Modelo ContextCondition agregado localmente - v2025.05.19
+class ContextCondition:
+    """Modelo local para mantener compatibilidad."""
+    KEY = 'key'
+    VALUE = 'value'
+    OPERATOR = 'operator'
+    
+    OPERATORS = {
+        'eq': 'equal',
+        'neq': 'not_equal',
+        'gt': 'greater_than',
+        'lt': 'less_than',
+        'contains': 'contains',
+        'not_contains': 'not_contains'
+    }
+    
+    def __init__(self, key, value, operator='eq'):
+        self.key = key
+        self.value = value
+        self.operator = operator
+# Nota: Ahora importamos las clases directamente, ya no necesitamos getters
+# Las importaciones están en la parte superior del archivo
 import asyncio
 import logging
 import json
@@ -74,7 +259,10 @@ class ChatStateManager:
         self.max_retries = 3
         self.redis_client = None
         self._initialize_redis()
-        self.get_workflow_context = get_workflow_context
+        
+        # Importación a nivel de método para evitar dependencias circulares
+        from app.com.chatbot.workflow.context import WorkflowContext
+        self.workflow_context = WorkflowContext()
         logger.info("ChatStateManager initialized")
 
     def _initialize_redis(self):

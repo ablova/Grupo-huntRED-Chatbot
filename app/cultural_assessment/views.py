@@ -20,11 +20,11 @@ from django.conf import settings
 from django.urls import reverse
 from django.core.cache import cache
 
-from app.models_cultural import (
+from app.models import (
     CulturalAssessment, OrganizationalCulture, CulturalDimension, 
-    CulturalValue, CulturalProfile, CulturalReport
+    CulturalValue, CulturalProfile, CulturalReport, Person, BusinessUnit, Organization, Application
 )
-from app.models import Person, BusinessUnit, Organization, Application
+
 from app.utils.cache import cache_result
 from app.utils.rbac import check_permission, has_organization_access
 

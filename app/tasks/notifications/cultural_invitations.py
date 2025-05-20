@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from celery import shared_task
-from app.models_cultural import CulturalAssessment, OrganizationalCulture
+from app.models import CulturalAssessment, OrganizationalCulture
 from app.utils.http import send_email
 from app.utils.common import generate_qr_code
 
@@ -131,7 +131,7 @@ def send_report_notification_task(self, report_id):
         bool: True si se envió correctamente, False en caso contrario
     """
     try:
-        from app.models_cultural import CulturalReport
+        from app.models import CulturalReport
         
         # Recuperar el reporte
         report = CulturalReport.objects.select_related(

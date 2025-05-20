@@ -1,19 +1,12 @@
 # app/models.py
-    
+
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
+# Usar JSONField de django.db.models que es la versión actual
 from django.db.models import JSONField
 from django.utils import timezone
-
-# Importar modelos culturales
-try:
-    from app.models_cultural import PersonCulturalProfile, CulturalFitReport
-except ImportError:
-    # Si los modelos culturales no están disponibles, definirlos como None
-    PersonCulturalProfile = None
-    CulturalFitReport = None
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -27,6 +20,7 @@ import re
 import uuid
 import logging
 import requests
+
 logger=logging.getLogger(__name__)
 ROLE_CHOICES=[('SUPER_ADMIN','Super Administrador'),('BU_COMPLETE','Consultor BU Completo'),('BU_DIVISION','Consultor BU División')]
 
@@ -114,6 +108,164 @@ NOTIFICATION_TYPE_CHOICES = [
     ('HIRE', 'Contratación'),
     ('SYSTEM', 'Sistema')
 ]
+
+USER_STATUS_CHOICES=[('ACTIVE','Activo'),('INACTIVE','Inactivo'),('PENDING_APPROVAL','Pendiente de Aprobación')]
+VERIFICATION_STATUS_CHOICES=[('PENDING','Pendiente'),('APPROVED','Aprobado'),('REJECTED','Rechazado')]
+DOCUMENT_TYPE_CHOICES=[('ID','Identificación'),('CURP','CURP'),('RFC','RFC'),('PASSPORT','Pasaporte')]
+USER_AGENTS=[
+    "Mozilla/5.0 (Android 10; Mobile; rv:88.0) Gecko/88.0 Firefox/88.0",
+    "Mozilla/5.0 (Linux; Android 10; SM-A505FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.93 Mobile Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko",
+    "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.51",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0",
+    "Mozilla/5.0 (iPad; CPU OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPad; CPU OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+]
+PLATFORM_CHOICES=[
+    ("workday","Workday"),
+    ("phenom_people","Phenom People"),
+    ("oracle_hcm","Oracle HCM"),
+    ("sap_successfactors","SAP SuccessFactors"),
+    ("adp","ADP"),
+    ("peoplesoft","PeopleSoft"),
+    ("meta4","Meta4"),
+    ("cornerstone","Cornerstone"),
+    ("ukg","UKG"),
+    ("linkedin","LinkedIn"),
+    ("indeed","Indeed"),
+    ("greenhouse","Greenhouse"),
+    ("glassdoor","Glassdoor"),
+    ("computrabajo","Computrabajo"),
+    ("accenture","Accenture"),
+    ("santander","Santander"),
+    ("eightfold_ai","EightFold AI"),
+    ("default","Default"),
+    ("flexible","Flexible"),
+]
+OFERTA_STATUS_CHOICES=[
+    ('pending','Pendiente'),
+    ('sent','Enviada'),
+    ('signed','Firmada'),
+    ('rejected','Rechazada'),
+    ('expired','Expirada'),
+]
+COMUNICATION_CHOICES=[
+    ('whatsapp','WhatsApp'),
+    ('telegram','Telegram'),
+    ('messenger','Messenger'),
+    ('instagram','Instagram'),
+    ('slack','Slack'),
+    ('email','Email'),
+    ('incode','INCODE Verification'),
+    ('blacktrust','BlackTrust Verification'),
+    ('paypal','PayPal Payment Gateway'),
+    ('stripe','Stripe Payment Gateway'),
+    ('mercado_pago','MercadoPago Payment Gateway'),
+    ('linkedin','LinkedIn Job Posting'),
+]
+API_CATEGORY_CHOICES=[
+    ('VERIFICATION','Verificación de Identidad'),
+    ('BACKGROUND_CHECK','Verificación de Antecedentes'),
+    ('MESSAGING','Envío de Mensajes'),
+    ('EMAIL','Envío de Email'),
+    ('SOCIAL_MEDIA','Redes Sociales'),
+    ('SCRAPING','Extracción de Datos'),
+    ('AI','Inteligencia Artificial'),
+    ('PAYMENT_GATEWAY','Pasarela de Pago'),
+    ('REPORTING','Generación de Reportes'),
+    ('ANALYTICS','Análisis de Datos'),
+    ('STORAGE','Almacenamiento'),
+    ('PAYMENT_GATEWAY','Pasarela de Pagos'),
+    ('OTHER','Otro')
+]
+BUSINESS_UNIT_CHOICES=[
+    ('huntRED','huntRED'),
+    ('huntRED_executive','huntRED Executive'),
+    ('huntu','huntU'),
+    ('amigro','Amigro'),
+    ('sexsi','SexSI'),
+]
+DIVISION_CHOICES=[
+    ('RECRUITING','Recruiting'),
+    ('TECH','Tecnología'),
+    ('HR','Recursos Humanos'),
+    ('FINANCE','Finanzas'),
+    ('MARKETING','Marketing'),
+    ('OPERATIONS','Operaciones'),
+]
+INTENT_TYPE_CHOICES=[
+    ('SYSTEM','Sistema'),
+    ('USER','Usuario'),
+    ('BUSINESS','Negocio'),
+    ('FALLBACK','Respuesta por defecto'),
+]
+STATE_TYPE_CHOICES=[
+    ('INITIAL','Inicial'),
+    ('PROFILE','Perfil'),
+    ('SEARCH','Búsqueda'),
+    ('APPLY','Aplicación'),
+    ('INTERVIEW','Entrevista'),
+    ('OFFER','Oferta'),
+    ('HIRED','Contratado'),
+    ('IDLE','Inactivo'),
+]
+TRANSITION_TYPE_CHOICES=[
+    ('IMMEDIATE','Inmediato'),
+    ('CONDITIONAL','Condicional'),
+    ('TIME_BASED','Basado en tiempo'),
+    ('EVENT_BASED','Basado en evento'),
+]
+CONDITION_TYPE_CHOICES=[
+    ('PROFILE_COMPLETE','Perfil completo'),
+    ('HAS_APPLIED','Ha aplicado'),
+    ('HAS_INTERVIEW','Tiene entrevista'),
+    ('HAS_OFFER','Tiene oferta'),
+    ('HAS_PROFILE','Tiene perfil'),
+    ('HAS_CV','Tiene CV'),
+    ('HAS_TEST','Tiene prueba'),
+]
+
+class CustomUserManager(BaseUserManager):
+    def create_user(self,email,password=None,**extra_fields):
+        if not email:
+            raise ValueError(_('The Email must be set'))
+        email=self.normalize_email(email)
+        user=self.model(email=email,**extra_fields)
+        user.set_password(password)
+        user.save()
+        return user
+    def create_superuser(self,email,password,**extra_fields):
+        extra_fields.setdefault('is_staff',True)
+        extra_fields.setdefault('is_superuser',True)
+        extra_fields.setdefault('role','SUPER_ADMIN')
+        extra_fields.setdefault('status','ACTIVE')
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError(_('Superuser must have is_staff=True.'))
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError(_('Superuser must have is_superuser=True.'))
+        return self.create_user(email,password,**extra_fields)
 
 class NotificationChannel(models.Model):
     """Modelo para configurar canales de notificación por Business Unit."""
@@ -302,144 +454,6 @@ class Feedback(models.Model):
         """Omite el feedback."""
         self.status = 'SKIPPED'
         self.save(update_fields=['status'])
-
-USER_STATUS_CHOICES=[('ACTIVE','Activo'),('INACTIVE','Inactivo'),('PENDING_APPROVAL','Pendiente de Aprobación')]
-VERIFICATION_STATUS_CHOICES=[('PENDING','Pendiente'),('APPROVED','Aprobado'),('REJECTED','Rechazado')]
-DOCUMENT_TYPE_CHOICES=[('ID','Identificación'),('CURP','CURP'),('RFC','RFC'),('PASSPORT','Pasaporte')]
-USER_AGENTS=[
-    "Mozilla/5.0 (Android 10; Mobile; rv:88.0) Gecko/88.0 Firefox/88.0",
-    "Mozilla/5.0 (Linux; Android 10; SM-A505FN) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.93 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14.6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/114.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15.7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko",
-    "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.51",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/114.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0",
-    "Mozilla/5.0 (iPad; CPU OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPad; CPU OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
-]
-PLATFORM_CHOICES=[
-    ("workday","Workday"),
-    ("phenom_people","Phenom People"),
-    ("oracle_hcm","Oracle HCM"),
-    ("sap_successfactors","SAP SuccessFactors"),
-    ("adp","ADP"),
-    ("peoplesoft","PeopleSoft"),
-    ("meta4","Meta4"),
-    ("cornerstone","Cornerstone"),
-    ("ukg","UKG"),
-    ("linkedin","LinkedIn"),
-    ("indeed","Indeed"),
-    ("greenhouse","Greenhouse"),
-    ("glassdoor","Glassdoor"),
-    ("computrabajo","Computrabajo"),
-    ("accenture","Accenture"),
-    ("santander","Santander"),
-    ("eightfold_ai","EightFold AI"),
-    ("default","Default"),
-    ("flexible","Flexible"),
-]
-OFERTA_STATUS_CHOICES=[
-    ('pending','Pendiente'),
-    ('sent','Enviada'),
-    ('signed','Firmada'),
-    ('rejected','Rechazada'),
-    ('expired','Expirada'),
-]
-COMUNICATION_CHOICES=[
-    ('whatsapp','WhatsApp'),
-    ('telegram','Telegram'),
-    ('messenger','Messenger'),
-    ('instagram','Instagram'),
-    ('slack','Slack'),
-    ('email','Email'),
-    ('incode','INCODE Verification'),
-    ('blacktrust','BlackTrust Verification'),
-    ('paypal','PayPal Payment Gateway'),
-    ('stripe','Stripe Payment Gateway'),
-    ('mercado_pago','MercadoPago Payment Gateway'),
-    ('linkedin','LinkedIn Job Posting'),
-]
-API_CATEGORY_CHOICES=[
-    ('VERIFICATION','Verificación de Identidad'),
-    ('BACKGROUND_CHECK','Verificación de Antecedentes'),
-    ('MESSAGING','Envío de Mensajes'),
-    ('EMAIL','Envío de Email'),
-    ('SOCIAL_MEDIA','Redes Sociales'),
-    ('SCRAPING','Extracción de Datos'),
-    ('AI','Inteligencia Artificial'),
-    ('PAYMENT_GATEWAY','Pasarela de Pago'),
-    ('REPORTING','Generación de Reportes'),
-    ('ANALYTICS','Análisis de Datos'),
-    ('STORAGE','Almacenamiento'),
-    ('PAYMENT_GATEWAY','Pasarela de Pagos'),
-    ('OTHER','Otro')
-]
-BUSINESS_UNIT_CHOICES=[
-    ('huntRED','huntRED'),
-    ('huntRED_executive','huntRED Executive'),
-    ('huntu','huntU'),
-    ('amigro','Amigro'),
-    ('sexsi','SexSI'),
-]
-DIVISION_CHOICES=[
-    ('RECRUITING','Recruiting'),
-    ('TECH','Tecnología'),
-    ('HR','Recursos Humanos'),
-    ('FINANCE','Finanzas'),
-    ('MARKETING','Marketing'),
-    ('OPERATIONS','Operaciones'),
-]
-INTENT_TYPE_CHOICES=[
-    ('SYSTEM','Sistema'),
-    ('USER','Usuario'),
-    ('BUSINESS','Negocio'),
-    ('FALLBACK','Respuesta por defecto'),
-]
-STATE_TYPE_CHOICES=[
-    ('INITIAL','Inicial'),
-    ('PROFILE','Perfil'),
-    ('SEARCH','Búsqueda'),
-    ('APPLY','Aplicación'),
-    ('INTERVIEW','Entrevista'),
-    ('OFFER','Oferta'),
-    ('HIRED','Contratado'),
-    ('IDLE','Inactivo'),
-]
-TRANSITION_TYPE_CHOICES=[
-    ('IMMEDIATE','Inmediato'),
-    ('CONDITIONAL','Condicional'),
-    ('TIME_BASED','Basado en tiempo'),
-    ('EVENT_BASED','Basado en evento'),
-]
-CONDITION_TYPE_CHOICES=[
-    ('PROFILE_COMPLETE','Perfil completo'),
-    ('HAS_APPLIED','Ha aplicado'),
-    ('HAS_INTERVIEW','Tiene entrevista'),
-    ('HAS_OFFER','Tiene oferta'),
-    ('HAS_PROFILE','Tiene perfil'),
-    ('HAS_CV','Tiene CV'),
-    ('HAS_TEST','Tiene prueba'),
-]
 
 class BusinessUnit(models.Model):
     name=models.CharField(max_length=50,choices=BUSINESS_UNIT_CHOICES,unique=True)
@@ -1910,70 +1924,6 @@ def update_chat_state_on_offer_accepted(sender,instance,**kwargs):
             chat_state.state='HIRED'
             chat_state.last_transition=timezone.now()
             chat_state.save()
-
-class CustomUserManager(BaseUserManager):
-    def create_user(self,email,password=None,**extra_fields):
-        if not email:
-            raise ValueError(_('The Email must be set'))
-        email=self.normalize_email(email)
-        user=self.model(email=email,**extra_fields)
-        user.set_password(password)
-        user.save()
-        return user
-    def create_superuser(self,email,password,**extra_fields):
-        extra_fields.setdefault('is_staff',True)
-        extra_fields.setdefault('is_superuser',True)
-        extra_fields.setdefault('role','SUPER_ADMIN')
-        extra_fields.setdefault('status','ACTIVE')
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError(_('Superuser must have is_staff=True.'))
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError(_('Superuser must have is_superuser=True.'))
-        return self.create_user(email,password,**extra_fields)
-
-class CustomUser(AbstractUser):
-    username=None
-    email=models.EmailField(_('email address'),unique=True)
-    role=models.CharField(max_length=20,choices=ROLE_CHOICES,default='BU_DIVISION')
-    status=models.CharField(max_length=20,choices=USER_STATUS_CHOICES,default='PENDING_APPROVAL')
-    verification_status=models.CharField(max_length=20,choices=VERIFICATION_STATUS_CHOICES,default='PENDING')
-    # Implementación de lazy loading para evitar dependencias circulares durante migraciones
-    business_unit=models.ForeignKey('app.BusinessUnit',on_delete=models.SET_NULL,null=True,blank=True)
-    division=models.CharField(max_length=50,choices=DIVISION_CHOICES,blank=True,null=True)
-    phone_number=models.CharField(max_length=20,blank=True,null=True)
-    emergency_contact=models.CharField(max_length=20,blank=True,null=True)
-    emergency_contact_name=models.CharField(max_length=100,blank=True,null=True)
-    address=models.TextField(blank=True,null=True)
-    date_of_birth=models.DateField(blank=True,null=True)
-    USERNAME_FIELD='email'
-    REQUIRED_FIELDS=['first_name','last_name']
-    objects=CustomUserManager()
-    class Meta:
-        ordering=['-date_joined']
-        verbose_name='Usuario'
-        verbose_name_plural='Usuarios'
-    def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.email})"
-    def has_bu_access(self,bu_name):
-        if self.role=='SUPER_ADMIN':
-            return True
-        if self.business_unit and self.business_unit.name==bu_name:
-            return True
-        return False
-    def has_division_access(self,division_name):
-        if self.role=='SUPER_ADMIN':
-            return True
-        if self.division==division_name:
-            return True
-        return False
-    def has_permission(self,permission):
-        return self.userpermission_set.filter(permission=permission).exists()
-    def clean(self):
-        if not self.email:
-            raise ValidationError(_('El email no puede estar vacío.'))
-    def save(self,*args,**kwargs):
-        self.full_clean()
-        super().save(*args,**kwargs)
 
 class UserPermission(models.Model):
     user=models.ForeignKey(CustomUser,on_delete=models.CASCADE,related_name='permissions')
@@ -3874,3 +3824,991 @@ class PersonSkill(models.Model):
         self.verification_date = timezone.now()
         self.verification_notes = notes
         self.save()
+
+class CustomUser(AbstractUser):
+    # Modelo de usuario personalizado para Grupo huntRED
+    # Implementa RBAC (Control de Acceso Basado en Roles) para garantizar
+    # acceso segmentado a los datos segun las reglas globales.
+    
+    # Role choices para RBAC
+    ROLE_SUPER_ADMIN = 'super_admin'
+    ROLE_CONSULTANT_COMPLETE = 'consultant_complete'
+    ROLE_CONSULTANT_DIVISION = 'consultant_division'
+    
+    ROLE_CHOICES = [
+        (ROLE_SUPER_ADMIN, 'Super Admin'),
+        (ROLE_CONSULTANT_COMPLETE, 'Consultant (Complete BU)'),
+        (ROLE_CONSULTANT_DIVISION, 'Consultant (BU Division)'),
+    ]
+    
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default=ROLE_CONSULTANT_DIVISION,
+        verbose_name='Rol'
+    )
+    
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultants',
+        verbose_name='Unidad de Negocio'
+    )
+    
+    division = models.ForeignKey(
+        'Division',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultants',
+        verbose_name='Division'
+    )
+    
+    class Meta:
+        verbose_name = 'Usuario'
+        verbose_name_plural = 'Usuarios'
+        permissions = [
+            ("view_all_business_units", "Can view all business units"),
+            ("manage_consultants", "Can manage consultant users"),
+        ]
+    
+    def __str__(self):
+        return f"{self.username} ({self.get_role_display()})"
+    
+    @property
+    def is_super_admin(self):
+        return self.role == self.ROLE_SUPER_ADMIN
+    
+    @property
+    def is_consultant_complete(self):
+        return self.role == self.ROLE_CONSULTANT_COMPLETE
+    
+    @property
+    def is_consultant_division(self):
+        return self.role == self.ROLE_CONSULTANT_DIVISION
+    
+    def has_bu_access(self, business_unit):
+        # Comprueba si el usuario tiene acceso a una unidad de negocio específica
+        if self.is_super_admin:
+            return True
+        if self.business_unit and self.business_unit == business_unit:
+            return True
+        return False
+    
+    def has_division_access(self, division):
+        # Comprueba si el usuario tiene acceso a una división específica
+        if self.is_super_admin:
+            return True
+        if self.is_consultant_complete and self.business_unit == division.business_unit:
+            return True
+        if self.division and self.division == division:
+            return True
+        return False
+
+
+CLIENT_FEEDBACK_PERIODS = [30, 90, 180, 365]  # Días
+CLIENT_FEEDBACK_STATUS_CHOICES = [('PENDING', 'Pendiente'), ('SENT', 'Enviada'), ('COMPLETED', 'Completada')]
+
+class ClientFeedback(models.Model):
+    """Modelo para gestionar feedback de clientes."""
+    empresa = models.ForeignKey('Empresa', on_delete=models.CASCADE, related_name='feedback', help_text="Empresa cliente")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='client_feedback', help_text="Business Unit asociada")
+    respondent = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='client_feedback_given', help_text="Persona que respondió")
+    consultant = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='client_feedback_received', help_text="Consultor evaluado")
+    period_days = models.IntegerField(help_text="Período en días", default=90)
+    status = models.CharField(max_length=20, choices=CLIENT_FEEDBACK_STATUS_CHOICES, default='PENDING', help_text="Estado del feedback")
+    responses = models.JSONField(default=dict, blank=True, help_text="Respuestas en JSON")
+    satisfaction_score = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)], help_text="Puntuación (0-10)")
+    sent_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de envío")
+    completed_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de completado")
+    token = models.CharField(max_length=255, null=True, blank=True, help_text="Token de acceso")
+    notes = models.TextField(blank=True, help_text="Notas adicionales")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Feedback de Cliente"
+        verbose_name_plural = "Feedback de Clientes"
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['empresa']), models.Index(fields=['business_unit']), models.Index(fields=['status']), models.Index(fields=['period_days'])]
+
+    def __str__(self):
+        return f"Feedback de {self.empresa.name} - {self.period_days} días"
+
+    def record_responses(self, response_data):
+        """Registra respuestas y calcula satisfacción."""
+        self.responses = response_data
+        self.status = 'COMPLETED'
+        self.completed_date = timezone.now()
+        if 'general_satisfaction' in response_data:
+            try:
+                self.satisfaction_score = float(response_data['general_satisfaction'])
+            except (ValueError, TypeError):
+                pass
+        self.save(update_fields=['responses', 'status', 'completed_date', 'satisfaction_score'])
+        return True
+
+    def is_low_satisfaction(self):
+        """Verifica si la satisfacción es baja (< 6)."""
+        return self.satisfaction_score is not None and self.satisfaction_score < 6.0
+
+    def get_improvement_areas(self):
+        """Identifica áreas de mejora según respuestas."""
+        improvement_areas = []
+        if not self.responses:
+            return improvement_areas
+        if self.responses.get('candidate_quality') and float(self.responses.get('candidate_quality')) < 7:
+            improvement_areas.append('calidad_candidatos')
+        if self.responses.get('recruitment_speed') and float(self.responses.get('recruitment_speed')) < 7:
+            improvement_areas.append('velocidad_reclutamiento')
+        if self.responses.get('clear_communication') == 'no':
+            improvement_areas.append('comunicacion')
+        if self.responses.get('candidate_adaptation') == 'no':
+            improvement_areas.append('adaptacion_candidatos')
+        if self.responses.get('would_recommend') == 'no':
+            improvement_areas.append('reputacion_general')
+        return improvement_areas
+
+class ClientFeedbackSchedule(models.Model):
+    """Modelo para programar encuestas de satisfacción."""
+    empresa = models.ForeignKey('Empresa', on_delete=models.CASCADE, related_name='feedback_schedules', help_text="Empresa cliente")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='client_feedback_schedules', help_text="Business Unit asociada")
+    start_date = models.DateTimeField(help_text="Fecha inicio relación")
+    next_feedback_date = models.DateTimeField(help_text="Fecha próxima encuesta")
+    period_days = models.IntegerField(help_text="Período en días", choices=[(p, f"{p} días") for p in CLIENT_FEEDBACK_PERIODS], default=90)
+    is_active = models.BooleanField(default=True, help_text="Programación activa")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Programación de Feedback"
+        verbose_name_plural = "Programaciones de Feedback"
+        ordering = ['next_feedback_date']
+
+    def __str__(self):
+        return f"Programación para {self.empresa.name} - {self.period_days} días"
+
+    def update_next_feedback_date(self):
+        """Actualiza la fecha de la próxima encuesta."""
+        next_index = CLIENT_FEEDBACK_PERIODS.index(self.period_days) + 1
+        if next_index < len(CLIENT_FEEDBACK_PERIODS):
+            self.period_days = CLIENT_FEEDBACK_PERIODS[next_index]
+        self.next_feedback_date = timezone.now() + timezone.timedelta(days=self.period_days)
+        self.save(update_fields=['period_days', 'next_feedback_date'])
+        return self.next_feedback_date
+        
+
+class CulturalDimension(models.Model):
+    """Define una dimensión cultural."""
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    category = models.CharField(max_length=50, default='general')
+    weight = models.FloatField(default=1.0, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)])
+    icon = models.CharField(max_length=50, help_text="Icono para UI", null=True, blank=True)
+    active = models.BooleanField(default=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+        indexes = [models.Index(fields=['business_unit', 'active'])]
+
+    def __str__(self):
+        return f"{self.name} ({self.category})"
+
+class CulturalValue(models.Model):
+    """Representa un valor cultural."""
+    dimension = models.ForeignKey(CulturalDimension, on_delete=models.CASCADE, related_name='values')
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    positive_statement = models.TextField(help_text="Afirmación positiva")
+    negative_statement = models.TextField(help_text="Afirmación negativa", null=True, blank=True)
+    weight = models.FloatField(default=1.0, validators=[MinValueValidator(0.1), MaxValueValidator(5.0)])
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['dimension', 'name']
+        indexes = [models.Index(fields=['dimension', 'active'])]
+
+    def __str__(self):
+        return f"{self.name} ({self.dimension.name})"
+
+class OrganizationalCulture(models.Model):
+    """Perfil cultural de una organización."""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='cultural_profiles')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    is_current = models.BooleanField(default=True, help_text="Perfil actual")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_assessment_date = models.DateTimeField(null=True, blank=True)
+    completion_percentage = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    confidence_score = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    status = models.CharField(max_length=50, default='in_progress', choices=[('not_started', 'No iniciado'), ('in_progress', 'En progreso'), ('partial', 'Datos parciales (>80%)'), ('complete', 'Completo')])
+    cultural_insights = JSONField(default=dict, help_text="Insights culturales")
+
+    class Meta:
+        ordering = ['-is_current', '-updated_at']
+        indexes = [models.Index(fields=['organization', 'is_current'])]
+
+    def __str__(self):
+        return f"Perfil cultural: {self.organization.name} ({self.status})"
+
+    def update_completion_status(self):
+        """Actualiza estado de compleción."""
+        self.status = 'complete' if self.completion_percentage >= 100 else 'partial' if self.completion_percentage >= 80 else 'in_progress' if self.completion_percentage > 0 else 'not_started'
+        self.save(update_fields=['status'])
+
+class CulturalProfile(models.Model):
+    """Perfil cultural de una persona."""
+    person = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='cultural_profile')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_assessment_date = models.DateTimeField(null=True, blank=True)
+    values_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)], help_text="Puntaje valores (0-5)")
+    motivators_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)], help_text="Puntaje motivadores (0-5)")
+    interests_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)], help_text="Puntaje intereses (0-5)")
+    work_style_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)], help_text="Puntaje estilo trabajo (0-5)")
+    social_impact_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)], help_text="Puntaje impacto social (0-5)")
+    generational_values_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)], help_text="Puntaje valores generacionales (0-5)")
+    leadership_potential = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(100.0)], help_text="Potencial liderazgo (0-100)")
+    transformation_potential = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(100.0)], help_text="Potencial transformación (0-100)")
+    risk_factor = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(100.0)], help_text="Factor riesgo cultural (0-100)")
+    compatibility_data = JSONField(default=dict, help_text="Datos compatibilidad")
+    strengths = JSONField(default=list, help_text="Fortalezas culturales")
+    areas_of_improvement = JSONField(default=list, help_text="Áreas mejora")
+    recommendations = JSONField(default=list, help_text="Recomendaciones")
+    full_profile_data = JSONField(default=dict, help_text="Datos completos perfil")
+    last_test_date = models.DateTimeField(default=timezone.now, help_text="Fecha última evaluación")
+
+    class Meta:
+        verbose_name = "Perfil Cultural"
+        verbose_name_plural = "Perfiles Culturales"
+        indexes = [models.Index(fields=['person']), models.Index(fields=['last_test_date'])]
+
+    def __str__(self):
+        return f"Perfil Cultural de {self.person}"
+
+    def get_cultural_match_percentage(self, business_unit=None):
+        """Obtiene porcentaje compatibilidad cultural."""
+        if not business_unit:
+            business_unit = 'general'
+        return self.compatibility_data.get(business_unit, 0.0) if self.compatibility_data else 0.0
+
+    def get_cultural_fit_level(self, business_unit=None):
+        """Obtiene nivel compatibilidad en texto."""
+        percentage = self.get_cultural_match_percentage(business_unit)
+        return "Excelente" if percentage >= 85 else "Muy bueno" if percentage >= 70 else "Bueno" if percentage >= 50 else "Regular" if percentage >= 30 else "Bajo"
+
+    def update_from_test_results(self, test_results):
+        """Actualiza perfil con resultados de test."""
+        try:
+            scores = test_results.get('scores', {})
+            self.values_score = scores.get('values', self.values_score)
+            self.motivators_score = scores.get('motivators', self.motivators_score)
+            self.interests_score = scores.get('interests', self.interests_score)
+            self.work_style_score = scores.get('work_style', self.work_style_score)
+            self.social_impact_score = scores.get('social_impact', self.social_impact_score)
+            self.generational_values_score = scores.get('generational_values', self.generational_values_score)
+            self.compatibility_data = test_results.get('compatibility', self.compatibility_data)
+            self.strengths = test_results.get('strengths', self.strengths)
+            self.areas_of_improvement = test_results.get('areas_for_improvement', self.areas_of_improvement)
+            self.recommendations = test_results.get('recommendations', self.recommendations)
+            self.full_profile_data = test_results
+            self.last_test_date = timezone.now()
+            self.save()
+            return True
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error actualizando perfil cultural: {e}", exc_info=True)
+            return False
+
+class CulturalFitReport(models.Model):
+    """Reporte de compatibilidad cultural."""
+    report_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, help_text="ID único reporte")
+    title = models.CharField(max_length=200, help_text="Título reporte")
+    person = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='cultural_fit_reports', help_text="Persona evaluada")
+    target_entity_type = models.CharField(max_length=20, choices=[('COMPANY', 'Empresa'), ('PERSON', 'Persona'), ('TEAM', 'Equipo'), ('BU', 'Unidad de Negocio')], default='COMPANY', help_text="Tipo entidad")
+    target_entity_id = models.IntegerField(null=True, blank=True, help_text="ID entidad objetivo")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.SET_NULL, null=True, blank=True, related_name='cultural_fit_reports', help_text="Unidad negocio")
+    compatibility_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(100.0)], help_text="Puntuación compatibilidad (0-100)")
+    report_data = models.JSONField(default=dict, help_text="Datos completos reporte")
+    created_by = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_cultural_fit_reports', help_text="Persona generó reporte")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Reporte de Compatibilidad Cultural"
+        verbose_name_plural = "Reportes de Compatibilidad Cultural"
+        indexes = [models.Index(fields=['person']), models.Index(fields=['business_unit']), models.Index(fields=['target_entity_type', 'target_entity_id']), models.Index(fields=['created_at'])]
+
+    def __str__(self):
+        return f"Reporte Cultural: {self.title}"
+
+    def get_compatibility_level(self):
+        """Obtiene nivel compatibilidad en texto."""
+        return "Excelente" if self.compatibility_score >= 85 else "Muy bueno" if self.compatibility_score >= 70 else "Bueno" if self.compatibility_score >= 50 else "Regular" if self.compatibility_score >= 30 else "Bajo"
+   
+class OnboardingProcess(models.Model):
+    """Proceso de onboarding de un candidato contratado"""
+    person = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='onboarding_processes')
+    vacancy = models.ForeignKey('Vacante', on_delete=models.CASCADE, related_name='onboarding_processes')
+    hire_date = models.DateTimeField()
+    end_date = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[
+        ('active', 'Activo'),
+        ('completed', 'Completado'),
+        ('terminated', 'Terminado Anticipadamente')
+    ], default='active')
+    last_survey_date = models.DateTimeField(null=True, blank=True)
+    completed_surveys = models.IntegerField(default=0)
+    survey_responses = models.TextField(null=True, blank=True)  # JSON almacenado
+    notes = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def get_responses(self):
+        """Retorna las respuestas como diccionario Python"""
+        if not self.survey_responses:
+            return {}
+        try:
+            return json.loads(self.survey_responses)
+        except json.JSONDecodeError:
+            return {}
+    
+    def set_responses(self, responses_dict):
+        """Almacena diccionario como JSON"""
+        self.survey_responses = json.dumps(responses_dict)
+    
+    def add_response(self, period_days, question_id, response_value):
+        """Añade una respuesta específica de encuesta"""
+        responses = self.get_responses()
+        
+        # Convertir período a string para uso como clave
+        period_key = str(period_days)
+        
+        # Inicializar período si no existe
+        if period_key not in responses:
+            responses[period_key] = {}
+        
+        # Añadir respuesta con timestamp
+        responses[period_key][question_id] = {
+            "value": response_value,
+            "timestamp": timezone.now().isoformat()
+        }
+        
+        # Guardar actualizaciones
+        self.set_responses(responses)
+    
+    def get_satisfaction_score(self, period_days=None):
+        """Calcula puntaje de satisfacción (0-10) basado en respuestas"""
+        responses = self.get_responses()
+        
+        if not responses:
+            return None
+        
+        # Si se especifica periodo, calcular solo para ese
+        if period_days:
+            period_key = str(period_days)
+            if period_key not in responses:
+                return None
+            period_data = responses[period_key]
+        else:
+            # Usar el último período disponible
+            periods = sorted([int(p) for p in responses.keys()])
+            if not periods:
+                return None
+            period_key = str(periods[-1])
+            period_data = responses[period_key]
+        
+        # Mapeo de valores de respuesta a puntajes numéricos
+        value_mappings = {
+            # Para pregunta "feeling"
+            "😀 Muy bien": 5.0,
+            "🙂 Bien": 4.0,
+            "😐 Neutral": 3.0,
+            "😕 No muy bien": 2.0,
+            "😟 Mal": 1.0,
+            
+            # Para otras preguntas tipo Likert
+            "Completamente": 5.0,
+            "Totalmente": 5.0,
+            "En su mayoría": 4.0,
+            "Bastante": 4.0,
+            "Parcialmente": 3.0,
+            "Algo": 3.0,
+            "Poco": 2.0,
+            "No cumple": 1.0,
+            "Nada": 1.0
+        }
+        
+        # Calcular promedio de puntajes numéricos
+        scores = []
+        for question_id, response in period_data.items():
+            if isinstance(response, dict) and "value" in response:
+                value = response["value"]
+                if value in value_mappings:
+                    scores.append(value_mappings[value])
+        
+        if not scores:
+            return None
+        
+        # Convertir escala 1-5 a escala 0-10
+        avg_score = sum(scores) / len(scores)
+        return (avg_score - 1) * 2.5
+    
+    class Meta:
+        verbose_name = "Proceso de Onboarding"
+        verbose_name_plural = "Procesos de Onboarding"
+        unique_together = ('person', 'vacancy')
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['hire_date']),
+            models.Index(fields=['person', 'status'])
+        ]
+
+class OnboardingTask(models.Model):
+    """Tarea específica en el proceso de onboarding"""
+    onboarding = models.ForeignKey(OnboardingProcess, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=100)
+    description = models.TextField()
+    due_date = models.DateTimeField()
+    completed = models.BooleanField(default=False)
+    completed_date = models.DateTimeField(null=True, blank=True)
+    assignee_type = models.CharField(max_length=20, choices=[
+        ('candidate', 'Candidato'),
+        ('manager', 'Manager'),
+        ('hr', 'Recursos Humanos'),
+        ('system', 'Sistema')
+    ])
+    priority = models.CharField(max_length=10, choices=[
+        ('high', 'Alta'),
+        ('medium', 'Media'),
+        ('low', 'Baja')
+    ], default='medium')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def mark_completed(self):
+        """Marca la tarea como completada"""
+        self.completed = True
+        self.completed_date = timezone.now()
+        self.save()
+    
+    class Meta:
+        verbose_name = "Tarea de Onboarding"
+        verbose_name_plural = "Tareas de Onboarding"
+        indexes = [
+            models.Index(fields=['due_date']),
+            models.Index(fields=['completed'])
+        ]
+        ordering = ['due_date', 'priority']
+
+class OnboardingMilestone(models.Model):
+    """Hito importante en el proceso de onboarding"""
+    onboarding = models.ForeignKey(OnboardingProcess, on_delete=models.CASCADE, related_name='milestones')
+    title = models.CharField(max_length=100)
+    description = models.TextField()
+    target_date = models.DateTimeField()
+    completed = models.BooleanField(default=False)
+    completed_date = models.DateTimeField(null=True, blank=True)
+    days_from_hire = models.IntegerField(help_text="Días desde contratación")
+    
+    class Meta:
+        verbose_name = "Hito de Onboarding"
+        verbose_name_plural = "Hitos de Onboarding"
+        ordering = ['target_date']
+
+User = get_user_model()
+
+class ClientDashboardShare(models.Model):
+    """
+    Modelo para gestionar los enlaces compartidos de dashboards.
+    Almacena tokens únicos con fecha de caducidad y registra el uso.
+    """
+    # Relaciones
+    empresa = models.ForeignKey('Empresa', on_delete=models.CASCADE, related_name='dashboard_shares')
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='dashboard_shares')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_dashboard_shares')
+    
+    # Datos del enlace
+    token = models.CharField(max_length=64, unique=True, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    name = models.CharField(max_length=100, help_text="Nombre descriptivo para identificar este enlace")
+    
+    # Configuración
+    expiry_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    require_auth = models.BooleanField(default=False, help_text="Requerir autenticación adicional (código OTP)")
+    
+    # Permisos y configuración
+    allow_satisfaction_view = models.BooleanField(default=True)
+    allow_onboarding_view = models.BooleanField(default=True)
+    allow_recommendations_view = models.BooleanField(default=True)
+    
+    # Datos de seguimiento
+    created_date = models.DateTimeField(auto_now_add=True)
+    last_accessed = models.DateTimeField(null=True, blank=True)
+    access_count = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "Enlace de Dashboard Compartido"
+        verbose_name_plural = "Enlaces de Dashboard Compartidos"
+        ordering = ['-created_date']
+    
+    def __str__(self):
+        return f"Dashboard compartido: {self.empresa.name} ({self.created_date.strftime('%d/%m/%Y')})"
+    
+    def save(self, *args, **kwargs):
+        """Generamos un token único si no existe."""
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_expired(self):
+        """Verifica si el enlace ha caducado."""
+        return self.expiry_date < timezone.now()
+    
+    @property
+    def days_remaining(self):
+        """Calcula los días restantes antes de la caducidad."""
+        if self.is_expired:
+            return 0
+        delta = self.expiry_date - timezone.now()
+        return max(0, delta.days)
+    
+    def register_access(self):
+        """Registra un acceso al enlace."""
+        self.last_accessed = timezone.now()
+        self.access_count += 1
+        self.save(update_fields=['last_accessed', 'access_count'])
+    
+    def extend_expiry(self, days=30):
+        """Extiende la caducidad del enlace."""
+        self.expiry_date = timezone.now() + timezone.timedelta(days=days)
+        self.save(update_fields=['expiry_date'])
+
+class ClientDashboardAccessLog(models.Model):
+    """
+    Registro detallado de cada acceso a los dashboards compartidos.
+    Útil para análisis y auditoría.
+    """
+    dashboard_share = models.ForeignKey(ClientDashboardShare, on_delete=models.CASCADE, related_name='access_logs')
+    access_time = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    referrer = models.URLField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Registro de Acceso a Dashboard"
+        verbose_name_plural = "Registros de Acceso a Dashboards"
+        ordering = ['-access_time']
+    
+    def __str__(self):
+        return f"Acceso: {self.dashboard_share.empresa.name} - {self.access_time.strftime('%d/%m/%Y %H:%M')}"
+
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
+from asgiref.sync import sync_to_async
+from typing import List, Dict, Any, Optional
+import json
+import logging
+
+
+from app.com.utils.logger_utils import get_module_logger
+
+logger = get_module_logger('kanban')
+
+kanban:board_view
+kanban:card_detail
+kanban:move_card
+kanban:update_card
+kanban:add_comment
+kanban:upload_attachment
+kanban:archive_card
+kanban:mark_notification_read
+kanban:create_board
+kanban:create_cardALg
+
+class KanbanBoard(models.Model):
+    """Representa un tablero Kanban para una unidad de negocio específica."""
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='kanban_boards')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = _('Tablero Kanban')
+        verbose_name_plural = _('Tableros Kanban')
+        ordering = ['business_unit', 'name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.business_unit.name})"
+    
+    @property
+    def columns(self):
+        """Devuelve las columnas del tablero ordenadas por posición."""
+        return self.kanban_columns.all()
+    
+    def get_active_cards(self):
+        """Obtiene las tarjetas activas organizadas por columnas."""
+        result = {}
+        for column in self.columns:
+            result[column.id] = column.cards.filter(is_archived=False).order_by('position')
+        return result
+
+class KanbanColumn(models.Model):
+    """Representa una columna en el tablero Kanban."""
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    board = models.ForeignKey(KanbanBoard, on_delete=models.CASCADE, related_name='kanban_columns')
+    workflow_stage = models.ForeignKey(WorkflowStage, on_delete=models.SET_NULL, null=True, blank=True, 
+                                       related_name='kanban_columns')
+    position = models.PositiveIntegerField(default=0)
+    wip_limit = models.PositiveIntegerField(default=0, help_text=_("Límite de trabajo en progreso (0 = sin límite)"))
+    color = models.CharField(max_length=20, default="#f5f5f5", help_text=_("Color de la columna en formato hexadecimal"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = _('Columna Kanban')
+        verbose_name_plural = _('Columnas Kanban')
+        ordering = ['board', 'position']
+    
+    def __str__(self):
+        return f"{self.name} ({self.board.name})"
+    
+    def is_at_wip_limit(self):
+        """Comprueba si la columna ha alcanzado su límite de trabajo en progreso."""
+        if self.wip_limit == 0:
+            return False
+        return self.cards.filter(is_archived=False).count() >= self.wip_limit
+    
+    @property
+    def cards(self):
+        """Devuelve las tarjetas de la columna ordenadas por posición."""
+        return self.kanban_cards.all()
+
+class KanbanCard(models.Model):
+    """Representa una tarjeta en el tablero Kanban."""
+    application = models.OneToOneField(Application, on_delete=models.CASCADE, related_name='kanban_card')
+    column = models.ForeignKey(KanbanColumn, on_delete=models.CASCADE, related_name='kanban_cards')
+    position = models.PositiveIntegerField(default=0)
+    assignee = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                 related_name='assigned_cards')
+    due_date = models.DateTimeField(null=True, blank=True)
+    priority = models.PositiveSmallIntegerField(
+        choices=[
+            (1, _('Baja')),
+            (2, _('Normal')),
+            (3, _('Alta')),
+            (4, _('Urgente'))
+        ],
+        default=2
+    )
+    labels = models.JSONField(default=list, blank=True, help_text=_("Etiquetas asociadas a la tarjeta"))
+    is_archived = models.BooleanField(default=False)
+    last_activity = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = _('Tarjeta Kanban')
+        verbose_name_plural = _('Tarjetas Kanban')
+        ordering = ['column', 'position']
+    
+    def __str__(self):
+        return f"{self.application.user.nombre} - {self.application.vacancy.titulo}"
+    
+    def save(self, *args, **kwargs):
+        """Guarda la tarjeta y actualiza el estado de la aplicación."""
+        if self.column.workflow_stage and self.application.status != self.column.workflow_stage.name:
+            old_status = self.application.status
+            self.application.status = self.column.workflow_stage.name
+            self.application.save()
+            
+            # Registrar el cambio de estado
+            KanbanCardHistory.objects.create(
+                card=self,
+                change_type='status',
+                old_value=old_status,
+                new_value=self.column.workflow_stage.name,
+                user=kwargs.pop('user', None)
+            )
+        
+        # Si es una tarjeta nueva, posicionarla al final de la columna
+        if not self.pk:
+            max_position = KanbanCard.objects.filter(
+                column=self.column, is_archived=False
+            ).aggregate(models.Max('position'))['position__max'] or 0
+            self.position = max_position + 1
+        
+        super().save(*args, **kwargs)
+    
+    def move_to_column(self, target_column, user=None, position=None):
+        """Mueve la tarjeta a otra columna."""
+        if self.column.id == target_column.id:
+            return False
+        
+        old_column = self.column
+        self.column = target_column
+        
+        # Si no se especifica posición, colocar al final
+        if position is None:
+            max_position = KanbanCard.objects.filter(
+                column=target_column, is_archived=False
+            ).aggregate(models.Max('position'))['position__max'] or 0
+            self.position = max_position + 1
+        else:
+            self.position = position
+            
+            # Reordenar las tarjetas en la columna de destino
+            cards_to_update = KanbanCard.objects.filter(
+                column=target_column,
+                position__gte=position,
+                is_archived=False
+            ).exclude(pk=self.pk)
+            
+            for card in cards_to_update:
+                card.position += 1
+                card.save()
+        
+        # Actualizar el estado de la aplicación si la columna está asociada a una etapa
+        if target_column.workflow_stage:
+            old_status = self.application.status
+            self.application.status = target_column.workflow_stage.name
+            self.application.save()
+            
+            # Registrar el cambio de estado
+            KanbanCardHistory.objects.create(
+                card=self,
+                change_type='status',
+                old_value=old_status,
+                new_value=target_column.workflow_stage.name,
+                user=user
+            )
+        
+        # Registrar el movimiento de columna
+        KanbanCardHistory.objects.create(
+            card=self,
+            change_type='column',
+            old_value=old_column.name,
+            new_value=target_column.name,
+            user=user
+        )
+        
+        self.save()
+        return True
+    
+    def archive(self, user=None):
+        """Archiva la tarjeta."""
+        if not self.is_archived:
+            self.is_archived = True
+            
+            # Registrar la acción
+            KanbanCardHistory.objects.create(
+                card=self,
+                change_type='archive',
+                old_value='active',
+                new_value='archived',
+                user=user
+            )
+            
+            self.save()
+            return True
+        return False
+    
+    def unarchive(self, user=None):
+        """Restaura la tarjeta archivada."""
+        if self.is_archived:
+            self.is_archived = False
+            
+            # Registrar la acción
+            KanbanCardHistory.objects.create(
+                card=self,
+                change_type='archive',
+                old_value='archived',
+                new_value='active',
+                user=user
+            )
+            
+            self.save()
+            return True
+        return False
+
+class KanbanCardHistory(models.Model):
+    """Registra el historial de cambios en las tarjetas Kanban."""
+    card = models.ForeignKey(KanbanCard, on_delete=models.CASCADE, related_name='history')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    change_type = models.CharField(max_length=50, choices=[
+        ('status', _('Cambio de estado')),
+        ('column', _('Cambio de columna')),
+        ('assignee', _('Cambio de asignado')),
+        ('priority', _('Cambio de prioridad')),
+        ('due_date', _('Cambio de fecha límite')),
+        ('archive', _('Archivado/Desarchivado')),
+        ('comment', _('Comentario')),
+        ('attachment', _('Archivo adjunto'))
+    ])
+    old_value = models.TextField(blank=True, null=True)
+    new_value = models.TextField(blank=True, null=True)
+    comment = models.TextField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        verbose_name = _('Historial de Tarjeta')
+        verbose_name_plural = _('Historial de Tarjetas')
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.card} - {self.change_type} - {self.timestamp}"
+
+class KanbanComment(models.Model):
+    """Comentarios en las tarjetas Kanban."""
+    card = models.ForeignKey(KanbanCard, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = _('Comentario')
+        verbose_name_plural = _('Comentarios')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username}: {self.text[:50]}"
+    
+    def save(self, *args, **kwargs):
+        """Guarda el comentario y registra la acción en el historial."""
+        is_new = not self.pk
+        super().save(*args, **kwargs)
+        
+        if is_new:
+            # Registrar el nuevo comentario en el historial
+            KanbanCardHistory.objects.create(
+                card=self.card,
+                change_type='comment',
+                new_value=self.id,
+                comment=self.text,
+                user=self.user
+            )
+
+class KanbanAttachment(models.Model):
+    """Archivos adjuntos a las tarjetas Kanban."""
+    card = models.ForeignKey(KanbanCard, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='kanban_attachments/')
+    filename = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    size = models.PositiveIntegerField()  # Tamaño en bytes
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = _('Archivo Adjunto')
+        verbose_name_plural = _('Archivos Adjuntos')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.filename
+    
+    def save(self, *args, **kwargs):
+        """Guarda el archivo adjunto y registra la acción en el historial."""
+        is_new = not self.pk
+        super().save(*args, **kwargs)
+        
+        if is_new:
+            # Registrar el nuevo archivo en el historial
+            KanbanCardHistory.objects.create(
+                card=self.card,
+                change_type='attachment',
+                new_value=self.id,
+                comment=f"Archivo adjunto: {self.filename}",
+                user=self.uploaded_by
+            )
+
+class KanbanNotification(models.Model):
+    """Notificaciones sobre actividad en el tablero Kanban."""
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kanban_notifications')
+    card = models.ForeignKey(KanbanCard, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
+    history_entry = models.ForeignKey(KanbanCardHistory, on_delete=models.CASCADE, related_name='notifications', 
+                                     null=True, blank=True)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = _('Notificación')
+        verbose_name_plural = _('Notificaciones')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} - {self.recipient.username}"
+    
+    @staticmethod
+    def create_from_history(history_entry, recipients=None):
+        """Crea notificaciones a partir de un evento en el historial de una tarjeta."""
+        if not history_entry:
+            return []
+        
+        # Determinar los destinatarios si no se especifican
+        if recipients is None:
+            recipients = []
+            # Incluir al asignado a la tarjeta
+            if history_entry.card.assignee:
+                recipients.append(history_entry.card.assignee)
+                
+            # Incluir usuarios que han comentado en la tarjeta
+            commented_users = KanbanComment.objects.filter(
+                card=history_entry.card
+            ).values_list('user', flat=True).distinct()
+            
+            for user_id in commented_users:
+                user = User.objects.get(id=user_id)
+                if user not in recipients:
+                    recipients.append(user)
+        
+        # Generar título y mensaje según el tipo de cambio
+        title = f"Actividad en tarjeta: {history_entry.card}"
+        message = "Se ha producido un cambio en una tarjeta que estás siguiendo."
+        
+        if history_entry.change_type == 'status':
+            title = f"Cambio de estado en: {history_entry.card}"
+            message = f"El estado ha cambiado de '{history_entry.old_value}' a '{history_entry.new_value}'."
+        elif history_entry.change_type == 'column':
+            title = f"Movimiento de tarjeta: {history_entry.card}"
+            message = f"La tarjeta se ha movido de '{history_entry.old_value}' a '{history_entry.new_value}'."
+        elif history_entry.change_type == 'assignee':
+            title = f"Asignación actualizada: {history_entry.card}"
+            message = f"La tarjeta ha sido reasignada de '{history_entry.old_value}' a '{history_entry.new_value}'."
+        elif history_entry.change_type == 'comment':
+            title = f"Nuevo comentario en: {history_entry.card}"
+            message = f"{history_entry.user.get_full_name() or history_entry.user.username} ha comentado: {history_entry.comment[:100]}"
+        
+        # Crear notificaciones para cada destinatario
+        notifications = []
+        for recipient in recipients:
+            # No notificar al usuario que realizó la acción
+            if recipient == history_entry.user:
+                continue
+                
+            notification = KanbanNotification.objects.create(
+                recipient=recipient,
+                card=history_entry.card,
+                history_entry=history_entry,
+                title=title,
+                message=message
+            )
+            notifications.append(notification)
+            
+        return notifications

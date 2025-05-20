@@ -10,10 +10,15 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 from typing import List, Dict, Any, Tuple, Optional
+from asgiref.sync import sync_to_async
 
+# Importaciones directas siguiendo reglas de Grupo huntRED®
 from app.ml.ml_model import MatchmakingLearningSystem
-from app.models import Person, Vacante, Application, BusinessUnit
-from app.models_kanban import KanbanBoard, KanbanColumn, KanbanCard
+from app.models import (
+    Person, Vacante, Application, BusinessUnit,
+    KanbanBoard, KanbanColumn, KanbanCard, KanbanCardHistory,
+    CulturalDimension, CulturalValue, CulturalProfile
+)
 
 # Obtener el logger específico para este módulo
 logger = logging.getLogger('kanban.ml_integration')

@@ -1,13 +1,17 @@
 # /home/pablo/app/com/import_config.py
 #
-# Importador de módulos para el módulo de comunicaciones.
+# NOTA: Este archivo está obsoleto y se mantiene temporalmente para compatibilidad.
+# El registro de módulos ahora es gestionado automáticamente por ModuleRegistry en app/module_registry.py
 #
-from typing import Any, Callable
-from app.import_config import register_module
+# Siguiendo las reglas globales de Grupo huntRED®:
+# - No Redundancies: Verificar antes de añadir funciones que no existan en el código
+# - Modularity: Escribir código modular, reutilizable; evitar duplicar funcionalidad
+# - Code Consistency: Seguir estándares de Django
 
-# Register essential modules at startup
-register_module('chatbot', 'app.com.chatbot.chatbot.Chatbot')
-register_module('conversational_flow_manager', 'app.com.chatbot.conversational_flow_manager.ConversationalFlowManager')
+# AHORA EL REGISTRO ES AUTOMÁTICO:
+# Los módulos deben ser importados directamente usando importaciones estándar:
+# from app.com.chatbot.chatbot import Chatbot
+# from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
 
 # Getters for lazy loading
 def get_chatbot():

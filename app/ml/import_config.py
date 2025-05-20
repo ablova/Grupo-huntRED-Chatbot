@@ -1,16 +1,19 @@
-from typing import Any, Callable
-from app.import_config import register_module
+# /home/pablo/app/ml/import_config.py
+#
+# NOTA: Este archivo está obsoleto y se mantiene temporalmente para compatibilidad.
+# El registro de módulos ahora es gestionado automáticamente por ModuleRegistry en app/module_registry.py
+# siguiendo la regla global de Grupo huntRED® "No Redundancies".
+# 
+# De acuerdo con las reglas globales de Grupo huntRED®:
+# - Code Consistency: Se siguen estándares de Django (DRY, referencias string para dependencias)
+# - Modularity: Escribir código modular, reutilizable; evitar duplicar funcionalidad
+# - No Redundancies: Verificar antes de añadir funciones que no existan en el código fuente
 
-# Register ML modules at startup
-register_module('ml_model', 'app.ml.ml_model.MLModel')
-register_module('data_loader', 'app.ml.data_loader.DataLoader')
-register_module('feature_extractor', 'app.ml.feature_extractor.FeatureExtractor')
-register_module('model_trainer', 'app.ml.model_trainer.ModelTrainer')
-register_module('prediction_service', 'app.ml.prediction_service.PredictionService')
-register_module('skill_classifier', 'app.ml.skill_classifier.SkillClassifier')
-register_module('cv_analyzer', 'app.ml.cv_analyzer.CVAnalyzer')
-register_module('nlp_processor', 'app.ml.nlp_processor.NLPProcessor')
-register_module('sentiment_analyzer', 'app.ml.sentiment_analyzer.SentimentAnalyzer')
+# Los módulos de ML deben ser importados directamente con importaciones estándar de Python:  
+# from app.ml.ml_model import MLModel
+# from app.ml.data_loader import DataLoader
+# etc.
+
 
 def get_ml_model():
     """Get MLModel instance."""
