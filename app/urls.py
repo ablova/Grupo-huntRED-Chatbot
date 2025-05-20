@@ -6,6 +6,7 @@ import logging
 from django.urls import path, re_path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.auth.decorators import login_required
 
 # IMPORTACIONES DE VISTAS
 from app.views.main_views import (
@@ -73,27 +74,35 @@ from app.cultural_assessment import views as cultural_views
 logger = logging.getLogger(__name__)
 
 # -------------------------------
-# 📌 RUTAS PRINCIPALES Y DASHBOARD
+# 📌 RUTAS PRINCIPALES
 # -------------------------------
 urlpatterns = [
     # Rutas de autenticación
-    path('login/', login_view, name='login'),
-    path('logout/', logout_view, name='logout'),
-    path('signup/', user_management, name='signup'),
-    path('approve-user/<int:user_id>/', approve_user, name='approve_user'),
-    path('profile/', profile, name='profile'),
-    path('change-password/', change_password, name='change_password'),
-    path('forgot-password/', forgot_password, name='forgot_password'),
-    path('reset-password/<str:token>/', reset_password, name='reset_password'),
-    path('document-verification/', document_verification, name='document_verification'),
+    path('auth/', include([
+        path('login/', login_view, name='login'),
+        path('logout/', logout_view, name='logout'),
+        path('signup/', user_management, name='signup'),
+        path('approve-user/<int:user_id>/', approve_user, name='approve_user'),
+        path('profile/', login_required(profile), name='profile'),
+        path('change-password/', login_required(change_password), name='change_password'),
+        path('forgot-password/', forgot_password, name='forgot_password'),
+        path('reset-password/<str:token>/', reset_password, name='reset_password'),
+        path('document-verification/', login_required(document_verification), name='document_verification'),
+    ])),
     
-    # Rutas del chatbot
-    path('chatbot/<str:platform>/', ChatbotView.as_view(), name='chatbot'),
-    path('webhook/', WebhookView.as_view(), name='webhook'),
-    
-    # Rutas principales y dashboard
+    # Rutas principales
     path('', home, name='home'),
-    path('dashboard/', dashboard_view, name='dashboard'),
+    path('dashboard/', login_required(dashboard_view), name='dashboard'),
+    
+    # Incluir URLs de módulos
+    path('chatbot/', include('app.views.chatbot.urls')),
+    path('candidates/', include('app.views.candidates.urls')),
+    path('workflow/', include('app.views.workflow.urls')),
+    path('sexsi/', include('app.sexsi.urls')),
+    path('pagos/', include('app.pagos.urls', namespace='pagos')),
+    path('cultural/', include('app.cultural_assessment.urls')),
+    path('ml/', include('app.views.ml.urls')),
+    path('webhooks/', include('app.views.webhook.urls')),
 ]
 
 # ---------------------------------
@@ -292,7 +301,10 @@ urlpatterns += [
     path('onboarding/', include('app.com.onboarding.urls')),
 ]
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Servir archivos estáticos y media en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # -------------------------------
 # 📌 MANEJO DE ERRORES

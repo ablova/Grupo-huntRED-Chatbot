@@ -1,8 +1,12 @@
 import os
 from pathlib import Path
+from django.conf import settings
 
 # Directorio base para logs
 LOGS_DIR = Path(__file__).resolve().parent.parent / 'logs'
+
+# Asegurar que el directorio de logs existe
+LOGS_DIR.mkdir(exist_ok=True)
 
 # Configuración de logging
 LOGGING = {
@@ -17,105 +21,74 @@ LOGGING = {
             'format': '{levelname} {asctime} {message}',
             'style': '{',
         },
+        'json': {
+            'format': '{"time": "%(asctime)s", "level": "%(levelname)s", "message": "%(message)s", "module": "%(module)s", "process": "%(process)d", "thread": "%(thread)d"}',
+            'style': '%',
+        },
     },
     'handlers': {
-        'advanced_features_file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOGS_DIR / 'advanced_features.log',
-            'maxBytes': 1024*1024*5,  # 5MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'forms_file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOGS_DIR / 'forms.log',
-            'maxBytes': 1024*1024*5,
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'analytics_file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOGS_DIR / 'analytics.log',
-            'maxBytes': 1024*1024*5,
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'payments_file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOGS_DIR / 'payments.log',
-            'maxBytes': 1024*1024*5,
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'social_file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOGS_DIR / 'social.log',
-            'maxBytes': 1024*1024*5,
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'proposals_file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOGS_DIR / 'proposals.log',
-            'maxBytes': 1024*1024*5,
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'communications_file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': LOGS_DIR / 'communications.log',
-            'maxBytes': 1024*1024*5,
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'django.log',
+            'maxBytes': 1024*1024*10,  # 10MB
+            'backupCount': 10,
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'error.log',
+            'maxBytes': 1024*1024*10,
+            'backupCount': 10,
+            'formatter': 'verbose',
+        },
+        'json_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'json.log',
+            'maxBytes': 1024*1024*10,
+            'backupCount': 10,
+            'formatter': 'json',
+        },
     },
     'loggers': {
-        'app.advanced_features': {
-            'handlers': ['advanced_features_file', 'console'],
-            'level': 'DEBUG',
+        'django': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['error_file', 'json_file'],
+            'level': 'ERROR',
             'propagate': False,
         },
-        'app.forms': {
-            'handlers': ['forms_file', 'console'],
-            'level': 'DEBUG',
+        'django.server': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
             'propagate': False,
         },
-        'app.analytics': {
-            'handlers': ['analytics_file', 'console'],
-            'level': 'DEBUG',
+        'django.db.backends': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
             'propagate': False,
         },
-        'app.payments': {
-            'handlers': ['payments_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'app.social': {
-            'handlers': ['social_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'app.proposals': {
-            'handlers': ['proposals_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'app.communications': {
-            'handlers': ['communications_file', 'console'],
-            'level': 'DEBUG',
-            'propagate': False,
+        'app': {
+            'handlers': ['console', 'file', 'error_file', 'json_file'],
+            'level': 'INFO',
+            'propagate': True,
         },
     },
 }
+
+# En producción, ajustar niveles de logging
+if not settings.DEBUG:
+    LOGGING['handlers']['console']['level'] = 'WARNING'
+    LOGGING['handlers']['file']['level'] = 'WARNING'
+    LOGGING['loggers']['django']['level'] = 'WARNING'
+    LOGGING['loggers']['app']['level'] = 'WARNING'
