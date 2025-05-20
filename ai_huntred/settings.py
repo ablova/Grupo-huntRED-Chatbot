@@ -31,57 +31,9 @@ environ.Env.read_env(env_file)
 
 # --- Configuración de NLP ---
 # Switch para controlar el uso de Spacy vs Tabiya
+# NOTA: Configuración principal centralizada en app/com/utils/tabiya.py
 NLP_USE_TABIYA = env.bool('NLP_USE_TABIYA', default=True)  # Habilitar/deshabilitar Tabiya
-NLP_MIN_TEXT_LENGTH = env.int('NLP_MIN_TEXT_LENGTH', default=100)  # Longitud mínima para usar Tabiya
-NLP_MAX_REQUESTS_PER_MINUTE = env.int('NLP_MAX_REQUESTS_PER_MINUTE', default=100)  # Limite de requests a Tabiya
-
-# --- Configuración de Tabiya Technologies ---
-TABIYA_API_KEY = env('TABIYA_API_KEY', default='')  # Solo necesario si NLP_USE_TABIYA=True
-TABIYA_API_URL = env('TABIYA_API_URL', default='https://api.tabiya.ai')
-TABIYA_TIMEOUT = env.int('TABIYA_TIMEOUT', default=30)  # Timeout en segundos
-TABIYA_RETRY_ATTEMPTS = env.int('TABIYA_RETRY_ATTEMPTS', default=3)
-TABIYA_CACHE_TTL = env.int('TABIYA_CACHE_TTL', default=3600)  # TTL del cache en segundos
-
-# Configuración específica por unidad de negocio
-# Solo se usa si NLP_USE_TABIYA=True
-TABIYA_CONFIG = {
-    'amigro': {
-        'model_version': 'v1.0',
-        'skills_threshold': 0.7,
-        'experience_threshold': 0.6,
-        'culture_threshold': 0.8
-    },
-    'huntu': {
-        'model_version': 'v1.1',
-        'skills_threshold': 0.75,
-        'experience_threshold': 0.65,
-        'culture_threshold': 0.85
-    },
-    'huntred': {
-        'model_version': 'v2.0',
-        'skills_threshold': 0.8,
-        'experience_threshold': 0.7,
-        'culture_threshold': 0.9
-    },
-    'huntred_executive': {
-        'model_version': 'v2.1',
-        'skills_threshold': 0.85,
-        'experience_threshold': 0.75,
-        'culture_threshold': 0.95
-    },
-    'sexsi': {
-        'model_version': 'v1.5',
-        'skills_threshold': 0.7,
-        'experience_threshold': 0.6,
-        'culture_threshold': 0.8
-    },
-    'milkyleak': {
-        'model_version': 'v1.2',
-        'skills_threshold': 0.7,
-        'experience_threshold': 0.6,
-        'culture_threshold': 0.8
-    }
-}
+NLP_FALLBACK_TO_SPACY = env.bool('NLP_FALLBACK_TO_SPACY', default=True)  # Usar spaCy como fallback si Tabiya falla
 
 # --- Configuración temprana de TensorFlow ---
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Desactiva GPU
