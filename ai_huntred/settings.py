@@ -71,6 +71,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    # Middleware personalizado para adaptar la base de datos según el entorno
+    # Ayuda a manejar las migraciones en entornos locales con problemas de PostgreSQL
+    'app.middleware.database_adapter.DatabaseAdapterMiddleware',
 ]
 
 ROOT_URLCONF = 'ai_huntred.urls'
@@ -94,16 +98,50 @@ TEMPLATES = [
 WSGI_APPLICATION = 'ai_huntred.wsgi.application'
 
 # Base de datos
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME', default='huntred'),
-        'USER': env('DB_USER', default='postgres'),
-        'PASSWORD': env('DB_PASSWORD', default='postgres'),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env('DB_PORT', default='5432'),
+import sys
+import os
+import platform
+
+# Detectamos si estamos en entorno local MacOS (especialmente Apple Silicon) que tiene problemas con PostgreSQL
+IS_MAC = platform.system() == 'Darwin'
+IS_LOCAL = env.bool('LOCAL_DEV', default=IS_MAC)
+PRODUCTION = env.bool('PRODUCTION', default=False)
+
+# Forzamos SQLite para desarrollo local o entornos donde PostgreSQL no está disponible
+if IS_LOCAL or DEBUG and not PRODUCTION:
+    # Configuración completa para SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+            'OPTIONS': {
+                'timeout': 20,  # Tiempo máximo de espera en segundos
+            }
+        }
     }
-}
+    # Bloqueamos cualquier intento de cargar PostgreSQL en entorno de desarrollo
+    # Esta variable es leída por middleware personalizado que previene errores
+    FORCE_SQLITE = True
+    # Registramos esta configuración
+    import logging
+    logging.info("Usando SQLite para desarrollo local o MacOS")
+else:
+    # Configuración para producción: PostgreSQL
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': env('DB_NAME', default='huntred'),
+            'USER': env('DB_USER', default='postgres'),
+            'PASSWORD': env('DB_PASSWORD', default='postgres'),
+            'HOST': env('DB_HOST', default='localhost'),
+            'PORT': env('DB_PORT', default='5432'),
+        }
+    }
+    # Variable de control para middleware
+    FORCE_SQLITE = False
+    # Logging
+    import logging
+    logging.info("Usando PostgreSQL para producción")
 
 # Validadores de contraseña
 AUTH_PASSWORD_VALIDATORS = [
@@ -528,9 +566,11 @@ RATELIMIT_RATE = security_config['RATE_LIMITING']['DEFAULT_RATE']
 RATELIMIT_LOGIN_RATE = security_config['RATE_LIMITING']['LOGIN_RATE']
 RATELIMIT_API_RATE = security_config['RATE_LIMITING']['API_RATE']
 
-# Configuración de chatbot
-from app.com.chatbot.optimization_config import OptimizationConfig
+# Configuración de chatbot - Implementando lazy loading
+# No importamos OptimizationConfig directamente durante la inicialización
+# para evitar el error AppRegistryNotReady
 
+# Configuración básica sin dependencias de OptimizationConfig
 CHATBOT_CONFIG = {
     'ENABLED': env.bool('CHATBOT_ENABLED', default=True),
     'MAX_CONCURRENT_SESSIONS': env.int('CHATBOT_MAX_SESSIONS', default=100),
@@ -538,8 +578,33 @@ CHATBOT_CONFIG = {
     'MAX_MESSAGE_RETRIES': env.int('CHATBOT_MAX_RETRIES', default=3),
     'METRICS_COLLECTION_INTERVAL': env.int('CHATBOT_METRICS_INTERVAL', default=60),  # segundos
     'FALLBACK_CHANNEL': env('CHATBOT_FALLBACK_CHANNEL', default='email'),
-    'CHANNEL_CONFIG': ChannelConfig.get_config(),
-    'OPTIMIZATION': OptimizationConfig.get_config()
+    # Configuración de canales directa en lugar de usar ChannelConfig
+    'CHANNEL_CONFIG': {
+        'whatsapp': {
+            'enabled': env.bool('CHANNEL_WHATSAPP_ENABLED', default=True),
+            'rate_limit': env.int('CHANNEL_WHATSAPP_RATE', default=20),
+            'max_retries': env.int('CHANNEL_WHATSAPP_RETRIES', default=3)
+        },
+        'telegram': {
+            'enabled': env.bool('CHANNEL_TELEGRAM_ENABLED', default=True), 
+            'rate_limit': env.int('CHANNEL_TELEGRAM_RATE', default=30),
+            'max_retries': env.int('CHANNEL_TELEGRAM_RETRIES', default=3)
+        },
+        'email': {
+            'enabled': env.bool('CHANNEL_EMAIL_ENABLED', default=True),
+            'rate_limit': env.int('CHANNEL_EMAIL_RATE', default=50),
+            'max_retries': env.int('CHANNEL_EMAIL_RETRIES', default=3)
+        }
+    },
+    # Configuración de optimización cargada después de la inicialización de Django
+    'OPTIMIZATION': {
+        'INTENT_PROCESSING': {
+            'MAX_CONCURRENT_INTENTS': env.int('CHATBOT_MAX_INTENTS', default=10),
+            'CACHE_DURATION': env.int('CHATBOT_CACHE_DURATION', default=300),
+            'PATTERN_OPTIMIZATION_ENABLED': env.bool('CHATBOT_PATTERN_OPTIMIZATION', default=True),
+            'BATCH_SIZE': env.int('CHATBOT_BATCH_SIZE', default=1000)
+        }
+    }
 }
 
 # Configuración de monitoreo

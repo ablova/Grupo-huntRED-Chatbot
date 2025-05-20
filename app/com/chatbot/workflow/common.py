@@ -14,6 +14,8 @@ from app.com.utils.signature.pdf_generator import (
     generate_personality_report
 )
 from app.com.utils.cv_generator.cv_generator import CVGenerator
+from app.com.utils.cv_generator.cv_template import CVTemplate
+from app.com.utils.cv_generator.cv_utils import CVUtils
 from django.conf import settings
 import os
 from app.com.utils.signature.digital_sign import request_digital_signature

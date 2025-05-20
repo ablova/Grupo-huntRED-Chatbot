@@ -1,19 +1,12 @@
 # app/com/chatbot/__init__.py
-# Removed manual lazy_imports registration as ModuleRegistry handles this automatically
+# Implementación de lazy loading para evitar dependencias circulares
+# durante la inicialización de Django
 
-# Establecer el paquete actual
-# Registrar módulos de chatbot para lazy loading
-# ... (previous manual registrations removed)
+# Configuración del paquete
+default_app_config = 'app.com.chatbot.apps.ChatbotConfig'
 
-# Exports for chatbot module
-from app.com.chatbot.chatbot import Chatbot
-from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
-from app.com.chatbot.intents_handler import IntentsHandler
-from app.com.chatbot.intents_optimizer import IntentsOptimizer
-from app.com.chatbot.context_manager import ContextManager
-from app.com.chatbot.response_generator import ResponseGenerator
-from app.com.chatbot.state_manager import StateManager
-
+# Definimos la variable de clases que se exportarán
+# pero no las importamos directamente para evitar problemas de inicialización
 __all__ = [
     'Chatbot',
     'ConversationalFlowManager',
@@ -24,4 +17,10 @@ __all__ = [
     'StateManager'
 ]
 
-__all__ = ['Chatbot']
+# Función para obtener la clase ChatBotHandler de forma perezosa
+def get_chatbot():
+    from app.com.chatbot.chatbot import ChatBotHandler
+    return ChatBotHandler
+
+# No importamos los módulos directamente durante la inicialización
+# para evitar el error AppRegistryNotReady

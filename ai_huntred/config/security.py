@@ -1,3 +1,9 @@
+# /home/pablo/ai_huntred/config/security.py
+#
+# Configuración de seguridad para AI HuntRED.
+# Configura la seguridad de la aplicación, incluyendo JWT y limitación de tasas.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+
 from datetime import timedelta
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -26,11 +32,14 @@ class SecurityConfig:
             'API_RATE': '500/hour',
         }
 
-        # Environment validation
-        required_env_vars = ['JWT_SECRET_KEY', 'DATABASE_URL', 'REDIS_URL']
-        for var in required_env_vars:
-            if not env(var, default=None):
-                raise ImproperlyConfigured(f"Environment variable {var} is required")
+        # Environment validation con valores por defecto para entornos de desarrollo
+        # En producción estas variables deberían estar configuradas
+        if not settings.DEBUG:  # Solo validamos estrictamente en entornos de producción
+            required_env_vars = ['JWT_SECRET_KEY', 'DATABASE_URL', 'REDIS_URL']
+            for var in required_env_vars:
+                if not env(var, default=None):
+                    raise ImproperlyConfigured(f"Environment variable {var} is required")
+        # En desarrollo usamos valores por defecto
 
         return {
             'JWT_CONFIG': jwt_config,

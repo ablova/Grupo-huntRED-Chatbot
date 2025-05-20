@@ -323,7 +323,7 @@ class WorkflowManager:
 workflow_manager = WorkflowManager()
 
 # Funciones de conveniencia para acceso directo
-async def get_workflow_manager() -> WorkflowManager:
+def get_workflow_manager() -> WorkflowManager:
     """
     Obtiene la instancia del gestor de workflows.
     

@@ -1937,7 +1937,8 @@ class CustomUser(AbstractUser):
     role=models.CharField(max_length=20,choices=ROLE_CHOICES,default='BU_DIVISION')
     status=models.CharField(max_length=20,choices=USER_STATUS_CHOICES,default='PENDING_APPROVAL')
     verification_status=models.CharField(max_length=20,choices=VERIFICATION_STATUS_CHOICES,default='PENDING')
-    business_unit=models.ForeignKey(BusinessUnit,on_delete=models.SET_NULL,null=True,blank=True)
+    # Implementación de lazy loading para evitar dependencias circulares durante migraciones
+    business_unit=models.ForeignKey('app.BusinessUnit',on_delete=models.SET_NULL,null=True,blank=True)
     division=models.CharField(max_length=50,choices=DIVISION_CHOICES,blank=True,null=True)
     phone_number=models.CharField(max_length=20,blank=True,null=True)
     emergency_contact=models.CharField(max_length=20,blank=True,null=True)
