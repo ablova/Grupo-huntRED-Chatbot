@@ -1,8 +1,13 @@
-from typing import Any, Callable
-from app.import_config import register_module
+# /home/pablo/app/com/chatbot/conversational_flow_manager.py
+"""
+Gestiona los flujos conversacionales del chatbot.
+Implementado siguiendo las reglas globales de Grupo huntRED® para optimización.
+"""
+from typing import Any, Callable, Dict
 
-# Register at startup
-register_module('conversational_flow_manager', 'app.com.chatbot.conversational_flow_manager.ConversationalFlowManager')
+
+# No importamos register_module para evitar dependencia circular con import_config.py
+# Registración ahora manejada por ModuleRegistry en app/module_registry.py
 
 class ConversationalFlowManager:
     def __init__(self):

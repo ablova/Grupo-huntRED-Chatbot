@@ -594,6 +594,21 @@ if 'get_intent_detector' in globals():
         compatibility_logger.warning("Uso de función renombrada: get_intents_handler -> get_intent_detector")
         return get_intent_detector(*args, **kwargs)
 
+# Get ConversationalFlowManager instance con manejo de importación diferida.
+def get_conversational_flow_manager():
+    """Obtiene una instancia de ConversationalFlowManager con importación diferida.
+    
+    Implementado siguiendo reglas globales de CPU usage y code maintenance de Grupo huntRED®
+    """
+    try:
+        # Importación diferida para evitar dependencias circulares
+        from app.com.chatbot.conversational_flow import ConversationalFlowManager
+        return ConversationalFlowManager
+    except ImportError as e:
+        compatibility_logger.error(f"Error al importar ConversationalFlowManager: {e}")
+        # Fallback para mantener compatibilidad
+        return None
+
 # Alias para get_conversational_flow_manager
 if 'get_conversational_flow_manager' in globals():
     # Compatibilidad: get_conversation_manager -> get_conversational_flow_manager
