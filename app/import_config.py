@@ -518,6 +518,16 @@ if 'get_state_manager' in globals():
         )
         return get_state_manager(*args, **kwargs)
 
+# Si get_intent_detector existe, creamos un alias get_intent_processor
+if 'get_intent_detector' in globals():
+    # Alias para mantener compatibilidad
+    def get_intent_processor(*args, **kwargs):
+        import logging
+        logging.getLogger('import_compatibility').warning(
+            "Uso de función renombrada: get_intent_processor -> get_intent_detector"
+        )
+        return get_intent_detector(*args, **kwargs)
+
 # Soporte para ConversationalFlowManager
 try:
     from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
