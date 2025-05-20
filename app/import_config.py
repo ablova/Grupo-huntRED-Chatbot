@@ -540,3 +540,75 @@ try:
         return ConversationalFlowManager
 except (ImportError, ModuleNotFoundError):
     pass
+
+
+# Mapa integral de compatibilidad con código legacy
+# Implementado siguiendo reglas globales de Grupo huntRED® para mantenimiento de código
+# Generado automáticamente por import_compatibility_patch.py
+
+# Inicialización del logger para compatibilidad
+import logging
+compatibility_logger = logging.getLogger('import_compatibility')
+
+# Alias para get_gpt_handler
+if 'get_gpt_handler' in globals():
+    # Compatibilidad: get_gpt_processor -> get_gpt_handler
+    def get_gpt_processor(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_gpt_processor -> get_gpt_handler")
+        return get_gpt_handler(*args, **kwargs)
+    # Compatibilidad: get_gpt_engine -> get_gpt_handler
+    def get_gpt_engine(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_gpt_engine -> get_gpt_handler")
+        return get_gpt_handler(*args, **kwargs)
+    # Compatibilidad: get_gpt_connector -> get_gpt_handler
+    def get_gpt_connector(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_gpt_connector -> get_gpt_handler")
+        return get_gpt_handler(*args, **kwargs)
+
+# Alias para get_state_manager
+if 'get_state_manager' in globals():
+    # Compatibilidad: get_chat_state_manager -> get_state_manager
+    def get_chat_state_manager(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_chat_state_manager -> get_state_manager")
+        return get_state_manager(*args, **kwargs)
+
+# Alias para get_workflow_manager
+if 'get_workflow_manager' in globals():
+    # Compatibilidad: get_workflow_handler -> get_workflow_manager
+    def get_workflow_handler(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_workflow_handler -> get_workflow_manager")
+        return get_workflow_manager(*args, **kwargs)
+    # Compatibilidad: get_workflow_engine -> get_workflow_manager
+    def get_workflow_engine(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_workflow_engine -> get_workflow_manager")
+        return get_workflow_manager(*args, **kwargs)
+
+# Alias para get_intent_detector
+if 'get_intent_detector' in globals():
+    # Compatibilidad: get_intent_processor -> get_intent_detector
+    def get_intent_processor(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_intent_processor -> get_intent_detector")
+        return get_intent_detector(*args, **kwargs)
+    # Compatibilidad: get_intents_handler -> get_intent_detector
+    def get_intents_handler(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_intents_handler -> get_intent_detector")
+        return get_intent_detector(*args, **kwargs)
+
+# Alias para get_conversational_flow_manager
+if 'get_conversational_flow_manager' in globals():
+    # Compatibilidad: get_conversation_manager -> get_conversational_flow_manager
+    def get_conversation_manager(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_conversation_manager -> get_conversational_flow_manager")
+        return get_conversational_flow_manager(*args, **kwargs)
+    # Compatibilidad: get_conversation_flow -> get_conversational_flow_manager
+    def get_conversation_flow(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_conversation_flow -> get_conversational_flow_manager")
+        return get_conversational_flow_manager(*args, **kwargs)
+
+# Alias para get_intents_optimizer
+if 'get_intents_optimizer' in globals():
+    # Compatibilidad: get_intent_optimizer -> get_intents_optimizer
+    def get_intent_optimizer(*args, **kwargs):
+        compatibility_logger.warning("Uso de función renombrada: get_intent_optimizer -> get_intents_optimizer")
+        return get_intents_optimizer(*args, **kwargs)
+
