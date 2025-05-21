@@ -4008,3 +4008,349 @@ class PersonSkill(models.Model):
         self.verification_date = timezone.now()
         self.verification_notes = notes
         self.save()
+
+
+class ChatConversation(models.Model):
+    """Modelo para almacenar conversaciones de chat entre usuarios y el sistema."""
+    CONVERSATION_TYPES = [
+        ('candidate', 'Candidato'),
+        ('client', 'Cliente'),
+        ('internal', 'Interno'),
+        ('support', 'Soporte')
+    ]
+    
+    conversation_id = models.CharField(max_length=100, unique=True, help_text="ID único de la conversación")
+    title = models.CharField(max_length=200, help_text="Título descriptivo de la conversación")
+    conversation_type = models.CharField(max_length=20, choices=CONVERSATION_TYPES, default='candidate')
+    participants = models.ManyToManyField('Person', related_name='chat_conversations', help_text="Participantes de la conversación")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='chat_conversations', null=True, blank=True)
+    is_active = models.BooleanField(default=True, help_text="Indica si la conversación está activa")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    metadata = models.JSONField(default=dict, blank=True, help_text="Metadatos adicionales de la conversación")
+    
+    class Meta:
+        verbose_name = "Conversación de Chat"
+        verbose_name_plural = "Conversaciones de Chat"
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['conversation_id']),
+            models.Index(fields=['conversation_type']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_conversation_type_display()}: {self.title}"
+
+
+class ChatMessage(models.Model):
+    """Modelo para almacenar mensajes individuales dentro de una conversación de chat."""
+    MESSAGE_TYPES = [
+        ('text', 'Texto'),
+        ('image', 'Imagen'),
+        ('document', 'Documento'),
+        ('system', 'Sistema'),
+        ('action', 'Acción')
+    ]
+    
+    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='messages')
+    message_id = models.CharField(max_length=100, unique=True, help_text="ID único del mensaje")
+    sender = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, related_name='sent_messages')
+    recipient = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, related_name='received_messages')
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPES, default='text')
+    content = models.TextField(help_text="Contenido del mensaje")
+    is_read = models.BooleanField(default=False, help_text="Indica si el mensaje ha sido leído")
+    read_at = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora de lectura del mensaje")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    metadata = models.JSONField(default=dict, blank=True, help_text="Metadatos adicionales del mensaje")
+    
+    class Meta:
+        verbose_name = "Mensaje de Chat"
+        verbose_name_plural = "Mensajes de Chat"
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['conversation']),
+            models.Index(fields=['sender']),
+            models.Index(fields=['recipient']),
+            models.Index(fields=['is_read']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.sender} -> {self.recipient}: {self.content[:50]}..."
+    
+    def mark_as_read(self):
+        """Marca el mensaje como leído."""
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+
+
+class Notification(models.Model):
+    """Modelo para notificaciones del sistema a los usuarios."""
+    NOTIFICATION_TYPES = [
+        ('info', 'Informativa'),
+        ('warning', 'Advertencia'),
+        ('error', 'Error'),
+        ('success', 'Éxito'),
+        ('action_required', 'Acción Requerida')
+    ]
+    
+    title = models.CharField(max_length=200, help_text="Título de la notificación")
+    message = models.TextField(help_text="Contenido detallado de la notificación")
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
+    recipients = models.ManyToManyField('Person', through='NotificationRecipient', related_name='notifications')
+    requires_action = models.BooleanField(default=False, help_text="Indica si se requiere alguna acción")
+    action_url = models.URLField(blank=True, null=True, help_text="URL para la acción requerida")
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Fecha de expiración de la notificación")
+    created_by = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, related_name='created_notifications')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    metadata = models.JSONField(default=dict, blank=True, help_text="Metadatos adicionales de la notificación")
+    
+    class Meta:
+        verbose_name = "Notificación"
+        verbose_name_plural = "Notificaciones"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['notification_type']),
+            models.Index(fields=['requires_action']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_notification_type_display()}: {self.title}"
+    
+    def mark_as_read(self, person):
+        """Marca la notificación como leída para un destinatario específico."""
+        from django.db import transaction
+        
+        with transaction.atomic():
+            recipient, created = NotificationRecipient.objects.get_or_create(
+                notification=self,
+                person=person,
+                defaults={'is_read': True, 'read_at': timezone.now()}
+            )
+            
+            if not created and not recipient.is_read:
+                recipient.is_read = True
+                recipient.read_at = timezone.now()
+                recipient.save(update_fields=['is_read', 'read_at', 'updated_at'])
+    
+    def mark_as_unread(self, person):
+        """Marca la notificación como no leída para un destinatario específico."""
+        NotificationRecipient.objects.filter(
+            notification=self,
+            person=person
+        ).update(is_read=False, read_at=None)
+    
+    def is_read_by(self, person):
+        """Verifica si la notificación ha sido leída por una persona específica."""
+        try:
+            return NotificationRecipient.objects.get(
+                notification=self,
+                person=person
+            ).is_read
+        except NotificationRecipient.DoesNotExist:
+            return False
+    
+    def get_read_status(self):
+        """Obtiene el estado de lectura de la notificación para todos los destinatarios."""
+        return {
+            'total_recipients': self.recipients.count(),
+            'read_count': self.notification_recipients.filter(is_read=True).count(),
+            'unread_count': self.notification_recipients.filter(is_read=False).count()
+        }
+
+
+class NotificationRecipient(models.Model):
+    """Modelo intermedio para manejar la relación muchos a muchos entre Notification y Person."""
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name='notification_recipients')
+    person = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='notification_recipients')
+    is_read = models.BooleanField(default=False, help_text="Indica si la notificación ha sido leída")
+    read_at = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora de lectura")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Destinatario de Notificación"
+        verbose_name_plural = "Destinatarios de Notificaciones"
+        unique_together = ['notification', 'person']
+        indexes = [
+            models.Index(fields=['is_read']),
+            models.Index(fields=['read_at']),
+        ]
+    
+    def __str__(self):
+        status = "leída" if self.is_read else "no leída"
+        return f"{self.person} - {self.notification.title} ({status})"
+
+
+class Metric(models.Model):
+    """Modelo para almacenar métricas del sistema."""
+    METRIC_TYPES = [
+        ('performance', 'Rendimiento'),
+        ('usage', 'Uso'),
+        ('error', 'Error'),
+        ('business', 'Negocio'),
+        ('custom', 'Personalizado')
+    ]
+    
+    name = models.CharField(max_length=100, help_text="Nombre de la métrica")
+    metric_type = models.CharField(max_length=20, choices=METRIC_TYPES, default='custom')
+    value = models.FloatField(help_text="Valor numérico de la métrica")
+    metadata = models.JSONField(default=dict, blank=True, help_text="Metadatos adicionales de la métrica")
+    recorded_at = models.DateTimeField(default=timezone.now, help_text="Fecha y hora de registro de la métrica")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.SET_NULL, null=True, blank=True, related_name='metrics')
+    created_by = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_metrics')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Métrica"
+        verbose_name_plural = "Métricas"
+        ordering = ['-recorded_at']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['metric_type']),
+            models.Index(fields=['recorded_at']),
+            models.Index(fields=['business_unit']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name}: {self.value} ({self.get_metric_type_display()})"
+    
+    @classmethod
+    def record(cls, name: str, value: float, metric_type: str = 'custom', 
+              metadata: dict = None, business_unit=None, created_by=None) -> 'Metric':
+        """Método de conveniencia para registrar una nueva métrica."""
+        return cls.objects.create(
+            name=name,
+            value=value,
+            metric_type=metric_type,
+            metadata=metadata or {},
+            business_unit=business_unit,
+            created_by=created_by
+        )
+
+
+class WorkflowStatus(models.Model):
+    """Modelo para rastrear el estado de los flujos de trabajo."""
+    WORKFLOW_TYPES = [
+        ('onboarding', 'Onboarding'),
+        ('offboarding', 'Offboarding'),
+        ('approval', 'Aprobación'),
+        ('review', 'Revisión'),
+        ('custom', 'Personalizado')
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('in_progress', 'En Progreso'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido'),
+        ('cancelled', 'Cancelado')
+    ]
+    
+    workflow_id = models.CharField(max_length=100, unique=True, help_text="ID único del flujo de trabajo")
+    workflow_type = models.CharField(max_length=20, choices=WORKFLOW_TYPES, default='custom')
+    name = models.CharField(max_length=200, help_text="Nombre descriptivo del flujo de trabajo")
+    description = models.TextField(blank=True, null=True, help_text="Descripción detallada del flujo de trabajo")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    current_step = models.PositiveIntegerField(default=0, help_text="Paso actual del flujo de trabajo")
+    total_steps = models.PositiveIntegerField(default=1, help_text="Número total de pasos del flujo de trabajo")
+    metadata = models.JSONField(default=dict, blank=True, help_text="Metadatos adicionales del flujo de trabajo")
+    started_at = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora de inicio del flujo de trabajo")
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora de finalización del flujo de trabajo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Estado de Flujo de Trabajo"
+        verbose_name_plural = "Estados de Flujos de Trabajo"
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['workflow_id']),
+            models.Index(fields=['workflow_type']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_workflow_type_display()}: {self.name} ({self.get_status_display()})"
+    
+    def start_workflow(self):
+        """Inicia el flujo de trabajo."""
+        if not self.started_at:
+            self.started_at = timezone.now()
+            self.status = 'in_progress'
+            self.current_step = 1
+            self.save(update_fields=['started_at', 'status', 'current_step', 'updated_at'])
+    
+    def complete_step(self):
+        """Marca el paso actual como completado y avanza al siguiente."""
+        if self.current_step < self.total_steps:
+            self.current_step += 1
+            self.save(update_fields=['current_step', 'updated_at'])
+        elif self.current_step >= self.total_steps:
+            self.status = 'completed'
+            self.completed_at = timezone.now()
+            self.save(update_fields=['status', 'completed_at', 'updated_at'])
+
+
+class ChannelSettings(models.Model):
+    """Modelo para configuraciones de canales de comunicación."""
+    CHANNEL_TYPES = [
+        ('email', 'Correo Electrónico'),
+        ('whatsapp', 'WhatsApp'),
+        ('sms', 'SMS'),
+        ('push', 'Notificación Push'),
+        ('in_app', 'En la Aplicación'),
+        ('api', 'API')
+    ]
+    
+    name = models.CharField(max_length=100, help_text="Nombre del canal")
+    channel_type = models.CharField(max_length=20, choices=CHANNEL_TYPES, help_text="Tipo de canal")
+    is_active = models.BooleanField(default=True, help_text="Indica si el canal está activo")
+    priority = models.PositiveIntegerField(default=1, help_text="Prioridad del canal (menor número = mayor prioridad)")
+    config = models.JSONField(default=dict, blank=True, help_text="Configuración específica del canal")
+    rate_limit = models.PositiveIntegerField(default=100, help_text="Límite de mensajes por minuto")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='channel_settings', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración de Canal"
+        verbose_name_plural = "Configuraciones de Canales"
+        ordering = ['priority', 'name']
+        unique_together = ['name', 'business_unit']
+        indexes = [
+            models.Index(fields=['channel_type']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['priority']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_channel_type_display()}: {self.name}"
+    
+    def get_effective_config(self):
+        """Obtiene la configuración efectiva del canal, combinando configuraciones heredadas si es necesario."""
+        # Configuración base
+        config = {
+            'is_active': self.is_active,
+            'priority': self.priority,
+            'rate_limit': self.rate_limit,
+        }
+        
+        # Agregar configuración específica del canal
+        config.update(self.config or {})
+        
+        return config
+
+
+
+
