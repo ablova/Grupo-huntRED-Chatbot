@@ -129,3 +129,33 @@ class MyChatHandler:
 4. **Depuración**: Se ha mejorado el registro (logging) para facilitar la depuración de problemas.
 
 Para obtener más ayuda, consulte la documentación del módulo o contacte al equipo de desarrollo.
+
+## Procesamiento de Mensajes
+
+### 1. Detección de Contexto Emocional
+```python
+context = await ValuesIntegrator.detect_emotional_context(message)
+```
+
+### 2. Procesamiento de Mensajes
+```python
+result = await values_middleware.process_message(message_text, user_data)
+```
+
+### 3. Manejo de Mensajes
+```python
+async def handle_message(self, message, user_data, state_manager):
+    processed = await ValuesChatMiddleware.process_message(
+        message.text,
+        user_data
+    )
+```
+
+### 4. Procesamiento de Valores
+```python
+async def handle_message(self, message, user_data, state_manager):
+    processed = await values_middleware.process_message(
+        message.text,
+        user_data
+    )
+```

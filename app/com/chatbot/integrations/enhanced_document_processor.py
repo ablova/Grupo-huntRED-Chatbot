@@ -22,7 +22,11 @@ from app.com.chatbot.components.metrics import chatbot_metrics
 from app.com.chatbot.components.events import workflow_event_manager
 from app.com.utils.parser import CVParser
 from app.com.utils.linkedin import LinkedInScraper
-from app.models import BusinessUnit, Person
+from app.models import (
+    BusinessUnit, Person,
+    ChatConversation, ChatMessage, SystemNotification,
+    SystemMetric, WorkflowStatus, ChannelSettings
+)
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
 

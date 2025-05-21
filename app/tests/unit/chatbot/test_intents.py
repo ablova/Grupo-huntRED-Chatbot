@@ -9,7 +9,7 @@ Updated: 2025-05-15
 
 import pytest
 from app.com.chatbot.core.intents.handler import IntentHandler
-from app.com.models import Company
+from app.models import Company
 
 def test_process_intent_proposal_request():
     """Test para procesamiento de solicitud de propuesta"""
