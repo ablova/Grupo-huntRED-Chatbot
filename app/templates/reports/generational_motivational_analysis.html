@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Análisis Generacional y Motivacional - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<style>
+    .generation-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .generation-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .motivation-wheel {
+        width: 300px;
+        height: 300px;
+        margin: 0 auto;
+        position: relative;
+    }
+
+    .motivation-segment {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 50% 100%);
+        transform-origin: 50% 50%;
+        transition: all 0.3s ease;
+    }
+
+    .motivation-segment:hover {
+        transform: scale(1.05);
+    }
+
+    .motivation-label {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+        font-weight: bold;
+    }
+
+    .insight-card {
+        background: linear-gradient(135deg, #BF202F 0%, #7D141D 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .trend-chart {
+        height: 300px;
+        margin: 20px 0;
+    }
+
+    .comparison-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+
+    .comparison-table th {
+        background: #f8f9fa;
+        padding: 15px;
+        text-align: left;
+    }
+
+    .comparison-table td {
+        padding: 15px;
+        background: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .action-buttons {
+        position: sticky;
+        top: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .nav-anchors {
+        position: sticky;
+        top: 80px;
+        z-index: 999;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <!-- Botones de Acción -->
+    <div class="action-buttons d-flex justify-content-end">
+        <button class="btn btn-outline-primary me-2" onclick="window.print()">
+            <i class="fas fa-print me-1"></i>Imprimir
+        </button>
+        <button class="btn btn-primary" onclick="downloadPDF()">
+            <i class="fas fa-download me-1"></i>Descargar PDF
+        </button>
+    </div>
+
+    <!-- Navegación -->
+    <div class="nav-anchors">
+        <a href="#resumen">Resumen</a>
+        <a href="#generacional">Análisis Generacional</a>
+        <a href="#motivacional">Análisis Motivacional</a>
+        <a href="#insights">Insights</a>
+        <a href="#recomendaciones">Recomendaciones</a>
+    </div>
+
+    <!-- Encabezado -->
+    <div class="report-header">
+        <h1>Análisis Generacional y Motivacional</h1>
+        <p class="lead">Insights basados en datos de {{ total_employees }} empleados</p>
+    </div>
+
+    <!-- Resumen Ejecutivo -->
+    <div class="insight-card" id="resumen">
+        <h3>Resumen Ejecutivo</h3>
+        <div class="row">
+            <div class="col-md-4">
+                <h4>Distribución Generacional</h4>
+                <div class="trend-chart">
+                    <!-- Gráfico de distribución generacional -->
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h4>Motivadores Principales</h4>
+                <ul>
+                    {% for motivator in top_motivators %}
+                    <li>{{ motivator.name }} ({{ motivator.score }}%)</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h4>Insights Clave</h4>
+                <ul>
+                    {% for insight in key_insights %}
+                    <li>{{ insight }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis Generacional -->
+    <div id="generacional">
+        <h2>Análisis por Generación</h2>
+        <div class="row">
+            {% for generation in generations %}
+            <div class="col-md-6 mb-4">
+                <div class="generation-card">
+                    <h3>{{ generation.name }}</h3>
+                    <p class="text-muted">{{ generation.years }}</p>
+                    
+                    <div class="mt-3">
+                        <h5>Características Principales</h5>
+                        <ul>
+                            {% for trait in generation.traits %}
+                            <li>{{ trait }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="mt-3">
+                        <h5>Preferencias Laborales</h5>
+                        <div class="progress mb-2">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ generation.work_life_balance }}%">
+                                Balance Vida-Trabajo
+                            </div>
+                        </div>
+                        <div class="progress mb-2">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ generation.tech_adoption }}%">
+                                Adopción Tecnológica
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <h5>Expectativas de Desarrollo</h5>
+                        <ul>
+                            {% for expectation in generation.expectations %}
+                            <li>{{ expectation }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Análisis Motivacional -->
+    <div id="motivacional">
+        <h2>Análisis Motivacional</h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="motivation-wheel">
+                    {% for motivator in motivators %}
+                    <div class="motivation-segment" 
+                         style="transform: rotate({{ motivator.angle }}deg); 
+                                background: {{ motivator.color }};">
+                        <div class="motivation-label">
+                            {{ motivator.name }}<br>
+                            {{ motivator.score }}%
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h3>Comparativa Generacional</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Motivador</th>
+                            {% for generation in generations %}
+                            <th>{{ generation.name }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for motivator in motivators %}
+                        <tr>
+                            <td>{{ motivator.name }}</td>
+                            {% for score in motivator.generation_scores %}
+                            <td>{{ score }}%</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights y Recomendaciones -->
+    <div id="insights">
+        <h2>Insights Estratégicos</h2>
+        <div class="row">
+            {% for insight in strategic_insights %}
+            <div class="col-md-4 mb-4">
+                <div class="insight-card">
+                    <h4>{{ insight.title }}</h4>
+                    <p>{{ insight.description }}</p>
+                    <div class="mt-3">
+                        <h5>Impacto</h5>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ insight.impact }}%">
+                                {{ insight.impact }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Recomendaciones -->
+    <div id="recomendaciones">
+        <h2>Recomendaciones Estratégicas</h2>
+        <div class="row">
+            {% for recommendation in recommendations %}
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h4>{{ recommendation.title }}</h4>
+                        <p>{{ recommendation.description }}</p>
+                        
+                        <div class="mt-3">
+                            <h5>Acciones Recomendadas</h5>
+                            <ul>
+                                {% for action in recommendation.actions %}
+                                <li>{{ action }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div class="mt-3">
+                            <h5>Beneficios Esperados</h5>
+                            <ul>
+                                {% for benefit in recommendation.benefits %}
+                                <li>{{ benefit }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animaciones para las tarjetas generacionales
+        const cards = document.querySelectorAll('.generation-card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+            });
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Smooth scroll para navegación
+        document.querySelectorAll('.nav-anchors a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    });
+
+    function downloadPDF() {
+        // Implementar lógica de generación y descarga de PDF
+        console.log('Generando PDF...');
+    }
+</script>
+{% endblock %} 

@@ -1,8 +1,6 @@
-"""
-CV Data structures and utilities.
-
-This module defines the data structures for CV information and provides utilities for handling them.
-"""
+# /home/pablo/app/com/utils/cv_generator/cv_data.py
+#
+# Estructura de datos y utilidades para CV.
 
 from typing import Dict, List, Optional
 from dataclasses import dataclass

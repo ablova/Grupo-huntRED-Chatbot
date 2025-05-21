@@ -139,11 +139,130 @@
             break-inside: avoid;
         }
     }
+    .timeline-container {
+        position: relative;
+        padding: 20px 0;
+    }
+    .timeline-container::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #BF202F;
+        transform: translateX(-50%);
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+    }
+    .timeline-content {
+        position: relative;
+        width: calc(50% - 30px);
+        padding: 20px;
+        background: white;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .timeline-item:nth-child(odd) .timeline-content {
+        margin-left: auto;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 20px;
+        width: 20px;
+        height: 20px;
+        background: #BF202F;
+        border-radius: 50%;
+        transform: translateX(-50%);
+    }
+    .skill-progress {
+        height: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 5px 0;
+    }
+    .skill-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #BF202F 0%, #E24952 100%);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    .market-insight {
+        background: #f8f9fa;
+        border-left: 4px solid #BF202F;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 0 5px 5px 0;
+    }
+    .recommendation-card {
+        background: white;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-left: 4px solid #E24952;
+        transition: transform 0.2s ease;
+    }
+    .recommendation-card:hover {
+        transform: translateX(5px);
+    }
+    .action-buttons {
+        position: sticky;
+        top: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .nav-anchors {
+        position: sticky;
+        top: 80px;
+        z-index: 999;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .nav-anchors a {
+        margin-right: 15px;
+        color: #BF202F;
+        text-decoration: none;
+    }
+    .nav-anchors a:hover {
+        text-decoration: underline;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4 mb-5">
+    <!-- Botones de Acción -->
+    <div class="action-buttons d-flex justify-content-end">
+        <button class="btn btn-outline-primary me-2" onclick="window.print()">
+            <i class="fas fa-print me-1"></i>Imprimir
+        </button>
+        <button class="btn btn-primary" onclick="downloadPDF()">
+            <i class="fas fa-download me-1"></i>Descargar PDF
+        </button>
+    </div>
+
+    <!-- Navegación por Anclas -->
+    <div class="nav-anchors">
+        <a href="#resumen">Resumen</a>
+        <a href="#trayectoria">Trayectoria</a>
+        <a href="#habilidades">Habilidades</a>
+        <a href="#mercado">Análisis de Mercado</a>
+        <a href="#recomendaciones">Recomendaciones</a>
+    </div>
+
     <!-- Encabezado del Reporte -->
     <div class="report-header">
         <div class="row align-items-center">
@@ -578,6 +697,85 @@
         </div>
     </div>
     
+    <!-- Trayectoria Profesional Mejorada -->
+    <div class="timeline-container" id="trayectoria">
+        <h3 class="report-title">Trayectoria Profesional</h3>
+        {% for milestone in career_milestones %}
+        <div class="timeline-item">
+            <div class="timeline-content">
+                <h5>{{ milestone.title }}</h5>
+                <p class="text-muted">{{ milestone.date }}</p>
+                <p>{{ milestone.description }}</p>
+                {% if milestone.skills %}
+                <div class="skills-gained">
+                    <h6>Habilidades Adquiridas:</h6>
+                    {% for skill in milestone.skills %}
+                    <div class="skill-progress">
+                        <div class="skill-progress-bar" style="width: {{ skill.level }}%"></div>
+                    </div>
+                    <small>{{ skill.name }} ({{ skill.level }}%)</small>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Análisis de Mercado Mejorado -->
+    <div class="market-insight" id="mercado">
+        <h3 class="report-title">Insights del Mercado</h3>
+        <div class="row">
+            {% for insight in market_insights %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5>{{ insight.title }}</h5>
+                        <p>{{ insight.description }}</p>
+                        {% if insight.trend %}
+                        <div class="trend-indicator">
+                            <i class="fas fa-arrow-{{ insight.trend }}"></i>
+                            {{ insight.trend_description }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Recomendaciones Mejoradas -->
+    <div id="recomendaciones">
+        <h3 class="report-title">Recomendaciones Estratégicas</h3>
+        {% for recommendation in recommendations %}
+        <div class="recommendation-card">
+            <h5><i class="fas fa-lightbulb text-warning"></i> {{ recommendation.title }}</h5>
+            <p>{{ recommendation.description }}</p>
+            {% if recommendation.actions %}
+            <div class="mt-3">
+                <h6>Acciones Recomendadas:</h6>
+                <ul>
+                    {% for action in recommendation.actions %}
+                    <li>{{ action }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% if recommendation.resources %}
+            <div class="mt-3">
+                <h6>Recursos:</h6>
+                <ul>
+                    {% for resource in recommendation.resources %}
+                    <li>{{ resource }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
     <!-- Pie de Página -->
     <footer class="text-center mt-5">
         <p class="small text-muted">Este análisis fue generado por el sistema de talent analytics de Grupo huntRED®.</p>
@@ -590,9 +788,35 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Aquí iría código JavaScript para renderizar gráficos dinámicos
-        // utilizando los datos de análisis si se requiere
-        console.log('Reporte de trayectoria profesional cargado correctamente');
+        // Animación de barras de progreso
+        const progressBars = document.querySelectorAll('.skill-progress-bar');
+        progressBars.forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 200);
+        });
+
+        // Smooth scroll para navegación
+        document.querySelectorAll('.nav-anchors a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
     });
+
+    // Función para descargar PDF
+    function downloadPDF() {
+        // Implementar lógica de generación y descarga de PDF
+        console.log('Generando PDF...');
+    }
 </script>
 {% endblock %}

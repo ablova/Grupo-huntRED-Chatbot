@@ -9,7 +9,7 @@ from django.apps import AppConfig
 class AiHuntredConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'ai_huntred'
-    verbose_name = 'AI HuntRED'
+    verbose_name = 'Grupo huntRED AI'
 
     def ready(self):
         """

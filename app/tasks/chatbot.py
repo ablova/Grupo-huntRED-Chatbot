@@ -125,7 +125,7 @@ def retry_failed_messages():
     Reintenta enviar mensajes que fallaron previamente.
     Esta tarea se ejecuta periódicamente.
     """
-    from app.com.chatbot.message_retry import MessageRetryManager
+    from app.com.chatbot.middleware.message_retry import MessageRetryManager
     
     logger.info("Starting retry of failed messages")
     

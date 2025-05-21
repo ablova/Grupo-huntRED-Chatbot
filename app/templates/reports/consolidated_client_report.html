@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte Consolidado - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-header {
+        background-color: #BF202F;
+        color: white;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border-radius: 5px;
+    }
+    
+    .report-section {
+        margin-bottom: 2.5rem;
+        padding: 1.5rem;
+        background-color: white;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .report-title {
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: #BF202F;
+    }
+    
+    .dimension-chart {
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+    
+    .dimension-item {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .dimension-title {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .recommendation-card {
+        background-color: #f4f4f4;
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #E24952;
+    }
+    
+    .progress {
+        height: 10px;
+        margin: 0.5rem 0 1.5rem 0;
+    }
+    
+    .progress-bar {
+        background-color: #BF202F;
+    }
+    
+    .footer-section {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e0e0e0;
+        text-align: center;
+    }
+    
+    @media print {
+        .page-break {
+            page-break-before: always;
+        }
+    }
+
+    .action-buttons {
+        position: sticky;
+        top: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .nav-anchors {
+        position: sticky;
+        top: 80px;
+        z-index: 999;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .nav-anchors a {
+        margin-right: 15px;
+        color: #BF202F;
+        text-decoration: none;
+    }
+
+    .nav-anchors a:hover {
+        text-decoration: underline;
+    }
+
+    .tooltip-icon {
+        color: #666;
+        cursor: help;
+        margin-left: 5px;
+    }
+
+    .filters-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .executive-summary {
+        background: linear-gradient(135deg, #BF202F 0%, #7D141D 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 30px;
+    }
+
+    .executive-summary h3 {
+        color: white;
+        margin-bottom: 15px;
+    }
+
+    .executive-summary .key-point {
+        margin-bottom: 10px;
+        padding-left: 20px;
+        position: relative;
+    }
+
+    .executive-summary .key-point:before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        color: #E24952;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <!-- Botones de Acción -->
+    <div class="action-buttons d-flex justify-content-end">
+        <button class="btn btn-outline-primary me-2" onclick="window.print()">
+            <i class="fas fa-print me-1"></i>Imprimir
+        </button>
+        <button class="btn btn-primary" onclick="downloadPDF()">
+            <i class="fas fa-download me-1"></i>Descargar PDF
+        </button>
+    </div>
+
+    <!-- Navegación por Anclas -->
+    <div class="nav-anchors">
+        <a href="#resumen">Resumen Ejecutivo</a>
+        <a href="#cultural">Análisis Cultural</a>
+        <a href="#tecnica">Evaluaciones Técnicas</a>
+        <a href="#personalidad">Evaluaciones de Personalidad</a>
+        <a href="#conclusiones">Conclusiones</a>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-section">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Mostrar Secciones:</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="showCultural" checked>
+                    <label class="form-check-label" for="showCultural">Análisis Cultural</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="showTechnical" checked>
+                    <label class="form-check-label" for="showTechnical">Evaluaciones Técnicas</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="showPersonality" checked>
+                    <label class="form-check-label" for="showPersonality">Evaluaciones de Personalidad</label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Ordenar por:</label>
+                <select class="form-select" id="sortOrder">
+                    <option value="date">Fecha</option>
+                    <option value="score">Puntuación</option>
+                    <option value="name">Nombre</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Encabezado del Reporte -->
+    <div class="report-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4">Reporte Consolidado de Evaluación</h1>
+                <p class="lead text-muted">
+                    {% if client_name %}
+                        Cliente: {{ client_name }} | 
+                    {% endif %}
+                    {% if business_unit %}
+                        Unidad de Negocio: {{ business_unit }}
+                    {% endif %}
+                </p>
+                <p class="small text-muted">Generado el {{ generated_at }}</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <img src="{% static 'img/logo-huntRED.png' %}" alt="Logo Grupo huntRED" height="80">
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen Ejecutivo Mejorado -->
+    <div class="executive-summary" id="resumen">
+        <h3>Resumen Ejecutivo</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="key-point">
+                    <strong>Evaluaciones Completadas:</strong> {{ completed_evaluations|length }}
+                </div>
+                <div class="key-point">
+                    <strong>Puntuación Promedio:</strong> {{ average_score|floatformat:1 }}/100
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="key-point">
+                    <strong>Compatibilidad Cultural:</strong> {{ cultural_compatibility|floatformat:1 }}%
+                </div>
+                <div class="key-point">
+                    <strong>Estado General:</strong> {{ overall_status }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis Cultural -->
+    {% if cultural_analysis %}
+    <div class="report-section">
+        <h3 class="report-title">Análisis Cultural</h3>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5>Dimensiones Culturales</h5>
+                        <div class="dimension-chart">
+                            {% if cultural_analysis.radar_chart %}
+                            <img src="{{ cultural_analysis.radar_chart }}" alt="Gráfico de Dimensiones Culturales" class="img-fluid">
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5>Valores Compartidos</h5>
+                        <div class="values-list">
+                            {% for value in cultural_analysis.shared_values %}
+                            <div class="value-badge">
+                                <i class="fas fa-check-circle"></i>
+                                {{ value }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Recomendaciones Culturales</h5>
+                        {% for recommendation in cultural_analysis.recommendations %}
+                        <div class="recommendation-card">
+                            <h6><i class="fas fa-lightbulb text-warning"></i> {{ recommendation.title }}</h6>
+                            <p>{{ recommendation.description }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Evaluaciones Técnicas -->
+    {% if technical_evaluations %}
+    <div class="report-section">
+        <h3 class="report-title">Evaluaciones Técnicas</h3>
+        
+        <div class="row">
+            {% for evaluation in technical_evaluations %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5>{{ evaluation.name }}</h5>
+                        <p><strong>Fecha:</strong> {{ evaluation.date }}</p>
+                        <p><strong>Resultado:</strong> {{ evaluation.score }}/100</p>
+                        
+                        <h6>Áreas Evaluadas:</h6>
+                        <ul>
+                            {% for area in evaluation.areas %}
+                            <li>{{ area.name }}: {{ area.score }}/100</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        {% if evaluation.recommendations %}
+                        <h6>Recomendaciones:</h6>
+                        <ul>
+                            {% for rec in evaluation.recommendations %}
+                            <li>{{ rec }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Evaluaciones de Personalidad -->
+    {% if personality_evaluations %}
+    <div class="report-section">
+        <h3 class="report-title">Evaluaciones de Personalidad</h3>
+        
+        <div class="row">
+            {% for evaluation in personality_evaluations %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5>{{ evaluation.name }}</h5>
+                        <p><strong>Fecha:</strong> {{ evaluation.date }}</p>
+                        
+                        <h6>Perfil Dominante:</h6>
+                        <p>{{ evaluation.dominant_profile }}</p>
+                        
+                        <h6>Características Principales:</h6>
+                        <ul>
+                            {% for trait in evaluation.traits %}
+                            <li>{{ trait.name }}: {{ trait.score }}/100</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        {% if evaluation.recommendations %}
+                        <h6>Recomendaciones:</h6>
+                        <ul>
+                            {% for rec in evaluation.recommendations %}
+                            <li>{{ rec }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Conclusiones y Recomendaciones Finales -->
+    <div class="report-section">
+        <h3 class="report-title">Conclusiones y Recomendaciones Finales</h3>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Resumen de Hallazgos</h5>
+                        <p>{{ conclusions.summary }}</p>
+                        
+                        <h5 class="mt-4">Recomendaciones Estratégicas</h5>
+                        {% for recommendation in conclusions.recommendations %}
+                        <div class="recommendation-card">
+                            <h6><i class="fas fa-star text-warning"></i> {{ recommendation.title }}</h6>
+                            <p>{{ recommendation.description }}</p>
+                            {% if recommendation.actions %}
+                            <h6>Acciones Recomendadas:</h6>
+                            <ul>
+                                {% for action in recommendation.actions %}
+                                <li>{{ action }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pie de Página -->
+    <div class="footer-section">
+        <p><strong>Grupo huntRED® - Soluciones Integrales de Talento</strong></p>
+        <p>Este reporte es confidencial y está destinado exclusivamente al uso interno o del destinatario autorizado.</p>
+        <p>© {{ generated_at|date:"Y" }} Grupo huntRED®. Todos los derechos reservados.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Funcionalidad de filtros
+        const filters = document.querySelectorAll('.form-check-input');
+        filters.forEach(filter => {
+            filter.addEventListener('change', function() {
+                const sectionId = this.id.replace('show', '').toLowerCase();
+                const section = document.querySelector(`#${sectionId}`);
+                if (section) {
+                    section.style.display = this.checked ? 'block' : 'none';
+                }
+            });
+        });
+
+        // Funcionalidad de ordenamiento
+        document.getElementById('sortOrder').addEventListener('change', function() {
+            const order = this.value;
+            // Implementar lógica de ordenamiento según el valor seleccionado
+        });
+
+        // Tooltips
+        const tooltips = document.querySelectorAll('.tooltip-icon');
+        tooltips.forEach(tooltip => {
+            new bootstrap.Tooltip(tooltip);
+        });
+    });
+
+    // Función para descargar PDF
+    function downloadPDF() {
+        // Implementar lógica de generación y descarga de PDF
+        console.log('Generando PDF...');
+    }
+</script>
+{% endblock %} 

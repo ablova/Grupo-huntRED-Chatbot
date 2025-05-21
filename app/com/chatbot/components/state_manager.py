@@ -1,3 +1,9 @@
+# /home/pablo/app/com/chatbot/components/state_manager.py
+#
+# Módulo de gestor de estados para el chatbot.
+# Incluye funcionalidades para manejo de transiciones, validación y seguimiento de historial.
+# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+
 from typing import Optional
 from django.utils import timezone
 from app.models import Person, BusinessUnit, ChatState, StateTransition

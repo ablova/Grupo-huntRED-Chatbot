@@ -92,7 +92,7 @@ class TelegramHandler:
             _, fetch_user_data = get_telegram_handler()
             
             # Importamos ChatStateManager aquí para evitar importación circular
-            from app.com.chatbot.chat_state_manager import ChatStateManager
+            from app.com.chatbot.components.chat_state_manager import ChatStateManager
             
             self._chat_manager = ChatStateManager(
                 user=self.user,

@@ -12,7 +12,8 @@ from app.com.chatbot.integrations.telegram import TelegramHandler
 from app.com.chatbot.integrations.messenger import MessengerHandler
 from app.com.chatbot.integrations.instagram import InstagramHandler
 from app.com.chatbot.integrations.slack import SlackHandler
+from app.com.chatbot.integrations.enhanced_document_processor import EnhancedDocumentProcessor
 
 __all__ = ['VerificationService', 'InCodeClient', 'BlackTrustClient',
             'WhatsAppHandler', 'TelegramHandler', 'MessengerHandler',
-            'InstagramHandler', 'SlackHandler']
+            'InstagramHandler', 'SlackHandler', 'EnhancedDocumentProcessor']

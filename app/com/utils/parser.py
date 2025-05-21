@@ -22,7 +22,7 @@ from app.com.chatbot.utils import get_nlp_processor
 from app.com.chatbot.nlp import NLPProcessor
 from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation, Vacante
 from app.com.chatbot.integrations.services import send_email, send_message, send_notification
-from app.com.chatbot.chat_state_manager import ChatStateManager
+from app.com.chatbot.components.chat_state_manager import ChatStateManager
 from app.com.chatbot.workflow.common import get_possible_transitions, process_business_unit_transition
 from app.com.chatbot.workflow.huntred import process_huntred_candidate
 from app.com.chatbot.workflow.huntu import process_huntu_candidate

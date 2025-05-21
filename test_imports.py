@@ -32,7 +32,7 @@ except Exception as e:
 
 try:
     print("Probando importación de ChatStateManager con sus nuevas dependencias...")
-    from app.com.chatbot.chat_state_manager import ChatStateManager
+    from app.com.chatbot.components.chat_state_manager import ChatStateManager
     print("✅ Importación de ChatStateManager exitosa")
 except Exception as e:
     print(f"❌ Error al importar ChatStateManager: {e}")

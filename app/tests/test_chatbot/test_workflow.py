@@ -7,7 +7,7 @@ import asyncio
 import os
 from unittest.mock import patch, AsyncMock, MagicMock
 from app.models import Person, BusinessUnit, ChatState
-from app.com.chatbot.chat_state_manager import ChatStateManager
+from app.com.chatbot.components.chat_state_manager import ChatStateManager
 from app.com.chatbot.intents_handler import IntentProcessor
 from app.com.chatbot.integrations.whatsapp import WhatsAppHandler
 from app.com.chatbot.workflow.common import finalizar_creacion_perfil

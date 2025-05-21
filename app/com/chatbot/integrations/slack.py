@@ -16,8 +16,8 @@ from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import SlackAPI, BusinessUnit, Person
 from app.com.chatbot.chatbot import ChatBotHandler
-from app.com.chatbot.chat_state_manager import ChatStateManager
-from aapp.com.chatbot.components.channel_config import RateLimiter
+from app.com.chatbot.components.chat_state_manager import ChatStateManager
+from app.com.chatbot.components.channel_config import RateLimiter
 from app.com.chatbot.integrations.message_sender import (
     send_message, 
     send_options, 

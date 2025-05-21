@@ -1,3 +1,4 @@
+# /home/pablo/app/com/utils/cv_generator/enhanced_cv_generator.py
 """
 Generador mejorado de CVs con análisis de carrera y valores integrados.
 
@@ -21,8 +22,11 @@ from django.template.loader import render_to_string
 
 from app.com.utils.cv_generator.cv_generator import CVGenerator
 from app.com.utils.cv_generator.cv_data import CVData
-from app.com.utils.cv_generator.career_analyzer import career_analyzer
+from app.com.utils.cv_generator.career_analyzer import career_analyzer, CVCareerAnalyzer
 from app.com.chatbot.core.values import ValuesPrinciples
+from app.ml.ml_model import MatchmakingLearningSystem
+from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+from app.com.utils.cv_generator.values_adapter import ValuesAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +48,9 @@ class EnhancedCVGenerator(CVGenerator):
         super().__init__(template, include_growth_plan)
         self.integration_level = integration_level
         self.values_principles = ValuesPrinciples()
-        self.career_analyzer = career_analyzer
+        self.career_analyzer = CVCareerAnalyzer()
+        self.ml_system = MatchmakingLearningSystem()
+        self.values_adapter = ValuesAdapter()
     
     async def generate_enhanced_cv(self, candidate_data: Union[Dict, CVData], 
                                   business_unit: str,
@@ -77,43 +83,26 @@ class EnhancedCVGenerator(CVGenerator):
                 logger.warning("No se pudo extraer ID del candidato. Generando CV sin análisis avanzado.")
                 return await self._generate_basic_cv(candidate_data, output_path, language, blind)
             
-            # Generar análisis de carrera en paralelo para optimizar tiempo
-            career_analysis_tasks = [
+            # Obtener datos básicos del candidato
+            person = await self._get_person(candidate_id)
+            if not person:
+                raise ValueError(f"No se encontró la persona con ID {candidate_id}")
+            
+            # Obtener análisis de carrera y ML en paralelo
+            career_analysis, ml_insights = await asyncio.gather(
                 self.career_analyzer.analyze_career_potential(candidate_id),
-                self.career_analyzer.identify_critical_skills(candidate_id, business_unit),
-            ]
-            
-            # Si el tipo de audiencia es 'candidate' o 'consultant', añadir plan de desarrollo
-            if audience_type in ['candidate', 'consultant']:
-                career_analysis_tasks.append(
-                    self.career_analyzer.generate_development_plan(candidate_id, business_unit)
-                )
-            
-            # Ejecutar tareas en paralelo
-            results = await asyncio.gather(*career_analysis_tasks)
-            
-            # Estructurar resultados
-            career_potential = results[0]
-            critical_skills = results[1]
-            development_plan = results[2] if len(results) > 2 else None
-            
-            # Generar mensaje personalizado según valores
-            personalized_message = self.career_analyzer.personalize_cv_message(
-                candidate_data.__dict__, audience_type
+                self._get_ml_insights(person)
             )
             
-            # Enriquecer datos del candidato con análisis y mensaje
-            enriched_data = self._enrich_candidate_data(
-                candidate_data, 
-                career_potential, 
-                critical_skills, 
-                development_plan,
-                personalized_message
-            )
+            # Enriquecer datos del candidato
+            enriched_data = await self._enrich_candidate_data(person, career_analysis, ml_insights)
+            
+            # Generar CV con datos enriquecidos
+            cv_data = await self._generate_cv_data(enriched_data, self.template.name)
             
             # Generar CV utilizando la funcionalidad base
             cv_path = await self._generate_cv_with_enriched_data(
-                enriched_data, output_path, language, blind, audience_type
+                cv_data, output_path, language, blind, audience_type
             )
             
             return cv_path
@@ -189,28 +178,202 @@ class EnhancedCVGenerator(CVGenerator):
         
         return None
     
-    def _enrich_candidate_data(self, cv_data, career_potential, critical_skills, 
-                              development_plan, personalized_message):
-        """Enriquece los datos del CV con análisis de carrera y mensaje personalizado."""
-        # Crear copia para no modificar el original
-        enriched = cv_data.__dict__.copy() if hasattr(cv_data, '__dict__') else cv_data.copy()
-        
-        # Añadir análisis de carrera
-        enriched['career_potential'] = career_potential
-        enriched['critical_skills'] = critical_skills
-        
-        # Añadir plan de desarrollo si está disponible
-        if development_plan:
-            enriched['development_plan'] = development_plan
-        
-        # Añadir mensaje personalizado
-        enriched['personalized_message'] = personalized_message
-        
-        # Añadir metadatos del análisis
-        enriched['analysis_timestamp'] = datetime.now().isoformat()
-        enriched['analysis_version'] = '2.0'
-        
-        return enriched
+    async def _get_person(self, person_id: int) -> Dict:
+        """Obtiene los datos de la persona."""
+        try:
+            # Implementar lógica para obtener datos de la persona
+            return {}
+        except Exception as e:
+            logger.error(f"Error obteniendo datos de la persona: {str(e)}")
+            return None
+    
+    async def _get_ml_insights(self, person) -> Dict[str, Any]:
+        """Obtiene insights del sistema ML."""
+        try:
+            # Obtener alineación con el mercado
+            market_alignment = await self.ml_system.calculate_market_alignment({
+                "skills": person.skills.split(',') if person.skills else [],
+                "experience": [{"years": person.experience_years or 0}],
+                "salary_expectations": person.salary_data or {},
+                "personality_traits": person.personality_traits or {}
+            })
+            
+            # Obtener probabilidad de transición
+            transition_probability = await self.ml_system.predict_transition(person)
+            
+            # Obtener probabilidades de éxito en diferentes roles
+            success_probabilities = await self.ml_system.predict_all_active_matches(person)
+            
+            return {
+                "market_alignment": market_alignment,
+                "transition_probability": transition_probability,
+                "success_probabilities": success_probabilities
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo insights de ML: {str(e)}")
+            return {}
+    
+    async def _enrich_candidate_data(self, person: Dict, career_analysis: Dict, 
+                                   ml_insights: Dict) -> Dict[str, Any]:
+        """Enriquece los datos del candidato con análisis y valores."""
+        try:
+            # Datos básicos
+            enriched_data = {
+                "personal_info": {
+                    "name": person.name,
+                    "email": person.email,
+                    "phone": person.phone,
+                    "location": person.location,
+                    "linkedin": person.linkedin_url
+                },
+                "career_analysis": {
+                    "score": career_analysis.get("score", 0),
+                    "level": career_analysis.get("level", "en desarrollo"),
+                    "growth_rate": career_analysis.get("growth_rate", 0),
+                    "market_alignment": ml_insights.get("market_alignment", {}),
+                    "transition_readiness": ml_insights.get("transition_probability", 0),
+                    "top_roles": self._get_top_roles(ml_insights.get("success_probabilities", [])),
+                    "recommendations": career_analysis.get("recommendations", [])
+                },
+                "skills": self._process_skills(person.skills, ml_insights),
+                "experience": self._process_experience(person.experience),
+                "education": self._process_education(person.education),
+                "languages": self._process_languages(person.languages),
+                "values": await self.values_adapter.get_person_values(person.id)
+            }
+            
+            return enriched_data
+        except Exception as e:
+            logger.error(f"Error enriqueciendo datos del candidato: {str(e)}")
+            raise
+    
+    def _process_skills(self, skills: str, ml_insights: Dict) -> List[Dict]:
+        """Procesa las habilidades con información de ML."""
+        try:
+            if not skills:
+                return []
+            
+            skill_list = skills.split(',')
+            market_alignment = ml_insights.get("market_alignment", {})
+            skill_scores = market_alignment.get("skill_scores", {})
+            
+            return [
+                {
+                    "name": skill.strip(),
+                    "market_demand": skill_scores.get(skill.strip(), 0),
+                    "years_experience": self._get_skill_experience(skill.strip())
+                }
+                for skill in skill_list
+            ]
+        except Exception as e:
+            logger.error(f"Error procesando habilidades: {str(e)}")
+            return []
+    
+    def _get_skill_experience(self, skill: str) -> int:
+        """Obtiene años de experiencia en una habilidad."""
+        # Implementar lógica para obtener años de experiencia
+        return 0
+    
+    def _get_top_roles(self, success_probabilities: List[Dict]) -> List[Dict]:
+        """Obtiene los roles con mayor probabilidad de éxito."""
+        try:
+            # Ordenar por probabilidad de éxito
+            sorted_roles = sorted(
+                success_probabilities,
+                key=lambda x: x.get("score", 0),
+                reverse=True
+            )
+            
+            # Retornar top 3 roles
+            return [
+                {
+                    "role": role.get("vacante", "Desconocido"),
+                    "company": role.get("empresa", "Desconocida"),
+                    "probability": role.get("score", 0)
+                }
+                for role in sorted_roles[:3]
+            ]
+        except Exception as e:
+            logger.error(f"Error obteniendo roles top: {str(e)}")
+            return []
+    
+    def _process_experience(self, experience: List[Dict]) -> List[Dict]:
+        """Procesa la experiencia laboral."""
+        try:
+            if not experience:
+                return []
+            
+            return [
+                {
+                    "position": exp.get("position", ""),
+                    "company": exp.get("company", ""),
+                    "start_date": exp.get("start_date", ""),
+                    "end_date": exp.get("end_date", ""),
+                    "description": exp.get("description", ""),
+                    "achievements": exp.get("achievements", [])
+                }
+                for exp in experience
+            ]
+        except Exception as e:
+            logger.error(f"Error procesando experiencia: {str(e)}")
+            return []
+    
+    def _process_education(self, education: List[Dict]) -> List[Dict]:
+        """Procesa la educación."""
+        try:
+            if not education:
+                return []
+            
+            return [
+                {
+                    "degree": edu.get("degree", ""),
+                    "institution": edu.get("institution", ""),
+                    "field_of_study": edu.get("field_of_study", ""),
+                    "start_date": edu.get("start_date", ""),
+                    "end_date": edu.get("end_date", ""),
+                    "grade": edu.get("grade", ""),
+                    "description": edu.get("description", "")
+                }
+                for edu in education
+            ]
+        except Exception as e:
+            logger.error(f"Error procesando educación: {str(e)}")
+            return []
+    
+    def _process_languages(self, languages: List[Dict]) -> List[Dict]:
+        """Procesa los idiomas."""
+        try:
+            if not languages:
+                return []
+            
+            return [
+                {
+                    "language": lang.get("language", ""),
+                    "level": lang.get("level", ""),
+                    "level_percentage": lang.get("level_percentage", 50),
+                    "certificate": lang.get("certificate", "")
+                }
+                for lang in languages
+            ]
+        except Exception as e:
+            logger.error(f"Error procesando idiomas: {str(e)}")
+            return []
+    
+    async def _generate_cv_data(self, enriched_data: Dict, template: str) -> Dict[str, Any]:
+        """Genera los datos finales del CV."""
+        try:
+            return {
+                "template": template,
+                "data": enriched_data,
+                "metadata": {
+                    "generated_at": datetime.now().isoformat(),
+                    "version": "3.0",
+                    "analysis_version": "2.0"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error generando datos del CV: {str(e)}")
+            raise
 
 
 # Función de conveniencia para generar CV mejorado

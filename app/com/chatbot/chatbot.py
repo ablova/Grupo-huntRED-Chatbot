@@ -15,7 +15,7 @@ from app.com.chatbot.conversational_flow_manager import ConversationalFlowManage
 from app.com.chatbot.intents_handler import IntentsHandler
 from app.com.chatbot.components.context_manager import ContextManager
 from app.com.chatbot.response_generator import ResponseGenerator
-from app.com.chatbot.chat_state_manager import ChatStateManager
+from app.com.chatbot.components.chat_state_manager import ChatStateManager
 from app.com.chatbot.gpt import GPTHandler
 from app.com.chatbot.components.channel_config import ChannelConfig
 from app.com.chatbot.components.rate_limiter import RateLimiter
@@ -37,7 +37,7 @@ from app.com.chatbot.workflow.common import (
 from app.com.chatbot.workflow.amigro import process_amigro_candidate
 from app.com.chatbot.workflow.huntu import process_huntu_candidate
 from app.com.chatbot.workflow.huntred import process_huntred_candidate
-from app.com.chatbot.workflow.executive import process_executive_candidate
+from app.com.chatbot.workflow.huntred_executive import process_huntred_executive_candidate
 from app.com.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
 
 # Importamos el gestor de workflows y clases relacionadas
@@ -62,7 +62,7 @@ class ChatBotHandler:
             "amigro": process_amigro_candidate,
             "huntu": process_huntu_candidate,
             "huntred": process_huntred_candidate,
-            "huntred executive": process_executive_candidate,
+            "huntred executive": process_huntred_executive_candidate,
             "sexsi": iniciar_flujo_sexsi,
             # Nuevos workflows gestionados por el WorkflowManager
             "talent_analysis": self.start_talent_analysis_workflow,
@@ -776,8 +776,8 @@ class ChatBotHandler:
             from app.com.chatbot.workflow.huntred import process_huntred_candidate
             await sync_to_async(process_huntred_candidate.delay)(user.id)
         elif self.get_business_unit_key(business_unit) == "huntred executive":
-            from app.com.chatbot.workflow.executive import process_executive_candidate
-            await sync_to_async(process_executive_candidate.delay)(user.id)
+            from app.com.chatbot.workflow.huntred_executive import process_huntred_executive_candidate
+            await sync_to_async(process_huntred_executive_candidate.delay)(user.id)
 
         message = "Tu contratación ha sido registrada correctamente."
         await send_message(chat_state.platform, user.phone, message, self.get_business_unit_key(business_unit))

@@ -1,6 +1,7 @@
+# /home/pablo/app/com/utils/cv_generator/career_analyzer.py
+#
+# Analizador de Carrera para Generación de CVs Avanzados.
 """
-Analizador de Carrera para Generación de CVs Avanzados.
-
 Este módulo extiende las capacidades del generador de CVs tradicional
 incorporando análisis de carrera avanzado basado en:
 1. Datos reales extraídos de conversaciones con chatbot
@@ -20,6 +21,8 @@ from app.models import Person, Skill, SkillAssessment, BusinessUnit
 from app.kanban.ml_integration import get_candidate_growth_data
 from app.com.chatbot.utils.conversation_extractor import extract_career_insights
 from app.com.chatbot.core.values import ValuesPrinciples
+from app.ml.ml_model import MatchmakingLearningSystem
+from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,13 @@ class CVCareerAnalyzer:
         """
         self.integration_level = integration_level
         self.values_principles = ValuesPrinciples()
+        self.ml_system = MatchmakingLearningSystem()
+        self.logger = logging.getLogger(__name__)
+        self.evaluation_weights = {
+            'personality': 0.3,
+            'talent': 0.4,
+            'cultural': 0.3
+        }
     
     async def analyze_career_potential(self, person_id: int) -> Dict[str, Any]:
         """
@@ -61,8 +71,11 @@ class CVCareerAnalyzer:
             # Extraer insights de conversaciones
             chat_insights = await extract_career_insights(person_id)
             
+            # Obtener predicciones de ML
+            ml_predictions = await self._get_ml_predictions(person)
+            
             # Calcular potencial basado en datos combinados
-            potential_analysis = self._calculate_potential(growth_data, chat_insights)
+            potential_analysis = self._calculate_potential(growth_data, chat_insights, ml_predictions)
             
             # Enriquecer con valores de apoyo y motivación
             enriched_analysis = self._enrich_with_values(potential_analysis, person)
@@ -381,31 +394,228 @@ class CVCareerAnalyzer:
         
         return [friendly_names[category] for category, count in priority_categories if count > 0][:2]
     
-    def _calculate_potential(self, growth_data: Dict, chat_insights: Dict) -> Dict:
-        """Calcula potencial basado en datos de crecimiento e insights de chat."""
-        # Datos básicos
-        potential = {
-            'overall': growth_data.get('potential_score', 75),
-            'strengths': growth_data.get('strengths', []),
-            'growth_areas': growth_data.get('growth_areas', []),
-            'time_to_next_level': growth_data.get('months_to_next_level', 24)
-        }
-        
-        # Enriquecer con insights del chat si están disponibles
-        if chat_insights:
-            # Añadir fortalezas identificadas en conversaciones
-            if 'strengths' in chat_insights:
-                potential['strengths'].extend(chat_insights['strengths'])
-                # Eliminar duplicados
-                potential['strengths'] = list(set(potential['strengths']))
+    async def _get_ml_predictions(self, person) -> Dict[str, Any]:
+        """Obtiene predicciones del sistema ML."""
+        try:
+            # Obtener alineación con el mercado
+            market_alignment = await self.ml_system.calculate_market_alignment({
+                "skills": person.skills.split(',') if person.skills else [],
+                "experience": [{"years": person.experience_years or 0}],
+                "salary_expectations": person.salary_data or {},
+                "personality_traits": person.personality_traits or {}
+            })
             
-            # Añadir áreas de desarrollo
-            if 'development_areas' in chat_insights:
-                potential['growth_areas'].extend(chat_insights['development_areas'])
-                # Eliminar duplicados
-                potential['growth_areas'] = list(set(potential['growth_areas']))
+            # Obtener probabilidad de transición
+            transition_probability = await self.ml_system.predict_transition(person)
+            
+            # Obtener probabilidades de éxito en diferentes roles
+            success_probabilities = await self.ml_system.predict_all_active_matches(person)
+            
+            return {
+                "market_alignment": market_alignment,
+                "transition_probability": transition_probability,
+                "success_probabilities": success_probabilities
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo predicciones de ML: {str(e)}")
+            return {}
+    
+    def _calculate_potential(self, growth_data: Dict, chat_insights: Dict, ml_predictions: Dict) -> Dict[str, Any]:
+        """Calcula el potencial combinando datos de crecimiento, chat y ML."""
+        try:
+            # Calcular score base
+            base_score = self._calculate_base_score(growth_data)
+            
+            # Ajustar con insights del chat
+            chat_adjusted_score = self._adjust_with_chat_insights(base_score, chat_insights)
+            
+            # Ajustar con predicciones de ML
+            final_score = self._adjust_with_ml_predictions(chat_adjusted_score, ml_predictions)
+            
+            # Determinar nivel de potencial
+            potential_level = self._determine_potential_level(final_score)
+            
+            return {
+                "score": final_score,
+                "level": potential_level,
+                "growth_rate": growth_data.get("growth_rate", 0),
+                "market_alignment": ml_predictions.get("market_alignment", {}).get("overall_score", 0),
+                "transition_readiness": ml_predictions.get("transition_probability", 0),
+                "top_roles": self._get_top_roles(ml_predictions.get("success_probabilities", [])),
+                "recommendations": self._generate_potential_recommendations(
+                    final_score, 
+                    potential_level,
+                    ml_predictions
+                )
+            }
+        except Exception as e:
+            logger.error(f"Error calculando potencial: {str(e)}")
+            return self._get_default_potential()
+    
+    def _calculate_base_score(self, growth_data: Dict) -> float:
+        """Calcula score base a partir de datos de crecimiento."""
+        try:
+            # Factores a considerar
+            growth_rate = growth_data.get("growth_rate", 0)
+            skill_progress = growth_data.get("skill_progress", 0)
+            feedback_score = growth_data.get("feedback_score", 0)
+            
+            # Pesos para cada factor
+            weights = {
+                "growth_rate": 0.4,
+                "skill_progress": 0.4,
+                "feedback_score": 0.2
+            }
+            
+            # Calcular score ponderado
+            base_score = (
+                growth_rate * weights["growth_rate"] +
+                skill_progress * weights["skill_progress"] +
+                feedback_score * weights["feedback_score"]
+            )
+            
+            return min(max(base_score, 0), 100)  # Normalizar entre 0 y 100
+        except Exception as e:
+            logger.error(f"Error calculando score base: {str(e)}")
+            return 50.0
+    
+    def _adjust_with_chat_insights(self, base_score: float, chat_insights: Dict) -> float:
+        """Ajusta el score con insights extraídos de conversaciones."""
+        try:
+            # Factores de ajuste
+            motivation_level = chat_insights.get("motivation_level", 0.5)
+            career_clarity = chat_insights.get("career_clarity", 0.5)
+            learning_attitude = chat_insights.get("learning_attitude", 0.5)
+            
+            # Pesos para cada factor
+            weights = {
+                "motivation": 0.4,
+                "clarity": 0.3,
+                "learning": 0.3
+            }
+            
+            # Calcular ajuste
+            adjustment = (
+                motivation_level * weights["motivation"] +
+                career_clarity * weights["clarity"] +
+                learning_attitude * weights["learning"]
+            )
+            
+            # Aplicar ajuste al score base
+            adjusted_score = base_score * (0.7 + 0.3 * adjustment)
+            
+            return min(max(adjusted_score, 0), 100)  # Normalizar entre 0 y 100
+        except Exception as e:
+            logger.error(f"Error ajustando con insights de chat: {str(e)}")
+            return base_score
+    
+    def _adjust_with_ml_predictions(self, current_score: float, ml_predictions: Dict) -> float:
+        """Ajusta el score con predicciones del sistema ML."""
+        try:
+            # Factores de ML
+            market_alignment = ml_predictions.get("market_alignment", {}).get("overall_score", 0.5)
+            transition_probability = ml_predictions.get("transition_probability", 0.5)
+            
+            # Pesos para cada factor
+            weights = {
+                "market": 0.6,
+                "transition": 0.4
+            }
+            
+            # Calcular ajuste
+            ml_adjustment = (
+                market_alignment * weights["market"] +
+                transition_probability * weights["transition"]
+            )
+            
+            # Aplicar ajuste al score actual
+            final_score = current_score * (0.6 + 0.4 * ml_adjustment)
+            
+            return min(max(final_score, 0), 100)  # Normalizar entre 0 y 100
+        except Exception as e:
+            logger.error(f"Error ajustando con predicciones ML: {str(e)}")
+            return current_score
+    
+    def _determine_potential_level(self, score: float) -> str:
+        """Determina el nivel de potencial basado en el score."""
+        if score >= 85:
+            return "excepcional"
+        elif score >= 70:
+            return "alto"
+        elif score >= 50:
+            return "promedio"
+        else:
+            return "en desarrollo"
+    
+    def _get_top_roles(self, success_probabilities: List[Dict]) -> List[Dict]:
+        """Obtiene los roles con mayor probabilidad de éxito."""
+        try:
+            # Ordenar por probabilidad de éxito
+            sorted_roles = sorted(
+                success_probabilities,
+                key=lambda x: x.get("score", 0),
+                reverse=True
+            )
+            
+            # Retornar top 3 roles
+            return [
+                {
+                    "role": role.get("vacante", "Desconocido"),
+                    "company": role.get("empresa", "Desconocida"),
+                    "probability": role.get("score", 0)
+                }
+                for role in sorted_roles[:3]
+            ]
+        except Exception as e:
+            logger.error(f"Error obteniendo roles top: {str(e)}")
+            return []
+    
+    def _generate_potential_recommendations(self, score: float, level: str, 
+                                          ml_predictions: Dict) -> List[Dict]:
+        """Genera recomendaciones basadas en el potencial y predicciones ML."""
+        recommendations = []
         
-        return potential
+        # Recomendaciones basadas en nivel de potencial
+        if level == "excepcional":
+            recommendations.append({
+                "type": "growth",
+                "title": "Acelerar Desarrollo",
+                "description": "Considerar roles de mayor responsabilidad en el corto plazo",
+                "icon": "🚀"
+            })
+        elif level == "alto":
+            recommendations.append({
+                "type": "focus",
+                "title": "Enfocar Fortalezas",
+                "description": "Desarrollar habilidades clave para el siguiente nivel",
+                "icon": "🎯"
+            })
+        elif level == "promedio":
+            recommendations.append({
+                "type": "consolidation",
+                "title": "Consolidar Habilidades",
+                "description": "Fortalecer competencias actuales antes de avanzar",
+                "icon": "📈"
+            })
+        else:
+            recommendations.append({
+                "type": "development",
+                "title": "Plan de Desarrollo",
+                "description": "Crear plan estructurado de desarrollo profesional",
+                "icon": "📋"
+            })
+        
+        # Añadir recomendaciones basadas en ML
+        market_alignment = ml_predictions.get("market_alignment", {})
+        if market_alignment.get("overall_score", 0) < 0.5:
+            recommendations.append({
+                "type": "market",
+                "title": "Alineación con Mercado",
+                "description": "Desarrollar habilidades más demandadas en el mercado",
+                "icon": "🌍"
+            })
+        
+        return recommendations
     
     def _enrich_with_values(self, analysis: Dict, person) -> Dict:
         """Enriquece el análisis con mensajes basados en valores."""
@@ -498,6 +708,105 @@ class CVCareerAnalyzer:
         except Exception:
             return 5  # Valor por defecto
 
+    async def analyze_career(self, profile: Profile, evaluations: Dict[str, Any]) -> Dict[str, Any]:
+        """Analiza la carrera profesional basado en evaluaciones y perfil."""
+        try:
+            # Análisis de personalidad
+            personality_insights = await self._analyze_personality(
+                evaluations.get('personality', {}),
+                profile
+            )
+            
+            # Análisis de talento
+            talent_insights = await self._analyze_talent(
+                evaluations.get('talent', {}),
+                profile
+            )
+            
+            # Análisis cultural
+            cultural_insights = await self._analyze_cultural(
+                evaluations.get('cultural', {}),
+                profile
+            )
+            
+            # Combinar insights
+            combined_insights = {
+                'personality': personality_insights,
+                'talent': talent_insights,
+                'cultural': cultural_insights,
+                'overall_score': self._calculate_overall_score(
+                    personality_insights,
+                    talent_insights,
+                    cultural_insights
+                )
+            }
+            
+            return combined_insights
+            
+        except Exception as e:
+            self.logger.error(f"Error analizando carrera: {str(e)}")
+            return {}
+            
+    async def _analyze_personality(self, evaluation: Dict[str, Any], profile: Profile) -> Dict[str, Any]:
+        """Analiza la personalidad basado en la evaluación."""
+        try:
+            insights = {
+                'leadership': self._analyze_leadership(evaluation),
+                'adaptability': self._analyze_adaptability(evaluation),
+                'management': self._analyze_management(evaluation),
+                'recommendations': self._generate_personality_recommendations(evaluation)
+            }
+            
+            return insights
+            
+        except Exception as e:
+            self.logger.error(f"Error analizando personalidad: {str(e)}")
+            return {}
+            
+    async def _analyze_talent(self, evaluation: Dict[str, Any], profile: Profile) -> Dict[str, Any]:
+        """Analiza el talento basado en la evaluación."""
+        try:
+            insights = {
+                'strategy': self._analyze_strategy(evaluation),
+                'innovation': self._analyze_innovation(evaluation),
+                'technical': self._analyze_technical(evaluation),
+                'recommendations': self._generate_talent_recommendations(evaluation)
+            }
+            
+            return insights
+            
+        except Exception as e:
+            self.logger.error(f"Error analizando talento: {str(e)}")
+            return {}
+            
+    async def _analyze_cultural(self, evaluation: Dict[str, Any], profile: Profile) -> Dict[str, Any]:
+        """Analiza la adaptación cultural basado en la evaluación."""
+        try:
+            insights = {
+                'values': self._analyze_values(evaluation),
+                'adaptability': self._analyze_cultural_adaptability(evaluation),
+                'communication': self._analyze_cultural_communication(evaluation),
+                'recommendations': self._generate_cultural_recommendations(evaluation)
+            }
+            
+            return insights
+            
+        except Exception as e:
+            self.logger.error(f"Error analizando adaptación cultural: {str(e)}")
+            return {}
+            
+    def _calculate_overall_score(self, personality: Dict[str, Any], talent: Dict[str, Any], cultural: Dict[str, Any]) -> float:
+        """Calcula el puntaje general combinando todas las evaluaciones."""
+        try:
+            personality_score = personality.get('overall_score', 0) * self.evaluation_weights['personality']
+            talent_score = talent.get('overall_score', 0) * self.evaluation_weights['talent']
+            cultural_score = cultural.get('overall_score', 0) * self.evaluation_weights['cultural']
+            
+            return personality_score + talent_score + cultural_score
+            
+        except Exception as e:
+            self.logger.error(f"Error calculando puntaje general: {str(e)}")
+            return 0.0
 
 # Instancia global
 career_analyzer = CVCareerAnalyzer()

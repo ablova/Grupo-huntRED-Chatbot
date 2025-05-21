@@ -21,6 +21,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from abc import ABC, abstractmethod
 from datetime import datetime
+from dataclasses import dataclass
+from enum import Enum
 
 from app.models import (
     BusinessUnit, ConfiguracionBU, WhatsAppAPI, TelegramAPI, SlackAPI,
@@ -28,6 +30,14 @@ from app.models import (
     EnhancedNetworkGamificationProfile
 )
 from app.com.chatbot.integrations.rate_limiter import RateLimiter
+from app.com.chatbot.workflow.assessments.professional_dna import (
+    ProfessionalDNAAnalysis,
+    QuestionCategory,
+    AnalysisType
+)
+from app.com.chatbot.workflow.assessments.cultural import CulturalFitWorkflow
+from app.com.chatbot.workflow.assessments.talent import TalentAnalysisWorkflow
+from app.com.chatbot.workflow.assessments.personality import PersonalityAssessment
 # Importaciones directas siguiendo estándares de Django
 # Import handlers at runtime to avoid circular imports
 def get_whatsapp_handler():
@@ -56,170 +66,477 @@ REQUEST_TIMEOUT = 10.0
 CACHE_TIMEOUT = 600  # 10 minutos
 whatsapp_semaphore = asyncio.Semaphore(10)
 
-# Menús dinámicos por unidad de negocio
+# Menús dinámicos por unidad de negocio con submenús
 MENU_OPTIONS_BY_BU = {
     "amigro": [
-        {"title": "📝 Crear Perfil", "payload": "crear_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
-        {"title": "📝 Actualizar Perfil", "payload": "actualizar_perfil", "description": "Gestiona y actualiza tu perfil."},
-        {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-        {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
-        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-        {"title": "🤝 Invitar Grupo", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-        {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-        {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-        {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
+        {
+            "title": "👤 Mi Perfil",
+            "payload": "mi_perfil",
+            "description": "Crea y gestiona tu perfil profesional.",
+            "submenu": [
+                {"title": "📝 Crear Perfil", "payload": "crear_perfil"},
+                {"title": "👀 Ver Perfil", "payload": "ver_perfil"},
+                {"title": "✏️ Editar Perfil", "payload": "editar_perfil"},
+                {"title": "📊 Ver Evaluaciones", "payload": "ver_evaluaciones"}
+            ]
+        },
+        {
+            "title": "🎯 Evaluaciones",
+            "payload": "evaluaciones",
+            "description": "Completa evaluaciones para mejorar tu perfil.",
+            "submenu": [
+                {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad"},
+                {"title": "🌍 Análisis de Movilidad", "payload": "analisis_movilidad"},
+                {"title": "👥 Análisis Generacional", "payload": "analisis_generacional"},
+                {"title": "💪 Análisis Motivacional", "payload": "analisis_motivacional"},
+                {"title": "🎯 Análisis de Estilos", "payload": "analisis_estilos"}
+            ]
+        },
+        {
+            "title": "💰 Calcular Salario",
+            "payload": "calcular_salario",
+            "description": "Calcula salario neto o bruto.",
+            "submenu": [
+                {"title": "💵 Neto a Bruto", "payload": "neto_a_bruto"},
+                {"title": "💵 Bruto a Neto", "payload": "bruto_a_neto"}
+            ]
+        },
+        {
+            "title": "📄 Cargar CV",
+            "payload": "cargar_cv",
+            "description": "Sube tu currículum.",
+            "submenu": [
+                {"title": "📤 Subir Nuevo CV", "payload": "subir_cv"},
+                {"title": "📋 Ver CV Actual", "payload": "ver_cv"},
+                {"title": "✏️ Editar CV", "payload": "editar_cv"}
+            ]
+        },
+        {
+            "title": "🔍 Ver Vacantes",
+            "payload": "ver_vacantes",
+            "description": "Explora oportunidades laborales disponibles.",
+            "submenu": [
+                {"title": "🔎 Buscar Vacantes", "payload": "buscar_vacantes"},
+                {"title": "⭐ Vacantes Recomendadas", "payload": "vacantes_recomendadas"},
+                {"title": "📊 Mis Postulaciones", "payload": "mis_postulaciones"}
+            ]
+        },
+        {
+            "title": "📊 Consultar Estatus",
+            "payload": "consultar_estatus",
+            "description": "Revisa el estado de tus aplicaciones.",
+            "submenu": [
+                {"title": "📈 Estado de Postulaciones", "payload": "estado_postulaciones"},
+                {"title": "📅 Próximas Entrevistas", "payload": "proximas_entrevistas"},
+                {"title": "📝 Historial de Aplicaciones", "payload": "historial_aplicaciones"}
+            ]
+        },
+        {
+            "title": "📞 Contacto",
+            "payload": "contacto",
+            "description": "Habla con un asesor.",
+            "submenu": [
+                {"title": "💬 Chat con Asesor", "payload": "chat_asesor"},
+                {"title": "📧 Enviar Mensaje", "payload": "enviar_mensaje"},
+                {"title": "📞 Llamar Asesor", "payload": "llamar_asesor"}
+            ]
+        },
+        {
+            "title": "❓ Ayuda",
+            "payload": "ayuda",
+            "description": "Resuelve dudas generales.",
+            "submenu": [
+                {"title": "❔ Preguntas Frecuentes", "payload": "faq"},
+                {"title": "📚 Guías de Uso", "payload": "guias"},
+                {"title": "📝 Tutoriales", "payload": "tutoriales"}
+            ]
+        }
     ],
     "huntred": [
-        {"title": "📝 Creación  Perfil", "payload": "crear_perfil", "description": "Modifica tus datos personales o profesionales."},
-        {"title": "🔍 Buscar Empleo", "payload": "buscar_empleo", "description": "Encuentra trabajos específicos."},
-        {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Gestiona tu perfil."},
-        {"title": "📊 Ver Vacantes", "payload": "ver_vacantes", "description": "Lista de empleos disponibles."},
-        {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
-        {"title": "📅 Agendar Entrevista", "payload": "agendar_entrevista", "description": "Programa una entrevista."},
-        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-        {"title": "🔄 Análisis de Talento 360°", "payload": "analisis_talento", "description": "Evaluación integral de talento."},
-        {"title": "🧩 Compatibilidad Cultural", "payload": "analisis_cultural", "description": "Mide tu fit con empresas."},
-        {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-        {"title": "🤝 Recomendar a huntRED®", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Soporte general."},
-        {"title": "💡 Tips Entrevista", "payload": "preparacion_entrevista", "description": "Consejos para entrevistas."},
+        {
+            "title": "👤 Mi Perfil",
+            "payload": "mi_perfil",
+            "description": "Crea y gestiona tu perfil profesional.",
+            "submenu": [
+                {"title": "📝 Crear Perfil", "payload": "crear_perfil"},
+                {"title": "👀 Ver Perfil", "payload": "ver_perfil"},
+                {"title": "✏️ Editar Perfil", "payload": "editar_perfil"},
+                {"title": "📊 Ver Evaluaciones", "payload": "ver_evaluaciones"}
+            ]
+        },
+        {
+            "title": "🎯 Evaluaciones",
+            "payload": "evaluaciones",
+            "description": "Completa evaluaciones para mejorar tu perfil.",
+            "submenu": [
+                {
+                    "title": "🧬 ADN Profesional",
+                    "payload": "adn_profesional",
+                    "description": "Evaluación integral de tu perfil profesional",
+                    "submenu": [
+                        {"title": "👥 Liderazgo", "payload": "analisis_liderazgo"},
+                        {"title": "💡 Innovación", "payload": "analisis_innovacion"},
+                        {"title": "🗣️ Comunicación", "payload": "analisis_comunicacion"},
+                        {"title": "🔄 Resiliencia", "payload": "analisis_resiliencia"},
+                        {"title": "📈 Resultados", "payload": "analisis_resultados"},
+                        {"title": "📊 Reporte Completo", "payload": "reporte_adn_profesional"}
+                    ]
+                },
+                {
+                    "title": "🧠 Personalidad",
+                    "payload": "personalidad",
+                    "description": "Descubre tu perfil de personalidad",
+                    "submenu": [
+                        {"title": "🎭 Rasgos de Personalidad", "payload": "analisis_rasgos"},
+                        {"title": "🤝 Estilos de Comportamiento", "payload": "analisis_estilos"},
+                        {"title": "💼 Preferencias Laborales", "payload": "analisis_preferencias"},
+                        {"title": "📊 Reporte Completo", "payload": "reporte_personalidad"}
+                    ]
+                },
+                {
+                    "title": "💫 Talento",
+                    "payload": "talento",
+                    "description": "Evalúa tus competencias y potencial",
+                    "submenu": [
+                        {"title": "🔧 Habilidades Técnicas", "payload": "analisis_habilidades"},
+                        {"title": "🌟 Competencias Clave", "payload": "analisis_competencias"},
+                        {"title": "🌱 Potencial de Desarrollo", "payload": "analisis_potencial"},
+                        {"title": "📊 Reporte Completo", "payload": "reporte_talento"}
+                    ]
+                },
+                {
+                    "title": "🌍 Cultural",
+                    "payload": "cultural",
+                    "description": "Analiza tu adaptación cultural",
+                    "submenu": [
+                        {"title": "🎯 Valores", "payload": "analisis_valores"},
+                        {"title": "💼 Estilo de Trabajo", "payload": "analisis_estilo_trabajo"},
+                        {"title": "🗣️ Preferencias de Comunicación", "payload": "analisis_comunicacion_cultural"},
+                        {"title": "🔄 Adaptabilidad", "payload": "analisis_adaptabilidad"},
+                        {"title": "📊 Reporte Completo", "payload": "reporte_cultural"}
+                    ]
+                },
+                {
+                    "title": "👥 Análisis Generacional",
+                    "payload": "analisis_generacional",
+                    "description": "Descubre tu perfil generacional",
+                    "submenu": [
+                        {"title": "📊 Perfil Generacional", "payload": "perfil_generacional"},
+                        {"title": "🔄 Patrones de Comportamiento", "payload": "patrones_generacionales"},
+                        {"title": "💡 Insights Generacionales", "payload": "insights_generacionales"},
+                        {"title": "📈 Reporte Completo", "payload": "reporte_generacional"}
+                    ]
+                }
+            ]
+        },
+        {
+            "title": "🔍 Buscar Empleo",
+            "payload": "buscar_empleo",
+            "description": "Encuentra trabajos específicos.",
+            "submenu": [
+                {"title": "🔎 Búsqueda Avanzada", "payload": "busqueda_avanzada"},
+                {"title": "⭐ Recomendados", "payload": "trabajos_recomendados"},
+                {"title": "📊 Mis Postulaciones", "payload": "mis_postulaciones"}
+            ]
+        },
+        {
+            "title": "📊 Ver Vacantes",
+            "payload": "ver_vacantes",
+            "description": "Lista de empleos disponibles.",
+            "submenu": [
+                {"title": "📋 Todas las Vacantes", "payload": "todas_vacantes"},
+                {"title": "🎯 Por Categoría", "payload": "vacantes_categoria"},
+                {"title": "📍 Por Ubicación", "payload": "vacantes_ubicacion"}
+            ]
+        },
+        {
+            "title": "📄 Cargar CV",
+            "payload": "cargar_cv",
+            "description": "Sube tu currículum.",
+            "submenu": [
+                {"title": "📤 Subir Nuevo CV", "payload": "subir_cv"},
+                {"title": "📋 Ver CV Actual", "payload": "ver_cv"},
+                {"title": "✏️ Editar CV", "payload": "editar_cv"}
+            ]
+        },
+        {
+            "title": "📅 Agendar Entrevista",
+            "payload": "agendar_entrevista",
+            "description": "Programa una entrevista.",
+            "submenu": [
+                {"title": "📅 Nueva Entrevista", "payload": "nueva_entrevista"},
+                {"title": "📋 Ver Entrevistas", "payload": "ver_entrevistas"},
+                {"title": "✏️ Modificar Entrevista", "payload": "modificar_entrevista"}
+            ]
+        },
+        {
+            "title": "💰 Calcular Salario",
+            "payload": "calcular_salario",
+            "description": "Calcula salario neto o bruto.",
+            "submenu": [
+                {"title": "💵 Neto a Bruto", "payload": "neto_a_bruto"},
+                {"title": "💵 Bruto a Neto", "payload": "bruto_a_neto"}
+            ]
+        },
+        {
+            "title": "💡 Tips Entrevista",
+            "payload": "preparacion_entrevista",
+            "description": "Consejos para entrevistas.",
+            "submenu": [
+                {"title": "📝 Preparación", "payload": "preparacion"},
+                {"title": "👔 Vestimenta", "payload": "vestimenta"},
+                {"title": "💬 Preguntas Comunes", "payload": "preguntas_comunes"}
+            ]
+        }
     ],
     "huntu": [
-        {"title": "📝 Creación  Perfil", "payload": "crear_perfil", "description": "Modifica tus datos personales o profesionales."},
-        {"title": "🔍 Explorar Vacantes", "payload": "explorar_vacantes", "description": "Descubre oportunidades únicas."},
-        {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Actualiza tu información."},
-        {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
-        {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-        {"title": "🔄 Análisis de Talento 360°", "payload": "analisis_talento", "description": "Evaluación integral de talento."},
-        {"title": "🧩 Compatibilidad Cultural", "payload": "analisis_cultural", "description": "Mide tu fit con empresas."},
-        {"title": "🧑‍🏫 Asesoría Profesional", "payload": "asesoria_profesional", "description": "Recibe orientación."},
-        {"title": "🤝 Programa de Mentores", "payload": "mentores", "description": "Conéctate con mentores."},
-        {"title": "🤝 Invitar a huntU®", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-        {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Asistencia general."},
-        {"title": "💰 Consultar Sueldo", "payload": "consultar_sueldo_mercado", "description": "Rangos salariales."},
-    ],
-    "default": [
-        {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Oportunidades disponibles."},
-        {"title": "📝 Mi Perfil", "payload": "mi_perfil", "description": "Gestiona tu perfil."},
-        {"title": "⚙️ Configuración", "payload": "configuracion", "description": "Ajustes personales."},
-        {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
-        {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-        {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con soporte."},
-        {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas."},
+        {
+            "title": "👤 Mi Perfil",
+            "payload": "mi_perfil",
+            "description": "Crea y gestiona tu perfil profesional.",
+            "submenu": [
+                {"title": "📝 Crear Perfil", "payload": "crear_perfil"},
+                {"title": "👀 Ver Perfil", "payload": "ver_perfil"},
+                {"title": "✏️ Editar Perfil", "payload": "editar_perfil"},
+                {"title": "📊 Ver Evaluaciones", "payload": "ver_evaluaciones"}
+            ]
+        },
+        {
+            "title": "🎯 Evaluaciones",
+            "payload": "evaluaciones",
+            "description": "Completa evaluaciones para mejorar tu perfil.",
+            "submenu": [
+                {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad"},
+                {"title": "🎓 Análisis de Habilidades", "payload": "analisis_habilidades"},
+                {"title": "👥 Análisis Generacional", "payload": "analisis_generacional"},
+                {"title": "💪 Análisis Motivacional", "payload": "analisis_motivacional"},
+                {"title": "🎯 Análisis de Estilos", "payload": "analisis_estilos"}
+            ]
+        },
+        {
+            "title": "🔍 Explorar Vacantes",
+            "payload": "explorar_vacantes",
+            "description": "Descubre oportunidades únicas.",
+            "submenu": [
+                {"title": "🔎 Búsqueda Avanzada", "payload": "busqueda_avanzada"},
+                {"title": "⭐ Recomendados", "payload": "trabajos_recomendados"},
+                {"title": "📊 Mis Postulaciones", "payload": "mis_postulaciones"}
+            ]
+        },
+        {
+            "title": "📄 Cargar CV",
+            "payload": "cargar_cv",
+            "description": "Sube tu currículum.",
+            "submenu": [
+                {"title": "📤 Subir Nuevo CV", "payload": "subir_cv"},
+                {"title": "📋 Ver CV Actual", "payload": "ver_cv"},
+                {"title": "✏️ Editar CV", "payload": "editar_cv"}
+            ]
+        },
+        {
+            "title": "🧑‍🏫 Asesoría Profesional",
+            "payload": "asesoria_profesional",
+            "description": "Recibe orientación.",
+            "submenu": [
+                {"title": "💬 Chat con Asesor", "payload": "chat_asesor"},
+                {"title": "📅 Agendar Cita", "payload": "agendar_cita"},
+                {"title": "📝 Ver Historial", "payload": "historial_asesoria"}
+            ]
+        },
+        {
+            "title": "🤝 Programa de Mentores",
+            "payload": "mentores",
+            "description": "Conéctate con mentores.",
+            "submenu": [
+                {"title": "👥 Ver Mentores", "payload": "ver_mentores"},
+                {"title": "📅 Agendar Sesión", "payload": "agendar_sesion"},
+                {"title": "📝 Ver Historial", "payload": "historial_mentoria"}
+            ]
+        }
     ]
 }
 
-# Menús dinámicos por estado (para amigro)
-MENU_OPTIONS_BY_STATE = {
-    "amigro": {
-        "initial": [
-            {"title": "📝 Crear Perfil", "payload": "crear_perfil", "description": "Crea tu perfil con datos personales y profesionales."},
-            {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "waiting_for_tos": [
-            {"title": "📜 Ver TOS", "payload": "tos_accept", "description": "Consulta los términos de servicio."},
-            {"title": "✅ Aceptar TOS", "payload": "accept_tos", "description": "Acepta los términos de servicio."},
-            {"title": "❌ Rechazar TOS", "payload": "reject_tos", "description": "Rechaza los términos de servicio."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-        ],
-        "profile_in_progress": [
-            {"title": "📝 Crear Perfil", "payload": "crear_perfil", "description": "Sigue completando tu perfil."},
-            {"title": "📄 Cargar CV", "payload": "cargar_cv", "description": "Sube tu currículum."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda / FAQ", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "profile_complete": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Invitar a Amigro", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "applied": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "scheduled": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-            {"title": "📅 Reagendar Entrevista", "payload": "reagendar_entrevista", "description": "Modifica tu cita de entrevista."},
-            {"title": "📩 Enviar Recordatorio", "payload": "recordatorio_entrevista", "description": "Solicita un recordatorio."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "interviewed": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-            {"title": "📝 Enviar Feedback", "payload": "enviar_feedback", "description": "Comparte tu experiencia de la entrevista."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "offered": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-            {"title": "📜 Ver Oferta", "payload": "ver_oferta", "description": "Consulta los detalles de tu oferta."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "signed": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "📊 Consultar Estatus", "payload": "consultar_estatus", "description": "Revisa el estado de tus aplicaciones."},
-            {"title": "📜 Descargar Oferta", "payload": "descargar_oferta", "description": "Descarga tu oferta firmada."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "hired": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora nuevas oportunidades tras 6 meses."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-        "idle": [
-            {"title": "📝 Actualizar Perfil", "payload": "mi_perfil", "description": "Gestiona y actualiza tu perfil."},
-            {"title": "🔍 Ver Vacantes", "payload": "ver_vacantes", "description": "Explora oportunidades laborales disponibles."},
-            {"title": "🧠 Prueba de Personalidad", "payload": "prueba_personalidad", "description": "Descubre tu perfil profesional."},
-            {"title": "💰 Calcular Salario", "payload": "calcular_salario", "description": "Calcula salario neto o bruto."},
-            {"title": "🤝 Recomendar", "payload": "travel_in_group", "description": "Invita a amigos o familia."},
-            {"title": "📞 Contacto", "payload": "contacto", "description": "Habla con un asesor."},
-            {"title": "❓ Ayuda", "payload": "ayuda", "description": "Resuelve dudas generales."},
-        ],
-    },
-    "default": MENU_OPTIONS_BY_BU["default"]  # Fallback para otras unidades
+# Menú de evaluaciones por unidad de negocio
+EVALUATIONS_MENU = {
+    "huntred": [
+        {
+            "title": "🧬 ADN Profesional",
+            "payload": "adn_profesional",
+            "description": "Evaluación integral de tu perfil profesional",
+            "points": 100,
+            "required": True,
+            "generational_analysis": True
+        },
+        {
+            "title": "🧠 Prueba de Personalidad",
+            "payload": "prueba_personalidad",
+            "description": "Descubre tu perfil profesional",
+            "points": 50,
+            "required": True,
+            "generational_analysis": True
+        },
+        {
+            "title": "💫 Análisis de Talento 360°",
+            "payload": "analisis_talento",
+            "description": "Evaluación integral de talento",
+            "points": 75,
+            "required": True,
+            "generational_analysis": True
+        },
+        {
+            "title": "🌍 Compatibilidad Cultural",
+            "payload": "analisis_cultural",
+            "description": "Mide tu fit con empresas",
+            "points": 50,
+            "required": True,
+            "generational_analysis": True
+        },
+        {
+            "title": "👥 Análisis Generacional",
+            "payload": "analisis_generacional",
+            "description": "Descubre tu perfil generacional",
+            "points": 40,
+            "required": True,
+            "generational_analysis": True
+        },
+        {
+            "title": "🎮 Análisis de Gamificación",
+            "payload": "analisis_gamificacion",
+            "description": "Descubre tu perfil gamer y estilo de aprendizaje",
+            "points": 30,
+            "required": False
+        },
+        {
+            "title": "🤖 Análisis de Adaptación a IA",
+            "payload": "analisis_ia",
+            "description": "Evalúa tu capacidad de trabajar con IA",
+            "points": 40,
+            "required": False
+        },
+        {
+            "title": "🌱 Análisis de Sostenibilidad",
+            "payload": "analisis_sostenibilidad",
+            "description": "Mide tu compromiso con prácticas sostenibles",
+            "points": 35,
+            "required": False
+        },
+        {
+            "title": "🎨 Análisis de Creatividad",
+            "payload": "analisis_creatividad",
+            "description": "Descubre tu potencial creativo e innovador",
+            "points": 45,
+            "required": False
+        },
+        {
+            "title": "🌐 Análisis de Inteligencia Cultural",
+            "payload": "analisis_inteligencia_cultural",
+            "description": "Evalúa tu capacidad para trabajar en entornos multiculturales",
+            "points": 40,
+            "required": False
+        },
+        {
+            "title": "💡 Análisis de Resolución de Problemas",
+            "payload": "analisis_resolucion_problemas",
+            "description": "Mide tu capacidad para resolver problemas complejos",
+            "points": 50,
+            "required": False
+        },
+        {
+            "title": "🤝 Análisis de Colaboración Digital",
+            "payload": "analisis_colaboracion_digital",
+            "description": "Evalúa tu efectividad en entornos de trabajo remoto",
+            "points": 35,
+            "required": False
+        }
+    ],
+    "amigro": [
+        {
+            "title": "🧠 Prueba de Personalidad",
+            "payload": "prueba_personalidad",
+            "description": "Descubre tu perfil profesional",
+            "points": 50,
+            "required": True
+        },
+        {
+            "title": "🌍 Análisis de Movilidad",
+            "payload": "analisis_movilidad",
+            "description": "Evalúa tu disposición a la movilidad",
+            "points": 50,
+            "required": True
+        },
+        {
+            "title": "🎮 Análisis de Gamificación",
+            "payload": "analisis_gamificacion",
+            "description": "Descubre tu perfil gamer y estilo de aprendizaje",
+            "points": 30,
+            "required": False
+        },
+        {
+            "title": "🤖 Análisis de Adaptación a IA",
+            "payload": "analisis_ia",
+            "description": "Evalúa tu capacidad de trabajar con IA",
+            "points": 40,
+            "required": False
+        },
+        {
+            "title": "🌱 Análisis de Sostenibilidad",
+            "payload": "analisis_sostenibilidad",
+            "description": "Mide tu compromiso con prácticas sostenibles",
+            "points": 35,
+            "required": False
+        },
+        {
+            "title": "🎨 Análisis de Creatividad",
+            "payload": "analisis_creatividad",
+            "description": "Descubre tu potencial creativo e innovador",
+            "points": 45,
+            "required": False
+        }
+    ],
+    "huntu": [
+        {
+            "title": "🧠 Prueba de Personalidad",
+            "payload": "prueba_personalidad",
+            "description": "Descubre tu perfil profesional",
+            "points": 50,
+            "required": True
+        },
+        {
+            "title": "🎓 Análisis de Habilidades",
+            "payload": "analisis_habilidades",
+            "description": "Evalúa tus competencias",
+            "points": 50,
+            "required": True
+        },
+        {
+            "title": "🎮 Análisis de Gamificación",
+            "payload": "analisis_gamificacion",
+            "description": "Descubre tu perfil gamer y estilo de aprendizaje",
+            "points": 30,
+            "required": False
+        },
+        {
+            "title": "🤖 Análisis de Adaptación a IA",
+            "payload": "analisis_ia",
+            "description": "Evalúa tu capacidad de trabajar con IA",
+            "points": 40,
+            "required": False
+        },
+        {
+            "title": "🌱 Análisis de Sostenibilidad",
+            "payload": "analisis_sostenibilidad",
+            "description": "Mide tu compromiso con prácticas sostenibles",
+            "points": 35,
+            "required": False
+        },
+        {
+            "title": "🎨 Análisis de Creatividad",
+            "payload": "analisis_creatividad",
+            "description": "Descubre tu potencial creativo e innovador",
+            "points": 45,
+            "required": False
+        }
+    ]
 }
 
 def get_greeting_by_time() -> str:
@@ -696,21 +1013,41 @@ class MessageService:
             chat_state = await ChatState.objects.filter(
                 user_id=user_id, business_unit=self.business_unit
             ).afirst()
-            state = chat_state.state if chat_state else "initial"
+            
+            if not chat_state:
+                logger.error(f"No se encontró ChatState para {user_id}")
+                return False
 
-            cache_key = f"menu_options:{self.business_unit.name.lower()}:{state}:{user_id}"
-            cached_options = cache.get(cache_key)
-            if cached_options:
-                message, simplified_options = cached_options
-            else:
                 bu_name = self.business_unit.name.lower()
-                options_by_state = MENU_OPTIONS_BY_STATE.get(bu_name, MENU_OPTIONS_BY_STATE["default"])
-                options = options_by_state.get(state, options_by_state["initial"])
-                message = f"📱📋 *Menú de {bu_name}*\nSelecciona una opción:"
-                simplified_options = [{"title": opt["title"], "payload": opt["payload"]} for opt in options]
-                cache.set(cache_key, (message, simplified_options), timeout=CACHE_TIMEOUT)
+            menu_options = MENU_OPTIONS_BY_BU.get(bu_name, [])
+            
+            if not menu_options:
+                logger.error(f"No se encontraron opciones de menú para {bu_name}")
+                return False
 
-            return await self.send_smart_options(platform, user_id, message, simplified_options)
+            # Construir mensaje principal
+            message = f"📱 *Menú de {bu_name.upper()}*\n\n"
+            message += "Selecciona una opción para continuar:\n\n"
+            
+            # Agregar opciones principales
+            for i, option in enumerate(menu_options, 1):
+                message += f"{i}. {option['title']}\n"
+                message += f"   _{option['description']}_\n\n"
+
+            # Enviar menú principal
+            success = await self.send_message(platform, user_id, message)
+            if not success:
+                return False
+
+            # Enviar botones de navegación
+            navigation_buttons = [
+                {"title": "⬅️ Anterior", "payload": "menu_prev"},
+                {"title": "➡️ Siguiente", "payload": "menu_next"},
+                {"title": "🔍 Buscar", "payload": "menu_search"}
+            ]
+            
+            return await self.send_options(platform, user_id, "Navega por el menú:", navigation_buttons)
+
         except Exception as e:
             logger.error(f"Error enviando menú: {str(e)}")
             return False
@@ -803,6 +1140,90 @@ class MessageService:
         if platform in self._handlers:
             del self._handlers[platform]
         logger.info(f"Caché invalidado para {platform}")
+
+    async def send_evaluations_menu(self, platform: str, user_id: str, business_unit: str) -> bool:
+        """Envía el menú de evaluaciones con el progreso del usuario."""
+        try:
+            # Obtener el usuario
+            user = await Person.objects.filter(phone=user_id).first()
+            if not user:
+                return False
+
+            # Obtener evaluaciones completadas
+            completed_evaluations = user.completed_evaluations or []
+            
+            # Obtener menú de evaluaciones para la BU
+            evaluations = EVALUATIONS_MENU.get(business_unit, [])
+            
+            # Calcular progreso
+            total_evaluations = len(evaluations)
+            completed_count = len(completed_evaluations)
+            progress_percentage = (completed_count / total_evaluations) * 100 if total_evaluations > 0 else 0
+            
+            # Calcular puntos ganados
+            total_points = sum(eval["points"] for eval in evaluations)
+            earned_points = sum(eval["points"] for eval in evaluations if eval["payload"] in completed_evaluations)
+            
+            # Construir mensaje
+            message = f"🎯 *Evaluaciones Disponibles*\n\n"
+            message += f"📊 *Progreso:* {progress_percentage:.1f}%\n"
+            message += f"⭐ *Puntos Ganados:* {earned_points}/{total_points}\n\n"
+            
+            # Agregar evaluaciones
+            for eval in evaluations:
+                status = "✅" if eval["payload"] in completed_evaluations else "🔴" if eval["required"] else "🔵"
+                message += f"{status} *{eval['title']}*\n"
+                message += f"_{eval['description']}_\n"
+                message += f"Puntos: {eval['points']}\n\n"
+            
+            # Agregar opción para ver CV completo si está al 100%
+            if progress_percentage == 100:
+                message += "\n🎉 ¡Felicidades! Has completado todas las evaluaciones.\n"
+                message += "Puedes ver tu CV completo en cualquier momento."
+            
+            # Enviar mensaje
+            return await self.send_message(platform, user_id, message)
+            
+        except Exception as e:
+            logger.error(f"Error al enviar menú de evaluaciones: {str(e)}")
+            return False
+
+    async def send_submenu(self, platform: str, user_id: str, parent_payload: str) -> bool:
+        """Envía el submenú correspondiente a una opción del menú principal."""
+        try:
+            bu_name = self.business_unit.name.lower()
+            menu_options = MENU_OPTIONS_BY_BU.get(bu_name, [])
+            
+            # Encontrar la opción padre
+            parent_option = next((opt for opt in menu_options if opt["payload"] == parent_payload), None)
+            if not parent_option or "submenu" not in parent_option:
+                return False
+
+            # Construir mensaje del submenú
+            message = f"📱 *{parent_option['title']}*\n\n"
+            message += f"{parent_option['description']}\n\n"
+            message += "Selecciona una opción:\n\n"
+
+            # Agregar opciones del submenú
+            for i, option in enumerate(parent_option["submenu"], 1):
+                message += f"{i}. {option['title']}\n"
+
+            # Enviar submenú
+            success = await self.send_message(platform, user_id, message)
+            if not success:
+                return False
+
+            # Enviar botones de navegación
+            navigation_buttons = [
+                {"title": "⬅️ Volver", "payload": "menu"},
+                {"title": "🔍 Buscar", "payload": f"search_{parent_payload}"}
+            ]
+            
+            return await self.send_options(platform, user_id, "Navega por el submenú:", navigation_buttons)
+
+        except Exception as e:
+            logger.error(f"Error enviando submenú: {str(e)}")
+            return False
 
 
 async def notify_employer(worker, message):
@@ -1058,3 +1479,97 @@ async def send_options_async(platform: str, user_id: str, message: str, buttons=
     except Exception as e:
         logger.error(f"[send_options_async] ❌ Error enviando opciones a {user_id} en {platform}: {e}", exc_info=True)
         return False
+
+class AssessmentService:
+    def __init__(self):
+        self.professional_dna = ProfessionalDNAAnalysis()
+        self.cultural_fit = CulturalFitWorkflow()
+        self.talent_analysis = TalentAnalysisWorkflow()
+        self.personality = PersonalityAssessment()
+
+    def get_available_assessments(self) -> Dict[str, List[str]]:
+        """Retorna los assessments disponibles organizados por categoría"""
+        return {
+            "professional_dna": [
+                "leadership",
+                "innovation",
+                "communication",
+                "resilience",
+                "results"
+            ],
+            "cultural": [
+                "values",
+                "work_style",
+                "communication_preferences",
+                "adaptability"
+            ],
+            "talent": [
+                "technical_skills",
+                "key_competencies",
+                "development_potential",
+                "improvement_areas"
+            ],
+            "personality": [
+                "personality_traits",
+                "behavioral_styles",
+                "work_preferences",
+                "interaction_patterns"
+            ]
+        }
+
+    def get_assessment_questions(
+        self,
+        assessment_type: str,
+        category: str,
+        business_unit: Optional[BusinessUnit] = None
+    ) -> List[Dict[str, Any]]:
+        """Obtiene las preguntas para un tipo específico de assessment"""
+        if assessment_type == "professional_dna":
+            return self.professional_dna.get_questions_by_category(
+                QuestionCategory(category)
+            )
+        elif assessment_type == "cultural":
+            return self.cultural_fit.get_questions(category)
+        elif assessment_type == "talent":
+            return self.talent_analysis.get_questions(category)
+        elif assessment_type == "personality":
+            return self.personality.get_questions(category)
+        return []
+
+    def analyze_assessment(
+        self,
+        assessment_type: str,
+        answers: Dict[str, Any],
+        generation: str,
+        business_unit: Optional[BusinessUnit] = None
+    ) -> Dict[str, Any]:
+        """Analiza las respuestas de un assessment específico"""
+        if assessment_type == "professional_dna":
+            return self.professional_dna.analyze_answers(
+                answers,
+                generation,
+                business_unit
+            )
+        elif assessment_type == "cultural":
+            return self.cultural_fit.analyze_answers(answers)
+        elif assessment_type == "talent":
+            return self.talent_analysis.analyze_answers(answers)
+        elif assessment_type == "personality":
+            return self.personality.analyze_answers(answers)
+        return {}
+
+    def get_assessment_summary(
+        self,
+        assessment_type: str,
+        results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Obtiene un resumen del análisis de un assessment"""
+        if assessment_type == "professional_dna":
+            return self.professional_dna.get_analysis_summary(results)
+        elif assessment_type == "cultural":
+            return self.cultural_fit.get_summary(results)
+        elif assessment_type == "talent":
+            return self.talent_analysis.get_summary(results)
+        elif assessment_type == "personality":
+            return self.personality.get_summary(results)
+        return {}

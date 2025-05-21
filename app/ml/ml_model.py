@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 from joblib import dump, load
 from celery import shared_task
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ class MatchmakingLearningSystem:
         for app in batch_apps:
             try:
                 hard_skills_score = calculate_match_percentage(app.person.skills, app.vacancy.required_skills)
-                soft_skills_score = calculate_alignment_percentage(app.person.personality, app.vacancy.culture_fit)
+                soft_skills_score = calculate_match_percentage(app.person.personality, app.vacancy.culture_fit)
                 salary_alignment = self._calculate_salary_alignment(app)
                 age = self._calculate_age(app.person)
                 success = 1 if app.status == 'contratado' else 0
@@ -531,6 +532,263 @@ class MatchmakingLearningSystem:
                 possible_transitions.append(bu)
         return possible_transitions
     
+    async def calculate_market_alignment(self, features: Dict) -> Dict:
+        """Calcula la alineación del candidato con el mercado laboral."""
+        try:
+            # Obtenemos datos del mercado
+            market_data = await self._get_market_data()
+            
+            # Calculamos alineación por categoría
+            alignment = {
+                "skills": self._calculate_skills_alignment(features["skills"], market_data["skills"]),
+                "experience": self._calculate_experience_alignment(features["experience"], market_data["experience"]),
+                "salary": self._calculate_salary_alignment(features["salary_expectations"], market_data["salary"]),
+                "personality": self._calculate_personality_alignment(features["personality_traits"], market_data["personality"])
+            }
+            
+            # Calculamos score general
+            alignment["overall_score"] = sum(alignment.values()) / len(alignment)
+            
+            return alignment
+        except Exception as e:
+            logger.error(f"Error calculando alineación con el mercado: {str(e)}", exc_info=True)
+            return {}
+    
+    async def _get_market_data(self) -> Dict:
+        """Obtiene datos actualizados del mercado laboral."""
+        try:
+            # Intentamos obtener de caché primero
+            market_data = cache.get("market_data")
+            if market_data:
+                return market_data
+            
+            # Si no está en caché, lo generamos
+            market_data = {
+                "skills": await self._analyze_market_skills(),
+                "experience": await self._analyze_market_experience(),
+                "salary": await self._analyze_market_salaries(),
+                "personality": await self._analyze_market_personality()
+            }
+            
+            # Guardamos en caché por 24 horas
+            cache.set("market_data", market_data, 86400)
+            
+            return market_data
+        except Exception as e:
+            logger.error(f"Error obteniendo datos del mercado: {str(e)}", exc_info=True)
+            return {}
+    
+    async def _analyze_market_skills(self) -> Dict:
+        """Analiza las habilidades más demandadas en el mercado."""
+        try:
+            from app.models import Vacancy, Skill
+            
+            # Obtenemos todas las vacantes activas
+            vacancies = Vacancy.objects.filter(status="active")
+            
+            # Analizamos habilidades requeridas
+            skills_analysis = {}
+            for vacancy in vacancies:
+                for skill in vacancy.required_skills.all():
+                    skills_analysis[skill.name] = skills_analysis.get(skill.name, 0) + 1
+            
+            # Normalizamos y ordenamos
+            total_vacancies = vacancies.count()
+            return {
+                skill: count/total_vacancies 
+                for skill, count in sorted(
+                    skills_analysis.items(), 
+                    key=lambda x: x[1], 
+                    reverse=True
+                )
+            }
+        except Exception as e:
+            logger.error(f"Error analizando habilidades del mercado: {str(e)}", exc_info=True)
+            return {}
+    
+    async def _analyze_market_experience(self) -> Dict:
+        """Analiza los requisitos de experiencia en el mercado."""
+        try:
+            from app.models import Vacancy
+            
+            # Obtenemos todas las vacantes activas
+            vacancies = Vacancy.objects.filter(status="active")
+            
+            # Analizamos rangos de experiencia
+            experience_ranges = {
+                "0-2": 0,
+                "2-5": 0,
+                "5-10": 0,
+                "10+": 0
+            }
+            
+            for vacancy in vacancies:
+                exp_years = vacancy.experience_years or 0
+                if exp_years <= 2:
+                    experience_ranges["0-2"] += 1
+                elif exp_years <= 5:
+                    experience_ranges["2-5"] += 1
+                elif exp_years <= 10:
+                    experience_ranges["5-10"] += 1
+                else:
+                    experience_ranges["10+"] += 1
+            
+            # Normalizamos
+            total_vacancies = vacancies.count()
+            return {
+                range_name: count/total_vacancies 
+                for range_name, count in experience_ranges.items()
+            }
+        except Exception as e:
+            logger.error(f"Error analizando experiencia del mercado: {str(e)}", exc_info=True)
+            return {}
+    
+    async def _analyze_market_salaries(self) -> Dict:
+        """Analiza los rangos salariales en el mercado."""
+        try:
+            from app.models import Vacancy
+            
+            # Obtenemos todas las vacantes activas
+            vacancies = Vacancy.objects.filter(status="active")
+            
+            # Analizamos rangos salariales
+            salary_ranges = {
+                "0-30000": 0,
+                "30000-60000": 0,
+                "60000-90000": 0,
+                "90000+": 0
+            }
+            
+            for vacancy in vacancies:
+                salary = vacancy.salario or 0
+                if salary <= 30000:
+                    salary_ranges["0-30000"] += 1
+                elif salary <= 60000:
+                    salary_ranges["30000-60000"] += 1
+                elif salary <= 90000:
+                    salary_ranges["60000-90000"] += 1
+                else:
+                    salary_ranges["90000+"] += 1
+            
+            # Normalizamos
+            total_vacancies = vacancies.count()
+            return {
+                range_name: count/total_vacancies 
+                for range_name, count in salary_ranges.items()
+            }
+        except Exception as e:
+            logger.error(f"Error analizando salarios del mercado: {str(e)}", exc_info=True)
+            return {}
+    
+    async def _analyze_market_personality(self) -> Dict:
+        """Analiza los rasgos de personalidad más valorados en el mercado."""
+        try:
+            from app.models import Vacancy
+            
+            # Obtenemos todas las vacantes activas
+            vacancies = Vacancy.objects.filter(status="active")
+            
+            # Analizamos rasgos de personalidad
+            personality_traits = {}
+            for vacancy in vacancies:
+                for trait in vacancy.metadata.get("personality_traits", []):
+                    personality_traits[trait] = personality_traits.get(trait, 0) + 1
+            
+            # Normalizamos y ordenamos
+            total_vacancies = vacancies.count()
+            return {
+                trait: count/total_vacancies 
+                for trait, count in sorted(
+                    personality_traits.items(), 
+                    key=lambda x: x[1], 
+                    reverse=True
+                )
+            }
+        except Exception as e:
+            logger.error(f"Error analizando personalidad del mercado: {str(e)}", exc_info=True)
+            return {}
+    
+    def _calculate_skills_alignment(self, candidate_skills: List[str], market_skills: Dict) -> float:
+        """Calcula la alineación de habilidades del candidato con el mercado."""
+        try:
+            if not candidate_skills or not market_skills:
+                return 0.0
+            
+            # Calculamos score para cada habilidad
+            total_score = 0.0
+            for skill in candidate_skills:
+                total_score += market_skills.get(skill, 0)
+            
+            # Normalizamos
+            return total_score / len(candidate_skills)
+        except Exception as e:
+            logger.error(f"Error calculando alineación de habilidades: {str(e)}", exc_info=True)
+            return 0.0
+    
+    def _calculate_experience_alignment(self, candidate_experience: List[Dict], market_experience: Dict) -> float:
+        """Calcula la alineación de experiencia del candidato con el mercado."""
+        try:
+            if not candidate_experience or not market_experience:
+                return 0.0
+            
+            # Calculamos años totales de experiencia
+            total_years = sum(exp.get("years", 0) for exp in candidate_experience)
+            
+            # Determinamos el rango
+            if total_years <= 2:
+                range_key = "0-2"
+            elif total_years <= 5:
+                range_key = "2-5"
+            elif total_years <= 10:
+                range_key = "5-10"
+            else:
+                range_key = "10+"
+            
+            return market_experience.get(range_key, 0)
+        except Exception as e:
+            logger.error(f"Error calculando alineación de experiencia: {str(e)}", exc_info=True)
+            return 0.0
+    
+    def _calculate_salary_alignment(self, candidate_salary: Dict, market_salary: Dict) -> float:
+        """Calcula la alineación salarial del candidato con el mercado."""
+        try:
+            if not candidate_salary or not market_salary:
+                return 0.0
+            
+            expected_salary = candidate_salary.get("expected", 0)
+            
+            # Determinamos el rango
+            if expected_salary <= 30000:
+                range_key = "0-30000"
+            elif expected_salary <= 60000:
+                range_key = "30000-60000"
+            elif expected_salary <= 90000:
+                range_key = "60000-90000"
+            else:
+                range_key = "90000+"
+            
+            return market_salary.get(range_key, 0)
+        except Exception as e:
+            logger.error(f"Error calculando alineación salarial: {str(e)}", exc_info=True)
+            return 0.0
+    
+    def _calculate_personality_alignment(self, candidate_traits: Dict, market_traits: Dict) -> float:
+        """Calcula la alineación de personalidad del candidato con el mercado."""
+        try:
+            if not candidate_traits or not market_traits:
+                return 0.0
+            
+            # Calculamos score para cada rasgo
+            total_score = 0.0
+            for trait, value in candidate_traits.items():
+                total_score += market_traits.get(trait, 0) * value
+            
+            # Normalizamos
+            return total_score / len(candidate_traits)
+        except Exception as e:
+            logger.error(f"Error calculando alineación de personalidad: {str(e)}", exc_info=True)
+            return 0.0
+    
 class GrupohuntREDMLPipeline:
     model_config = {
         'huntRED®': {'layers': [256, 128, 64], 'learning_rate': 0.001, 'dropout_rate': 0.3},
@@ -714,6 +972,87 @@ class GrupohuntREDMLPipeline:
 
         return predictions
     
+    def load_transition_model(self):
+        """Carga o inicializa el modelo de predicción de transiciones."""
+        if not self._loaded_transition_model and os.path.exists(self.transition_model_file):
+            self._loaded_transition_model = load(self.transition_model_file)
+            logger.info(f"Modelo de transición cargado desde {self.transition_model_file}")
+        elif not os.path.exists(self.transition_model_file):
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import Pipeline
+            self.transition_model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.transition_scaler = StandardScaler()
+            self.transition_pipeline = Pipeline([
+                ('scaler', self.transition_scaler),
+                ('classifier', self.transition_model)
+            ])
+            logger.info("Modelo de transición RandomForest inicializado (no entrenado).")
+
+    def prepare_transition_training_data(self):
+        """Prepara datos para entrenar el modelo de transiciones entre BusinessUnits."""
+        from app.models import Person, BusinessUnit, DivisionTransition
+        # Datos de candidatos que han transicionado
+        transitions = DivisionTransition.objects.select_related('person', 'from_business_unit', 'to_business_unit')
+        data = []
+        for transition in transitions:
+            person = transition.person
+            education_level = {
+                'licenciatura': 1,
+                'maestría': 2,
+                'doctorado': 3
+            }.get(person.metadata.get('education', [''])[0].lower(), 0)
+            data.append({
+                'experience_years': person.experience_years or 0,
+                'skills_count': len(person.skills.split(',')) if person.skills else 0,
+                'certifications_count': len(person.metadata.get('certifications', [])),
+                'education_level': education_level,
+                'openness': person.openness,
+                'conscientiousness': person.conscientiousness,
+                'extraversion': person.extraversion,
+                'agreeableness': person.agreeableness,
+                'neuroticism': person.neuroticism,
+                'transition_label': 1 if transition.success else 0
+            })
+        # Datos de candidatos sin transiciones
+        non_transitions = Person.objects.filter(divisiontransition__isnull=True)
+        for person in non_transitions:
+            education_level = {
+                'licenciatura': 1,
+                'maestría': 2,
+                'doctorado': 3
+            }.get(person.metadata.get('education', [''])[0].lower(), 0)
+            data.append({
+                'experience_years': person.experience_years or 0,
+                'skills_count': len(person.skills.split(',')) if person.skills else 0,
+                'certifications_count': len(person.metadata.get('certifications', [])),
+                'education_level': education_level,
+                'openness': person.openness,
+                'conscientiousness': person.conscientiousness,
+                'extraversion': person.extraversion,
+                'agreeableness': person.agreeableness,
+                'neuroticism': person.neuroticism,
+                'transition_label': 0
+            })
+        df = pd.DataFrame(data)
+        logger.info(f"Datos de transición preparados: {len(df)} registros.")
+        return df
+
+    def train_transition_model(self, df, test_size=0.2):
+        """Entrena el modelo de transiciones con los datos preparados."""
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import classification_report
+        X = df.drop(columns=["transition_label"])
+        y = df["transition_label"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+        self.transition_pipeline.fit(X_train, y_train)
+        dump(self.transition_pipeline, self.transition_model_file)
+        logger.info(f"✅ Modelo de transición entrenado y guardado en {self.transition_model_file}")
+        y_pred = self.transition_pipeline.predict(X_test)
+        report = classification_report(y_test, y_pred)
+        logger.info(f"Reporte de clasificación para transición:\n{report}")
+
+    def predict_transition(self, person):
         """Predice la probabilidad de que un candidato esté listo para transicionar."""
         self.load_transition_model()
         if not self.transition_pipeline:
@@ -738,6 +1077,15 @@ class GrupohuntREDMLPipeline:
         proba = self.transition_pipeline.predict_proba(X)[0][1]  # Probabilidad de transición
         logger.info(f"Probabilidad de transición para {person}: {proba:.2f}")
         return proba
+
+    def get_possible_transitions(self, current_bu_name):
+        """Obtiene las transiciones posibles desde la unidad de negocio actual."""
+        current_level = BUSINESS_UNIT_HIERARCHY.get(current_bu_name.lower(), 0)
+        possible_transitions = []
+        for bu, level in BUSINESS_UNIT_HIERARCHY.items():
+            if level > current_level:
+                possible_transitions.append(bu)
+        return possible_transitions
     
 class AdaptiveMLFramework(GrupohuntREDMLPipeline):
     def __init__(self, business_unit):

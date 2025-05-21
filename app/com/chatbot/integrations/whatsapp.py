@@ -43,7 +43,7 @@ class WhatsAppHandler:
         self.phone_number_id = phone_number_id
         self.business_unit = business_unit
         self.user: Optional[Person] = None
-        from app.com.chatbot.chat_state_manager import ChatStateManager
+        from app.com.chatbot.components.chat_state_manager import ChatStateManager
         self.chat_manager = ChatStateManager()
         self.intent_processor = IntentProcessor()
         self.whatsapp_api: Optional[WhatsAppAPI] = None

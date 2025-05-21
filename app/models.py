@@ -557,6 +557,122 @@ class Person(models.Model):
         required_fields=['nombre','apellido_paterno','email','phone','skills']
         missing_fields=[field for field in required_fields if not getattr(self,field,None)]
         return not missing_fields
+    
+    # Campos extendidos para análisis generacional y motivacional
+    generational_insights = models.JSONField(null=True, blank=True)
+    motivational_insights = models.JSONField(null=True, blank=True)
+    work_style_preferences = models.JSONField(null=True, blank=True)
+    
+    def get_generational_profile(self):
+        """Obtiene el perfil generacional basado en la edad y respuestas"""
+        if not self.date_of_birth:
+            return None
+            
+        birth_year = self.date_of_birth.year
+        if 1946 <= birth_year <= 1964:
+            return 'BB'  # Baby Boomers
+        elif 1965 <= birth_year <= 1980:
+            return 'X'   # Generación X
+        elif 1981 <= birth_year <= 1996:
+            return 'Y'   # Millennials
+        elif 1997 <= birth_year <= 2012:
+            return 'Z'   # Generación Z
+        return None
+    
+    def get_motivational_profile(self):
+        """Analiza las respuestas para determinar el perfil motivacional"""
+        if not self.answers:
+            return None
+            
+        profile = {
+            'intrinsic': {
+                'autonomy': 0,
+                'mastery': 0,
+                'purpose': 0
+            },
+            'extrinsic': {
+                'recognition': 0,
+                'compensation': 0,
+                'status': 0
+            }
+        }
+        
+        # Analizar respuestas para determinar motivadores
+        for answer in self.answers:
+            if 'motivation' in answer.get('category', '').lower():
+                # Lógica para analizar respuestas motivacionales
+                pass
+                
+        return profile
+    
+    def get_work_style_preferences(self):
+        """Analiza las preferencias de estilo de trabajo"""
+        if not self.answers:
+            return None
+            
+        preferences = {
+            'collaboration': 0,
+            'independence': 0,
+            'structure': 0,
+            'communication_style': None,
+            'feedback_preference': None
+        }
+        
+        # Analizar respuestas para determinar preferencias
+        for answer in self.answers:
+            if 'work_style' in answer.get('category', '').lower():
+                # Lógica para analizar preferencias de trabajo
+                pass
+                
+        return preferences
+    
+    def generate_generational_insights(self):
+        """Genera insights generacionales basados en la evaluación"""
+        generational_profile = self.get_generational_profile()
+        motivational_profile = self.get_motivational_profile()
+        work_preferences = self.get_work_style_preferences()
+        
+        if not all([generational_profile, motivational_profile, work_preferences]):
+            return None
+            
+        insights = {
+            'generational': {
+                'generation': generational_profile,
+                'work_preferences': work_preferences,
+                'values': {
+                    'career_growth': self.calculate_career_growth_importance(),
+                    'social_impact': self.calculate_social_impact_importance(),
+                    'financial_security': self.calculate_financial_security_importance()
+                }
+            },
+            'motivational': motivational_profile,
+            'work_style': work_preferences
+        }
+        
+        self.generational_insights = insights
+        self.save()
+        
+        return insights
+    
+    def calculate_career_growth_importance(self):
+        """Calcula la importancia del crecimiento profesional"""
+        # Implementar lógica basada en respuestas
+        return 0
+    
+    def calculate_social_impact_importance(self):
+        """Calcula la importancia del impacto social"""
+        # Implementar lógica basada en respuestas
+        return 0
+    
+    def calculate_financial_security_importance(self):
+        """Calcula la importancia de la seguridad financiera"""
+        # Implementar lógica basada en respuestas
+        return 0
+
+    completed_evaluations = models.JSONField(
+        default=list,
+        help_text="Lista de evaluaciones completadas por el usuario"
+    )
 
 class SocialConnection(models.Model):
     """Modelo para almacenar conexiones sociales entre candidatos (SocialLink™).
@@ -2391,6 +2507,24 @@ class EnhancedMLProfile(models.Model):
         logger.info(f"Feedback registrado para {self.user}: {feedback_data}")
     def __str__(self):
         return f"EnhancedMLProfile for {self.user.nombre} {self.user.apellido_paterno}"
+    
+    # Campos extendidos para análisis generacional
+    generational_analysis = models.JSONField(null=True, blank=True)
+    motivational_analysis = models.JSONField(null=True, blank=True)
+    
+    def update_generational_insights(self, insights):
+        """Actualiza los insights generacionales"""
+        self.generational_analysis = insights
+        self.save()
+        
+    def get_generational_recommendations(self):
+        """Obtiene recomendaciones basadas en el análisis generacional"""
+        if not self.generational_analysis:
+            return []
+            
+        recommendations = []
+        # Implementar lógica de recomendaciones
+        return recommendations
 
 class ModelTrainingLog(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE)

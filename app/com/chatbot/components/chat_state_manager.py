@@ -14,7 +14,7 @@ from collections import defaultdict
 from asgiref.sync import sync_to_async
 
 from app.models import Person, BusinessUnit, ChatState, IntentPattern, StateTransition, IntentTransition
-from app.com.chatbot.metrics import ChatBotMetrics
+from app.com.chatbot.components.metrics import ChatBotMetrics
 from app.com.chatbot.utils import ChatbotUtils
 from app.com.chatbot.workflow.workflow_manager import WorkflowManager
 from app.com.chatbot.workflow.context import WorkflowContext

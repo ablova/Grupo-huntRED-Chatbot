@@ -401,12 +401,12 @@ def get_intent_detector():
 
 def get_intents_optimizer():
     """Get IntentsOptimizer instance."""
-    from app.com.chatbot.intents_optimizer import IntentsOptimizer
+    from app.com.chatbot.components.intents_optimizer import IntentsOptimizer
     return IntentsOptimizer
 
 def get_context_manager():
     """Get ContextManager instance."""
-    from app.com.chatbot.context_manager import ContextManager
+    from app.com.chatbot.components.context_manager import ContextManager
     return ContextManager
 
 def get_response_generator():

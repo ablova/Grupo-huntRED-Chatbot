@@ -40,9 +40,9 @@ from app.com.chatbot.workflow.common import (
 )
 from app.ml.core.models import MatchmakingModel
 from app.ml.core.utils import BUSINESS_UNIT_HIERARCHY
-from app.com.chatbot.intents_optimizer import intent_optimizer
+from app.com.chatbot.components.intents_optimizer import intent_optimizer
 from app.com.chatbot.components.channel_config import ChannelConfig
-from app.com.chatbot.metrics import chatbot_metrics
+from app.com.chatbot.components.metrics import chatbot_metrics
 from app.com.utils.logger_utils import get_module_logger, log_async_function_call, ResourceMonitor
 
 # Configuración del sistema de logging avanzado
