@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ name }} - Curriculum Vitae Personalizado</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         @page {
             margin: 2cm;
@@ -301,6 +302,211 @@
                 padding: 10px;
             }
         }
+        /* Estilos para iconos de sección */
+        .section-icon {
+            font-size: 24px;
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .skill-badge i {
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+
+        .experience i, .education i {
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+
+        .language-level i {
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+
+        .recommendation-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .analysis-icon {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-right: 10px;
+        }
+
+        .footer-icon {
+            font-size: 1.2rem;
+            margin-right: 5px;
+            color: var(--primary-color);
+        }
+
+        /* Estilos para iconos animados */
+        .animated-icon {
+            width: 48px;
+            height: 48px;
+            margin-right: 15px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-icon-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Estilos específicos para secciones */
+        .career-analysis .section-header {
+            background: linear-gradient(135deg, var(--primary-color), #2980b9);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .career-analysis .section-header img {
+            filter: brightness(0) invert(1);
+        }
+
+        .development-plan .section-header {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .development-plan .section-header img {
+            filter: brightness(0) invert(1);
+        }
+
+        .skills-section .section-header {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .skills-section .section-header img {
+            filter: brightness(0) invert(1);
+        }
+
+        /* Estilos para la sección de análisis cultural */
+        .cultural-analysis-section {
+            margin: 2rem 0;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .cultural-fit-score {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .dimensions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .dimension-card {
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        .dimension-score {
+            margin-top: 0.5rem;
+        }
+
+        .values-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .value-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #e8f0fe;
+            border-radius: 20px;
+            color: #1a73e8;
+        }
+
+        .recommendations-list {
+            display: grid;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .recommendation-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .recommendation-content h4 {
+            margin: 0 0 0.5rem 0;
+            color: #1a73e8;
+        }
+
+        .recommendation-content p {
+            margin: 0;
+            color: #5f6368;
+        }
+
+        .cultural-dimensions-chart {
+            margin: 2rem 0;
+            padding: 1rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 1rem 0;
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -327,7 +533,10 @@
         {% endif %}
 
         <div class="section">
-            <h3 class="section-title">{{ translations.title }}</h3>
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/6569/6569166.gif" alt="Perfil" class="animated-icon">
+                <h2 class="section-title">{{ translations.title }}</h2>
+            </div>
             <div class="summary">
                 <p>{{ summary }}</p>
             </div>
@@ -335,7 +544,10 @@
 
         {% if career_potential %}
         <div class="career-analysis">
-            <h3>Análisis de Potencial</h3>
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/8617/8617214.gif" alt="Estrategia" class="animated-icon">
+                <h3>Análisis de Potencial</h3>
+            </div>
             <div class="potential-score">{{ career_potential.overall }}%</div>
             
             {% if career_potential.motivational_message %}
@@ -359,7 +571,10 @@
         {% endif %}
 
         <div class="section">
-            <h3 class="section-title">{{ translations.experience }}</h3>
+            <h3 class="section-title">
+                <i class="fas fa-briefcase section-icon"></i>
+                {{ translations.experience }}
+            </h3>
             {% for exp in experience %}
             <div class="experience-item">
                 <div class="experience-header">
@@ -382,7 +597,10 @@
         </div>
 
         <div class="section">
-            <h3 class="section-title">{{ translations.education }}</h3>
+            <h3 class="section-title">
+                <i class="fas fa-graduation-cap section-icon"></i>
+                {{ translations.education }}
+            </h3>
             {% for edu in education %}
             <div class="education-item">
                 <div class="education-header">
@@ -403,8 +621,11 @@
         </div>
 
         {% if skills %}
-        <div class="section">
-            <h3 class="section-title">{{ translations.skills }}</h3>
+        <div class="section skills-section">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/7932/7932299.gif" alt="Versatilidad" class="animated-icon">
+                <h3 class="section-title">{{ translations.skills }}</h3>
+            </div>
             <div class="skills-container">
                 {% for skill in skills %}
                 <div class="skill">
@@ -421,13 +642,16 @@
 
         {% if critical_skills %}
         <div class="section">
-            <h3 class="section-title">Habilidades Críticas para tu Desarrollo</h3>
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/6454/6454221.gif" alt="Cálculo" class="animated-icon">
+                <h3 class="section-title">Habilidades Críticas para tu Desarrollo</h3>
+            </div>
             
             {% for skill in critical_skills|slice:":5" %}
             <div class="skill-gap">
                 <div class="skill-name">{{ skill.name }}</div>
                 <div class="progress-container">
-                    <div class="progress-bar" style="width: {{ skill.current_level }}%;"></div>
+                    <div class="progress-bar" style="width: {{ skill.current_level|default:0 }}%;"></div>
                 </div>
                 <div class="progress-labels">
                     <span>Nivel actual: {{ skill.current_level }}%</span>
@@ -441,7 +665,10 @@
 
         {% if languages %}
         <div class="section">
-            <h3 class="section-title">{{ translations.languages }}</h3>
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/8112/8112628.gif" alt="Idiomas" class="animated-icon">
+                <h3 class="section-title">{{ translations.languages }}</h3>
+            </div>
             {% for lang in languages %}
             <div class="language-item">
                 <span class="language-name">{{ lang.language }}</span>
@@ -456,7 +683,10 @@
         
         {% if development_plan %}
         <div class="development-plan">
-            <h3>Tu Plan de Desarrollo Profesional Personalizado</h3>
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/1755/17556491.gif" alt="Planificación Estratégica" class="animated-icon">
+                <h3>Tu Plan de Desarrollo Profesional Personalizado</h3>
+            </div>
             
             <div class="next-position">
                 Posición actual: <strong>{{ development_plan.next_level.current_position }}</strong><br>
@@ -520,14 +750,218 @@
 
         {% if verification_seal %}
         <div class="verification-seal">
+            <img src="https://cdn-icons-animated.flaticon.com/512/7920/7920891.gif" alt="Verificación" class="animated-icon">
             {{ verification_seal|safe }}
         </div>
         {% endif %}
 
+        <!-- Añadir después de la sección de análisis de carrera -->
+        {% if cultural_analysis %}
+        <div class="cultural-analysis-section">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/8617/8617214.gif" alt="Cultura" class="animated-icon">
+                <h2 class="section-title">Análisis Cultural</h2>
+            </div>
+            
+            <!-- Score de Ajuste Cultural -->
+            <div class="cultural-fit-score">
+                <div class="score-circle" data-score="{{ cultural_analysis.alignment_score }}">
+                    <img src="https://cdn-icons-animated.flaticon.com/512/3496/3496018.gif" alt="Ajuste Cultural" class="animated-icon">
+                    <span class="score-value">{{ cultural_analysis.alignment_score }}%</span>
+                    <span class="score-label">Ajuste Cultural</span>
+                </div>
+                <div class="score-details">
+                    <h3>Nivel: {{ cultural_analysis.alignment_level }}</h3>
+                    <p>{{ cultural_analysis.description }}</p>
+                </div>
+            </div>
+            
+            <!-- Dimensiones Culturales -->
+            <div class="cultural-dimensions">
+                <h3>Dimensiones Culturales</h3>
+                <div class="dimensions-grid">
+                    {% for dimension, score in cultural_analysis.cultural_dimensions.items %}
+                    <div class="dimension-card">
+                        <h4>{{ dimension }}</h4>
+                        <div class="dimension-score">
+                            <div class="score-bar">
+                                <div class="score-fill" style="width: {{ score }}%"></div>
+                            </div>
+                            <span class="score-value">{{ score }}%</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Valores Compartidos -->
+            {% if cultural_analysis.values_analysis.common_values %}
+            <div class="shared-values">
+                <h3>Valores Compartidos</h3>
+                <div class="values-grid">
+                    {% for value in cultural_analysis.values_analysis.common_values %}
+                    <div class="value-badge">
+                        <i class="fas fa-check-circle"></i>
+                        {{ value }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Recomendaciones Culturales -->
+            {% if cultural_analysis.recommendations %}
+            <div class="cultural-recommendations">
+                <h3>Recomendaciones de Desarrollo Cultural</h3>
+                <div class="recommendations-list">
+                    {% for rec in cultural_analysis.recommendations %}
+                    <div class="recommendation-item">
+                        <i class="fas {{ rec.icon }}"></i>
+                        <div class="recommendation-content">
+                            <h4>{{ rec.title }}</h4>
+                            <p>{{ rec.description }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Añadir después de la sección de dimensiones culturales -->
+        <div class="cultural-dimensions-chart">
+            <h3>Análisis Comparativo de Dimensiones Culturales</h3>
+            <div class="chart-container">
+                <canvas id="culturalDimensionsChart"></canvas>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <span class="legend-color" style="background: rgba(76, 175, 80, 0.2); border: 2px solid rgba(76, 175, 80, 1);"></span>
+                    <span>Candidato</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: rgba(33, 150, 243, 0.2); border: 2px solid rgba(33, 150, 243, 1);"></span>
+                    <span>Población General</span>
+                </div>
+            </div>
+        </div>
+
         <div class="footer">
-            <p>CV generado por Grupo huntRED® - {{ business_unit }} el {{ cv_creation_date|date:"d/m/Y" }}</p>
-            <p>Este documento es confidencial y para uso exclusivo de {{name}} {{apellido_paterno}} {{apellido_materno}}.</p>
+            <img src="{{ huntred_logo_url }}" alt="Grupo huntRED®" class="huntred-logo" loading="lazy">
+            <div class="footer-info">
+                <span><i class="fas fa-cogs footer-icon"></i>Procesado por Grupo huntRED®</span>
+                <span class="document-date"><i class="fas fa-calendar-alt footer-icon"></i>Generado el {{ generated_at|date:"d/m/Y H:i" }}</span>
+                {% if is_blind %}
+                <span class="blind-indicator"><i class="fas fa-eye-slash footer-icon"></i>Versión Ciega - Ref: {{ blind_identifier }}</span>
+                {% endif %}
+            </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="application/json" id="culturalData">
+    {
+        "candidate": {
+            "hierarchy_horizontal": {{ cultural_analysis.cultural_dimensions.hierarchy_horizontal|default:50 }},
+            "individualism_collectivism": {{ cultural_analysis.cultural_dimensions.individualism_collectivism|default:50 }},
+            "results_process": {{ cultural_analysis.cultural_dimensions.results_process|default:50 }},
+            "short_long_term": {{ cultural_analysis.cultural_dimensions.short_long_term|default:50 }},
+            "stability_innovation": {{ cultural_analysis.cultural_dimensions.stability_innovation|default:50 }},
+            "formality_informality": {{ cultural_analysis.cultural_dimensions.formality_informality|default:50 }}
+        },
+        "population": {
+            "hierarchy_horizontal": {{ cultural_analysis.population_averages.hierarchy_horizontal|default:50 }},
+            "individualism_collectivism": {{ cultural_analysis.population_averages.individualism_collectivism|default:50 }},
+            "results_process": {{ cultural_analysis.population_averages.results_process|default:50 }},
+            "short_long_term": {{ cultural_analysis.population_averages.short_long_term|default:50 }},
+            "stability_innovation": {{ cultural_analysis.population_averages.stability_innovation|default:50 }},
+            "formality_informality": {{ cultural_analysis.population_averages.formality_informality|default:50 }}
+        }
+    }
+    </script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            // Cargar datos del JSON incrustado
+            const culturalData = JSON.parse(document.getElementById('culturalData').textContent);
+            
+            // Gráfico de Análisis Cultural
+            const culturalCtx = document.getElementById('culturalDimensionsChart');
+            if (culturalCtx) {
+                new Chart(culturalCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: [
+                            'Jerarquía vs. Horizontalidad',
+                            'Individualismo vs. Colectivismo',
+                            'Orientación a Resultados vs. Procesos',
+                            'Enfoque a Corto vs. Largo Plazo',
+                            'Estabilidad vs. Innovación',
+                            'Formalidad vs. Informalidad'
+                        ],
+                        datasets: [{
+                            label: 'Candidato',
+                            data: [
+                                culturalData.candidate.hierarchy_horizontal,
+                                culturalData.candidate.individualism_collectivism,
+                                culturalData.candidate.results_process,
+                                culturalData.candidate.short_long_term,
+                                culturalData.candidate.stability_innovation,
+                                culturalData.candidate.formality_informality
+                            ],
+                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                            borderColor: 'rgba(76, 175, 80, 1)',
+                            pointBackgroundColor: 'rgba(76, 175, 80, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(76, 175, 80, 1)'
+                        },
+                        {
+                            label: 'Población General',
+                            data: [
+                                culturalData.population.hierarchy_horizontal,
+                                culturalData.population.individualism_collectivism,
+                                culturalData.population.results_process,
+                                culturalData.population.short_long_term,
+                                culturalData.population.stability_innovation,
+                                culturalData.population.formality_informality
+                            ],
+                            backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                            borderColor: 'rgba(33, 150, 243, 1)',
+                            pointBackgroundColor: 'rgba(33, 150, 243, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(33, 150, 243, 1)'
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    stepSize: 20
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar el gráfico de dimensiones culturales:', error);
+    }
+});
+</script>
 </body>
 </html>

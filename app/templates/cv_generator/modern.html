@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CV - {{ name }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         /* Variables de diseño de Grupo huntRED® */
         :root {
@@ -675,7 +676,16 @@
             margin-top: 5px;
         }
 
-        .level-fill {
+        .skill-level {
+            width: 100%;
+            height: 6px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .skill-level .level-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
             border-radius: 3px;
@@ -1130,6 +1140,335 @@
             background-color: white;
             font-size: 14px;
         }
+
+        /* Sección de Análisis de Carrera */
+        .career-analysis-section {
+            padding: 2rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 2rem 0;
+        }
+
+        .analysis-card {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #4CAF50, #2196F3);
+            color: white;
+        }
+
+        .score-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .score-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .market-alignment-chart {
+            margin: 2rem 0;
+            height: 300px;
+        }
+
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .role-card {
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        .probability-bar {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            position: relative;
+        }
+
+        .probability-fill {
+            height: 100%;
+            background: #4CAF50;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .probability-value {
+            position: absolute;
+            right: 0;
+            top: -20px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .recommendations-section {
+            margin-top: 2rem;
+        }
+
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .recommendation-card {
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .recommendation-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        /* Footer mejorado */
+        .footer-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .document-date {
+            font-size: 12px;
+            color: var(--dark-gray);
+        }
+
+        .blind-indicator {
+            font-size: 12px;
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        /* Estilos para iconos de sección */
+        .section-icon {
+            font-size: 24px;
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .skill-badge i {
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+
+        .experience i, .education i {
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+
+        .language-level i {
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+
+        .recommendation-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .analysis-icon {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-right: 10px;
+        }
+
+        .footer-icon {
+            font-size: 1.2rem;
+            margin-right: 5px;
+            color: var(--primary-color);
+        }
+
+        /* Estilos para iconos animados */
+        .animated-icon {
+            width: 48px;
+            height: 48px;
+            margin-right: 15px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-icon-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Estilos específicos para secciones */
+        .career-analysis-section .section-header {
+            background: linear-gradient(135deg, var(--primary-color), #2980b9);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .career-analysis-section .section-header img {
+            filter: brightness(0) invert(1);
+        }
+
+        .recommendations-section .section-header {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .recommendations-section .section-header img {
+            filter: brightness(0) invert(1);
+        }
+
+        .skills-section .section-header {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .skills-section .section-header img {
+            filter: brightness(0) invert(1);
+        }
+
+        /* Estilos para la sección de análisis cultural */
+        .cultural-analysis-section {
+            margin: 2rem 0;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .cultural-fit-score {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .dimensions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .dimension-card {
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        .dimension-score {
+            margin-top: 0.5rem;
+        }
+
+        .values-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .value-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #e8f0fe;
+            border-radius: 20px;
+            color: #1a73e8;
+        }
+
+        .recommendations-list {
+            display: grid;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .recommendation-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .recommendation-content h4 {
+            margin: 0 0 0.5rem 0;
+            color: #1a73e8;
+        }
+
+        .recommendation-content p {
+            margin: 0;
+            color: #5f6368;
+        }
+
+        .cultural-dimensions-chart {
+            margin: 2rem 0;
+            padding: 1rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 1rem 0;
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
     </style>
     <script>
         function convertToBlindCV() {
@@ -1239,14 +1578,24 @@
 
     <main>
         {% if summary %}
-        {% include 'components/section.html' with section_id='summary-title' title=translations.title content=summary %}
+        <section class="section" id="summary">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/6569/6569166.gif" alt="Perfil" class="animated-icon">
+                <h2 class="section-title">{{ translations.title }}</h2>
+            </div>
+            <p>{{ summary }}</p>
+        </section>
         {% endif %}
 
         {% if education %}
-        {% include 'components/section.html' with section_id='education-title' title=translations.education %}
+        <section class="section" id="education">
+            <h2 class="section-title">
+                <i class="fas fa-graduation-cap section-icon"></i>
+                {{ translations.education }}
+            </h2>
             {% for edu in education %}
             <article class="education">
-                <h3 class="degree">{{ edu.degree }}</h3>
+                <h3 class="degree"><i class="fas fa-university"></i> {{ edu.degree }}</h3>
                 <div class="institution">{{ edu.institution }}</div>
                 <div class="field-of-study">{{ edu.field_of_study }}</div>
                 <time class="date">{{ edu.start_date }} - {{ edu.end_date }}</time>
@@ -1256,13 +1605,18 @@
                 {% if edu.description %}<p>{{ edu.description }}</p>{% endif %}
             </article>
             {% endfor %}
-        {% endinclude %}
+        </section>
+        {% endif %}
 
         {% if experience %}
-        {% include 'components/section.html' with section_id='experience-title' title=translations.experience %}
+        <section class="section" id="experience">
+            <h2 class="section-title">
+                <i class="fas fa-briefcase section-icon"></i>
+                {{ translations.experience }}
+            </h2>
             {% for exp in experience %}
             <article class="experience">
-                <h3 class="job-title">{{ exp.position }}</h3>
+                <h3 class="job-title"><i class="fas fa-building"></i> {{ exp.position }}</h3>
                 <div class="company">{{ exp.company }}</div>
                 <time class="date">{{ exp.start_date }} - {{ exp.end_date }}</time>
                 <p class="description">{{ exp.description }}</p>
@@ -1277,17 +1631,25 @@
                 {% endif %}
             </article>
             {% endfor %}
-        {% endinclude %}
+        </section>
+        {% endif %}
 
         {% if skills %}
-        {% include 'components/section.html' with section_id='skills-title' title=translations.skills %}
+        <section class="section skills-section" id="skills">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/7932/7932299.gif" alt="Versatilidad" class="animated-icon">
+                <h2 class="section-title">{{ translations.skills }}</h2>
+            </div>
             <div class="skills">
                 {% for skill in skills %}
                 <div class="skill-badge" data-tooltip="{{ skill.description|default:'Sin descripción' }}">
+                    <i class="fas fa-check-circle"></i>
                     <span>{{ skill.name }}</span>
                     {% if skill.proficiency %}
                     <div class="skill-level">
-                        <div class="level-fill" style="width: {{ skill.proficiency|floatformat:0 }}%"></div>
+                        {% with width=skill.proficiency|default:0|floatformat:0 %}
+                        <div class="level-fill" style="width: {{ width }}%;"></div>
+                        {% endwith %}
                     </div>
                     {% endif %}
                     {% if skill.years_experience %}
@@ -1299,13 +1661,19 @@
                 </div>
                 {% endfor %}
             </div>
-        {% endinclude %}
+        </section>
+        {% endif %}
 
         {% if languages %}
-        {% include 'components/section.html' with section_id='languages-title' title=translations.languages %}
+        <section class="section" id="languages">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/8112/8112628.gif" alt="Idiomas" class="animated-icon">
+                <h2 class="section-title">{{ translations.languages }}</h2>
+            </div>
             <div class="languages">
                 {% for lang in languages %}
                 <div class="language-level">
+                    <i class="fas fa-globe"></i>
                     <span>{{ lang.language }} ({{ lang.level }})</span>
                     <div class="level-bar">
                         <div class="level-fill" style="width: {{ lang.level_percentage|default:50 }}%"></div>
@@ -1316,7 +1684,8 @@
                 </div>
                 {% endfor %}
             </div>
-        {% endinclude %}
+        </section>
+        {% endif %}
 
         {% if personality_test %}
         {% include 'components/analysis_section.html' with section_id='personality-title' title=translations.personality metrics=personality_test.metrics disclaimer=personality_test.disclaimer %}
@@ -1401,84 +1770,8 @@
                         {% if identity_verification.link %}
                         <a href="{{ identity_verification.link }}" target="_blank" aria-label="Ver Detalles en INCODE">Ver Detalles en INCODE</a>
                         {% endif %}
-            {% endif %}
-
-            {% if education %}
-            {% include 'components/section.html' with section_id='education-title' title=translations.education %}
-                {% for edu in education %}
-                <article class="education">
-                    <h3 class="degree">{{ edu.degree }}</h3>
-                    <div class="institution">{{ edu.institution }}</div>
-                    <div class="field-of-study">{{ edu.field_of_study }}</div>
-                    <time class="date">{{ edu.start_date }} - {{ edu.end_date }}</time>
-                    {% if edu.grade %}
-                    <div class="grade">{{ translations.grade }}: {{ edu.grade }}</div>
-                    {% endif %}
-                    {% if edu.description %}<p>{{ edu.description }}</p>{% endif %}
+                    </div>
                 </article>
-                {% endfor %}
-            {% endinclude %}
-
-            {% if experience %}
-            {% include 'components/section.html' with section_id='experience-title' title=translations.experience %}
-                {% for exp in experience %}
-                <article class="experience">
-                    <h3 class="job-title">{{ exp.position }}</h3>
-                    <div class="company">{{ exp.company }}</div>
-                    <time class="date">{{ exp.start_date }} - {{ exp.end_date }}</time>
-                    <p class="description">{{ exp.description }}</p>
-                    {% if exp.achievements %}
-                    <div class="achievements">
-                        <ul>
-                            {% for achievement in exp.achievements %}
-                            <li>{{ achievement }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                </article>
-                {% endfor %}
-            {% endinclude %}
-
-            {% if skills %}
-            {% include 'components/section.html' with section_id='skills-title' title=translations.skills %}
-                <div class="skills">
-                    {% for skill in skills %}
-                    <div class="skill-badge" data-tooltip="{{ skill.description|default:'Sin descripción' }}">
-                        <span>{{ skill.name }}</span>
-                        {% if skill.proficiency %}
-                        <div class="skill-level">
-                            <div class="level-fill" style="width: {{ skill.proficiency|floatformat:0 }}%"></div>
-                        </div>
-                        {% endif %}
-                        {% if skill.years_experience %}
-                        <span class="years">{{ skill.years_experience }} años</span>
-                        {% endif %}
-                        {% if skill.certification %}
-                        <span class="certificate">{{ skill.certification }}</span>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            {% endinclude %}
-
-            {% if languages %}
-            {% include 'components/section.html' with section_id='languages-title' title=translations.languages %}
-                <div class="languages">
-                    {% for lang in languages %}
-                    <div class="language-level">
-                        <span>{{ lang.language }} ({{ lang.level }})</span>
-                        <div class="level-bar">
-                            <div class="level-fill" style="width: {{ lang.level_percentage|default:50 }}%"></div>
-                        </div>
-                        {% if lang.certificate %}
-                        <span class="certificate">{{ lang.certificate }}</span>
-                        {% endif %}
-                    </div>
-                            </div>
-                        </div>
-                        {% endif %}'
-                %}
                 {% endif %}
             </div>
 
@@ -1519,7 +1812,331 @@
 
     <footer>
         <img src="{{ huntred_logo_url }}" alt="Grupo huntRED®" class="huntred-logo" loading="lazy">
-        <span>Procesado por Grupo huntRED®</span>
+        <div class="footer-info">
+            <span><i class="fas fa-cogs footer-icon"></i>Procesado por Grupo huntRED®</span>
+            <span class="document-date"><i class="fas fa-calendar-alt footer-icon"></i>Generado el {{ generated_at|date:"d/m/Y H:i" }}</span>
+            {% if is_blind %}
+            <span class="blind-indicator"><i class="fas fa-eye-slash footer-icon"></i>Versión Ciega - Ref: {{ blind_identifier }}</span>
+            {% endif %}
+        </div>
     </footer>
+
+    <!-- Sección de Análisis de Carrera -->
+    <div class="career-analysis-section">
+        <div class="section-header">
+            <img src="https://cdn-icons-animated.flaticon.com/512/8617/8617214.gif" alt="Estrategia" class="animated-icon">
+            <h2 class="section-title">Análisis de Carrera</h2>
+        </div>
+        
+        <!-- Score General -->
+        <div class="analysis-card">
+            <div class="score-circle" data-score="{{ career_analysis.score }}">
+                <img src="https://cdn-icons-animated.flaticon.com/512/3496/3496018.gif" alt="Éxito" class="animated-icon">
+                <span class="score-value">{{ career_analysis.score }}%</span>
+                <span class="score-label">Potencial</span>
+            </div>
+            <div class="score-details">
+                <h3>Nivel: {{ career_analysis.level|title }}</h3>
+                <p>{{ career_analysis.recommendations[0].description }}</p>
+            </div>
+        </div>
+        
+        <!-- Gráfico de Alineación con Mercado -->
+        <div class="market-alignment-chart">
+            <canvas id="marketAlignmentChart"></canvas>
+        </div>
+        
+        <!-- Roles Recomendados -->
+        <div class="recommended-roles">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/6844/6844501.gif" alt="Radar" class="animated-icon">
+                <h3>Roles Recomendados</h3>
+            </div>
+            <div class="roles-grid">
+                {% for role in career_analysis.top_roles %}
+                <div class="role-card">
+                    <h4>{{ role.role }}</h4>
+                    <p class="company">{{ role.company }}</p>
+                    <div class="probability-bar">
+                        <div class="probability-fill" style="width: {{ role.probability * 100 }}%"></div>
+                        <span class="probability-value">{{ (role.probability * 100)|round }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Recomendaciones -->
+        <div class="recommendations-section">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/7760/7760757.gif" alt="Motivación" class="animated-icon">
+                <h3>Recomendaciones de Desarrollo</h3>
+            </div>
+            <div class="recommendations-grid">
+                {% for rec in career_analysis.recommendations %}
+                <div class="recommendation-card">
+                    <i class="fas {{ rec.icon }} recommendation-icon"></i>
+                    <h4>{{ rec.title }}</h4>
+                    <p>{{ rec.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Añadir después de la sección de análisis de carrera -->
+    {% if cultural_analysis %}
+    <div class="cultural-analysis-section">
+        <div class="section-header">
+            <img src="https://cdn-icons-animated.flaticon.com/512/8617/8617214.gif" alt="Cultura" class="animated-icon">
+            <h2 class="section-title">Análisis Cultural</h2>
+        </div>
+        
+        <!-- Score de Ajuste Cultural -->
+        <div class="cultural-fit-score">
+            <div class="score-circle" data-score="{{ cultural_analysis.alignment_score }}">
+                <img src="https://cdn-icons-animated.flaticon.com/512/3496/3496018.gif" alt="Ajuste Cultural" class="animated-icon">
+                <span class="score-value">{{ cultural_analysis.alignment_score }}%</span>
+                <span class="score-label">Ajuste Cultural</span>
+            </div>
+            <div class="score-details">
+                <h3>Nivel: {{ cultural_analysis.alignment_level }}</h3>
+                <p>{{ cultural_analysis.description }}</p>
+            </div>
+        </div>
+        
+        <!-- Dimensiones Culturales -->
+        <div class="cultural-dimensions">
+            <h3>Dimensiones Culturales</h3>
+            <div class="dimensions-grid">
+                {% for dimension, score in cultural_analysis.cultural_dimensions.items %}
+                <div class="dimension-card">
+                    <h4>{{ dimension }}</h4>
+                    <div class="dimension-score">
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: {{ score }}%"></div>
+                        </div>
+                        <span class="score-value">{{ score }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Valores Compartidos -->
+        {% if cultural_analysis.values_analysis.common_values %}
+        <div class="shared-values">
+            <h3>Valores Compartidos</h3>
+            <div class="values-grid">
+                {% for value in cultural_analysis.values_analysis.common_values %}
+                <div class="value-badge">
+                    <i class="fas fa-check-circle"></i>
+                    {{ value }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Recomendaciones Culturales -->
+        {% if cultural_analysis.recommendations %}
+        <div class="cultural-recommendations">
+            <h3>Recomendaciones de Desarrollo Cultural</h3>
+            <div class="recommendations-list">
+                {% for rec in cultural_analysis.recommendations %}
+                <div class="recommendation-item">
+                    <i class="fas {{ rec.icon }}"></i>
+                    <div class="recommendation-content">
+                        <h4>{{ rec.title }}</h4>
+                        <p>{{ rec.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Añadir después de la sección de dimensiones culturales -->
+    <div class="cultural-dimensions-chart">
+        <h3>Análisis Comparativo de Dimensiones Culturales</h3>
+        <div class="chart-container">
+            <canvas id="culturalDimensionsChart"></canvas>
+        </div>
+        <div class="chart-legend">
+            <div class="legend-item">
+                <span class="legend-color" style="background: rgba(76, 175, 80, 0.2); border: 2px solid rgba(76, 175, 80, 1);"></span>
+                <span>Candidato</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: rgba(33, 150, 243, 0.2); border: 2px solid rgba(33, 150, 243, 1);"></span>
+                <span>Población General</span>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <img src="{{ huntred_logo_url }}" alt="Grupo huntRED®" class="huntred-logo" loading="lazy">
+    <div class="footer-info">
+        <span><i class="fas fa-cogs footer-icon"></i>Procesado por Grupo huntRED®</span>
+        <span class="document-date"><i class="fas fa-calendar-alt footer-icon"></i>Generado el {{ generated_at|date:"d/m/Y H:i" }}</span>
+        {% if is_blind %}
+        <span class="blind-indicator"><i class="fas fa-eye-slash footer-icon"></i>Versión Ciega - Ref: {{ blind_identifier }}</span>
+        {% endif %}
+    </div>
+</footer>
+
+<!-- Scripts JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="application/json" id="chartData">
+{
+  "market_alignment": {
+    "skills_score": {{ career_analysis.market_alignment.skills_score|default:0|safe }},
+    "experience_score": {{ career_analysis.market_alignment.experience_score|default:0|safe }},
+    "salary_score": {{ career_analysis.market_alignment.salary_score|default:0|safe }},
+    "personality_score": {{ career_analysis.market_alignment.personality_score|default:0|safe }}
+  },
+  "cultural_dimensions": {
+    "hierarchy_horizontal": {{ cultural_analysis.cultural_dimensions.hierarchy_horizontal|default:0.5|safe }},
+    "individualism_collectivism": {{ cultural_analysis.cultural_dimensions.individualism_collectivism|default:0.5|safe }},
+    "results_process": {{ cultural_analysis.cultural_dimensions.results_process|default:0.5|safe }},
+    "short_long_term": {{ cultural_analysis.cultural_dimensions.short_long_term|default:0.5|safe }},
+    "stability_innovation": {{ cultural_analysis.cultural_dimensions.stability_innovation|default:0.5|safe }},
+    "formality_informality": {{ cultural_analysis.cultural_dimensions.formality_informality|default:0.5|safe }}
+  },
+  "population_averages": {
+    "hierarchy_horizontal": {{ cultural_analysis.population_averages.hierarchy_horizontal|default:0.5|safe }},
+    "individualism_collectivism": {{ cultural_analysis.population_averages.individualism_collectivism|default:0.5|safe }},
+    "results_process": {{ cultural_analysis.population_averages.results_process|default:0.5|safe }},
+    "short_long_term": {{ cultural_analysis.population_averages.short_long_term|default:0.5|safe }},
+    "stability_innovation": {{ cultural_analysis.population_averages.stability_innovation|default:0.5|safe }},
+    "formality_informality": {{ cultural_analysis.population_averages.formality_informality|default:0.5|safe }}
+  }
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const chartData = JSON.parse(document.getElementById('chartData').textContent);
+        
+        // Gráfico de Alineación con Mercado
+        const marketAlignmentCtx = document.getElementById('marketAlignmentChart');
+        if (marketAlignmentCtx) {
+            const marketData = [
+                chartData.market_alignment.skills_score,
+                chartData.market_alignment.experience_score,
+                chartData.market_alignment.salary_score,
+                chartData.market_alignment.personality_score
+            ];
+            
+            new Chart(marketAlignmentCtx.getContext('2d'), {
+            type: 'radar',
+            data: {
+                labels: ['Habilidades', 'Experiencia', 'Salario', 'Personalidad'],
+                datasets: [{
+                    label: 'Alineación con Mercado',
+                    data: marketData,
+                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                borderColor: 'rgba(76, 175, 80, 1)',
+                pointBackgroundColor: 'rgba(76, 175, 80, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(76, 175, 80, 1)'
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 1
+                }
+            }
+        }
+    });
+    
+    // Animación de barras de probabilidad
+    const probabilityBars = document.querySelectorAll('.probability-fill');
+    probabilityBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 100);
+    });
+
+    // Gráfico de Dimensiones Culturales
+    const culturalCtx = document.getElementById('culturalDimensionsChart').getContext('2d');
+    new Chart(culturalCtx, {
+        type: 'radar',
+        data: {
+            labels: [
+                'Jerarquía vs. Horizontalidad',
+                'Individualismo vs. Colectivismo',
+                'Orientación a Resultados vs. Procesos',
+                'Enfoque a Corto vs. Largo Plazo',
+                'Estabilidad vs. Innovación',
+                'Formalidad vs. Informalidad'
+            ],
+            datasets: [{
+                label: 'Candidato',
+                data: [
+                    chartData.cultural_dimensions.hierarchy_horizontal,
+                    chartData.cultural_dimensions.individualism_collectivism,
+                    chartData.cultural_dimensions.results_process,
+                    chartData.cultural_dimensions.short_long_term,
+                    chartData.cultural_dimensions.stability_innovation,
+                    chartData.cultural_dimensions.formality_informality
+                ],
+                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                borderColor: 'rgba(76, 175, 80, 1)',
+                pointBackgroundColor: 'rgba(76, 175, 80, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(76, 175, 80, 1)'
+            },
+            {
+                label: 'Población General',
+                data: [
+                    chartData.population_averages.hierarchy_horizontal,
+                    chartData.population_averages.individualism_collectivism,
+                    chartData.population_averages.results_process,
+                    chartData.population_averages.short_long_term,
+                    chartData.population_averages.stability_innovation,
+                    chartData.population_averages.formality_informality
+                ],
+                backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                borderColor: 'rgba(33, 150, 243, 1)',
+                pointBackgroundColor: 'rgba(33, 150, 243, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(33, 150, 243, 1)'
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        stepSize: 20
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar los gráficos:', error);
+    }
+});
+</script>
 </body>
 </html>
