@@ -24,8 +24,8 @@ from app.com.utils.parser import CVParser
 from app.com.utils.linkedin import LinkedInScraper
 from app.models import (
     BusinessUnit, Person,
-    ChatConversation, ChatMessage, Notification,
-    Metric, WorkflowStatus, ChannelSettings
+    Conversation, ChatMessage, SystemNotification,
+    SystemMetric, WorkflowStatus, ChannelSettings
 )
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage

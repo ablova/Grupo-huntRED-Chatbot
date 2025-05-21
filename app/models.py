@@ -4351,6 +4351,56 @@ class ChannelSettings(models.Model):
         
         return config
 
+class Conversation(models.Model):
+    """
+    Modelo para almacenar conversaciones del chatbot.
+    Mantiene el estado y contexto de las interacciones.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='conversations')
+    channel = models.CharField(max_length=50)  # whatsapp, telegram, etc.
+    state = models.CharField(max_length=100, default='initial')
+    context = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'channel']),
+            models.Index(fields=['state']),
+            models.Index(fields=['created_at'])
+        ]
+
+    def __str__(self):
+        return f"Conversation {self.id} - {self.user} via {self.channel}"
+
+class ChatMessage(models.Model):
+    """
+    Modelo para almacenar mensajes individuales de las conversaciones.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    content = models.TextField()
+    direction = models.CharField(max_length=10)  # incoming, outgoing
+    message_type = models.CharField(max_length=50)  # text, image, document, etc.
+    metadata = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, default='sent')  # sent, delivered, read, failed
+
+    class Meta:
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['conversation', 'created_at']),
+            models.Index(fields=['direction']),
+            models.Index(fields=['status'])
+        ]
+
+    def __str__(self):
+        return f"Message {self.id} - {self.direction} in {self.conversation}"
+
 
 
 
