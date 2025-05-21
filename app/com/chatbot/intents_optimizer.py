@@ -3,7 +3,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from functools import lru_cache
 import re
-from app.com.chatbot.channel_config import ChannelConfig
+from aapp.com.chatbot.components.channel_config import ChannelConfig
 from app.com.chatbot.metrics import chatbot_metrics
 
 logger = logging.getLogger(__name__)

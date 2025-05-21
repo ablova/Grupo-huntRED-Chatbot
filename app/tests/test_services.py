@@ -28,7 +28,7 @@ class TestMessageService(TestCase):
 
     def test_rate_limiting(self):
         """Test limitación de tasa"""
-        from app.com.chatbot.integrations.services import RateLimiter
+        from app.com.chatbot.components.rate_limiter import RateLimiter
         
         limiter = RateLimiter(max_requests=1, time_window=1)
         

@@ -44,7 +44,7 @@ def test_direct_imports():
         
         # Módulos de chatbot
         'app.com.chatbot.rate_limiter',
-        'app.com.chatbot.channel_config',
+        'app.com.chatbot.components.channel_config',
         'app.com.chatbot.chatbot',
         'app.com.chatbot.chat_state_manager',
         'app.com.chatbot.response_generator',

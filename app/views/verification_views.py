@@ -15,9 +15,10 @@ import logging
 from datetime import datetime
 
 from app.models import (
-    Candidate, BackgroundCheck, RiskAnalysis, INCODEVerification,
+    Candidate, BackgroundCheck, INCODEVerification,
     VerificationStatus, RiskLevel, VerificationType
 )
+from app.com.chatbot.components.risk_analysis import RiskAnalysis
 from app.verification.tasks import process_verification
 from app.verification.utils import (
     get_verification_processor, analyze_risk, verify_incode

@@ -11,14 +11,14 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 try:
     print("Probando importación directa de RateLimiter...")
-    from app.com.chatbot.rate_limiter import RateLimiter
+    from app.com.chatbot.components.rate_limiter import RateLimiter
     print("✅ Importación de RateLimiter exitosa")
 except Exception as e:
     print(f"❌ Error al importar RateLimiter: {e}")
 
 try:
     print("Probando importación directa de ChannelConfig...")
-    from app.com.chatbot.channel_config import ChannelConfig
+    from app.com.chatbot.components.channel_config import ChannelConfig
     print("✅ Importación de ChannelConfig exitosa")
 except Exception as e:
     print(f"❌ Error al importar ChannelConfig: {e}")

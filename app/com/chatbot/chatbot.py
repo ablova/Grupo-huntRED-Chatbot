@@ -17,8 +17,8 @@ from app.com.chatbot.components.context_manager import ContextManager
 from app.com.chatbot.response_generator import ResponseGenerator
 from app.com.chatbot.chat_state_manager import ChatStateManager
 from app.com.chatbot.gpt import GPTHandler
-from app.com.chatbot.channel_config import ChannelConfig
-from app.com.chatbot.rate_limiter import RateLimiter
+from app.com.chatbot.components.channel_config import ChannelConfig
+from app.com.chatbot.components.rate_limiter import RateLimiter
 from app.com.chatbot.integrations.services import MessageService
 from app.com.chatbot.service import GamificationService
 from app.com.chatbot.integrations.document_processor import CVParser

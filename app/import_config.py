@@ -426,12 +426,12 @@ def get_gpt_handler():
 
 def get_channel_config():
     """Get channel configuration."""
-    from app.com.utils.channel_config import ChannelConfig
+    from app.com.chatbot.components.channel_config import ChannelConfig
     return ChannelConfig
 
 def get_rate_limiter():
     """Get RateLimiter instance."""
-    from app.com.utils.rate_limiter import RateLimiter
+    from app.com.chatbot.components.rate_limiter import RateLimiter
     return RateLimiter
 
 # Funciones de workflow

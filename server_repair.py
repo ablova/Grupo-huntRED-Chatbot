@@ -37,7 +37,7 @@ if not compatibility_logger.handlers:
 SERVER_ROOT = Path(os.path.dirname(os.path.abspath(__file__)))
 APP_ROOT = SERVER_ROOT / "app"
 IMPORT_CONFIG_PATH = APP_ROOT / "import_config.py"
-CHANNEL_CONFIG_PATH = APP_ROOT / "com" / "chatbot" / "channel_config.py"
+CHANNEL_CONFIG_PATH = APP_ROOT / "com" / "chatbot" / "components" / "channel_config.py"
 
 def create_channel_config():
     """

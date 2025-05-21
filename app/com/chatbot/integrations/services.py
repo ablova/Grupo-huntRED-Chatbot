@@ -27,7 +27,7 @@ from app.models import (
     InstagramAPI, MessengerAPI, ChatState, Person,
     EnhancedNetworkGamificationProfile
 )
-
+from app.com.chatbot.integrations.rate_limiter import RateLimiter
 # Importaciones directas siguiendo estándares de Django
 # Import handlers at runtime to avoid circular imports
 def get_whatsapp_handler():
@@ -257,26 +257,6 @@ class InstagramUserDataFetcher(UserDataFetcher):
 class SlackUserDataFetcher(UserDataFetcher):
     async def fetch(self, user_id: str, api_instance: SlackAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
         return await fetch_slack_user_data(user_id, api_instance, payload)
-
-class RateLimiter:
-    def __init__(self, max_requests=10, time_window=60):
-        self.max_requests = max_requests
-        self.time_window = time_window
-
-    async def check_rate_limit(self, user_id: str) -> bool:
-        cache_key = f"rate_limit:{user_id}"
-        current_time = time.time()
-        request_history = cache.get(cache_key, [])
-        request_history = [t for t in request_history if current_time - t < self.time_window]
-        
-        if len(request_history) >= self.max_requests:
-            logger.warning(f"Rate limit excedido para user_id={user_id}")
-            cache.set(cache_key, request_history, timeout=self.time_window)
-            return False
-        
-        request_history.append(current_time)
-        cache.set(cache_key, request_history, timeout=self.time_window)
-        return True
 
 async def apply_rate_limit(platform: str, user_id: str, message: dict) -> bool:
     limiter = RateLimiter(max_requests=10, time_window=60)

@@ -2,7 +2,7 @@ import asyncio
 from typing import Callable, Dict, Any, Optional
 from functools import wraps
 import logging
-from app.com.chatbot.channel_config import ChannelConfig
+from aapp.com.chatbot.components.channel_config import ChannelConfig
 
 logger = logging.getLogger(__name__)
 
