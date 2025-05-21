@@ -16,7 +16,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from asgiref.sync import sync_to_async
 
-from app.com.chatbot.utils import get_nlp_processor
+from app.com.chatbot.utils import ChatbotUtils
+get_nlp_processor = ChatbotUtils.get_nlp_processor
 from app.com.chatbot.components.metrics import chatbot_metrics
 from app.com.chatbot.components.events import workflow_event_manager
 from app.com.utils.parser import CVParser

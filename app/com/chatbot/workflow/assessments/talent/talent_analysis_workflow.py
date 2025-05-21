@@ -118,7 +118,7 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             self.phases_data["discovery"]["started_at"] = datetime.now().isoformat()
             return (
                 "👋 Bienvenido al Análisis de Talento 360° de Grupo huntRED®. "
-                "Este proceso nos permitirá obtener insights valiosos sobre el talento individual o de equipo. "
+                "Este proceso nos permitirá obtener insights valiosos sobre el talento individual y/o de equipo. "
                 "\n\n¿Qué tipo de análisis te gustaría realizar?\n"
                 "1️⃣ Análisis de Sinergia de Equipo\n"
                 "2️⃣ Análisis de Trayectoria Profesional\n"

@@ -19,7 +19,8 @@ from playwright.async_api import async_playwright, Browser, Page
 from playwright.sync_api import sync_playwright
 from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
-from app.com.chatbot.utils import get_nlp_processor  # Importar desde utils.py
+from app.com.chatbot.utils import ChatbotUtils
+get_nlp_processor = ChatbotUtils.get_nlp_processor  # Importar desde utils.py
 from app.com.utils.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish

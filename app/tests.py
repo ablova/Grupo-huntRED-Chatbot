@@ -10,7 +10,8 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from app.models import BusinessUnit, Person, ChatState, GptApi
 from app.com.chatbot.chatbot import ChatBotHandler
 from app.com.chatbot.gpt import GPTHandler
-from app.com.chatbot.utils import get_nlp_processor  # Reemplazar importación
+from app.com.chatbot.utils import ChatbotUtils
+get_nlp_processor = ChatbotUtils.get_nlp_processor  # Reemplazar importación
 from app.com.chatbot.utils import fetch_data_from_url, validate_request_data
 from app.com.utils.vacantes import VacanteManager, procesar_vacante
 from django.db import connections

@@ -1,8 +1,8 @@
 """
-Sistema de Conexión con Mentores.
+Matcher de Mentores.
 
-Este módulo proporciona emparejamiento algoritmo de candidatos con mentores
-basado en objetivos profesionales, personalidades compatibles y experiencia relevante.
+Este módulo analiza y empareja candidatos con mentores óptimos
+basándose en múltiples factores como experiencia, habilidades y compatibilidad.
 """
 
 import logging
@@ -15,19 +15,24 @@ import numpy as np
 from asgiref.sync import sync_to_async
 from django.conf import settings
 
-from app.models import Person, Mentor, MentorSkill, MentorSession
+from app.models import Person, Mentor, MentorSkill, MentorSession, Skill, SkillAssessment, BusinessUnit
 from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
-from app.com.chatbot.workflow.personality import PersonalityAnalyzer
+from app.com.chatbot.workflow.assessments.personality import PersonalityAnalysis
+from app.com.chatbot.workflow.assessments.professional_dna import ProfessionalDNAAnalysis
+from app.com.chatbot.workflow.assessments.cultural import CulturalAnalysis
+from app.com.chatbot.workflow.assessments.generational import GenerationalAnalysis
 from app.com.chatbot.core.values import ValuesPrinciples
+from app.com.chatbot.core.principles import PrinciplesAnalyzer
+from app.com.chatbot.core.purpose import PurposeAnalyzer
 
 logger = logging.getLogger(__name__)
 
 class MentorMatcher:
     """
-    Sistema de emparejamiento algorítmico con mentores ideales.
+    Analiza y empareja candidatos con mentores óptimos.
     
-    Analiza perfiles de mentores y candidatos para crear conexiones
-    óptimas basadas en múltiples factores de compatibilidad.
+    Integra múltiples factores para determinar la mejor compatibilidad
+    entre mentor y mentee.
     """
     
     # Factores de compatibilidad y sus pesos
@@ -45,11 +50,16 @@ class MentorMatcher:
         "Emprendimiento", "Equilibrio vida-trabajo", "Networking"
     ]
     
-    def __init__(self):
-        """Inicializa el emparejador de mentores."""
+    def __init__(self, business_unit: str = None):
+        self.business_unit = business_unit
         self.trajectory_analyzer = TrajectoryAnalyzer()
-        self.personality_analyzer = PersonalityAnalyzer()
+        self.personality_analysis = PersonalityAnalysis()
+        self.professional_dna = ProfessionalDNAAnalysis()
+        self.cultural_analysis = CulturalAnalysis()
+        self.generational_analysis = GenerationalAnalysis()
         self.values_principles = ValuesPrinciples()
+        self.principles_analyzer = PrinciplesAnalyzer()
+        self.purpose_analyzer = PurposeAnalyzer()
         
     async def find_optimal_mentors(self, 
                                  person_id: int, 
@@ -160,7 +170,7 @@ class MentorMatcher:
             ]
             
             # Obtener análisis de personalidad
-            personality = await self.personality_analyzer.analyze_personality(person_id)
+            personality = await self.personality_analysis.analyze_personality(person_id)
             
             # Obtener trayectoria profesional
             trajectory = await self.trajectory_analyzer.predict_optimal_path(

@@ -18,7 +18,8 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from docx import Document
 from asgiref.sync import sync_to_async
-from app.com.chatbot.utils import get_nlp_processor
+from app.com.chatbot.utils import ChatbotUtils
+get_nlp_processor = ChatbotUtils.get_nlp_processor
 from app.com.chatbot.nlp import NLPProcessor
 from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation, Vacante
 from app.com.chatbot.integrations.services import send_email, send_message, send_notification

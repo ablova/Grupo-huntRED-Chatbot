@@ -16,7 +16,8 @@ from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
-from app.com.chatbot.utils import get_nlp_processor  # Importar desde utils.py
+from app.com.chatbot.utils import ChatbotUtils
+get_nlp_processor = ChatbotUtils.get_nlp_processor  # Importar desde utils.py
 from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
 from app.com.chatbot.integrations.services import send_email, send_message
 from app.ml.core.models.matchmaking.matchmaking import MatchmakingModel

@@ -1,15 +1,17 @@
-# /home/pablo/app/com/utils/nlp.py
 import spacy
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict, Optional, Any, Union, Tuple
 import logging
 import time
 import functools
 from django.core.cache import cache
 import re
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+from cachetools import TTLCache
 
 from app.models import Person, Vacante, BusinessUnit
 from app.com.utils.skills import create_skill_processor
@@ -17,22 +19,39 @@ from app.com.utils.skills.base import Skill, Competency
 
 logger = logging.getLogger(__name__)
 
+# Configuración de caché
+CACHE_SIZE = 1000
+CACHE_TTL = 3600  # 1 hora
+EMBEDDING_CACHE_TTL = 3600  # 1 hora
+ANALYSIS_CACHE_TTL = 300    # 5 minutos
+
+# Configuración de modelos
+MODEL_CONFIG = {
+    'es': 'es_core_news_md',  # Modelo español mediano para mejor rendimiento
+    'en': 'en_core_web_md',   # Modelo inglés mediano para mejor rendimiento
+}
+
+# Caché global para modelos de spaCy
+SPACY_MODELS = {}
+
 # Intenta importar psutil para monitoreo de recursos (opcional)
 try:
     import psutil
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
-    
-# Caché global para modelos de spaCy para evitar carga repetida
-SPACY_MODELS = {}
-
-# Caché para embeddings y análisis
-EMBEDDING_CACHE_TTL = 3600  # 1 hora
-ANALYSIS_CACHE_TTL = 300    # 5 minutos
 
 class NLPProcessor:
-    """Procesador de lenguaje natural para análisis de texto."""
+    """
+    Procesador de lenguaje natural mejorado con soporte para múltiples modos y profundidades.
+    
+    Características principales:
+    - Procesamiento rápido con spaCy para modo 'quick'
+    - Análisis profundo con transformers para modo 'deep'
+    - Caché de resultados para mejor rendimiento
+    - Soporte multilingüe (es, en)
+    - Procesamiento en paralelo para mejor rendimiento
+    """
     
     def __init__(self, business_unit: BusinessUnit, language: str = "es", mode: str = "opportunity", analysis_depth: str = "deep"):
         """
@@ -48,82 +67,162 @@ class NLPProcessor:
         self.language = language
         self.mode = mode
         self.analysis_depth = analysis_depth
+        self.cache = TTLCache(maxsize=CACHE_SIZE, ttl=CACHE_TTL)
+        self.thread_pool = ThreadPoolExecutor(max_workers=4)
+        self._nlp = None  # Se inicializa bajo demanda
         
-        # Validar parámetros
-        if mode not in ["opportunity", "candidate"]:
-            raise ValueError(f"Modo no válido: {mode}. Debe ser 'opportunity' o 'candidate'")
-        if analysis_depth not in ["quick", "deep"]:
-            raise ValueError(f"Profundidad no válida: {analysis_depth}. Debe ser 'quick' o 'deep'")
+    async def initialize(self):
+        """Inicializa los recursos del procesador de forma asíncrona."""
+        await self._load_models()
+        
+    async def _load_models(self):
+        """Carga los modelos necesarios de forma asíncrona."""
+        # Cargar modelo spaCy en segundo plano
+        await asyncio.get_event_loop().run_in_executor(
+            self.thread_pool,
+            self._get_nlp
+        )
+        
+        # Cargar otros modelos según sea necesario
+        if self.analysis_depth == 'deep':
+            await self._load_deep_models()
             
-        # Inicializar procesadores
-        self.spacy_model = self._load_spacy_model()
+    def _get_nlp(self):
+        """Obtiene el modelo spaCy, cargándolo si es necesario."""
+        if self._nlp is None:
+            if self.language not in SPACY_MODELS:
+                SPACY_MODELS[self.language] = spacy.load(MODEL_CONFIG[self.language])
+            self._nlp = SPACY_MODELS[self.language]
+        return self._nlp
+        
+    async def _load_deep_models(self):
+        """Carga modelos más pesados para análisis profundo."""
+        # Implementar carga de modelos de transformadores bajo demanda
+        if self.analysis_depth == 'deep':
+            try:
+                # Cargar modelos de transformadores solo cuando sean necesarios
+                import torch
+                from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
+                
+                self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
+                logger.info(f"Cargando modelos profundos en dispositivo: {self._device}")
+                
+                # Cargar modelos según el idioma
+                if self.language == 'es':
+                    model_name = 'PlanTL-GOB-ES/roberta-base-bne'
+                else:  # 'en'
+                    model_name = 'roberta-base'
+                    
+                # Cargar modelo y tokenizador
+                self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+                self._model = AutoModelForSequenceClassification.from_pretrained(model_name)
+                self._model.to(self._device)
+                
+                # Inicializar pipelines para tareas específicas
+                self._sentiment_analyzer = pipeline(
+                    'sentiment-analysis',
+                    model=self._model,
+                    tokenizer=self._tokenizer,
+                    device=0 if self._device == 'cuda' else -1
+                )
+                
+                logger.info("Modelos profundos cargados exitosamente")
+                
+            except ImportError:
+                logger.warning("No se pudieron cargar los modelos de transformadores. Instala transformers y torch.")
+                self.analysis_depth = 'quick'  # Revertir a modo rápido
+        
+        # Inicializar procesador de habilidades
         self.skill_processor = create_skill_processor(
-            business_unit.name,
-            language=language,
-            mode='executive' if business_unit.name == 'huntRED Executive' else 'technical'
+            business_unit=self.business_unit,
+            language=self.language
         )
         
         # Inicializar vectorizador TF-IDF
         self.vectorizer = TfidfVectorizer(
             max_features=1000,
-            stop_words='english' if language == 'en' else 'spanish'
+            stop_words='english' if self.language == 'en' else 'spanish'
         )
         
-        # Inicializar modelos adicionales según el modo
-        self._initialize_models()
+    async def _get_cache_key(self, prefix: str, *args) -> str:
+        """Genera una clave de caché consistente."""
+        key_parts = [prefix, self.language, self.mode, self.analysis_depth] + list(args)
+        return '|'.join(str(part) for part in key_parts)
         
-    def _initialize_models(self):
-        """Inicializa modelos adicionales para análisis profundo."""
-        if self.mode == "opportunity":
-            # Modelos específicos para análisis de ofertas
-            self.job_classifier = JobClassifier()
-            self.salary_estimator = SalaryEstimator()
-            self.requirement_extractor = RequirementExtractor()
-            self.benefit_extractor = BenefitExtractor()
-            self.location_analyzer = LocationAnalyzer()
-            self.remote_analyzer = RemoteWorkAnalyzer()
-            self.contract_type_analyzer = ContractTypeAnalyzer()
-        else:  # candidate
-            # Modelos específicos para análisis de candidatos
-            self.education_extractor = EducationExtractor()
-            self.experience_analyzer = ExperienceAnalyzer()
-            self.skill_matcher = SkillMatcher()
-            self.cultural_fit_analyzer = CulturalFitAnalyzer()
-            self.language_analyzer = LanguageAnalyzer()
-            self.availability_analyzer = AvailabilityAnalyzer()
-            self.relocation_analyzer = RelocationAnalyzer()
+    async def analyze_sentiment(self, text: str) -> Dict[str, Any]:
+        """
+        Analiza el sentimiento del texto proporcionado con soporte para caché.
+        
+        Args:
+            text: Texto a analizar
             
-    def _load_spacy_model(self):
-        """Carga el modelo de Spacy según el idioma y profundidad."""
-        # Seleccionar modelo según profundidad
-        if self.analysis_depth == "quick":
-            model_name = "es_core_news_sm" if self.language == "es" else "en_core_web_sm"
+        Returns:
+            Dict con los resultados del análisis de sentimiento
+        """
+        cache_key = self._get_cache_key('sentiment', text)
+        
+        # Verificar caché primero
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+            
+        start_time = time.time()
+        
+        # Usar el modelo de sentimiento apropiado según la profundidad
+        if self.analysis_depth == "deep":
+            # Análisis profundo con modelo de transformadores
+            if hasattr(self, '_sentiment_analyzer'):
+                result = await self._analyze_sentiment_deep(text)
+            else:
+                logger.warning("Modo profundo no disponible, usando análisis rápido")
+                result = await self._analyze_sentiment_quick(text)
         else:
-            model_name = "es_core_news_md" if self.language == "es" else "en_core_web_md"
+            # Análisis rápido con spaCy
+            result = await self._analyze_sentiment_quick(text)
             
-        # Verificar si ya está en caché global
-        if model_name in SPACY_MODELS:
-            logger.debug(f"Usando modelo {model_name} desde caché global")
-            return SPACY_MODELS[model_name]
+        execution_time = time.time() - start_time
+        result['execution_time'] = execution_time
         
-        # Monitorear recursos disponibles
-        should_use_light_model = False
         if PSUTIL_AVAILABLE:
-            mem = psutil.virtual_memory()
-            if mem.available < 500 * 1024 * 1024:  # Menos de 500MB disponibles
-                should_use_light_model = True
-                logger.warning(f"Memoria baja ({mem.available/1024/1024:.1f}MB), usando modelo ligero")
-                model_name = model_name.replace("_md", "_sm")
+            result['memory_usage'] = psutil.Process().memory_info().rss / 1024 / 1024  # MB
         
-        # Cargar modelo con componentes selectivos
-        disabled_components = ["ner"] if self.analysis_depth == "quick" else []
-        model = spacy.load(model_name, disable=disabled_components)
+        # Almacenar en caché
+        self.cache[cache_key] = result
+            
+        return result
         
-        # Guardar en caché global
-        SPACY_MODELS[model_name] = model
-        logger.info(f"Modelo {model_name} cargado y almacenado en caché global")
+    async def _analyze_sentiment_deep(self, text: str) -> Dict[str, Any]:
+        """Realiza el análisis de sentimiento profundo con modelos de transformadores."""
+        # Preprocesar texto
+        inputs = self._tokenizer(text, return_tensors='pt')
+        inputs = {k: v.to(self._device) for k, v in inputs.items()}
         
-        return model
+        # Realizar inferencia
+        outputs = self._model(**inputs)
+        scores = outputs.logits.detach().cpu().numpy()[0]
+        
+        # Obtener etiquetas de sentimiento
+        labels = ['NEGATIVE', 'NEUTRAL', 'POSITIVE']
+        sentiment = labels[np.argmax(scores)]
+        
+        return {
+            'sentiment': sentiment,
+            'score': scores.max()
+        }
+        
+    async def _analyze_sentiment_quick(self, text: str) -> Dict[str, Any]:
+        """Realiza el análisis de sentimiento rápido con spaCy."""
+        # Implementación básica de sentimiento
+        positive_words = ["excelente", "bueno", "satisfactorio", "positivo"]
+        negative_words = ["pobre", "malo", "insatisfactorio", "negativo"]
+        
+        words = [token.text.lower() for token in self._nlp(text)]
+        positive_count = sum(1 for word in words if word in positive_words)
+        negative_count = sum(1 for word in words if word in negative_words)
+        
+        return {
+            'sentiment': 'POSITIVE' if positive_count > negative_count else 'NEGATIVE',
+            'score': (positive_count - negative_count) / len(words) if words else 0
+        }
         
     async def analyze(self, text: str) -> Dict:
         """
@@ -139,7 +238,7 @@ class NLPProcessor:
             return self._get_empty_result()
             
         # Verificar caché
-        cache_key = f"nlp:analysis:{self.business_unit.id}:{self.mode}:{self.analysis_depth}:{hash(text[:200])}"
+        cache_key = self._get_cache_key('analysis', text)
         cached_result = cache.get(cache_key)
         if cached_result:
             logger.debug(f"Resultado obtenido de caché para BU '{self.business_unit.name}'")

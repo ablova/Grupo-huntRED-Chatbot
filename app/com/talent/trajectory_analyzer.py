@@ -18,7 +18,9 @@ from sklearn.preprocessing import StandardScaler
 
 from app.models import Person, Career, Skill, SkillAssessment, BusinessUnit
 from app.com.utils.cv_generator.career_analyzer import CVCareerAnalyzer
-from app.com.chatbot.core.values import ValuesPrinciples
+from app.com.chatbot.workflow.assessments.personality import PersonalityAnalysis
+from app.com.chatbot.workflow.assessments.professional_dna import ProfessionalDNAAnalysis
+from app.com.chatbot.workflow.assessments.cultural import CulturalAnalysis
 from app.com.ml.skill_classifier import SkillClassifier
 
 logger = logging.getLogger(__name__)

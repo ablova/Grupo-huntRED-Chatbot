@@ -77,8 +77,11 @@ class CulturalFitWorkflow(BaseWorkflow):
             "apoyarte en tu trayectoria profesional y encontrar un entorno donde puedas "
             "sentirte realizado y aportar todo tu potencial.\n\n"
             "🌟 Basado en nuestros valores de Apoyo, Solidaridad y Sinergia, este análisis "
-            "nos permitirá conocerte de manera más integral.\n\n"
-            "¿Estás listo para comenzar? Solo te tomará unos minutos."
+            "nos permitirá conocerte de manera más integral llegando a un mejor entendimiento "
+            "de tu perfil y tus necesidades.\n\n"
+            "¿Estás listo para comenzar? Solo te tomará unos minutos y los aportes al sistema "
+            "serán de gran ayuda para tu desarrollo profesional y podremos ofrecerte mejores "
+            "oportunidades de crecimiento y desarrollo, alineadas a tus valores e intereses."
         )
         
         self.state = "AWAITING_START_CONFIRMATION"
