@@ -1448,11 +1448,11 @@ def get_skill_analyzer(*args, **kwargs):
 def get_values_integrator(*args, **kwargs):
     """Obtiene una instancia o referencia para values integrator con importación diferida."""
     try:
-        # Intentar importar desde el módulo esperado
+        # Intentar importar desde el nuevo módulo de valores
         try:
-            from app.com.chatbot.core.values import ValuesIntegrator
-            logger.info(f"[AUTO-GEN] get_values_integrator importado desde app.com.chatbot.core.values")
-            return ValuesIntegrator
+            from app.com.chatbot.values import ValuesChatMiddleware
+            logger.info(f"[AUTO-GEN] get_values_integrator importado desde app.com.chatbot.values")
+            return ValuesChatMiddleware
         except ImportError as e:
             # Implementación genérica como fallback
             logger.warning(f"Error importando ValuesIntegrator desde app.com.chatbot.core.values. Usando implementación genérica: {e}")

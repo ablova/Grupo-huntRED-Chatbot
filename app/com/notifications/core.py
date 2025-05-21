@@ -1,3 +1,4 @@
+# /home/pablo/app/com/notifications/core.py
 """
 Funciones core del sistema de notificaciones.
 
@@ -26,7 +27,7 @@ from app.com.notifications.handlerstemplates import get_notification_template
 
 logger = logging.getLogger('notifications')
 
-def _get_handlers_for_recipient(recipient: Person, notification_type: str, business_unit: BusinessUnit) -> Dict[str, NotificationHandler]:
+async def _get_handlers_for_recipient(recipient: Person, notification_type: str, business_unit: BusinessUnit) -> Dict[str, NotificationHandler]:
     """
     Obtiene los manejadores de notificación apropiados para el destinatario
     basándose en sus preferencias.
@@ -45,7 +46,7 @@ def _get_handlers_for_recipient(recipient: Person, notification_type: str, busin
     
     try:
         # Obtenemos las preferencias para este tipo de notificación y unidad de negocio
-        pref = NotificationPreference.objects.get(
+        pref = await sync_to_async(NotificationPreference.objects.get)(
             user=user,
             notification_type=notification_type,
             business_unit=business_unit
@@ -151,7 +152,7 @@ async def send_notification(
     
     # Determinamos los canales a usar
     if not channels:
-        handlers = _get_handlers_for_recipient(recipient, notification_type, business_unit)
+        handlers = await _get_handlers_for_recipient(recipient, notification_type, business_unit)
     else:
         handlers = {}
         for channel in channels:

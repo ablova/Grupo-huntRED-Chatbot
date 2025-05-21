@@ -1,5 +1,5 @@
 import asyncio
-import aioredis
+from redis.asyncio import Redis
 import json
 from typing import Any, Optional, Dict
 from datetime import datetime, timedelta

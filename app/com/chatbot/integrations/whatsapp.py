@@ -20,8 +20,12 @@ from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, WhatsAppAPI, ChatState
 # Importaciones directas siguiendo estándares de Django
-from app.com.chatbot.chat_state_manager import ChatStateManager
-from app.com.chatbot.intents_handler import IntentProcessor
+
+# Import at runtime to avoid circular imports
+def get_intent_processor():
+    from app.com.chatbot.intents_handler import IntentProcessor
+    return IntentProcessor
+
 from app.com.chatbot.integrations.document_processor import DocumentProcessor
 
 logger = logging.getLogger('chatbot')
@@ -39,6 +43,7 @@ class WhatsAppHandler:
         self.phone_number_id = phone_number_id
         self.business_unit = business_unit
         self.user: Optional[Person] = None
+        from app.com.chatbot.chat_state_manager import ChatStateManager
         self.chat_manager = ChatStateManager()
         self.intent_processor = IntentProcessor()
         self.whatsapp_api: Optional[WhatsAppAPI] = None

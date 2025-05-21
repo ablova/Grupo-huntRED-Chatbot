@@ -27,7 +27,12 @@ from app.models import (
     WorkflowStage, ConfiguracionBU, Template
 )
 from app.com.chatbot.utils import ChatbotUtils
-from app.com.chatbot.integrations.services import send_message, send_smart_options, send_options, send_menu
+from app.com.chatbot.integrations.message_sender import (
+    send_message, 
+    send_smart_options, 
+    send_options, 
+    send_menu
+)
 from app.com.chatbot.workflow.common import (
     calcular_salario_chatbot, iniciar_creacion_perfil,
     iniciar_perfil_conversacional, iniciar_prueba,

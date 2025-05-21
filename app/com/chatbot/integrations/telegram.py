@@ -13,18 +13,23 @@ import time
 import hmac
 import hashlib
 import os
+from functools import partial
 from django.conf import settings
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Callable
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.core.cache import cache
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, TelegramAPI
-from app.com.chatbot.chat_state_manager import ChatStateManager
-from app.com.chatbot.intents_handler import IntentProcessor
 from app.com.chatbot.channel_config import RateLimiter
 from app.com.chatbot.integrations.document_processor import DocumentProcessor
+from app.com.chatbot.integrations.message_sender import (
+    send_message, 
+    send_options, 
+    send_smart_options,
+    send_image
+)
 
 logger = logging.getLogger('chatbot')
 
@@ -70,13 +75,31 @@ class TelegramHandler:
         self.bot_name = bot_name
         self.business_unit = business_unit
         self.user: Optional[Person] = None
-        self.chat_manager: Optional[ChatStateManager] = None
-        self.intent_processor: Optional[IntentProcessor] = None
+        self._chat_manager = None  # Inicializado como None para carga perezosa
+        self.intent_processor = None  # Inicializado como None para carga perezosa
         self.telegram_api: Optional[TelegramAPI] = None
         self.user_data: Dict[str, Any] = {}
         self.rate_limiter = RateLimiter()
         self.webapp_secret = getattr(settings, 'TELEGRAM_WEBAPP_SECRET', 'default_secret')
         self.base_url = getattr(settings, 'BASE_URL', 'https://grupohuntred.com')
+    
+    @property
+    def chat_manager(self):
+        """Carga perezosa de ChatStateManager para evitar importaciones circulares."""
+        if self._chat_manager is None and self.user and self.business_unit:
+            # Usamos la función de importación dinámica de services.py
+            from app.com.chatbot.integrations.services import get_telegram_handler
+            _, fetch_user_data = get_telegram_handler()
+            
+            # Importamos ChatStateManager aquí para evitar importación circular
+            from app.com.chatbot.chat_state_manager import ChatStateManager
+            
+            self._chat_manager = ChatStateManager(
+                user=self.user,
+                business_unit=self.business_unit,
+                channel='telegram'
+            )
+        return self._chat_manager
 
     async def initialize(self) -> bool:
         """Inicializa el manejador de Telegram."""
@@ -123,14 +146,7 @@ class TelegramHandler:
 
             # Generar y enviar respuesta
             response = await self._generate_response(intent)
-            if intent.get('smart_options'):
-                await self.send_telegram_buttons(
-                    chat_id,
-                    response.get('response', ''),
-                    intent['smart_options']
-                )
-            else:
-                await self._send_response(chat_id, response)
+            await self._send_response(chat_id, response)
 
             # Actualizar estado del chat
             await self.chat_manager.update_state('IDLE')
@@ -191,28 +207,100 @@ class TelegramHandler:
         """Verifica si un mensaje es spam (implementación pendiente)."""
         return False
 
-    async def _generate_response(self, intent: Dict) -> Dict[str, Any]:
-        """Genera una respuesta basada en el intent detectado."""
-        return intent
+    async def _generate_response(self, intent: Dict):
+        """
+        Genera una respuesta basada en el intent detectado.
+        
+        Args:
+            intent (Dict): Diccionario con la información del intent
+            
+        Returns:
+            Dict: Respuesta formateada para el canal
+        """
+        response = {
+            'text': intent.get('response', 'Lo siento, no puedo responder a eso en este momento.'),
+            'options': intent.get('options', []),
+            'type': 'text',
+            'metadata': intent.get('metadata', {})
+        }
+        return response
 
-    @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
     async def _send_response(self, chat_id: int, response: Dict[str, Any]) -> bool:
-        """Envía la respuesta al usuario en Telegram."""
+        """
+        Envía la respuesta al usuario en Telegram.
+        
+        Args:
+            chat_id (int): ID del chat de Telegram
+            response (Dict): Respuesta a enviar
+            
+        Returns:
+            bool: True si el mensaje se envió correctamente, False en caso contrario
+        """
         try:
-            url = f"https://api.telegram.org/bot{self.telegram_api.api_key}/sendMessage"
-            payload = {
-                "chat_id": chat_id,
-                "text": response.get('response', ''),
-                "parse_mode": "HTML"
-            }
-            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-                resp = await client.post(url, json=payload)
-                resp.raise_for_status()
-            logger.info(f"✅ Mensaje enviado a {chat_id}")
+            if not response:
+                logger.warning("Respuesta vacía, no se enviará ningún mensaje")
+                return False
+                
+            if response.get('type') == 'text' and response.get('options'):
+                # Usar el message_sender para enviar opciones
+                await send_options(
+                    platform='telegram',
+                    user_id=str(chat_id),
+                    message=response['text'],
+                    options=response['options'],
+                    business_unit=self.business_unit
+                )
+            else:
+                # Envío de mensaje de texto simple
+                await send_message(
+                    platform='telegram',
+                    user_id=str(chat_id),
+                    message=response.get('text', 'Sin contenido'),
+                    business_unit=self.business_unit
+                )
+                
+            # Manejo de metadata adicional si es necesario
+            if 'metadata' in response and response['metadata'].get('requires_follow_up'):
+                asyncio.create_task(self._schedule_follow_up(chat_id, response['metadata']))
+                
             return True
+                
         except Exception as e:
-            logger.error(f"❌ Error enviando mensaje a Telegram: {str(e)}")
+            logger.error(f"Error al enviar respuesta a Telegram: {str(e)}", exc_info=True)
+            # Intentar notificar al usuario del error
+            try:
+                await send_message(
+                    platform='telegram',
+                    user_id=str(chat_id),
+                    message="Lo siento, ha ocurrido un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.",
+                    business_unit=self.business_unit
+                )
+            except Exception as inner_e:
+                logger.error(f"Error al notificar al usuario sobre el error: {str(inner_e)}", exc_info=True)
             return False
+
+    async def _schedule_follow_up(self, chat_id: int, metadata: Dict[str, Any]) -> None:
+        """
+        Programa un seguimiento basado en los metadatos.
+        
+        Args:
+            chat_id (int): ID del chat de Telegram
+            metadata (Dict): Metadatos para el seguimiento
+        """
+        try:
+            follow_up_time = metadata.get('follow_up_time', 3600)  # 1 hora por defecto
+            follow_up_message = metadata.get('follow_up_message', '')
+            
+            if follow_up_message and follow_up_time > 0:
+                await asyncio.sleep(follow_up_time)
+                await send_message(
+                    platform='telegram',
+                    user_id=str(chat_id),
+                    message=follow_up_message,
+                    business_unit=self.business_unit
+                )
+        except Exception as e:
+            logger.error(f"Error al programar seguimiento: {str(e)}", exc_info=True)
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
     async def send_telegram_buttons(self, chat_id: int, message: str, buttons: List[Dict]) -> bool:

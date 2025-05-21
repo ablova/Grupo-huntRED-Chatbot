@@ -29,10 +29,22 @@ from app.models import (
 )
 
 # Importaciones directas siguiendo estándares de Django
-from app.com.chatbot.integrations.whatsapp import WhatsAppHandler, fetch_whatsapp_user_data
-from app.com.chatbot.integrations.telegram import TelegramHandler, fetch_telegram_user_data
-from app.com.chatbot.integrations.instagram import InstagramHandler, fetch_instagram_user_data
-from app.com.chatbot.integrations.slack import fetch_slack_user_data
+# Import handlers at runtime to avoid circular imports
+def get_whatsapp_handler():
+    from app.com.chatbot.integrations.whatsapp import WhatsAppHandler
+    return WhatsAppHandler
+
+def get_telegram_handler():
+    from app.com.chatbot.integrations.telegram import TelegramHandler, fetch_telegram_user_data
+    return TelegramHandler, fetch_telegram_user_data
+
+def get_instagram_handler():
+    from app.com.chatbot.integrations.instagram import InstagramHandler, fetch_instagram_user_data
+    return InstagramHandler, fetch_instagram_user_data
+
+def get_slack_handler():
+    from app.com.chatbot.integrations.slack import fetch_slack_user_data
+    return fetch_slack_user_data
 
 import tracemalloc
 tracemalloc.start()
@@ -228,7 +240,7 @@ class UserDataFetcher:
 
 class WhatsAppUserDataFetcher(UserDataFetcher):
     async def fetch(self, user_id: str, api_instance: WhatsAppAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
-        return await fetch_whatsapp_user_data(user_id, api_instance, payload)
+        return await WhatsAppHandler.fetch_whatsapp_user_data(user_id, api_instance, payload)
 
 class TelegramUserDataFetcher(UserDataFetcher):
     async def fetch(self, user_id: str, api_instance: TelegramAPI, payload: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -486,31 +498,54 @@ class MessageService:
             Optional[Any]: Manejador de la plataforma o None si no está disponible
         """
         if platform not in self._handlers:
-            api_instance = await self.get_api_instance(platform)
-            if not api_instance:
+            try:
+                api_instance = await self.get_api_instance(platform)
+                if not api_instance:
+                    logger.error(f"No se pudo obtener la instancia de API para {platform}")
+                    return None
+
+                if platform == 'whatsapp':
+                    WhatsAppHandler = get_whatsapp_handler()
+                    self._handlers[platform] = WhatsAppHandler(
+                        user_id=user_id,
+                        phone_number_id=api_instance.phone_number_id,
+                        business_unit=self.business_unit
+                    )
+                elif platform == 'telegram':
+                    TelegramHandler, _ = get_telegram_handler()
+                    self._handlers[platform] = TelegramHandler(
+                        user_id=user_id,
+                        bot_name=api_instance.bot_name,
+                        business_unit=self.business_unit
+                    )
+                elif platform in ['messenger', 'instagram']:
+                    if platform == 'messenger':
+                        from .messenger import MessengerHandler
+                        self._handlers[platform] = MessengerHandler(
+                            user_id=user_id,
+                            page_id=api_instance.page_id,
+                            business_unit=self.business_unit
+                        )
+                    else:  # instagram
+                        InstagramHandler, _ = get_instagram_handler()
+                        self._handlers[platform] = InstagramHandler(
+                            user_id=user_id,
+                            phone_id=api_instance.phone_id,
+                            business_unit=self.business_unit
+                        )
+                elif platform == 'slack':
+                    # Slack uses direct functions, no handler needed
+                    pass
+                    
+                # Initialize the handler if it has an initialize method
+                if hasattr(self._handlers.get(platform), 'initialize'):
+                    await self._handlers[platform].initialize()
+                    
+            except Exception as e:
+                logger.error(f"Error creando manejador para {platform}: {str(e)}", exc_info=True)
                 return None
 
-            handler_mapping = {
-                'whatsapp': WhatsAppHandler,
-                'telegram': TelegramHandler,
-                'messenger': MessengerHandler,
-                'instagram': InstagramHandler,
-                'slack': None  # Slack usa funciones directas, no manejador
-            }
-
-            if platform in handler_mapping:
-                handler_class = handler_mapping[platform]
-                if platform == 'whatsapp':
-                    handler = handler_class(user_id, api_instance.phoneID, self.business_unit)
-                elif platform == 'telegram':
-                    handler = handler_class(user_id, api_instance.bot_name, self.business_unit)
-                elif platform in ['messenger', 'instagram']:
-                    handler = handler_class(user_id, api_instance.page_id if platform == 'messenger' else api_instance.phoneID, self.business_unit)
-                await handler.initialize()
-                self._handlers[platform] = handler
-                return handler
-            return None
-        return self._handlers[platform]
+        return self._handlers.get(platform)
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
     async def send_message(self, platform: str, user_id: str, message: str, options: Optional[List[Dict]] = None) -> bool:

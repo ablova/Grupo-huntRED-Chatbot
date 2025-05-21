@@ -8,7 +8,7 @@ import json
 import logging
 import httpx
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from django.core.cache import cache
@@ -16,7 +16,13 @@ from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, MessengerAPI
 from app.com.chatbot.chat_state_manager import ChatStateManager
-from app.com.chatbot.intents_handler import IntentProcessor
+from app.com.chatbot.channel_config import RateLimiter
+from app.com.chatbot.integrations.message_sender import (
+    send_message, 
+    send_options, 
+    send_smart_options,
+    send_image
+)
 
 logger = logging.getLogger('chatbot')
 
@@ -113,11 +119,15 @@ class MessengerHandler:
 
             # Generar y enviar respuesta
             response = await self._generate_response(intent)
-            if intent.get('smart_options'):
-                await self.send_messenger_buttons(
-                    self.user_id,
-                    response.get('response', ''),
-                    intent['smart_options']
+            if response.get('type') == 'text' and response.get('options'):
+                await self._send_response(self.user_id, response)
+            elif response.get('type') == 'image':
+                await send_image(
+                    platform='messenger',
+                    user_id=self.user_id,
+                    image_url=response.get('image_url', ''),
+                    caption=response.get('response', ''),
+                    business_unit=self.business_unit
                 )
             else:
                 await self._send_response(self.user_id, response)
@@ -156,30 +166,98 @@ class MessengerHandler:
         return False
 
     async def _generate_response(self, intent: Dict) -> Dict[str, Any]:
-        """Genera una respuesta basada en el intent detectado."""
-        return intent
+        """
+        Genera una respuesta basada en el intent detectado.
+        
+        Args:
+            intent (Dict): Diccionario con la información del intent
+            
+        Returns:
+            Dict: Respuesta formateada para el canal
+        """
+        return {
+            'response': intent.get('response', 'Lo siento, no puedo responder a eso en este momento.'),
+            'options': intent.get('options', []),
+            'type': 'text',
+            'metadata': intent.get('metadata', {})
+        }
 
-    @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
     async def _send_response(self, user_id: str, response: Dict[str, Any]) -> bool:
-        """Envía la respuesta al usuario en Messenger."""
+        """
+        Envía la respuesta al usuario en Messenger.
+        
+        Args:
+            user_id (str): ID del usuario en Messenger
+            response (Dict): Respuesta a enviar
+            
+        Returns:
+            bool: True si el mensaje se envió correctamente, False en caso contrario
+        """
         try:
-            url = "https://graph.facebook.com/v22.0/me/messages"
-            headers = {
-                "Authorization": f"Bearer {self.messenger_api.page_access_token}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "recipient": {"id": user_id},
-                "message": {"text": response.get('response', '')}
-            }
-            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-                resp = await client.post(url, headers=headers, json=payload)
-                resp.raise_for_status()
-            logger.info(f"✅ Mensaje enviado a {user_id}")
+            if not response:
+                logger.warning("Respuesta vacía, no se enviará ningún mensaje")
+                return False
+                
+            if response.get('type') == 'text' and response.get('options'):
+                # Usar el message_sender para enviar opciones
+                await send_options(
+                    platform='messenger',
+                    user_id=user_id,
+                    message=response['response'],
+                    options=response['options'],
+                    business_unit=self.business_unit
+                )
+            else:
+                # Envío de mensaje de texto simple
+                await send_message(
+                    platform='messenger',
+                    user_id=user_id,
+                    message=response.get('response', 'Sin contenido'),
+                    business_unit=self.business_unit
+                )
+                
+            # Manejo de metadata adicional si es necesario
+            if 'metadata' in response and response['metadata'].get('requires_follow_up'):
+                await self._schedule_follow_up(user_id, response['metadata'])
+                
             return True
+                
         except Exception as e:
-            logger.error(f"❌ Error enviando mensaje a Messenger: {str(e)}")
+            logger.error(f"Error al enviar respuesta a Messenger: {str(e)}", exc_info=True)
+            # Intentar notificar al usuario del error
+            try:
+                await send_message(
+                    platform='messenger',
+                    user_id=user_id,
+                    message="Lo siento, ha ocurrido un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.",
+                    business_unit=self.business_unit
+                )
+            except Exception as inner_e:
+                logger.error(f"Error al notificar al usuario sobre el error: {str(inner_e)}", exc_info=True)
             return False
+            
+    async def _schedule_follow_up(self, user_id: str, metadata: Dict[str, Any]) -> None:
+        """
+        Programa un seguimiento basado en los metadatos.
+        
+        Args:
+            user_id (str): ID del usuario en Messenger
+            metadata (Dict): Metadatos para el seguimiento
+        """
+        try:
+            follow_up_time = metadata.get('follow_up_time', 3600)  # 1 hora por defecto
+            follow_up_message = metadata.get('follow_up_message', '')
+            
+            if follow_up_message and follow_up_time > 0:
+                await asyncio.sleep(follow_up_time)
+                await send_message(
+                    platform='messenger',
+                    user_id=user_id,
+                    message=follow_up_message,
+                    business_unit=self.business_unit
+                )
+        except Exception as e:
+            logger.error(f"Error al programar seguimiento en Messenger: {str(e)}", exc_info=True)
 
     @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(min=1, max=10))
     async def send_messenger_buttons(self, user_id: str, message: str, buttons: List[Dict]) -> bool:

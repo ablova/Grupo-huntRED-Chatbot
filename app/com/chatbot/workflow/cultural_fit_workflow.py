@@ -19,7 +19,7 @@ from app.com.chatbot.workflow.base_workflow import BaseWorkflow
 from app.com.chatbot.workflow.cultural_fit_test import (
     get_cultural_fit_questions, analyze_cultural_fit_responses, save_cultural_profile
 )
-from app.com.chatbot.core.values_integration import get_value_driven_response
+from app.com.chatbot.values import values_middleware
 from app.com.chatbot.utils.message_utils import format_message
 
 logger = logging.getLogger(__name__)

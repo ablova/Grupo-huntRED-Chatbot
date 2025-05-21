@@ -13,7 +13,7 @@ import importlib
 import inspect
 
 from app.com.chatbot.workflow.base_workflow import BaseWorkflow
-from app.com.chatbot.core.values_integration import get_value_driven_response
+from app.com.chatbot.values import values_middleware
 
 # Si existen en el sistema, añadimos estas importaciones
 # Importación con manejo de errores para cada módulo individual
