@@ -22,8 +22,8 @@ class Experience:
     company: str
     position: str
     start_date: str
-    end_date: Optional[str] = None
     description: str
+    end_date: Optional[str] = None
     achievements: Optional[List[str]] = None
     ml_analysis: Optional[Dict] = None  # Análisis ML de la experiencia
 
@@ -105,10 +105,10 @@ class CVData:
     skills: List[Skill]
     languages: List[Language]
     skill_assessments: List[SkillAssessment]  # Nueva lista de evaluaciones
-    personality_test: Optional[PersonalityTest] = None
-    background_check: Optional[BackgroundCheck] = None
     business_unit: str
     business_unit_logo: str
+    personality_test: Optional[PersonalityTest] = None
+    background_check: Optional[BackgroundCheck] = None
     language: str = 'es'
     birth_year: Optional[int] = None
     reference_code: Optional[str] = None

@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Any
 
-from app.com.chatbot.core.values import ValuesPrinciples
+from app.com.chatbot.values.principles import ValuesPrinciples
 
 logger = logging.getLogger(__name__)
 

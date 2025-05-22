@@ -14,10 +14,20 @@ import json
 
 import numpy as np
 from asgiref.sync import sync_to_async
+from django.conf import settings
 
-from app.models import Person, Manager, InterventionAction, PerformanceReview, Activity
+from app.models import Person, Manager, InterventionAction, PerformanceReview, Activity, BusinessUnit, Mentor, MentorSkill, MentorSession
 from app.com.talent.retention_predictor import RetentionPredictor
-from app.com.chatbot.core.values import ValuesPrinciples
+from app.com.chatbot.values.principles import ValuesPrinciples
+
+# Importar el nuevo analizador si está disponible
+try:
+    from app.ml.analyzers.intervention_analyzer import InterventionAnalyzerImpl
+    USE_NEW_ANALYZER = True
+except ImportError:
+    USE_NEW_ANALYZER = False
+    logger = logging.getLogger(__name__)
+    logger.warning("InterventionAnalyzerImpl no encontrado, usando implementación original")
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +44,10 @@ class InterventionSystem:
         self.retention_predictor = RetentionPredictor()
         self.values_principles = ValuesPrinciples()
         
+        # Inicializar el nuevo analizador si está disponible
+        if USE_NEW_ANALYZER:
+            self.analyzer = InterventionAnalyzerImpl()
+        
     async def generate_intervention_plan(self, 
                                         person_id: int,
                                         causal_factors: Optional[List[Dict]] = None) -> Dict:
@@ -47,6 +61,36 @@ class InterventionSystem:
         Returns:
             Plan de intervención con acciones recomendadas
         """
+        # Usar el nuevo analizador si está disponible
+        if USE_NEW_ANALYZER:
+            try:
+                # Obtener el contexto de business unit si es necesario
+                person = await self._get_person(person_id)
+                business_unit = getattr(person, 'business_unit', None)
+                
+                # Si no se especificaron factores causales, obtenerlos del predictor de retención
+                if not causal_factors:
+                    retention_analysis = await self.retention_predictor.analyze_retention_risk(person_id)
+                    causal_factors = retention_analysis.get('causal_factors', [])
+                
+                # Preparar datos para el analizador
+                data = {
+                    'person_id': person_id,
+                    'risk_factors': causal_factors
+                }
+                
+                # Usar el nuevo analizador
+                result = self.analyzer.analyze(data, business_unit)
+                
+                # Registrar el plan generado
+                await self._log_intervention_plan(person_id, result)
+                
+                return result
+            except Exception as e:
+                logger.error(f"Error usando nuevo analizador: {str(e)}. Volviendo a implementación original.")
+                # Fallback a la implementación original
+        
+        # Implementación original si el nuevo analizador no está disponible o falla
         try:
             # Obtener datos de la persona
             person = await self._get_person(person_id)
@@ -445,26 +489,43 @@ class InterventionSystem:
         # Evaluar si los factores justifican un mentor
         mentor_needed = False
         mentor_focus = []
+        mentor_types = []
         
         for factor in causal_factors:
             factor_name = factor.get('factor')
             risk = factor.get('risk', 0)
             
-            # Factores que más se benefician de mentoría
-            if factor_name in ['career_growth', 'performance_trend', 'engagement'] and risk > 60:
-                mentor_needed = True
-                mentor_focus.append(factor_name)
+            # Factores que más se benefician de mentoría y su mapeo a tipos de mentoría
+            if risk > 60:
+                if factor_name == 'career_growth':
+                    mentor_needed = True
+                    mentor_focus.append('desarrollo de carrera')
+                    mentor_types.append('CAREER')
+                elif factor_name == 'performance_trend':
+                    mentor_needed = True
+                    mentor_focus.append('mejora de desempeño')
+                    mentor_types.append('TECHNICAL')
+                elif factor_name == 'engagement':
+                    mentor_needed = True
+                    mentor_focus.append('engagement y motivación')
+                    mentor_types.extend(['WORK_LIFE', 'LEADERSHIP'])
+                elif factor_name == 'leadership':
+                    mentor_needed = True
+                    mentor_focus.append('desarrollo de liderazgo')
+                    mentor_types.append('LEADERSHIP')
+                elif factor_name == 'work_life_balance':
+                    mentor_needed = True
+                    mentor_focus.append('equilibrio vida-trabajo')
+                    mentor_types.append('WORK_LIFE')
         
         if not mentor_needed:
             return None
-            
-        # En un sistema real, aquí se llamaría al MentorMatcher para encontrar
-        # mentores óptimos basados en estos factores específicos
-        from app.com.talent.mentor_matcher import MentorMatcher
-        mentor_matcher = MentorMatcher()
         
         try:
-            # Intentar obtener recomendación de mentor
+            # Primero intentar usar el MentorMatcher para una recomendación óptima
+            from app.com.talent.mentor_matcher import MentorMatcher
+            mentor_matcher = MentorMatcher()
+            
             mentor_match = await mentor_matcher.find_optimal_mentors(
                 person_id=person_id,
                 goal=mentor_focus[0] if mentor_focus else None,
@@ -482,9 +543,56 @@ class InterventionSystem:
                         'match_score': top_mentor.get('match_score')
                     },
                     'focus_areas': mentor_focus,
-                    'session_frequency': 'weekly' if any(f == 'high' for f in [factor.get('risk', 0) for factor in causal_factors]) else 'biweekly',
+                    'session_frequency': 'weekly' if any(factor.get('risk', 0) > 80 for factor in causal_factors) else 'biweekly',
                     'suggested_duration': '3 months'
                 }
+            
+            # Si el matcher no devolvió resultados, intentar búsqueda directa en modelo
+            if not mentor_match or not mentor_match.get('mentors'):
+                # Convertir la operación asíncrona a síncrona ya que estamos accediendo a la DB
+                @sync_to_async
+                def find_mentors_by_type():
+                    # Buscar mentores activos que tengan alguno de los tipos de mentoría necesarios
+                    mentors = []
+                    
+                    # Si no hay tipos específicos, usar cualquier mentor activo
+                    if not mentor_types:
+                        return list(Mentor.objects.filter(is_active=True).select_related('person')[:3])
+                    
+                    # Buscar por tipos de mentoría específicos
+                    mentor_query = Mentor.objects.filter(is_active=True)
+                    
+                    # Filtrar por tipos de mentoría requeridos
+                    # En ArrayField podemos usar contains para encontrar elementos
+                    for mentor_type in set(mentor_types):
+                        mentors.extend(list(mentor_query.filter(mentoring_types__contains=[mentor_type]).select_related('person')[:2]))
+                    
+                    # Si no encontramos mentores específicos, devolver cualquier mentor activo
+                    if not mentors:
+                        mentors = list(mentor_query[:3])
+                    
+                    return mentors
+                
+                # Ejecutar la búsqueda
+                db_mentors = await find_mentors_by_type()
+                
+                if db_mentors:
+                    # Tomar el primer mentor encontrado
+                    top_db_mentor = db_mentors[0]
+                    
+                    return {
+                        'recommended': True,
+                        'mentor': {
+                            'id': top_db_mentor.id,
+                            'name': str(top_db_mentor.person),
+                            'position': getattr(top_db_mentor.person, 'position', 'Especialista'),
+                            'specialty': top_db_mentor.specialty,
+                            'match_score': 75  # Puntuación estándar para recomendaciones no optimizadas
+                        },
+                        'focus_areas': mentor_focus,
+                        'session_frequency': 'weekly' if any(factor.get('risk', 0) > 80 for factor in causal_factors) else 'biweekly',
+                        'suggested_duration': '3 months'
+                    }
         except Exception as e:
             logger.error(f"Error al recomendar mentor: {str(e)}")
             

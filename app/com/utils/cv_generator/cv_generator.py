@@ -1,22 +1,33 @@
 # /home/pablo/app/com/utils/cv_generator/cv_generator.py
 """
-CV Generator class.
+Sistema de generación de CVs para Grupo huntRED®
 
-This class provides functionality for generating PDF CVs from candidate data.
-Includes capability to generate professional development plans.
+Este módulo proporciona funcionalidad para generar CVs en diferentes formatos,
+con capacidades básicas y avanzadas.
+
+Incluye dos clases principales:
+- CVGenerator: Funcionalidad básica de generación de CV
+- EnhancedCVGenerator: Versión avanzada con análisis de carrera y valores integrados
 """
-
 import os
 import logging
-from typing import Dict, List, Union, Optional, Tuple
+import asyncio
+from typing import Dict, List, Union, Any, Optional, Tuple
 from datetime import datetime
-from weasyprint import HTML
+
 from django.conf import settings
 from django.template.loader import render_to_string
+from weasyprint import HTML
 
-from app.com.utils.cv_generator.cv_templatecv_template import CVTemplate
-from app.com.utils.cv_generator.cv_templatecv_utils import CVUtils
-from app.com.utils.cv_generator.cv_templatecv_data import CVData
+from app.com.utils.cv_generator.cv_template import CVTemplate
+from app.com.utils.cv_generator.cv_utils import CVUtils
+from app.com.utils.cv_generator.cv_data import CVData
+from app.com.utils.cv_generator.career_analyzer import career_analyzer, CVCareerAnalyzer
+from app.com.chatbot.values.core import ValuesPrinciples
+from app.ml.ml_model import MatchmakingLearningSystem
+# Importamos las funciones adaptadoras de career_analyzer
+from app.com.utils.cv_generator.career_analyzer import calculate_match_percentage, calculate_alignment_percentage
+from app.com.utils.cv_generator.values_adapter import CVValuesAdapter as ValuesAdapter
 from app.kanban.ml_integration import get_candidate_growth_data
 
 logger = logging.getLogger(__name__)
@@ -110,42 +121,16 @@ class CVGenerator:
             if hasattr(cleaned_data, 'get'):
                 if cleaned_data.get('personality_test') and hasattr(cleaned_data['personality_test'], 'get_personality_chart'):
                     cleaned_data['personality_chart'] = cleaned_data['personality_test'].get_personality_chart()
-                if cleaned_data.get('background_check') and hasattr(cleaned_data['background_check'], 'get_verification_seal'):
-                    cleaned_data['verification_seal'] = cleaned_data['background_check'].get_verification_seal()
+                
+                if cleaned_data.get('values_alignment') and hasattr(cleaned_data['values_alignment'], 'get_values_chart'):
+                    cleaned_data['values_chart'] = cleaned_data['values_alignment'].get_values_chart()
         
-        # URLs provisionales para logos y sellos si no existen
-        logo_urls = {
-            'huntred_logo_url': 'https://huntred.com/logo.png',  # Logo principal
-            'business_unit_logo': f'https://huntred.com/logos/{getattr(cleaned_data, "business_unit", "default")}.png',  # Logo de la BU
-            'verification_seal_url': 'https://huntred.com/seals/verification.png',  # Sello de verificación
-            'ml_seal_url': 'https://huntred.com/seals/ml.png',  # Sello de ML
-            'personality_seal_url': 'https://huntred.com/seals/personality.png'  # Sello de personalidad
-        }
-
-        # Add additional data for template
-        if hasattr(cleaned_data, '__dict__'):
-            template_data = {
-                **cleaned_data.__dict__,
-                'language': language,
-                **logo_urls,
-                **self.utils.get_campaign_content()
-            }
-        else:
-            template_data = {
-                **cleaned_data,
-                'language': language,
-                **logo_urls,
-                **self.utils.get_campaign_content()
-            }
+        # Render template to HTML
+        html_string = self.template.render(cleaned_data)
         
-        # Generate HTML from template
-        html_content = self.template.render(template_data)
+        # Generate PDF from HTML
+        return HTML(string=html_string).write_pdf()
         
-        # Convert HTML to PDF
-        pdf = HTML(string=html_content).write_pdf()
-        
-        return pdf
-    
     def generate_multiple_cvs(self, candidates_data: List[Union[Dict, CVData]], language: str = 'es', blind: bool = False) -> List[bytes]:
         """
         Generate multiple PDF CVs from a list of candidates.
@@ -158,7 +143,8 @@ class CVGenerator:
         Returns:
             List of bytes for each generated PDF
         """
-        return [self.generate_cv(data, language, blind) for data in candidates_data]
+        return [self.generate_cv(candidate_data, language, blind) 
+                for candidate_data in candidates_data]
     
     def save_cv(self, candidate_data: Union[Dict, CVData], output_path: str, language: str = 'es', blind: bool = False, include_growth_plan: bool = None) -> str:
         """
@@ -169,19 +155,22 @@ class CVGenerator:
             output_path: Path where to save the PDF
             language: Language for the CV (es or en)
             blind: If True, generates a blind CV without contact information
-            include_growth_plan: Whether to include a development plan (overrides instance setting)
+            include_growth_plan: Override for class setting on including growth plan
             
         Returns:
             Path to the saved PDF file
         """
-        # Generate the CV bytes
-        pdf = self.generate_cv(candidate_data, language, blind)
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
-        # Save the CV to file
+        # Generate CV
+        pdf_bytes = self.generate_cv(candidate_data, language, blind)
+        
+        # Save to file
         with open(output_path, 'wb') as f:
-            f.write(pdf)
-        
-        # Determine if we should include the growth plan
+            f.write(pdf_bytes)
+            
+        # Determine if growth plan should be included
         should_include_plan = include_growth_plan if include_growth_plan is not None else self.include_growth_plan
         
         # If development plan is enabled and ML features are active, add it
@@ -280,3 +269,467 @@ class CVGenerator:
             logger.error(f"Error merging PDFs: {str(e)}")
             # Return original CV path if merging fails
             return cv_path
+
+
+class EnhancedCVGenerator(CVGenerator):
+    """
+    Generador mejorado de CVs que integra análisis de carrera y valores.
+    """
+    
+    def __init__(self, template: str = 'modern', include_growth_plan: bool = True, 
+                 integration_level: str = 'enhanced'):
+        """
+        Inicializa el generador de CVs mejorado.
+        
+        Args:
+            template: Plantilla a utilizar para el CV
+            include_growth_plan: Si se debe incluir plan de desarrollo profesional
+            integration_level: Nivel de integración de valores ('basic', 'enhanced', 'full')
+        """
+        super().__init__(template, include_growth_plan)
+        self.integration_level = integration_level
+        self.values_principles = ValuesPrinciples()
+        self.career_analyzer = CVCareerAnalyzer()
+        self.ml_system = MatchmakingLearningSystem()
+        self.values_adapter = ValuesAdapter()
+    
+    async def generate_enhanced_cv(self, candidate_data: Union[Dict, CVData], 
+                                  business_unit: str,
+                                  output_path: str, 
+                                  audience_type: str = 'client',
+                                  language: str = 'es',
+                                  blind: bool = False) -> str:
+        """
+        Genera un CV mejorado con análisis de carrera y valores integrados.
+        
+        Args:
+            candidate_data: Datos del candidato (diccionario o CVData)
+            business_unit: Unidad de negocio
+            output_path: Ruta donde guardar el PDF
+            audience_type: Tipo de audiencia ('client', 'candidate', 'consultant')
+            language: Idioma del CV ('es' o 'en')
+            blind: Si es True, genera un CV ciego sin información personal
+            
+        Returns:
+            Ruta al archivo PDF generado
+        """
+        try:
+            # Convertir a CVData si es un diccionario
+            if isinstance(candidate_data, dict):
+                candidate_data = CVData(**candidate_data)
+            
+            # Obtener ID del candidato
+            candidate_id = self._extract_candidate_id(candidate_data)
+            if not candidate_id:
+                logger.warning("No se pudo extraer ID del candidato. Generando CV sin análisis avanzado.")
+                return await self._generate_basic_cv(candidate_data, output_path, language, blind)
+            
+            # Obtener datos básicos del candidato
+            person = await self._get_person(candidate_id)
+            if not person:
+                raise ValueError(f"No se encontró la persona con ID {candidate_id}")
+            
+            # Obtener análisis de carrera y ML en paralelo
+            career_analysis, ml_insights = await asyncio.gather(
+                self.career_analyzer.analyze_career(person),
+                self._get_ml_insights(person)
+            )
+            
+            # Enriquecer datos con análisis
+            enriched_data = await self._enrich_candidate_data(person, career_analysis, ml_insights)
+            
+            # Añadir información original del CV
+            for key, value in candidate_data.__dict__.items():
+                if key not in enriched_data and key != 'business_unit':
+                    enriched_data[key] = value
+            
+            # Asignar unidad de negocio
+            enriched_data['business_unit'] = business_unit
+            
+            # Generar CV con datos enriquecidos
+            return await self._generate_cv_with_enriched_data(
+                enriched_data, 
+                output_path, 
+                language, 
+                blind, 
+                audience_type
+            )
+            
+        except Exception as e:
+            logger.error(f"Error generando CV mejorado: {str(e)}")
+            # Fallback a CV básico en caso de error
+            return await self._generate_basic_cv(candidate_data, output_path, language, blind)
+    
+    async def _generate_basic_cv(self, candidate_data, output_path, language, blind):
+        """Genera un CV básico sin análisis avanzado."""
+        return self.save_cv(candidate_data, output_path, language, blind)
+    
+    async def _generate_cv_with_enriched_data(self, enriched_data, output_path, 
+                                         language, blind, audience_type):
+        """Genera CV utilizando datos enriquecidos."""
+        # Seleccionar template según audiencia
+        template_map = {
+            'client': self.template.name,
+            'candidate': 'candidate',
+            'consultant': 'detailed',
+            'blind': 'blind'
+        }
+        template_name = template_map.get(audience_type, self.template.name)
+        
+        # Guardar template original
+        original_template = self.template.name
+        
+        try:
+            # Cambiar template si es necesario
+            if template_name != original_template:
+                from app.com.utils.cv_generator.cv_template import CVTemplate
+                self.template = CVTemplate(template_name)
+            
+            # Usar la implementación original con datos enriquecidos
+            return self.save_cv(enriched_data, output_path, language, blind)
+        except Exception as e:
+            logger.error(f"Error generando CV con datos enriquecidos: {str(e)}")
+            return None
+        finally:
+            # Restaurar template original
+            if template_name != original_template:
+                from app.com.utils.cv_generator.cv_template import CVTemplate
+                self.template = CVTemplate(original_template)
+    
+    def _extract_candidate_id(self, cv_data):
+        """
+        Extrae el ID del candidato de los datos del CV.
+        """
+        try:
+            # Intentar obtener ID de diferentes formas
+            if hasattr(cv_data, 'id') and cv_data.id:
+                return cv_data.id
+                
+            if hasattr(cv_data, 'person_id') and cv_data.person_id:
+                return cv_data.person_id
+                
+            if hasattr(cv_data, 'candidate_id') and cv_data.candidate_id:
+                return cv_data.candidate_id
+                
+            # Buscar en atributos anidados
+            if hasattr(cv_data, 'personal_info'):
+                personal_info = cv_data.personal_info
+                if isinstance(personal_info, dict) and 'id' in personal_info:
+                    return personal_info['id']
+                    
+            return None
+        except Exception as e:
+            logger.error(f"Error extrayendo ID del candidato: {str(e)}")
+            return None
+    
+    async def _get_person(self, person_id: int):
+        """
+        Obtiene los datos de la persona.
+        """
+        from app.models import Person
+        try:
+            from asgiref.sync import sync_to_async
+            return await sync_to_async(Person.objects.get)(id=person_id)
+        except Exception as e:
+            logger.error(f"Error obteniendo persona: {str(e)}")
+            return None
+    
+    async def _get_ml_insights(self, person):
+        """
+        Obtiene insights del sistema ML.
+        """
+        try:
+            # Obtener insights del sistema ML
+            from app.ml.personality_analyzer import get_personality_insights
+            from app.ml.talent_analyzer import get_talent_insights
+            from app.ml.cultural_analyzer import get_cultural_insights
+            
+            # Ejecutar análisis en paralelo
+            personality_insights, talent_insights, cultural_insights = await asyncio.gather(
+                sync_to_async(get_personality_insights)(person),
+                sync_to_async(get_talent_insights)(person),
+                sync_to_async(get_cultural_insights)(person)
+            )
+            
+            return {
+                'personality': personality_insights,
+                'talent': talent_insights,
+                'cultural': cultural_insights
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo insights ML: {str(e)}")
+            return {}
+    
+    async def _enrich_candidate_data(self, person: Dict, career_analysis: Dict, 
+                               ml_insights: Dict) -> Dict:
+        """
+        Enriquece los datos del candidato con análisis y valores.
+        """
+        enriched_data = {}
+        
+        # Datos básicos
+        enriched_data['name'] = f"{person.first_name} {person.last_name}"
+        enriched_data['contact_info'] = {
+            'email': person.email,
+            'phone': person.phone,
+            'address': person.address if hasattr(person, 'address') else None
+        }
+        
+        # Añadir resumen
+        enriched_data['summary'] = person.professional_summary if hasattr(person, 'professional_summary') else ""
+        
+        # Procesar experiencia, educación, habilidades
+        enriched_data['experience'] = self._process_experience(career_analysis.get('experience', []))
+        enriched_data['education'] = self._process_education(career_analysis.get('education', []))
+        enriched_data['skills'] = self._process_skills(person.skills if hasattr(person, 'skills') else "", ml_insights)
+        
+        # Añadir idiomas
+        enriched_data['languages'] = self._process_languages(career_analysis.get('languages', []))
+        
+        # Añadir insights de ML
+        if ml_insights:
+            enriched_data['personality_insights'] = ml_insights.get('personality', {})
+            enriched_data['talent_insights'] = ml_insights.get('talent', {})
+            enriched_data['cultural_insights'] = ml_insights.get('cultural', {})
+            
+            # Roles recomendados basados en análisis de ML
+            if 'talent' in ml_insights and 'success_probabilities' in ml_insights['talent']:
+                enriched_data['recommended_roles'] = self._get_top_roles(
+                    ml_insights['talent']['success_probabilities']
+                )
+        
+        # Añadir fecha de análisis
+        enriched_data['ml_analysis_date'] = datetime.now()
+        
+        return enriched_data
+    
+    def _process_skills(self, skills: str, ml_insights: Dict) -> List[Dict]:
+        """
+        Procesa las habilidades con información de ML.
+        """
+        try:
+            # Dividir habilidades por coma si es un string
+            if isinstance(skills, str):
+                skill_list = [s.strip() for s in skills.split(',') if s.strip()]
+            elif isinstance(skills, list):
+                skill_list = skills
+            else:
+                skill_list = []
+                
+            # Obtener niveles de habilidad de insights ML si están disponibles
+            skill_levels = {}
+            if 'talent' in ml_insights and 'skill_levels' in ml_insights['talent']:
+                skill_levels = ml_insights['talent']['skill_levels']
+                
+            # Crear lista de habilidades con niveles
+            processed_skills = []
+            for skill in skill_list:
+                skill_info = {
+                    'name': skill,
+                    'level': skill_levels.get(skill.lower(), 0.7),  # Nivel por defecto si no está disponible
+                    'years': self._get_skill_experience(skill)
+                }
+                processed_skills.append(skill_info)
+                
+            return processed_skills
+        except Exception as e:
+            logger.error(f"Error procesando habilidades: {str(e)}")
+            return []
+    
+    def _get_skill_experience(self, skill: str):
+        """
+        Obtiene años de experiencia en una habilidad.
+        """
+        return 0  # En una implementación real, esto se calcularía de la experiencia laboral
+    
+    def _get_top_roles(self, success_probabilities: List[Dict]):
+        """
+        Obtiene los roles con mayor probabilidad de éxito.
+        """
+        try:
+            if not success_probabilities:
+                return []
+                
+            # Ordenar por probabilidad de éxito
+            sorted_roles = sorted(success_probabilities, 
+                                 key=lambda x: x.get('probability', 0), 
+                                 reverse=True)
+                                 
+            # Seleccionar los 3 roles principales
+            top_roles = sorted_roles[:3]
+            
+            # Formatear para presentación
+            formatted_roles = []
+            for role in top_roles:
+                probability = role.get('probability', 0)
+                formatted_roles.append({
+                    'role': role.get('role', ''),
+                    'probability': probability,
+                    'probability_percentage': int(probability * 100),
+                    'description': role.get('description', ''),
+                    'match_level': self._get_match_level(probability)
+                })
+                
+            return formatted_roles
+        except Exception as e:
+            logger.error(f"Error obteniendo roles top: {str(e)}")
+            return []
+    
+    def _get_match_level(self, probability: float) -> str:
+        """
+        Determina el nivel de match basado en la probabilidad.
+        """
+        if probability >= 0.85:
+            return "Excelente"
+        elif probability >= 0.70:
+            return "Muy bueno"
+        elif probability >= 0.60:
+            return "Bueno" 
+        else:
+            return "Moderado"
+    
+    def _process_experience(self, experience: List[Dict]) -> List[Dict]:
+        """Procesa la experiencia laboral."""
+        try:
+            if not experience:
+                return []
+            
+            return [
+                {
+                    "position": exp.get("position", ""),
+                    "company": exp.get("company", ""),
+                    "start_date": exp.get("start_date", ""),
+                    "end_date": exp.get("end_date", ""),
+                    "description": exp.get("description", ""),
+                    "achievements": exp.get("achievements", [])
+                }
+                for exp in experience
+            ]
+        except Exception as e:
+            logger.error(f"Error procesando experiencia: {str(e)}")
+            return []
+    
+    def _process_education(self, education: List[Dict]) -> List[Dict]:
+        """Procesa la educación."""
+        try:
+            if not education:
+                return []
+            
+            return [
+                {
+                    "degree": edu.get("degree", ""),
+                    "institution": edu.get("institution", ""),
+                    "field_of_study": edu.get("field_of_study", ""),
+                    "start_date": edu.get("start_date", ""),
+                    "end_date": edu.get("end_date", ""),
+                    "grade": edu.get("grade", ""),
+                    "description": edu.get("description", "")
+                }
+                for edu in education
+            ]
+        except Exception as e:
+            logger.error(f"Error procesando educación: {str(e)}")
+            return []
+    
+    def _process_languages(self, languages: List[Dict]) -> List[Dict]:
+        """Procesa los idiomas."""
+        try:
+            if not languages:
+                return []
+            
+            return [
+                {
+                    "language": lang.get("language", ""),
+                    "level": lang.get("level", ""),
+                    "level_percentage": lang.get("level_percentage", 50),
+                    "certificate": lang.get("certificate", "")
+                }
+                for lang in languages
+            ]
+        except Exception as e:
+            logger.error(f"Error procesando idiomas: {str(e)}")
+            return []
+    
+    async def _generate_cv_data(self, enriched_data: Dict, template: str) -> Dict[str, Any]:
+        """Genera los datos finales del CV."""
+        try:
+            return {
+                "template": template,
+                "data": enriched_data,
+                "metadata": {
+                    "generated_at": datetime.now().isoformat(),
+                    "version": "3.0",
+                    "analysis_version": "2.0"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error generando datos del CV: {str(e)}")
+            raise
+
+
+# Función de conveniencia para generar CV mejorado
+async def generate_enhanced_cv(
+    candidate_data: Union[Dict, CVData],
+    business_unit: str,
+    output_path: str,
+    audience_type: str = 'client',
+    language: str = 'es',
+    blind: bool = False,
+    template: str = 'modern'
+) -> str:
+    """
+    Genera un CV mejorado con análisis de carrera y valores integrados.
+    
+    Args:
+        candidate_data: Datos del candidato (diccionario o CVData)
+        business_unit: Unidad de negocio
+        output_path: Ruta donde guardar el PDF
+        audience_type: Tipo de audiencia ('client', 'candidate', 'consultant')
+        language: Idioma del CV ('es' o 'en')
+        blind: Si es True, genera un CV ciego sin información personal
+        template: Plantilla a utilizar
+        
+    Returns:
+        Ruta al archivo PDF generado
+    """
+    generator = EnhancedCVGenerator(template=template, include_growth_plan=True)
+    return await generator.generate_enhanced_cv(
+        candidate_data, 
+        business_unit,
+        output_path, 
+        audience_type,
+        language, 
+        blind
+    )
+
+
+# Función de conveniencia para generar CV básico
+def generate_cv(
+    candidate_data: Union[Dict, CVData],
+    output_path: str,
+    language: str = 'es',
+    blind: bool = False,
+    template: str = 'modern',
+    include_growth_plan: bool = False
+) -> str:
+    """
+    Genera un CV básico.
+    
+    Args:
+        candidate_data: Datos del candidato (diccionario o CVData)
+        output_path: Ruta donde guardar el PDF
+        language: Idioma del CV ('es' o 'en')
+        blind: Si es True, genera un CV ciego sin información personal
+        template: Plantilla a utilizar
+        include_growth_plan: Si se debe incluir plan de desarrollo profesional
+        
+    Returns:
+        Ruta al archivo PDF generado
+    """
+    generator = CVGenerator(template=template, include_growth_plan=include_growth_plan)
+    return generator.save_cv(
+        candidate_data, 
+        output_path, 
+        language, 
+        blind
+    )

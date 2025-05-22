@@ -4820,3 +4820,314 @@ class CulturalFitReport(models.Model):
             return "Moderado"
         else:
             return "Bajo" 
+
+# Tipos de mentoría
+MENTORING_TYPE_CHOICES = [
+    ('CAREER', 'Carrera'),
+    ('TECHNICAL', 'Habilidades técnicas'),
+    ('LEADERSHIP', 'Liderazgo'),
+    ('ENTREPRENEURSHIP', 'Emprendimiento'),
+    ('WORK_LIFE', 'Equilibrio vida-trabajo'),
+    ('NETWORKING', 'Networking')
+]
+
+# Estados de sesión de mentoría
+MENTORING_SESSION_STATUS_CHOICES = [
+    ('SCHEDULED', 'Programada'),
+    ('COMPLETED', 'Completada'),
+    ('CANCELLED', 'Cancelada'),
+    ('IN_PROGRESS', 'En Progreso')
+]
+
+class Mentor(models.Model):
+    """Modelo para profesionales que dan mentorías a otros.
+    
+    Un Mentor es una Person vinculada a una Company que ofrece orientación
+    y apoyo a otros profesionales (mentees) basado en su experiencia.
+    """
+    person = models.OneToOneField(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='mentor_profile',
+        help_text="Persona que actúa como mentor"
+    )
+    
+    company = models.ForeignKey(
+        'Company',
+        on_delete=models.CASCADE,
+        related_name='mentors',
+        help_text="Empresa a la que pertenece el mentor"
+    )
+    
+    specialty = models.CharField(
+        max_length=100,
+        help_text="Especialidad principal del mentor"
+    )
+    
+    years_experience = models.PositiveIntegerField(
+        default=0,
+        help_text="Años de experiencia profesional"
+    )
+    
+    rating = models.FloatField(
+        default=0.0,
+        validators=[MinValueValidator(0), MaxValueValidator(5.0)],
+        help_text="Puntuación promedio (0-5)"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="¿El mentor está activo y disponible?"
+    )
+    
+    mentoring_types = ArrayField(
+        models.CharField(max_length=20, choices=MENTORING_TYPE_CHOICES),
+        default=list,
+        help_text="Tipos de mentoría que ofrece"
+    )
+    
+    expertise_areas = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        help_text="Áreas de expertise específicas"
+    )
+    
+    # Área de descripción y estilo
+    bio = models.TextField(
+        blank=True,
+        help_text="Biografía y experiencia relevante"
+    )
+    
+    teaching_style = models.CharField(
+        max_length=50,
+        default="Balanced",
+        help_text="Estilo de enseñanza predominante"
+    )
+    
+    personality_type = models.CharField(
+        max_length=50,
+        default="Analytical",
+        help_text="Tipo de personalidad predominante"
+    )
+    
+    # Disponibilidad y preferencias
+    availability = models.JSONField(
+        default=dict,
+        help_text="Disponibilidad horaria del mentor"
+    )
+    
+    # Metadatos
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Recomendador (debe ser de la misma organización)
+    recommended_by = models.ForeignKey(
+        'Person',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='mentor_recommendations',
+        help_text="Persona que recomendó al mentor (debe ser de la misma organización)"
+    )
+    
+    class Meta:
+        verbose_name = "Mentor"
+        verbose_name_plural = "Mentores"
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['company']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['rating'])
+        ]
+    
+    def __str__(self):
+        return f"Mentor: {self.person} ({self.specialty})"
+    
+    def get_skills(self):
+        """Obtiene las habilidades del mentor."""
+        return self.mentor_skills.all()
+    
+    def get_sessions(self):
+        """Obtiene las sesiones del mentor."""
+        return self.mentor_sessions.all()
+    
+    def to_dict(self):
+        """Convierte el objeto a diccionario para API."""
+        return {
+            'id': self.id,
+            'name': str(self.person),
+            'specialty': self.specialty,
+            'years_experience': self.years_experience,
+            'rating': self.rating,
+            'is_active': self.is_active,
+            'mentoring_types': self.mentoring_types,
+            'expertise_areas': self.expertise_areas,
+            'teaching_style': self.teaching_style,
+            'personality_type': self.personality_type
+        }
+
+class MentorSkill(models.Model):
+    """Modelo para habilidades específicas de un mentor.
+    
+    Representa una habilidad que posee un mentor, con su nivel de dominio
+    y años de experiencia en esa habilidad específica.
+    """
+    mentor = models.ForeignKey(
+        'Mentor',
+        on_delete=models.CASCADE,
+        related_name='mentor_skills',
+        help_text="Mentor que posee esta habilidad"
+    )
+    
+    skill = models.ForeignKey(
+        'Skill',
+        on_delete=models.CASCADE,
+        related_name='mentor_skills',
+        help_text="Habilidad específica"
+    )
+    
+    proficiency_level = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Nivel de dominio (0-100)"
+    )
+    
+    years = models.PositiveIntegerField(
+        default=0,
+        help_text="Años de experiencia con esta habilidad"
+    )
+    
+    # Metadatos
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Habilidad de Mentor"
+        verbose_name_plural = "Habilidades de Mentores"
+        unique_together = ['mentor', 'skill']
+        indexes = [
+            models.Index(fields=['mentor']),
+            models.Index(fields=['skill']),
+            models.Index(fields=['proficiency_level'])
+        ]
+    
+    def __str__(self):
+        return f"{self.skill} ({self.proficiency_level}%)"
+    
+    def to_dict(self):
+        """Convierte el objeto a diccionario para API."""
+        return {
+            'id': self.id,
+            'name': str(self.skill),
+            'level': self.proficiency_level,
+            'years': self.years
+        }
+
+class MentorSession(models.Model):
+    """Modelo para sesiones de mentoría.
+    
+    Representa una sesión programada o completada entre un mentor y un mentee,
+    con información sobre objetivos, resultados y retroalimentación.
+    """
+    mentor = models.ForeignKey(
+        'Mentor',
+        on_delete=models.CASCADE,
+        related_name='mentor_sessions',
+        help_text="Mentor que imparte la sesión"
+    )
+    
+    mentee = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='mentee_sessions',
+        help_text="Persona que recibe la mentoría"
+    )
+    
+    scheduled_date = models.DateTimeField(
+        help_text="Fecha y hora programada para la sesión"
+    )
+    
+    duration = models.PositiveIntegerField(
+        default=60,
+        help_text="Duración en minutos"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=MENTORING_SESSION_STATUS_CHOICES,
+        default='SCHEDULED',
+        help_text="Estado actual de la sesión"
+    )
+    
+    goal = models.CharField(
+        max_length=255,
+        help_text="Objetivo principal de la sesión"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Notas previas o agenda de la sesión"
+    )
+    
+    # Campos para sesiones completadas
+    completed_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha y hora real de finalización"
+    )
+    
+    rating = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(5)],
+        help_text="Valoración de la sesión (0-5)"
+    )
+    
+    feedback = models.TextField(
+        blank=True,
+        help_text="Retroalimentación sobre la sesión"
+    )
+    
+    # Metadatos
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Sesión de Mentoría"
+        verbose_name_plural = "Sesiones de Mentoría"
+        indexes = [
+            models.Index(fields=['mentor']),
+            models.Index(fields=['mentee']),
+            models.Index(fields=['scheduled_date']),
+            models.Index(fields=['status'])
+        ]
+        ordering = ['-scheduled_date']
+    
+    def __str__(self):
+        return f"Sesión: {self.mentor.person} - {self.mentee} ({self.scheduled_date.strftime('%Y-%m-%d')})"
+    
+    def to_dict(self):
+        """Convierte el objeto a diccionario para API."""
+        return {
+            'id': self.id,
+            'mentor_id': self.mentor.id,
+            'mentee_id': self.mentee.id,
+            'scheduled_date': self.scheduled_date.isoformat(),
+            'duration': self.duration,
+            'status': self.status,
+            'goal': self.goal,
+            'notes': self.notes,
+            'completed_date': self.completed_date.isoformat() if self.completed_date else None,
+            'rating': self.rating,
+            'feedback': self.feedback
+        }
+    
+    def mark_as_completed(self, rating=None, feedback=None):
+        """Marca la sesión como completada con retroalimentación opcional."""
+        self.status = 'COMPLETED'
+        self.completed_date = timezone.now()
+        if rating is not None:
+            self.rating = rating
+        if feedback is not None:
+            self.feedback = feedback
+        self.save()

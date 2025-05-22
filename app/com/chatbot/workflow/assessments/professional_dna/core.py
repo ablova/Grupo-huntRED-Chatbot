@@ -18,7 +18,8 @@ from app.com.chatbot.workflow.assessments.professional_dna.analysis import (
     AnalysisResult
 )
 from app.com.chatbot.workflow.assessments.professional_dna.presentation import ResultPresentation
-from app.com.chatbot.workflow.assessments.cv_generation.cv_generator import CVGenerator
+# Corregida la ruta de importación del CVGenerator
+from app.com.utils.cv_generator.cv_generator import CVGenerator
 
 class ProfessionalDNAWorkflow(BaseWorkflow):
     """Workflow para la evaluación Professional DNA."""

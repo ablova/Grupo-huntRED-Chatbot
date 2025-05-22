@@ -1,3 +1,4 @@
+# /home/pablo/app/com/utils/cv_generator/values_adapter.py
 """
 Adaptador de Valores para Generación de CVs.
 
@@ -8,8 +9,8 @@ de apoyo, solidaridad y sinergia, y el sistema de generación de CVs.
 import logging
 from typing import Dict, Any, List, Optional
 
-from app.com.chatbot.core.values import ValuesPrinciples
-from app.com.chatbot.core.values_integration import ValuesChatMiddleware
+from app.com.chatbot.values.core import ValuesPrinciples
+from app.com.chatbot.values.integrations import ValuesChatMiddleware
 from app.models import BusinessUnit, Person
 
 logger = logging.getLogger(__name__)

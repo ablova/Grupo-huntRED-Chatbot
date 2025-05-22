@@ -1,3 +1,4 @@
+# /home/pablo/app/kanban/ml_integration.py
 """
 Integración entre el sistema Kanban y los modelos de Machine Learning.
 Este módulo proporciona funcionalidades para enriquecer la experiencia
@@ -15,9 +16,25 @@ from asgiref.sync import sync_to_async
 # Importaciones directas siguiendo reglas de Grupo huntRED®
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.models import (
-    Person, Vacante, Application, BusinessUnit,
-    KanbanBoard, KanbanColumn, KanbanCard, KanbanCardHistory,
-    CulturalDimension, CulturalValue, CulturalProfile
+    Person, Vacante, Application, BusinessUnit
+)
+
+# Definiciones mock para modelos culturales
+class CulturalDimension:
+    id = 0
+    name = "Dimensión Mock"
+
+class CulturalValue:
+    id = 0
+    name = "Valor Mock"
+    dimension = CulturalDimension()
+
+class CulturalProfile:  # En realidad puede ser PersonCulturalProfile en el modelo real
+    id = 0
+    person_id = 0
+# Importamos las clases mock directamente desde el módulo kanban
+from app.kanban import (
+    KanbanBoard, KanbanColumn, KanbanCard, KanbanCardHistory
 )
 
 # Obtener el logger específico para este módulo

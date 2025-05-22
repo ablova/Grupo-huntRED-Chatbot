@@ -1,3 +1,4 @@
+# /home/pablo/app/com/talent/cultural_fit.py
 """
 Analizador de Fit Cultural.
 
@@ -18,12 +19,12 @@ from app.models import (
     OrganizationalCulture
 )
 
-from app.com.chatbot.workflow.assessments.cultural import CulturalAnalysis
-from app.com.chatbot.workflow.assessments.personality import PersonalityAnalysis
-from app.com.chatbot.workflow.assessments.generational import GenerationalAnalysis
-from app.com.chatbot.core.values import ValuesPrinciples
-from app.com.chatbot.core.principles import PrinciplesAnalyzer
-from app.com.chatbot.core.purpose import PurposeAnalyzer
+from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
+from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer as PersonalityAnalysis
+from app.ml.analyzers.generational_analyzer import GenerationalAnalyzer as GenerationalAnalysis
+from app.com.chatbot.values.principles import ValuesPrinciples
+from app.com.chatbot.values.principles import PrinciplesAnalyzer
+from app.com.chatbot.values.purpose import PurposeAnalyzer
 
 logger = logging.getLogger(__name__)
 

@@ -1,3 +1,4 @@
+# /home/pablo/app/kanban/__init__.py
 """
 Módulo Kanban para la gestión de candidatos.
 Este módulo implementa una interfaz tipo Kanban para el seguimiento 
@@ -12,11 +13,28 @@ Proporciona las siguientes funcionalidades:
 
 __version__ = "1.0.0"
 
-# No es necesario registrar módulos manualmente, ModuleRegistry se encarga automáticamente
-# ModuleRegistry en app/module_registry.py registra todos los módulos durante el inicio de Django
-
-# Imports para compatibilidad
-from app.models import (
-    KanbanBoard, KanbanColumn, KanbanCard, KanbanCardHistory,
-    KanbanComment, KanbanAttachment, KanbanNotification
-)
+# Clases mock para compatibilidad mientras se completa la implementación
+class KanbanBoard:
+    id = 0
+    name = "Tablero Mock"
+    
+class KanbanColumn:
+    id = 0
+    name = "Columna Mock"
+    board = KanbanBoard()
+    
+class KanbanCard:
+    id = 0
+    title = "Tarjeta Mock"
+    
+class KanbanCardHistory:
+    card = KanbanCard()
+    
+class KanbanComment:
+    card = KanbanCard()
+    
+class KanbanAttachment:
+    card = KanbanCard()
+    
+class KanbanNotification:
+    pass

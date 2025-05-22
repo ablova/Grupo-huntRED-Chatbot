@@ -18,7 +18,7 @@ from django.conf import settings
 
 from app.models import Person, JobSatisfaction, PerformanceReview, Activity
 from app.com.talent.cultural_fit import CulturalFitAnalyzer
-from app.com.chatbot.core.values import ValuesPrinciples
+from app.com.chatbot.values.core import ValuesPrinciples
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,19 @@ class RetentionPredictor:
         self.values_principles = ValuesPrinciples()
         self.model = self._load_model()
         
+        # Usar el nuevo implementador para el análisis real
+        try:
+            from app.ml.analyzers.retention_analyzer import RetentionAnalyzerImpl
+            self._impl = RetentionAnalyzerImpl()
+            self._using_new_impl = True
+            logger.info("RetentionPredictor usando implementación mejorada")
+        except ImportError:
+            self._using_new_impl = False
+            logger.warning("RetentionPredictor usando implementación original (no se encontró la mejorada)")
+        except Exception as e:
+            self._using_new_impl = False
+            logger.error(f"Error al inicializar implementación mejorada: {str(e)}")
+        
     async def analyze_retention_risk(self, 
                                    person_id: int,
                                    business_unit: Optional[str] = None) -> Dict:
@@ -59,6 +72,34 @@ class RetentionPredictor:
         Returns:
             Dict con análisis de riesgo y recomendaciones
         """
+        # Si tenemos disponible la implementación mejorada, usarla
+        if hasattr(self, '_using_new_impl') and self._using_new_impl:
+            try:
+                # Preparar datos para el nuevo analyzer
+                data = {
+                    'person_id': person_id
+                }
+                
+                # Llamar al implementador con los datos
+                # Usamos sync_to_async para convertir el método sincrónico a asíncrono
+                # ya que los analyzers implementan interfaces sincrónicas
+                from asgiref.sync import sync_to_async
+                analyze_async = sync_to_async(self._impl.analyze)
+                result = await analyze_async(data, business_unit)
+                
+                # Añadir análisis de valores - mantenemos esta funcionalidad de la impl original
+                values_alignment = await self._check_values_alignment(person_id)
+                result['values_alignment'] = values_alignment
+                
+                # Registrar uso exitoso
+                logger.info(f"Usando implementación mejorada para analizar retención de persona {person_id}")
+                
+                return result
+            except Exception as e:
+                # Si falla la nueva implementación, caer al método original
+                logger.error(f"Error en implementación mejorada: {str(e)}. Usando original.")
+        
+        # Implementación original como fallback
         try:
             # Obtener datos de la persona
             person = await self._get_person(person_id)
@@ -106,7 +147,7 @@ class RetentionPredictor:
             # Determinar nivel de riesgo
             risk_level = self._determine_risk_level(risk_score)
             
-            # Identificar factores causales principales
+            # Identificar factores causales
             causal_factors = self._identify_causal_factors({
                 'job_satisfaction': satisfaction_data,
                 'performance_trend': performance_data,
@@ -117,21 +158,32 @@ class RetentionPredictor:
             })
             
             # Generar recomendaciones
-            recommendations = await self._generate_recommendations(causal_factors, person_id, business_unit)
+            recommendations = await self._generate_recommendations(
+                causal_factors,
+                person_id,
+                business_unit
+            )
+            
+            # Verificar alineación con valores
+            values_alignment = await self._check_values_alignment(person_id)
             
             # Registrar análisis para seguimiento
             await self._log_analysis(person_id, risk_score, risk_level, causal_factors)
             
-            return {
+            # Componer resultado final
+            result = {
                 'person_id': person_id,
                 'risk_score': risk_score,
                 'risk_level': risk_level,
                 'causal_factors': causal_factors,
                 'recommendations': recommendations,
-                'cultural_alignment': cultural_data['alignment_score'] if cultural_data else None,
+                'values_alignment': values_alignment,
+                'cultural_fit': cultural_data.get('compatibility_score', None) if cultural_data else None,
                 'analyzed_at': datetime.now().isoformat(),
-                'huntRED_values_alignment': await self._check_values_alignment(person_id)
+                'confidence': 'high'
             }
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error analizando riesgo de retención: {str(e)}")

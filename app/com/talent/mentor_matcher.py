@@ -1,29 +1,30 @@
+# /home/pablo/app/com/talent/mentor_matcher.py
 """
 Matcher de Mentores.
 
 Este módulo analiza y empareja candidatos con mentores óptimos
 basándose en múltiples factores como experiencia, habilidades y compatibilidad.
-"""
 
+"""
 import logging
 import asyncio
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 import numpy as np
 from asgiref.sync import sync_to_async
 from django.conf import settings
 
-from app.models import Person, Mentor, MentorSkill, MentorSession, Skill, SkillAssessment, BusinessUnit
+from app.models import Person, Skill, SkillAssessment, BusinessUnit, Mentor, MentorSkill, MentorSession
 from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
-from app.com.chatbot.workflow.assessments.personality import PersonalityAnalysis
+from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer as PersonalityAnalysis
 from app.com.chatbot.workflow.assessments.professional_dna import ProfessionalDNAAnalysis
-from app.com.chatbot.workflow.assessments.cultural import CulturalAnalysis
-from app.com.chatbot.workflow.assessments.generational import GenerationalAnalysis
-from app.com.chatbot.core.values import ValuesPrinciples
-from app.com.chatbot.core.principles import PrinciplesAnalyzer
-from app.com.chatbot.core.purpose import PurposeAnalyzer
+from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
+from app.ml.analyzers.generational_analyzer import GenerationalAnalyzer as GenerationalAnalysis
+from app.com.chatbot.values.core import ValuesPrinciples
+from app.com.chatbot.values.principles import PrinciplesAnalyzer
+from app.com.chatbot.values.purpose import PurposeAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,19 @@ class MentorMatcher:
         self.principles_analyzer = PrinciplesAnalyzer()
         self.purpose_analyzer = PurposeAnalyzer()
         
+        # Usar el nuevo implementador para el análisis real
+        try:
+            from app.ml.analyzers.mentor_analyzer import MentorAnalyzerImpl
+            self._impl = MentorAnalyzerImpl()
+            self._using_new_impl = True
+            logger.info("MentorMatcher usando implementación mejorada")
+        except ImportError:
+            self._using_new_impl = False
+            logger.warning("MentorMatcher usando implementación original (no se encontró la mejorada)")
+        except Exception as e:
+            self._using_new_impl = False
+            logger.error(f"Error al inicializar implementación mejorada: {str(e)}")
+        
     async def find_optimal_mentors(self, 
                                  person_id: int, 
                                  goal: Optional[str] = None,
@@ -80,6 +94,40 @@ class MentorMatcher:
         Returns:
             Dict con mentores recomendados y análisis de compatibilidad
         """
+        # Si tenemos disponible la implementación mejorada, usarla
+        if hasattr(self, '_using_new_impl') and self._using_new_impl:
+            try:
+                # Preparar datos para el nuevo analyzer
+                data = {
+                    'person_id': person_id,
+                    'goal': goal,
+                    'mentoring_type': mentoring_type,
+                    'limit': limit
+                }
+                
+                # Llamar al implementador con los datos
+                # Usamos sync_to_async para convertir el método sincrónico a asíncrono
+                # ya que los analyzers implementan interfaces sincrónicas
+                from asgiref.sync import sync_to_async
+                analyze_async = sync_to_async(self._impl.analyze)
+                result = await analyze_async(data, business_unit)
+                
+                # Añadir mensajes motivacionales - mantenemos esta funcionalidad de la impl original
+                for match in result.get('matches', []):
+                    match['motivational_message'] = self.values_principles.get_values_based_message(
+                        "mentoría",
+                        {"mentor": match['mentor']['name'], "objetivo": goal or "desarrollo profesional"}
+                    )
+                
+                # Registrar uso exitoso
+                logger.info(f"Usando implementación mejorada para encontrar mentores para persona {person_id}")
+                
+                return result
+            except Exception as e:
+                # Si falla la nueva implementación, caer al método original
+                logger.error(f"Error en implementación mejorada: {str(e)}. Usando original.")
+        
+        # Implementación original como fallback
         try:
             # Obtener información del candidato
             person_data = await self._get_person_data(person_id)

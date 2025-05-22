@@ -1,3 +1,5 @@
+
+# /home/pablo/app/ml/analyzers/cultural_analyzer.py
 """
 Cultural Analyzer module for Grupo huntRED® assessment system.
 
@@ -7,10 +9,14 @@ focusing on values alignment, work environment preferences, and organizational c
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 import numpy as np
+import json
+from django.core.cache import cache
 
 from app.models import BusinessUnit
 from app.ml.analyzers.base_analyzer import BaseAnalyzer
-from app.ml.core.features.CulturalFitAnalyzer import CulturalFitAnalyzer as CoreCulturalAnalyzer
+
+# Removida la importación problemática
+# En lugar de importar, implementamos la funcionalidad directamente en esta clase
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +58,11 @@ class CulturalAnalyzer(BaseAnalyzer):
     }
     
     def __init__(self):
-        """Initialize the cultural analyzer with core components."""
+        """Initialize the cultural analyzer with required components."""
         super().__init__()
-        self.core_analyzer = CoreCulturalAnalyzer()
+        # No necesitamos el analizador core ya que implementamos la funcionalidad directamente en esta clase
+        # Cache timeout en segundos (2 horas por defecto)
+        self.cache_timeout = 7200
         
     def get_required_fields(self) -> List[str]:
         """Get required fields for cultural analysis."""
@@ -133,38 +141,33 @@ class CulturalAnalyzer(BaseAnalyzer):
         # Generate recommendations
         recommendations = self._generate_recommendations(dimension_scores, org_values, business_unit)
         
-        # Use core analyzer for additional analysis if available
-        core_analysis = {}
+        # En lugar de usar el core_analyzer, implementamos el análisis directamente aquí
+        additional_analysis = {}
         try:
-            # Mock objects for core analyzer interface
-            class MockPerson:
-                def __init__(self, cultural_text):
-                    self.cultural_text = cultural_text
-                    
-            class MockVacancy:
-                def __init__(self, culture_text):
-                    self.culture_text = culture_text
-                    
-            # Create text representation of responses
-            cultural_text = " ".join([f"{k}: {v}" for k, v in responses.items()])
+            # Concatenate all responses into a single text for sentiment analysis
+            cultural_text = ' '.join([f"{k}: {v}" for k, v in responses.items()])
             
-            # Create text representation of organization culture
-            culture_text = f"{org_values['core_values']} {org_values['work_environment']}"
+            # Get organization description
+            org_description = org_values.get('work_environment', '')
             
-            # Create mock objects
-            person = MockPerson(cultural_text)
-            vacancy = MockVacancy(culture_text)
+            # Implementación simplificada del análisis cultural
+            # Calcular similitud simple basada en palabras clave
+            keywords_org = set(org_description.lower().split())
+            keywords_candidate = set(cultural_text.lower().split())
             
-            # Use core analyzer
-            core_result = self.core_analyzer.analyze_cultural_fit(person, vacancy)
-            if core_result:
-                core_analysis = {
-                    'compatibility_score': core_result.get('compatibility', overall_score),
-                    'key_alignments': core_result.get('alignments', []),
-                    'potential_gaps': core_result.get('gaps', [])
-                }
+            # Calcular intersección y similitud de Jaccard simple
+            common_words = keywords_org.intersection(keywords_candidate)
+            similarity = len(common_words) / (len(keywords_org) + len(keywords_candidate) - len(common_words)) if keywords_org and keywords_candidate else 0
+            
+            # Análisis básico de compatibilidad
+            additional_analysis = {
+                'cultural_compatibility': similarity * 100,  # Convertir a porcentaje
+                'common_themes': list(common_words)[:5],  # Limitar a 5 temas comunes
+                'compatibility_level': 'Alto' if similarity > 0.7 else 'Medio' if similarity > 0.4 else 'Bajo'
+            }
         except Exception as e:
-            logger.warning(f"Error in core cultural analysis: {str(e)}")
+            logger.warning(f"Additional cultural analysis failed: {str(e)}")
+            additional_analysis = {}
             
         # Combine results
         result = {
@@ -178,9 +181,9 @@ class CulturalAnalyzer(BaseAnalyzer):
             'recommendations': recommendations
         }
         
-        # Add core analysis if available
-        if core_analysis:
-            result['core_analysis'] = core_analysis
+        # Add additional analysis if available
+        if additional_analysis:
+            result['additional_analysis'] = additional_analysis
             
         return result
         

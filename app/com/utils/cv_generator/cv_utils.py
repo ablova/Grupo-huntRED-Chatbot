@@ -1,10 +1,11 @@
+# /home/pablo/app/com/utils/cv_generator/cv_utils.py
 """
 CV Utilities module.
 
 This module provides utility functions for CV generation.
 """
 
-from typing import Dict
+from typing import Dict, List
 import re
 from datetime import datetime
 

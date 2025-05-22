@@ -1,3 +1,4 @@
+# /home/pablo/app/com/talent/learning_engine.py
 """
 Motor de Microaprendizaje.
 
@@ -16,9 +17,9 @@ import numpy as np
 from asgiref.sync import sync_to_async
 from django.conf import settings
 
-from app.models import Person, Skill, SkillAssessment, LearningResource
+from app.models import Person, Skill, SkillAssessment
 from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
-from app.com.chatbot.core.values import ValuesPrinciples
+from app.com.chatbot.values.core import ValuesPrinciples
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,19 @@ class LearningEngine:
         self.trajectory_analyzer = TrajectoryAnalyzer()
         self.resource_cache = {}
         
+        # Usar el nuevo implementador para el análisis real
+        try:
+            from app.ml.analyzers.learning_analyzer import LearningAnalyzerImpl
+            self._impl = LearningAnalyzerImpl()
+            self._using_new_impl = True
+            logger.info("LearningEngine usando implementación mejorada")
+        except ImportError:
+            self._using_new_impl = False
+            logger.warning("LearningEngine usando implementación original (no se encontró la mejorada)")
+        except Exception as e:
+            self._using_new_impl = False
+            logger.error(f"Error al inicializar implementación mejorada: {str(e)}")
+        
     async def generate_learning_sequence(self, 
                                       person_id: int, 
                                       skill_gap: Optional[Dict] = None,
@@ -66,6 +80,32 @@ class LearningEngine:
         Returns:
             Dict con secuencia de aprendizaje y timing óptimo
         """
+        # Si tenemos disponible la implementación mejorada, usarla
+        if hasattr(self, '_using_new_impl') and self._using_new_impl:
+            try:
+                # Preparar datos para el nuevo analyzer
+                data = {
+                    'person_id': person_id,
+                    'skill_gap': skill_gap,
+                    'context': context
+                }
+                
+                # Llamar al implementador con los datos
+                # Usamos sync_to_async para convertir el método sincrónico a asíncrono
+                # ya que los analyzers implementan interfaces sincrónicas
+                from asgiref.sync import sync_to_async
+                analyze_async = sync_to_async(self._impl.analyze)
+                result = await analyze_async(data, None)
+                
+                # Registrar uso exitoso
+                logger.info(f"Usando implementación mejorada para generar secuencia de aprendizaje de persona {person_id}")
+                
+                return result
+            except Exception as e:
+                # Si falla la nueva implementación, caer al método original
+                logger.error(f"Error en implementación mejorada: {str(e)}. Usando original.")
+        
+        # Implementación original como fallback
         try:
             # Obtener información del usuario
             person_data = await self._get_person_data(person_id)
@@ -107,39 +147,36 @@ class LearningEngine:
                     
                     sequence_item = {
                         'resource': resource,
-                        'skill_addressed': skill_name,
+                        'skill': skill_name,
+                        'current_level': gap_info['current_level'],
+                        'target_level': gap_info['target_level'],
+                        'gap': gap_info['gap'],
                         'timing_days': timing_days,
-                        'expected_impact': self._predict_impact(resource, gap_info),
+                        'impact': self._predict_impact(resource, gap_info),
                         'prerequisites': self._get_prerequisites(resource, skill_gap)
                     }
                     
                     learning_sequence.append(sequence_item)
             
-            # Ordenar secuencia completa por timing
-            sorted_sequence = sorted(learning_sequence, key=lambda x: x['timing_days'])
+            # Calcular duración total
+            total_duration_days = max([item['timing_days'] for item in learning_sequence]) if learning_sequence else 0
+            # Añadir duración promedio de recursos
+            if learning_sequence:
+                avg_resource_days = sum([item['resource'].get('duration_hours', 0) for item in learning_sequence]) / len(learning_sequence) / 2  # Asumiendo 2 horas/día
+                total_duration_days += avg_resource_days
             
-            # Agregar mensajes motivacionales basados en valores
-            for item in sorted_sequence:
-                item['motivational_message'] = self.values_principles.get_values_based_message(
-                    "aprendizaje",
-                    {"habilidad": item['skill_addressed']}
-                )
-            
-            # Calcular duración estimada del plan
-            if sorted_sequence:
-                duration_days = sorted_sequence[-1]['timing_days'] + 14  # Añadir tiempo para último recurso
-            else:
-                duration_days = 0
-            
-            return {
+            # Compilar resultado
+            result = {
                 'person_id': person_id,
                 'context': context,
                 'skill_gap': skill_gap,
-                'learning_sequence': sorted_sequence,
-                'estimated_duration_days': duration_days,
-                'total_resources': len(sorted_sequence),
+                'learning_sequence': learning_sequence,
+                'estimated_duration_days': round(total_duration_days),
+                'total_resources': len(learning_sequence),
                 'generated_at': datetime.now().isoformat()
             }
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error generando secuencia de aprendizaje: {str(e)}")

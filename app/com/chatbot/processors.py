@@ -1,3 +1,5 @@
+# /home/pablo/app/com/chatbot/processors.py
+
 class PersonalityTestProcessor:
     """Procesa la prueba de personalidad."""
     

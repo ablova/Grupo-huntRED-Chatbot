@@ -22,7 +22,7 @@ from app.com.utils.cv_generator.career_analyzer import CVCareerAnalyzer
 from app.com.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
 from app.com.chatbot.workflow.assessments.professional_dna import ProfessionalDNAAnalysis
 from app.com.chatbot.workflow.assessments.cultural.cultural_fit_workflow import CulturalFitWorkflow
-from app.com.ml.skill_classifier import SkillClassifier
+from app.com.utils.skill_classifier import SkillClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -41,30 +41,64 @@ class TrajectoryAnalyzer:
         Args:
             business_unit: Unidad de negocio (opcional)
         """
+        # Mantener las referencias a componentes originales para compatibilidad
         self.business_unit = business_unit
         self.values_principles = ValuesPrinciples()
         self.cv_career_analyzer = CVCareerAnalyzer()
         self.skill_classifier = SkillClassifier()
         
-        # Cargar datos de mercado y modelos predictivos
+        # Cargar datos de mercado y modelos predictivos (mantener para compatibilidad)
         self.market_data = self._load_market_data()
         self.career_paths = self._load_career_paths()
+        
+        # Usar el nuevo implementador para el análisis real
+        try:
+            from app.ml.analyzers.trajectory_analyzer import TrajectoryAnalyzerImpl
+            self._impl = TrajectoryAnalyzerImpl()
+            self._using_new_impl = True
+            logger.info("TrajectoryAnalyzer usando implementación mejorada")
+        except ImportError:
+            self._using_new_impl = False
+            logger.warning("TrajectoryAnalyzer usando implementación original (no se encontró la mejorada)")
+        except Exception as e:
+            self._using_new_impl = False
+            logger.error(f"Error al inicializar implementación mejorada: {str(e)}")
+
     
     async def predict_optimal_path(self, 
-                                 person_id: int, 
-                                 time_horizon: int = 60,
-                                 include_mentors: bool = True) -> Dict:
+                               person_id: int, 
+                               preferences: Optional[Dict] = None) -> Dict[str, Any]:
         """
-        Predice el camino óptimo de desarrollo profesional.
+        Predice la trayectoria profesional óptima para un candidato.
         
         Args:
             person_id: ID del candidato
-            time_horizon: Horizonte de tiempo en meses (default: 5 años)
-            include_mentors: Si incluir recomendaciones de mentores
+            preferences: Preferencias profesionales (opcional)
             
         Returns:
-            Dict con rutas profesionales, habilidades clave y puntos de decisión
+            Dict con trayectoria óptima y recomendaciones
         """
+        # Si tenemos disponible la implementación mejorada, usarla
+        if hasattr(self, '_using_new_impl') and self._using_new_impl:
+            try:
+                # Preparar datos para el nuevo analyzer
+                data = {
+                    'person_id': person_id,
+                    'preferences': preferences
+                }
+                
+                # Llamar al implementador con los datos
+                result = self._impl.analyze(data, self.business_unit)
+                
+                # Registrar uso exitoso
+                logger.info(f"Usando implementación mejorada para persona {person_id}")
+                
+                return result
+            except Exception as e:
+                # Si falla la nueva implementación, caer al método original
+                logger.error(f"Error en implementación mejorada: {str(e)}. Usando original.")
+        
+        # Implementación original como fallback
         try:
             # Obtener perfil actual del candidato
             person = await self._get_person(person_id)
@@ -82,7 +116,7 @@ class TrajectoryAnalyzer:
             possible_paths = await self._generate_career_paths(
                 person_id,
                 current_position,
-                time_horizon
+                60
             )
             
             # Evaluar cada ruta según criterios múltiples
@@ -624,6 +658,96 @@ class TrajectoryAnalyzer:
             })
         
         return mentors
+        
+    async def analyze_trajectory(self, person_id: int):
+        """
+        Analiza la trayectoria profesional del candidato y provee insights detallados.
+        
+        Este método combina análisis de experiencia pasada, habilidades actuales,
+        y tendencias de mercado para ofrecer una visión integral de la trayectoria.
+        
+        Args:
+            person_id: ID del candidato a analizar
+            
+        Returns:
+            Dict con análisis completo de trayectoria y recomendaciones
+        """
+        # Si tenemos disponible la implementación mejorada, usarla
+        if hasattr(self, '_using_new_impl') and self._using_new_impl:
+            try:
+                # Preparar datos para el nuevo analyzer
+                data = {
+                    'person_id': person_id,
+                    'experience': True,  # Incluir análisis de experiencia
+                    'skills': True,      # Incluir análisis de habilidades
+                    'career_goals': True # Incluir metas profesionales
+                }
+                
+                # Llamar al implementador con los datos
+                result = self._impl.analyze(data, self.business_unit)
+                
+                # Registrar uso exitoso
+                logger.info(f"Usando implementación mejorada para análisis de trayectoria de persona {person_id}")
+                
+                return result
+            except Exception as e:
+                # Si falla la nueva implementación, caer al método original
+                logger.error(f"Error en implementación mejorada para análisis de trayectoria: {str(e)}. Usando original.")
+        
+        # Implementación original como fallback
+        try:
+            # Obtener path óptimo como base
+            optimal_path = await self.predict_optimal_path(person_id)
+            
+            # Analizar experiencia pasada
+            person = await self._get_person(person_id)
+            if not person:
+                return self._get_default_path()
+            
+            current_position = await self._get_current_position(person)
+            experience = await self._get_experience(person_id) if hasattr(self, '_get_experience') else []
+            
+            # Obtener habilidades y clasificarlas
+            skills = await self._get_person_skills(person_id)
+            skill_categories = {}
+            for skill in skills:
+                category = self.skill_classifier.classify_skill(skill['name']) if hasattr(self, 'skill_classifier') else 'General'
+                if category not in skill_categories:
+                    skill_categories[category] = []
+                skill_categories[category].append(skill)
+            
+            # Analizar patrones de progresión
+            progression_patterns = self._analyze_progression_patterns(experience) if hasattr(self, '_analyze_progression_patterns') else []
+            
+            # Identificar habilidades críticas para futuro desarrollo
+            critical_skills = self._identify_critical_skills(optimal_path.get('top_paths', []), person_id) if hasattr(self, '_identify_critical_skills') else []
+            
+            # Retornar análisis completo
+            return {
+                'person_id': person_id,
+                'current_position': current_position,
+                'experience_summary': {
+                    'years_total': sum([exp.get('duration_years', 0) for exp in experience]) if experience else 0,
+                    'positions_count': len(experience) if experience else 0,
+                    'progression_patterns': progression_patterns
+                },
+                'skill_analysis': {
+                    'categories': skill_categories,
+                    'strengths': [s for s in skills if s.get('level', 0) >= 80][:3] if skills else [],
+                    'development_areas': [s for s in skills if s.get('level', 0) < 60][:3] if skills else []
+                },
+                'optimal_path': optimal_path,
+                'critical_skills': critical_skills,
+                'analyzed_at': datetime.now().isoformat()
+            }
+                
+        except Exception as e:
+            logger.error(f"Error en análisis de trayectoria: {str(e)}")
+            return {
+                'person_id': person_id,
+                'error': str(e),
+                'analyzed_at': datetime.now().isoformat()
+            }
     
     def _get_default_path(self):
         """Retorna una trayectoria predeterminada en caso de error."""

@@ -1,3 +1,4 @@
+# /home/pablo/app/com/chatbot/values/core.py
 """
 Módulo Core de Valores Fundamentales para el Chatbot.
 

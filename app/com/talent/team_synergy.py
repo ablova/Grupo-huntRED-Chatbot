@@ -30,7 +30,16 @@ from django.db.models import Q, Count, Avg, F
 from app.models import Person, BusinessUnit, Skill, SkillAssessment
 from app.com.chatbot.workflow.personality import PersonalityAnalyzer
 from app.com.utils.cv_generator.career_analyzer import CVCareerAnalyzer
-from app.com.chatbot.core.values import ValuesPrinciples
+from app.com.chatbot.values.principles import ValuesPrinciples
+
+# Importar el nuevo analizador si está disponible
+try:
+    from app.ml.analyzers.team_analyzer import TeamAnalyzerImpl
+    USE_NEW_ANALYZER = True
+except ImportError:
+    USE_NEW_ANALYZER = False
+    logger = logging.getLogger(__name__)
+    logger.warning("TeamAnalyzerImpl no encontrado, usando implementación original")
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +90,10 @@ class TeamSynergyAnalyzer:
         # Crear mapa de colores personalizado para huntRED
         colors = [(0.839, 0.157, 0.224), (0.98, 0.584, 0.298), (0.267, 0.384, 0.933)]  # Rojo, Naranja, Azul
         self.huntred_cmap = LinearSegmentedColormap.from_list('huntred', colors, N=100)
+        
+        # Inicializar el nuevo analizador si está disponible
+        if USE_NEW_ANALYZER:
+            self.analyzer = TeamAnalyzerImpl()
     
     async def analyze_team_synergy(self, 
                                  team_members: List[int], 
@@ -95,6 +108,30 @@ class TeamSynergyAnalyzer:
         Returns:
             Dict con análisis de sinergia, visualizaciones y recomendaciones
         """
+        # Usar el nuevo analizador si está disponible
+        if hasattr(self, 'analyzer') and USE_NEW_ANALYZER:
+            try:
+                # Obtener el objeto BusinessUnit si es necesario
+                bu_obj = None
+                if business_unit:
+                    try:
+                        bu_obj = BusinessUnit.objects.get(name=business_unit)
+                    except Exception as e:
+                        logger.warning(f"No se pudo obtener la unidad de negocio: {str(e)}")
+                
+                # Preparar datos para el analizador
+                data = {
+                    'team_members': team_members
+                }
+                
+                # Llamar al nuevo analizador
+                result = self.analyzer.analyze(data, bu_obj)
+                return result
+            except Exception as e:
+                logger.error(f"Error usando nuevo analizador de equipo: {str(e)}. Volviendo a implementación original.")
+                # Fallback a la implementación original
+        
+        # Implementación original si el nuevo analizador no está disponible o falla
         try:
             if not team_members:
                 logger.error("No se proporcionaron miembros del equipo")

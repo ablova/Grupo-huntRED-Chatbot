@@ -1,18 +1,25 @@
+# /home/pablo/app/com/chatbot/workflow/assessments/personality/__init__.py
 """
 Módulo de evaluación de personalidad.
 """
-from app.com.chatbot.workflow.assessments.personality.personality_workflow import (
-    get_questions_personality,
-    get_random_tipi_questions,
-    analyze_personality_responses
-)
+# Importamos directamente la clase PersonalityAssessment
+from app.com.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
 
-class PersonalityAssessment:
-    """Clase para manejar la evaluación de personalidad."""
-    
-    def __init__(self):
-        self.test_questions = get_questions_personality
-        self.tipi_questions = get_random_tipi_questions
-        self.analyze = analyze_personality_responses
+# Definimos adaptadores para mantener compatibilidad con código existente
+def get_questions_personality(test_type="huntBigFive", domain="general", business_unit=None):
+    """Adaptador para PersonalityAssessment.get_questions"""
+    assessment = PersonalityAssessment()
+    return assessment.get_questions(test_type, domain, business_unit)
 
-__all__ = ['PersonalityAssessment']
+def get_random_tipi_questions(domain="general", business_unit=None):
+    """Adaptador para PersonalityAssessment.get_random_tipi_questions"""
+    assessment = PersonalityAssessment()
+    return assessment.get_random_tipi_questions(domain, business_unit)
+
+def analyze_personality_responses(responses, business_unit=None):
+    """Adaptador para PersonalityAssessment.analyze_responses"""
+    assessment = PersonalityAssessment()
+    return assessment.analyze_responses(responses, business_unit)
+
+# Re-exportamos la clase principal para mantener compatibilidad
+__all__ = ['PersonalityAssessment', 'get_questions_personality', 'get_random_tipi_questions', 'analyze_personality_responses']
