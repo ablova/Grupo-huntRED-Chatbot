@@ -20,8 +20,8 @@ from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import (
     Person, BusinessUnit, WhatsAppAPI, ChatState,
-    Conversation, ChatMessage, SystemNotification,
-    SystemMetric, WorkflowStatus, ChannelSettings
+    Conversation, ChatMessage, Notification,
+    Metric, WorkflowStatus, ChannelSettings
 )
 # Importaciones directas siguiendo estándares de Django
 

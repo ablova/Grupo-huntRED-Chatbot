@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /home/pablo/app/com/chatbot/integrations/enhanced_document_processor.py
-#
+# 
 # Procesador mejorado de documentos que integra NLP, LinkedIn y el sistema de parsing existente.
 
 import os
@@ -24,8 +24,8 @@ from app.com.utils.parser import CVParser
 from app.com.utils.linkedin import LinkedInScraper
 from app.models import (
     BusinessUnit, Person,
-    Conversation, ChatMessage, SystemNotification,
-    SystemMetric, WorkflowStatus, ChannelSettings
+    Conversation, ChatMessage, Notification,
+    Metric, WorkflowStatus, ChannelSettings
 )
 from app.ml.ml_model import MatchmakingLearningSystem
 from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage

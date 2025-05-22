@@ -1,6 +1,9 @@
+"""
+Manejador de preguntas de liderazgo
+"""
 from typing import Dict, List, Optional
-from ....core.handlers import BaseHandler
-from ..questions import QuestionCategory
+from app.com.chatbot.workflow.core.handlers import BaseHandler
+from app.com.chatbot.workflow.assessments.professional_dna.questions import QuestionCategory
 
 class LeadershipHandler(BaseHandler):
     def __init__(self):

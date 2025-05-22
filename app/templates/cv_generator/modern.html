@@ -679,13 +679,29 @@
         .skill-level {
             width: 100%;
             height: 6px;
-            background-color: #f0f0f0;
+            background: var(--medium-gray);
             border-radius: 3px;
             margin-top: 5px;
             overflow: hidden;
         }
 
-        .skill-level .level-fill {
+        .skill-level-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .language-level-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--medium-gray);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .language-level-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
             border-radius: 3px;
@@ -1198,26 +1214,19 @@
         }
 
         .probability-bar {
-            height: 8px;
-            background: #eee;
-            border-radius: 4px;
-            margin-top: 0.5rem;
-            position: relative;
+            width: 100%;
+            height: 6px;
+            background: var(--medium-gray);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
         }
 
         .probability-fill {
             height: 100%;
-            background: #4CAF50;
-            border-radius: 4px;
+            background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
+            border-radius: 3px;
             transition: width 0.3s ease;
-        }
-
-        .probability-value {
-            position: absolute;
-            right: 0;
-            top: -20px;
-            font-size: 0.8rem;
-            color: #666;
         }
 
         .recommendations-section {
@@ -1469,6 +1478,145 @@
             height: 20px;
             border-radius: 4px;
         }
+
+        /* Estilos para niveles de habilidad */
+        .skill-level {
+            width: 100%;
+            height: 6px;
+            background: var(--medium-gray);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .skill-level-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Estilos para niveles de idioma */
+        .language-level-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--medium-gray);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .language-level-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Estilos para barras de probabilidad */
+        .probability-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--medium-gray);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .probability-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Estilos para dimensiones culturales */
+        .dimension-score-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--medium-gray);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .dimension-score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, #2980b9 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Estilos para tooltips mejorados */
+        .tooltip {
+            position: absolute;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            max-width: 250px;
+            box-shadow: var(--shadow);
+        }
+
+        .skill-badge:hover .tooltip {
+            opacity: 1;
+        }
+
+        /* Estilos para información adicional */
+        .info-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            background: var(--light-gray);
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--dark-gray);
+            margin-left: 8px;
+        }
+
+        .info-badge i {
+            color: var(--primary-color);
+        }
+
+        /* Estilos para métricas mejoradas */
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: var(--shadow);
+            margin-bottom: 15px;
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .metric-icon {
+            width: 24px;
+            height: 24px;
+            color: var(--primary-color);
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 5px 0;
+        }
+
+        .metric-description {
+            font-size: 14px;
+            color: var(--dark-gray);
+        }
     </style>
     <script>
         function convertToBlindCV() {
@@ -1645,19 +1793,23 @@
                 <div class="skill-badge" data-tooltip="{{ skill.description|default:'Sin descripción' }}">
                     <i class="fas fa-check-circle"></i>
                     <span>{{ skill.name }}</span>
-                    {% if skill.proficiency %}
-                    <div class="skill-level">
-                        {% with width=skill.proficiency|default:0|floatformat:0 %}
-                        <div class="level-fill" style="width: {{ width }}%;"></div>
-                        {% endwith %}
-                    </div>
-                    {% endif %}
                     {% if skill.years_experience %}
-                    <span class="years">{{ skill.years_experience }} años</span>
+                    <span class="info-badge">
+                        <i class="fas fa-clock"></i>
+                        {{ skill.years_experience }} años
+                    </span>
                     {% endif %}
                     {% if skill.certification %}
-                    <span class="certificate">{{ skill.certification }}</span>
+                    <span class="info-badge">
+                        <i class="fas fa-certificate"></i>
+                        {{ skill.certification }}
+                    </span>
                     {% endif %}
+                    <div class="skill-level">
+                        {% with width=skill.proficiency|default:0|floatformat:0 %}
+                        <div class="skill-level-fill" data-width="{{ width }}"></div>
+                        {% endwith %}
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -1675,12 +1827,15 @@
                 <div class="language-level">
                     <i class="fas fa-globe"></i>
                     <span>{{ lang.language }} ({{ lang.level }})</span>
-                    <div class="level-bar">
-                        <div class="level-fill" style="width: {{ lang.level_percentage|default:50 }}%"></div>
-                    </div>
-                    {% if lang.certificate %}
-                    <span class="certificate">{{ lang.certificate }}</span>
+                    {% if lang.certification %}
+                    <span class="info-badge">
+                        <i class="fas fa-certificate"></i>
+                        {{ lang.certification }}
+                    </span>
                     {% endif %}
+                    <div class="language-level-bar">
+                        <div class="language-level-fill" data-width="{{ lang.level_percentage|default:50 }}"></div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -1857,9 +2012,18 @@
                 <div class="role-card">
                     <h4>{{ role.role }}</h4>
                     <p class="company">{{ role.company }}</p>
-                    <div class="probability-bar">
-                        <div class="probability-fill" style="width: {{ role.probability * 100 }}%"></div>
-                        <span class="probability-value">{{ (role.probability * 100)|round }}%</span>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <i class="fas fa-chart-line metric-icon"></i>
+                            <span>Probabilidad de Éxito</span>
+                        </div>
+                        <div class="metric-value">{{ (role.probability * 100)|round }}%</div>
+                        <div class="probability-bar">
+                            <div class="probability-fill" data-width="{{ role.probability * 100 }}"></div>
+                        </div>
+                        {% if role.description %}
+                        <p class="metric-description">{{ role.description }}</p>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -1912,11 +2076,18 @@
                 {% for dimension, score in cultural_analysis.cultural_dimensions.items %}
                 <div class="dimension-card">
                     <h4>{{ dimension }}</h4>
-                    <div class="dimension-score">
-                        <div class="score-bar">
-                            <div class="score-fill" style="width: {{ score }}%"></div>
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <i class="fas fa-chart-pie metric-icon"></i>
+                            <span>Nivel de Alineación</span>
                         </div>
-                        <span class="score-value">{{ score }}%</span>
+                        <div class="metric-value">{{ score }}%</div>
+                        <div class="dimension-score-bar">
+                            <div class="dimension-score-fill" data-width="{{ score }}"></div>
+                        </div>
+                        {% if dimension.description %}
+                        <p class="metric-description">{{ dimension.description }}</p>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}

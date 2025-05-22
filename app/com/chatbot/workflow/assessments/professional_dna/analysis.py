@@ -1,7 +1,15 @@
+# /home/pablo/app/com/chatbot/workflow/assessments/professional_dna/analysis.py
+"""
+Análisis de resultados de la evaluación Professional DNA
+"""
 from typing import Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from enum import Enum
-from .questions import QuestionCategory, BusinessUnit, Question, AnalysisDimension, DimensionWeight
+from app.com.chatbot.workflow.assessments.professional_dna.questions import (
+    QuestionCategory,
+    BusinessUnit,
+    Question
+)
 
 class AnalysisType(Enum):
     LEADERSHIP = "leadership"
@@ -11,6 +19,20 @@ class AnalysisType(Enum):
     RESULTS = "results"
     GENERATIONAL = "generational"
     DIMENSIONAL = "dimensional"
+
+class AnalysisDimension(Enum):
+    STRATEGIC_THINKING = "strategic_thinking"
+    EMOTIONAL_INTELLIGENCE = "emotional_intelligence"
+    ADAPTABILITY = "adaptability"
+    COLLABORATION = "collaboration"
+    INNOVATION = "innovation"
+    RESILIENCE = "resilience"
+    RESULTS_ORIENTATION = "results_orientation"
+
+@dataclass
+class DimensionWeight:
+    dimension: AnalysisDimension
+    weight: float
 
 @dataclass
 class DimensionAnalysis:

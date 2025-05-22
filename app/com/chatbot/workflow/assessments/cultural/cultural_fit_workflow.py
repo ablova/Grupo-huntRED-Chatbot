@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/workflow/cultural_fit_workflow.py
+# /home/pablo/app/com/chatbot/workflow/assessments/cultural/cultural_fit_workflow.py
 """
 Workflow para test de compatibilidad cultural.
 Permite recopilar datos culturales de manera conversacional, 
@@ -15,12 +15,11 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from app.com.chatbot.workflow.base_workflow import BaseWorkflow
-from app.com.chatbot.workflow.cultural_fit_test import (
+from app.com.chatbot.workflow.core.base_workflow import BaseWorkflow
+from app.com.chatbot.workflow.assessments.cultural.cultural_fit_test import (
     get_cultural_fit_questions, analyze_cultural_fit_responses, save_cultural_profile
 )
 from app.com.chatbot.values import values_middleware
-from app.com.chatbot.utils.message_utils import format_message
 
 logger = logging.getLogger(__name__)
 
@@ -318,89 +317,86 @@ class CulturalFitWorkflow(BaseWorkflow):
     
     async def _generate_results_summary(self, analysis_result: Dict[str, Any]) -> str:
         """
-        Genera un resumen de los resultados del análisis cultural.
+        Genera un resumen visual y atractivo de los resultados del análisis cultural.
         
         Args:
-            analysis_result: Resultado del análisis cultural
+            analysis_result: Resultados del análisis cultural
             
         Returns:
-            str: Mensaje con el resumen de resultados
+            str: Resumen formateado de los resultados
         """
         try:
-            # Extraemos datos del análisis
+            # Obtener scores y compatibilidad
             scores = analysis_result.get('scores', {})
-            strengths = analysis_result.get('strengths', [])
-            areas_for_improvement = analysis_result.get('areas_for_improvement', [])
-            recommendations = analysis_result.get('recommendations', [])
             compatibility = analysis_result.get('compatibility', {})
+            strengths = analysis_result.get('strengths', [])
+            improvement_areas = analysis_result.get('improvement_areas', [])
+            recommendations = analysis_result.get('recommendations', [])
             
-            # Calculamos puntuación global
-            global_score = compatibility.get('general', 0)
+            # Construir mensaje con formato visual
+            message = "🎯 *Resultados de tu Evaluación Cultural*\n\n"
             
-            # Determinamos nivel de compatibilidad
-            if global_score >= 85:
-                compatibility_level = "Excelente"
-            elif global_score >= 70:
-                compatibility_level = "Muy bueno"
-            elif global_score >= 50:
-                compatibility_level = "Bueno"
-            elif global_score >= 30:
-                compatibility_level = "Regular"
-            else:
-                compatibility_level = "Bajo"
+            # Sección de Compatibilidad General
+            message += "🌟 *Compatibilidad General*\n"
+            for unit, score in compatibility.items():
+                # Convertir score a emoji de progreso
+                progress = "🟢" * int(score/20) + "⚪" * (5 - int(score/20))
+                message += f"• {unit.title()}: {progress} {score:.1f}%\n"
+            message += "\n"
             
-            # Construimos el mensaje de resultados, reflejando los valores de Grupo huntRED®
-            message = "✅ **Análisis de Compatibilidad Cultural Completo**\n\n"
-            message += f"**Puntuación Global**: {global_score:.1f}/100\n"
-            message += f"**Nivel de Compatibilidad**: {compatibility_level}\n\n"
+            # Sección de Dimensiones
+            message += "📊 *Análisis por Dimensiones*\n"
+            dimension_emojis = {
+                'values': '💎',
+                'motivators': '🎯',
+                'interests': '🎨',
+                'work_style': '⚡',
+                'social_impact': '🤝',
+                'generational_values': '👥'
+            }
             
-            # Fortalezas (Apoyo)
-            message += "**Fortalezas Culturales**:\n"
-            for strength in strengths[:3]:  # Limitamos a 3 para no saturar
-                message += f"• {strength}\n"
+            for dimension, score in scores.items():
+                emoji = dimension_emojis.get(dimension, '📌')
+                progress = "🟢" * int(score) + "⚪" * (5 - int(score))
+                message += f"{emoji} {dimension.replace('_', ' ').title()}: {progress} ({score:.1f}/5)\n"
+            message += "\n"
             
-            # Dimensiones principales (Sinergia)
-            message += "\n**Dimensiones Culturales Destacadas**:\n"
-            # Ordenamos dimensiones por puntaje
-            sorted_dimensions = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-            for dimension, score in sorted_dimensions[:3]:
-                dimension_name = dimension.replace('_', ' ').title()
-                message += f"• {dimension_name}: {score:.1f}/5\n"
+            # Sección de Fortalezas
+            if strengths:
+                message += "💪 *Tus Fortalezas*\n"
+                for strength in strengths:
+                    message += f"• {strength}\n"
+                message += "\n"
             
-            # Recomendaciones (Solidaridad)
-            message += "\n**Recomendaciones Personalizadas**:\n"
-            for recommendation in recommendations[:2]:
-                message += f"• {recommendation}\n"
+            # Sección de Áreas de Mejora
+            if improvement_areas:
+                message += "📈 *Áreas de Oportunidad*\n"
+                for area in improvement_areas:
+                    message += f"• {area}\n"
+                message += "\n"
             
-            # Compatibilidad por BU si está disponible
-            if self.business_unit and self.business_unit in compatibility:
-                bu_score = compatibility[self.business_unit]
-                message += f"\n**Compatibilidad con {self.business_unit.title()}**: {bu_score:.1f}%\n"
+            # Sección de Recomendaciones
+            if recommendations:
+                message += "🎓 *Recomendaciones Personalizadas*\n"
+                for rec in recommendations:
+                    message += f"• {rec}\n"
+                message += "\n"
             
-            # Enlace al reporte completo (simulado)
-            report_id = "sample"  # En un escenario real, tendríamos un ID
-            message += f"\n📊 Puedes ver el reporte completo en: /reports/cultural-fit/{report_id}\n\n"
+            # Mensaje final motivacional
+            message += "✨ *Próximos Pasos*\n"
+            message += "Estos resultados te ayudarán a:\n"
+            message += "• Identificar tu mejor ajuste cultural\n"
+            message += "• Desarrollar tus fortalezas\n"
+            message += "• Trabajar en áreas de oportunidad\n"
+            message += "• Encontrar el entorno laboral ideal\n\n"
             
-            # Mensaje de cierre con valores de Grupo huntRED®
-            message += (
-                "Con este análisis cultural, podemos brindarte un **Apoyo** más personalizado "
-                "en tu desarrollo profesional, crear **Sinergia** entre tus fortalezas y las "
-                "oportunidades del mercado, y ofrecer **Solidaridad** mediante recomendaciones "
-                "adaptadas a tus valores y motivaciones.\n\n"
-                "¿Te gustaría recibir una propuesta comercial para un análisis más completo "
-                "que incluya compatibilidad con equipos específicos o empresas?"
-            )
+            message += "¿Te gustaría explorar más a fondo algún aspecto específico de tu perfil cultural?"
             
             return message
             
         except Exception as e:
-            logger.error(f"Error generando resumen de resultados: {e}", exc_info=True)
-            return (
-                "Hemos completado tu análisis de compatibilidad cultural. "
-                "Lamentablemente ocurrió un problema al generar el resumen detallado. "
-                "Sin embargo, tus datos han sido guardados y podrás acceder a ellos más adelante. "
-                "¿Hay algo más en lo que pueda ayudarte?"
-            )
+            logger.error(f"Error generando resumen de resultados: {str(e)}")
+            return "Lo siento, hubo un error al generar el resumen de resultados. Por favor, intenta nuevamente."
     
     async def get_next_state(self, message_text: str) -> Optional[str]:
         """Determina el siguiente estado del workflow basado en el mensaje y estado actual."""

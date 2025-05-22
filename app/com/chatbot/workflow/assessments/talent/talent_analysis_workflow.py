@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/workflow/talent_analysis_workflow.py
+# /home/pablo/app/com/chatbot/workflow/assessments/talent/talent_analysis_workflow.py
 """
 Workflow para Análisis de Talento 360°.
 
@@ -12,9 +12,8 @@ import json
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
+from app.com.chatbot.workflow.core.base_workflow import BaseWorkflow
 from app.models import Person, BusinessUnit, Company, Team
-from app.com.chatbot.workflow.base_workflow import BaseWorkflow
-from app.com.chatbot.core.message_handlers import MessageType
 from app.com.talent.team_synergy import TeamSynergyAnalyzer
 from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
 from app.com.talent.cultural_fit import CulturalFitAnalyzer
@@ -46,6 +45,8 @@ class TalentAnalysisWorkflow(BaseWorkflow):
         """Inicializa el workflow con parámetros específicos."""
         super().__init__(user_id, chat_id, **kwargs)
         self.business_unit = business_unit
+        self.workflow_id = "talent_analysis"
+        self.workflow_name = "Análisis de Talento 360°"
         self.analysis_type = None
         self.target_person_id = None
         self.target_team_ids = []
@@ -70,16 +71,16 @@ class TalentAnalysisWorkflow(BaseWorkflow):
         self.retention_predictor = RetentionPredictor()
         self.intervention_system = InterventionSystem()
         
-    async def process_message(self, message_text: str, message_type: MessageType) -> str:
+    async def process_message(self, message_text: str, message_type: str = 'text') -> str:
         """
-        Procesa un mensaje entrante en el workflow de análisis de talento.
+        Procesa los mensajes del usuario durante el workflow.
         
         Args:
-            message_text: Texto del mensaje recibido
-            message_type: Tipo de mensaje (TEXTO, DOCUMENTO, IMAGEN, etc.)
+            message_text: Texto del mensaje del usuario
+            message_type: Tipo de mensaje ('text', 'image', 'document', etc.)
             
         Returns:
-            Respuesta del sistema
+            str: Respuesta del chatbot
         """
         try:
             # Si estamos en la fase de descubrimiento
@@ -111,7 +112,7 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             logger.error(f"Error en TalentAnalysisWorkflow.process_message: {str(e)}")
             return "Disculpa, ocurrió un error al procesar tu mensaje. Por favor, inténtalo de nuevo."
     
-    async def _process_discovery_phase(self, message_text: str, message_type: MessageType) -> str:
+    async def _process_discovery_phase(self, message_text: str, message_type: str) -> str:
         """Procesa mensajes durante la fase de descubrimiento."""
         # Si es el primer mensaje en esta fase, iniciar con preguntas de descubrimiento
         if not self.phases_data["discovery"]:
@@ -218,7 +219,7 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             "proporcionadas o proporciona la información solicitada."
         )
     
-    async def _process_individual_data_phase(self, message_text: str, message_type: MessageType) -> str:
+    async def _process_individual_data_phase(self, message_text: str, message_type: str) -> str:
         """Procesa mensajes durante la fase de recopilación de datos individuales."""
         # Si es el primer mensaje en esta fase, iniciar con preguntas sobre experiencia
         if not self.phases_data["individual_data"]:
@@ -328,7 +329,7 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             "para que pueda completar el análisis."
         )
     
-    async def _process_team_dynamics_phase(self, message_text: str, message_type: MessageType) -> str:
+    async def _process_team_dynamics_phase(self, message_text: str, message_type: str) -> str:
         """Procesa mensajes durante la fase de recopilación de datos de dinámica de equipo."""
         # Si es el primer mensaje en esta fase
         if not self.phases_data["team_dynamics"]:
@@ -375,7 +376,7 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             "para que pueda completar el análisis."
         )
     
-    async def _process_culture_phase(self, message_text: str, message_type: MessageType) -> str:
+    async def _process_culture_phase(self, message_text: str, message_type: str) -> str:
         """Procesa mensajes durante la fase de recopilación de datos culturales."""
         # Si es el primer mensaje en esta fase
         if not self.phases_data["culture"]:
@@ -412,7 +413,7 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             "para que pueda completar el análisis."
         )
     
-    async def _process_confirmation_phase(self, message_text: str, message_type: MessageType) -> str:
+    async def _process_confirmation_phase(self, message_text: str, message_type: str) -> str:
         """Procesa mensajes durante la fase de confirmación y genera el análisis."""
         # Si es una confirmación positiva
         if any(word in message_text.lower() for word in ["sí", "si", "adelante", "correcto", "procede", "generar"]):
@@ -885,11 +886,8 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             )
     
     async def _generate_360_analysis(self) -> str:
-        """Genera un análisis integral 360°."""
+        """Genera un análisis integral 360° con formato visual mejorado."""
         try:
-            # En una implementación real, aquí generaríamos todos los análisis
-            # y los combinaríamos en un reporte integral
-            
             # Determinar si es análisis individual o de equipo
             if self.target_person_id:
                 # Análisis individual 360°
@@ -917,126 +915,157 @@ class TalentAnalysisWorkflow(BaseWorkflow):
                     limit=3
                 )
                 
-                # Crear enlace al reporte
-                report_url = f"/reports/talent-360/{person_id}"
+                # Crear respuesta con formato visual mejorado
+                response = "🎯 *Análisis Integral de Talento 360°*\n\n"
                 
-                # Crear respuesta con insights principales
-                response = (
-                    "✅ **Análisis Integral de Talento 360° Completado**\n\n"
-                    f"**Persona**: {self.phases_data['discovery'].get('person_name', 'No especificada')}\n"
-                    f"**Posición Actual**: {trajectory_result.get('current_position', 'No especificada')}\n\n"
-                    
-                    "**Resumen Ejecutivo**:\n"
-                    f"• Potencial de Desarrollo: {trajectory_result.get('potential_score', 80)}/100\n"
-                    f"• Riesgo de Rotación: {retention_result.get('risk_level', 'medium').title()} ({retention_result.get('risk_score', 65)}/100)\n"
-                    "• Compatibilidad Cultural: Buena (75/100)\n\n"
-                    
-                    "**Áreas de Análisis**:\n"
-                )
+                # Información básica
+                response += "👤 *Información del Candidato*\n"
+                response += f"• Nombre: {self.phases_data['discovery'].get('person_name', 'No especificado')}\n"
+                response += f"• Posición Actual: {trajectory_result.get('current_position', 'No especificada')}\n"
+                response += f"• Unidad de Negocio: {business_unit}\n\n"
+                
+                # Resumen Ejecutivo
+                response += "📊 *Resumen Ejecutivo*\n"
+                potential_score = trajectory_result.get('potential_score', 80)
+                risk_score = retention_result.get('risk_score', 65)
+                risk_level = retention_result.get('risk_level', 'medium').title()
+                
+                # Barras de progreso visuales
+                potential_progress = "🟢" * int(potential_score/20) + "⚪" * (5 - int(potential_score/20))
+                risk_progress = "🔴" * int(risk_score/20) + "⚪" * (5 - int(risk_score/20))
+                
+                response += f"• Potencial de Desarrollo: {potential_progress} {potential_score}/100\n"
+                response += f"• Riesgo de Rotación: {risk_progress} {risk_score}/100 ({risk_level})\n"
+                response += f"• Compatibilidad Cultural: {'🟢' * 3 + '⚪' * 2} 75/100\n\n"
                 
                 # Trayectoria Profesional
-                response += "\n🔹 **Trayectoria Profesional**:\n"
+                response += "🎯 *Trayectoria Profesional*\n"
                 optimal_path = trajectory_result.get('optimal_path', {})
                 response += f"• Próxima posición recomendada: {optimal_path.get('next_position', 'No especificada')}\n"
                 response += f"• Timeframe estimado: {optimal_path.get('timeframe', 18)} meses\n"
+                response += f"• Habilidades clave a desarrollar: {', '.join(optimal_path.get('key_skills', ['No especificadas']))}\n\n"
                 
-                # Retención
-                response += "\n🔹 **Factores de Riesgo de Rotación**:\n"
+                # Factores de Retención
+                response += "🔍 *Factores de Riesgo de Rotación*\n"
                 causal_factors = retention_result.get('causal_factors', [])
-                for factor in causal_factors[:2]:
+                for factor in causal_factors[:3]:
                     factor_name = factor.get('factor', 'unknown').replace('_', ' ').title()
-                    response += f"• {factor_name}: {factor.get('score', 50)}/100\n"
+                    factor_score = factor.get('score', 50)
+                    factor_progress = "🔴" * int(factor_score/20) + "⚪" * (5 - int(factor_score/20))
+                    response += f"• {factor_name}: {factor_progress} {factor_score}/100\n"
+                response += "\n"
                 
-                # Aprendizaje
-                response += "\n🔹 **Plan de Aprendizaje Personalizado**:\n"
+                # Plan de Aprendizaje
+                response += "📚 *Plan de Aprendizaje Personalizado*\n"
                 learning_modules = learning_result.get('learning_modules', [])
-                for module in learning_modules[:2]:
-                    response += f"• {module.get('title', 'Módulo de aprendizaje')}: {module.get('duration', '2 semanas')}\n"
+                for module in learning_modules[:3]:
+                    response += f"• {module.get('title', 'Módulo')}: {module.get('description', 'No especificado')}\n"
+                response += "\n"
                 
-                # Mentores
-                response += "\n🔹 **Mentores Recomendados**:\n"
+                # Mentores Recomendados
+                response += "👥 *Mentores Recomendados*\n"
                 mentors = mentor_result.get('mentors', [])
-                for mentor in mentors[:2]:
-                    response += f"• {mentor.get('name', 'Mentor')}: {mentor.get('match_score', 85)}% compatibilidad\n"
+                for mentor in mentors:
+                    response += f"• {mentor.get('name', 'Mentor')}: {mentor.get('expertise', 'No especificado')}\n"
+                response += "\n"
                 
-                # Añadir enlace al reporte completo
-                response += ("\n📊 Puedes ver el reporte completo con visualizaciones detalladas "
-                            f"en el siguiente enlace: {report_url}\n\n")
-            
+                # Recomendaciones Finales
+                response += "💡 *Recomendaciones Clave*\n"
+                recommendations = [
+                    "Mantener un plan de desarrollo personalizado",
+                    "Establecer objetivos claros de carrera",
+                    "Participar en programas de mentoría",
+                    "Desarrollar habilidades identificadas como críticas"
+                ]
+                for rec in recommendations:
+                    response += f"• {rec}\n"
+                response += "\n"
+                
+                # Próximos Pasos
+                response += "🚀 *Próximos Pasos*\n"
+                response += "1. Revisar y validar el plan de desarrollo\n"
+                response += "2. Establecer reuniones con mentores recomendados\n"
+                response += "3. Iniciar los módulos de aprendizaje prioritarios\n"
+                response += "4. Programar seguimiento en 3 meses\n\n"
+                
+                response += "¿Te gustaría profundizar en algún aspecto específico del análisis?"
+                
+                return response
+                
             else:
-                # Análisis de equipo 360°
+                # Análisis de equipo
                 team_ids = self.target_team_ids
-                business_unit = self.business_unit
+                team_result = await self.team_synergy_analyzer.analyze_team_synergy(team_ids)
                 
-                # Generar análisis de equipo
-                team_result = await self.team_synergy_analyzer.analyze_team_synergy(
-                    team_members=team_ids,
-                    business_unit=business_unit
-                )
+                response = "👥 *Análisis Integral de Equipo 360°*\n\n"
                 
-                # Crear enlace al reporte
-                report_url = f"/reports/team-360/{team_ids[0] if team_ids else 'sample'}"
+                # Información del Equipo
+                response += "📋 *Información del Equipo*\n"
+                response += f"• Nombre: {self.phases_data['discovery'].get('team_name', 'No especificado')}\n"
+                response += f"• Tamaño: {team_result.get('team_size', len(team_ids))} miembros\n"
+                response += f"• Unidad de Negocio: {self.business_unit}\n\n"
                 
-                # Crear respuesta con insights principales
-                response = (
-                    "✅ **Análisis Integral de Equipo 360° Completado**\n\n"
-                    f"**Equipo**: {self.phases_data['discovery'].get('team_name', 'No especificado')}\n"
-                    f"**Tamaño**: {team_result.get('team_size', len(team_ids))} miembros\n\n"
-                    
-                    "**Resumen Ejecutivo**:\n"
-                    f"• Sinergia de Equipo: {team_result.get('synergy_score', 75)}/100\n"
-                    f"• Cobertura de Habilidades: {team_result.get('skills_analysis', {}).get('coverage_score', 70)}/100\n"
-                    f"• Diversidad Generacional: {team_result.get('generation_analysis', {}).get('diversity_score', 65)}/100\n\n"
-                    
-                    "**Áreas de Análisis**:\n"
-                )
+                # Resumen Ejecutivo
+                response += "📊 *Resumen Ejecutivo*\n"
+                synergy_score = team_result.get('synergy_score', 75)
+                skills_coverage = team_result.get('skills_analysis', {}).get('coverage_score', 70)
+                diversity_score = team_result.get('generation_analysis', {}).get('diversity_score', 65)
                 
-                # Composición de equipo
-                response += "\n🔹 **Composición del Equipo**:\n"
+                # Barras de progreso visuales
+                synergy_progress = "🟢" * int(synergy_score/20) + "⚪" * (5 - int(synergy_score/20))
+                skills_progress = "🟢" * int(skills_coverage/20) + "⚪" * (5 - int(skills_coverage/20))
+                diversity_progress = "🟢" * int(diversity_score/20) + "⚪" * (5 - int(diversity_score/20))
+                
+                response += f"• Sinergia de Equipo: {synergy_progress} {synergy_score}/100\n"
+                response += f"• Cobertura de Habilidades: {skills_progress} {skills_coverage}/100\n"
+                response += f"• Diversidad Generacional: {diversity_progress} {diversity_score}/100\n\n"
+                
+                # Composición del Equipo
+                response += "👥 *Composición del Equipo*\n"
                 personality_analysis = team_result.get('personality_analysis', {})
                 response += f"• Personalidad Dominante: {personality_analysis.get('dominant_personality', 'Analítico')}\n"
                 response += f"• Diversidad de Personalidades: {personality_analysis.get('diversity_score', 68)}/100\n"
+                response += f"• Balance de Roles: {personality_analysis.get('role_balance', 'Bueno')}\n\n"
                 
-                # Habilidades
-                response += "\n🔹 **Análisis de Habilidades**:\n"
+                # Análisis de Habilidades
+                response += "🎯 *Análisis de Habilidades*\n"
                 skills_analysis = team_result.get('skills_analysis', {})
                 response += f"• Cobertura: {skills_analysis.get('coverage_score', 70)}/100\n"
                 response += f"• Balance: {skills_analysis.get('balance_score', 65)}/100\n"
+                response += f"• Habilidades Críticas: {', '.join(skills_analysis.get('critical_skills', ['No especificadas']))}\n\n"
                 
-                # Brechas de habilidades
-                response += "\n🔹 **Brechas Principales**:\n"
+                # Brechas y Oportunidades
+                response += "📈 *Brechas y Oportunidades*\n"
                 for gap in skills_analysis.get('skill_gaps', [])[:3]:
                     response += f"• {gap}\n"
+                response += "\n"
                 
                 # Recomendaciones
-                response += "\n🔹 **Recomendaciones Clave**:\n"
-                for i, rec in enumerate(team_result.get('recommendations', [])[:3]):
-                    response += f"• {rec.get('title', f'Recomendación {i+1}')}\n"
+                response += "💡 *Recomendaciones para el Equipo*\n"
+                recommendations = [
+                    "Implementar programa de desarrollo de habilidades críticas",
+                    "Fomentar la diversidad de pensamiento",
+                    "Establecer objetivos de equipo claros",
+                    "Mejorar la comunicación intergeneracional"
+                ]
+                for rec in recommendations:
+                    response += f"• {rec}\n"
+                response += "\n"
                 
-                # Añadir enlace al reporte completo
-                response += ("\n📊 Puedes ver el reporte completo con visualizaciones detalladas "
-                            f"en el siguiente enlace: {report_url}\n\n")
-            
-            # Añadir oferta de propuesta comercial para todo tipo de análisis
-            response += (
-                "💼 **¿Te gustaría recibir una propuesta comercial personalizada para "
-                "implementar un programa integral de análisis de talento en tu organización?** \n\n"
-                "Nuestro programa 360° puede ayudarte a:\n"
-                "• Optimizar la composición y sinergia de tus equipos\n"
-                "• Desarrollar planes de carrera efectivos para talento clave\n"
-                "• Mejorar la retención de personal estratégico\n"
-                "• Fortalecer la cultura organizacional\n\n"
-                "Podemos agendar una llamada con nuestro equipo para discutir tus necesidades específicas."
-            )
-            
-            return response
-            
+                # Próximos Pasos
+                response += "🚀 *Próximos Pasos*\n"
+                response += "1. Revisar y validar el análisis con el equipo\n"
+                response += "2. Establecer plan de acción para cerrar brechas\n"
+                response += "3. Implementar programa de desarrollo\n"
+                response += "4. Programar seguimiento en 3 meses\n\n"
+                
+                response += "¿Te gustaría profundizar en algún aspecto específico del análisis del equipo?"
+                
+                return response
+                
         except Exception as e:
-            logger.error(f"Error generando análisis integral 360°: {str(e)}")
-            return (
-                "Lo siento, hubo un problema al generar el análisis integral 360°. "
-                "Por favor, intenta nuevamente más tarde o contacta a nuestro equipo de soporte."
-            )
+            logger.error(f"Error generando análisis 360°: {str(e)}")
+            return "Lo siento, hubo un error al generar el análisis 360°. Por favor, intenta nuevamente."
     
     def _reset_workflow(self):
         """Restablece el estado del workflow para un nuevo análisis."""

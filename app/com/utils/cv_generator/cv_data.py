@@ -63,6 +63,17 @@ class Skill:
 
 
 @dataclass
+class SkillAssessment:
+    """Evaluación de una habilidad específica."""
+    skill: str
+    score: float
+    assessment_date: datetime
+    assessor: Optional[str] = None
+    is_verified: bool = False
+    comments: Optional[str] = None
+
+
+@dataclass
 class PersonalityTest:
     """Personality test results."""
     test_name: str
@@ -93,6 +104,7 @@ class CVData:
     education: List[Education]
     skills: List[Skill]
     languages: List[Language]
+    skill_assessments: List[SkillAssessment]  # Nueva lista de evaluaciones
     personality_test: Optional[PersonalityTest] = None
     background_check: Optional[BackgroundCheck] = None
     business_unit: str

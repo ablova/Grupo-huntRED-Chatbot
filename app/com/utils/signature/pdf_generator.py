@@ -20,7 +20,7 @@ import numpy as np
 from django.core.files.storage import default_storage
 from asgiref.sync import sync_to_async
 
-from app.models import Person, BusinessUnit
+from app.models import Person, BusinessUnit, SkillAssessment
 from app.com.chatbot.validation import get_truth_analyzer
 
 # Obtener la instancia del analizador cuando sea necesario

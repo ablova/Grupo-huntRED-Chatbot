@@ -1,3 +1,4 @@
+# /home/pablo/app/cultural_assessment/chatbot_integration.py
 """
 Integración del sistema de análisis cultural con el chatbot de Grupo huntRED®.
 
@@ -13,10 +14,13 @@ from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
 from django.urls import reverse
+
 from app.models import (
-    CulturalAssessment, OrganizationalCulture, CulturalDimension, 
-    CulturalValue, CulturalProfile, Person, BusinessUnit, Organization, Application, Vacante
+    PersonCulturalProfile, CulturalFitReport, Application,
+    CulturalDimension, CulturalValue, OrganizationalCulture,
+    Person, BusinessUnit, Organization, Vacante
 )
+
 from app.utils.cache import cache_result
 from app.chatbot.conversation_state import ConversationState
 from app.utils.common import generate_unique_token

@@ -10,7 +10,8 @@ import logging
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from app.models import (
-    CulturalAssessment, OrganizationalCulture, CulturalProfile, CulturalReport
+    CulturalAssessment, OrganizationalCulture, CulturalProfile, CulturalReport,
+    PersonCulturalProfile, CulturalFitReport, Application
 )
 
 logger = logging.getLogger(__name__)
@@ -85,15 +86,13 @@ def notify_report_completion(sender, instance, created, **kwargs):
             logger.error(f"Error programando notificación de reporte: {str(e)}")
 
 
-@receiver(post_save, sender=CulturalProfile)
+@receiver(post_save, sender=PersonCulturalProfile)
 def update_application_compatibility(sender, instance, created, **kwargs):
     """
     Actualiza la compatibilidad cultural en aplicaciones activas 
     cuando se modifica un perfil cultural.
     """
     try:
-        from app.models import Application
-        
         # Buscar aplicaciones activas para esta persona
         applications = Application.objects.filter(
             person=instance.person,
@@ -174,3 +173,30 @@ def cleanup_after_assessment_deletion(sender, instance, **kwargs):
             logger.info(f"Actualizada cultura organizacional después de eliminar evaluación")
         except Exception as e:
             logger.error(f"Error actualizando estadísticas después de eliminar evaluación: {str(e)}")
+
+
+@receiver(post_save, sender=OrganizationalCulture)
+def create_cultural_report(sender, instance, created, **kwargs):
+    """
+    Crea un reporte cultural cuando se completa un perfil organizacional.
+    """
+    try:
+        if instance.status == 'complete' and instance.completion_percentage >= 100:
+            # Verificar si ya existe un reporte para esta fecha
+            existing_report = CulturalReport.objects.filter(
+                organization=instance.organization,
+                report_date=instance.last_assessment_date
+            ).first()
+            
+            if not existing_report:
+                CulturalReport.objects.create(
+                    title=f"Reporte Cultural {instance.organization.name} - {instance.last_assessment_date}",
+                    organization=instance.organization,
+                    report_type='complete',
+                    report_date=instance.last_assessment_date,
+                    participant_count=instance.participant_count if hasattr(instance, 'participant_count') else 0,
+                    completion_percentage=100
+                )
+                logger.info(f"Creado nuevo reporte cultural para {instance.organization.name}")
+    except Exception as e:
+        logger.error(f"Error creando reporte cultural: {str(e)}")

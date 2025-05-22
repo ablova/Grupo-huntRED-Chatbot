@@ -29,15 +29,14 @@ from app.models import (
     InstagramAPI, MessengerAPI, ChatState, Person,
     EnhancedNetworkGamificationProfile
 )
-from app.com.chatbot.integrations.rate_limiter import RateLimiter
-from app.com.chatbot.workflow.assessments.professional_dna import (
-    ProfessionalDNAAnalysis,
-    QuestionCategory,
-    AnalysisType
-)
-from app.com.chatbot.workflow.assessments.cultural import CulturalFitWorkflow
-from app.com.chatbot.workflow.assessments.talent import TalentAnalysisWorkflow
-from app.com.chatbot.workflow.assessments.personality import PersonalityAssessment
+from app.com.chatbot.components.rate_limiter import RateLimiter
+from app.com.chatbot.workflow.assessments.professional_dna.analysis import ProfessionalDNAAnalysis
+from app.com.chatbot.workflow.assessments.professional_dna.questions import QuestionCategory
+from app.com.chatbot.workflow.assessments.professional_dna.presentation import ResultPresentation
+from app.com.chatbot.workflow.assessments.professional_dna.core import ProfessionalDNAWorkflow
+from app.com.chatbot.workflow.assessments.cultural.cultural_fit_workflow import CulturalFitWorkflow
+from app.com.chatbot.workflow.assessments.talent.talent_analysis_workflow import TalentAnalysisWorkflow
+from app.com.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
 # Importaciones directas siguiendo estándares de Django
 # Import handlers at runtime to avoid circular imports
 def get_whatsapp_handler():

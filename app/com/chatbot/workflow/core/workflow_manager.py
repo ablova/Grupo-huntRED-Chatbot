@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/workflow/workflow_manager.py
+# /home/pablo/app/com/chatbot/workflow/core/workflow_manager.py
 """
 Gestor de workflows para el chatbot.
 
@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional, Type, Union
 import importlib
 import inspect
 
-from app.com.chatbot.workflow.base_workflow import BaseWorkflow
+from app.com.chatbot.workflow.core.base_workflow import BaseWorkflow
 from app.com.chatbot.values import values_middleware
 
 # Si existen en el sistema, añadimos estas importaciones

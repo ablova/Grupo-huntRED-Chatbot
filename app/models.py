@@ -4401,6 +4401,390 @@ class ChatMessage(models.Model):
     def __str__(self):
         return f"Message {self.id} - {self.direction} in {self.conversation}"
 
+class SkillAssessment(models.Model):
+    """
+    Modelo para evaluaciones de habilidades.
+    
+    Este modelo complementa PersonSkill al proporcionar evaluaciones
+    detalladas y específicas de habilidades, incluyendo:
+    - Evaluaciones formales
+    - Autoevaluaciones
+    - Evaluaciones de pares
+    - Evaluaciones de supervisores
+    """
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        related_name='skill_assessments',
+        help_text="Persona evaluada"
+    )
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name='assessments',
+        help_text="Habilidad evaluada"
+    )
+    score = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Puntuación de la evaluación (0-100)"
+    )
+    assessment_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('self', 'Autoevaluación'),
+            ('peer', 'Evaluación de Pares'),
+            ('supervisor', 'Evaluación de Supervisor'),
+            ('formal', 'Evaluación Formal'),
+            ('certification', 'Certificación'),
+            ('project', 'Evaluación de Proyecto')
+        ],
+        help_text="Tipo de evaluación"
+    )
+    assessment_date = models.DateTimeField(
+        default=timezone.now,
+        help_text="Fecha de la evaluación"
+    )
+    evaluator = models.ForeignKey(
+        Person,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='given_assessments',
+        help_text="Persona que realizó la evaluación"
+    )
+    evidence = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Evidencia o justificación de la evaluación"
+    )
+    context = models.JSONField(
+        default=dict,
+        help_text="Contexto de la evaluación (proyecto, equipo, etc.)"
+    )
+    is_verified = models.BooleanField(
+        default=False,
+        help_text="Indica si la evaluación ha sido verificada"
+    )
+    verification_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de verificación"
+    )
+    verification_notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Notas sobre la verificación"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Evaluación de Habilidad"
+        verbose_name_plural = "Evaluaciones de Habilidades"
+        unique_together = ['person', 'skill', 'assessment_type', 'assessment_date']
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['skill']),
+            models.Index(fields=['assessment_type']),
+            models.Index(fields=['assessment_date']),
+            models.Index(fields=['is_verified'])
+        ]
+
+    def __str__(self):
+        return f"{self.person.nombre} - {self.skill.name} ({self.get_assessment_type_display()})"
+
+    def verify(self, notes=None):
+        """Marca la evaluación como verificada."""
+        self.is_verified = True
+        self.verification_date = timezone.now()
+        self.verification_notes = notes
+        self.save()
+
+    def update_person_skill(self):
+        """Actualiza el nivel de habilidad en PersonSkill basado en esta evaluación."""
+        try:
+            person_skill = PersonSkill.objects.get(
+                person=self.person,
+                skill=self.skill
+            )
+            
+            # Convertir score (0-100) a nivel de habilidad
+            if self.score >= 90:
+                level = 'expert'
+            elif self.score >= 70:
+                level = 'advanced'
+            elif self.score >= 50:
+                level = 'intermediate'
+            else:
+                level = 'beginner'
+                
+            person_skill.level = level
+            person_skill.save()
+            
+        except PersonSkill.DoesNotExist:
+            # Crear nuevo PersonSkill si no existe
+            PersonSkill.objects.create(
+                person=self.person,
+                skill=self.skill,
+                level='beginner' if self.score < 50 else 'intermediate',
+                years_experience=0
+            )
+
+# Modelos Culturales
+class CulturalDimension(models.Model):
+    """Modelo para dimensiones culturales."""
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=50)
+    description = models.TextField()
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='cultural_dimensions'
+    )
+    weight = models.FloatField(
+        default=1.0,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dimensión Cultural"
+        verbose_name_plural = "Dimensiones Culturales"
+        unique_together = ['name', 'business_unit']
+
+    def __str__(self):
+        return f"{self.name} ({self.category})"
+
+class CulturalValue(models.Model):
+    """Modelo para valores culturales."""
+    name = models.CharField(max_length=100)
+    dimension = models.ForeignKey(
+        CulturalDimension,
+        on_delete=models.CASCADE,
+        related_name='values'
+    )
+    description = models.TextField()
+    positive_statement = models.TextField()
+    negative_statement = models.TextField()
+    weight = models.FloatField(
+        default=1.0,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Valor Cultural"
+        verbose_name_plural = "Valores Culturales"
+        unique_together = ['name', 'dimension']
+
+    def __str__(self):
+        return f"{self.name} - {self.dimension.name}"
+
+class PersonCulturalProfile(models.Model):
+    """Modelo para almacenar el perfil cultural de una persona."""
+    person = models.OneToOneField(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='cultural_profile'
+    )
+    
+    # Dimensiones culturales
+    individualism_score = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    hierarchy_score = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    stability_score = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    task_orientation_score = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    formality_score = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    innovation_score = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    
+    # Valores y preferencias
+    values_alignment = models.JSONField(default=dict)
+    work_preferences = models.JSONField(default=dict)
+    compatibility_data = models.JSONField(default=dict)
+    
+    # Metadatos
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Perfil Cultural"
+        verbose_name_plural = "Perfiles Culturales"
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['last_updated'])
+        ]
+    
+    def __str__(self):
+        return f"Perfil Cultural de {self.person}"
+    
+    def get_cultural_dimensions(self):
+        """Obtiene todas las dimensiones culturales en un diccionario."""
+        return {
+            'individualism': self.individualism_score,
+            'hierarchy': self.hierarchy_score,
+            'stability': self.stability_score,
+            'task_orientation': self.task_orientation_score,
+            'formality': self.formality_score,
+            'innovation': self.innovation_score
+        }
+    
+    def calculate_overall_fit(self, company_profile):
+        """Calcula el fit cultural general con un perfil de compañía."""
+        # Implementación pendiente
+        pass
+
+class CulturalFitReport(models.Model):
+    """Modelo para almacenar reportes de fit cultural."""
+    person = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='cultural_fit_reports'
+    )
+    company = models.ForeignKey(
+        'Company',
+        on_delete=models.CASCADE,
+        related_name='cultural_fit_reports'
+    )
+    
+    # Puntuaciones
+    overall_fit_score = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    dimension_scores = models.JSONField(default=dict)
+    values_alignment = models.JSONField(default=dict)
+    
+    # Análisis y recomendaciones
+    strengths = models.JSONField(default=list)
+    areas_for_improvement = models.JSONField(default=list)
+    recommendations = models.JSONField(default=list)
+    
+    # Metadatos
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Reporte de Fit Cultural"
+        verbose_name_plural = "Reportes de Fit Cultural"
+        unique_together = ['person', 'company']
+        indexes = [
+            models.Index(fields=['person', 'company']),
+            models.Index(fields=['overall_fit_score']),
+            models.Index(fields=['created_at'])
+        ]
+    
+    def __str__(self):
+        return f"Fit Cultural: {self.person} - {self.company}"
+    
+    def get_fit_level(self):
+        """Obtiene el nivel de fit basado en la puntuación general."""
+        if self.overall_fit_score >= 0.8:
+            return "Excelente"
+        elif self.overall_fit_score >= 0.6:
+            return "Bueno"
+        elif self.overall_fit_score >= 0.4:
+            return "Moderado"
+        else:
+            return "Bajo"
+
+class OrganizationalCulture(models.Model):
+    """Modelo para perfiles culturales organizacionales."""
+    organization = models.ForeignKey(
+        'Organization',
+        on_delete=models.CASCADE,
+        related_name='cultural_profiles'
+    )
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='cultural_profiles'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_started', 'No iniciado'),
+            ('in_progress', 'En progreso'),
+            ('complete', 'Completo')
+        ],
+        default='not_started'
+    )
+    completion_percentage = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    is_current = models.BooleanField(default=True)
+    last_assessment_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Perfil Cultural Organizacional"
+        verbose_name_plural = "Perfiles Culturales Organizacionales"
+        unique_together = ['organization', 'business_unit', 'is_current']
+
+    def __str__(self):
+        return f"Perfil Cultural de {self.organization.name}"
+
+class CulturalReport(models.Model):
+    """Modelo para reportes culturales."""
+    title = models.CharField(max_length=255)
+    organization = models.ForeignKey(
+        'Organization',
+        on_delete=models.CASCADE,
+        related_name='cultural_reports'
+    )
+    report_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('preliminary', 'Preliminar'),
+            ('complete', 'Completo')
+        ]
+    )
+    report_date = models.DateField()
+    participant_count = models.IntegerField(default=0)
+    completion_percentage = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    is_public = models.BooleanField(default=False)
+    access_token = models.CharField(max_length=100, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Reporte Cultural"
+        verbose_name_plural = "Reportes Culturales"
+        ordering = ['-report_date']
+
+    def __str__(self):
+        return f"{self.title} - {self.organization.name}"
+
+    def generate_access_token(self):
+        """Genera un token de acceso único para el reporte."""
+        import uuid
+        self.access_token = str(uuid.uuid4())
+        self.save()
+
 
 
 

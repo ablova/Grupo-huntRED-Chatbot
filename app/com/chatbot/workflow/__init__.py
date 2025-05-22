@@ -16,7 +16,7 @@ from app.com.chatbot.workflow.core.workflow_manager import (
     WorkflowManager, workflow_manager, 
     get_workflow_manager, create_workflow, handle_workflow_message
 )
-from app.com.chatbot.workflow.common.context import WorkflowContext
+from app.com.chatbot.workflow.common.context.context import WorkflowContext
 
 # Importamos los módulos de workflow específicos
 try:

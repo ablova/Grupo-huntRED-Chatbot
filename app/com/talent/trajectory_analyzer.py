@@ -1,3 +1,4 @@
+# /home/pablo/app/com/talent/trajectory_analyzer.py
 """
 Analizador de Trayectoria Profesional.
 
@@ -16,11 +17,11 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-from app.models import Person, Career, Skill, SkillAssessment, BusinessUnit
+from app.models import Person, Experience, Skill, SkillAssessment, BusinessUnit
 from app.com.utils.cv_generator.career_analyzer import CVCareerAnalyzer
-from app.com.chatbot.workflow.assessments.personality import PersonalityAnalysis
+from app.com.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
 from app.com.chatbot.workflow.assessments.professional_dna import ProfessionalDNAAnalysis
-from app.com.chatbot.workflow.assessments.cultural import CulturalAnalysis
+from app.com.chatbot.workflow.assessments.cultural.cultural_fit_workflow import CulturalFitWorkflow
 from app.com.ml.skill_classifier import SkillClassifier
 
 logger = logging.getLogger(__name__)
@@ -156,8 +157,21 @@ class TrajectoryAnalyzer:
     
     async def _get_current_position(self, person) -> str:
         """Obtiene la posición actual del candidato."""
-        # Implementación simplificada - en un sistema real se obtendría de los datos
-        return getattr(person, 'current_position', 'Profesional')
+        try:
+            # Obtener la experiencia actual
+            current_experience = await sync_to_async(
+                Experience.objects.filter(
+                    person=person,
+                    is_current=True
+                ).first
+            )()
+            
+            if current_experience:
+                return current_experience.position
+            return getattr(person, 'current_position', 'Profesional')
+        except Exception as e:
+            logger.error(f"Error obteniendo posición actual: {str(e)}")
+            return 'Profesional'
     
     def _load_market_data(self):
         """Carga datos de mercado para análisis."""
@@ -467,19 +481,35 @@ class TrajectoryAnalyzer:
             if not person:
                 return []
                 
-            # Obtener evaluaciones de habilidades
+            # Obtener evaluaciones de habilidades verificadas
             assessments = await sync_to_async(list)(
-                SkillAssessment.objects.filter(person=person).select_related('skill')
+                SkillAssessment.objects.filter(
+                    person=person,
+                    is_verified=True
+                ).select_related('skill')
             )
             
+            # Agrupar evaluaciones por habilidad y calcular promedio
+            skill_scores = {}
+            for assessment in assessments:
+                skill_name = assessment.skill.name
+                if skill_name not in skill_scores:
+                    skill_scores[skill_name] = {
+                        'scores': [],
+                        'category': assessment.skill.category
+                    }
+                skill_scores[skill_name]['scores'].append(assessment.score)
+            
+            # Calcular promedio de scores por habilidad
             return [
                 {
-                    'name': assessment.skill.name,
-                    'level': assessment.score,
-                    'assessment_date': assessment.assessment_date
+                    'name': skill_name,
+                    'level': sum(data['scores']) / len(data['scores']),
+                    'category': data['category']
                 }
-                for assessment in assessments
+                for skill_name, data in skill_scores.items()
             ]
+            
         except Exception as e:
             logger.error(f"Error obteniendo habilidades: {str(e)}")
             return []

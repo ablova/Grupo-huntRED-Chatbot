@@ -12,7 +12,12 @@ from datetime import datetime
 from django.conf import settings
 from asgiref.sync import sync_to_async
 
-from app.models import Person, Company, BusinessUnit
+from app.models import (
+    Person, Company, BusinessUnit,
+    PersonCulturalProfile, CulturalFitReport,
+    OrganizationalCulture
+)
+
 from app.com.chatbot.workflow.assessments.cultural import CulturalAnalysis
 from app.com.chatbot.workflow.assessments.personality import PersonalityAnalysis
 from app.com.chatbot.workflow.assessments.generational import GenerationalAnalysis
@@ -24,47 +29,83 @@ logger = logging.getLogger(__name__)
 
 class CulturalFitAnalyzer:
     """
-    Analiza la compatibilidad cultural entre candidatos y empresas.
-    
-    Integra análisis de valores, principios y preferencias culturales
-    para determinar el fit cultural óptimo.
+    Analizador de compatibilidad cultural entre candidatos y organizaciones.
+    Optimizado para bajo consumo de CPU y respuestas rápidas.
     """
     
-    def __init__(self, business_unit: str = None):
-        self.business_unit = business_unit
-        self.cultural_analysis = CulturalAnalysis()
-        self.personality_analysis = PersonalityAnalysis()
-        self.generational_analysis = GenerationalAnalysis()
-        self.values_principles = ValuesPrinciples()
-        self.principles_analyzer = PrinciplesAnalyzer()
-        self.purpose_analyzer = PurposeAnalyzer()
+    def __init__(self, person: Person, company: Company):
+        """
+        Inicializa el analizador con la persona y compañía a evaluar.
         
-        # Dimensiones culturales a analizar
-        self.CULTURAL_DIMENSIONS = [
-            "Individualismo vs Colectivismo",
-            "Jerarquía vs Igualdad",
-            "Estabilidad vs Cambio",
-            "Orientación a Tareas vs Personas",
-            "Formalidad vs Informalidad",
-            "Innovación vs Tradición"
-        ]
+        Args:
+            person: Persona a evaluar
+            company: Compañía para la evaluación
+        """
+        self.person = person
+        self.company = company
+        self.person_profile = None
+        self.company_profile = None
+        self._initialize_profiles()
+    
+    def _initialize_profiles(self):
+        """Inicializa los perfiles culturales necesarios."""
+        try:
+            # Obtener perfil cultural de la persona
+            self.person_profile = PersonCulturalProfile.objects.filter(
+                person=self.person
+            ).first()
+            
+            # Obtener perfil cultural de la organización
+            self.company_profile = OrganizationalCulture.objects.filter(
+                organization=self.company,
+                is_current=True
+            ).first()
+            
+        except Exception as e:
+            logger.error(f"Error inicializando perfiles culturales: {str(e)}")
+    
+    @sync_to_async
+    def analyze_fit(self) -> Dict[str, Any]:
+        """
+        Analiza la compatibilidad cultural entre la persona y la compañía.
         
-        # Valores core de Grupo huntRED®
-        self.CORE_VALUES = [
-            "Excelencia",
-            "Innovación",
-            "Integridad",
-            "Colaboración",
-            "Respeto",
-            "Compromiso"
-        ]
-        
-        # Principios organizacionales
-        self.ORGANIZATIONAL_PRINCIPLES = [
-            "Liderazgo Transformacional",
-            "Desarrollo Continuo",
-            "Trabajo en Equipo",
-            "Innovación Disruptiva",
-            "Ética y Transparencia",
-            "Sostenibilidad"
-        ]
+        Returns:
+            dict: Resultados del análisis de compatibilidad
+        """
+        try:
+            if not self.person_profile or not self.company_profile:
+                return {
+                    'error': 'Perfiles culturales no disponibles',
+                    'fit_score': 0.0
+                }
+            
+            # Calcular puntuación general
+            fit_score = self.person_profile.calculate_overall_fit(self.company_profile)
+            
+            # Crear o actualizar reporte de fit
+            report, created = CulturalFitReport.objects.update_or_create(
+                person=self.person,
+                company=self.company,
+                defaults={
+                    'overall_fit_score': fit_score,
+                    'dimension_scores': self.person_profile.get_cultural_dimensions(),
+                    'values_alignment': self.person_profile.values_alignment
+                }
+            )
+            
+            return {
+                'fit_score': fit_score,
+                'fit_level': report.get_fit_level(),
+                'dimensions': report.dimension_scores,
+                'values': report.values_alignment,
+                'strengths': report.strengths,
+                'areas_for_improvement': report.areas_for_improvement,
+                'recommendations': report.recommendations
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analizando fit cultural: {str(e)}")
+            return {
+                'error': str(e),
+                'fit_score': 0.0
+            }
