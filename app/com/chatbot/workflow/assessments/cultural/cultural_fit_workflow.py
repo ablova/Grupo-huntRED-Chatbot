@@ -21,6 +21,9 @@ from app.com.chatbot.workflow.assessments.cultural.cultural_fit_test import (
 )
 from app.com.chatbot.values import values_middleware
 
+# Importar el analizador centralizado
+from app.ml.analyzers import CulturalAnalyzer
+
 logger = logging.getLogger(__name__)
 
 class CulturalFitWorkflow(BaseWorkflow):
@@ -271,7 +274,7 @@ class CulturalFitWorkflow(BaseWorkflow):
         # No pudimos extraer un valor válido
         return None
     
-    async def _process_responses(self) -> Dict[str, Any]:
+    async def _process_responses(self) -> Dict:
         """
         Procesa las respuestas del usuario y genera el análisis cultural.
         
@@ -279,43 +282,75 @@ class CulturalFitWorkflow(BaseWorkflow):
             Dict: Resultado del análisis cultural
         """
         try:
-            # Calculamos los puntajes promedio por dimensión
-            scores = {}
-            for dimension, responses in self.responses.items():
-                if responses:  # Evitar división por cero
-                    scores[dimension] = sum(responses) / len(responses)
+            # Convertir las respuestas al formato esperado por el analizador
+            formatted_responses = {}
+            for dimension, questions in self.questions_by_dimension.items():
+                for question in questions:
+                    question_id = question.get('id')
+                    if question_id in self.responses:
+                        formatted_responses[question_id] = self.responses[question_id]
+            
+            # Primero intentamos usar el analizador centralizado si está disponible
+            try:
+                # Preparar datos para el analizador centralizado
+                analysis_data = {
+                    'assessment_type': 'cultural_fit',
+                    'cultural_responses': formatted_responses,
+                    'business_unit': self.business_unit,
+                    'domain': self.domain,
+                    'target_entity_type': self.target_entity_type,
+                    'target_entity_id': self.target_entity_id
+                }
+                
+                # Instanciar y usar el analizador centralizado
+                analyzer = CulturalAnalyzer()
+                result = await sync_to_async(analyzer.analyze)(analysis_data, self.business_unit)
+                
+                # Si el análisis centralizado fue exitoso, lo usamos
+                if result and not result.get('status') == 'error':
+                    logger.info(f"Análisis cultural realizado con analizador centralizado")
+                    analysis_result = result
                 else:
-                    scores[dimension] = 0.0
-            
-            # Analizamos las respuestas con nuestro módulo de análisis cultural
-            analysis_result = await analyze_cultural_fit_responses(
-                {"scores": scores},  # Enviamos scores directamente como dict
-                self.business_unit
-            )
-            
-            # Si tenemos ID de persona, guardamos el perfil cultural
-            if self.person_id:
-                await save_cultural_profile(
-                    self.person_id,
-                    analysis_result
+                    # Si hay un error, caemos al método tradicional
+                    logger.warning(f"Fallback a análisis cultural tradicional: {result.get('message', 'Error desconocido')}")
+                    # Ejecutar el análisis cultural tradicional
+                    analysis_result = await sync_to_async(analyze_cultural_fit_responses)(
+                        formatted_responses,
+                        self.business_unit,
+                        self.domain,
+                        self.target_entity_type,
+                        self.target_entity_id
+                    )
+            except Exception as e:
+                logger.error(f"Error usando analizador cultural centralizado: {str(e)}. Fallback a análisis tradicional.")
+                # Ejecutar el análisis cultural tradicional como fallback
+                analysis_result = await sync_to_async(analyze_cultural_fit_responses)(
+                    formatted_responses,
+                    self.business_unit,
+                    self.domain,
+                    self.target_entity_type,
+                    self.target_entity_id
                 )
             
-            # Guardamos el resultado en el contexto
-            self.context['cultural_analysis_result'] = analysis_result
+            # Guardar el perfil cultural si tenemos un person_id
+            if self.person_id:
+                await sync_to_async(save_cultural_profile)(
+                    self.person_id,
+                    analysis_result,
+                    self.business_unit
+                )
             
+            logger.info(f"Análisis cultural completado para BU: {self.business_unit}")
             return analysis_result
             
         except Exception as e:
-            logger.error(f"Error procesando respuestas culturales: {e}", exc_info=True)
-            # En caso de error, devolvemos un resultado básico
+            logger.error(f"Error procesando respuestas culturales: {str(e)}")
             return {
-                "scores": scores if 'scores' in locals() else {},
-                "strengths": ["Adaptabilidad", "Colaboración"],
-                "areas_for_improvement": ["Comunicación", "Balance trabajo-vida"],
-                "recommendations": ["Buscar entornos que valoren la colaboración"]
+                'error': True,
+                'message': 'Lo sentimos, ha ocurrido un error al procesar tus respuestas. Por favor, intenta nuevamente.'
             }
     
-    async def _generate_results_summary(self, analysis_result: Dict[str, Any]) -> str:
+    async def _generate_results_summary(self, analysis_result: Dict) -> str:
         """
         Genera un resumen visual y atractivo de los resultados del análisis cultural.
         

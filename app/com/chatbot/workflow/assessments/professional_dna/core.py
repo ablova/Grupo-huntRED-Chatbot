@@ -2,8 +2,12 @@
 """
 Workflow principal para la evaluación Professional DNA.
 """
-from typing import Dict, List, Optional
+import json
+import logging
+from typing import Dict, List, Any, Optional, Tuple, Union
+
 from app.com.chatbot.workflow.core.base_workflow import BaseWorkflow
+from app.ml.analyzers import PersonalityAnalyzer, ProfessionalAnalyzer, IntegratedAnalyzer
 from app.com.chatbot.workflow.assessments.professional_dna.questions import (
     ProfessionalDNAQuestions,
     QuestionCategory,
@@ -14,8 +18,7 @@ from app.com.chatbot.workflow.assessments.professional_dna.analysis import (
     AnalysisResult
 )
 from app.com.chatbot.workflow.assessments.professional_dna.presentation import ResultPresentation
-from app.com.chatbot.workflow.ml.personality_analyzer import PersonalityAnalyzer
-from app.com.chatbot.workflow.cv.cv_generator import CVGenerator
+from app.com.chatbot.workflow.assessments.cv_generation.cv_generator import CVGenerator
 
 class ProfessionalDNAWorkflow(BaseWorkflow):
     """Workflow para la evaluación Professional DNA."""
@@ -85,7 +88,45 @@ class ProfessionalDNAWorkflow(BaseWorkflow):
     
     def _analyze_responses(self, responses: Dict) -> AnalysisResult:
         """Analiza las respuestas y genera resultados."""
-        return self.analysis.analyze(responses, self.business_unit)
+        try:
+            # Primero intentamos usar el analizador centralizado si está disponible
+            professional_analyzer = ProfessionalAnalyzer()
+            
+            # Preparar datos para el analizador centralizado
+            analysis_data = {
+                'assessment_type': 'professional_dna',
+                'responses': responses,
+                'business_unit': self.business_unit.value if hasattr(self.business_unit, 'value') else self.business_unit
+            }
+            
+            # Realizar análisis con el analizador centralizado
+            central_result = professional_analyzer.analyze(analysis_data, self.business_unit)
+            
+            # Si el análisis centralizado fue exitoso, lo convertimos al formato AnalysisResult
+            if central_result and not central_result.get('status') == 'error':
+                logging.info(f"Análisis de ADN profesional realizado con analizador centralizado")
+                
+                # Mapear resultados del analizador centralizado al formato AnalysisResult
+                result = AnalysisResult()
+                
+                # Mapear dimensiones y puntuaciones
+                result.dimension_scores = central_result.get('dimension_scores', {})
+                result.dimension_insights = central_result.get('dimension_insights', {})
+                result.strengths = central_result.get('strengths', [])
+                result.development_areas = central_result.get('development_areas', [])
+                result.recommendations = central_result.get('recommendations', [])
+                result.career_paths = central_result.get('career_paths', [])
+                
+                return result
+            else:
+                # Si hay error, usamos el método tradicional
+                logging.warning(f"Fallback a análisis profesional tradicional: {central_result.get('message', 'Error desconocido')}")
+                return self.analysis.analyze(responses, self.business_unit)
+                
+        except Exception as e:
+            logging.error(f"Error usando analizador profesional centralizado: {str(e)}. Fallback a análisis tradicional.")
+            # En caso de error, usamos el método tradicional como fallback
+            return self.analysis.analyze(responses, self.business_unit)
     
     def _analyze_personality(self, candidate_data: Dict) -> Dict:
         """Analiza la personalidad usando ML."""

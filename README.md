@@ -270,6 +270,71 @@ El módulo de Machine Learning (localizado en `app/ml`) implementa capacidades a
 - **CVParser**: Procesamiento estructurado de currículums
 - **SkillClassifier**: Clasificación automática de habilidades
 
+#### Sistema Integral de Assessments
+
+Uno de los componentes más avanzados del módulo ML es el sistema de assessments integrado (localizado en `app/ml/analyzers/`), diseñado para evaluar candidatos de manera holística a través de múltiples dimensiones, con arquitectura modular:
+
+```
+app/ml/analyzers/
+├── __init__.py
+├── base_analyzer.py          # Clase base abstracta con funcionalidad común
+├── personality_analyzer.py    # Análisis de personalidad (Big Five, DISC, MBTI)
+├── cultural_analyzer.py       # Análisis de compatibilidad cultural
+├── professional_analyzer.py   # Análisis de ADN profesional
+├── talent_analyzer.py         # Análisis de habilidades técnicas y potencial
+└── integrated_analyzer.py     # Análisis holístico combinado
+```
+
+**Características principales:**
+
+1. **Análisis Multidimensional**: Evaluación en cuatro dimensiones fundamentales:
+   - **Personalidad**: Rasgos, preferencias y estilo de trabajo
+   - **Compatibilidad Cultural**: Alineación con valores organizacionales
+   - **ADN Profesional**: Fortalezas y orientación profesional
+   - **Análisis de Talento**: Habilidades técnicas, potencial y trayectoria
+
+2. **Integración Holística**: El `IntegratedAnalyzer` combina todos los resultados para proporcionar:
+   - Compatibilidad organizacional contextualizada por BU
+   - Métricas de éxito potencial por tipo de rol
+   - Análisis de capacidad de liderazgo
+   - Plan de desarrollo personalizado con acciones concretas
+
+3. **Flexibilidad Comercial**: El sistema permite ofrecer:
+   - Assessments individuales (oferta básica)
+   - Combinaciones personalizadas (oferta media)
+   - Paquete completo con análisis integrado (oferta premium)
+
+4. **Gestor Centralizado**: El `IntegratedAssessmentManager` proporciona una interfaz unificada para todos los tipos de assessments, facilitando:
+   - Inicialización de flujos de assessment específicos
+   - Procesamiento conversacional de respuestas
+   - Generación de reportes en múltiples formatos (HTML, PDF, JSON)
+
+5. **Resiliencia Operativa**: Todos los analizadores implementan mecanismos de fallback para garantizar resultados incluso cuando componentes específicos fallan.
+
+#### Ejemplo de Implementación
+
+```python
+# Uso del IntegratedAssessmentManager
+from app.com.chatbot.workflow.assessments.integrated_assessment_manager import (
+    IntegratedAssessmentManager, AssessmentType
+)
+
+# Inicializar para una unidad de negocio específica
+assessment_manager = IntegratedAssessmentManager(business_unit="huntRED")
+
+# Iniciar un assessment específico
+welcome_message = await assessment_manager.initialize_assessment(
+    AssessmentType.PERSONALITY,
+    context={"person_id": "12345", "channel": "whatsapp"}
+)
+
+# Generar reporte integrado con todos los assessments completados
+integrated_report = await assessment_manager.generate_integrated_report(
+    person_id="12345",
+    report_format="pdf"
+)
+```
+
 #### Modelos por BU
 
 - **AmigrosModel**: Optimizado para perfiles técnicos migrantes

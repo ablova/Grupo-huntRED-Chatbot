@@ -22,6 +22,9 @@ from app.com.talent.mentor_matcher import MentorMatcher
 from app.com.talent.retention_predictor import RetentionPredictor
 from app.com.talent.intervention_system import InterventionSystem
 
+# Importar los analizadores centralizados
+from app.ml.analyzers import TalentAnalyzer, IntegratedAnalyzer
+
 logger = logging.getLogger(__name__)
 
 class TalentAnalysisWorkflow(BaseWorkflow):
@@ -598,16 +601,71 @@ class TalentAnalysisWorkflow(BaseWorkflow):
     async def _generate_career_trajectory_analysis(self) -> str:
         """Genera un análisis de trayectoria profesional."""
         try:
-            # En una implementación real, aquí usaríamos los datos recopilados
-            # para generar un análisis completo con TrajectoryAnalyzer
             person_id = self.target_person_id
             time_horizon = 60  # 5 años
             
-            # Generar el análisis
-            analysis_result = await self.trajectory_analyzer.predict_optimal_path(
-                person_id=person_id,
-                time_horizon=time_horizon
-            )
+            # Recopilamos los datos relevantes del candidato
+            person_data = self.phases_data.get('individual_data', {})
+            skills_data = person_data.get('skills', {})
+            experience_data = person_data.get('experience', [])
+            education_data = person_data.get('education', [])
+            achievements_data = person_data.get('achievements', [])
+            
+            # Primero intentamos usar el analizador centralizado si está disponible
+            central_analysis_result = None
+            try:
+                # Preparar datos para el analizador centralizado
+                analysis_data = {
+                    'assessment_type': 'talent',
+                    'candidate_id': str(person_id),
+                    'skills': skills_data,
+                    'experience': {
+                        'roles': experience_data,
+                        'total_years': sum(role.get('duration', 0) for role in experience_data),
+                        'relevant_years': sum(role.get('duration', 0) for role in experience_data if role.get('relevant', True))
+                    },
+                    'education': education_data,
+                    'achievements': achievements_data
+                }
+                
+                # Instanciar y usar el analizador centralizado
+                analyzer = TalentAnalyzer()
+                central_analysis_result = analyzer.analyze(analysis_data, self.business_unit)
+                
+                if central_analysis_result and not central_analysis_result.get('status') == 'error':
+                    logger.info(f"Análisis de talento realizado con analizador centralizado")
+                else:
+                    logger.warning(f"Fallback a análisis tradicional: {central_analysis_result.get('message', 'Error desconocido')}")
+                    central_analysis_result = None
+            except Exception as e:
+                logger.error(f"Error usando analizador centralizado: {str(e)}. Fallback a análisis tradicional.")
+                central_analysis_result = None
+            
+            # Si el analizador centralizado no está disponible o falla, usamos el tradicional
+            if not central_analysis_result:
+                # Generar el análisis con el TrajectoryAnalyzer tradicional
+                analysis_result = await self.trajectory_analyzer.predict_optimal_path(
+                    person_id=person_id,
+                    time_horizon=time_horizon
+                )
+            else:
+                # Mapear los resultados del analizador centralizado al formato esperado
+                analysis_result = {
+                    'id': central_analysis_result.get('candidate_id', 'sample'),
+                    'current_position': next((role.get('role') for role in experience_data if role.get('is_current', False)), 'No especificada'),
+                    'potential_score': int(central_analysis_result.get('growth_potential', {}).get('potential_score', 0.7) * 100),
+                    'optimal_path': {
+                        'positions': [
+                            {'position': rec.get('role'), 'is_current': i == 0, 'start_month': i * 12}
+                            for i, rec in enumerate([{'role': 'Posición Actual'}] + central_analysis_result.get('role_recommendations', []))
+                        ]
+                    },
+                    'critical_skills': [
+                        {'name': gap.get('skill'), 'current_level': int(gap.get('current_level', 0) * 100), 'required_level': int(gap.get('required_level', 0) * 100)}
+                        for gap in central_analysis_result.get('skill_gaps', [])
+                    ],
+                    'financial_projection': {'growth_rate': 30}  # Valor por defecto
+                }
             
             # Crear enlace al reporte
             report_url = f"/reports/career-trajectory/{analysis_result.get('id', 'sample')}"
@@ -655,12 +713,13 @@ class TalentAnalysisWorkflow(BaseWorkflow):
             logger.error(f"Error generando análisis de trayectoria profesional: {str(e)}")
             return (
                 "Lo siento, hubo un problema al generar el análisis de trayectoria profesional. "
-                "Por favor, intenta nuevamente más tarde o contacta a nuestro equipo de soporte."
+                "Por favor, intenta nuevamente o contacta a nuestro equipo de soporte."
             )
-    
+
     async def _generate_cultural_fit_analysis(self) -> str:
         """Genera un análisis de compatibilidad cultural enriquecido con el test cultural personalizado."""
         try:
+            # ... (rest of the code remains the same)
             # Importamos el módulo de test cultural
             from app.com.chatbot.workflow.cultural_fit_test import analyze_cultural_fit_responses, save_cultural_profile
             

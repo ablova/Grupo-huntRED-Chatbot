@@ -1,7 +1,13 @@
-# /home/pablo/app/com/chatbot/workflow/assessments/personality/personality.py
+# /home/pablo/app/com/chatbot/workflow/assessments/personality/personality_workflow.py
 import random
+import logging
 from django.core.cache import cache
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
+
+# Importar el analizador centralizado
+from app.ml.analyzers import PersonalityAnalyzer
+
+logger = logging.getLogger(__name__)
 
 class PersonalityAssessment:
     """Clase para manejar la evaluación de personalidad."""
@@ -139,30 +145,55 @@ class PersonalityAssessment:
         return random.sample(questions, min(10, len(questions)))
 
     def analyze_responses(self, responses: dict, business_unit: str = None) -> dict:
-        analysis = {
-            'puntajes': {},
-            'fortalezas': [],
-            'areas_mejora': [],
-            'recomendaciones': [],
-            'compatibilidad': {}
-        }
-        for test_type, responses_by_test in responses.items():
-            if test_type == 'huntBigFive':
-                analysis.update(self._analyze_big_five(responses_by_test, business_unit))
-            elif test_type == 'DISC':
-                analysis.update(self._analyze_disc(responses_by_test, business_unit))
-            elif test_type == '16PF':
-                analysis.update(self._analyze_16pf(responses_by_test, business_unit))
-            elif test_type == 'MBTI':
-                analysis.update(self._analyze_mbti(responses_by_test))
-            elif test_type == 'TIPI':
-                analysis.update(self._analyze_tipi(responses_by_test))
-        if business_unit:
-            analysis['recomendaciones'].extend(self._get_business_unit_recommendations(
-                business_unit,
-                analysis['puntajes']
-            ))
-        return analysis
+        """Analiza las respuestas del test de personalidad.
+        
+        Args:
+            responses: Diccionario con las respuestas del usuario
+            business_unit: Unidad de negocio para contextualizar el análisis
+            
+        Returns:
+            Dict con resultados del análisis de personalidad
+        """
+        # Primero intentamos usar el analizador centralizado si está disponible
+        try:
+            # Preparar datos para el analizador centralizado
+            analysis_data = {
+                'assessment_type': 'personality',
+                'responses': responses,
+                'test_type': responses.get('test_type', 'huntBigFive')
+            }
+            
+            # Instanciar y usar el analizador centralizado
+            analyzer = PersonalityAnalyzer()
+            result = analyzer.analyze(analysis_data, business_unit)
+            
+            # Si el análisis centralizado fue exitoso, lo devolvemos
+            if result and not result.get('status') == 'error':
+                logger.info(f"Análisis de personalidad realizado con analizador centralizado")
+                return result
+                
+            # Si hay un error, caemos al método tradicional
+            logger.warning(f"Fallback a análisis tradicional: {result.get('message', 'Error desconocido')}")
+            
+        except Exception as e:
+            logger.error(f"Error usando analizador centralizado: {str(e)}. Fallback a análisis tradicional.")
+        
+        # Método tradicional como fallback
+        test_type = responses.get('test_type', 'huntBigFive')
+        
+        if test_type == 'huntBigFive':
+            return self._analyze_big_five(responses, business_unit)
+        elif test_type == 'DISC':
+            return self._analyze_disc(responses, business_unit)
+        elif test_type == '16PF':
+            return self._analyze_16pf(responses, business_unit)
+        elif test_type == 'MBTI':
+            return self._analyze_mbti(responses)
+        elif test_type == 'TIPI':
+            return self._analyze_tipi(responses)
+        else:
+            # Fallback al modelo Big Five por defecto
+            return self._analyze_big_five(responses, business_unit)
 
     def _analyze_big_five(self, responses: dict, business_unit: str = None) -> dict:
         scores = {
