@@ -165,6 +165,11 @@ INTENT_PATTERNS = {
         "responses": ["¡Vamos a iniciar tu prueba de personalidad! Esto te ayudará a conocer mejor tu perfil profesional."],
         "priority": 20
     },
+    "compensacion": {
+        "patterns": [r"\b(compensacion|compensación|salario|remuneración|remuneracion|beneficios)\b"],
+        "responses": ["¡Vamos a analizar tu satisfacción y competitividad salarial! Este assessment te ayudará a entender mejor tu posición en el mercado laboral."],
+        "priority": 20
+    },
     "contacto": {
         "patterns": [r"\bcontacto\b"],
         "responses": ["Te conectaré con un reclutador. Espera un momento."],
@@ -341,6 +346,7 @@ class IntentsHandler:
             "menu_principal": self._menu_principal,
             "preguntar_salario": self._preguntar_salario,
             "prueba_personalidad": self._iniciar_prueba_personalidad,
+            "compensacion": self._iniciar_evaluacion_compensacion,
             "crear_perfil": self._iniciar_creacion_perfil,
             "obtener_username": self._get_username,
         }
@@ -681,6 +687,81 @@ class IntentsHandler:
         
     async def _iniciar_prueba_personalidad(self, text: str, channel: str, person_id: str) -> Dict[str, Any]:
         return {"response": "Implementación pendiente", "smart_options": [], "template_messages": []}
+        
+    @log_async_function_call
+    async def _iniciar_evaluacion_compensacion(self, text: str, channel: str, person_id: str) -> Dict[str, Any]:
+        """
+        Inicia la evaluación de compensación para el usuario.
+        
+        Args:
+            text: Texto enviado por el usuario
+            channel: Canal de comunicación (whatsapp, telegram, etc.)
+            person_id: ID de la persona en la base de datos
+            
+        Returns:
+            Dict con respuesta, opciones inteligentes y mensajes de plantilla
+        """
+        logger.info(f"Iniciando evaluación de compensación para person_id={person_id} en channel={channel}")
+        
+        try:
+            # Verificar si la persona existe en la base de datos
+            person = await sync_to_async(Person.objects.filter)(id=person_id).first()
+            if not person:
+                return {
+                    "response": "Para realizar esta evaluación necesito primero crear tu perfil. ¿Te gustaría crearlo ahora?",
+                    "smart_options": [
+                        {"title": "Sí, crear perfil", "payload": "crear_perfil"},
+                        {"title": "No, ahora no", "payload": "menu_principal"}
+                    ],
+                    "template_messages": []
+                }
+            
+            # Crear una instancia del CompensationAssessment
+            compensation_assessment = CompensationAssessment()
+            
+            # Obtener preguntas de satisfacción salarial para iniciar
+            questions = compensation_assessment.get_questions("salary_satisfaction", self.business_unit_name)
+            
+            # Guardar estado para continuar con el workflow
+            await self._save_chat_state(person_id, channel, {
+                "workflow": "compensation_assessment",
+                "stage": "salary_satisfaction",
+                "timestamp": timezone.now().isoformat(),
+                "business_unit": self.business_unit_name,
+                "responses": {}
+            })
+            
+            # Formar opciones inteligentes con la primera pregunta
+            first_question = questions[0] if questions else None
+            smart_options = []
+            
+            if first_question:
+                response = f"Vamos a analizar tu satisfacción y competitividad salarial. {first_question['text']}"
+                
+                if 'options' in first_question:
+                    smart_options = [
+                        {"title": option, "payload": f"comp_resp_{i+1}"} 
+                        for i, option in enumerate(first_question['options'])
+                    ]
+            else:
+                response = "Vamos a analizar tu satisfacción y competitividad salarial. Dime, ¿cuál es tu salario bruto mensual actual?"
+            
+            return {
+                "response": response,
+                "smart_options": smart_options,
+                "template_messages": []
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al iniciar evaluación de compensación: {str(e)}", exc_info=True)
+            return {
+                "response": "Lo siento, tuvimos un problema al iniciar la evaluación. ¿Quieres intentarlo de nuevo?",
+                "smart_options": [
+                    {"title": "Intentar de nuevo", "payload": "compensacion"},
+                    {"title": "Volver al menú", "payload": "menu_principal"}
+                ],
+                "template_messages": []
+            }
         
     async def _iniciar_creacion_perfil(self, text: str, channel: str, person_id: str) -> Dict[str, Any]:
         return {"response": "Implementación pendiente", "smart_options": [], "template_messages": []}

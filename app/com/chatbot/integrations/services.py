@@ -37,6 +37,7 @@ from app.com.chatbot.workflow.assessments.professional_dna.core import Professio
 from app.com.chatbot.workflow.assessments.cultural.cultural_fit_workflow import CulturalFitWorkflow
 from app.com.chatbot.workflow.assessments.talent.talent_analysis_workflow import TalentAnalysisWorkflow
 from app.com.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
+from app.com.chatbot.workflow.assessments.compensation.compensation_workflow import CompensationAssessment
 # Importaciones directas siguiendo estándares de Django
 # Import handlers at runtime to avoid circular imports
 def get_whatsapp_handler():
@@ -224,6 +225,18 @@ MENU_OPTIONS_BY_BU = {
                         {"title": "🔄 Patrones de Comportamiento", "payload": "patrones_generacionales"},
                         {"title": "💡 Insights Generacionales", "payload": "insights_generacionales"},
                         {"title": "📈 Reporte Completo", "payload": "reporte_generacional"}
+                    ]
+                },
+                {
+                    "title": "💰 Compensación",
+                    "payload": "compensacion",
+                    "description": "Análisis y satisfacción salarial",
+                    "submenu": [
+                        {"title": "📊 Competitividad Salarial", "payload": "competitividad_salarial"},
+                        {"title": "😊 Satisfacción", "payload": "satisfaccion_salarial"},
+                        {"title": "📈 Proyecciones", "payload": "proyecciones_salariales"},
+                        {"title": "🔍 Recomendaciones", "payload": "recomendaciones_salariales"},
+                        {"title": "📑 Reporte Completo", "payload": "reporte_compensacion"}
                     ]
                 }
             ]

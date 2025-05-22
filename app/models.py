@@ -5131,3 +5131,175 @@ class MentorSession(models.Model):
         if feedback is not None:
             self.feedback = feedback
         self.save()
+
+
+# Modelos para evaluaciones y análisis generacional
+# Migrados desde app/models/evaluation.py para centralizar los modelos siguiendo las reglas globales
+
+class GenerationalProfile(models.Model):
+    """Perfil generacional que analiza características según la generación del usuario."""
+    
+    GENERATION_CHOICES = [
+        ('BB', 'Baby Boomers'),
+        ('X', 'Generación X'),
+        ('Y', 'Millennials'),
+        ('Z', 'Generación Z'),
+    ]
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    generation = models.CharField(max_length=2, choices=GENERATION_CHOICES)
+    birth_year = models.IntegerField()
+    
+    # Preferencias Laborales
+    work_life_balance_importance = models.IntegerField(default=0)  # 0-100
+    tech_adoption_level = models.IntegerField(default=0)  # 0-100
+    remote_work_preference = models.IntegerField(default=0)  # 0-100
+    learning_style = models.CharField(max_length=50)
+    
+    # Valores y Expectativas
+    career_growth_importance = models.IntegerField(default=0)  # 0-100
+    social_impact_importance = models.IntegerField(default=0)  # 0-100
+    financial_security_importance = models.IntegerField(default=0)  # 0-100
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Perfil Generacional"
+        verbose_name_plural = "Perfiles Generacionales"
+        indexes = [
+            models.Index(fields=['generation']),
+            models.Index(fields=['birth_year'])
+        ]
+        
+    def __str__(self):
+        return f"{self.user.username} - {self.get_generation_display()}"
+
+
+class MotivationalProfile(models.Model):
+    """Perfil motivacional que analiza factores intrínsecos y extrínsecos de motivación."""
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    
+    # Motivadores Intrínsecos
+    autonomy_need = models.IntegerField(default=0)  # 0-100
+    mastery_need = models.IntegerField(default=0)  # 0-100
+    purpose_need = models.IntegerField(default=0)  # 0-100
+    
+    # Motivadores Extrínsecos
+    recognition_importance = models.IntegerField(default=0)  # 0-100
+    compensation_importance = models.IntegerField(default=0)  # 0-100
+    status_importance = models.IntegerField(default=0)  # 0-100
+    
+    # Preferencias de Liderazgo
+    leadership_style_preference = models.CharField(max_length=50)
+    feedback_frequency_preference = models.CharField(max_length=50)
+    decision_making_preference = models.CharField(max_length=50)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Perfil Motivacional"
+        verbose_name_plural = "Perfiles Motivacionales"
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['created_at'])
+        ]
+        
+    def __str__(self):
+        return f"{self.user.username} - Perfil Motivacional"
+
+
+class CareerAspiration(models.Model):
+    """Aspiraciones de carrera del usuario, incluyendo objetivos y preferencias."""
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    # Objetivos de Carrera
+    short_term_goal = models.TextField()
+    long_term_goal = models.TextField()
+    desired_position = models.CharField(max_length=100)
+    desired_industry = models.CharField(max_length=100)
+    
+    # Preferencias de Desarrollo
+    preferred_learning_methods = models.JSONField()
+    desired_skills = models.JSONField()
+    work_environment_preferences = models.JSONField()
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Aspiración de Carrera"
+        verbose_name_plural = "Aspiraciones de Carrera"
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['desired_position']),
+            models.Index(fields=['desired_industry'])
+        ]
+        
+    def __str__(self):
+        return f"{self.user.username} - {self.desired_position}"
+
+
+class WorkStylePreference(models.Model):
+    """Preferencias de estilo de trabajo del usuario."""
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    
+    # Estilo de Trabajo
+    collaboration_preference = models.IntegerField(default=0)  # 0-100
+    independence_preference = models.IntegerField(default=0)  # 0-100
+    structure_preference = models.IntegerField(default=0)  # 0-100
+    
+    # Comunicación
+    communication_style = models.CharField(max_length=50)
+    feedback_reception = models.CharField(max_length=50)
+    conflict_resolution_style = models.CharField(max_length=50)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Preferencia de Estilo de Trabajo"
+        verbose_name_plural = "Preferencias de Estilo de Trabajo"
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['collaboration_preference']),
+            models.Index(fields=['independence_preference'])
+        ]
+        
+    def __str__(self):
+        return f"{self.user.username} - Estilo de Trabajo"
+
+
+class CulturalAlignment(models.Model):
+    """Alineación cultural del usuario con la organización."""
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    
+    # Valores Organizacionales
+    company_values_alignment = models.JSONField()
+    team_culture_preference = models.JSONField()
+    organizational_structure_preference = models.JSONField()
+    
+    # Adaptabilidad Cultural
+    cultural_flexibility = models.IntegerField(default=0)  # 0-100
+    change_adaptability = models.IntegerField(default=0)  # 0-100
+    diversity_embracement = models.IntegerField(default=0)  # 0-100
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Alineación Cultural"
+        verbose_name_plural = "Alineaciones Culturales"
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['cultural_flexibility']),
+            models.Index(fields=['change_adaptability'])
+        ]
+        
+    def __str__(self):
+        return f"{self.user.username} - Alineación Cultural"

@@ -22,6 +22,7 @@ from app.com.chatbot.workflow.common.context.context import WorkflowContext
 try:
     from app.com.chatbot.workflow.assessments.talent.talent_analysis_workflow import TalentAnalysisWorkflow
     from app.com.chatbot.workflow.assessments.cultural.cultural_fit_workflow import CulturalFitWorkflow
+    from app.com.chatbot.workflow.assessments.compensation.compensation_workflow import CompensationAssessment
     from app.com.chatbot.workflow.business_units.huntred_executive import (
         iniciar_flujo_huntred_executive,
         continuar_perfil_huntred_executive,
@@ -44,6 +45,7 @@ __all__ = [
     # Workflows específicos
     'talent_analysis_workflow',
     'cultural_fit_workflow',
+    'compensation_workflow',
     'huntred_executive',
     'huntu',
     'huntred',
