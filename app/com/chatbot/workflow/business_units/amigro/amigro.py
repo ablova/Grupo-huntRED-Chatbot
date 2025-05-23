@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/workflow/amigro.py
+# /home/pablo/app/com/chatbot/workflow/business_units/amigro/amigro.py
 import logging
 import datetime
 from typing import Dict, Any, List
@@ -8,8 +8,8 @@ from django.conf import settings
 from app.models import Person, Vacante, BusinessUnit, ChatState, Application
 from app.com.utils.signature.pdf_generator import generate_contract_pdf, generate_candidate_summary
 from app.com.utils.signature.digital_sign import request_digital_signature
-from app.com.chatbot.integrations.services import send_email, send_message, send_options, send_menu
-from app.com.chatbot.workflow.common import (
+from app.com.chatbot.integrations.services import EmailService, send_message, send_options_async, send_menu
+from app.com.chatbot.workflow.common.common import (
     iniciar_creacion_perfil, ofrecer_prueba_personalidad, continuar_registro,
     transfer_candidate_to_new_division, get_possible_transitions
 )
@@ -95,7 +95,7 @@ async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio:
             {"title": "Extranjero", "payload": "extranjero"}
         ]
         await send_message(plataforma, user_id, mensaje, bu_name)
-        await send_options(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
+        await send_options_async(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
         estado_chat.state = "waiting_for_tipo_candidato"
         await sync_to_async(estado_chat.save)()
         return
@@ -110,7 +110,7 @@ async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio:
         elif estado_chat.context.get('tipo_candidato') == "extranjero":
             if estado_chat.state != "waiting_for_pais":
                 await send_message(plataforma, user_id, "¿De qué país vienes? Selecciona una opción:", bu_name)
-                await send_options(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
+                await send_options_async(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
                 estado_chat.state = "waiting_for_pais"
                 await sync_to_async(estado_chat.save)()
             return
@@ -119,7 +119,7 @@ async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio:
     if "migratory_status" not in persona.metadata:
         if estado_chat.state != "waiting_for_migratory_status":
             await send_message(plataforma, user_id, "¿Cuál es tu estatus migratorio actual en México?", bu_name)
-            await send_options(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
+            await send_options_async(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
             estado_chat.state = "waiting_for_migratory_status"
             await sync_to_async(estado_chat.save)()
         return
@@ -173,7 +173,7 @@ async def manejar_respuesta_amigro(plataforma: str, user_id: str, texto: str,
                 {"title": "Mexicano", "payload": "mexicano"},
                 {"title": "Extranjero", "payload": "extranjero"}
             ]
-            await send_options(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
+            await send_options_async(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
         return True
 
     if estado_chat.state == "waiting_for_pais":
@@ -188,7 +188,7 @@ async def manejar_respuesta_amigro(plataforma: str, user_id: str, texto: str,
             await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
             await send_message(plataforma, user_id, "Por favor, selecciona un país válido.", bu_name)
-            await send_options(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
+            await send_options_async(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
         return True
 
     if estado_chat.state == "waiting_for_migratory_status":
@@ -202,7 +202,7 @@ async def manejar_respuesta_amigro(plataforma: str, user_id: str, texto: str,
             await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
             await send_message(plataforma, user_id, "Por favor, selecciona una opción válida.", bu_name)
-            await send_options(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
+            await send_options_async(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
         return True
 
     return False
@@ -281,11 +281,13 @@ def generate_candidate_summary_task(person_id: int):
             return "No cliente o vacante asignada para el candidato."
 
         file_path = generate_candidate_summary(person)
-        send_email(
-            to=application.vacancy.empresa.contact_email if hasattr(application.vacancy.empresa, 'contact_email') else "hola@huntred.com",
+        # Initialize EmailService with Amigro business unit
+        email_service = EmailService(BusinessUnit.objects.get(name='amigro'))
+        email_service.send_email(
+            to_email=application.vacancy.empresa.contact_email if hasattr(application.vacancy.empresa, 'contact_email') else "hola@huntred.com",
             subject=f"Resumen del candidato {person.nombre} - {application.vacancy.titulo}",
             body="Adjunto encontrarás el resumen del candidato.",
-            attachments=[file_path]
+            from_email="no-reply@amigro.com"
         )
         default_storage.save(f"candidate_summaries/{person.id}.pdf", open(file_path, "rb"))
         return f"Resumen de {person.nombre} enviado"
@@ -314,17 +316,23 @@ def send_migration_docs_task(person_id: int):
             return "No vacante asignada para el candidato."
 
         migration_agency_email = get_migration_agency(person)
-        send_email(
-            to=migration_agency_email,
+        # Initialize EmailService with Amigro business unit
+        email_service = EmailService(BusinessUnit.objects.get(name='amigro'))
+        
+        # Send to migration agency
+        email_service.send_email(
+            to_email=migration_agency_email,
             subject=f"Documentación de {person.nombre} - {application.vacancy.titulo}",
             body="Adjunto encontrarás la documentación del candidato.",
-            attachments=[person.metadata.get('documents', [])]
+            from_email="migration@amigro.com"
         )
-        send_email(
-            to="legal@amigro.org",
+        
+        # Send copy to legal
+        email_service.send_email(
+            to_email="legal@amigro.org",
             subject=f"Copia: Documentación de {person.nombre} - {application.vacancy.titulo}",
             body=f"Se ha enviado la documentación de {person.nombre} al despacho migratorio.",
-            cc=[migration_agency_email]
+            from_email="migration@amigro.com"
         )
         return f"Documentación de {person.nombre} enviada a {migration_agency_email}"
     except Person.DoesNotExist:
@@ -349,11 +357,13 @@ def follow_up_migration_task(person_id: int):
             return "No vacante asignada para el candidato."
 
         migration_agency_email = get_migration_agency(person)
-        send_email(
-            to=migration_agency_email,
+        # Initialize EmailService with Amigro business unit
+        email_service = EmailService(BusinessUnit.objects.get(name='amigro'))
+        email_service.send_email(
+            to_email=migration_agency_email,
             subject=f"Seguimiento: {person.nombre} - {application.vacancy.titulo}",
             body=f"¿Podrían proporcionarnos una actualización sobre el proceso de {person.nombre}?",
-            cc=["legal@amigro.org"]
+            from_email="migration@amigro.com"
         )
         return f"Seguimiento enviado al despacho migratorio para {person.nombre}"
     except Person.DoesNotExist:
@@ -383,7 +393,14 @@ def notify_legal_on_hire(person_id: int):
             f"Empresa: {application.vacancy.empresa.name if application.vacancy.empresa else 'No asignada'}\n"
             f"Fecha: {datetime.date.today()}"
         )
-        send_email(to="legal@amigro.org", subject=email_subject, body=email_body)
+        # Initialize EmailService with Amigro business unit
+        email_service = EmailService(BusinessUnit.objects.get(name='amigro'))
+        email_service.send_email(
+            to_email="legal@amigro.org", 
+            subject=email_subject, 
+            body=email_body,
+            from_email="hola@amigro.com"
+        )
         return f"Notificación de contratación enviada para {person.nombre}"
     except Person.DoesNotExist:
         logger.error(f"Candidato {person_id} no encontrado.")

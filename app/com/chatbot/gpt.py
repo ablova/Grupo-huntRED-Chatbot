@@ -4,7 +4,8 @@ import backoff
 from openai import OpenAI, OpenAIError, RateLimitError
 from typing import Optional, Dict, Any, List, Union
 from app.models import GptApi, BusinessUnit
-from app.com.chatbot.integrations.services import send_email
+from app.com.chatbot.integrations.services import EmailService
+from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from asgiref.sync import sync_to_async
 import asyncio
@@ -428,7 +429,7 @@ class OpenAIHandler(BaseHandler):
         """Notifica a los administradores sobre cuota excedida"""
         try:
             admin_email = self.config.notify_email or "admin@huntred.com"
-            await send_email(
+            await EmailService.send_email(
                 business_unit_name="Sistema",
                 subject=f"⚠ ALERTA: Cuota de API excedida para {self.config.model}",
                 to_email=admin_email,
@@ -678,7 +679,7 @@ class GPTHandler:
         )
         for email in emails:
             try:
-                send_email(
+                EmailService.send_email(
                     subject=subject,
                     to_email=email,
                     body=body,

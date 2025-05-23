@@ -21,6 +21,7 @@ from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
 from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer as PersonalityAnalysis
 from app.com.chatbot.workflow.assessments.professional_dna import ProfessionalDNAAnalysis
 from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
+# Actualizado para usar el analizador consolidado en la nueva ruta
 from app.ml.analyzers.generational_analyzer import GenerationalAnalyzer as GenerationalAnalysis
 from app.com.chatbot.values.core import ValuesPrinciples
 from app.com.chatbot.values.principles import PrinciplesAnalyzer

@@ -1,3 +1,4 @@
+# /home/pablo/app/admin/mixins.py
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.db import models

@@ -1,4 +1,4 @@
-# /home/pablo/app/chatbot/workflow/huntu.py
+# /home/pablo/app/com/chatbot/workflow/business_units/huntu/huntu.py
 import logging
 from typing import List
 from celery import shared_task
@@ -6,8 +6,8 @@ from asgiref.sync import sync_to_async
 from app.models import Person, Application, BusinessUnit, ChatState, Division
 from app.com.utils.signature.pdf_generator import generate_contract_pdf
 from app.com.utils.signature.digital_sign import request_digital_signature
-from app.com.chatbot.integrations.services import send_message, send_options
-from app.com.chatbot.workflow.common import (
+from app.com.chatbot.integrations.services import send_message, send_options_async
+from app.com.chatbot.workflow.common.common import (
     iniciar_creacion_perfil, ofrecer_prueba_personalidad, continuar_registro,
     transfer_candidate_to_new_division, get_possible_transitions
 )
@@ -99,7 +99,7 @@ async def continuar_perfil_huntu(plataforma: str, user_id: str, unidad_negocio: 
         if estado_chat.state != "waiting_for_division_interes":
             division_options = await get_division_options()
             await send_message(plataforma, user_id, "¿En qué división te interesa trabajar? Selecciona una opción:", bu_name)
-            await send_options(plataforma, user_id, "Elige una división:", division_options, bu_name)
+            await send_options_async(plataforma, user_id, "Elige una división:", division_options, bu_name)
             estado_chat.state = "waiting_for_division_interes"
             await sync_to_async(estado_chat.save)()
         return
@@ -154,7 +154,7 @@ async def manejar_respuesta_huntu(plataforma: str, user_id: str, texto: str,
             await continuar_perfil_huntu(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
             await send_message(plataforma, user_id, "Por favor, selecciona una opción válida.", bu_name)
-            await send_options(plataforma, user_id, "Elige un área:", AREAS_INTERES, bu_name)
+            await send_options_async(plataforma, user_id, "Elige un área:", AREAS_INTERES, bu_name)
         return True
 
     return False

@@ -11,18 +11,19 @@ from django.core.cache import cache
 import time
 
 # Importaciones directas siguiendo estándares de Django - v2025.05.20
-from app.com.chatbot.conversational_flow_manager import ConversationalFlowManager
+from app.com.chatbot.flow.conversational_flow_manager import ConversationalFlowManager
 from app.com.chatbot.intents_handler import IntentsHandler
-from app.com.chatbot.components.context_manager import ContextManager
-from app.com.chatbot.response_generator import ResponseGenerator
+from app.com.chatbot.components.context_manager import ConversationContext as ContextManager
+from app.com.chatbot.components.response_generator import ResponseGenerator
 from app.com.chatbot.components.chat_state_manager import ChatStateManager
-from app.com.chatbot.gpt import GPTHandler
+
 from app.com.chatbot.components.channel_config import ChannelConfig
 from app.com.chatbot.components.rate_limiter import RateLimiter
 from app.com.chatbot.integrations.services import MessageService
-from app.com.chatbot.service import GamificationService
-from app.com.chatbot.integrations.document_processor import CVParser
+from app.com.chatbot.integrations.services import GamificationService
+from app.com.chatbot.integrations.enhanced_document_processor import CVParser
 from app.com.chatbot.nlp import NLPProcessor
+from app.com.chatbot.middleware.message_retry import MessageRetry
 
 from app.models import (
     ChatState, Person, GptApi, Application, Invitacion, BusinessUnit, ConfiguracionBU, Vacante,
@@ -30,15 +31,15 @@ from app.models import (
 )
 
 # Workflow functions (loaded on demand)
-from app.com.chatbot.workflow.common import (
+from app.com.chatbot.workflow.common.common import (
     generate_and_send_contract, iniciar_creacion_perfil, iniciar_perfil_conversacional,
     obtener_explicaciones_metodos
 )
-from app.com.chatbot.workflow.amigro import process_amigro_candidate
-from app.com.chatbot.workflow.huntu import process_huntu_candidate
-from app.com.chatbot.workflow.huntred import process_huntred_candidate
-from app.com.chatbot.workflow.huntred_executive import process_huntred_executive_candidate
-from app.com.chatbot.workflow.sexsi import iniciar_flujo_sexsi, confirmar_pago_sexsi
+from app.com.chatbot.workflow.business_units.huntred.huntred import process_huntred_candidate
+from app.com.chatbot.workflow.business_units.huntred_executive import process_huntred_executive_candidate
+from app.com.chatbot.workflow.business_units.huntu.huntu import process_huntu_candidate
+from app.com.chatbot.workflow.business_units.amigro.amigro import process_amigro_candidate
+from app.com.chatbot.workflow.business_units.sexsi.sexsi import process_sexsi_payment, iniciar_flujo_sexsi, confirmar_pago_sexsi
 
 # Importamos el gestor de workflows y clases relacionadas
 from app.com.chatbot.workflow import (
@@ -111,7 +112,7 @@ class ChatBotHandler:
             logger.error(f"Error obteniendo business unit key: {e}")
         return 'default'
 
-    @MessageRetry.with_retry(platform)
+    @MessageRetry.with_retry()
     async def send_message(self, platform: str, user_id: str, message: dict, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
         """Envía un mensaje a través del canal especificado con retry."""
         logger.info(f"[send_message] Enviando mensaje a {user_id} en {platform}: {message}")

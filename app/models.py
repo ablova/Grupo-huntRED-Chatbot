@@ -5303,3 +5303,385 @@ class CulturalAlignment(models.Model):
         
     def __str__(self):
         return f"{self.user.username} - Alineación Cultural"
+
+
+class JobSatisfaction(models.Model):
+    """Modelo para almacenar información sobre la satisfacción laboral de una persona."""
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='job_satisfactions')
+    survey_date = models.DateTimeField(auto_now_add=True)
+    
+    # Campos de satisfacción (escala 1-5)
+    compensation_satisfaction = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    work_life_balance = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    growth_opportunities = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    management_satisfaction = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    peer_relationships = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    job_security = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    
+    # Campo para puntaje general
+    overall_satisfaction = models.FloatField(null=True, blank=True)
+    
+    # Datos calculados por el analizador
+    retention_risk = models.FloatField(null=True, blank=True)  # 0-1, donde 1 es alto riesgo
+    retention_factors = models.JSONField(default=dict, blank=True)  # Factores que afectan la retención
+    recommendations = models.JSONField(default=dict, blank=True)  # Recomendaciones para mejorar
+    
+    # Metadatos
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Satisfacción laboral"
+        verbose_name_plural = "Satisfacciones laborales"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['business_unit']),
+            models.Index(fields=['retention_risk']),
+            models.Index(fields=['created_at'])
+        ]
+    
+    def __str__(self):
+        return f"Satisfacción de {self.person.email or self.person.id} - {self.survey_date.strftime('%d/%m/%Y')}"
+    
+    def calculate_overall_satisfaction(self):
+        """Calcula la satisfacción general basada en los campos individuales."""
+        fields = [
+            self.compensation_satisfaction,
+            self.work_life_balance,
+            self.growth_opportunities,
+            self.management_satisfaction,
+            self.peer_relationships,
+            self.job_security
+        ]
+        
+        # Filtrar valores None
+        valid_fields = [f for f in fields if f is not None]
+        
+        if valid_fields:
+            self.overall_satisfaction = sum(valid_fields) / len(valid_fields)
+        
+        return self.overall_satisfaction
+    
+    def save(self, *args, **kwargs):
+        # Calcular satisfacción general antes de guardar
+        if self.overall_satisfaction is None:
+            self.calculate_overall_satisfaction()
+        super().save(*args, **kwargs)
+
+
+class PerformanceReview(models.Model):
+    """Modelo para evaluaciones de desempeño de colaboradores."""
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='performance_reviews')
+    reviewer = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews_given')
+    
+    # Período de evaluación
+    review_date = models.DateTimeField()
+    period_start = models.DateField()
+    period_end = models.DateField()
+    
+    # Categorías de evaluación (escala 1-5)
+    technical_skills = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    communication = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    teamwork = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    leadership = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    initiative = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    adaptability = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    goal_achievement = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    
+    # Evaluación general
+    overall_score = models.FloatField(null=True, blank=True)
+    
+    # Comentarios y planes
+    strengths = models.TextField(blank=True)
+    areas_for_improvement = models.TextField(blank=True)
+    development_plan = models.TextField(blank=True)
+    
+    # Estado de la evaluación
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('in_review', 'En revisión'),
+        ('reviewed', 'Revisado'),
+        ('acknowledged', 'Reconocido'),
+        ('completed', 'Completado'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    
+    # Metadatos
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Evaluación de desempeño"
+        verbose_name_plural = "Evaluaciones de desempeño"
+        ordering = ["-review_date"]
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['reviewer']),
+            models.Index(fields=['review_date']),
+            models.Index(fields=['status']),
+            models.Index(fields=['business_unit']),
+        ]
+    
+    def __str__(self):
+        return f"Evaluación de {self.person.email or self.person.id} - {self.review_date.strftime('%d/%m/%Y')}"
+    
+    def calculate_overall_score(self):
+        """Calcula la puntuación general basada en las categorías individuales."""
+        fields = [
+            self.technical_skills,
+            self.communication,
+            self.teamwork,
+            self.leadership,
+            self.initiative,
+            self.adaptability,
+            self.goal_achievement
+        ]
+        
+        # Filtrar valores None
+        valid_fields = [f for f in fields if f is not None]
+        
+        if valid_fields:
+            self.overall_score = sum(valid_fields) / len(valid_fields)
+        
+        return self.overall_score
+    
+    def save(self, *args, **kwargs):
+        # Calcular puntuación general antes de guardar
+        if self.overall_score is None:
+            self.calculate_overall_score()
+        super().save(*args, **kwargs)
+
+
+class Manager(models.Model):
+    """Modelo para gestores/supervisores de personas."""
+    person = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='manager_profile')
+    
+    # Datos del manager
+    title = models.CharField(max_length=100)
+    department = models.CharField(max_length=100)
+    level = models.CharField(max_length=50, blank=True, null=True)  # Nivel jerárquico
+    
+    # Equipo que gestiona
+    direct_reports = models.ManyToManyField(Person, related_name='managers', blank=True)
+    
+    # Estilos de gestión y perfil
+    MANAGEMENT_STYLES = [
+        ('directive', 'Directivo'),
+        ('coaching', 'Coaching'),
+        ('supportive', 'De apoyo'),
+        ('delegative', 'Delegativo'),
+        ('participative', 'Participativo'),
+        ('transformational', 'Transformacional'),
+        ('transactional', 'Transaccional'),
+        ('servant', 'Servicial'),
+        ('laissez_faire', 'Laissez-faire'),
+        ('democratic', 'Democrático')
+    ]
+    management_style = models.CharField(max_length=20, choices=MANAGEMENT_STYLES, blank=True, null=True)
+    
+    # Habilidades y experiencia
+    years_management_experience = models.PositiveIntegerField(default=0)
+    strengths = models.TextField(blank=True)
+    development_areas = models.TextField(blank=True)
+    
+    # KPIs y métricas
+    team_retention_rate = models.FloatField(null=True, blank=True)  # Porcentaje
+    team_satisfaction_score = models.FloatField(null=True, blank=True)  # 0-5
+    performance_score = models.FloatField(null=True, blank=True)  # 0-5
+    
+    # Metadatos
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Manager"
+        verbose_name_plural = "Managers"
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['title']),
+            models.Index(fields=['department']),
+            models.Index(fields=['business_unit']),
+            models.Index(fields=['management_style']),
+        ]
+    
+    def __str__(self):
+        return f"{self.person.first_name} {self.person.last_name} - {self.title}"
+    
+    def calculate_team_metrics(self):
+        """Calcula métricas del equipo basadas en los reportes directos."""
+        team = self.direct_reports.all()
+        
+        # Cálculo de retención (ejemplo simple)
+        if team.exists():
+            # Lógica de cálculo real se implementaría aquí
+            # Este es un ejemplo básico
+            active_team = team.filter(status='active').count()
+            total_team = team.count()
+            if total_team > 0:
+                self.team_retention_rate = (active_team / total_team) * 100
+            
+            # Promedio de satisfacción
+            satisfaction_scores = JobSatisfaction.objects.filter(
+                person__in=team
+            ).values_list('overall_satisfaction', flat=True)
+            
+            if satisfaction_scores.exists():
+                self.team_satisfaction_score = sum(filter(None, satisfaction_scores)) / len(satisfaction_scores)
+        
+        return {
+            'retention_rate': self.team_retention_rate,
+            'satisfaction_score': self.team_satisfaction_score
+        }
+
+
+class InterventionAction(models.Model):
+    """Modelo para acciones de intervención de retención o desarrollo de talento."""
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='interventions')
+    created_by = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True, related_name='interventions_created')
+    
+    # Tipo de intervención
+    ACTION_TYPES = [
+        ('retention', 'Retención'),
+        ('development', 'Desarrollo'),
+        ('performance', 'Desempeño'),
+        ('compensation', 'Compensación'),
+        ('wellbeing', 'Bienestar'),
+        ('career', 'Carrera'),
+        ('recognition', 'Reconocimiento'),
+        ('conflict', 'Resolución de conflicto'),
+        ('other', 'Otro')
+    ]
+    action_type = models.CharField(max_length=20, choices=ACTION_TYPES)
+    
+    # Detalles de la intervención
+    title = models.CharField(max_length=100)
+    description = models.TextField()
+    priority = models.CharField(max_length=10, choices=[
+        ('low', 'Baja'),
+        ('medium', 'Media'),
+        ('high', 'Alta'),
+        ('critical', 'Crítica')
+    ], default='medium')
+    
+    # Fechas y estado
+    created_date = models.DateTimeField(auto_now_add=True)
+    scheduled_date = models.DateField(null=True, blank=True)
+    completion_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[
+        ('planned', 'Planificada'),
+        ('in_progress', 'En progreso'),
+        ('completed', 'Completada'),
+        ('cancelled', 'Cancelada'),
+        ('postponed', 'Pospuesta')
+    ], default='planned')
+    
+    # Resultados y seguimiento
+    outcome = models.TextField(blank=True)
+    effectiveness_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], null=True, blank=True)
+    follow_up_date = models.DateField(null=True, blank=True)
+    follow_up_notes = models.TextField(blank=True)
+    
+    # Referencias a otras entidades
+    related_review = models.ForeignKey('PerformanceReview', on_delete=models.SET_NULL, null=True, blank=True, related_name='interventions')
+    assigned_mentor = models.ForeignKey('Mentor', on_delete=models.SET_NULL, null=True, blank=True, related_name='mentor_interventions')
+    
+    # Metadatos
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    tags = models.JSONField(default=list, blank=True)  # Lista de etiquetas para categorizar
+    
+    class Meta:
+        verbose_name = "Acción de intervención"
+        verbose_name_plural = "Acciones de intervención"
+        ordering = ["-created_date"]
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['created_by']),
+            models.Index(fields=['action_type']),
+            models.Index(fields=['status']),
+            models.Index(fields=['priority']),
+            models.Index(fields=['scheduled_date']),
+            models.Index(fields=['business_unit']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_action_type_display()} - {self.person.email or self.person.id} - {self.title}"
+    
+    def mark_as_completed(self, effectiveness_rating=None, outcome=None):
+        """Marca la intervención como completada con resultados opcionales."""
+        self.status = 'completed'
+        self.completion_date = timezone.now().date()
+        
+        if effectiveness_rating is not None:
+            self.effectiveness_rating = effectiveness_rating
+        if outcome is not None:
+            self.outcome = outcome
+            
+        self.save()
+        
+        # Registrar como actividad
+        Activity.objects.create(
+            person=self.person,
+            activity_type='other',
+            description=f"Intervención completada: {self.title}",
+            related_entity_type='intervention',
+            related_entity_id=self.id,
+            business_unit=self.business_unit
+        )
+        
+        return True
+
+
+class Activity(models.Model):
+    """Modelo para actividades y eventos relacionados con una persona."""
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='activities')
+    
+    # Tipo de actividad
+    ACTIVITY_TYPES = [
+        ('login', 'Inicio de sesión'),
+        ('logout', 'Cierre de sesión'),
+        ('profile_update', 'Actualización de perfil'),
+        ('application', 'Postulación'),
+        ('interview', 'Entrevista'),
+        ('assessment', 'Evaluación'),
+        ('message', 'Mensaje'),
+        ('document', 'Documento'),
+        ('feedback', 'Retroalimentación'),
+        ('other', 'Otro')
+    ]
+    activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)
+    
+    # Datos de la actividad
+    timestamp = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True)
+    details = models.JSONField(default=dict, blank=True)  # Detalles adicionales en formato JSON
+    
+    # Referencias a otras entidades
+    related_entity_type = models.CharField(max_length=50, blank=True, null=True)  # Ej: 'vacante', 'mensaje', etc.
+    related_entity_id = models.PositiveIntegerField(blank=True, null=True)  # ID de la entidad relacionada
+    
+    # Datos de ubicación y dispositivo
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Metadatos
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Actividad"
+        verbose_name_plural = "Actividades"
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['activity_type']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['related_entity_type', 'related_entity_id']),
+            models.Index(fields=['business_unit']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_activity_type_display()} - {self.person.email or self.person.id} - {self.timestamp.strftime('%d/%m/%Y %H:%M')}"

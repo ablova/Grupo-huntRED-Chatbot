@@ -1,9 +1,9 @@
-# /home/pablo/app/com/chatbot/workflow/common.py
+# /home/pablo/app/com/chatbot/workflow/common/common.py
 import logging
 import re
 from typing import Dict, Any, List, Optional, Tuple, Union
 from forex_python.converter import CurrencyRates
-from app.com.chatbot.workflow.profile_questions import get_questions
+from app.com.chatbot.workflow.common.profile.profile_questions import get_questions
 from django.core.files.storage import default_storage
 from app.com.utils.signature.pdf_generator import (
     generate_contract_pdf,
@@ -26,17 +26,17 @@ from app.com.utils.salario import (
 from app.com.chatbot.validation import truth_analyzer
 # Deferred imports to prevent circular dependencies
 def get_send_functions():
-    from app.com.chatbot.integrations.services import send_menu, send_message, send_image, send_options, send_smart_options
-    return send_menu, send_message, send_image, send_options
+    from app.com.chatbot.integrations.services import send_menu, send_message, send_image, send_options_async, send_smart_options
+    return send_menu, send_message, send_image, send_options_async
 
 # Initialize the functions when the module is first imported
-send_menu, send_message, send_image, send_options = get_send_functions()
+send_menu, send_message, send_image, send_options_async = get_send_functions()
 from app.models import BusinessUnit, ConfiguracionBU, Person, ChatState, DivisionTransition
 from django.conf import settings
 from urllib.parse import urlparse
 from asgiref.sync import sync_to_async
-from app.com.chatbot.workflow.profile_questions import get_questions
-from app.com.chatbot.workflow.personality import TEST_QUESTIONS, get_questions_personality, get_random_tipi_questions
+from app.com.chatbot.workflow.assessments.personality import get_questions_personality, get_random_tipi_questions
+from app.com.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
 from app.ml.core.utils import BUSINESS_UNIT_HIERARCHY
 
 
@@ -112,7 +112,7 @@ async def iniciar_creacion_perfil(plataforma: str, user_id: str, unidad_negocio:
         await send_whatsapp_message(payload, bu_name)
     else:
         await send_message(plataforma, user_id, mensaje, bu_name)
-        await send_options(plataforma, user_id, "Selecciona una opción (ej. 1, 2, 3):",
+        await send_options_async(plataforma, user_id, "Selecciona una opción (ej. 1, 2, 3):",
                            [{"title": opt["title"], "payload": opt["id"]} for opt in opciones], bu_name)
     
     estado_chat.state = "selecting_profile_method"
@@ -180,7 +180,7 @@ async def iniciar_perfil_conversacional(plataforma: str, user_id: str, unidad_ne
         await send_whatsapp_message(payload, bu_name)
     else:
         await send_message(plataforma, user_id, question, bu_name)
-        await send_options(plataforma, user_id, "Opciones:",
+        await send_options_async(plataforma, user_id, "Opciones:",
                            [{"title": "Omitir", "payload": "skip_field"},
                             {"title": "Cargar CV", "payload": "upload_cv"},
                             {"title": "Volver al Menú", "payload": "back_to_menu"}],
@@ -280,7 +280,7 @@ async def finalizar_creacion_perfil(plataforma: str, user_id: str, unidad_negoci
             await send_whatsapp_message(payload, bu_name)
         else:
             await send_message(plataforma, user_id, question, bu_name)
-            await send_options(plataforma, user_id, "Opciones:",
+            await send_options_async(plataforma, user_id, "Opciones:",
                                [{"title": "Omitir", "payload": "skip_field"}, {"title": "Cargar CV", "payload": "upload_cv"}],
                                bu_name)
     
@@ -456,7 +456,7 @@ async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, un
                 estado_chat.state = f"profile_creation_{next_field}"
                 next_question = questions[next_field]["question"].format(**estado_chat.context.get('profile_creation', {}))
                 await send_message(plataforma, user_id, next_question, bu_name)
-                await send_options(plataforma, user_id, "Opciones:",
+                await send_options_async(plataforma, user_id, "Opciones:",
                                    [{"title": "Omitir", "payload": "skip_field"},
                                     {"title": "Cargar CV", "payload": "upload_cv"},
                                     {"title": "Volver al Menú", "payload": "back_to_menu"}],
@@ -515,7 +515,7 @@ async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, un
                 await send_whatsapp_message(payload, bu_name)
             else:
                 await send_message(plataforma, user_id, next_question, bu_name)
-                await send_options(plataforma, user_id, "Opciones:",
+                await send_options_async(plataforma, user_id, "Opciones:",
                                    [{"title": "Omitir", "payload": "skip_field"},
                                     {"title": "Cargar CV", "payload": "upload_cv"},
                                     {"title": "Volver al Menú", "payload": "back_to_menu"}],
@@ -821,7 +821,7 @@ async def ofrecer_prueba_personalidad(plataforma: str, user_id: str, unidad_nego
         await send_whatsapp_message(payload, bu_name)
     else:
         await send_message(plataforma, user_id, mensaje, bu_name)
-        await send_options(plataforma, user_id, "Selecciona una opción:",
+        await send_options_async(plataforma, user_id, "Selecciona una opción:",
                            [{"title": p["nombre"], "payload": f"test_{p['nombre'].lower()}"} for p in pruebas] +
                            [{"title": "No, gracias", "payload": "no_test"}],
                            bu_name)

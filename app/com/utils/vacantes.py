@@ -19,7 +19,7 @@ from asgiref.sync import sync_to_async
 from app.com.chatbot.utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor  # Importar desde utils.py
 from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
-from app.com.chatbot.integrations.services import send_email, send_message
+from app.com.chatbot.integrations.services import EmailService, MessageService
 from app.ml.core.models.matchmaking.matchmaking import MatchmakingModel
 from app.com.chatbot.utils import ChatbotUtils
 
@@ -314,7 +314,7 @@ class VacanteManager:
                     f"<li>Salario: ${payload['meta']['_salary_min']} - ${payload['meta']['_salary_max']} MXN</li>"
                     f"</ul>"
                 )
-                await self.send_email(self.configuracion.business_unit, subject, correo_responsable, body)
+                await self.EmailService.send_email(self.configuracion.business_unit, subject, correo_responsable, body)
                 logger.info(f"Email enviado a {correo_responsable}")
                 print(f"✅ Email enviado a {correo_responsable}")
 
@@ -533,7 +533,7 @@ class VacanteManager:
         )
         celular_responsable = self.job_data.get("celular_responsable")
         if celular_responsable:
-            await send_message("whatsapp", celular_responsable, mensaje, self.configuracion.business_unit.name)
+            await MessageServicesend_message("whatsapp", celular_responsable, mensaje, self.configuracion.business_unit.name)
 
     @staticmethod
     def match_person_with_jobs(person, job_list):

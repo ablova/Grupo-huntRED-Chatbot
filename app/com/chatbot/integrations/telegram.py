@@ -23,7 +23,7 @@ from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import Person, BusinessUnit, TelegramAPI
 from app.com.chatbot.components.rate_limiter import RateLimiter
-from app.com.chatbot.integrations.document_processor import DocumentProcessor
+from app.com.chatbot.integrations.enhanced_document_processor import EnhancedDocumentProcessor as DocumentProcessor
 from app.com.chatbot.integrations.message_sender import (
     send_message, 
     send_options, 

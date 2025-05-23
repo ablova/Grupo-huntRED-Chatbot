@@ -1,4 +1,4 @@
-# /home/pablo/app/chatbot/workflow/huntred_executive.py
+# /home/pablo/app/com/chatbot/workflow/business_units/huntred_executive.py
 """
 Módulo para el flujo de trabajo de HuntRED Executive.
 
@@ -13,8 +13,8 @@ from asgiref.sync import sync_to_async
 from app.models import Person, Application, BusinessUnit, ChatState, Division
 from app.com.utils.signature.pdf_generator import generate_contract_pdf
 from app.com.utils.signature.digital_sign import request_digital_signature
-from app.com.chatbot.integrations.services import send_message, send_options
-from app.com.chatbot.workflow.common import (
+from app.com.chatbot.integrations.services import send_message, send_options_async
+from app.com.chatbot.workflow.common.common import (
     iniciar_creacion_perfil, ofrecer_prueba_personalidad, continuar_registro,
     transfer_candidate_to_new_division, get_possible_transitions
 )
@@ -101,7 +101,7 @@ async def continuar_perfil_huntred_executive(plataforma: str, user_id: str, unid
             await send_message(plataforma, user_id, 
                              "¿Qué tipo de posición ejecutiva te interesa? Selecciona una opción:", 
                              bu_name)
-            await send_options(plataforma, user_id, "Elige una posición:", NIVELES_EJECUTIVOS, bu_name)
+            await send_options_async(plataforma, user_id, "Elige una posición:", NIVELES_EJECUTIVOS, bu_name)
             estado_chat.state = "waiting_for_tipo_posicion"
             await sync_to_async(estado_chat.save)()
         return
@@ -112,7 +112,7 @@ async def continuar_perfil_huntred_executive(plataforma: str, user_id: str, unid
             await send_message(plataforma, user_id, 
                              "¿Tienes experiencia en consejos directivos? Selecciona una opción:", 
                              bu_name)
-            await send_options(plataforma, user_id, "Elige un tipo de consejo:", TIPOS_CONSEJO, bu_name)
+            await send_options_async(plataforma, user_id, "Elige un tipo de consejo:", TIPOS_CONSEJO, bu_name)
             estado_chat.state = "waiting_for_experiencia_consejos"
             await sync_to_async(estado_chat.save)()
         return
@@ -123,7 +123,7 @@ async def continuar_perfil_huntred_executive(plataforma: str, user_id: str, unid
             await send_message(plataforma, user_id, 
                              "¿En qué industria tienes más experiencia o prefieres trabajar?", 
                              bu_name)
-            await send_options(plataforma, user_id, "Elige una industria:", 
+            await send_options_async(plataforma, user_id, "Elige una industria:", 
                              await get_industry_options(), bu_name)
             estado_chat.state = "waiting_for_industria"
             await sync_to_async(estado_chat.save)()
@@ -169,7 +169,7 @@ async def manejar_respuesta_huntred_executive(plataforma: str, user_id: str, tex
             await continuar_perfil_huntred_executive(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
             await send_message(plataforma, user_id, "Por favor, selecciona una opción válida.", bu_name)
-            await send_options(plataforma, user_id, "Elige una posición:", NIVELES_EJECUTIVOS, bu_name)
+            await send_options_async(plataforma, user_id, "Elige una posición:", NIVELES_EJECUTIVOS, bu_name)
         return True
 
     elif estado_chat.state == "waiting_for_experiencia_consejos":
@@ -184,7 +184,7 @@ async def manejar_respuesta_huntred_executive(plataforma: str, user_id: str, tex
             await continuar_perfil_huntred_executive(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
             await send_message(plataforma, user_id, "Por favor, selecciona una opción válida.", bu_name)
-            await send_options(plataforma, user_id, "Elige un tipo de consejo:", TIPOS_CONSEJO, bu_name)
+            await send_options_async(plataforma, user_id, "Elige un tipo de consejo:", TIPOS_CONSEJO, bu_name)
         return True
 
     return False

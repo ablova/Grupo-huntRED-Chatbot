@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/chat_state_manager.py
+# /home/pablo/app/com/chatbot/components/chat_state_manager.py
 from typing import Dict, Any, Optional, List, Tuple
 from django.conf import settings
 from django.utils import timezone
@@ -16,9 +16,8 @@ from asgiref.sync import sync_to_async
 from app.models import Person, BusinessUnit, ChatState, IntentPattern, StateTransition, IntentTransition
 from app.com.chatbot.components.metrics import ChatBotMetrics
 from app.com.chatbot.utils import ChatbotUtils
-from app.com.chatbot.workflow.workflow_manager import WorkflowManager
-from app.com.chatbot.workflow.context import WorkflowContext
-from app.com.chatbot.values import ValuesChatMiddleware
+from app.com.chatbot.workflow.core.workflow_manager import WorkflowManager
+from app.com.chatbot.workflow.common.context import WorkflowContext
 from app.com.chatbot.integrations.services import (
     get_whatsapp_handler,
     get_telegram_handler,

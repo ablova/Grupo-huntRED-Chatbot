@@ -12,7 +12,7 @@ from enum import Enum
 
 from app.com.chatbot.models.chat_state import ChatState
 from app.com.chatbot.models.profile import Profile
-from app.com.chatbot.constants import MENU_OPTIONS_BY_BU, EVALUATIONS_MENU
+from app.com.chatbot.integrations.services import MENU_OPTIONS_BY_BU, EVALUATIONS_MENU
 from app.com.chatbot.integrations.services import MessageService
 
 from app.com.chatbot.workflow.assessments.professional_dna import (

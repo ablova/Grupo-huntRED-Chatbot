@@ -1,10 +1,11 @@
+# /home/pablo/app/ml/core/models/matchmaking/matchmaking.py
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models
 from sklearn.preprocessing import StandardScaler
 from typing import Dict, List, Optional, Tuple
 from app.models import Person, Vacante
-from app.ml.core.models.matchmaking.basebase import BaseModel
+from app.ml.core.models.base import BaseModel
 
 class MatchmakingModel(BaseModel):
     """

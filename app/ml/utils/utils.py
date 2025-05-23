@@ -1,4 +1,4 @@
-# /home/pablo/app/ml/ml_utils.py
+# /home/pablo/app/ml/utils/utils.py
 
 from typing import List, Dict, Optional
 from app.com.utils.skill_classifier import SkillClassifier
@@ -7,8 +7,37 @@ import logging
 logger = logging.getLogger(__name__)
 
 class MLUtils:
-    def __init__(self):
-        self.skill_classifier = SkillClassifier()
+    def __init__(self, business_unit_id=None):
+        """
+        Inicializa la utilidad de Machine Learning.
+        
+        Args:
+            business_unit_id: ID de la unidad de negocio para el análisis.
+                            Si es None, se intenta obtener la BU predeterminada.
+        """
+        from app.models import BusinessUnit
+        
+        # Obtener la unidad de negocio adecuada
+        try:
+            if business_unit_id:
+                business_unit = BusinessUnit.objects.get(id=business_unit_id)
+            else:
+                # Intentar obtener la BU predeterminada (huntRED como fallback)
+                business_unit = BusinessUnit.objects.filter(name__icontains='huntRED').first()
+                if not business_unit:
+                    # Si no se encuentra, usar la primera BU disponible
+                    business_unit = BusinessUnit.objects.first()
+                    
+            if not business_unit:
+                logger.error("No se pudo encontrar una unidad de negocio válida para MLUtils")
+                # No inicializamos el skill_classifier si no hay BU
+                self.skill_classifier = None
+            else:
+                self.skill_classifier = SkillClassifier(business_unit)
+                
+        except Exception as e:
+            logger.error(f"Error al inicializar MLUtils: {str(e)}")
+            self.skill_classifier = None
 
     def calculate_skill_match(self, 
                             candidate_skills: List[str], 
@@ -27,8 +56,24 @@ class MLUtils:
         """
         if not required_skills:
             return 0.0
+        
+        # Si no hay clasificador o no se solicita clasificación, usar método directo
+        if not self.skill_classifier or not use_classification:
+            # Comparación directa entre conjuntos (caso base)
+            if not candidate_skills:
+                return 0.0
+                
+            # Normalizar términos para una mejor coincidencia
+            normalized_candidate = [s.lower().strip() for s in candidate_skills]
+            normalized_required = [s.lower().strip() for s in required_skills]
             
-        if use_classification:
+            # Calcular solapamiento
+            matches = set(normalized_candidate).intersection(set(normalized_required))
+            match_percentage = (len(matches) / len(normalized_required)) * 100
+            
+            return min(max(match_percentage, 0), 100)
+            
+        try:
             # Clasificar habilidades usando múltiples sistemas
             skill_classification = self.skill_classifier.classify_skills(
                 candidate_skills + required_skills
@@ -39,15 +84,18 @@ class MLUtils:
             soft_skills = skill_classification.get("soft", [])
             
             # Calcular coincidencia ponderada
-            technical_overlap = len(set(technical_skills["person"]).intersection(technical_skills["vacancy"]))
-            soft_overlap = len(set(soft_skills["person"]).intersection(soft_skills["vacancy"]))
+            technical_overlap = len(set(technical_skills.get("person", [])).intersection(technical_skills.get("vacancy", [])))
+            soft_overlap = len(set(soft_skills.get("person", [])).intersection(soft_skills.get("vacancy", [])))
             
             # Calcular ponderación basada en la importancia de cada tipo de habilidad
-            total_overlap = (0.7 * technical_overlap + 0.3 * soft_overlap) / (
-                len(technical_skills["vacancy"]) + len(soft_skills["vacancy"]) or 1
-            )
+            total_vacancy = (len(technical_skills.get("vacancy", [])) + len(soft_skills.get("vacancy", []))) or 1
+            total_overlap = (0.7 * technical_overlap + 0.3 * soft_overlap) / total_vacancy
             
             return min(max(total_overlap * 100, 0), 100)
+        except Exception as e:
+            logger.error(f"Error en clasificación de habilidades: {str(e)}")
+            # Fallback al método directo
+            return self.calculate_skill_match(candidate_skills, required_skills, use_classification=False)
         
         # Si no se usa clasificación, usar coincidencia directa
         candidate_set = {skill.lower() for skill in candidate_skills}

@@ -3,7 +3,7 @@
 # Tareas programadas para el módulo de comunicaciones.
 #
 from celery import shared_task
-from app.models import Conversation, Message, Notification, Metric
+from app.models import Conversation, ChatMessage, Notification, Metric
 from app.com.config import ComConfig
 import logging
 
@@ -22,7 +22,7 @@ def process_message(conversation_id: int, content: str, channel: str) -> bool:
         conversation.save()
         
         # Crear mensaje
-        Message.objects.create(
+        ChatMessage.objects.create(
             conversation=conversation,
             content=content,
             direction='in',

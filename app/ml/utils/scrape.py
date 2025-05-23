@@ -1,4 +1,4 @@
-# /home/pablo/app/ml/ml_scrape.py
+# /home/pablo/app/ml/utils/scrape.py
 import json
 import logging
 import numpy as np
@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
 from django.utils import timezone
 from asgiref.sync import sync_to_async
-from app.com.chatbot.utils import clean_text
+from app.com.chatbot.utils import ChatbotUtils
 from app.models import DominioScraping
 import aiohttp
 import re
@@ -59,7 +59,7 @@ class MLScraper:
                     soup = BeautifulSoup(html, "html.parser")
                     text_content += soup.get_text()
 
-            text_content = clean_text(text_content).lower()
+            text_content = ChatbotUtils.clean_text(text_content).lower()
             if not text_content:
                 logger.warning("Correo sin contenido legible")
                 return "unknown"
@@ -93,7 +93,7 @@ class MLScraper:
         """Clasifica la plataforma de una página web."""
         try:
             url_lower = url.lower()
-            content_clean = clean_text(content).lower()
+            content_clean = ChatbotUtils.clean_text(content).lower()
 
             # Buscar patrones de plataformas en la URL
             for platform, pattern in self.platform_patterns.items():
@@ -337,7 +337,7 @@ class MLScraper:
 
             # Usar embeddings para refinar si es necesario
             if embed and not all(selectors.values()):
-                embedding = embed([clean_text(content)]).numpy()[0]
+                embedding = embed([ChatbotUtils.clean_text(content)]).numpy()[0]
                 # Placeholder: Usar modelo para identificar patrones de selectores
                 logger.info("Usando embeddings para refinar selectores")
 
@@ -354,7 +354,7 @@ class MLScraper:
                 logger.warning("Embeddings no disponibles para extracción de habilidades")
                 return []
 
-            text_clean = clean_text(text).lower()
+            text_clean = ChatbotUtils.clean_text(text).lower()
             # Lista de habilidades comunes para comparar
             common_skills = [
                 "python", "sql", "javascript", "java", "aws", "docker", "kubernetes",

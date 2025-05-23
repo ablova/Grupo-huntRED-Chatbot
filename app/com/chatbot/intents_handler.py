@@ -33,7 +33,7 @@ from app.com.chatbot.integrations.message_sender import (
     send_options, 
     send_menu
 )
-from app.com.chatbot.workflow.common import (
+from app.com.chatbot.workflow.common.common import (
     calcular_salario_chatbot, iniciar_creacion_perfil,
     iniciar_perfil_conversacional, iniciar_prueba,
     send_welcome_message

@@ -29,20 +29,48 @@ class MessageRetry:
         self.circular_deps = {}
     
     @staticmethod
-    def with_retry(platform: str):
-        """Decorator para manejar reintentos de mensajes."""
+    def with_retry(platform_param=None):
+        """Decorator para manejar reintentos de mensajes.
+        
+        Args:
+            platform_param: Opcional. Si se proporciona, se usa como plataforma.
+                         Si no, se intentará obtener del primer argumento posicional 
+                         de la función o del parámetro nombrado 'platform'.
+        """
         def decorator(func: Callable):
             @wraps(func)
             async def wrapper(*args, **kwargs):
-                config = ChannelConfig.get_config()[platform]
-                attempts = config['retry_attempts']
-                delay = config['retry_delay']
+                # Determinar la plataforma
+                if platform_param is not None:
+                    # Usar la plataforma proporcionada al decorador
+                    platform = platform_param
+                elif 'platform' in kwargs:
+                    # Obtener plataforma de kwargs si existe
+                    platform = kwargs['platform']
+                elif len(args) > 1 and hasattr(args[0], '__class__'):
+                    # Si el primer argumento es self (método de clase), usar el segundo argumento
+                    platform = args[1] 
+                else:
+                    # Fallback
+                    platform = 'default'
+                    
+                # Obtener configuración de reintentos para la plataforma
+                try:
+                    config = ChannelConfig.get_config().get(platform, {})
+                    attempts = config.get('retry_attempts', 3)
+                    delay = config.get('retry_delay', 5)
+                    fallback_channel = config.get('fallback_channel', None)
+                except Exception as e:
+                    logger.warning(f"Error obteniendo config para {platform}: {e}. Usando valores predeterminados.")
+                    attempts = 3
+                    delay = 5
+                    fallback_channel = None
                 
+                # Ejecutar con reintentos
                 for attempt in range(attempts):
                     try:
                         result = await func(*args, **kwargs)
-                        if result:
-                            return result
+                        return result  # Si fue exitoso, retornar el resultado
                     except Exception as e:
                         logger.error(f"Error sending message on attempt {attempt + 1}: {str(e)}")
                         
@@ -50,18 +78,29 @@ class MessageRetry:
                             await asyncio.sleep(delay)
                             logger.info(f"Retrying message in {delay} seconds...")
                         else:
+                            # Último intento fallido
                             logger.error(f"Failed to send message after {attempts} attempts")
                             
-                            # Intentar con el canal de fallback
-                            fallback_channel = config['fallback_channel']
-                            if fallback_channel != platform:
+                            # Intentar con el canal de fallback si está configurado
+                            if fallback_channel and fallback_channel != platform:
                                 logger.info(f"Switching to fallback channel: {fallback_channel}")
-                                # Aquí iría la lógica para enviar al canal de fallback
-                                pass
-                            
-                            raise
+                                try:
+                                    # Reemplazar el parámetro de plataforma con el canal de fallback
+                                    if 'platform' in kwargs:
+                                        kwargs['platform'] = fallback_channel
+                                    elif len(args) > 1:
+                                        args_list = list(args)
+                                        args_list[1] = fallback_channel
+                                        args = tuple(args_list)
+                                    
+                                    # Intentar enviar usando el canal de fallback
+                                    return await func(*args, **kwargs)
+                                except Exception as fallback_error:
+                                    logger.error(f"Error en canal de fallback: {str(fallback_error)}")
                 
-                return None
+                # Si llegamos aquí, todos los intentos fallaron
+                return False
+            
             return wrapper
         return decorator
 

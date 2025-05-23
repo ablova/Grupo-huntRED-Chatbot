@@ -19,7 +19,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 # Module Imports
-from app.com.chatbot.gpt import PromptManager, GPTHandler, BasePrompt
+from app.com.chatbot.gpt import PromptManager, GPTHandler
 from app.com.chatbot.intents_handler import detect_intents
 from app.com.utils.scraping import enrich_with_gpt
 
@@ -41,9 +41,10 @@ from app.models import (
     Invitacion, MetaAPI, MessengerAPI, ModelTrainingLog,
     Person, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
     SmtpConfig, TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
-    Worker, IntentPattern, StateTransition, IntentTransition, ContextCondition,
+    Worker, IntentPattern, StateTransition, IntentTransition, 
     WorkflowStage
 )
+from app.com.chatbot.components.chat_state_manager import ContextCondition
 
 # Admin Mixins
 from app.admin.mixins import EnhancedAdminMixin, BulkActionsMixin, DateRangeFilter, StatusFilter

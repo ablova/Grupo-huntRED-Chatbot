@@ -1,21 +1,24 @@
+# /home/pablo/app/com/integrations/chatbot_integration.py
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 import logging
 from typing import Dict, Any, Optional
-from app.com.utils.visualization.report_generator.models import Conversation, Message, Notification, Person, BusinessUnit
-from app.com.utils.visualization.report_generator.tasks import process_message, send_notification
-from app.com.utils.visualization.report_generator.utils.visualization.report_generator import ReportGenerator
+from app.models import Conversation, ChatMessage, Notification, Person, BusinessUnit 
+from app.tasks import process_message, send_notification
+from app.com.utils.report_generator import ReportGenerator
 from app.com.chatbot.components.chat_state_manager import ChatStateManager
-from app.com.chatbot.components.context_manager import ContextManager
-from app.com.chatbot.conversational_flow import ConversationalFlowManager
+from app.com.chatbot.components.context_manager import ConversationContext as ContextManager
+from app.com.chatbot.flow.conversational_flow import ConversationalFlowManager
 from app.com.chatbot.intents_handler import IntentHandler
 from app.com.chatbot.nlp import NLPProcessor
 from app.com.chatbot.gpt import GPTHandler
-from app.com.chatbot.workflow.common import get_possible_transitions, process_business_unit_transition
-from app.com.chatbot.workflow.huntred import process_huntred_candidate
-from app.com.chatbot.workflow.huntu import process_huntu_candidate
-from app.com.chatbot.workflow.sexsi import process_sexsi_payment
+from app.com.chatbot.workflow.common.common import get_possible_transitions, process_business_unit_transition
+from app.com.chatbot.workflow.business_units.huntred.huntred import process_huntred_candidate
+from app.com.chatbot.workflow.business_units.huntred_executive import process_huntred_executive_candidate
+from app.com.chatbot.workflow.business_units.huntu.huntu import process_huntu_candidate
+from app.com.chatbot.workflow.business_units.amigro.amigro import process_amigro_candidate
+from app.com.chatbot.workflow.business_units.sexsi.sexsi import process_sexsi_payment 
 
 logger = logging.getLogger('app.com.integrations.chatbot_integration')
 
@@ -78,7 +81,7 @@ class ChatbotIntegration:
                 )
                 
                 # Crear mensaje
-                Message.objects.create(
+                ChatMessage.objects.create(
                     conversation=conversation,
                     content=message,
                     direction='in',

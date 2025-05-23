@@ -16,7 +16,7 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from pathlib import Path
-from tenacity import retry, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_exponential
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from abc import ABC, abstractmethod

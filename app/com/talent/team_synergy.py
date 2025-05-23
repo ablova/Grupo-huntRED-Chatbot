@@ -12,6 +12,9 @@ import asyncio
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 import json
+from collections import defaultdict
+import random
+import hashlib
 
 import numpy as np
 import pandas as pd
@@ -26,11 +29,16 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.colors as mcolors
 from asgiref.sync import sync_to_async
 from django.db.models import Q, Count, Avg, F
+from django.core.exceptions import ObjectDoesNotExist
 
 from app.models import Person, BusinessUnit, Skill, SkillAssessment
-from app.com.chatbot.workflow.personality import PersonalityAnalyzer
+from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer
 from app.com.utils.cv_generator.career_analyzer import CVCareerAnalyzer
 from app.com.chatbot.values.principles import ValuesPrinciples
+
+# Configurar logger una sola vez
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Importar el nuevo analizador si está disponible
 try:
@@ -38,10 +46,7 @@ try:
     USE_NEW_ANALYZER = True
 except ImportError:
     USE_NEW_ANALYZER = False
-    logger = logging.getLogger(__name__)
     logger.warning("TeamAnalyzerImpl no encontrado, usando implementación original")
-
-logger = logging.getLogger(__name__)
 
 class TeamSynergyAnalyzer:
     """
@@ -95,9 +100,7 @@ class TeamSynergyAnalyzer:
         if USE_NEW_ANALYZER:
             self.analyzer = TeamAnalyzerImpl()
     
-    async def analyze_team_synergy(self, 
-                                 team_members: List[int], 
-                                 business_unit: str = None) -> Dict:
+    async def analyze_team_synergy(self, team_members: List[int], business_unit: str = None) -> Dict:
         """
         Analiza la sinergia de un equipo existente o propuesto.
         
@@ -108,38 +111,40 @@ class TeamSynergyAnalyzer:
         Returns:
             Dict con análisis de sinergia, visualizaciones y recomendaciones
         """
+        # Validar entrada
+        if not team_members or not isinstance(team_members, list):
+            logger.error("Lista de miembros inválida o vacía")
+            return self._get_default_analysis()
+        
+        # Eliminar duplicados y validar IDs
+        team_members = list(set(team_members))
+        if any(not isinstance(id, int) or id <= 0 for id in team_members):
+            logger.error("IDs de miembros inválidos")
+            return self._get_default_analysis()
+        
+        # Validar business_unit
+        bu_obj = None
+        if business_unit:
+            try:
+                bu_obj = await sync_to_async(BusinessUnit.objects.get)(name=business_unit)
+            except ObjectDoesNotExist:
+                logger.warning(f"Unidad de negocio no encontrada: {business_unit}")
+                business_unit = None
+        
         # Usar el nuevo analizador si está disponible
         if hasattr(self, 'analyzer') and USE_NEW_ANALYZER:
             try:
-                # Obtener el objeto BusinessUnit si es necesario
-                bu_obj = None
-                if business_unit:
-                    try:
-                        bu_obj = BusinessUnit.objects.get(name=business_unit)
-                    except Exception as e:
-                        logger.warning(f"No se pudo obtener la unidad de negocio: {str(e)}")
-                
-                # Preparar datos para el analizador
-                data = {
-                    'team_members': team_members
-                }
-                
-                # Llamar al nuevo analizador
-                result = self.analyzer.analyze(data, bu_obj)
+                data = {'team_members': team_members}
+                result = await self.analyzer.analyze(data, bu_obj)
                 return result
             except Exception as e:
-                logger.error(f"Error usando nuevo analizador de equipo: {str(e)}. Volviendo a implementación original.")
-                # Fallback a la implementación original
+                logger.error(f"Error en nuevo analizador: {str(e)}. Usando implementación original")
         
-        # Implementación original si el nuevo analizador no está disponible o falla
         try:
-            if not team_members:
-                logger.error("No se proporcionaron miembros del equipo")
-                return self._get_default_analysis()
-            
             # Obtener información detallada de los miembros
             members_data = await self._get_team_members_data(team_members)
             if not members_data:
+                logger.warning("No se obtuvieron datos de miembros")
                 return self._get_default_analysis()
             
             # Analizar composición de habilidades
@@ -188,7 +193,7 @@ class TeamSynergyAnalyzer:
             return {
                 'team_size': len(members_data),
                 'business_unit': business_unit,
-                'synergy_score': synergy_score,
+                'synergy_score': round(synergy_score, 2),
                 'skills_analysis': skills_analysis,
                 'personality_analysis': personality_analysis,
                 'generation_analysis': generation_analysis,
@@ -211,6 +216,7 @@ class TeamSynergyAnalyzer:
                 # Obtener información básica de la persona
                 person = await self._get_person(person_id)
                 if not person:
+                    logger.warning(f"Persona no encontrada: {person_id}")
                     continue
                 
                 # Obtener análisis de personalidad
@@ -220,21 +226,22 @@ class TeamSynergyAnalyzer:
                 skills = await self._get_person_skills(person_id)
                 
                 # Determinar generación
-                generation = self._determine_generation(person.birth_date.year if hasattr(person, 'birth_date') else 1985)
+                birth_year = getattr(person, 'birth_date', None)
+                generation = self._determine_generation(birth_year.year if birth_year else 1985)
                 
                 # Obtener propósito profesional y valores
                 purpose = await self._get_professional_purpose(person_id)
                 
                 members_data.append({
                     'id': person_id,
-                    'name': f"{person.first_name} {person.last_name}" if hasattr(person, 'first_name') else f"Person {person_id}",
+                    'name': f"{getattr(person, 'first_name', '')} {getattr(person, 'last_name', '')}".strip() or f"Person {person_id}",
                     'position': getattr(person, 'current_position', 'Profesional'),
                     'personality': personality,
                     'skills': skills,
                     'generation': generation,
                     'purpose': purpose,
                     'years_experience': getattr(person, 'years_experience', 5)
-            })
+                })
             except Exception as e:
                 logger.error(f"Error obteniendo datos para persona {person_id}: {str(e)}")
         
@@ -243,90 +250,66 @@ class TeamSynergyAnalyzer:
     async def _get_person(self, person_id: int) -> Optional[Person]:
         """Obtiene la persona por ID."""
         try:
-            from app.models import Person
             return await sync_to_async(Person.objects.get)(id=person_id)
+        except ObjectDoesNotExist:
+            logger.error(f"Persona no encontrada: {person_id}")
+            return None
         except Exception as e:
-            logger.error(f"Error obteniendo Person: {str(e)}")
+            logger.error(f"Error obteniendo persona {person_id}: {str(e)}")
             return None
     
     async def _get_personality(self, person_id: int) -> Dict:
         """Obtiene análisis de personalidad para la persona."""
         try:
-            # Integración con el analizador de personalidad existente
             personality_result = await self.personality_analyzer.analyze_personality(person_id)
-            
-            # Simplificar tipos para análisis de sinergia
             personality_type = self._simplify_personality_type(personality_result.get('type', 'Equilibrado'))
-            
-        return {
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
-    except Exception as e:
-        logger.error(f"Error: {e}")
+            return {
                 'type': personality_type,
                 'traits': personality_result.get('traits', {}),
                 'communication_style': personality_result.get('communication_style', 'Directo')
-        }
+            }
         except Exception as e:
-            logger.error(f"Error obteniendo personalidad: {str(e)}")
-        return {
+            logger.error(f"Error obteniendo personalidad para persona {person_id}: {str(e)}")
+            return {
                 'type': 'Equilibrado',
                 'traits': {},
                 'communication_style': 'Directo'
-        }
+            }
     
     def _simplify_personality_type(self, personality_type: str) -> str:
         """Simplifica tipos de personalidad a 4 tipos básicos para análisis de equipo."""
-        # Mapear tipos complejos a categorías simples
-        if any(keyword in personality_type.lower() for keyword in ['analítico', 'lógico', 'detallista', 'pensador']):
+        personality_type = personality_type.lower()
+        if any(keyword in personality_type for keyword in ['analítico', 'lógico', 'detallista', 'pensador']):
             return 'Analítico'
-        elif any(keyword in personality_type.lower() for keyword in ['colaborativo', 'relacional', 'armonizador', 'diplomático']):
+        elif any(keyword in personality_type for keyword in ['colaborativo', 'relacional', 'armonizador', 'diplomático']):
             return 'Colaborativo'
-        elif any(keyword in personality_type.lower() for keyword in ['director', 'dominante', 'decisivo', 'ejecutor']):
+        elif any(keyword in personality_type for keyword in ['director', 'dominante', 'decisivo', 'ejecutor']):
             return 'Director'
-        elif any(keyword in personality_type.lower() for keyword in ['innovador', 'creativo', 'visionario', 'imaginativo']):
+        elif any(keyword in personality_type for keyword in ['innovador', 'creativo', 'visionario', 'imaginativo']):
             return 'Innovador'
-        else:
-            return 'Equilibrado'
+        return 'Equilibrado'
     
     async def _get_person_skills(self, person_id: int) -> List[Dict]:
         """Obtiene las habilidades de la persona con sus niveles."""
         try:
-            from app.models import SkillAssessment
-            
             person = await self._get_person(person_id)
             if not person:
                 return []
             
-            # Obtener evaluaciones de habilidades
             assessments = await sync_to_async(list)(
-                SkillAssessment.objects.filter(person=person).select_related('skill')
-        )
+                SkillAssessment.objects.filter(person=person).select_related('skill').prefetch_related('skill__category')
+            )
             
             return [
                 {
                     'name': assessment.skill.name,
                     'level': assessment.score,
-                    'category': assessment.skill.category
-            }
+                    'category': getattr(assessment.skill, 'category', 'General')
+                }
                 for assessment in assessments
-        ]
+            ]
         except Exception as e:
-            logger.error(f"Error obteniendo habilidades: {str(e)}")
+            logger.error(f"Error obteniendo habilidades para persona {person_id}: {str(e)}")
             return []
     
     def _determine_generation(self, birth_year: int) -> str:
@@ -334,71 +317,62 @@ class TeamSynergyAnalyzer:
         for year_range, generation_name in self.GENERATION_MAPPING.items():
             if year_range[0] <= birth_year <= year_range[1]:
                 return generation_name
-        
-        # Default para años fuera de rangos definidos
         return "Generación Desconocida"
     
     async def _get_professional_purpose(self, person_id: int) -> Dict:
         """Obtiene el propósito profesional y valores."""
         try:
-            # En un sistema real, esto extraería datos de encuestas o evaluaciones
-            # Para este ejemplo, usaremos datos simulados
-            
-            # Valores posibles (podrían venir de una taxonomía real)
             possible_values = [
                 "Impacto social", "Crecimiento profesional", "Innovación", 
                 "Estabilidad", "Balance vida-trabajo", "Liderazgo", 
                 "Autonomía", "Creatividad", "Servicio", "Excelencia"
-        ]
+            ]
             
-            # Simular propósito con factores aleatorios pero estables por ID
-            import hashlib
-            import random
-            
-            # Usar hash del ID para generar seed y obtener resultados consistentes
-            seed = int(hashlib.md5(str(person_id).encode()).hexdigest(), 16) % 10000
-            random.seed(seed)
-            
-            # Seleccionar valores principales (3-5)
-            num_values = random.randint(3, 5)
-            primary_values = random.sample(possible_values, num_values)
-            
-            # Generar factores de motivación
-            motivations = {
-                "económicos": random.randint(1, 10),
-                "crecimiento": random.randint(1, 10),
-                "impacto": random.randint(1, 10),
-                "reconocimiento": random.randint(1, 10),
-                "social": random.randint(1, 10)
-        }
-            
-            # Determinar área de propósito principal
-            purpose_areas = ["Profesional", "Social", "Económico", "Innovación", "Liderazgo"]
-            primary_purpose = random.sample(purpose_areas, 2)
-            
-        return {
-                'primary_values': primary_values,
-                'motivations': motivations,
-                'primary_purpose': primary_purpose,
-                'alignment_score': random.randint(60, 95)  # Simulación
-        }
-            
+            # Guardar estado del generador aleatorio
+            random_state = random.getstate()
+            try:
+                # Usar un hash simple para consistencia
+                seed = int(str(person_id)[:8]) % 10000
+                random.seed(seed)
+                
+                num_values = random.randint(3, 5)
+                primary_values = random.sample(possible_values, num_values)
+                
+                motivations = {
+                    "económicos": random.randint(1, 10),
+                    "crecimiento": random.randint(1, 10),
+                    "impacto": random.randint(1, 10),
+                    "reconocimiento": random.randint(1, 10),
+                    "social": random.randint(1, 10)
+                }
+                
+                purpose_areas = ["Profesional", "Social", "Económico", "Innovación", "Liderazgo"]
+                primary_purpose = random.sample(purpose_areas, 2)
+                
+                return {
+                    'primary_values': primary_values,
+                    'motivations': motivations,
+                    'primary_purpose': primary_purpose,
+                    'alignment_score': random.randint(60, 95)
+                }
+            finally:
+                # Restaurar estado del generador
+                random.setstate(random_state)
         except Exception as e:
-            logger.error(f"Error obteniendo propósito profesional: {str(e)}")
-        return {
+            logger.error(f"Error obteniendo propósito profesional para persona {person_id}: {str(e)}")
+            return {
                 'primary_values': ["Crecimiento profesional", "Impacto social"],
                 'motivations': {"económicos": 7, "crecimiento": 8, "impacto": 6, "reconocimiento": 5, "social": 7},
                 'primary_purpose': ["Profesional", "Social"],
                 'alignment_score': 75
-        }
+            }
     
-    async def _analyze_skill_composition(self, members_data: List[Dict]) -> Dict:
+    def _analyze_skill_composition(self, members_data: List[Dict]) -> Dict:
         """Analiza la composición de habilidades del equipo."""
         if not members_data:
-        return {'coverage_score': 0, 'balance_score': 0, 'skill_gaps': []}
+            return {'coverage_score': 0, 'balance_score': 0, 'skill_gaps': [], 'skill_details': {}, 'category_distribution': {}}
         
-        # Recopilar todas las habilidades
-        all_skills = {}
+        all_skills = defaultdict(lambda: {'levels': [], 'category': 'General'})
         skill_categories = set()
         
         for member in members_data:
@@ -407,31 +381,23 @@ class TeamSynergyAnalyzer:
                 skill_level = skill['level']
                 skill_category = skill.get('category', 'General')
                 
-                if skill_name not in all_skills:
-                    all_skills[skill_name] = {
-                        'levels': [],
-                        'category': skill_category
-                }
-                
                 all_skills[skill_name]['levels'].append(skill_level)
+                all_skills[skill_name]['category'] = skill_category
                 skill_categories.add(skill_category)
         
-        # Calcular niveles promedio y distribución
         skill_analysis = {}
         for skill_name, data in all_skills.items():
             levels = data['levels']
-            avg_level = sum(levels) / len(levels)
-            coverage = len(levels) / len(members_data)  # % del equipo con esta habilidad
+            avg_level = sum(levels) / len(levels) if levels else 0
+            coverage = len(levels) / len(members_data)
             
             skill_analysis[skill_name] = {
-                'average_level': avg_level,
-                'coverage': coverage,
+                'average_level': round(avg_level, 2),
+                'coverage': round(coverage, 2),
                 'category': data['category'],
                 'distribution': levels
-        }
+            }
         
-        # Identificar brechas de habilidades críticas
-        # En un sistema real, esto usaría una lista de habilidades críticas por rol/industria
         critical_skills = [
             "Liderazgo", "Comunicación efectiva", "Resolución de problemas",
             "Análisis de datos", "Trabajo en equipo", "Adaptabilidad",
@@ -442,34 +408,21 @@ class TeamSynergyAnalyzer:
         skill_gaps = [
             skill for skill in critical_skills 
             if skill not in all_skills or 
-               all_skills[skill]['levels'] < 0.3 * len(members_data) or  # Menos del 30% del equipo
-               sum(all_skills.get(skill, {}).get('levels', [0])) / max(1, len(all_skills.get(skill, {}).get('levels', [1]))) < 7  # Promedio < 7/10
+            len(all_skills[skill]['levels']) < 0.3 * len(members_data) or
+            (sum(all_skills[skill]['levels']) / len(all_skills[skill]['levels']) < 7 if all_skills[skill]['levels'] else True)
         ]
         
-        # Calcular balance por categorías
-        category_counts = {}
+        category_counts = defaultdict(float)
         for skill_name, data in skill_analysis.items():
-            category = data['category']
-            if category not in category_counts:
-                category_counts[category] = 0
-            category_counts[category] += data['coverage']
+            category_counts[data['category']] += data['coverage']
         
-        # Normalizar conteos por categoría
-        total_categories = len(category_counts)
-        for category in category_counts:
-            category_counts[category] /= total_categories
+        total_categories = len(category_counts) or 1
+        category_counts = {k: v / total_categories for k, v in category_counts.items()}
         
-        # Calcular puntuaciones
         coverage_score = min(100, (len(all_skills) / (len(critical_skills) * 0.7)) * 100)
+        balance_values = list(category_counts.values())
+        balance_score = min(100, (1 - np.std(balance_values) / (np.mean(balance_values) or 1)) * 100) if balance_values else 50
         
-        # Balance de habilidades (uniformidad de distribución)
-        if category_counts:
-            balance_values = list(category_counts.values())
-            balance_score = min(100, (1 - np.std(balance_values) / np.mean(balance_values)) * 100)
-        else:
-            balance_score = 50  # Valor predeterminado
-        
-        # Top habilidades del equipo
         top_skills = sorted(
             [(name, data['average_level']) for name, data in skill_analysis.items()],
             key=lambda x: x[1],
@@ -477,185 +430,324 @@ class TeamSynergyAnalyzer:
         )[:5]
         
         return {
-            'coverage_score': coverage_score,
-            'balance_score': balance_score,
+            'coverage_score': round(coverage_score, 2),
+            'balance_score': round(balance_score, 2),
             'top_skills': top_skills,
             'skill_gaps': skill_gaps,
             'skill_details': skill_analysis,
             'category_distribution': category_counts
         }
-
-    async def _analyze_personality_distribution(self, members_data: List[Dict]) -> Dict:
+    
+    def _analyze_personality_distribution(self, members_data: List[Dict]) -> Dict:
         """Analiza la distribución de personalidades en el equipo."""
-        # Contar tipos de personalidad
-        personality_counts = {}
+        personality_counts = defaultdict(int)
         for member in members_data:
             personality = member.get('personality', {}).get('type', 'Equilibrado')
-            if personality not in personality_counts:
-                personality_counts[personality] = 0
             personality_counts[personality] += 1
-            
-        # Calcular porcentajes y diversidad
-        team_size = len(members_data)
+        
+        team_size = len(members_data) or 1
         personality_distribution = {
             p_type: count / team_size * 100 
             for p_type, count in personality_counts.items()
         }
-            
-        # Encontrar personalidad dominante
-        dominant_personality = max(personality_counts.items(), key=lambda x: x[1])[0]
-            
-        # Calcular diversidad (basada en distribución uniforme)
-        diversity_score = min(100, 100 - np.var(list(personality_distribution.values())))
-            
+        
+        dominant_personality = max(personality_counts.items(), key=lambda x: x[1])[0] if personality_counts else 'Equilibrado'
+        diversity_score = min(100, 100 - np.var(list(personality_distribution.values())) if personality_distribution else 0)
+        
         return {
-            'diversity_score': diversity_score,
+            'diversity_score': round(diversity_score, 2),
             'dominant_personality': dominant_personality,
             'distribution': personality_distribution,
             'ideal_additions': self._get_ideal_personality_additions(personality_distribution)
         }
-        
-    async def _analyze_generation_diversity(self, members_data: List[Dict]) -> Dict:
+    
+    def _get_ideal_personality_additions(self, distribution: Dict) -> List[str]:
+        """Determina tipos de personalidad ideales para complementar el equipo."""
+        all_types = ['Analítico', 'Colaborativo', 'Director', 'Innovador']
+        underrepresented = [ptype for ptype in all_types if distribution.get(ptype, 0) < 20]
+        return underrepresented or ['Cualquier tipo para mantener equilibrio']
+    
+    def _analyze_generation_diversity(self, members_data: List[Dict]) -> Dict:
         """Analiza la diversidad generacional del equipo."""
-        # Contar generaciones
-        generation_counts = {}
+        generation_counts = defaultdict(int)
         for member in members_data:
             generation = member.get('generation', 'Desconocida')
-            if generation not in generation_counts:
-                generation_counts[generation] = 0
             generation_counts[generation] += 1
-            
-        # Calcular porcentajes y diversidad
-        team_size = len(members_data)
+        
+        team_size = len(members_data) or 1
         generation_distribution = {
             gen: count / team_size * 100 
             for gen, count in generation_counts.items()
         }
-            
-        # Calcular puntuación de diversidad
-        diversity_score = min(100, 50 + (len(generation_counts) - 1) * 15)
-            
+        
+        diversity_score = min(100, 50 + (len(generation_counts) - 1) * 15) if generation_counts else 0
+        
         return {
-            'diversity_score': diversity_score,
+            'diversity_score': round(diversity_score, 2),
             'distribution': generation_distribution,
             'advantages': ["Diversidad de perspectivas"] if len(generation_counts) > 1 else ["Cohesión generacional"]
         }
-        
-    async def _analyze_purpose_alignment(self, members_data: List[Dict]) -> Dict:
+    
+    def _analyze_purpose_alignment(self, members_data: List[Dict]) -> Dict:
         """Analiza la alineación de propósito y valores del equipo."""
-        # Recopilar valores y propósitos
         all_values = []
         all_purposes = []
-            
+        
         for member in members_data:
             purpose_data = member.get('purpose', {})
             all_values.extend(purpose_data.get('primary_values', []))
             all_purposes.extend(purpose_data.get('primary_purpose', []))
-            
-        # Encontrar valores comunes y divergentes
-        value_counts = {}
+        
+        value_counts = defaultdict(int)
         for value in all_values:
-            if value not in value_counts:
-                value_counts[value] = 0
             value_counts[value] += 1
-            
-        # Valores compartidos por la mayoría
+        
         threshold = len(members_data) * 0.5
-        common_values = [
-            value for value, count in value_counts.items()
-            if count >= threshold
-        ]
-            
-        # Calcular alineación
+        common_values = [value for value, count in value_counts.items() if count >= threshold]
+        
         alignment_score = min(100, len(common_values) * 20)
-            
+        
         return {
-            'alignment_score': alignment_score,
+            'alignment_score': round(alignment_score, 2),
             'common_values': common_values,
             'dominant_purpose': max(all_purposes, key=all_purposes.count) if all_purposes else None
         }
-        
+    
+    async def _generate_connection_network(self, members_data: List[Dict]) -> Dict:
+        """Genera una red de conexiones entre miembros del equipo."""
+        try:
+            G = nx.Graph()
+            for member in members_data:
+                G.add_node(member['id'], label=member['name'], personality=member['personality']['type'])
+            
+            # Simular conexiones basadas en personalidad
+            for i, member1 in enumerate(members_data):
+                for member2 in members_data[i+1:]:
+                    if member2['personality']['type'] in self.PERSONALITY_SYNERGY.get(member1['personality']['type'], []):
+                        G.add_edge(member1['id'], member2['id'], weight=0.8)
+                    else:
+                        G.add_edge(member1['id'], member2['id'], weight=0.3)
+            
+            return {
+                'nodes': list(G.nodes(data=True)),
+                'edges': list(G.edges(data=True)),
+                'density': nx.density(G)
+            }
+        except Exception as e:
+            logger.error(f"Error generando red de conexiones: {str(e)}")
+            return {'nodes': [], 'edges': [], 'density': 0}
+    
     async def _create_team_visualizations(self, members_data: List[Dict], skills_analysis: Dict, personality_analysis: Dict, generation_analysis: Dict, purpose_analysis: Dict, connection_network: Dict) -> Dict:
         """Crea visualizaciones para el análisis del equipo."""
-        # Generar visualizaciones como gráficos de red, radar charts, etc.
-        visualizations = {
-            'skill_radar': self._create_skill_radar_chart(skills_analysis),
-            'personality_distribution': self._create_personality_donut(personality_analysis),
-            'generation_distribution': self._create_generation_bar_chart(generation_analysis),
-            'team_network': self._create_network_visualization(connection_network),
-            'synergy_matrix': self._create_synergy_matrix(members_data)
-        }
+        try:
+            visualizations = {
+                'skill_radar': self._create_skill_radar_chart(skills_analysis),
+                'personality_distribution': self._create_personality_donut(personality_analysis),
+                'generation_distribution': self._create_generation_bar_chart(generation_analysis),
+                'team_network': self._create_network_visualization(connection_network),
+                'synergy_matrix': self._create_synergy_matrix(members_data)
+            }
+            return visualizations
+        except Exception as e:
+            logger.error(f"Error creando visualizaciones: {str(e)}")
+            return {}
+    
+    def _create_skill_radar_chart(self, skills_analysis: Dict) -> Dict:
+        """Crea un radar chart para habilidades."""
+        try:
+            categories = list(skills_analysis['category_distribution'].keys())
+            values = list(skills_analysis['category_distribution'].values())
             
-        return visualizations
-        
+            # Normalizar para radar
+            angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
+            values += values[:1]
+            angles += angles[:1]
+            
+            fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+            ax.fill(angles, values, color=self.BU_COLORS.get('huntRED', '#D62839'), alpha=0.25)
+            ax.set_xticks(angles[:-1])
+            ax.set_xticklabels(categories)
+            ax.set_title("Distribución de Habilidades por Categoría")
+            
+            # Convertir a base64 para API
+            import io
+            import base64
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            img_str = base64.b64encode(buf.read()).decode('utf-8')
+            plt.close()
+            
+            return {'type': 'radar', 'data': img_str}
+        except Exception as e:
+            logger.error(f"Error creando radar chart: {str(e)}")
+            return {'type': 'radar', 'data': ''}
+
+    def _create_personality_donut(self, personality_analysis: Dict) -> Dict:
+        """Crea un donut chart para distribución de personalidades."""
+        try:
+            labels = list(personality_analysis['distribution'].keys())
+            sizes = list(personality_analysis['distribution'].values())
+            
+            fig, ax = plt.subplots(figsize=(6, 6))
+            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=sns.color_palette('deep'))
+            centre_circle = plt.Circle((0, 0), 0.70, fc='white')
+            fig.gca().add_artist(centre_circle)
+            ax.set_title("Distribución de Personalidades")
+            
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            img_str = base64.b64encode(buf.read()).decode('utf-8')
+            plt.close()
+            
+            return {'type': 'donut', 'data': img_str}
+        except Exception as e:
+            logger.error(f"Error creando donut chart: {str(e)}")
+            return {'type': 'donut', 'data': ''}
+
+    def _create_generation_bar_chart(self, generation_analysis: Dict) -> Dict:
+        """Crea un bar chart para distribución generacional."""
+        try:
+            labels = list(generation_analysis['distribution'].keys())
+            values = list(generation_analysis['distribution'].values())
+            
+            fig, ax = plt.subplots(figsize=(8, 5))
+            sns.barplot(x=values, y=labels, palette='deep')
+            ax.set_title("Distribución Generacional")
+            ax.set_xlabel("Porcentaje")
+            ax.set_ylabel("Generación")
+            
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            img_str = base64.b64encode(buf.read()).decode('utf-8')
+            plt.close()
+            
+            return {'type': 'bar', 'data': img_str}
+        except Exception as e:
+            logger.error(f"Error creando bar chart: {str(e)}")
+            return {'type': 'bar', 'data': ''}
+
+    def _create_network_visualization(self, connection_network: Dict) -> Dict:
+        """Crea una visualización de red de conexiones."""
+        try:
+            G = nx.Graph()
+            for node, data in connection_network['nodes']:
+                G.add_node(node, **data)
+            for u, v, data in connection_network['edges']:
+                G.add_edge(u, v, **data)
+            
+            pos = nx.spring_layout(G)
+            fig, ax = plt.subplots(figsize=(8, 6))
+            nx.draw(G, pos, with_labels=True, node_color=self.BU_COLORS.get('huntRED', '#D62839'), 
+                    edge_color='gray', node_size=500, font_size=10, ax=ax)
+            ax.set_title("Red de Conexiones del Equipo")
+            
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            img_str = base64.b64encode(buf.read()).decode('utf-8')
+            plt.close()
+            
+            return {'type': 'network', 'data': img_str}
+        except Exception as e:
+            logger.error(f"Error creando visualización de red: {str(e)}")
+            return {'type': 'network', 'data': ''}
+
+    def _create_synergy_matrix(self, members_data: List[Dict]) -> Dict:
+        """Crea una matriz de sinergia entre miembros."""
+        try:
+            n = len(members_data)
+            matrix = np.zeros((n, n))
+            names = [m['name'] for m in members_data]
+            
+            for i, m1 in enumerate(members_data):
+                for j, m2 in enumerate(members_data):
+                    if i != j:
+                        score = 0.5  # Base
+                        if m2['personality']['type'] in self.PERSONALITY_SYNERGY.get(m1['personality']['type'], []):
+                            score += 0.3
+                        matrix[i, j] = score
+            
+            fig, ax = plt.subplots(figsize=(8, 8))
+            sns.heatmap(matrix, annot=True, xticklabels=names, yticklabels=names, cmap=self.huntred_cmap, ax=ax)
+            ax.set_title("Matriz de Sinergia del Equipo")
+            
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            img_str = base64.b64encode(buf.read()).decode('utf-8')
+            plt.close()
+            
+            return {'type': 'heatmap', 'data': img_str}
+        except Exception as e:
+            logger.error(f"Error creando matriz de sinergia: {str(e)}")
+            return {'type': 'heatmap', 'data': ''}
+
     def _calculate_synergy_score(self, skills_analysis: Dict, personality_analysis: Dict, generation_analysis: Dict, purpose_analysis: Dict) -> float:
         """Calcula la puntuación global de sinergia del equipo."""
-        # Ponderación de factores
         weights = {
             'skills': 0.3,
             'personality': 0.25,
             'generation': 0.15,
             'purpose': 0.3
         }
-            
-        # Componentes individuales
-        skill_score = (skills_analysis['coverage_score'] + skills_analysis['balance_score']) / 2
-        personality_score = personality_analysis['diversity_score']
-        generation_score = generation_analysis['diversity_score']
-        purpose_score = purpose_analysis['alignment_score']
-            
-        # Cálculo ponderado
+        
+        skill_score = (skills_analysis.get('coverage_score', 0) + skills_analysis.get('balance_score', 0)) / 2
+        personality_score = personality_analysis.get('diversity_score', 0)
+        generation_score = generation_analysis.get('diversity_score', 0)
+        purpose_score = purpose_analysis.get('alignment_score', 0)
+        
         synergy_score = (
             skill_score * weights['skills'] +
             personality_score * weights['personality'] +
             generation_score * weights['generation'] +
             purpose_score * weights['purpose']
         )
-            
-        return min(100, synergy_score)
         
+        return min(100, max(0, synergy_score))
+    
     def _generate_team_recommendations(self, members_data: List[Dict], skills_analysis: Dict, personality_analysis: Dict, generation_analysis: Dict, purpose_analysis: Dict, synergy_score: float) -> List[Dict]:
         """Genera recomendaciones para mejorar la sinergia del equipo."""
         recommendations = []
-            
-        # Recomendaciones sobre habilidades
-        if skills_analysis['skill_gaps']:
+        
+        if skills_analysis.get('skill_gaps', []):
             recommendations.append({
                 'area': 'skills',
                 'title': 'Cubrir brechas de habilidades',
                 'description': f"El equipo necesita reforzar: {', '.join(skills_analysis['skill_gaps'][:3])}",
                 'actions': [f"Capacitar al equipo en {skill}" for skill in skills_analysis['skill_gaps'][:2]]
             })
-            
-        # Recomendaciones sobre personalidad
-        if personality_analysis['diversity_score'] < 70:
+        
+        if personality_analysis.get('diversity_score', 0) < 70:
             recommendations.append({
                 'area': 'personality',
                 'title': 'Equilibrar tipos de personalidad',
                 'description': f"Incorporar personas con perfil: {', '.join(personality_analysis['ideal_additions'])}",
                 'actions': ["Evaluar perfil de personalidad en nuevas contrataciones"]
             })
-            
-        # Recomendaciones sobre propósito
-        if purpose_analysis['alignment_score'] < 70:
+        
+        if purpose_analysis.get('alignment_score', 0) < 70:
             recommendations.append({
                 'area': 'purpose',
                 'title': 'Alinear propósitos y valores',
                 'description': "El equipo necesita mayor alineación en propósito profesional",
                 'actions': ["Realizar taller de alineación de valores", "Definir propósito compartido del equipo"]
             })
-            
-        return recommendations
         
+        return recommendations
+    
     def _get_default_analysis(self) -> Dict:
         """Retorna un análisis predeterminado vacío."""
         return {
             'team_size': 0,
             'synergy_score': 50,
-            'skills_analysis': {'coverage_score': 0, 'balance_score': 0, 'skill_gaps': []},
-            'personality_analysis': {'diversity_score': 0, 'distribution': {}},
-            'generation_analysis': {'diversity_score': 0, 'distribution': {}},
-            'purpose_analysis': {'alignment_score': 0, 'common_values': []},
+            'skills_analysis': {'coverage_score': 0, 'balance_score': 0, 'skill_gaps': [], 'skill_details': {}, 'category_distribution': {}},
+            'personality_analysis': {'diversity_score': 0, 'distribution': {}, 'dominant_personality': 'Equilibrado', 'ideal_additions': []},
+            'generation_analysis': {'diversity_score': 0, 'distribution': {}, 'advantages': []},
+            'purpose_analysis': {'alignment_score': 0, 'common_values': [], 'dominant_purpose': None},
+            'connection_network': {'nodes': [], 'edges': [], 'density': 0},
             'recommendations': [],
             'visualizations': {},
             'analyzed_at': datetime.now().isoformat()

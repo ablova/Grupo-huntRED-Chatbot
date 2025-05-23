@@ -3,6 +3,7 @@ import json
 import random
 import asyncio
 import re
+from django.db import transaction
 from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Dict, Optional
@@ -13,7 +14,7 @@ from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 import trafilatura
 from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
-from app.com.chatbot.utils import clean_text
+from app.com.chatbot.utils import ChatbotUtils
 from app.com.utils.loader import DIVISION_SKILLS
 from app.com.chatbot.gpt import GPTHandler
 from app.com.chatbot.nlp import NLPProcessor
@@ -265,15 +266,15 @@ def validate_job_data(job: JobListing) -> Optional[Dict]:
         logger.warning(f"Missing required fields in job: {job.title}")
         return None
     return {
-        "title": clean_text(job.title),
-        "location": clean_text(job.location),
-        "company": clean_text(job.company),
-        "description": clean_text(job.description),
+        "title": ChatbotUtils.clean_text(job.title),
+        "location": ChatbotUtils.clean_text(job.location),
+        "company": ChatbotUtils.clean_text(job.company),
+        "description": ChatbotUtils.clean_text(job.description),
         "url": job.url,
         "skills": job.skills or extract_skills(job.description),
         "sectors": job.sectors or associate_divisions(job.skills or []),
         "salary": job.salary,
-        "responsible": clean_text(job.responsible) if job.responsible else None,
+        "responsible": ChatbotUtils.clean_text(job.responsible) if job.responsible else None,
         "posted_date": job.posted_date,
         "contract_type": job.contract_type,
         "job_type": job.job_type,
@@ -573,7 +574,7 @@ async def validar_url(url: str, check_content: bool = False) -> bool:
 nlp_processor = NLPProcessor(language="es", mode="opportunity")
 
 def extract_skills(text: str) -> List[str]:
-    return nlp_processor.extract_skills(clean_text(text))
+    return nlp_processor.extract_skills(ChatbotUtils.clean_text(text))
 
 def associate_divisions(skills: List[str]) -> List[str]:
     divisions = set()
@@ -611,6 +612,7 @@ async def get_scraper(domain, ml_scraper: MLScraper):
     return scraper_class(domain, ml_scraper, custom_selectors=selectors)
 
 class BaseScraper:
+    from app.models import DominioScraping
     def __init__(self, domain: DominioScraping, ml_scraper: MLScraper, custom_selectors: Optional[Dict] = None):
         self.domain = domain
         self.plataforma = domain.plataforma

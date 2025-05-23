@@ -22,14 +22,15 @@ from app.com.chatbot.utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor
 from app.com.chatbot.nlp import NLPProcessor
 from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation, Vacante
-from app.com.chatbot.integrations.services import send_email, send_message, send_notification
+from app.com.chatbot.integrations.services import EmailService, MessageService
 from app.com.chatbot.components.chat_state_manager import ChatStateManager
-from app.com.chatbot.workflow.common import get_possible_transitions, process_business_unit_transition
-from app.com.chatbot.workflow.huntred import process_huntred_candidate
-from app.com.chatbot.workflow.huntu import process_huntu_candidate
-from app.com.chatbot.workflow.sexsi import process_sexsi_payment
+from app.com.chatbot.workflow.common.common import get_possible_transitions, process_business_unit_transition
+from app.com.chatbot.workflow.business_units.huntred.huntred import process_huntred_candidate
+from app.com.chatbot.workflow.business_units.huntu.huntu import process_huntu_candidate
+from app.com.chatbot.workflow.business_units.amigro.amigro import process_amigro_candidate
+from app.com.chatbot.workflow.business_units.sexsi.sexsi import process_sexsi_payment
 from app.com.tasks import process_message
-from app.com.utils.visualization.report_generator import ReportGenerator
+from app.com.utils.report_generator import ReportGenerator
 try:
     import trafilatura
 except ImportError:
@@ -192,8 +193,8 @@ class IMAPCVProcessor:
             await self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
             self.stats["errors"] += 1
             if self.business_unit.admin_email:
-                await send_email(
-                    business_unit_name=self.business_unit.name,
+                email_service = EmailService(self.business_unit)
+                await email_service.send_email(
                     subject=f"Error en CV Parser: {email_id}",
                     to_email=self.business_unit.admin_email,
                     body=f"Error procesando CV en correo {email_id}: {str(e)}",
@@ -250,8 +251,8 @@ class IMAPCVProcessor:
         """
         logger.info(f"📊 Resumen generado:\n{summary}")
 
-        await send_email(
-            business_unit_name=self.business_unit.name,
+        email_service = EmailService(self.business_unit)
+        await email_service.send_email(
             subject=f"Resumen de Procesamiento de CVs - {self.business_unit.name}",
             to_email=admin_email,
             body=summary,

@@ -1,3 +1,4 @@
+# /home/pablo/app/com/utils/report_generator.py
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -17,7 +18,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Register the SF Pro Display font
-pdfmetrics.registerFont(TTFont('SFProDisplay', '/home/pablo/app/media/fonts/SFPRODISPLAY.ttf'))
+try:
+    font_path = os.path.join(settings.MEDIA_ROOT, 'fonts', 'SFPRODISPLAY.ttf')
+    if os.path.exists(font_path):
+        pdfmetrics.registerFont(TTFont('SFProDisplay', font_path))
+    else:
+        # Try to use a default font if the specific font isn't found
+        logger.warning(f"Font file not found at {font_path}, using default font instead")
+        # No font registration, ReportLab will use default fonts
+except Exception as e:
+    logger.error(f"Error registering font: {str(e)}")
+    # Continue without the custom font
+
+
+# ReportGenerator class to wrap the functions for easier import and usage
+class ReportGenerator:
+    """Clase para generar reportes PDF."""
+    
+    @staticmethod
+    def generate_analysis_page(group_logo_url, division_logo_url, analysis_data, output_path):
+        """Genera una página de análisis PDF."""
+        return generate_analysis_page(group_logo_url, division_logo_url, analysis_data, output_path)
+    
+    @staticmethod
+    def generate_main_candidate_report(candidates, output_path):
+        """Genera el reporte principal de candidatos."""
+        return generate_main_candidate_report(candidates, output_path)
 
 def generate_analysis_page(group_logo_url, division_logo_url, analysis_data, output_path):
     """

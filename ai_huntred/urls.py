@@ -1,3 +1,4 @@
+# /home/pablo/ai_huntred/urls.py
 """ai_huntred URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -55,21 +56,21 @@ def trigger_error(request):
             'timestamp': datetime.now().isoformat()
         }, status=500)
 
-schema_view = get_swagger_view(title='ai_huntred API')
+#schema_view = get_swagger_view(title='ai_huntred API')
 
 urlpatterns = [
     # Redirige /admin a /admin/ para consistencia
     path('admin', RedirectView.as_view(url='/admin/', permanent=True)),
     # Interfaz de administración de Django
     path('admin/', admin.site.urls),
-    # API REST
-    path('api/', include('app.api.urls')),
+    # API REST - Comentado temporalmente porque el módulo app.api no existe
+    # path('api/', include('app.api.urls')),
     # API de publicación
     path('api/publish/', include('app.publish.urls')),
-    # Swagger UI
-    path('swagger/', schema_view, name='schema-swagger-ui'),
-    # Redirección de raíz a Swagger
-    path('', RedirectView.as_view(url='/swagger/', permanent=True)),
+    # Swagger UI - Comentado temporalmente porque schema_view está deshabilitado
+    # path('swagger/', schema_view, name='schema-swagger-ui'),
+    # Redirección de raíz al admin
+    path('', RedirectView.as_view(url='/admin/', permanent=True)),
     # Páginas de error
     path('500/', trigger_error),
     # Métricas

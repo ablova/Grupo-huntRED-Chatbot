@@ -1,9 +1,13 @@
-from typing import Dict, Any, Optional
+# /home/pablo/app/com/chatbot/components/context_manager.py
+from typing import Dict, Any, Optional, List
 import logging
 from django.db import transaction
 from asgiref.sync import sync_to_async
 from app.models import ChatState, Person, BusinessUnit
-from app.com.chatbot.workflow.common import chatbot_metrics
+from app.com.chatbot.components.metrics import ChatBotMetrics
+
+# Instancia global de métricas
+chatbot_metrics = ChatBotMetrics()
 
 logger = logging.getLogger(__name__)
 
