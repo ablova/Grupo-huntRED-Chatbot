@@ -57,14 +57,12 @@ class ProjectManager:
         self.repairs = []
         self.backups = []
         
-        # Configuración de usuarios y grupos
-        self.required_users = ['pablollh', 'pablo', 'root', 'www-data']
-        self.required_group = 'ai_huntred'
-        self.required_paths = [
-            '/home/pablo/',
-            '/home/pablo/app',
-            '/home/pablo/ai_huntred'
-        ]
+        # Detectar entorno
+        self.environment = self.detect_environment()
+        logger.info(f"Entorno detectado: {self.environment}")
+        
+        # Configuración según entorno
+        self.configure_environment()
         
         # Configuración de servicios
         self.required_services = {
@@ -123,6 +121,151 @@ class ProjectManager:
                 'path': '/home/pablo/app/celery_conf.py',
                 'permissions': '644',
                 'owner': 'pablo',
+                'group': 'ai_huntred'
+            }
+        }
+        
+    def detect_environment(self) -> str:
+        """Detecta si estamos en producción o desarrollo."""
+        try:
+            # Verificar hostname
+            hostname = socket.gethostname()
+            if 'huntred' in hostname.lower():
+                return 'production'
+            
+            # Verificar IP
+            ip = socket.gethostbyname(hostname)
+            if ip.startswith('10.') or ip.startswith('192.168.'):
+                return 'development'
+            
+            # Verificar variables de entorno
+            if os.getenv('DJANGO_ENV') == 'production':
+                return 'production'
+            elif os.getenv('DJANGO_ENV') == 'development':
+                return 'development'
+            
+            # Verificar si estamos en Google Cloud
+            try:
+                import google.cloud
+                return 'production'
+            except ImportError:
+                pass
+            
+            # Verificar si estamos en un servidor real
+            if os.path.exists('/etc/systemd/system/gunicorn.service'):
+                return 'production'
+            
+            return 'development'
+            
+        except Exception as e:
+            logger.warning(f"Error al detectar entorno: {str(e)}")
+            return 'development'  # Por defecto, asumimos desarrollo
+            
+    def configure_environment(self):
+        """Configura el entorno según la detección."""
+        if self.environment == 'production':
+            # Configuración para producción
+            self.required_users = ['pablollh', 'pablo', 'root', 'www-data']
+            self.required_group = 'ai_huntred'
+            self.required_paths = [
+                '/home/pablo/',
+                '/home/pablo/app',
+                '/home/pablo/ai_huntred'
+            ]
+            self.required_services = {
+                'gunicorn': {
+                    'port': 8000,
+                    'config': '/etc/gunicorn/conf.py',
+                    'service': 'gunicorn.service',
+                    'user': 'www-data',
+                    'group': 'www-data'
+                },
+                'nginx': {
+                    'port': 80,
+                    'config': '/etc/nginx/sites-available/huntred',
+                    'service': 'nginx.service',
+                    'user': 'www-data',
+                    'group': 'www-data'
+                },
+                'celery': {
+                    'port': 5672,
+                    'config': '/etc/celery/celery.conf',
+                    'service': 'celery.service',
+                    'user': 'pablo',
+                    'group': 'ai_huntred'
+                },
+                'redis': {
+                    'port': 6379,
+                    'config': '/etc/redis/redis.conf',
+                    'service': 'redis.service',
+                    'user': 'redis',
+                    'group': 'redis'
+                },
+                'postgresql': {
+                    'port': 5432,
+                    'config': '/etc/postgresql/13/main/postgresql.conf',
+                    'service': 'postgresql.service',
+                    'user': 'postgres',
+                    'group': 'postgres'
+                }
+            }
+        else:
+            # Configuración para desarrollo
+            self.required_users = ['pablollh']
+            self.required_group = 'ai_huntred'
+            self.required_paths = [
+                str(self.project_root),
+                str(self.project_root / 'app')
+            ]
+            self.required_services = {
+                'django': {
+                    'port': 8000,
+                    'config': str(self.project_root / 'config/settings.py'),
+                    'service': None,
+                    'user': os.getenv('USER'),
+                    'group': 'ai_huntred'
+                },
+                'celery': {
+                    'port': 5672,
+                    'config': str(self.project_root / 'config/celery.py'),
+                    'service': None,
+                    'user': os.getenv('USER'),
+                    'group': 'ai_huntred'
+                },
+                'redis': {
+                    'port': 6379,
+                    'config': None,
+                    'service': None,
+                    'user': os.getenv('USER'),
+                    'group': 'ai_huntred'
+                },
+                'postgresql': {
+                    'port': 5432,
+                    'config': None,
+                    'service': None,
+                    'user': os.getenv('USER'),
+                    'group': 'ai_huntred'
+                }
+            }
+            
+        # Configuración común
+        self.critical_configs = {
+            '.env': {
+                'path': str(self.project_root / '.env'),
+                'permissions': '600',
+                'owner': os.getenv('USER'),
+                'group': 'ai_huntred'
+            },
+            'gunicorn_conf.py': {
+                'path': str(self.project_root / 'gunicorn_conf.py'),
+                'permissions': '644',
+                'owner': os.getenv('USER'),
+                'group': 'ai_huntred'
+            },
+            'celery_conf.py': {
+                'path': str(self.project_root / 'celery_conf.py'),
+                'permissions': '644',
+                'owner': os.getenv('USER'),
                 'group': 'ai_huntred'
             }
         }
@@ -419,17 +562,26 @@ class ProjectManager:
         
         for service_name, service_info in self.required_services.items():
             try:
-                # Verificar si el servicio está activo
-                result = subprocess.run(['systemctl', 'is-active', service_info['service']], 
-                                     capture_output=True, text=True)
-                if result.stdout.strip() != 'active':
-                    self.issues.append(f"Servicio {service_name} no está activo")
-                    # Intentar iniciar el servicio
-                    try:
-                        subprocess.run(['sudo', 'systemctl', 'start', service_info['service']], check=True)
-                        self.repairs.append(f"Servicio {service_name} iniciado")
-                    except subprocess.CalledProcessError as e:
-                        self.issues.append(f"Error al iniciar servicio {service_name}: {str(e)}")
+                # En desarrollo, solo verificar puertos
+                if self.environment == 'development':
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    result = sock.connect_ex(('127.0.0.1', service_info['port']))
+                    if result != 0:
+                        self.issues.append(f"Puerto {service_info['port']} para {service_name} no está disponible")
+                    sock.close()
+                    continue
+                
+                # En producción, verificar servicios systemd
+                if service_info['service']:
+                    result = subprocess.run(['systemctl', 'is-active', service_info['service']], 
+                                         capture_output=True, text=True)
+                    if result.stdout.strip() != 'active':
+                        self.issues.append(f"Servicio {service_name} no está activo")
+                        try:
+                            subprocess.run(['sudo', 'systemctl', 'start', service_info['service']], check=True)
+                            self.repairs.append(f"Servicio {service_name} iniciado")
+                        except subprocess.CalledProcessError as e:
+                            self.issues.append(f"Error al iniciar servicio {service_name}: {str(e)}")
                 
                 # Verificar puerto
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -439,16 +591,17 @@ class ProjectManager:
                 sock.close()
                 
                 # Verificar archivo de configuración
-                config_path = Path(service_info['config'])
-                if not config_path.exists():
-                    self.issues.append(f"Archivo de configuración para {service_name} no existe: {config_path}")
-                else:
-                    # Verificar permisos
-                    stat = config_path.stat()
-                    if stat.st_uid != pwd.getpwnam(service_info['user']).pw_uid:
-                        self.issues.append(f"Propietario incorrecto en {config_path}")
-                    if stat.st_gid != grp.getgrnam(service_info['group']).gr_gid:
-                        self.issues.append(f"Grupo incorrecto en {config_path}")
+                if service_info['config']:
+                    config_path = Path(service_info['config'])
+                    if not config_path.exists():
+                        self.issues.append(f"Archivo de configuración para {service_name} no existe: {config_path}")
+                    else:
+                        # Verificar permisos
+                        stat = config_path.stat()
+                        if stat.st_uid != pwd.getpwnam(service_info['user']).pw_uid:
+                            self.issues.append(f"Propietario incorrecto en {config_path}")
+                        if stat.st_gid != grp.getgrnam(service_info['group']).gr_gid:
+                            self.issues.append(f"Grupo incorrecto en {config_path}")
                 
             except Exception as e:
                 self.issues.append(f"Error al verificar servicio {service_name}: {str(e)}")
@@ -713,6 +866,196 @@ class ProjectManager:
                 
         return False
 
+    def prepare_deployment(self):
+        """Prepara el proyecto para despliegue en servidor."""
+        logger.info("Preparando despliegue en servidor...")
+        
+        try:
+            # 1. Verificar requisitos de despliegue
+            deployment_requirements = {
+                'python_version': '3.8+',
+                'django_version': '4.2+',
+                'postgresql_version': '13+',
+                'redis_version': '6+',
+                'nginx_version': '1.18+',
+                'gunicorn_version': '20.1+'
+            }
+            
+            # 2. Crear archivos de configuración necesarios
+            config_files = {
+                'gunicorn.service': f"""[Unit]
+Description=Gunicorn daemon for huntRED Chatbot
+After=network.target
+
+[Service]
+User=www-data
+Group=ai_huntred
+WorkingDirectory=/home/pablo/app
+ExecStart=/home/pablo/venv/bin/gunicorn \\
+    --access-logfile - \\
+    --workers 3 \\
+    --bind unix:/run/gunicorn.sock \\
+    config.wsgi:application
+
+[Install]
+WantedBy=multi-user.target""",
+
+                'nginx.conf': f"""server {{
+    listen 80;
+    server_name huntred.com www.huntred.com;
+
+    location = /favicon.ico {{ access_log off; log_not_found off; }}
+    
+    location /static/ {{
+        root /home/pablo/app;
+    }}
+
+    location /media/ {{
+        root /home/pablo/app;
+    }}
+
+    location / {{
+        include proxy_params;
+        proxy_pass http://unix:/run/gunicorn.sock;
+    }}
+}}""",
+
+                'supervisord.conf': f"""[program:huntred-celery]
+command=/home/pablo/venv/bin/celery -A config worker -l INFO
+directory=/home/pablo/app
+user=pablo
+numprocs=1
+stdout_logfile=/home/pablo/logs/celery.log
+stderr_logfile=/home/pablo/logs/celery.error.log
+autostart=true
+autorestart=true
+startsecs=10
+stopwaitsecs=600
+
+[program:huntred-celerybeat]
+command=/home/pablo/venv/bin/celery -A config beat -l INFO
+directory=/home/pablo/app
+user=pablo
+numprocs=1
+stdout_logfile=/home/pablo/logs/celerybeat.log
+stderr_logfile=/home/pablo/logs/celerybeat.error.log
+autostart=true
+autorestart=true
+startsecs=10
+stopwaitsecs=600"""
+            }
+            
+            # 3. Crear directorios necesarios
+            required_dirs = [
+                '/home/pablo/logs',
+                '/home/pablo/static',
+                '/home/pablo/media',
+                '/home/pablo/backups',
+                '/run/gunicorn'
+            ]
+            
+            for dir_path in required_dirs:
+                try:
+                    Path(dir_path).mkdir(parents=True, exist_ok=True)
+                    subprocess.run(['sudo', 'chown', '-R', 'www-data:ai_huntred', dir_path], check=True)
+                    subprocess.run(['sudo', 'chmod', '-R', '775', dir_path], check=True)
+                    self.repairs.append(f"Directorio creado y configurado: {dir_path}")
+                except Exception as e:
+                    self.issues.append(f"Error al crear directorio {dir_path}: {str(e)}")
+            
+            # 4. Crear archivos de configuración
+            for filename, content in config_files.items():
+                try:
+                    file_path = Path(f'/etc/{filename}')
+                    with open(file_path, 'w') as f:
+                        f.write(content)
+                    subprocess.run(['sudo', 'chown', 'root:root', str(file_path)], check=True)
+                    subprocess.run(['sudo', 'chmod', '644', str(file_path)], check=True)
+                    self.repairs.append(f"Archivo de configuración creado: {filename}")
+                except Exception as e:
+                    self.issues.append(f"Error al crear archivo {filename}: {str(e)}")
+            
+            # 5. Configurar servicios
+            services = ['gunicorn', 'nginx', 'supervisor']
+            for service in services:
+                try:
+                    subprocess.run(['sudo', 'systemctl', 'enable', f'{service}.service'], check=True)
+                    subprocess.run(['sudo', 'systemctl', 'restart', f'{service}.service'], check=True)
+                    self.repairs.append(f"Servicio configurado y reiniciado: {service}")
+                except Exception as e:
+                    self.issues.append(f"Error al configurar servicio {service}: {str(e)}")
+            
+            # 6. Configurar SSL (si es necesario)
+            if os.getenv('ENABLE_SSL', 'false').lower() == 'true':
+                try:
+                    subprocess.run(['sudo', 'certbot', '--nginx', '-d', 'huntred.com', '-d', 'www.huntred.com'], check=True)
+                    self.repairs.append("SSL configurado con Certbot")
+                except Exception as e:
+                    self.issues.append(f"Error al configurar SSL: {str(e)}")
+            
+            logger.info("Preparación de despliegue completada")
+            
+        except Exception as e:
+            self.issues.append(f"Error en la preparación del despliegue: {str(e)}")
+
+    def migrate_database(self):
+        """Realiza la migración completa de la base de datos."""
+        logger.info("Iniciando migración de base de datos...")
+        
+        try:
+            # 1. Crear backup antes de la migración
+            self.create_backup()
+            
+            # 2. Aplicar migraciones
+            call_command('makemigrations')
+            call_command('migrate')
+            
+            # 3. Cargar datos iniciales si existen
+            fixtures_dir = self.project_root / 'fixtures'
+            if fixtures_dir.exists():
+                for fixture in fixtures_dir.glob('*.json'):
+                    call_command('loaddata', str(fixture))
+                    self.repairs.append(f"Datos cargados desde: {fixture}")
+            
+            # 4. Verificar integridad de la base de datos
+            with connection.cursor() as cursor:
+                # Verificar tablas
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                """)
+                tables = cursor.fetchall()
+                
+                # Verificar índices
+                for table in tables:
+                    cursor.execute(f"""
+                        SELECT indexname, indexdef 
+                        FROM pg_indexes 
+                        WHERE tablename = '{table[0]}'
+                    """)
+                    indexes = cursor.fetchall()
+                    
+                    # Verificar y reparar índices si es necesario
+                    if not indexes:
+                        self.issues.append(f"Tabla {table[0]} no tiene índices")
+                        # Crear índices básicos
+                        cursor.execute(f"""
+                            CREATE INDEX IF NOT EXISTS idx_{table[0]}_id 
+                            ON {table[0]} (id)
+                        """)
+                        self.repairs.append(f"Índice creado para {table[0]}")
+            
+            # 5. Optimizar base de datos
+            with connection.cursor() as cursor:
+                cursor.execute("VACUUM ANALYZE")
+                cursor.execute("REINDEX DATABASE huntred")
+            
+            logger.info("Migración de base de datos completada")
+            
+        except Exception as e:
+            self.issues.append(f"Error en la migración de la base de datos: {str(e)}")
+
     def run(self):
         """Ejecuta todas las verificaciones, reparaciones y optimizaciones."""
         logger.info("Iniciando gestión del proyecto...")
@@ -720,10 +1063,16 @@ class ProjectManager:
         # Verificación del sistema
         self.check_system_info()
         
+        # Preparación para despliegue
+        self.prepare_deployment()
+        
+        # Migración de base de datos
+        self.migrate_database()
+        
         # Limpieza y reparación
-        self.clean_unnecessary_files()  # Primero limpiar archivos innecesarios
-        self.clean_backup_files()       # Luego limpiar archivos de respaldo
-        self.repair_project()           # Finalmente reparar el proyecto
+        self.clean_unnecessary_files()
+        self.clean_backup_files()
+        self.repair_project()
         
         # Verificaciones
         self.check_system_resources()
