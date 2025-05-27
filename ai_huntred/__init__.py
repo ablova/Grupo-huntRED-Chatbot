@@ -1,12 +1,6 @@
-# /home/pablo/ai_huntred/__init__.py
-#
-# Módulo inicializador de la aplicación ai_huntred.
-# Configura Celery para la detección de tareas asíncronas.
-# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+"""Módulo ai_huntred."""
 
-from __future__ import absolute_import, unicode_literals
+# Este archivo es necesario para que Python trate los directorios como paquetes
 
-# Importa Celery para detectar tareas
-from ai_huntred.celery_app import app as celery_app  # Cambia a importar desde celery_app.py
-
-__all__ = ('celery_app',)
+# No es necesario agregar código aquí a menos que sea específicamente requerido
+# Todas las importaciones deben manejarse a través de app.imports

@@ -5685,3 +5685,46 @@ class Activity(models.Model):
     
     def __str__(self):
         return f"{self.get_activity_type_display()} - {self.person.email or self.person.id} - {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
+
+class CustomUser(AbstractUser):
+    """Modelo de usuario personalizado que extiende AbstractUser."""
+    
+    # Campos adicionales
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.SET_NULL, null=True, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='BU_DIVISION')
+    permissions = models.JSONField(default=dict, blank=True)
+    
+    # Campos de auditoría
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Usuario"
+        verbose_name_plural = "Usuarios"
+        indexes = [
+            models.Index(fields=['username']),
+            models.Index(fields=['email']),
+            models.Index(fields=['business_unit']),
+            models.Index(fields=['role'])
+        ]
+    
+    def __str__(self):
+        return f"{self.username} ({self.get_role_display()})"
+    
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip() or self.username
+    
+    def has_bu_access(self, business_unit):
+        """Verifica si el usuario tiene acceso a una unidad de negocio específica."""
+        if self.role == 'SUPER_ADMIN':
+            return True
+        return self.business_unit == business_unit
+    
+    def has_division_access(self, division):
+        """Verifica si el usuario tiene acceso a una división específica."""
+        if self.role == 'SUPER_ADMIN':
+            return True
+        if self.role == 'BU_COMPLETE':
+            return division.business_unit == self.business_unit
+        return False

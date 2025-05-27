@@ -7,6 +7,7 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 # Descripción: Configuración principal de rutas para el proyecto Django
 
 import logging
+from datetime import datetime
 from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
@@ -31,7 +32,7 @@ def health_check(request):
         'status': 'ok',
         'timestamp': datetime.now().isoformat(),
         'version': '1.0.0',
-        'environment': settings.ENVIRONMENT
+        'environment': 'development'
     })
 
 @csrf_exempt
@@ -59,31 +60,14 @@ def trigger_error(request):
 #schema_view = get_swagger_view(title='ai_huntred API')
 
 urlpatterns = [
-    # Redirige /admin a /admin/ para consistencia
-    path('admin', RedirectView.as_view(url='/admin/', permanent=True)),
     # Interfaz de administración de Django
     path('admin/', admin.site.urls),
-    # API REST - Comentado temporalmente porque el módulo app.api no existe
-    # path('api/', include('app.api.urls')),
-    # API de publicación
-    path('api/publish/', include('app.publish.urls')),
-    # Swagger UI - Comentado temporalmente porque schema_view está deshabilitado
-    # path('swagger/', schema_view, name='schema-swagger-ui'),
     # Redirección de raíz al admin
     path('', RedirectView.as_view(url='/admin/', permanent=True)),
-    # Páginas de error
-    path('500/', trigger_error),
-    # Métricas
-    path(METRICS_ENDPOINT, metrics),
     # Salud
     path('health/', health_check),
     # Rutas de la aplicación principal
     path('', include('app.urls')),
-    path('silk/', include('silk.urls', namespace='silk')),
-    # Rutas de publicación
-    path('publicacion/', include('app.publicacion.urls')),
-    # Rutas de pagos
-    path('pagos/', include('app.pagos.urls', namespace='pagos')),
 ]
 
 # Soporte condicional para Grappelli
@@ -92,6 +76,7 @@ try:
 except ImportError:
     pass  # Grappelli no está instalado
 
-# Archivos estáticos solo en modo DEBUG
+# Archivos estáticos en modo DEBUG
 if settings.DEBUG:
     urlpatterns += staticfiles_urlpatterns()
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -135,27 +135,29 @@ BASE_PATH = Path(settings.BASE_DIR) / 'app' / 'com' / 'utils' / 'catalogs'
 # Crear el directorio si no existe
 BASE_PATH.mkdir(parents=True, exist_ok=True)
 
-def load_json_file(file_name: str) -> dict:
+def load_json_file(file_name: str, use_cache: bool = False) -> dict:
     """
     Carga un archivo JSON desde la ruta base especificada.
     Si el archivo no existe, devuelve un diccionario vacío.
 
     Args:
         file_name (str): Nombre del archivo JSON.
+        use_cache (bool): Indica si se debe usar la caché. Por defecto es False.
 
     Returns:
         dict: Datos cargados desde el JSON o diccionario vacío si hay error.
     """
     file_path = CONFIG_DIR / file_name
-    cache_key = f"json_file_{file_name}"
     
-    # Verificar si los datos están en caché
-    cached_data = cache.get(cache_key)
-    if cached_data is not None:
-        logger.debug(f"Datos cargados desde caché para {file_name}")
-        return cached_data
+    # Verificar si los datos están en caché (solo si use_cache es True)
+    if use_cache:
+        cache_key = f"json_file_{file_name}"
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Datos cargados desde caché para {file_name}")
+            return cached_data
     
-    # Si no está en caché, cargar desde el archivo
+    # Si no está en caché o no se debe usar caché, cargar desde el archivo
     try:
         if not file_path.exists():
             logger.warning(f"Archivo no encontrado: {file_path}")

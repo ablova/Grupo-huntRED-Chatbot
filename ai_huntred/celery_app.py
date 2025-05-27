@@ -1,4 +1,4 @@
-# /Users/pablollh/MEGA/GitHub/Grupo-huntRED-Chatbot/ai_huntred/celery_app.py
+# /home/pablo/ai_huntred/celery_app.py
 #
 # Configuración de Celery para el proyecto AI HuntRED.
 # Define colas, rutas y tareas periódicas para el procesamiento asíncrono.

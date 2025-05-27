@@ -1,0 +1,777 @@
+#!/usr/bin/env python3
+"""
+Script de diagnóstico, reparación y optimización para el proyecto Grupo huntRED® Chatbot.
+Realiza verificaciones exhaustivas, reparaciones y optimizaciones en todo el proyecto.
+"""
+
+import os
+import sys
+import logging
+import subprocess
+import importlib
+import ast
+from pathlib import Path
+from typing import List, Dict, Any, Set
+import psutil
+import yaml
+from dotenv import load_dotenv
+import django
+from django.conf import settings
+from django.core.management import call_command
+from django.db import connection
+import black
+import isort
+import flake8
+import mypy
+import bandit
+import safety
+import socket
+import platform
+import shutil
+import json
+from datetime import datetime
+import grp
+import pwd
+import systemd.journal
+import systemd.daemon
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('project_diagnostic.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class ProjectManager:
+    def __init__(self):
+        self.project_root = Path(__file__).parent
+        self.app_dir = self.project_root / 'app'
+        self.issues = []
+        self.optimizations = []
+        self.dependencies = set()
+        self.cleaned_files = []
+        self.repairs = []
+        self.backups = []
+        
+        # Configuración de usuarios y grupos
+        self.required_users = ['pablollh', 'pablo', 'root', 'www-data']
+        self.required_group = 'ai_huntred'
+        self.required_paths = [
+            '/home/pablo/',
+            '/home/pablo/app',
+            '/home/pablo/ai_huntred'
+        ]
+        
+        # Configuración de servicios
+        self.required_services = {
+            'gunicorn': {
+                'port': 8000,
+                'config': '/etc/gunicorn/conf.py',
+                'service': 'gunicorn.service',
+                'user': 'www-data',
+                'group': 'www-data'
+            },
+            'nginx': {
+                'port': 80,
+                'config': '/etc/nginx/sites-available/huntred',
+                'service': 'nginx.service',
+                'user': 'www-data',
+                'group': 'www-data'
+            },
+            'celery': {
+                'port': 5672,
+                'config': '/etc/celery/celery.conf',
+                'service': 'celery.service',
+                'user': 'pablo',
+                'group': 'ai_huntred'
+            },
+            'redis': {
+                'port': 6379,
+                'config': '/etc/redis/redis.conf',
+                'service': 'redis.service',
+                'user': 'redis',
+                'group': 'redis'
+            },
+            'postgresql': {
+                'port': 5432,
+                'config': '/etc/postgresql/13/main/postgresql.conf',
+                'service': 'postgresql.service',
+                'user': 'postgres',
+                'group': 'postgres'
+            }
+        }
+        
+        # Archivos de configuración críticos
+        self.critical_configs = {
+            '.env': {
+                'path': '/home/pablo/.env',
+                'permissions': '600',
+                'owner': 'pablo',
+                'group': 'ai_huntred'
+            },
+            'gunicorn_conf.py': {
+                'path': '/home/pablo/app/gunicorn_conf.py',
+                'permissions': '644',
+                'owner': 'www-data',
+                'group': 'ai_huntred'
+            },
+            'celery_conf.py': {
+                'path': '/home/pablo/app/celery_conf.py',
+                'permissions': '644',
+                'owner': 'pablo',
+                'group': 'ai_huntred'
+            }
+        }
+        
+    def verify_permissions(self):
+        """Verifica que los permisos estén correctamente configurados."""
+        logger.info("Verificando configuración de permisos...")
+        
+        permission_issues = []
+        
+        try:
+            # Verificar grupo ai_huntred
+            try:
+                group_info = grp.getgrnam(self.required_group)
+                logger.info(f"Grupo {self.required_group} existe con GID: {group_info.gr_gid}")
+                
+                # Verificar miembros del grupo
+                group_members = group_info.gr_mem
+                for user in self.required_users:
+                    if user not in group_members:
+                        permission_issues.append(f"Usuario {user} no está en el grupo {self.required_group}")
+            except KeyError:
+                permission_issues.append(f"Grupo {self.required_group} no existe")
+            
+            # Verificar usuarios
+            for username in self.required_users:
+                try:
+                    user_info = pwd.getpwnam(username)
+                    logger.info(f"Usuario {username} existe con UID: {user_info.pw_uid}")
+                    
+                    # Verificar directorio home
+                    home_dir = Path(user_info.pw_dir)
+                    if home_dir.exists():
+                        stat = home_dir.stat()
+                        if stat.st_gid != group_info.gr_gid:
+                            permission_issues.append(f"Directorio home de {username} no pertenece al grupo {self.required_group}")
+                except KeyError:
+                    permission_issues.append(f"Usuario {username} no existe")
+            
+            # Verificar permisos de directorios
+            for path in self.required_paths:
+                path_obj = Path(path)
+                if path_obj.exists():
+                    # Verificar grupo propietario
+                    stat = path_obj.stat()
+                    if stat.st_gid != group_info.gr_gid:
+                        permission_issues.append(f"Directorio {path} no pertenece al grupo {self.required_group}")
+                    
+                    # Verificar permisos de directorios
+                    for root, dirs, files in os.walk(path_obj):
+                        for item in dirs + files:
+                            item_path = Path(root) / item
+                            item_stat = item_path.stat()
+                            
+                            # Verificar grupo
+                            if item_stat.st_gid != group_info.gr_gid:
+                                permission_issues.append(f"Item {item_path} no pertenece al grupo {self.required_group}")
+                            
+                            # Verificar permisos
+                            if item_path.is_dir():
+                                if not (item_stat.st_mode & 0o775 == 0o775):
+                                    permission_issues.append(f"Permisos incorrectos en directorio {item_path}")
+                            elif item_path.suffix in ['.py', '.sh']:
+                                if not (item_stat.st_mode & 0o775 == 0o775):
+                                    permission_issues.append(f"Permisos incorrectos en script {item_path}")
+                            else:
+                                if not (item_stat.st_mode & 0o664 == 0o664):
+                                    permission_issues.append(f"Permisos incorrectos en archivo {item_path}")
+                else:
+                    permission_issues.append(f"Ruta {path} no existe")
+            
+            # Verificar permisos del script
+            script_path = Path(__file__)
+            script_stat = script_path.stat()
+            if script_stat.st_gid != group_info.gr_gid:
+                permission_issues.append(f"Script no pertenece al grupo {self.required_group}")
+            if not (script_stat.st_mode & 0o775 == 0o775):
+                permission_issues.append("Permisos incorrectos en el script")
+            
+            # Si hay problemas, intentar repararlos
+            if permission_issues:
+                logger.warning("Se encontraron problemas de permisos:")
+                for issue in permission_issues:
+                    logger.warning(f"- {issue}")
+                self.check_and_repair_permissions()
+            else:
+                logger.info("Todos los permisos están correctamente configurados")
+            
+        except Exception as e:
+            self.issues.append(f"Error al verificar permisos: {str(e)}")
+            
+    def check_and_repair_permissions(self):
+        """Verifica y repara los permisos de usuarios y grupos."""
+        logger.info("Verificando y reparando permisos...")
+        
+        try:
+            # Verificar grupo ai_huntred
+            try:
+                group_info = grp.getgrnam(self.required_group)
+                logger.info(f"Grupo {self.required_group} existe con GID: {group_info.gr_gid}")
+            except KeyError:
+                self.issues.append(f"Grupo {self.required_group} no existe")
+                # Crear grupo si no existe
+                try:
+                    subprocess.run(['sudo', 'groupadd', self.required_group], check=True)
+                    self.repairs.append(f"Grupo {self.required_group} creado")
+                except subprocess.CalledProcessError as e:
+                    self.issues.append(f"Error al crear grupo {self.required_group}: {str(e)}")
+            
+            # Verificar usuarios
+            for username in self.required_users:
+                try:
+                    user_info = pwd.getpwnam(username)
+                    logger.info(f"Usuario {username} existe con UID: {user_info.pw_uid}")
+                    
+                    # Agregar usuario al grupo si no está
+                    if self.required_group not in grp.getgrgid(user_info.pw_gid).gr_mem:
+                        try:
+                            subprocess.run(['sudo', 'usermod', '-a', '-G', self.required_group, username], check=True)
+                            self.repairs.append(f"Usuario {username} agregado al grupo {self.required_group}")
+                        except subprocess.CalledProcessError as e:
+                            self.issues.append(f"Error al agregar {username} al grupo {self.required_group}: {str(e)}")
+                except KeyError:
+                    self.issues.append(f"Usuario {username} no existe")
+            
+            # Verificar y reparar permisos de directorios
+            for path in self.required_paths:
+                path_obj = Path(path)
+                if path_obj.exists():
+                    # Establecer grupo
+                    try:
+                        subprocess.run(['sudo', 'chgrp', '-R', self.required_group, str(path_obj)], check=True)
+                        self.repairs.append(f"Grupo establecido para {path}")
+                    except subprocess.CalledProcessError as e:
+                        self.issues.append(f"Error al establecer grupo para {path}: {str(e)}")
+                    
+                    # Establecer permisos
+                    try:
+                        # Directorios: 775 (drwxrwxr-x)
+                        subprocess.run(['sudo', 'find', str(path_obj), '-type', 'd', '-exec', 'chmod', '775', '{}', '+'], check=True)
+                        # Archivos: 664 (rw-rw-r--)
+                        subprocess.run(['sudo', 'find', str(path_obj), '-type', 'f', '-exec', 'chmod', '664', '{}', '+'], check=True)
+                        # Scripts ejecutables: 775 (rwxrwxr-x)
+                        subprocess.run(['sudo', 'find', str(path_obj), '-type', 'f', '-name', '*.py', '-exec', 'chmod', '775', '{}', '+'], check=True)
+                        subprocess.run(['sudo', 'find', str(path_obj), '-type', 'f', '-name', '*.sh', '-exec', 'chmod', '775', '{}', '+'], check=True)
+                        self.repairs.append(f"Permisos establecidos para {path}")
+                    except subprocess.CalledProcessError as e:
+                        self.issues.append(f"Error al establecer permisos para {path}: {str(e)}")
+                else:
+                    self.issues.append(f"Ruta {path} no existe")
+            
+            # Verificar permisos de este script
+            script_path = Path(__file__)
+            try:
+                # Establecer grupo
+                subprocess.run(['sudo', 'chgrp', self.required_group, str(script_path)], check=True)
+                # Establecer permisos ejecutables
+                subprocess.run(['sudo', 'chmod', '775', str(script_path)], check=True)
+                self.repairs.append("Permisos del script establecidos")
+            except subprocess.CalledProcessError as e:
+                self.issues.append(f"Error al establecer permisos del script: {str(e)}")
+            
+            # Verificar que los permisos se hayan aplicado correctamente
+            self.verify_permissions()
+            
+        except Exception as e:
+            self.issues.append(f"Error al verificar/reparar permisos: {str(e)}")
+            
+    def repair_project(self):
+        """Repara el proyecto."""
+        logger.info("Iniciando reparación del proyecto...")
+        
+        # Verificar y reparar permisos primero
+        self.verify_permissions()
+        
+        # Crear directorios necesarios
+        required_dirs = [
+            'backups',
+            'logs',
+            'static',
+            'media',
+            'temp',
+            'app/com/chatbot/flow',
+            'app/com/chatbot/workflow',
+            'app/com/chatbot/nlp',
+            'app/com/chatbot/core',
+            'app/com/chatbot/components',
+            'app/com/chatbot/models',
+            'app/com/chatbot/views',
+            'app/com/chatbot/urls',
+            'app/com/chatbot/validation',
+            'app/com/chatbot/values',
+            'app/com/chatbot/middleware'
+        ]
+        
+        for dir_path in required_dirs:
+            full_path = self.project_root / dir_path
+            if not full_path.exists():
+                full_path.mkdir(parents=True, exist_ok=True)
+                self.repairs.append(f"Directorio creado: {dir_path}")
+                logger.info(f"Directorio creado: {dir_path}")
+                
+                # Establecer permisos para el nuevo directorio
+                try:
+                    subprocess.run(['sudo', 'chgrp', self.required_group, str(full_path)], check=True)
+                    subprocess.run(['sudo', 'chmod', '775', str(full_path)], check=True)
+                    self.repairs.append(f"Permisos establecidos para nuevo directorio: {dir_path}")
+                except subprocess.CalledProcessError as e:
+                    self.issues.append(f"Error al establecer permisos para {dir_path}: {str(e)}")
+        
+        # Verificar y reparar configuración de Django
+        self.repair_django_settings()
+        
+        # Verificar y reparar base de datos
+        self.repair_database()
+        
+        # Verificar y reparar servicios
+        self.repair_services()
+        
+        # Verificar permisos una vez más después de todas las reparaciones
+        self.verify_permissions()
+
+    def check_system_info(self):
+        """Verifica información del sistema."""
+        logger.info("Verificando información del sistema...")
+        
+        system_info = {
+            'platform': platform.platform(),
+            'python_version': sys.version,
+            'hostname': socket.gethostname(),
+            'cpu_count': psutil.cpu_count(),
+            'memory_total': psutil.virtual_memory().total,
+            'disk_usage': psutil.disk_usage('/').percent
+        }
+        
+        logger.info(f"Sistema: {system_info['platform']}")
+        logger.info(f"Python: {system_info['python_version']}")
+        logger.info(f"Hostname: {system_info['hostname']}")
+        logger.info(f"CPUs: {system_info['cpu_count']}")
+        logger.info(f"Memoria total: {system_info['memory_total'] / (1024**3):.2f} GB")
+        logger.info(f"Uso de disco: {system_info['disk_usage']}%")
+
+    def repair_django_settings(self):
+        """Repara la configuración de Django."""
+        logger.info("Reparando configuración de Django...")
+        
+        try:
+            # Verificar SECRET_KEY
+            if not settings.SECRET_KEY or settings.SECRET_KEY == 'your-secret-key-here':
+                new_key = ''.join([chr(ord('a') + i % 26) for i in range(50)])
+                self.repairs.append("SECRET_KEY regenerada")
+                logger.info("SECRET_KEY regenerada")
+            
+            # Verificar DEBUG
+            if settings.DEBUG:
+                self.issues.append("DEBUG está activado en producción")
+            
+            # Verificar ALLOWED_HOSTS
+            if not settings.ALLOWED_HOSTS:
+                self.issues.append("ALLOWED_HOSTS está vacío")
+            
+            # Verificar CORS
+            if 'corsheaders' in settings.INSTALLED_APPS:
+                if not hasattr(settings, 'CORS_ALLOWED_ORIGINS'):
+                    self.issues.append("CORS_ALLOWED_ORIGINS no está configurado")
+            
+        except Exception as e:
+            self.issues.append(f"Error al reparar configuración Django: {str(e)}")
+
+    def repair_database(self):
+        """Repara la base de datos."""
+        logger.info("Reparando base de datos...")
+        
+        try:
+            # Verificar conexión
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            
+            # Aplicar migraciones
+            call_command('makemigrations')
+            call_command('migrate')
+            
+            # Verificar índices
+            call_command('dbshell')
+            
+            self.repairs.append("Base de datos reparada")
+            
+        except Exception as e:
+            self.issues.append(f"Error al reparar base de datos: {str(e)}")
+
+    def verify_services(self):
+        """Verifica el estado de los servicios requeridos."""
+        logger.info("Verificando servicios...")
+        
+        for service_name, service_info in self.required_services.items():
+            try:
+                # Verificar si el servicio está activo
+                result = subprocess.run(['systemctl', 'is-active', service_info['service']], 
+                                     capture_output=True, text=True)
+                if result.stdout.strip() != 'active':
+                    self.issues.append(f"Servicio {service_name} no está activo")
+                    # Intentar iniciar el servicio
+                    try:
+                        subprocess.run(['sudo', 'systemctl', 'start', service_info['service']], check=True)
+                        self.repairs.append(f"Servicio {service_name} iniciado")
+                    except subprocess.CalledProcessError as e:
+                        self.issues.append(f"Error al iniciar servicio {service_name}: {str(e)}")
+                
+                # Verificar puerto
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                result = sock.connect_ex(('127.0.0.1', service_info['port']))
+                if result != 0:
+                    self.issues.append(f"Puerto {service_info['port']} para {service_name} no está disponible")
+                sock.close()
+                
+                # Verificar archivo de configuración
+                config_path = Path(service_info['config'])
+                if not config_path.exists():
+                    self.issues.append(f"Archivo de configuración para {service_name} no existe: {config_path}")
+                else:
+                    # Verificar permisos
+                    stat = config_path.stat()
+                    if stat.st_uid != pwd.getpwnam(service_info['user']).pw_uid:
+                        self.issues.append(f"Propietario incorrecto en {config_path}")
+                    if stat.st_gid != grp.getgrnam(service_info['group']).gr_gid:
+                        self.issues.append(f"Grupo incorrecto en {config_path}")
+                
+            except Exception as e:
+                self.issues.append(f"Error al verificar servicio {service_name}: {str(e)}")
+
+    def verify_critical_configs(self):
+        """Verifica los archivos de configuración críticos."""
+        logger.info("Verificando archivos de configuración críticos...")
+        
+        for config_name, config_info in self.critical_configs.items():
+            try:
+                config_path = Path(config_info['path'])
+                if not config_path.exists():
+                    self.issues.append(f"Archivo de configuración {config_name} no existe: {config_path}")
+                    continue
+                
+                # Verificar permisos
+                stat = config_path.stat()
+                expected_perms = int(config_info['permissions'], 8)
+                if stat.st_mode & 0o777 != expected_perms:
+                    self.issues.append(f"Permisos incorrectos en {config_name}")
+                    try:
+                        subprocess.run(['sudo', 'chmod', config_info['permissions'], str(config_path)], check=True)
+                        self.repairs.append(f"Permisos corregidos para {config_name}")
+                    except subprocess.CalledProcessError as e:
+                        self.issues.append(f"Error al corregir permisos de {config_name}: {str(e)}")
+                
+                # Verificar propietario y grupo
+                if stat.st_uid != pwd.getpwnam(config_info['owner']).pw_uid:
+                    self.issues.append(f"Propietario incorrecto en {config_name}")
+                    try:
+                        subprocess.run(['sudo', 'chown', config_info['owner'], str(config_path)], check=True)
+                        self.repairs.append(f"Propietario corregido para {config_name}")
+                    except subprocess.CalledProcessError as e:
+                        self.issues.append(f"Error al corregir propietario de {config_name}: {str(e)}")
+                
+                if stat.st_gid != grp.getgrnam(config_info['group']).gr_gid:
+                    self.issues.append(f"Grupo incorrecto en {config_name}")
+                    try:
+                        subprocess.run(['sudo', 'chgrp', config_info['group'], str(config_path)], check=True)
+                        self.repairs.append(f"Grupo corregido para {config_name}")
+                    except subprocess.CalledProcessError as e:
+                        self.issues.append(f"Error al corregir grupo de {config_name}: {str(e)}")
+                
+            except Exception as e:
+                self.issues.append(f"Error al verificar {config_name}: {str(e)}")
+
+    def repair_services(self):
+        """Repara los servicios necesarios."""
+        logger.info("Reparando servicios...")
+        
+        # Verificar servicios primero
+        self.verify_services()
+        
+        # Verificar configuraciones críticas
+        self.verify_critical_configs()
+        
+        # Reiniciar servicios si es necesario
+        for service_name, service_info in self.required_services.items():
+            try:
+                subprocess.run(['sudo', 'systemctl', 'restart', service_info['service']], check=True)
+                self.repairs.append(f"Servicio {service_name} reiniciado")
+            except subprocess.CalledProcessError as e:
+                self.issues.append(f"Error al reiniciar servicio {service_name}: {str(e)}")
+
+    def create_backup(self):
+        """Crea un backup del proyecto."""
+        logger.info("Creando backup del proyecto...")
+        
+        try:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_dir = self.project_root / 'backups' / f'backup_{timestamp}'
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Backup de archivos importantes
+            important_files = [
+                'requirements.txt',
+                '.env',
+                'config/settings.py',
+                'config/urls.py',
+                'manage.py'
+            ]
+            
+            for file in important_files:
+                src = self.project_root / file
+                if src.exists():
+                    dst = backup_dir / file
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dst)
+                    self.backups.append(str(dst))
+            
+            # Backup de la base de datos
+            try:
+                db_backup = backup_dir / 'database_backup.json'
+                call_command('dumpdata', '--output', str(db_backup))
+                self.backups.append(str(db_backup))
+            except Exception as e:
+                self.issues.append(f"Error al hacer backup de la base de datos: {str(e)}")
+            
+            logger.info(f"Backup creado en: {backup_dir}")
+            self.repairs.append(f"Backup creado: {backup_dir}")
+            
+        except Exception as e:
+            self.issues.append(f"Error al crear backup: {str(e)}")
+
+    def generate_report(self):
+        """Genera un reporte final."""
+        logger.info("Generando reporte final...")
+        
+        report = {
+            'issues': self.issues,
+            'optimizations': self.optimizations,
+            'dependencies': list(self.dependencies),
+            'cleaned_files': self.cleaned_files,
+            'repairs': self.repairs,
+            'backups': self.backups
+        }
+        
+        with open('project_report.yaml', 'w') as f:
+            yaml.dump(report, f, default_flow_style=False)
+            
+        logger.info(f"Reporte generado: project_report.yaml")
+        logger.info(f"Problemas encontrados: {len(self.issues)}")
+        logger.info(f"Optimizaciones realizadas: {len(self.optimizations)}")
+        logger.info(f"Dependencias detectadas: {len(self.dependencies)}")
+        logger.info(f"Archivos limpiados: {len(self.cleaned_files)}")
+        logger.info(f"Reparaciones realizadas: {len(self.repairs)}")
+        logger.info(f"Backups creados: {len(self.backups)}")
+
+    def clean_unnecessary_files(self):
+        """Limpia archivos innecesarios del proyecto."""
+        logger.info("Limpiando archivos innecesarios...")
+        
+        # Patrones de archivos a limpiar
+        cleanup_patterns = {
+            # Archivos de respaldo y temporales
+            'backup_files': [
+                '*.py.bak*',      # Archivos de respaldo de Python
+                '*.pyc',          # Archivos compilados de Python
+                '*.pyo',          # Archivos optimizados de Python
+                '*.pyd',          # Archivos de extensión de Python
+                '__pycache__',    # Directorios de caché
+                '.DS_Store',      # Archivos de sistema macOS
+                '*.swp',          # Archivos temporales de vim
+                '*.swo',          # Archivos temporales de vim
+                '*.tmp',          # Archivos temporales
+                '*.bak',          # Archivos de respaldo genéricos
+                '*.log.bak',      # Logs de respaldo
+                '*.bak.*',        # Archivos de respaldo con extensión
+                '*.old',          # Archivos antiguos
+                '*.orig',         # Archivos originales
+                '*.rej',          # Archivos de rechazo
+            ],
+            # Archivos de desarrollo y pruebas
+            'development_files': [
+                '*.test.py',      # Archivos de prueba
+                'test_*.py',      # Archivos de prueba
+                '*.spec',         # Archivos de especificación
+                '*.egg-info',     # Información de paquetes
+                '*.egg',          # Paquetes Python
+                'dist/',          # Directorio de distribución
+                'build/',         # Directorio de construcción
+                '.pytest_cache/', # Caché de pytest
+                '.coverage',      # Archivo de cobertura
+                'htmlcov/',       # Directorio de cobertura HTML
+            ],
+            # Archivos de IDE y editores
+            'ide_files': [
+                '.idea/',         # PyCharm
+                '.vscode/',       # Visual Studio Code
+                '*.sublime-*',    # Sublime Text
+                '.project',       # Eclipse
+                '.pydevproject',  # Eclipse
+                '.settings/',     # Eclipse
+            ],
+            # Archivos de sistema y logs
+            'system_files': [
+                '*.log',          # Archivos de log
+                '*.pid',          # Archivos de PID
+                '*.lock',         # Archivos de bloqueo
+                '*.pid.lock',     # Archivos de bloqueo de PID
+                '*.socket',       # Archivos de socket
+                '*.service',      # Archivos de servicio
+            ]
+        }
+        
+        try:
+            for category, patterns in cleanup_patterns.items():
+                logger.info(f"Limpiando {category}...")
+                for pattern in patterns:
+                    for file_path in self.project_root.rglob(pattern):
+                        try:
+                            if file_path.is_file():
+                                # Verificar si el archivo es necesario
+                                if self.is_file_necessary(file_path):
+                                    continue
+                                    
+                                file_path.unlink()
+                                self.cleaned_files.append(str(file_path))
+                                logger.info(f"Archivo eliminado: {file_path}")
+                            elif file_path.is_dir():
+                                # Verificar si el directorio está vacío
+                                if not any(file_path.iterdir()):
+                                    shutil.rmtree(file_path)
+                                    self.cleaned_files.append(str(file_path))
+                                    logger.info(f"Directorio vacío eliminado: {file_path}")
+                        except Exception as e:
+                            self.issues.append(f"Error al eliminar {file_path}: {str(e)}")
+            
+            # Agregar información de limpieza al reporte
+            self.optimizations.append({
+                'type': 'file_cleanup',
+                'files_cleaned': len(self.cleaned_files),
+                'details': self.cleaned_files
+            })
+            
+            logger.info(f"Limpieza completada. {len(self.cleaned_files)} archivos eliminados.")
+            
+        except Exception as e:
+            self.issues.append(f"Error durante la limpieza: {str(e)}")
+            
+    def is_file_necessary(self, file_path: Path) -> bool:
+        """Verifica si un archivo es necesario para el proyecto."""
+        # Lista de archivos y patrones que NO deben eliminarse
+        necessary_patterns = [
+            'requirements.txt',
+            '.env',
+            'manage.py',
+            'wsgi.py',
+            'asgi.py',
+            'settings.py',
+            'urls.py',
+            '__init__.py',
+            'celery.py',
+            'gunicorn_conf.py',
+            'nginx.conf',
+            'supervisord.conf',
+            'docker-compose.yml',
+            'Dockerfile',
+            'README.md',
+            'LICENSE',
+            '.gitignore',
+            'project_diagnostic.py'  # No eliminar este script
+        ]
+        
+        # Verificar si el archivo está en la lista de necesarios
+        for pattern in necessary_patterns:
+            if file_path.name == pattern or file_path.match(pattern):
+                return True
+                
+        # Verificar si el archivo está en directorios críticos
+        critical_dirs = [
+            'app/com/chatbot',
+            'config',
+            'static',
+            'media',
+            'templates'
+        ]
+        
+        for dir_name in critical_dirs:
+            if dir_name in str(file_path):
+                return True
+                
+        return False
+
+    def run(self):
+        """Ejecuta todas las verificaciones, reparaciones y optimizaciones."""
+        logger.info("Iniciando gestión del proyecto...")
+        
+        # Verificación del sistema
+        self.check_system_info()
+        
+        # Limpieza y reparación
+        self.clean_unnecessary_files()  # Primero limpiar archivos innecesarios
+        self.clean_backup_files()       # Luego limpiar archivos de respaldo
+        self.repair_project()           # Finalmente reparar el proyecto
+        
+        # Verificaciones
+        self.check_system_resources()
+        self.check_python_environment()
+        self.check_project_structure()
+        self.check_dependencies()
+        self.check_imports()
+        self.check_code_quality()
+        self.check_security()
+        self.check_database()
+        self.check_settings()
+        self.check_static_files()
+        self.check_templates()
+        self.check_urls()
+        self.check_views()
+        self.check_models()
+        self.check_forms()
+        self.check_tests()
+        
+        # Optimizaciones
+        self.optimize_imports()
+        self.optimize_code()
+        self.optimize_database()
+        self.optimize_static_files()
+        
+        # Backup final
+        self.create_backup()
+        
+        # Reporte final
+        self.generate_report()
+
+def main():
+    """Función principal."""
+    try:
+        # Cargar variables de entorno
+        load_dotenv()
+        
+        # Configurar Django
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+        django.setup()
+        
+        # Ejecutar gestión del proyecto
+        manager = ProjectManager()
+        manager.run()
+        
+    except Exception as e:
+        logger.error(f"Error en la gestión del proyecto: {str(e)}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main() 

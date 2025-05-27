@@ -1,4 +1,4 @@
-# /Users/pablollh/MEGA/GitHub/Grupo-huntRED-Chatbot/ai_huntred/asgi.py
+# /home/pablo/ai_huntred/asgi.py
 #
 # Configuración ASGI para el proyecto AI HuntRED.
 # Configura el middleware de seguridad y la aplicación ASGI principal.

@@ -1,10 +1,6 @@
-"""
-Módulo de publicación y campañas digitales
-"""
+"""Módulo app.com.publish."""
 
-__version__ = "1.0.0"
+# Este archivo es necesario para que Python trate los directorios como paquetes
 
-# Exports for publish module
-# Add specific exports if necessary
-
-__all__ = []
+# No es necesario agregar código aquí a menos que sea específicamente requerido
+# Todas las importaciones deben manejarse a través de app.imports

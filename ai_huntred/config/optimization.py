@@ -1,23 +1,48 @@
+# /home/pablo/ai_huntred/config/optimization.py
 import os
-from django.core.cache import cache
-from django.conf import settings
-
 import environ
+from django.conf import settings
+import logging
 
 env = environ.Env()
 
 class OptimizationConfig:
     @staticmethod
     def get_config():
+        """
+        Retrieves optimized configuration with fallback for Redis URL.
+        """
         # Cache configuration
+        try:
+            redis_url = env('REDIS_URL', default=None)
+            if redis_url is None:
+                # Fallback to REDIS_CONFIG from settings
+                redis_config = getattr(settings, 'REDIS_CONFIG', {})
+                redis_host = redis_config.get('host', 'localhost')
+                redis_port = redis_config.get('port', 6379)
+                redis_db = redis_config.get('db', 0)
+                redis_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
+        except Exception as e:
+            # Log error and use fallback
+            logging.error(f"Error retrieving REDIS_URL: {e}")
+            redis_url = "redis://localhost:6379/0"
+
         cache_config = {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': env('REDIS_URL'),
+            'LOCATION': redis_url,
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                'SOCKET_CONNECT_TIMEOUT': 5,  # Seconds
+                'SOCKET_TIMEOUT': 5,  # Seconds
+                'PICKLE_VERSION': -1,  # Latest pickle protocol
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 100,  # Limit connection pool size
+                    'retry_on_timeout': True,  # Retry on connection timeout
+                },
             },
-            'TIMEOUT': 3600,  # 1 hour
+            'KEY_PREFIX': 'ai_huntred_',
+            'TIMEOUT': getattr(settings, 'REDIS_CONFIG', {}).get('ttl', 3600),
         }
 
         # Database optimization

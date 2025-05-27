@@ -1,0 +1,11 @@
+"""Módulo .Users.pablollh.MEGA.GitHub.Grupo-huntRED-Chatbot.app.com.utils.third_parties.background.
+
+Este módulo se registra automáticamente en el sistema de registro central.
+"""
+
+from app.core import register, get_module
+__all__ = []  # Se puede personalizar si es necesario
+
+# Registro automático del módulo
+register(".Users.pablollh.MEGA.GitHub.Grupo-huntRED-Chatbot.app.com.utils.third_parties.background", __name__)
+

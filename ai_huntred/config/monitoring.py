@@ -1,3 +1,4 @@
+# /home/pablo/ai_huntred/config/monitoring.py
 import logging
 from datetime import timedelta
 import environ

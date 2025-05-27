@@ -1,29 +1,30 @@
 # /home/pablo/app/com/chatbot/components/chat_state_manager.py
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, TypedDict, Literal, Union, Callable, TypeVar, cast
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 from django.db import transaction
+from django.utils.translation import gettext as _
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 import asyncio
 import logging
 import json
 import re
-from functools import lru_cache
+from functools import lru_cache, wraps
 from collections import defaultdict
 from asgiref.sync import sync_to_async
 
+# Import models directly to avoid circular imports
 from app.models import Person, BusinessUnit, ChatState, IntentPattern, StateTransition, IntentTransition
+
+# Defer importing utility classes
 from app.com.chatbot.components.metrics import ChatBotMetrics
-from app.com.chatbot.utils import ChatbotUtils
-from app.com.chatbot.workflow.core.workflow_manager import WorkflowManager
-from app.com.chatbot.workflow.common.context import WorkflowContext
-from app.com.chatbot.integrations.services import (
-    get_whatsapp_handler,
-    get_telegram_handler,
-    get_instagram_handler,
-    get_slack_handler
-)
+
+# Deferred imports
+_chatbot_utils = None
+_workflow_manager = None
+_channel_handlers = {}
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,8 @@ STATE_CACHE_KEY = 'chat_state_{}_{}_{}'
 STATE_CACHE_TIMEOUT = 300  # 5 minutes
 INTENT_CACHE_KEY = 'intent_cache_{}'
 INTENT_CACHE_TIMEOUT = 60  # 1 minute
-
-# Channel configuration is now handled by channel_handlers module
+DESCRIPTION_CACHE_KEY = 'state_desc_{}_{}_{}'
+DESCRIPTION_CACHE_TIMEOUT = 3600  # 1 hour
 
 # Intent priority levels
 INTENT_PRIORITY = {
@@ -44,28 +45,33 @@ INTENT_PRIORITY = {
     'NONE': 1
 }
 
-# Consolidated ContextCondition class (removed redundant definitions)
-class ContextCondition:
-    """Modelo para condiciones de contexto."""
-    KEY = 'key'
-    VALUE = 'value'
-    OPERATOR = 'operator'
-    
-    OPERATORS = {
-        'eq': 'equal',
-        'neq': 'not_equal',
-        'gt': 'greater_than',
-        'lt': 'less_than',
-        'contains': 'contains',
-        'not_contains': 'not_contains'
-    }
-    
-    def __init__(self, key, value, operator='eq'):
-        self.key = key
-        self.value = value
-        self.operator = operator
+# Type definitions
+LanguageCode = Literal['es', 'en']
+BusinessUnitName = Literal['amigro', 'huntu', 'huntred', 'default']
+StateName = str
+StateDescription = Dict[LanguageCode, str]
 
-# Consolidated ChatStateTransition class from state_manager.py
+class StateDescriptionConfig(TypedDict):
+    """Estructura de configuración para las descripciones de estados."""
+    base: Dict[StateName, StateDescription]
+    by_business_unit: Dict[BusinessUnitName, Dict[StateName, StateDescription]]
+
+# Type variables
+T = TypeVar('T')
+F = TypeVar('F', bound=Callable[..., Any])
+
+def handle_redis_errors(func: F) -> F:
+    """Decorador para manejar errores de Redis."""
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except RedisError as e:
+            logger.error(f"Redis error in {func.__name__}: {str(e)}")
+            raise ChatStateError(f"Error de almacenamiento: {str(e)}") from e
+    return cast(F, wrapper)
+
+# Consolidated ChatStateTransition class
 class ChatStateTransition:
     """Clase para definir transiciones de estado con condiciones."""
     def __init__(self, current_state: str, next_state: str, conditions: Dict[str, Any] = None):
@@ -132,11 +138,11 @@ class ChatStateTransition:
 class ChatStateManager:
     """Manager for handling chatbot conversation states with Redis caching and business-unit-specific transitions."""
     
-    def __init__(self, user: Person, business_unit: BusinessUnit, channel: str):
+    def __init__(self, user: Person, business_unit: BusinessUnit, channel: str, redis_client: Optional[Redis] = None):
         self.user = user
         self.business_unit = business_unit
         self.channel = channel.lower()
-        self._channel_handler = None  # Inicializado de forma perezosa
+        self._channel_handler = None
         self.current_state = None
         self.last_intent = None
         self.conversation_history = []
@@ -147,48 +153,132 @@ class ChatStateManager:
         self.fallback_states = []
         self.error_count = 0
         self.max_retries = 3
-        self.redis_client = None
-        self.workflow_context = WorkflowContext()
+        self.redis_client = redis_client or self._get_redis_client()
         self.state_transitions = self._initialize_state_transitions()
-        self._initialize_redis()
+        self._initialized = False
         logger.info(f"ChatStateManager initialized for user {user.id}, channel {self.channel}")
-    
-    @property
-    def channel_handler(self):
+
+    def _get_redis_client(self) -> Redis:
+        """Crea y devuelve un cliente Redis configurado."""
+        return Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=settings.REDIS_DB,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True,
+            max_connections=100  # Connection pooling
+        )
+
+    def _get_channel_handler(self, channel_type):
+        """Get channel handler with lazy loading."""
+        global _channel_handlers
+        if channel_type not in _channel_handlers:
+            if channel_type == 'whatsapp':
+                from app.com.chatbot.integrations.services import get_whatsapp_handler
+                _channel_handlers[channel_type] = get_whatsapp_handler()
+            elif channel_type == 'telegram':
+                from app.com.chatbot.integrations.services import get_telegram_handler
+                _channel_handlers[channel_type] = get_telegram_handler()
+            elif channel_type == 'instagram':
+                from app.com.chatbot.integrations.services import get_instagram_handler
+                _channel_handlers[channel_type] = get_instagram_handler()
+            elif channel_type == 'slack':
+                from app.com.chatbot.integrations.services import get_slack_handler
+                _channel_handlers[channel_type] = get_slack_handler()
+            else:
+                raise ValueError(f"Canal no soportado: {channel_type}")
+        return _channel_handlers[channel_type]
+
+    async def channel_handler(self):
         """Obtiene el manejador de canal de forma perezosa."""
         if self._channel_handler is None:
-            handler_map = {
-                'whatsapp': get_whatsapp_handler(),
-                'telegram': get_telegram_handler()[0],  # get_telegram_handler retorna (TelegramHandler, fetch_telegram_user_data)
-                'messenger': get_instagram_handler()[0],  # Asumiendo que get_instagram_handler es similar
-                'instagram': get_instagram_handler()[0],
-                'slack': get_slack_handler()
-            }
-            self._channel_handler = handler_map.get(self.channel)
+            self._channel_handler = self._get_channel_handler(self.channel)
         return self._channel_handler
 
-    def _initialize_redis(self):
-        """Initialize Redis client with retry mechanism."""
-        max_retries = self.max_retries
-        for attempt in range(max_retries):
-            try:
-                self.redis_client = Redis.from_url(
-                    settings.REDIS_URL,
-                    encoding="utf-8",
-                    decode_responses=True
-                )
-                self.redis_client.ping()
-                logger.info("Successfully connected to Redis")
-                return
-            except Exception as e:
-                logger.error(f"Redis connection attempt {attempt + 1}/{max_retries} failed: {str(e)}")
-                if attempt == max_retries - 1:
-                    logger.critical("Failed to connect to Redis after retries")
-                    raise
-                asyncio.sleep(2 ** attempt)
+    @property
+    def _state_descriptions(self) -> StateDescriptionConfig:
+        """Configuración de descripciones de estados."""
+        return {
+            "base": {
+                "initial": {"es": "Estado inicial", "en": "Initial state"},
+                "waiting_for_tos": {"es": "Esperando aceptación de TOS", "en": "Waiting for TOS acceptance"},
+                "profile_in_progress": {"es": "Creando perfil", "en": "Creating profile"},
+                "profile_complete": {"es": "Perfil completo", "en": "Profile complete"},
+                "applied": {"es": "Solicitud enviada", "en": "Application submitted"},
+                "scheduled": {"es": "Entrevista programada", "en": "Interview scheduled"},
+                "interviewed": {"es": "Entrevista completada", "en": "Interview completed"},
+                "offered": {"es": "Oferta recibida", "en": "Offer received"},
+                "signed": {"es": "Contrato firmado", "en": "Contract signed"},
+                "hired": {"es": "Contratado", "en": "Hired"},
+                "idle": {"es": "Inactivo", "en": "Idle"},
+            },
+            "by_business_unit": {
+                "amigro": {
+                    "migratory_status": {"es": "Verificando estatus migratorio", "en": "Verifying migratory status"},
+                    "document_verification": {"es": "Verificación de documentos", "en": "Document verification"},
+                },
+                "huntu": {
+                    "internship_search": {"es": "Buscando prácticas profesionales", "en": "Looking for internships"},
+                    "academic_validation": {"es": "Validación académica", "en": "Academic validation"},
+                },
+                "huntred": {
+                    "executive_search": {"es": "Buscando posiciones ejecutivas", "en": "Looking for executive positions"},
+                    "leadership_assessment": {"es": "Evaluación de liderazgo", "en": "Leadership assessment"},
+                }
+            }
+        }
+
+    def _get_business_unit_name(self) -> BusinessUnitName:
+        """Obtiene el nombre normalizado de la unidad de negocio."""
+        if not self.business_unit or not self.business_unit.name:
+            return 'default'
+        name = self.business_unit.name.lower()
+        return name if name in ['amigro', 'huntu', 'huntred'] else 'default'
+
+    @lru_cache(maxsize=128)
+    async def _get_cached_description(
+        self, 
+        state: str, 
+        language: LanguageCode, 
+        bu_name: BusinessUnitName
+    ) -> str:
+        """Obtiene una descripción de estado desde Redis o caché local."""
+        cache_key = DESCRIPTION_CACHE_KEY.format(state, language, bu_name)
+        try:
+            cached_desc = await self.redis_client.get(cache_key)
+            if cached_desc:
+                return cached_desc
+
+            bu_desc = self._state_descriptions["by_business_unit"].get(bu_name, {})
+            if state in bu_desc:
+                desc = bu_desc[state].get(language, bu_desc[state]['es'])
+            else:
+                base_desc = self._state_descriptions["base"].get(state, {})
+                desc = base_desc.get(language, base_desc['es']) if base_desc else _("Estado desconocido: %(state)s") % {'state': state}
+
+            await self.redis_client.setex(cache_key, DESCRIPTION_CACHE_TIMEOUT, desc)
+            return desc
+        except RedisError as e:
+            logger.warning(f"Redis error in _get_cached_description: {str(e)}, falling back to local cache")
+            bu_desc = self._state_descriptions["by_business_unit"].get(bu_name, {})
+            if state in bu_desc:
+                return bu_desc[state].get(language, bu_desc[state]['es'])
+            base_desc = self._state_descriptions["base"].get(state, {})
+            return base_desc.get(language, base_desc['es']) if base_desc else _("Estado desconocido: %(state)s") % {'state': state}
+
+    def get_state_description(self, state: Optional[str] = None) -> str:
+        """Obtiene la descripción de un estado con soporte multilingüe."""
+        state = state or self.current_state
+        if not state:
+            return _("Estado no especificado")
+        language: LanguageCode = self.context.get('language', 'es')
+        bu_name: BusinessUnitName = self._get_business_unit_name()
+        return self._get_cached_description(state, language, bu_name)
 
     def _initialize_state_transitions(self) -> Dict[str, List[ChatStateTransition]]:
-        """Initialize business-unit-specific state transitions (from state_manager.py)."""
+        """Initialize business-unit-specific state transitions."""
         transitions = {
             "initial": [
                 ChatStateTransition("initial", "waiting_for_tos"),
@@ -236,22 +326,34 @@ class ChatStateManager:
             ],
         }
 
-        # Business-unit-specific transitions
-        if self.business_unit.name.lower() == "amigro":
+        if self._get_business_unit_name() == "amigro":
             transitions["initial"].append(
                 ChatStateTransition("initial", "migratory_status", {"has_migration_docs": True})
             )
-        elif self.business_unit.name.lower() == "huntu":
+            transitions["migratory_status"] = [
+                ChatStateTransition("migratory_status", "document_verification", {"has_migration_docs": True}),
+                ChatStateTransition("migratory_status", "initial")
+            ]
+        elif self._get_business_unit_name() == "huntu":
             transitions["profile_complete"].append(
                 ChatStateTransition("profile_complete", "internship_search", {"is_student": True})
             )
-        elif self.business_unit.name.lower() == "huntred":
+            transitions["internship_search"] = [
+                ChatStateTransition("internship_search", "academic_validation", {"has_profile": True}),
+                ChatStateTransition("internship_search", "profile_complete")
+            ]
+        elif self._get_business_unit_name() == "huntred":
             transitions["profile_complete"].append(
                 ChatStateTransition("profile_complete", "executive_search", {"has_executive_experience": True})
             )
+            transitions["executive_search"] = [
+                ChatStateTransition("executive_search", "leadership_assessment", {"has_profile": True}),
+                ChatStateTransition("executive_search", "profile_complete")
+            ]
 
         return transitions
 
+    @handle_redis_errors
     async def get_state(self) -> Dict[str, Any]:
         """Retrieve the current state from Redis or database."""
         for attempt in range(self.max_retries):
@@ -260,13 +362,14 @@ class ChatStateManager:
                 if state_json:
                     return json.loads(state_json)
                 return {}
-            except Exception as e:
+            except RedisError as e:
                 logger.error(f"Error retrieving state for user {self.user.id}, attempt {attempt + 1}/{self.max_retries}: {str(e)}")
                 if attempt == self.max_retries - 1:
                     logger.critical(f"Failed to retrieve state for user {self.user.id}")
                     return {}
                 await asyncio.sleep(1)
 
+    @handle_redis_errors
     async def set_state(self, state: Dict[str, Any], ttl: int = None):
         """Set the current state in Redis."""
         for attempt in range(self.max_retries):
@@ -276,9 +379,9 @@ class ChatStateManager:
                     await self.redis_client.setex(self.cache_key, ttl, state_json)
                 else:
                     await self.redis_client.set(self.cache_key, state_json)
-                logger.info(f"State set for user {self.user.id}")
+                logger.debug(f"State set for user {self.user.id}")
                 return
-            except Exception as e:
+            except RedisError as e:
                 logger.error(f"Error setting state for user {self.user.id}, attempt {attempt + 1}/{self.max_retries}: {str(e)}")
                 if attempt == self.max_retries - 1:
                     logger.critical(f"Failed to set state for user {self.user.id}")
@@ -290,24 +393,28 @@ class ChatStateManager:
         state = await self.get_state()
         state[field] = value
         await self.set_state(state)
-        logger.info(f"Updated field {field} for user {self.user.id}")
+        logger.debug(f"Updated field {field} for user {self.user.id}")
 
+    @handle_redis_errors
     async def clear_state(self):
         """Clear the state from Redis."""
         for attempt in range(self.max_retries):
             try:
                 await self.redis_client.delete(self.cache_key)
-                logger.info(f"State cleared for user {self.user.id}")
+                logger.debug(f"State cleared for user {self.user.id}")
                 return
-            except Exception as e:
+            except RedisError as e:
                 logger.error(f"Error clearing state for user {self.user.id}, attempt {attempt + 1}/{self.max_retries}: {str(e)}")
                 if attempt == self.max_retries - 1:
                     logger.critical(f"Failed to clear state for user {self.user.id}")
                     raise
                 await asyncio.sleep(1)
 
+    @handle_redis_errors
     async def initialize(self):
         """Initialize chat state for a user."""
+        if self._initialized:
+            return
         try:
             logger.info(f"Initializing chat state for user {self.user.id} on channel {self.channel}")
             state = await self.get_state()
@@ -318,8 +425,9 @@ class ChatStateManager:
                 self.context = state['context']
                 self.context_stack = state.get('context_stack', [])
                 self.metrics = ChatBotMetrics.from_dict(state.get('metrics', {}))
-                logger.info(f"Chat state loaded for user {self.user.id}")
-                return True
+                logger.debug(f"Chat state loaded for user {self.user.id}")
+                self._initialized = True
+                return
 
             chat_state, created = await ChatState.objects.aget_or_create(
                 person=self.user,
@@ -331,7 +439,7 @@ class ChatStateManager:
             self.current_state = chat_state.state
             self.last_intent = None
             self.conversation_history = []
-            self.context = {}
+            self.context = {'language': 'es'}
             self.context_stack = []
             
             await self.set_state({
@@ -340,12 +448,14 @@ class ChatStateManager:
                 'history': self.conversation_history,
                 'context': self.context,
                 'context_stack': self.context_stack,
-                'metrics': dict(self.metrics)
+                'metrics': dict(self.metrics),
+                'created_at': timezone.now().isoformat(),
+                'updated_at': timezone.now().isoformat()
             })
-            return True
+            self._initialized = True
         except Exception as e:
             logger.error(f"Error initializing chat state: {str(e)}")
-            raise
+            raise ChatStateError(f"Error initializing chat state: {str(e)}")
 
     async def update_state(self, new_state: str, intent: Optional[str] = None):
         """Update the current state with async support and metrics."""
@@ -353,13 +463,13 @@ class ChatStateManager:
             logger.info(f"Updating state for user {self.user.id} from {self.current_state} to {new_state}, intent: {intent or 'None'}")
             if self.current_state != new_state:
                 if await self._is_valid_transition(self.current_state, new_state):
+                    old_state = self.current_state
                     self.current_state = new_state
                     if intent:
                         self.last_intent = intent
                         self.metrics.increment(f'intent_{intent}')
                     self.metrics.increment('state_transitions')
 
-                    # Persist to database with transaction
                     async with transaction.atomic():
                         chat_state = await ChatState.objects.aget(
                             person=self.user, business_unit=self.business_unit
@@ -372,7 +482,7 @@ class ChatStateManager:
                 else:
                     logger.warning(f"Invalid state transition for user {self.user.id}: {self.current_state} -> {new_state}")
                     self.metrics.increment('invalid_transitions')
-                    return False
+                    raise StateTransitionError(f"Invalid transition from {self.current_state} to {new_state}")
 
             await self.set_state({
                 'state': self.current_state,
@@ -380,60 +490,82 @@ class ChatStateManager:
                 'history': self.conversation_history,
                 'context': self.context,
                 'context_stack': self.context_stack,
-                'metrics': dict(self.metrics)
+                'metrics': dict(self.metrics),
+                'updated_at': timezone.now().isoformat()
             })
-            logger.info(f"State updated for user {self.user.id} to {new_state}")
-            return True
+            logger.debug(f"State updated for user {self.user.id} to {new_state}")
         except Exception as e:
             logger.error(f"Error updating state for user {self.user.id}: {str(e)}")
             self.error_count += 1
             self.metrics.increment('state_update_errors')
-            return False
+            raise ChatStateError(f"Error updating state: {str(e)}")
 
     async def process_message(self, message: str) -> Dict[str, Any]:
         """Process a message and update the chat state."""
+        start_time = timezone.now()
         try:
-            values_metadata = await ValuesIntegrator.process_incoming_message(
-                message, {'user': self.user, 'bu': self.business_unit}
-            )
-            self.context.setdefault('values', {}).update({
-                'emotional_context': values_metadata.get('emotional_context', 'neutral'),
-                'career_stage': values_metadata.get('career_stage', 'exploring'),
-                'value_opportunities': values_metadata.get('value_opportunities', []),
-                'last_updated': timezone.now().isoformat()
-            })
+            global _chatbot_utils, _workflow_manager
+            if _chatbot_utils is None:
+                from app.com.chatbot.utils import ChatbotUtils
+                _chatbot_utils = ChatbotUtils
+            if _workflow_manager is None:
+                from app.com.chatbot.workflow.core.workflow_manager import WorkflowManager
+                _workflow_manager = WorkflowManager
 
-            analysis = await ChatbotUtils.analyze_text(message, self.business_unit)
-            intent = await self._get_intent(analysis)
             self.metrics.increment('messages_processed')
             self.conversation_history.append({
                 'text': message,
-                'timestamp': timezone.now().isoformat(),
-                'intent': intent,
+                'timestamp': start_time.isoformat(),
+                'intent': None,
                 'values': self.context.get('values', {})
             })
 
-            if intent:
-                self.metrics.increment(f'intent_{intent}')
+            analysis = await _chatbot_utils.analyze_text(message, self.business_unit)
+            intent = await self._get_intent(analysis)
+            self.last_intent = intent
+            self.conversation_history[-1]['intent'] = intent
+
+            if 'entities' in analysis:
+                for entity, value in analysis['entities'].items():
+                    await self.set_context(entity, value)
+
+            workflow = _workflow_manager(self._get_business_unit_name())
+            new_state = await workflow.process_intent(self, intent, analysis)
+
+            if not new_state:
                 transitions = await IntentTransition.objects.filter(
                     intent__name=intent,
                     business_unit=self.business_unit
-                ).select_related('target_state').all()
+                ).select_related('target_state').prefetch_related('conditions').all()
 
                 for transition in transitions:
                     if await self._check_conditions(transition.conditions):
                         new_state = transition.target_state.name
-                        await self.update_state(new_state, intent)
-                        return {'state': new_state, 'intent': intent}
+                        break
 
-            # Fallback to predefined transitions
-            available_transitions = await self.get_available_transitions()
-            if available_transitions:
-                new_state = available_transitions[0]  # Pick the first valid transition
+                if not new_state:
+                    available_transitions = await self.get_available_transitions()
+                    new_state = available_transitions[0] if available_transitions else self.current_state
+
+            old_state = self.current_state
+            if new_state and new_state != old_state:
                 await self.update_state(new_state, intent)
-                return {'state': new_state, 'intent': intent}
 
-            logger.info(f"No valid transition found for intent: {intent}")
+            end_time = timezone.now()
+            response_time = (end_time - start_time).total_seconds() * 1000
+            self.metrics.add('response_time', response_time)
+
+            await self.set_state({
+                'state': self.current_state,
+                'last_intent': self.last_intent,
+                'history': self.conversation_history,
+                'context': self.context,
+                'context_stack': self.context_stack,
+                'metrics': dict(self.metrics),
+                'updated_at': timezone.now().isoformat()
+            })
+
+            logger.debug(f"Processed message for user {self.user.id}, intent: {intent}, state: {self.current_state}")
             return {'state': self.current_state, 'intent': intent}
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
@@ -444,49 +576,48 @@ class ChatStateManager:
     async def _is_valid_transition(self, current_state: str, new_state: str) -> bool:
         """Verify if a state transition is valid."""
         try:
-            # Check predefined transitions (from state_manager.py)
+            person = await sync_to_async(lambda: self.user)()
             transitions = self.state_transitions.get(current_state, [])
             valid_transitions = [t for t in transitions if t.next_state == new_state]
-            person = await sync_to_async(self.user.refresh_from_db)()
             for transition in valid_transitions:
                 if await transition.is_valid_transition(person, self.context):
                     return True
 
-            # Check database transitions (from chat_state_manager.py)
             db_transitions = await StateTransition.objects.filter(
                 current_state=current_state,
                 next_state=new_state,
                 business_unit=self.business_unit
-            ).values('id', 'priority', 'conditions')
+            ).prefetch_related('conditions').values('id', 'priority', 'conditions')
             
             for transition in db_transitions:
-                if await self._check_transition_conditions(transition['conditions']):
+                if await self._check_conditions(transition['conditions']):
                     return True
 
-            # Check channel-specific restrictions
-            if self.channel_handler:
-                return await self.channel_handler.is_valid_transition(
+            handler = await self.channel_handler()
+            if handler:
+                return await handler.is_valid_transition(
                     current_state=current_state,
                     new_state=new_state,
                     context=self.context
                 )
 
             return False
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error verifying transition: {str(e)}")
             return False
 
+    @handle_redis_errors
     async def _get_intent(self, analysis: Dict[str, Any]) -> Optional[str]:
-        """Get the most likely intent from analysis."""
+        """Get the most likely intent from analysis using Redis caching."""
         try:
             cache_key = f"{INTENT_CACHE_KEY}_{self.user.id}"
-            cached_intent = cache.get(cache_key)
+            cached_intent = await self.redis_client.get(cache_key)
             if cached_intent:
                 return cached_intent
 
             intents = await IntentPattern.objects.filter(
                 business_unit=self.business_unit
-            ).all()
+            ).prefetch_related('patterns').all()
             
             intents_by_priority = defaultdict(list)
             for intent in intents:
@@ -504,37 +635,40 @@ class ChatStateManager:
                         best_score = score
             
             if best_intent:
-                cache.set(cache_key, best_intent, INTENT_CACHE_TIMEOUT)
+                await self.redis_client.setex(cache_key, INTENT_CACHE_TIMEOUT, best_intent)
                 return best_intent
             
             return None
-        except Exception as e:
+        except RedisError as e:
             logger.error(f"Error getting intent: {str(e)}")
             return None
 
+    @handle_redis_errors
     async def _evaluate_intent(self, intent: IntentPattern, analysis: Dict[str, Any]) -> float:
-        """Evaluate the likelihood of an intent."""
+        """Evaluate the likelihood of an intent with caching."""
         try:
-            text_match = 0
+            cache_key = f"intent_eval_{intent.id}_{hash(str(analysis))}"
+            cached_score = await self.redis_client.get(cache_key)
+            if cached_score:
+                return float(cached_score)
+
             patterns = intent.get_patterns_list()
-            for pattern in patterns:
-                if re.search(pattern, analysis.get('text', ''), re.IGNORECASE):
-                    text_match += 1
-            
             score = 0
             for pattern in patterns:
-                similarity = await ChatbotUtils.analyze_text(
+                similarity = await _chatbot_utils.analyze_text(
                     pattern, analysis['text'], method='similarity'
                 )
                 score = max(score, similarity)
             
-            if self.channel_handler:
-                score = await self.channel_handler.adjust_intent_score(
+            handler = await self.channel_handler()
+            if handler:
+                score = await handler.adjust_intent_score(
                     intent=intent, score=score, context=self.context
                 )
             
+            await self.redis_client.setex(cache_key, INTENT_CACHE_TIMEOUT, str(score))
             return score
-        except Exception as e:
+        except RedisError as e:
             logger.error(f"Error evaluating intent: {str(e)}")
             return 0
 
@@ -545,7 +679,7 @@ class ChatStateManager:
                 if not await self._check_condition(condition):
                     return False
             return True
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error checking conditions: {str(e)}")
             return False
 
@@ -563,20 +697,21 @@ class ChatStateManager:
             if condition.get('intent') and condition['intent'] != self.last_intent:
                 return False
             
-            if self.channel_handler:
-                return await self.channel_handler.check_condition(
+            handler = await self.channel_handler()
+            if handler:
+                return await handler.check_condition(
                     condition=condition, context=self.context
                 )
-            
+                
             return True
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             logger.error(f"Error checking condition: {str(e)}")
             return False
 
     async def get_context(self, key: str, default=None):
         """Get a value from the context."""
         value = self.context.get(key, default)
-        self.metrics.increment('context_misses' if value is None else 'context_hits')
+        self.metrics.increment('context_access')
         return value
 
     async def set_context(self, key: str, value: Any):
@@ -588,7 +723,8 @@ class ChatStateManager:
             'history': self.conversation_history,
             'context': self.context,
             'context_stack': self.context_stack,
-            'metrics': dict(self.metrics)
+            'metrics': dict(self.metrics),
+            'updated_at': timezone.now().isoformat()
         })
         self.metrics.increment('context_updates')
 
@@ -602,7 +738,8 @@ class ChatStateManager:
             'history': self.conversation_history,
             'context': self.context,
             'context_stack': self.context_stack,
-            'metrics': dict(self.metrics)
+            'metrics': dict(self.metrics),
+            'updated_at': timezone.now().isoformat()
         })
         self.metrics.increment('context_stack_push')
 
@@ -616,7 +753,8 @@ class ChatStateManager:
                 'history': self.conversation_history,
                 'context': self.context,
                 'context_stack': self.context_stack,
-                'metrics': dict(self.metrics)
+                'metrics': dict(self.metrics),
+                'updated_at': timezone.now().isoformat()
             })
             self.metrics.increment('context_stack_pop')
         return self.context
@@ -637,7 +775,7 @@ class ChatStateManager:
     async def get_available_transitions(self) -> List[str]:
         """Get available transitions from the current state."""
         transitions = self.state_transitions.get(self.current_state, [])
-        person = await sync_to_async(self.user.refresh_from_db)()
+        person = await sync_to_async(lambda: self.user)()
         available_transitions = []
         
         for transition in transitions:
@@ -646,27 +784,23 @@ class ChatStateManager:
                 
         return available_transitions
 
-    async def get_state_description(self, state: str) -> str:
-        """Get the description of a state."""
-        descriptions = {
-            "initial": "Estado inicial",
-            "waiting_for_tos": "Esperando aceptación de TOS",
-            "profile_in_progress": "Creando perfil",
-            "profile_complete": "Perfil completo",
-            "applied": "Solicitud enviada",
-            "scheduled": "Entrevista programada",
-            "interviewed": "Entrevista completada",
-            "offered": "Oferta recibida",
-            "signed": "Contrato firmado",
-            "hired": "Contratado",
-            "idle": "Inactivo",
-        }
-        
-        if self.business_unit.name.lower() == "amigro":
-            descriptions["migratory_status"] = "Verificando estatus migratorio"
-        elif self.business_unit.name.lower() == "huntu":
-            descriptions["internship_search"] = "Buscando internships"
-        elif self.business_unit.name.lower() == "huntred":
-            descriptions["executive_search"] = "Buscando posiciones ejecutivas"
-        
-        return descriptions.get(state, "Estado desconocido")
+    async def close(self) -> None:
+        """Limpia los recursos del manejador de estado."""
+        if hasattr(self, 'redis_client') and self.redis_client:
+            await self.redis_client.aclose()
+
+    async def __aenter__(self):
+        await self.initialize()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
+# Custom exceptions
+class ChatStateError(Exception):
+    """Excepción base para errores de estado del chat."""
+    pass
+
+class StateTransitionError(ChatStateError):
+    """Excepción para transiciones de estado no válidas."""
+    pass

@@ -1,12 +1,6 @@
-# app/com/pagos/__init__.py
-# Removed manual lazy_imports registration as ModuleRegistry handles this automatically
+"""Módulo app.com.pagos."""
 
-# Establecer el paquete actual
-# Registrar módulos de pagos para lazy loading
-# ... (previous manual registrations removed)
+# Este archivo es necesario para que Python trate los directorios como paquetes
 
-# Exports for pagos module
-from app.models import Pago, EstadoPago, TipoPago, MetodoPago
-from app.com.pagos.services import PagoService
-
-__all__ = ['Pago', 'EstadoPago', 'TipoPago', 'MetodoPago', 'PagoService']
+# No es necesario agregar código aquí a menos que sea específicamente requerido
+# Todas las importaciones deben manejarse a través de app.imports

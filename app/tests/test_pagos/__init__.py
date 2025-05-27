@@ -1,11 +1,6 @@
-# /home/pablo/app/tests/test_pagos/__init__.py
-#
-# Implementación para el módulo. Proporciona funcionalidad específica del sistema.
+"""Módulo app.tests.test_pagos."""
 
-"""
-Tests para el módulo de pagos.
-"""
-from app.tests.test_pagos.test_gateways import *
-from app.tests.test_pagos.test_views import *
-from app.tests.test_pagos.test_services import *
-from app.tests.test_pagos.test_models import *
+# Este archivo es necesario para que Python trate los directorios como paquetes
+
+# No es necesario agregar código aquí a menos que sea específicamente requerido
+# Todas las importaciones deben manejarse a través de app.imports

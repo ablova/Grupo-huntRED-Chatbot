@@ -1,29 +1,6 @@
-"""
-Módulo de notificaciones para el sistema de huntRED.
+"""Módulo app.com.notifications."""
 
-Este módulo gestiona todas las notificaciones para los diferentes roles
-del sistema, asegurando la comunicación efectiva entre los usuarios
-en diferentes puntos del proceso de reclutamiento y ventas.
-"""
+# Este archivo es necesario para que Python trate los directorios como paquetes
 
-from app.com.notifications.handlers import NotificationHandler, EmailNotificationHandler, WhatsAppNotificationHandler
-from app.com.notifications.managers import NotificationManager
-from app.com.notifications.core import send_notification, schedule_notification
-from app.com.notifications.templates import get_notification_template
-# Correcting imports to reference models from app/models.py or correct module
-# from .models import Notification, NotificationStatus, NotificationPreference
-# Import from the correct location
-from app.models import Notification, NotificationStatus, NotificationPreference
-
-__all__ = [
-    'NotificationHandler',
-    'EmailNotificationHandler',
-    'WhatsAppNotificationHandler',
-    'NotificationManager',
-    'send_notification',
-    'schedule_notification',
-    'get_notification_template',
-    'Notification',
-    'NotificationStatus',
-    'NotificationPreference',
-]
+# No es necesario agregar código aquí a menos que sea específicamente requerido
+# Todas las importaciones deben manejarse a través de app.imports

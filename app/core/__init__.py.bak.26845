@@ -1,0 +1,112 @@
+"""
+Módulo central para el registro y gestión de componentes.
+
+Este módulo proporciona un registro centralizado para todos los componentes
+del sistema, eliminando la necesidad de múltiples archivos __init__.py.
+"""
+from typing import Dict, Type, Any, Optional, Callable
+import importlib
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+class ModuleRegistry:
+    """Registro centralizado para módulos y componentes.
+    
+    Esta clase maneja el registro y la carga de módulos de manera dinámica,
+    permitiendo una mejor organización y rendimiento.
+    """
+    _instance = None
+    _modules: Dict[str, Any] = {}
+    _initialized = False
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        if not self._initialized:
+            self._modules = {}
+            self._initialized = True
+    
+    def register(self, name: str, module: Any) -> None:
+        """Registra un módulo en el registro.
+        
+        Args:
+            name: Nombre único del módulo.
+            module: Módulo o clase a registrar.
+        """
+        self._modules[name] = module
+        logger.debug(f"Módulo registrado: {name}")
+    
+    def get(self, name: str, default: Any = None) -> Any:
+        """Obtiene un módulo registrado.
+        
+        Args:
+            name: Nombre del módulo a obtener.
+            default: Valor a devolver si el módulo no existe.
+            
+        Returns:
+            El módulo registrado o el valor por defecto.
+        """
+        return self._modules.get(name, default)
+    
+    def import_module(self, module_path: str) -> Any:
+        """Importa un módulo dinámicamente.
+        
+        Args:
+            module_path: Ruta completa del módulo (ej: 'app.com.chatbot.components').
+            
+        Returns:
+            El módulo importado.
+            
+        Raises:
+            ImportError: Si el módulo no puede ser importado.
+        """
+        if module_path in self._modules:
+            return self._modules[module_path]
+            
+        try:
+            module = importlib.import_module(module_path)
+            self.register(module_path, module)
+            return module
+        except ImportError as e:
+            logger.error(f"Error al importar módulo {module_path}: {e}")
+            raise
+    
+    def auto_discover(self, base_path: str, package_name: str) -> None:
+        """Descubre y registra módulos automáticamente.
+        
+        Args:
+            base_path: Ruta base para la búsqueda de módulos.
+            package_name: Nombre del paquete base (ej: 'app.com').
+        """
+        base_dir = Path(base_path)
+        for py_file in base_dir.rglob('*.py'):
+            if py_file.name == '__init__.py':
+                continue
+                
+            # Convertir la ruta del archivo a ruta de módulo
+            rel_path = py_file.relative_to(base_dir.parent)
+            module_path = str(rel_path.with_suffix('')).replace('/', '.')
+            
+            try:
+                self.import_module(module_path)
+            except ImportError as e:
+                logger.warning(f"No se pudo importar {module_path}: {e}")
+
+# Instancia global del registro
+registry = ModuleRegistry()
+
+def autodiscover():
+    """Función para descubrir módulos automáticamente."""
+    import os
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    registry.auto_discover(os.path.join(base_dir, 'app'), 'app')
+
+# Alias para compatibilidad con código existente
+register = registry.register
+get_module = registry.get
+import_module = registry.import_module

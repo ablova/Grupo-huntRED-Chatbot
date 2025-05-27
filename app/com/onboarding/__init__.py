@@ -1,6 +1,6 @@
-"""
-Módulo de Onboarding y Satisfacción para Grupo huntRED®.
+"""Módulo app.com.onboarding."""
 
-Este paquete gestiona el proceso de integración de candidatos contratados
-y el seguimiento de su satisfacción en diferentes períodos clave.
-"""
+# Este archivo es necesario para que Python trate los directorios como paquetes
+
+# No es necesario agregar código aquí a menos que sea específicamente requerido
+# Todas las importaciones deben manejarse a través de app.imports
