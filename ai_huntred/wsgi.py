@@ -1,34 +1,67 @@
 # /home/pablo/ai_huntred/wsgi.py
 """
-WSGI config for ai_huntred project.
+Configuración WSGI para el proyecto ai_huntred.
+
+Este archivo actúa como punto de entrada para servidores web compatibles con WSGI
+y define la configuración de la aplicación para entornos de producción.
 """
+
+# Importaciones estándar
 import os
+import sys
 import logging
-from django.core.wsgi import get_wsgi_application
-from ai_huntred.settings.production import LOGGING, security_config as SECURITY_CONFIG
+from pathlib import Path
 
-# Configurar logging
-logging.config.dictConfig(LOGGING)
-logger = logging.getLogger('gunicorn')
+# Configuración de rutas
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 
-# Verificar configuración de seguridad
-if not SECURITY_CONFIG['SECURE_SSL_REDIRECT']:
-    logger.warning("SSL redirection is disabled")
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
 
+# Configuración de Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings.production')
 
-application = get_wsgi_application()
+# Importar después de configurar el entorno
+from django.core.wsgi import get_wsgi_application
+
+try:
+    # Cargar la aplicación WSGI
+    application = get_wsgi_application()
+    logger.info("Aplicación WSGI cargada correctamente")
+except Exception as e:
+    logger.error(f"Error al cargar la aplicación WSGI: {str(e)}")
+    raise
 
 # Middleware de seguridad
-def secure_headers(get_response):
-    def middleware(request):
-        response = get_response(request)
-        response['X-Frame-Options'] = 'DENY'
-        response['X-Content-Type-Options'] = 'nosniff'
-        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
-        response['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
-        return response
-    return middleware
+class SecurityHeadersMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-application = secure_headers(application)
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Configuración de cabeceras de seguridad
+        security_headers = {
+            'X-Frame-Options': 'DENY',
+            'X-Content-Type-Options': 'nosniff',
+            'X-XSS-Protection': '1; mode=block',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
+            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+            'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';",
+            'Permissions-Policy': "camera=(), microphone=(), geolocation=()",
+        }
+        
+        for header, value in security_headers.items():
+            if header not in response:
+                response[header] = value
+                
+        return response
+
+# Aplicar el middleware de seguridad
+application = SecurityHeadersMiddleware(application)

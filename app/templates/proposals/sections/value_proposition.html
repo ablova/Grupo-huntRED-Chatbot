@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="value-proposition py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Propuesta de Valor Premium</h2>
+        
+        <!-- Características Premium -->
+        <div class="row g-4">
+            <!-- Sistema de Feedback Inteligente -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 premium-feature">
+                    <div class="card-body">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-comment-dots fa-2x text-primary"></i>
+                        </div>
+                        <h4 class="card-title">Sistema de Feedback Inteligente</h4>
+                        <p class="card-text">Evaluación y validación de habilidades con IA avanzada:</p>
+                        <ul class="feature-list">
+                            <li>Validación multinivel de habilidades</li>
+                            <li>Notificaciones automáticas</li>
+                            <li>Análisis predictivo de rendimiento</li>
+                            <li>Integración con el proceso de onboarding</li>
+                        </ul>
+                        <div class="premium-badge">
+                            <span class="badge bg-premium">Premium</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onboarding Inteligente -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 premium-feature">
+                    <div class="card-body">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-user-plus fa-2x text-primary"></i>
+                        </div>
+                        <h4 class="card-title">Onboarding Inteligente</h4>
+                        <p class="card-text">Proceso de integración automatizado y personalizado:</p>
+                        <ul class="feature-list">
+                            <li>Seguimiento paso a paso</li>
+                            <li>Check-ins automáticos</li>
+                            <li>Feedback bidireccional</li>
+                            <li>Análisis de satisfacción</li>
+                        </ul>
+                        <div class="premium-badge">
+                            <span class="badge bg-premium">Premium</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notificaciones Multicanales -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 premium-feature">
+                    <div class="card-body">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-bell fa-2x text-primary"></i>
+                        </div>
+                        <h4 class="card-title">Notificaciones Multicanales</h4>
+                        <p class="card-text">Sistema de comunicación integrado:</p>
+                        <ul class="feature-list">
+                            <li>WhatsApp como canal principal</li>
+                            <li>Email y notificaciones push</li>
+                            <li>Recordatorios automáticos</li>
+                            <li>Alertas personalizadas</li>
+                        </ul>
+                        <div class="premium-badge">
+                            <span class="badge bg-premium">Premium</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Beneficios Clave -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3 class="text-center mb-4">Beneficios Clave</h3>
+                <div class="benefits-grid">
+                    <div class="benefit-item">
+                        <i class="fas fa-chart-line"></i>
+                        <h5>Mayor Eficiencia</h5>
+                        <p>Reducción del 40% en tiempo de onboarding</p>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="fas fa-users"></i>
+                        <h5>Mejor Retención</h5>
+                        <p>Incremento del 35% en satisfacción del empleado</p>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="fas fa-check-circle"></i>
+                        <h5>Validación Precisa</h5>
+                        <p>95% de precisión en evaluación de habilidades</p>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="fas fa-clock"></i>
+                        <h5>Ahorro de Tiempo</h5>
+                        <p>60% menos tiempo en gestión de feedback</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Planes y Precios -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3 class="text-center mb-4">Planes Disponibles</h3>
+                <div class="pricing-table">
+                    <div class="row">
+                        <!-- Plan Básico -->
+                        <div class="col-md-4">
+                            <div class="pricing-card">
+                                <div class="pricing-header">
+                                    <h4>Básico</h4>
+                                    <div class="price">$X/mes</div>
+                                </div>
+                                <ul class="pricing-features">
+                                    <li>Evaluación básica de habilidades</li>
+                                    <li>Notificaciones por email</li>
+                                    <li>Onboarding estándar</li>
+                                    <li>Soporte básico</li>
+                                </ul>
+                                <a href="#" class="btn btn-outline-primary">Seleccionar</a>
+                            </div>
+                        </div>
+
+                        <!-- Plan Premium -->
+                        <div class="col-md-4">
+                            <div class="pricing-card featured">
+                                <div class="pricing-header">
+                                    <h4>Premium</h4>
+                                    <div class="price">$Y/mes</div>
+                                    <div class="popular-badge">Más Popular</div>
+                                </div>
+                                <ul class="pricing-features">
+                                    <li>Todo lo del plan Básico</li>
+                                    <li>Sistema de Feedback Inteligente</li>
+                                    <li>Onboarding Inteligente</li>
+                                    <li>Notificaciones Multicanales</li>
+                                    <li>Soporte prioritario</li>
+                                </ul>
+                                <a href="#" class="btn btn-primary">Seleccionar</a>
+                            </div>
+                        </div>
+
+                        <!-- Plan Enterprise -->
+                        <div class="col-md-4">
+                            <div class="pricing-card">
+                                <div class="pricing-header">
+                                    <h4>Enterprise</h4>
+                                    <div class="price">Personalizado</div>
+                                </div>
+                                <ul class="pricing-features">
+                                    <li>Todo lo del plan Premium</li>
+                                    <li>Personalización completa</li>
+                                    <li>API dedicada</li>
+                                    <li>Gerente de cuenta dedicado</li>
+                                    <li>SLA garantizado</li>
+                                </ul>
+                                <a href="#" class="btn btn-outline-primary">Contactar</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.premium-feature {
+    transition: transform 0.3s ease;
+    border: 1px solid #e0e0e0;
+}
+
+.premium-feature:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.feature-icon {
+    color: #007bff;
+}
+
+.feature-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.feature-list li {
+    margin-bottom: 0.5rem;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.feature-list li:before {
+    content: "✓";
+    color: #28a745;
+    position: absolute;
+    left: 0;
+}
+
+.premium-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+.bg-premium {
+    background-color: #ffd700;
+    color: #000;
+}
+
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.benefit-item {
+    text-align: center;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.benefit-item i {
+    font-size: 2rem;
+    color: #007bff;
+    margin-bottom: 1rem;
+}
+
+.pricing-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    height: 100%;
+}
+
+.pricing-card.featured {
+    border-color: #007bff;
+    transform: scale(1.05);
+}
+
+.pricing-header {
+    margin-bottom: 2rem;
+}
+
+.price {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+    margin: 1rem 0;
+}
+
+.popular-badge {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: #007bff;
+    color: white;
+    padding: 0.25rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
+
+.pricing-features {
+    list-style: none;
+    padding: 0;
+    margin: 2rem 0;
+}
+
+.pricing-features li {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.pricing-features li:last-child {
+    border-bottom: none;
+}
+</style>
+{% endblock %} 

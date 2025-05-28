@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuesta de Feedback - Candidato</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .survey-section {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .survey-question {
+            margin-bottom: 20px;
+        }
+        .survey-question h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .rating {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+        }
+        .rating-option {
+            text-align: center;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+        .rating-option:hover {
+            background: #e9ecef;
+        }
+        .rating-option.selected {
+            background: #3498db;
+            color: white;
+        }
+        .button {
+            display: inline-block;
+            background: #3498db;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            text-align: center;
+            transition: background 0.3s ease;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Encuesta de Feedback - Proceso de Onboarding</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hola {{ recipient.nombre }},</p>
+            
+            <p>Gracias por completar tu proceso de onboarding. Tu feedback es muy importante para nosotros y nos ayudará a mejorar continuamente nuestra experiencia de onboarding.</p>
+            
+            <form action="{{ survey_url }}" method="POST">
+                <div class="survey-section">
+                    <div class="survey-question">
+                        <h3>1. ¿Cómo calificarías tu experiencia general de onboarding?</h3>
+                        <div class="rating">
+                            <div class="rating-option" data-value="1">1</div>
+                            <div class="rating-option" data-value="2">2</div>
+                            <div class="rating-option" data-value="3">3</div>
+                            <div class="rating-option" data-value="4">4</div>
+                            <div class="rating-option" data-value="5">5</div>
+                        </div>
+                    </div>
+                    
+                    <div class="survey-question">
+                        <h3>2. ¿Qué tan efectivo fue el proceso de inducción?</h3>
+                        <div class="rating">
+                            <div class="rating-option" data-value="1">1</div>
+                            <div class="rating-option" data-value="2">2</div>
+                            <div class="rating-option" data-value="3">3</div>
+                            <div class="rating-option" data-value="4">4</div>
+                            <div class="rating-option" data-value="5">5</div>
+                        </div>
+                    </div>
+                    
+                    <div class="survey-question">
+                        <h3>3. ¿Qué tan útiles fueron los check-ins programados?</h3>
+                        <div class="rating">
+                            <div class="rating-option" data-value="1">1</div>
+                            <div class="rating-option" data-value="2">2</div>
+                            <div class="rating-option" data-value="3">3</div>
+                            <div class="rating-option" data-value="4">4</div>
+                            <div class="rating-option" data-value="5">5</div>
+                        </div>
+                    </div>
+                    
+                    <div class="survey-question">
+                        <h3>4. ¿Qué aspectos del onboarding podrían mejorarse?</h3>
+                        <textarea name="improvements" rows="4" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd;"></textarea>
+                    </div>
+                    
+                    <div class="survey-question">
+                        <h3>5. ¿Qué aspectos del onboarding fueron más útiles?</h3>
+                        <textarea name="useful_aspects" rows="4" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd;"></textarea>
+                    </div>
+                    
+                    <div class="survey-question">
+                        <h3>6. ¿Recomendarías nuestro proceso de onboarding a otros candidatos?</h3>
+                        <div class="rating">
+                            <div class="rating-option" data-value="1">1</div>
+                            <div class="rating-option" data-value="2">2</div>
+                            <div class="rating-option" data-value="3">3</div>
+                            <div class="rating-option" data-value="4">4</div>
+                            <div class="rating-option" data-value="5">5</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="button">Enviar Feedback</button>
+            </form>
+        </div>
+        
+        <div class="footer">
+            <p>Este es un mensaje automático. Por favor, no respondas a este correo.</p>
+        </div>
+    </div>
+    
+    <script>
+        document.querySelectorAll('.rating-option').forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selected class from siblings
+                this.parentElement.querySelectorAll('.rating-option').forEach(sibling => {
+                    sibling.classList.remove('selected');
+                });
+                // Add selected class to clicked option
+                this.classList.add('selected');
+                // Create hidden input if it doesn't exist
+                let input = this.parentElement.querySelector('input[type="hidden"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = this.parentElement.dataset.name;
+                    this.parentElement.appendChild(input);
+                }
+                input.value = this.dataset.value;
+            });
+        });
+    </script>
+</body>
+</html> 

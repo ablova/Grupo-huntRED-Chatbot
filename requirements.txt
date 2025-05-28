@@ -1,104 +1,128 @@
 # ============================================
 # Grupo huntRED - Requisitos del Proyecto
+# Python 3.12.0+
 # ============================================
-# Este archivo contiene todas las dependencias del proyecto con una descripción detallada
-# de su propósito y uso en el sistema.
+# Última actualización: 2025-05-27
+# Este archivo contiene las dependencias principales del proyecto
+# con versiones compatibles con Python 3.12
 
 # ====================
 # Core Frameworks
 # ====================
-Django>=5.0.2                           # Framework principal de Django para desarrollo web
-djangorestframework>=3.14.0             # Para construir APIs RESTful
-djangorestframework_simplejwt>=5.3.1    # Autenticación JWT para DRF
-
-# Seguridad y CORS
-django-cors-headers>=4.3.1              # Manejo de CORS para APIs
-django-environ>=0.11.2                  # Manejo de variables de entorno
-
-# Herramientas de Desarrollo
-django-debug-toolbar>=4.3.0             # Barra de depuración (solo desarrollo)
-django-silk>=5.1.0                      # Profiling de rendimiento
-
-# Interfaz de Administración Mejorada
-django-grappelli>=4.0.1                 # Mejora la interfaz de administración de Django
-
-# Filtros y Búsquedas
-django-filter>=23.5                     # Filtrado avanzado para APIs y vistas
-
-# Extensiones de Django
-django-extensions>=3.2.3                # Comandos de gestión adicionales
-
-# Almacenamiento
-django-storages>=1.14.2                 # Backends de almacenamiento (S3, Azure, etc.)
-django-cleanup>=8.0.0                   # Eliminación automática de archivos no utilizados
-
-# Autenticación
-django-allauth>=0.61.1                  # Autenticación de terceros (Google, GitHub, etc.)
-
-# Seguridad Adicional
-django-axes>=6.3.0                      # Prevención de ataques de fuerza bruta
-django-ratelimit>=4.1.0                 # Límite de tasa para APIs y vistas
-
-# Utilidades
-setuptools>=69.2.0                      # Utilidades de empaquetado de Python
-
-# ====================
-# Database & Caching
+Django>=4.2.0,<5.1.0                     # Framework principal de Django (versión compatible con django-celery-beat)
+djangorestframework>=3.15.2               # Para construir APIs RESTful
+djangorestframework-simplejwt>=5.4.0       # Autenticación JWT para DRF
+django-cors-headers
 # ====================
 # Base de Datos
-psycopg2-binary>=2.9.9                  # Adaptador PostgreSQL para Python
-
-# Caché y Colas
-redis>=5.0.1                            # Servidor de caché y mensajería
-django-redis>=5.4.0                     # Backend de caché para Django usando Redis
-
-# Tareas Asíncronas (Celery)
-celery>=5.3.6                           # Sistema de cola de tareas asíncronas
-django-celery-beat>=2.5.0               # Programador de tareas periódicas
-django_celery_results>=2.5.1            # Almacenamiento de resultados de tareas
-kombu>=5.3.5                            # Biblioteca de mensajería para Celery
+# ====================
+psycopg2-binary>=2.9.9                   # Adaptador PostgreSQL para Python
 
 # ====================
-# Machine Learning & Data Processing
+# ASGI/WSGI
 # ====================
-# Procesamiento de Datos Básico
-numpy>=1.26.4                           # Cálculos numéricos eficientes
-pandas>=2.2.0                           # Manipulación y análisis de datos
-
-# Machine Learning
-scikit-learn>=1.4.0                     # Algoritmos de ML clásicos
-tensorflow-cpu>=2.15.0                  # Framework de aprendizaje profundo (versión CPU)
-tensorboard>=2.15.0                     # Visualización de entrenamientos de ML
-tensorflow-hub>=0.16.1                  # Modelos pre-entrenados de TensorFlow
-
-# Utilidades de ML
-joblib>=1.3.2                           # Almacenamiento en caché de cálculos pesados
-h5py>=3.10.0                            # Almacenamiento de datos científicos
-
-# Visualización de Datos
-matplotlib>=3.8.2                       # Gráficos 2D/3D
-seaborn>=0.13.2                         # Gráficos estadísticos
-plotly>=5.18.0                          # Gráficos interactivos
+gunicorn>=22.0.0                          # Servidor WSGI de producción
+uvicorn[standard]>=0.30.0                # Servidor ASGI de alto rendimiento
 
 # ====================
-# API & Web Frameworks
+# Seguridad
 # ====================
-# API y Servidores Web
-fastapi>=0.109.0                        # Framework web moderno y rápido (ASGI)
-uvicorn>=0.27.0                         # Servidor ASGI de alto rendimiento
-python-multipart>=0.0.6                 # Manejo de formularios multiparte
-
-aiohttp>=3.11.16                        # Cliente/servidor HTTP asíncrono
-aiosqlite>=0.19.0                       # Soporte asíncrono para SQLite
-uvloop>=0.19.0                          # Loop de eventos ultra rápido (alternativa a asyncio)
+passlib[bcrypt]>=1.7.4                    # Hasheo de contraseñas seguras
 
 # ====================
-# Testing & Development Tools
+# Variables de Entorno
 # ====================
-# Pruebas Automatizadas
-pytest>=8.2.0                           # Framework de pruebas
-pytest-asyncio>=0.25.2                  # Soporte para pruebas asíncronas
-pytest-django>=4.11.0                   # Integración de Django con pytest
+django-environ>=0.12.0                    # Manejo de variables de entorno
+python-dotenv>=1.0.0                      # Soporte para archivos .env
+
+# ====================
+# Monitoreo
+# ====================
+sentry-sdk>=2.29.1                        # Monitoreo de errores
+
+# ====================
+# Procesamiento Asíncrono
+# ====================
+celery[redis]>=5.4.0                      # Sistema de cola de tareas asíncronas
+django-celery-results>=2.5.0,<2.6.0         # Almacenar resultados de tareas de Celery
+django-celery-beat>=2.5.0,<2.6.0            # Programador de tareas periódicas
+redis>=5.0.8                              # Backend de mensajería para Celery
+
+# ====================
+# Almacenamiento y Archivos
+# ====================
+django-storages>=1.14.2                  # Backends de almacenamiento (S3, Azure, etc.)
+django-cleanup>=8.0.0                    # Eliminación automática de archivos no utilizados
+Pillow>=10.2.0                           # Procesamiento de imágenes
+python-magic>=0.4.27                     # Detección de tipos MIME
+boto3>=1.34.0                            # SDK de AWS para S3 y otros servicios
+
+# ====================
+# Utilidades Generales
+# ====================
+python-dateutil>=2.9.0                    # Utilidades para manejo de fechas
+pytz>=2025.2                             # Soporte de zonas horarias
+PyYAML>=6.0.2                            # Procesamiento de YAML
+requests>=2.31.0                         # Cliente HTTP
+python-slugify>=8.0.1                    # Generación de slugs
+python-multipart>=0.0.6                  # Manejo de formularios multiparte
+
+
+
+# Procesamiento de texto
+ftfy>=6.1.1                              # Arregla problemas de codificación en texto
+regex>=2024.4.24                         # Expresiones regulares mejoradas
+
+# ====================
+# Desarrollo y Calidad de Código
+# ====================
+# Formateo de código
+black>=24.4.0                            # Formateador de código
+isort>=5.13.2                            # Ordenamiento de imports
+ruff>=0.3.0                              # Linter extremadamente rápido en Rust
+
+# Análisis estático
+mypy>=1.8.0                              # Chequeo de tipos estático
+pylint>=3.1.0                            # Analizador de código estático
+pydantic>=2.7.0                          # Validación de datos con tipos
+
+# Seguridad
+bandit>=1.7.7                            # Análisis de seguridad
+safety>=2.3.4                            # Escaneo de dependencias vulnerables
+# Herramientas de Seguridad
+detect-secrets>=1.5.0  # Escaneo de secretos en el código
+
+# Documentación
+mkdocs>=1.5.0                            # Generador de documentación
+mkdocs-material>=9.5.0                   # Tema para MkDocs
+mkdocstrings[python]>=0.25.0             # Documentación automática de código
+pydocstyle>=6.3.0                        # Verificación de docstrings
+
+# ====================
+# Testing
+# ====================
+# Framework de pruebas principal
+pytest>=8.2.0                             # Framework de pruebas
+pytest-django>=4.11.0                    # Plugin de Django para pytest
+pytest-asyncio>=0.25.2                   # Soporte para pruebas asíncronas
+pytest-cov>=5.0.0                        # Cobertura de código
+pytest-xdist>=3.5.0                      # Ejecución de pruebas en paralelo
+pytest-mock>=3.12.0                      # Mocking en pruebas
+
+# Herramientas de prueba
+factory-boy>=3.3.0                       # Fixtures para pruebas
+freezegun>=1.4.0                         # Congelar el tiempo en pruebas
+responses>=0.25.0                        # Mock de solicitudes HTTP
+model-bakery>=1.14.0                     # Creación de instancias de modelos
+pytest-factoryboy>=2.6.1                 # Integración de factory_boy con pytest
+
+# ====================
+# Documentación
+# ====================
+Sphinx>=7.3.7                             # Generador de documentación
+sphinx-rtd-theme>=2.0.0                  # Tema para documentación
+sphinx-autodoc-typehints>=2.0.0          # Soporte para type hints
+django-extensions>=3.2.3                # Comandos de gestión adicionales
 pytest-cov>=4.1.0                       # Cobertura de código
 coverage>=7.4.0                         # Mide cobertura de código
 
@@ -112,23 +136,58 @@ mypy>=1.8.0                             # Chequeo de tipos estático
 bandit>=1.7.6                           # Análisis de seguridad de código
 safety>=2.3.4                           # Escaneo de dependencias vulnerables
 
+
+
 # ====================
-# Natural Language Processing & AI
+# Procesamiento de Lenguaje Natural y Machine Learning
 # ====================
-# Procesamiento de Lenguaje Natural (NLP)
-spacy>=3.7.4                            # Biblioteca de NLP industrial
-spacy-legacy>=3.0.12                    # Compatibilidad con versiones anteriores de spaCy
-spacy-loggers>=1.0.5                    # Registro para pipelines de spaCy
+spacy>=3.7.4,<4.0.0                      # NLP industrial
+transformers>=4.40.0,<5.0.0             # Modelos de IA pre-entrenados
+sentence-transformers>=3.0.0,<4.0.0     # Embeddings de oraciones
 nltk>=3.9.1                             # Kit de herramientas de lenguaje natural
-transformers>=4.51.3                    # Modelos de IA pre-entrenados (Hugging Face)
-huggingface-hub>=0.30.2                 # Para acceder a modelos de Hugging Face
-sentencepiece>=0.2.0                    # Tokenizador para modelos de IA
-openai>=0.27.8                          # API de OpenAI para GPT y otros modelos
-textblob>=0.17.1                        # Procesamiento de texto y análisis
+scikit-learn>=1.4.0                     # Machine learning en Python
+openai>=0.27.8,<2.0.0                   # API de OpenAI para GPT
+tensorflow-cpu>=2.16.0,<2.17.0          # Machine Learning
+# tensorflow-text no es compatible con Python 3.12 aún, se comenta temporalmente
+# tensorflow-text>=2.16.0,<2.17.0  # Para procesamiento de texto con TensorFlow
+huggingface-hub>=0.25.0,<1.0.0          # Para acceder a modelos de Hugging Face
 langdetect>=1.0.9                       # Detección de idioma
 deep-translator>=1.11.4                 # Traducción de texto
 cachetools>=5.3.2                       # Caché con tiempo de expiración
-tensorflow-text>=2.15.0                 # Procesamiento de texto con TensorFlow
+
+# ====================
+# Procesamiento de PDFs
+# ====================
+pdfplumber>=0.11.6                      # Extracción de datos de PDFs
+PyPDF2>=3.0.1                           # Manipulación de PDFs
+reportlab>=4.0.7                        # Generación de PDFs programáticamente
+jinja2>=3.1.4                           # Motor de plantillas
+
+# ====================
+# Utilidades
+# ====================
+python-dateutil>=2.9.0.post0            # Utilidades para manejo de fechas
+pytz>=2025.2                            # Zonas horarias
+requests>=2.31.0                        # Cliente HTTP
+PyYAML>=6.0.2                           # Procesamiento de archivos YAML
+
+# ====================
+# Pagos
+# ====================
+stripe>=7.10.0                          # Procesamiento de pagos con Stripe
+paypalrestsdk==1.13.3                   # Integración con PayPal REST API
+
+# ====================
+# Autenticación
+# ====================
+PyJWT>=2.9.0                            # Implementación de JSON Web Tokens
+oauthlib>=3.2.2                         # Implementación de OAuth
+requests-oauthlib>=2.0.0                # Soporte OAuth para requests
+
+# ====================
+# Email
+# ====================
+email_validator>=2.2.0                  # Validación de direcciones de correo
 
 # ====================
 # Authentication & Security
@@ -146,91 +205,43 @@ email_validator>=2.2.0                  # Validación de direcciones de correo
 tweepy>=4.15.0                          # API de Twitter
 
 # ====================
-# File Processing & Storage
+# Dependencias de Desarrollo (opcionales)
 # ====================
-Pillow>=10.2.0                          # Procesamiento de imágenes
-
-# Procesamiento de PDFs
-pdfminer.six>=20250327                  # Extracción de texto de PDFs (compatible con Python 3)
-pdfplumber>=0.11.6                      # Extracción de datos de PDFs
-PyPDF2>=3.0.1                           # Manipulación avanzada de PDFs (versión compatible con Python 3.12)
-xhtml2pdf>=0.2.12                       # Conversión HTML a PDF (versión compatible con Python 3.12)
-fpdf2>=2.7.11                           # Generación de PDFs (versión compatible con Python 3.12)
-
-# Generación de CVs y Reportes
-weasyprint>=60.0                        # Generación de PDFs desde HTML
-django-wkhtmltopdf>=3.4.0               # Integración con wkhtmltopdf para Django
-reportlab>=4.0.7                        # Generación de PDFs programáticamente
-jinja2>=3.1.4                           # Motor de plantillas
-qrcode>=7.4.2                           # Generación de códigos QR
-
-# Reportes y exportación de datos
-django-import-export>=3.3.0              # Importación/exportación de datos
-django-easy-pdf>=0.1.1                  # Generación fácil de PDFs en Django
-openpyxl>=3.1.2                         # Para trabajar con archivos Excel (exportación de reportes)
+# Instalar con: pip install -r requirements-dev.txt
+# ipython>=7.34.0,<8.0.0                 # Terminal interactiva mejorada
+# black>=23.12.1                         # Formateador de código
+# flake8>=6.1.0                          # Linter
+# isort>=5.13.2                          # Ordenamiento de imports
+# mypy>=1.8.0                            # Chequeo de tipos estático
+# pytest>=8.2.0                          # Framework de pruebas
+# pytest-django>=4.11.0                  # Plugin de Django para pytest
+# coverage>=7.4.0                        # Cobertura de código
+# pytest-cov>=5.0.0                      # Plugin de cobertura para pytest
+# factory-boy>=3.3.0                     # Fixtures para pruebas
+# freezegun>=1.4.0                       # Congelar el tiempo en pruebas
+# responses>=0.25.0                      # Mock de solicitudes HTTP
 
 # ====================
-# Monitoring & Logging
+# Dependencias de Documentación (opcionales)
 # ====================
-sentry-sdk>=2.29.0                      # Monitoreo de errores en producción
-prometheus-client>=0.20.0               # Métricas de la aplicación
+# Sphinx>=7.3.7                         # Generador de documentación
+# sphinx-rtd-theme>=2.0.0                # Tema para documentación
+# sphinx-autodoc-typehints>=2.0.0        # Soporte para type hints
+# mkdocs>=1.5.0                          # Generador de documentación
+# mkdocs-material>=9.5.0                 # Tema para MkDocs
+# mkdocstrings[python]>=0.25.0           # Documentación automática de código
 
 # ====================
-# Web Scraping
+# Dependencias de Seguridad (opcionales)
 # ====================
-beautifulsoup4>=4.12.2                  # Análisis y extracción de datos HTML/XML
-selenium>=4.15.2                        # Automatización de navegadores web
-webdriver_manager>=4.0.1                # Gestión de drivers de navegador
-
-# ====================
-# Utilities & Tools
-# ====================
-python-dotenv>=1.0.0                    # Manejo de variables de entorno desde archivos .env
-python-dateutil>=2.9.0.post0            # Utilidades para manejo de fechas
-pytz>=2025.2                            # Zonas horarias
-PyYAML>=6.0.2                           # Procesamiento de archivos YAML
-six>=1.17.0                             # Utilidades de compatibilidad Python 2/3
-requests>=2.31.0                        # Cliente HTTP
-psutil>=5.9.8                           # Utilidades para monitoreo del sistema
-platform-utils>=0.1.0                   # Utilidades para información de la plataforma
-socket-utils>=0.1.0                     # Utilidades para operaciones de red
-systemd-python>=234                     # Integración con systemd para gestión de servicios
-
-# ====================
-# Payment Processing
-# ====================
-stripe>=7.10.0                          # Procesamiento de pagos con Stripe
-paypalrestsdk==1.13.3                   # Integración con PayPal REST API (última versión estable)
-braintree>=4.35.0                       # Braintree (adquirido por PayPal)
-django-payments>=2.1.1                  # Múltiples gateways de pago
-django-mercadopago>=3.0.0               # Integración con MercadoPago
-
-# ====================
-# Development Tools
-# ====================
-ipython>=8.21.0                         # Terminal interactiva mejorada
-
-# ====================
-# Paquetes Adicionales
-# ====================
-playwright>=1.40.0                      # Automatización de navegadores modernos
-django-cryptography>=1.1                # Cifrado de campos de modelo
-django-crispy-forms>=2.1                # Formularios HTML mejorados
-
-# GraphQL y Autenticación
-graphene-django==3.2.3                  # Integración de GraphQL con Django
-graphql-core==3.2.3                     # Core de GraphQL
-django-graphql-jwt==0.4.0               # Autenticación JWT para GraphQL
-django-graphiql==0.4.4                  # Interfaz gráfica para GraphQL
-django-graphql-playground==1.0.0        # IDE gráfico para GraphQL
-
-# ====================
-# Workflow & Task Management
-# ====================
-flower>=2.0.1                           # Monitoreo de tareas Celery
-django-rq>=2.8.1                        # Cola de tareas con Redis
-rq>=1.15.1                              # Cola de tareas simple con Redis
-django-background-tasks>=1.2.5          # Tareas en segundo plano para Django
-django-channels>=4.0.0                  # Manejo de WebSockets y tareas asíncronas
-daphne>=4.0.0                           # Servidor ASGI para Channels
-
+# bandit>=1.7.6                         # Análisis de seguridad de código
+# safety>=2.3.4                         # Escaneo de dependencias vulnerables
+# detect-secrets>=1.5.0                  # Detección de secretos en el código
+backoff
+google.generativeai
+matplotlib
+seaborn
+weasyprint
+wheel  
+gunicorn 
+psycopg2-binary==2.9.9 

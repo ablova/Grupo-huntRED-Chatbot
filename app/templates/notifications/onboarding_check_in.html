@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-in de Onboarding</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .progress {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .progress-item {
+            margin-bottom: 15px;
+            padding-left: 20px;
+            position: relative;
+        }
+        .progress-item:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #3498db;
+        }
+        .completed {
+            color: #27ae60;
+        }
+        .pending {
+            color: #e74c3c;
+        }
+        .button {
+            display: inline-block;
+            background: #3498db;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            text-align: center;
+            transition: background 0.3s ease;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Check-in de Onboarding</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hola {{ recipient.nombre }},</p>
+            
+            <p>Es momento de realizar nuestro check-in programado para asegurarnos de que todo va bien en tu proceso de onboarding.</p>
+            
+            <div class="progress">
+                <h3>Estado Actual:</h3>
+                <div class="progress-item">
+                    <strong>Check-in #{{ check_in_number }}</strong>
+                </div>
+                <div class="progress-item">
+                    <strong>Estado:</strong> {{ status }}
+                </div>
+                <div class="progress-item">
+                    <strong>Próximo check-in:</strong> {{ next_check_in|date:"d/m/Y" }}
+                </div>
+            </div>
+            
+            <p>Por favor, tómate un momento para:</p>
+            <ul>
+                <li>Revisar tu progreso hasta ahora</li>
+                <li>Identificar cualquier desafío o área donde necesites apoyo</li>
+                <li>Compartir tus comentarios sobre el proceso</li>
+            </ul>
+            
+            <p>Tu feedback es valioso para nosotros y nos ayuda a mejorar continuamente nuestro proceso de onboarding.</p>
+            
+            <a href="{{ check_in_url }}" class="button">Completar Check-in</a>
+        </div>
+        
+        <div class="footer">
+            <p>Este es un mensaje automático. Por favor, no respondas a este correo.</p>
+        </div>
+    </div>
+</body>
+</html> 

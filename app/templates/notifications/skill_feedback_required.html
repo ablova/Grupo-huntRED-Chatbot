@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="notification-container">
+    <div class="notification-header">
+        <h2>Feedback de Habilidades Requerido</h2>
+        <p class="deadline">Fecha límite: {{ deadline }}</p>
+    </div>
+
+    <div class="notification-body">
+        <p>Hola,</p>
+        <p>Se requiere tu evaluación sobre las habilidades detectadas para <strong>{{ candidate_name }}</strong> en la vacante <strong>{{ vacante_title }}</strong>.</p>
+
+        <div class="skills-section">
+            <h3>Habilidades Detectadas:</h3>
+            <ul class="skills-list">
+                {% for skill in skills %}
+                <li>{{ skill }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="action-buttons">
+            <a href="{{ feedback_url }}" class="btn btn-primary">Proporcionar Feedback</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.notification-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.notification-header {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.notification-header h2 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.deadline {
+    color: #e74c3c;
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+.skills-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+}
+
+.skills-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.skills-list li {
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.skills-list li:last-child {
+    border-bottom: none;
+}
+
+.action-buttons {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+}
+</style>
+{% endblock %} 

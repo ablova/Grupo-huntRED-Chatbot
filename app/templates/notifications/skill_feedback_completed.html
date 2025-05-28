@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="notification-container">
+    <div class="notification-header">
+        <h2>Feedback de Habilidades Completado</h2>
+        <p class="status">Estado: Completado</p>
+    </div>
+
+    <div class="notification-body">
+        <p>Hola,</p>
+        <p>Se ha completado la evaluación de habilidades para <strong>{{ candidate_name }}</strong> en la vacante <strong>{{ vacante_title }}</strong>.</p>
+
+        <div class="feedback-summary">
+            <h3>Resumen del Feedback:</h3>
+            
+            <div class="summary-section">
+                <h4>Precisión de Detección:</h4>
+                <p class="accuracy">{{ feedback_summary.accuracy }}</p>
+            </div>
+
+            {% if feedback_summary.missing_skills %}
+            <div class="summary-section">
+                <h4>Habilidades Faltantes:</h4>
+                <ul class="skills-list">
+                    {% for skill in feedback_summary.missing_skills %}
+                    <li>{{ skill }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if feedback_summary.extra_skills %}
+            <div class="summary-section">
+                <h4>Habilidades Incorrectas:</h4>
+                <ul class="skills-list">
+                    {% for skill in feedback_summary.extra_skills %}
+                    <li>{{ skill }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if feedback_summary.development_time %}
+            <div class="summary-section">
+                <h4>Tiempo de Desarrollo Estimado:</h4>
+                <p>{{ feedback_summary.development_time }} meses</p>
+            </div>
+            {% endif %}
+
+            {% if feedback_summary.critical_skills %}
+            <div class="summary-section critical">
+                <h4>Habilidades Críticas:</h4>
+                <ul class="skills-list">
+                    {% for skill in feedback_summary.critical_skills %}
+                    <li>{{ skill }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.notification-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.notification-header {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.notification-header h2 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.status {
+    color: #27ae60;
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+.feedback-summary {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+}
+
+.summary-section {
+    margin-bottom: 1.5rem;
+}
+
+.summary-section:last-child {
+    margin-bottom: 0;
+}
+
+.summary-section h4 {
+    color: #2c3e50;
+    margin: 0 0 0.5rem 0;
+}
+
+.accuracy {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #27ae60;
+}
+
+.skills-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.skills-list li {
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.skills-list li:last-child {
+    border-bottom: none;
+}
+
+.critical {
+    background: #fff3f3;
+    border-left: 4px solid #e74c3c;
+    padding-left: 1rem;
+}
+
+.critical h4 {
+    color: #e74c3c;
+}
+</style>
+{% endblock %} 

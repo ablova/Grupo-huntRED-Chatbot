@@ -28,8 +28,8 @@ from django.db.models import Prefetch, Q
 from django.conf import settings
 
 # Local imports
-from app.models import BusinessUnit, Candidate, JobPosition, Skill, Assessment  # Assuming these are your model imports
-from ..ml_system import MatchmakingLearningSystem  # Assuming this is your ML system
+from app.models import BusinessUnit, Person, Vacante, Skill  # Importaciones de modelos
+from app.ml.ml_model import MatchmakingLearningSystem  # Sistema de ML
 
 # Tipos genéricos para decoradores
 F = TypeVar('F', bound=Callable[..., Any])

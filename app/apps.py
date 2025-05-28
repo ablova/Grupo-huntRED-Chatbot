@@ -19,7 +19,7 @@ class AppConfig(DjangoAppConfig):
 
         # Importar signals centralizados
         try:
-            import app.signals
+            from app.signals import user_signals, model_signals, system_signals  # noqa
             logger.info("Signals centralizados cargados correctamente")
         except ImportError as e:
             logger.error(f"Error importing signals: {str(e)}")
@@ -34,6 +34,7 @@ class AppConfig(DjangoAppConfig):
     def register_startup_handlers(self):
         from django.core.signals import request_started
         from django.db.models.signals import post_migrate
+        
         if settings.DEBUG:
             request_started.connect(self._load_dynamic_settings, weak=False)
         post_migrate.connect(self._setup_periodic_tasks, weak=False)
@@ -48,33 +49,40 @@ class AppConfig(DjangoAppConfig):
             self._set_default_settings()
 
     def _load_settings_from_db(self):
-        from django.apps import apps
-        Configuracion = apps.get_model('app', 'Configuracion')
-        config = Configuracion.objects.first()
-        if config:
-            settings.SECRET_KEY = config.secret_key or settings.SECRET_KEY
-            settings.DEBUG = config.debug_mode if config.debug_mode is not None else settings.DEBUG
-            settings.SENTRY_DSN = config.sentry_dsn or settings.SENTRY_DSN
-            logger.info("Dynamic settings loaded successfully")
-        else:
-            logger.warning("No configuration found in database. Using defaults")
+        try:
+            from app.models import Configuracion
+            config = Configuracion.objects.first()
+            if config:
+                settings.SECRET_KEY = config.secret_key or settings.SECRET_KEY
+                settings.DEBUG = config.debug_mode if config.debug_mode is not None else settings.DEBUG
+                settings.SENTRY_DSN = config.sentry_dsn or settings.SENTRY_DSN
+                logger.info("Dynamic settings loaded successfully")
+            else:
+                logger.warning("No configuration found in database. Using defaults")
+                self._set_default_settings()
+        except Exception as e:
+            logger.error(f"Error loading settings from database: {e}")
             self._set_default_settings()
 
     def _set_default_settings(self):
         DEFAULT_SETTINGS = {
-            'SECRET_KEY': 'hfmrpTNRwmQ1F7gZI1DNKaQ9gNw3cgayKFB0HK_gt9BKJEnLy60v1v0PnkZtX3OkY48',
-            'DEBUG': False,
-            'SENTRY_DSN': 'https://94c6575f877d16a00cc74bcaaab5ae79@o4508258791653376.ingest.us.sentry.io/4508258794471424',
+            'SECRET_KEY': settings.SECRET_KEY,
+            'DEBUG': settings.DEBUG,
+            'SENTRY_DSN': settings.SENTRY_DSN,
         }
         for key, value in DEFAULT_SETTINGS.items():
             if not hasattr(settings, key) or getattr(settings, key) is None:
                 setattr(settings, key, value)
+                logger.debug(f"Setting {key} set to default value")
 
     def _setup_periodic_tasks(self, **kwargs):
-        from ai_huntred.celery import app
         try:
+            from ai_huntred.celery import app
             from app.tasks.scheduler import setup_periodic_tasks
             app.on_after_configure.connect(setup_periodic_tasks)
             logger.info("Periodic tasks registered successfully")
         except Exception as e:
             logger.error(f"Error registering periodic tasks: {e}")
+
+# Inicialización
+logger.info("AppConfig inicializado correctamente")

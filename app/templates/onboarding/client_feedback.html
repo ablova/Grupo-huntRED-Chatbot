@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Feedback de Onboarding - Cliente{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">Feedback del Proceso de Onboarding</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="feedbackForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <h5>¿Cómo calificarías el proceso de onboarding del candidato?</h5>
+                            <div class="rating">
+                                {% for i in "54321" %}
+                                <input type="radio" name="satisfaction" value="{{ i }}" id="star{{ i }}" required>
+                                <label for="star{{ i }}"><i class="fas fa-star"></i></label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>¿El candidato se integró adecuadamente al equipo?</h5>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="team_integration" value="excellent" id="integration_excellent" required>
+                                <label class="form-check-label" for="integration_excellent">
+                                    Excelente - Se integró perfectamente
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="team_integration" value="good" id="integration_good">
+                                <label class="form-check-label" for="integration_good">
+                                    Bueno - Se integró bien
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="team_integration" value="average" id="integration_average">
+                                <label class="form-check-label" for="integration_average">
+                                    Regular - Tuvo algunas dificultades
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="team_integration" value="poor" id="integration_poor">
+                                <label class="form-check-label" for="integration_poor">
+                                    Malo - No se integró adecuadamente
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>¿El candidato recibió la capacitación necesaria?</h5>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="training" value="yes" id="training_yes" required>
+                                <label class="form-check-label" for="training_yes">
+                                    Sí, completamente
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="training" value="partial" id="training_partial">
+                                <label class="form-check-label" for="training_partial">
+                                    Parcialmente
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="training" value="no" id="training_no">
+                                <label class="form-check-label" for="training_no">
+                                    No, necesita más capacitación
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>¿Qué aspectos del proceso de onboarding fueron más efectivos?</h5>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="effective_aspects" value="documentacion" id="doc">
+                                <label class="form-check-label" for="doc">
+                                    Documentación y recursos
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="effective_aspects" value="soporte" id="soporte">
+                                <label class="form-check-label" for="soporte">
+                                    Soporte y seguimiento
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="effective_aspects" value="comunicacion" id="comunicacion">
+                                <label class="form-check-label" for="comunicacion">
+                                    Comunicación y coordinación
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="effective_aspects" value="tiempo" id="tiempo">
+                                <label class="form-check-label" for="tiempo">
+                                    Tiempo de implementación
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>¿Qué aspectos podrían mejorarse?</h5>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="improvement_aspects" value="tiempo" id="improve_tiempo">
+                                <label class="form-check-label" for="improve_tiempo">
+                                    Tiempo de respuesta
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="improvement_aspects" value="claridad" id="improve_claridad">
+                                <label class="form-check-label" for="improve_claridad">
+                                    Claridad en las instrucciones
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="improvement_aspects" value="recursos" id="improve_recursos">
+                                <label class="form-check-label" for="improve_recursos">
+                                    Recursos y materiales
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="improvement_aspects" value="comunicacion" id="improve_comunicacion">
+                                <label class="form-check-label" for="improve_comunicacion">
+                                    Comunicación general
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>Comentarios adicionales</h5>
+                            <textarea class="form-control" name="comments" rows="4" 
+                                      placeholder="Cuéntanos tu experiencia con el proceso de onboarding..."></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5>¿Recomendarías nuestro servicio de onboarding a otras empresas?</h5>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recommend" value="yes" id="recommend_yes" required>
+                                <label class="form-check-label" for="recommend_yes">
+                                    Sí, definitivamente
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recommend" value="maybe" id="recommend_maybe">
+                                <label class="form-check-label" for="recommend_maybe">
+                                    Probablemente
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recommend" value="no" id="recommend_no">
+                                <label class="form-check-label" for="recommend_no">
+                                    No lo recomendaría
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Enviar Feedback
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+    }
+
+    .rating input {
+        display: none;
+    }
+
+    .rating label {
+        cursor: pointer;
+        font-size: 2em;
+        color: #ddd;
+        padding: 0 0.1em;
+    }
+
+    .rating input:checked ~ label,
+    .rating label:hover,
+    .rating label:hover ~ label {
+        color: #ffd700;
+    }
+
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = {
+            satisfaction: formData.get('satisfaction'),
+            team_integration: formData.get('team_integration'),
+            training: formData.get('training'),
+            effective_aspects: Array.from(formData.getAll('effective_aspects')),
+            improvement_aspects: Array.from(formData.getAll('improvement_aspects')),
+            comments: formData.get('comments'),
+            recommend: formData.get('recommend')
+        };
+
+        fetch('{% url "cliente_feedback" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('¡Gracias por tu feedback!');
+                window.location.href = data.redirect_url;
+            } else {
+                alert('Hubo un error al enviar el feedback. Por favor, intenta de nuevo.');
+            }
+        });
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %} 

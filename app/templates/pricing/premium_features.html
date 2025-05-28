@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Características Premium - huntRED{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <h1 class="display-4 mb-3">Características Premium</h1>
+            <p class="lead">Descubre cómo nuestras soluciones premium pueden transformar tu proceso de reclutamiento</p>
+        </div>
+    </div>
+
+    <!-- Características Principales -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card-deck">
+                <!-- Feedback Inteligente -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="feature-header">
+                            <i class="fas fa-comment-dots fa-3x text-primary mb-3"></i>
+                            <h3>Sistema de Feedback Inteligente</h3>
+                        </div>
+                        <div class="feature-content">
+                            <h5>Beneficios Clave:</h5>
+                            <ul>
+                                <li>Validación multinivel de habilidades con IA</li>
+                                <li>Notificaciones automáticas y recordatorios</li>
+                                <li>Análisis predictivo de rendimiento</li>
+                                <li>Integración con el proceso de onboarding</li>
+                            </ul>
+                            <div class="feature-stats">
+                                <div class="stat-item">
+                                    <span class="stat-number">95%</span>
+                                    <span class="stat-label">Precisión en Evaluaciones</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">60%</span>
+                                    <span class="stat-label">Menos Tiempo en Gestión</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onboarding Inteligente -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="feature-header">
+                            <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+                            <h3>Onboarding Inteligente</h3>
+                        </div>
+                        <div class="feature-content">
+                            <h5>Beneficios Clave:</h5>
+                            <ul>
+                                <li>Proceso de integración automatizado</li>
+                                <li>Check-ins automáticos y personalizados</li>
+                                <li>Feedback bidireccional en tiempo real</li>
+                                <li>Análisis de satisfacción y engagement</li>
+                            </ul>
+                            <div class="feature-stats">
+                                <div class="stat-item">
+                                    <span class="stat-number">40%</span>
+                                    <span class="stat-label">Reducción en Tiempo de Onboarding</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">35%</span>
+                                    <span class="stat-label">Mayor Satisfacción</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notificaciones Multicanales -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="feature-header">
+                            <i class="fas fa-bell fa-3x text-primary mb-3"></i>
+                            <h3>Notificaciones Multicanales</h3>
+                        </div>
+                        <div class="feature-content">
+                            <h5>Beneficios Clave:</h5>
+                            <ul>
+                                <li>WhatsApp como canal principal</li>
+                                <li>Email y notificaciones push</li>
+                                <li>Recordatorios automáticos</li>
+                                <li>Alertas personalizadas</li>
+                            </ul>
+                            <div class="feature-stats">
+                                <div class="stat-item">
+                                    <span class="stat-number">90%</span>
+                                    <span class="stat-label">Tasa de Respuesta</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">50%</span>
+                                    <span class="stat-label">Más Eficiencia en Comunicación</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparativa de Planes -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Comparativa de Planes</h2>
+            <div class="table-responsive">
+                <table class="table table-bordered comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Característica</th>
+                            <th>Plan Básico</th>
+                            <th>Plan Premium</th>
+                            <th>Plan Enterprise</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Sistema de Feedback Inteligente</td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Onboarding Inteligente</td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Notificaciones Multicanales</td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td>API Dedicada</td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td>Soporte Prioritario</td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <div class="cta-box p-5">
+                <h3 class="mb-4">¿Listo para transformar tu proceso de reclutamiento?</h3>
+                <p class="lead mb-4">Comienza con huntRED Premium y experimenta la diferencia</p>
+                <a href="{% url 'contact' %}" class="btn btn-primary btn-lg">Solicitar Demo</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.feature-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.feature-content {
+    padding: 1rem;
+}
+
+.feature-content ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.feature-content ul li {
+    margin-bottom: 0.5rem;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.feature-content ul li:before {
+    content: "✓";
+    color: #28a745;
+    position: absolute;
+    left: 0;
+}
+
+.feature-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.comparison-table {
+    background: white;
+}
+
+.comparison-table th {
+    background: #f8f9fa;
+    text-align: center;
+}
+
+.comparison-table td {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.cta-box {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border-radius: 10px;
+    margin-top: 3rem;
+}
+
+.cta-box .btn-primary {
+    background: white;
+    color: #007bff;
+    border: none;
+    padding: 1rem 2rem;
+}
+
+.cta-box .btn-primary:hover {
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %} 

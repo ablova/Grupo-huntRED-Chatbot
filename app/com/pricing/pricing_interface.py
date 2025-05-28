@@ -25,7 +25,7 @@ class PricingManager:
     
     @classmethod
     def generate_proposal(cls, opportunity_id, include_addons=None, include_bundles=None, 
-                         payment_schedule=True, custom_milestones=None):
+                         payment_schedule=True, custom_milestones=None, include_assessments=None):
         """
         Genera una propuesta completa para una oportunidad, incorporando todos los 
         aspectos del sistema de precios avanzado.
@@ -36,6 +36,7 @@ class PricingManager:
             include_bundles: Lista de IDs de bundles a incluir (opcional)
             payment_schedule: Indica si se debe generar plan de pagos (por defecto True)
             custom_milestones: Configuración personalizada de hitos de pago (opcional)
+            include_assessments: Lista de tipos de evaluaciones a incluir (opcional)
             
         Returns:
             dict: Datos completos para la propuesta
@@ -137,6 +138,19 @@ class PricingManager:
                 custom_milestones=custom_milestones
             )
         
+        # Procesar evaluaciones si se especificaron
+        assessments_data = None
+        if include_assessments:
+            assessments_data = cls.calculate_assessment_pricing(
+                opportunity_id=opportunity_id,
+                assessment_types=include_assessments,
+                user_count=opportunity.headcount or 1
+            )
+            
+            # Añadir el total de evaluaciones al contrato para facturación
+            if assessments_data and 'total' in assessments_data:
+                contract_amount += assessments_data['total']
+        
         # 6. Construir la respuesta final con todos los componentes
         proposal_data = {
             'opportunity': {
@@ -151,13 +165,14 @@ class PricingManager:
             'pricing': {
                 'volume': volume_pricing_data,
                 'addons': addons_data,
-                'bundles': bundles_data
+                'bundles': bundles_data,
+                'assessments': assessments_data
             },
             'payment_schedule': payment_schedule_data,
             'totals': {
-                'subtotal': volume_pricing_data['subtotal'],
-                'iva': volume_pricing_data['iva'],
-                'total': volume_pricing_data['total'],
+                'subtotal': volume_pricing_data['subtotal'] + (assessments_data['subtotal'] if assessments_data else Decimal('0.00')),
+                'iva': volume_pricing_data['iva'] + (assessments_data['iva'] if assessments_data else Decimal('0.00')),
+                'total': volume_pricing_data['total'] + (assessments_data['total'] if assessments_data else Decimal('0.00')),
                 'currency': 'MXN',
                 'date': timezone.now().strftime('%d/%m/%Y'),
                 'valid_until': (timezone.now() + timezone.timedelta(days=30)).strftime('%d/%m/%Y')
@@ -238,3 +253,52 @@ class PricingManager:
             'status': 'pending',
             'message': 'El resumen de pricing está pendiente de implementación'
         }
+
+    @classmethod
+    def calculate_assessment_pricing(cls, opportunity_id, assessment_types, user_count):
+        """
+        Calcula el precio para las evaluaciones basado en el tipo y número de usuarios.
+        
+        Args:
+            opportunity_id: ID de la Opportunity
+            assessment_types: Lista de tipos de evaluaciones a incluir
+            user_count: Número de usuarios a evaluar
+            
+        Returns:
+            dict: Datos de pricing para las evaluaciones
+        """
+        opportunity = Opportunity.objects.get(id=opportunity_id)
+        business_unit = opportunity.business_unit
+        
+        assessment_pricing = {
+            'assessments': [],
+            'subtotal': Decimal('0.00'),
+            'iva': Decimal('0.00'),
+            'total': Decimal('0.00')
+        }
+        
+        for assessment_type in assessment_types:
+            # Obtener configuración de pricing para el tipo de evaluación
+            assessment_config = business_unit.pricing_config.get('assessments', {}).get(assessment_type, {})
+            base_price = Decimal(str(assessment_config.get('base_price', 0)))
+            
+            # Calcular precio por usuario
+            price_per_user = base_price * user_count
+            
+            assessment_data = {
+                'type': assessment_type,
+                'name': assessment_config.get('name', assessment_type),
+                'description': assessment_config.get('description', ''),
+                'price_per_user': base_price,
+                'user_count': user_count,
+                'subtotal': price_per_user
+            }
+            
+            assessment_pricing['assessments'].append(assessment_data)
+            assessment_pricing['subtotal'] += price_per_user
+        
+        # Calcular IVA y total
+        assessment_pricing['iva'] = assessment_pricing['subtotal'] * Decimal('0.16')
+        assessment_pricing['total'] = assessment_pricing['subtotal'] + assessment_pricing['iva']
+        
+        return assessment_pricing

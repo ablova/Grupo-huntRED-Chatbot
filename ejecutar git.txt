@@ -25,8 +25,27 @@ git push origin main
 git config --global user.name "Pablo Lelo de Larrea"
 git config --global user.email "ablova@gmail.com"
 
-#Ejecutar desde el SERVIDOR Donde se realizará el clonado
-# Truncar logs antes de iniciar el despliegue
+#Ejecutar desde el SERVIDOR donde se realizará el despliegue
+echo "Iniciando despliegue..."
+
+# Verificar y activar entorno virtual
+if [ ! -d "/home/pablo/venv" ]; then
+    echo "Creando entorno virtual..."
+    python3 -m venv /home/pablo/venv
+fi
+
+echo "Activando entorno virtual..."
+source /home/pablo/venv/bin/activate
+
+# Instalar/actualizar dependencias básicas
+echo "Instalando dependencias básicas..."
+pip install --upgrade pip
+pip install psutil
+pip install python-systemd
+pip install -r requirements.txt
+
+# Limpiar logs antes de iniciar el despliegue
+echo "Limpiando logs del sistema..."
 sudo truncate -s 0 /home/pablo/logs/*.log &&
 sudo truncate -s 0 /var/log/nginx/access.log &&
 sudo truncate -s 0 /var/log/nginx/error.log &&
@@ -35,40 +54,94 @@ sudo truncate -s 0 /var/log/auth.log &&
 sudo truncate -s 0 /var/log/dmesg &&
 sudo truncate -s 0 /var/log/kern.log
 
+# Rotar logs
+echo "Rotando logs..."
 sudo logrotate -f /etc/logrotate.conf
 sudo journalctl --vacuum-time=1s
 sudo journalctl --vacuum-size=2M
 
-#journalctl -p 4 -xb
+# Configurar permisos
+echo "Configurar permisos..."
 sudo chmod -R 775 /home/pablo
-sudo chmod g+s /home/pablo &&
-git clean -fd &&
-git log -1 &&
-sudo systemctl restart gunicorn nginx &&
-python manage.py makemigrations && python manage.py collectstatic && python manage.py migrate && python manage.py shell 
-mkdir -p /home/pablo/logs &&
-touch /home/pablo/logs/debug.log && 
-chmod 664 /home/pablo/logs/debug.log &&
-chown pablo:pablo /home/pablo/logs/debug.log
+sudo chmod g+s /home/pablo
 
+# Actualizar repositorio
+echo "Actualizando repositorio..."
+cd /home/pablo
+git fetch --all
+git reset --hard origin/main
+git clean -fd
+git pull origin main
 
-python manage.py makemigrations &&
-python manage.py migrate &&
-python manage.py collectstatic &&
-sudo systemctl restart gunicorn nginx celery &&
-sudo journalctl -u gunicorn &&
-sudo journalctl -u nginx
-cd /home/pablo/logs && cat debug.log
-# Ver solo errores nuevos del sistema (e.g., gunicorn o nginx)
-sudo journalctl -u gunicorn -p err --since "10 minutes ago" -f
-sudo journalctl -u nginx -p err --since "10 minutes ago" -f
+# Mostrar última versión
+echo "Última versión del repositorio:"
+git log -1 --pretty=format:"%h - %an, %ar : %s"
 
-# Filtrar errores recientes en logs específicos
-grep "ERROR" /home/pablo/logs/error.log
-grep "ERROR" /var/log/nginx/error.log
+# Verificar y crear directorios necesarios
+echo "Verificando directorios..."
+mkdir -p /home/pablo/logs
+mkdir -p /home/pablo/static
+mkdir -p /home/pablo/media
+mkdir -p /home/pablo/backups
+mkdir -p /run/gunicorn
 
+# Configurar permisos de directorios
+sudo chown -R www-data:ai_huntred /home/pablo/logs
+sudo chown -R www-data:ai_huntred /home/pablo/static
+sudo chown -R www-data:ai_huntred /home/pablo/media
+sudo chown -R www-data:ai_huntred /home/pablo/backups
+sudo chmod -R 775 /home/pablo/logs
+sudo chmod -R 775 /home/pablo/static
+sudo chmod -R 775 /home/pablo/media
+sudo chmod -R 775 /home/pablo/backups
 
+# Reiniciar servicios
+echo "Reiniciando servicios..."
+sudo systemctl restart gunicorn nginx supervisor
 
+# Ejecutar migraciones y tareas de Django
+echo "Ejecutando tareas de Django..."
+python manage.py makemigrations
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py check
+
+# Verificar estado de servicios
+echo "Verificando estado de servicios..."
+sudo systemctl status gunicorn
+sudo systemctl status nginx
+sudo systemctl status supervisor
+
+# Verificar logs
+echo "Últimas líneas de logs:"
+tail -n 20 /home/pablo/logs/celery.log
+tail -n 20 /home/pablo/logs/celerybeat.log
+tail -n 20 /var/log/nginx/error.log
+
+# Verificar espacio en disco
+echo "Verificando espacio en disco..."
+df -h /
+
+# Verificar memoria
+echo "Verificando memoria..."
+free -h
+
+# Verificar procesos
+echo "Verificando procesos..."
+ps aux | grep -E 'gunicorn|nginx|celery'
+
+# Verificar puertos
+echo "Verificando puertos..."
+sudo netstat -tulpn | grep -E ':(80|443|8000)'
+
+# Verificar errores en logs
+echo "Verificando errores en logs..."
+grep -i "error" /home/pablo/logs/*.log
+grep -i "error" /var/log/nginx/error.log
+
+# Abrir shell de Django
+echo "Abriendo shell de Django..."
+python manage.py shell
 
 gcloud compute instances create amigro \
     --zone=us-central1-a \  

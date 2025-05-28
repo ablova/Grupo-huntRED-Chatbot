@@ -96,40 +96,47 @@ class NLPProcessor:
         return self._nlp
         
     async def _load_deep_models(self):
-        """Carga modelos más pesados para análisis profundo."""
+        """Carga modelos más pesados para análisis profundo con TensorFlow."""
         # Implementar carga de modelos de transformadores bajo demanda
         if self.analysis_depth == 'deep':
             try:
-                # Cargar modelos de transformadores solo cuando sean necesarios
-                import torch
-                from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
+                from transformers import TFAutoModelForSequenceClassification, AutoTokenizer
+                from tensorflow.keras.optimizers import Adam
                 
-                self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
-                logger.info(f"Cargando modelos profundos en dispositivo: {self._device}")
+                logger.info("Cargando modelos profundos con TensorFlow")
                 
                 # Cargar modelos según el idioma
                 if self.language == 'es':
                     model_name = 'PlanTL-GOB-ES/roberta-base-bne'
                 else:  # 'en'
                     model_name = 'roberta-base'
-                    
-                # Cargar modelo y tokenizador
-                self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-                self._model = AutoModelForSequenceClassification.from_pretrained(model_name)
-                self._model.to(self._device)
                 
-                # Inicializar pipelines para tareas específicas
-                self._sentiment_analyzer = pipeline(
-                    'sentiment-analysis',
-                    model=self._model,
-                    tokenizer=self._tokenizer,
-                    device=0 if self._device == 'cuda' else -1
+                # Cargar tokenizador
+                self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+                
+                # Cargar modelo con soporte para TensorFlow
+                self._model = TFAutoModelForSequenceClassification.from_pretrained(
+                    model_name,
+                    from_pt=True  # Convertir automáticamente los pesos de PyTorch a TensorFlow
                 )
                 
-                logger.info("Modelos profundos cargados exitosamente")
+                # Compilar el modelo
+                optimizer = Adam(learning_rate=2e-5, epsilon=1e-8)
+                loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+                metrics = ['accuracy']
                 
-            except ImportError:
-                logger.warning("No se pudieron cargar los modelos de transformadores. Instala transformers y torch.")
+                self._model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+                
+                # Inicializar pipeline para análisis de sentimiento
+                self._sentiment_analyzer = {
+                    'model': self._model,
+                    'tokenizer': self._tokenizer
+                }
+                
+                logger.info("Modelos profundos cargados exitosamente con TensorFlow")
+                
+            except ImportError as e:
+                logger.warning(f"No se pudieron cargar los modelos de transformadores: {str(e)}")
                 self.analysis_depth = 'quick'  # Revertir a modo rápido
         
         # Inicializar procesador de habilidades
@@ -191,23 +198,38 @@ class NLPProcessor:
         return result
         
     async def _analyze_sentiment_deep(self, text: str) -> Dict[str, Any]:
-        """Realiza el análisis de sentimiento profundo con modelos de transformadores."""
-        # Preprocesar texto
-        inputs = self._tokenizer(text, return_tensors='pt')
-        inputs = {k: v.to(self._device) for k, v in inputs.items()}
-        
-        # Realizar inferencia
-        outputs = self._model(**inputs)
-        scores = outputs.logits.detach().cpu().numpy()[0]
-        
-        # Obtener etiquetas de sentimiento
-        labels = ['NEGATIVE', 'NEUTRAL', 'POSITIVE']
-        sentiment = labels[np.argmax(scores)]
-        
-        return {
-            'sentiment': sentiment,
-            'score': scores.max()
-        }
+        """Realiza el análisis de sentimiento profundo con modelos de transformadores usando TensorFlow."""
+        if not hasattr(self, '_sentiment_analyzer'):
+            return await self._analyze_sentiment_quick(text)
+            
+        try:
+            # Tokenizar el texto
+            inputs = self._sentiment_analyzer['tokenizer'](
+                text, 
+                return_tensors='tf', 
+                truncation=True, 
+                max_length=512
+            )
+            
+            # Realizar predicción
+            outputs = self._sentiment_analyzer['model'](inputs)
+            logits = outputs.logits
+            probs = tf.nn.softmax(logits, axis=-1)
+            scores = probs.numpy()[0]
+            
+            # Obtener etiquetas según el idioma
+            labels = ["NEG", "NEU", "POS"] if self.language == 'es' else ["NEGATIVE", "NEUTRAL", "POSITIVE"]
+            max_idx = scores.argmax()
+            
+            return {
+                'sentiment': labels[max_idx].lower(),
+                'score': float(scores[max_idx]),
+                'scores': {label: float(score) for label, score in zip(labels, scores)}
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en análisis de sentimiento profundo: {str(e)}")
+            return await self._analyze_sentiment_quick(text)
         
     async def _analyze_sentiment_quick(self, text: str) -> Dict[str, Any]:
         """Realiza el análisis de sentimiento rápido con spaCy."""

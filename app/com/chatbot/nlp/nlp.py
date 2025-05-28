@@ -37,8 +37,8 @@ except ImportError:
     text = None
 
 try:
-    import torch
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    from transformers import TFAutoModelForSequenceClassification, AutoTokenizer
+    from tensorflow.keras.optimizers import Adam
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
@@ -123,18 +123,32 @@ def load_use_model():
     return use_model
 
 def load_roberta_model():
-    """Carga el modelo RoBERTa para análisis de sentimiento."""
+    """Carga el modelo RoBERTa para análisis de sentimiento usando TensorFlow."""
     global roberta_model, roberta_tokenizer
-    if USE_ROBERTA and TRANSFORMERS_AVAILABLE and roberta_model is None:
-        try:
-            model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-            roberta_tokenizer = AutoTokenizer.from_pretrained(model_name)
-            roberta_model = AutoModelForSequenceClassification.from_pretrained(model_name)
-            logger.info(f"Modelo RoBERTa '{model_name}' cargado para análisis de sentimiento.")
-        except Exception as e:
-            logger.error(f"Error cargando RoBERTa: {str(e)}")
-            roberta_model = None
-            roberta_tokenizer = None
+    if not TRANSFORMERS_AVAILABLE or roberta_model is not None:
+        return
+    
+    try:
+        model_name = "pysentimiento/robertuito-sentiment-analysis"
+        roberta_tokenizer = AutoTokenizer.from_pretrained(model_name)
+        
+        # Cargar el modelo con soporte para TensorFlow
+        roberta_model = TFAutoModelForSequenceClassification.from_pretrained(
+            model_name, 
+            from_pt=True  # Convertir automáticamente los pesos de PyTorch a TensorFlow
+        )
+        
+        # Compilar el modelo
+        optimizer = tf.keras.optimizers.Adam(learning_rate=2e-5, epsilon=1e-8)
+        loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        metrics = ['accuracy']
+        
+        roberta_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+        logger.info("Modelo RoBERTa cargado exitosamente con TensorFlow.")
+    except Exception as e:
+        logger.error(f"Error cargando el modelo RoBERTa: {str(e)}")
+        roberta_model = None
+        roberta_tokenizer = None
     return roberta_model, roberta_tokenizer
 
 def load_skill_embeddings(catalog_key: str) -> Dict[str, np.ndarray]:
@@ -376,25 +390,42 @@ class NLPProcessor:
                             skills[category].append({"original": skill_name, "role": skill.get("role", "") if self.mode == "opportunity" else ""})
         return skills
 
-    def analyze_sentiment(self, text: str) -> str:
-        """Analiza el sentimiento del texto usando RoBERTa o TextBlob."""
-        if USE_ROBERTA and roberta_model and roberta_tokenizer:
+    def analyze_sentiment(self, text: str):
+        """Analiza el sentimiento del texto usando RoBERTa con TensorFlow o TextBlob."""
+        if not text.strip():
+            return {"label": "neutral", "score": 0.0}
+        
+        if USE_ROBERTA and TRANSFORMERS_AVAILABLE and roberta_model is not None:
             try:
-                inputs = roberta_tokenizer(text[:512], return_tensors="pt", truncation=True)
-                with torch.no_grad():
-                    outputs = roberta_model(**inputs)
-                predicted_class = outputs.logits.argmax().item()
-                return ["negative", "neutral", "positive"][predicted_class]
+                # Tokenizar el texto
+                inputs = roberta_tokenizer(text, return_tensors="tf", truncation=True, max_length=512)
+                
+                # Realizar la predicción
+                outputs = roberta_model(inputs)
+                logits = outputs.logits
+                probs = tf.nn.softmax(logits, axis=-1)
+                scores = probs.numpy()[0]
+                
+                # Obtener la etiqueta con mayor puntuación
+                labels = ["NEG", "NEU", "POS"]
+                max_idx = scores.argmax()
+                return {"label": labels[max_idx].lower(), "score": float(scores[max_idx])}
             except Exception as e:
                 logger.error(f"Error en análisis de sentimiento con RoBERTa: {str(e)}")
-                # Fallback a TextBlob
+        
+        # Fallback a TextBlob
         try:
             blob = TextBlob(text)
-            polarity = blob.sentiment.polarity
-            return "positive" if polarity > 0.05 else "negative" if polarity < -0.05 else "neutral"
+            sentiment = blob.sentiment.polarity
+            if sentiment > 0.1:
+                return {"label": "positive", "score": float(sentiment)}
+            elif sentiment < -0.1:
+                return {"label": "negative", "score": float(-sentiment)}
+            else:
+                return {"label": "neutral", "score": 0.0}
         except Exception as e:
             logger.error(f"Error en análisis de sentimiento con TextBlob: {str(e)}")
-            return "neutral"
+            return {"label": "neutral", "score": 0.0}
 
     def infer_opportunities(self, skills: Dict[str, List[Dict[str, any]]]) -> List[Dict[str, any]]:
         """Infiere oportunidades basadas en habilidades."""

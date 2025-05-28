@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="notification-container">
+    <div class="notification-header alert">
+        <h2>Alerta: Habilidades Críticas</h2>
+        <p class="priority">Prioridad: Alta</p>
+    </div>
+
+    <div class="notification-body">
+        <p>Hola,</p>
+        <p>Se han identificado habilidades críticas que requieren atención inmediata para <strong>{{ candidate_name }}</strong> en la vacante <strong>{{ vacante_title }}</strong>.</p>
+
+        <div class="alert-section">
+            <div class="critical-skills">
+                <h3>Habilidades Críticas Identificadas:</h3>
+                <ul class="skills-list">
+                    {% for skill in critical_skills %}
+                    <li>{{ skill }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="development-info">
+                <h3>Tiempo de Desarrollo Estimado:</h3>
+                <p class="time">{{ development_time }} meses</p>
+            </div>
+
+            <div class="action-required">
+                <h3>Acciones Requeridas:</h3>
+                <ol>
+                    <li>Revisar el perfil completo del candidato</li>
+                    <li>Evaluar la viabilidad del desarrollo de las habilidades críticas</li>
+                    <li>Considerar alternativas o ajustar los requisitos del puesto</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <a href="{{ candidate_url }}" class="btn btn-primary">Ver Perfil del Candidato</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.notification-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.notification-header {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.notification-header.alert {
+    border-bottom-color: #e74c3c;
+}
+
+.notification-header h2 {
+    color: #e74c3c;
+    margin: 0;
+}
+
+.priority {
+    color: #e74c3c;
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+.alert-section {
+    background: #fff3f3;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+    border-left: 4px solid #e74c3c;
+}
+
+.critical-skills {
+    margin-bottom: 1.5rem;
+}
+
+.critical-skills h3 {
+    color: #e74c3c;
+    margin: 0 0 1rem 0;
+}
+
+.skills-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.skills-list li {
+    padding: 0.5rem;
+    border-bottom: 1px solid #ffcdd2;
+}
+
+.skills-list li:last-child {
+    border-bottom: none;
+}
+
+.development-info {
+    margin-bottom: 1.5rem;
+}
+
+.development-info h3 {
+    color: #2c3e50;
+    margin: 0 0 0.5rem 0;
+}
+
+.time {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #e74c3c;
+}
+
+.action-required {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.action-required h3 {
+    color: #2c3e50;
+    margin: 0 0 1rem 0;
+}
+
+.action-required ol {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.action-required li {
+    margin-bottom: 0.5rem;
+}
+
+.action-buttons {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #e74c3c;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #c0392b;
+}
+</style>
+{% endblock %} 

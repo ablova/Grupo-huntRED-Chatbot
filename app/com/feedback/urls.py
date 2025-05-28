@@ -20,6 +20,7 @@ urlpatterns = [
     path('proposal/<str:token>/', views.proposal_feedback, name='proposal_feedback'),
     path('ongoing/<str:token>/', views.ongoing_feedback, name='ongoing_feedback'),
     path('completion/<str:token>/', views.completion_feedback, name='completion_feedback'),
+    path('skills/<str:token>/', views.skill_feedback, name='skill_feedback'),
     
     # Vistas administrativas generales
     path('list/', views.FeedbackListView.as_view(), name='feedback_list'),

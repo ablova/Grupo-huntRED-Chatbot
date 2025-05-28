@@ -49,6 +49,46 @@ no_borrar.json
 logs/
 app/migrations/
 
+# Archivos de producción
+*.log
+*.pot
+*.pyc
+__pycache__/
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+
+# Archivos de IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Archivos de base de datos local
+*.sqlite3
+*.sqlite3-journal
+
+# Archivos de entorno
+.env
+.env.*
+!.env.example
+
+# Archivos de cobertura
+.coverage
+htmlcov/
+
+# Archivos de paquetes
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
 # Archivos temporales
 .tmp.driveupload/
 *.tmp

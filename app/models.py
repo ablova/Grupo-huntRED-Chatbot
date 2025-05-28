@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import JSONField
 from django.utils import timezone
+from django.utils.functional import cached_property
 
 # Importar modelos culturales
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -16,6 +17,7 @@ from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AbstractUser, BaseUserManager, User
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Dict, List, Optional, Union, Any, Tuple
 import re
 import uuid
@@ -80,7 +82,7 @@ FEEDBACK_RESULT_CHOICES = [
 ]
 
 # Permisos
-PERMISSION_CHOICES=[('ALL_ACCESS','Acceso Total'),('BU_ACCESS','Acceso a BU'),('DIVISION_ACCESS','Acceso a División')]
+PERMISSION_CHOICES=[('ALL_ACCESS','Acceso Total'),('BU_ACCESS','Acceso a BU'),('DIVISION_ACCESS','Acceso a División'),('VIEW_REPORTS','Ver Reportes'),('MANAGE_USERS','Gestionar Usuarios'),('EDIT_CONTENT','Editar Contenido')]
 
 # Canales de Notificación
 NOTIFICATION_CHANNEL_CHOICES = [
@@ -396,12 +398,15 @@ BUSINESS_UNIT_CHOICES=[
     ('sexsi','SexSI'),
 ]
 DIVISION_CHOICES=[
-    ('RECRUITING','Recruiting'),
-    ('TECH','Tecnología'),
-    ('HR','Recursos Humanos'),
-    ('FINANCE','Finanzas'),
-    ('MARKETING','Marketing'),
-    ('OPERATIONS','Operaciones'),
+    ('SERVICIOS FINANCIEROS','Servicios Financieros / Banca / Seguros'),
+    ('LEGAL','Legal'),
+    ('HEALTHCARE','HealthCare / Farma'),
+    ('ENERGIA','Energía / Oil & Gas'),
+    ('FINANZAS','Finanzas & Contabilidad'),
+    ('VENTAS','Ventas & Mercadotecnia'),
+    ('MANUFACTURA','Manufactura e Industria / Procurement'),
+    ('TECNOLOGIA','Tecnología'),
+    ('SUSTENTABILIDAD','Sustentabilidad'),
 ]
 INTENT_TYPE_CHOICES=[
     ('SYSTEM','Sistema'),
@@ -2022,80 +2027,336 @@ def update_chat_state_on_offer_accepted(sender,instance,**kwargs):
             chat_state.save()
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self,email,password=None,**extra_fields):
+    """Manager personalizado para el modelo CustomUser."""
+    
+    def create_user(self, email: str, first_name: str, last_name: str, password: Optional[str] = None, **extra_fields) -> 'CustomUser':
+        """
+        Crea un usuario con email, nombre, apellido y contraseña.
+        
+        Args:
+            email: Dirección de correo electrónico.
+            first_name: Nombre del usuario.
+            last_name: Apellido del usuario.
+            password: Contraseña opcional.
+            **extra_fields: Campos adicionales (e.g., role, business_unit).
+        
+        Returns:
+            CustomUser: Instancia del usuario creado.
+        """
         if not email:
-            raise ValueError(_('The Email must be set'))
-        email=self.normalize_email(email)
-        user=self.model(email=email,**extra_fields)
+            raise ValueError(_('El email es obligatorio'))
+        if not first_name or not last_name:
+            raise ValueError(_('El nombre y apellido son obligatorios'))
+        email = self.normalize_email(email)
+        extra_fields.setdefault('status', 'PENDING_APPROVAL')
+        extra_fields.setdefault('verification_status', 'PENDING')
+        user = self.model(email=email, first_name=first_name, last_name=last_name, **extra_fields)
         user.set_password(password)
-        user.save()
+        user.save(using=self._db)
         return user
-    def create_superuser(self,email,password,**extra_fields):
-        extra_fields.setdefault('is_staff',True)
-        extra_fields.setdefault('is_superuser',True)
-        extra_fields.setdefault('role','SUPER_ADMIN')
-        extra_fields.setdefault('status','ACTIVE')
+    
+    def create_superuser(self, email: str, first_name: str, last_name: str, password: Optional[str], **extra_fields) -> 'CustomUser':
+        """
+        Crea un superusuario con email, nombre, apellido y contraseña.
+        
+        Args:
+            email: Dirección de correo electrónico.
+            first_name: Nombre del usuario.
+            last_name: Apellido del usuario.
+            password: Contraseña requerida.
+            **extra_fields: Campos adicionales.
+        
+        Returns:
+            CustomUser: Instancia del superusuario creado.
+        """
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'SUPER_ADMIN')
+        extra_fields.setdefault('status', 'ACTIVE')
+        extra_fields.setdefault('verification_status', 'VERIFIED')
+        
         if extra_fields.get('is_staff') is not True:
-            raise ValueError(_('Superuser must have is_staff=True.'))
+            raise ValueError(_('Superuser debe tener is_staff=True'))
         if extra_fields.get('is_superuser') is not True:
-            raise ValueError(_('Superuser must have is_superuser=True.'))
-        return self.create_user(email,password,**extra_fields)
+            raise ValueError(_('Superuser debe tener is_superuser=True'))
+        
+        return self.create_user(email, first_name, last_name, password, **extra_fields)
+    
+    def create_consultant(self, email: str, first_name: str, last_name: str, business_unit, password: Optional[str] = None, **extra_fields) -> 'CustomUser':
+        """
+        Crea un usuario consultor asignado a una unidad de negocio.
+        
+        Args:
+            email: Dirección de correo electrónico.
+            first_name: Nombre del usuario.
+            last_name: Apellido del usuario.
+            business_unit: Unidad de negocio asignada.
+            password: Contraseña opcional.
+            **extra_fields: Campos adicionales.
+        
+        Returns:
+            CustomUser: Instancia del consultor creado.
+        """
+        extra_fields.setdefault('role', 'CONSULTANT')
+        extra_fields.setdefault('status', 'ACTIVE')
+        extra_fields.setdefault('business_unit', business_unit)
+        return self.create_user(email, first_name, last_name, password, **extra_fields)
+    
+    def bulk_activate(self, user_ids: List[int]) -> int:
+        """
+        Activa múltiples usuarios en una sola operación.
+        
+        Args:
+            user_ids: Lista de IDs de usuarios a activar.
+        
+        Returns:
+            int: Número de usuarios activados.
+        """
+        return self.filter(id__in=user_ids).update(status='ACTIVE', verification_status='VERIFIED')
 
 class CustomUser(AbstractUser):
-    username=None
-    email=models.EmailField(_('email address'),unique=True)
-    role=models.CharField(max_length=20,choices=ROLE_CHOICES,default='BU_DIVISION')
-    status=models.CharField(max_length=20,choices=USER_STATUS_CHOICES,default='PENDING_APPROVAL')
-    verification_status=models.CharField(max_length=20,choices=VERIFICATION_STATUS_CHOICES,default='PENDING')
-    # Implementación de lazy loading para evitar dependencias circulares durante migraciones
-    business_unit=models.ForeignKey('app.BusinessUnit',on_delete=models.SET_NULL,null=True,blank=True)
-    division=models.CharField(max_length=50,choices=DIVISION_CHOICES,blank=True,null=True)
-    phone_number=models.CharField(max_length=20,blank=True,null=True)
-    emergency_contact=models.CharField(max_length=20,blank=True,null=True)
-    emergency_contact_name=models.CharField(max_length=100,blank=True,null=True)
-    address=models.TextField(blank=True,null=True)
-    date_of_birth=models.DateField(blank=True,null=True)
-    USERNAME_FIELD='email'
-    REQUIRED_FIELDS=['first_name','last_name']
-    objects=CustomUserManager()
+    """Modelo de usuario personalizado optimizado para consultores y administradores."""
+    
+    # Campos básicos
+    username = None
+    email = models.EmailField(_('email address'), unique=True, max_length=254)
+    first_name = models.CharField(_('first name'), max_length=150)
+    last_name = models.CharField(_('last name'), max_length=150)
+    
+    # Campos de negocio
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users',
+        verbose_name=_('business unit')
+    )
+    division = models.CharField(
+        max_length=50,
+        choices=DIVISION_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name=_('division')
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='BU_DIVISION',
+        verbose_name=_('role')
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=USER_STATUS_CHOICES,
+        default='PENDING_APPROVAL',
+        verbose_name=_('status')
+    )
+    verification_status = models.CharField(
+        max_length=20,
+        choices=VERIFICATION_STATUS_CHOICES,
+        default='PENDING',
+        verbose_name=_('verification status')
+    )
+    
+    # Campos de contacto
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name=_('phone number')
+    )
+    emergency_contact = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name=_('emergency contact')
+    )
+    emergency_contact_name = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name=_('emergency contact name')
+    )
+    address = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('address')
+    )
+    date_of_birth = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name=_('date of birth')
+    )
+    
+    # Campos de permisos
+    permissions = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_('custom permissions')
+    )
+    
+    # Campos de auditoría
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('created at'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('updated at'))
+    
+    # Configuración de autenticación
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name', 'last_name']
+    
+    # Manager personalizado
+    objects = CustomUserManager()
+    
     class Meta:
-        ordering=['-date_joined']
-        verbose_name='Usuario'
-        verbose_name_plural='Usuarios'
-    def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.email})"
-    def has_bu_access(self,bu_name):
-        if self.role=='SUPER_ADMIN':
+        verbose_name = _('Usuario')
+        verbose_name_plural = _('Usuarios')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email'], name='idx_user_email'),
+            models.Index(fields=['business_unit'], name='idx_user_bu'),
+            models.Index(fields=['role'], name='idx_user_role'),
+            models.Index(fields=['status'], name='idx_user_status'),
+            models.Index(fields=['division'], name='idx_user_division'),
+            models.Index(fields=['created_at'], name='idx_user_created'),
+        ]
+    
+    def __str__(self) -> str:
+        return f"{self.get_full_name()} ({self.email})"
+    
+    def get_full_name(self) -> str:
+        """Devuelve el nombre completo del usuario."""
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name or self.email
+    
+    @lru_cache(maxsize=128)
+    def has_bu_access(self, bu_name: str) -> bool:
+        """Verifica si el usuario tiene acceso a una unidad de negocio específica."""
+        if self.role in ('SUPER_ADMIN', 'CONSULTANT'):
             return True
-        if self.business_unit and self.business_unit.name==bu_name:
+        if self.business_unit and self.business_unit.name.lower() == bu_name.lower():
             return True
         return False
-    def has_division_access(self,division_name):
-        if self.role=='SUPER_ADMIN':
+    
+    @lru_cache(maxsize=128)
+    def has_division_access(self, division_name: str) -> bool:
+        """Verifica si el usuario tiene acceso a una división específica."""
+        if self.role in ('SUPER_ADMIN', 'CONSULTANT'):
             return True
-        if self.division==division_name:
-            return True
-        return False
-    def has_permission(self,permission):
-        return self.userpermission_set.filter(permission=permission).exists()
+        if self.role == 'BU_COMPLETE' and self.business_unit:
+            return self.division == division_name  # Simplified for example
+        return self.division == division_name
+    
+    @lru_cache(maxsize=128)
+    def has_permission(self, permission: str) -> bool:
+        """Verifica si el usuario tiene un permiso específico."""
+        cache_key = f"user_perm_{self.id}_{permission}"
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+        
+        # Check JSONField permissions
+        result = permission in self.permissions.get('custom', {}) and self.permissions['custom'][permission]
+        # Fallback to UserPermission model
+        if not result:
+            result = self.permissions.filter(permission=permission).exists()
+        
+        cache.set(cache_key, result, 3600)  # Cache for 1 hour
+        return result
+    
     def clean(self):
+        """Validación personalizada del modelo."""
         if not self.email:
-            raise ValidationError(_('El email no puede estar vacío.'))
-    def save(self,*args,**kwargs):
+            raise ValidationError(_('El email no puede estar vacío'))
+        # Validar formato de email
+        if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', self.email):
+            raise ValidationError(_('El email no es válido'))
+        # Validar formato de teléfono
+        if self.phone_number and not re.match(r'^\+?\d{8,20}$', self.phone_number):
+            raise ValidationError(_('El número de teléfono no es válido'))
+        if self.emergency_contact and not re.match(r'^\+?\d{8,20}$', self.emergency_contact):
+            raise ValidationError(_('El contacto de emergencia no es válido'))
+        super().clean()
+    
+    def save(self, *args, **kwargs):
+        """Guarda el modelo con validación y normalización."""
+        self.email = self.normalize_email(self.email)
+        if not isinstance(self.permissions, dict):
+            self.permissions = {}
         self.full_clean()
-        super().save(*args,**kwargs)
+        super().save(*args, **kwargs)
+    
+    @cached_property
+    def is_active_user(self) -> bool:
+        """Verifica si el usuario está activo y verificado."""
+        return self.status == 'ACTIVE' and self.verification_status == 'VERIFIED'
+    
+    def assign_role(self, role: str, business_unit=None, division=None):
+        """Asigna un nuevo rol al usuario con unidad de negocio y división opcionales."""
+        if role not in dict(ROLE_CHOICES):
+            raise ValueError(_('Rol no válido'))
+        self.role = role
+        if business_unit:
+            self.business_unit = business_unit
+        if division:
+            self.division = division
+        self.save()
+    
+    def bulk_assign_permissions(self, permissions: List[Tuple[str, Optional['BusinessUnit'], Optional[str]]]):
+        """Asigna múltiples permisos al usuario en una sola operación."""
+        UserPermission.objects.bulk_create([
+            UserPermission(user=self, permission=perm, business_unit=bu, division=div)
+            for perm, bu, div in permissions
+        ])
 
 class UserPermission(models.Model):
-    user=models.ForeignKey(CustomUser,on_delete=models.CASCADE,related_name='permissions')
-    permission=models.CharField(max_length=50,choices=PERMISSION_CHOICES)
-    business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,null=True,blank=True)
-    division=models.CharField(max_length=50,choices=DIVISION_CHOICES,blank=True,null=True)
+    """Modelo para permisos de usuarios, vinculados a unidades de negocio y divisiones."""
+    
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='permissions',
+        verbose_name=_('user')
+    )
+    permission = models.CharField(
+        max_length=50,
+        choices=PERMISSION_CHOICES,
+        verbose_name=_('permission')
+    )
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name=_('business unit')
+    )
+    division = models.CharField(
+        max_length=50,
+        choices=DIVISION_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name=_('division')
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('created at'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('updated at'))
+    
     class Meta:
-        unique_together=('user','permission','business_unit','division')
-        verbose_name='Permiso de Usuario'
-        verbose_name_plural='Permisos de Usuarios'
-    def __str__(self):
-        return f"{self.user.email} - {self.permission}"
+        unique_together = ('user', 'permission', 'business_unit', 'division')
+        verbose_name = _('Permiso de Usuario')
+        verbose_name_plural = _('Permisos de Usuarios')
+        indexes = [
+            models.Index(fields=['user'], name='idx_perm_user'),
+            models.Index(fields=['permission'], name='idx_perm_permission'),
+        ]
+    
+    def __str__(self) -> str:
+        return f"{self.user.email} - {self.get_permission_display()}"
+    
+    def clean(self):
+        """Validación personalizada del modelo."""
+        if self.business_unit and self.division:
+            # Asume que BusinessUnit tiene un método para validar divisiones
+            if not self.business_unit.divisions.filter(name=self.division).exists():
+                raise ValidationError(_('La división no pertenece a la unidad de negocio'))
+        super().clean()
 
 class FailedLoginAttempt(models.Model):
     email=models.EmailField()
@@ -4406,6 +4667,22 @@ class SkillAssessment(models.Model):
     - Evaluaciones de pares
     - Evaluaciones de supervisores
     """
+    EXPERTISE_LEVELS = [
+        ('NOVICE', 'Novato - Conocimiento básico'),
+        ('BEGINNER', 'Principiante - Puede realizar tareas básicas'),
+        ('INTERMEDIATE', 'Intermedio - Puede trabajar de forma independiente'),
+        ('ADVANCED', 'Avanzado - Experto en el área'),
+        ('EXPERT', 'Experto - Referente en el área'),
+        ('MASTER', 'Maestro - Autoridad en el área')
+    ]
+
+    VALIDATION_STATUS = [
+        ('PENDING', 'Pendiente de validación'),
+        ('VALIDATED', 'Validado'),
+        ('REJECTED', 'Rechazado'),
+        ('NEEDS_REVIEW', 'Requiere revisión')
+    ]
+
     person = models.ForeignKey(
         Person,
         on_delete=models.CASCADE,
@@ -4417,6 +4694,11 @@ class SkillAssessment(models.Model):
         on_delete=models.CASCADE,
         related_name='assessments',
         help_text="Habilidad evaluada"
+    )
+    expertise_level = models.CharField(
+        max_length=20,
+        choices=EXPERTISE_LEVELS,
+        help_text="Nivel de expertise en la habilidad"
     )
     score = models.FloatField(
         validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -4455,19 +4737,29 @@ class SkillAssessment(models.Model):
         default=dict,
         help_text="Contexto de la evaluación (proyecto, equipo, etc.)"
     )
-    is_verified = models.BooleanField(
-        default=False,
-        help_text="Indica si la evaluación ha sido verificada"
+    validation_status = models.CharField(
+        max_length=20,
+        choices=VALIDATION_STATUS,
+        default='PENDING',
+        help_text="Estado de validación de la evaluación"
     )
-    verification_date = models.DateTimeField(
+    validation_date = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Fecha de verificación"
+        help_text="Fecha de validación"
     )
-    verification_notes = models.TextField(
+    validator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='validated_assessments',
+        help_text="Usuario que validó la evaluación"
+    )
+    validation_notes = models.TextField(
         blank=True,
         null=True,
-        help_text="Notas sobre la verificación"
+        help_text="Notas sobre la validación"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -4481,7 +4773,8 @@ class SkillAssessment(models.Model):
             models.Index(fields=['skill']),
             models.Index(fields=['assessment_type']),
             models.Index(fields=['assessment_date']),
-            models.Index(fields=['is_verified'])
+            models.Index(fields=['validation_status']),
+            models.Index(fields=['expertise_level'])
         ]
 
     def __str__(self):

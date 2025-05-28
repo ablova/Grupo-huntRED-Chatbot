@@ -1,13 +1,35 @@
 # /home/pablo/ai_huntred/asgi.py
-#
-# Configuración ASGI para el proyecto AI HuntRED.
-# Configura el middleware de seguridad y la aplicación ASGI principal.
-# Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
+"""
+Configuración ASGI para el proyecto AI HuntRED.
 
+Este archivo configura el servidor ASGI para el proyecto, incluyendo middlewares
+de seguridad y optimizaciones para entornos de producción.
+"""
+
+# Importaciones estándar
 import os
+import sys
 import logging
+from pathlib import Path
+
+# Configuración de rutas
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
+# Configuración de Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings.production')
+
+# Importar después de configurar el entorno
 from django.core.asgi import get_asgi_application
-from ai_huntred.settings import LOGGING, SECURITY_CONFIG
+from ai_huntred.settings.production import LOGGING, SECURITY_CONFIG
 
 # Configurar logging
 logging.config.dictConfig(LOGGING)
@@ -16,8 +38,6 @@ logger = logging.getLogger('asgi')
 # Verificar configuración de seguridad
 if not SECURITY_CONFIG['SECURE_SSL_REDIRECT']:
     logger.warning("SSL redirection is disabled")
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings.production')
 
 # Middleware de seguridad
 class SecureHeadersMiddleware:

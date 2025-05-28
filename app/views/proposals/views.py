@@ -228,11 +228,17 @@ class ProposalViews(View):
         Returns:
             str: Contenido del PDF
         """
+        # Inicializar el proveedor de datos de evaluaciones
+        from app.com.chatbot.workflow.assessments.assessment_data_provider import AssessmentDataProvider
+        assessment_provider = AssessmentDataProvider()
+        
         # Renderizar template
         html_content = render_to_string('proposals/proposal_template.html', {
             'proposal': proposal,
             'pricing': proposal.pricing_details,
-            'company': proposal.company
+            'company': proposal.company,
+            'available_assessments': assessment_provider.get_available_assessments(),
+            'additional_services': assessment_provider.get_additional_services()
         })
         
         # Generar PDF

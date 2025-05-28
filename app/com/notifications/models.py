@@ -21,10 +21,10 @@ class NotificationStatus(models.TextChoices):
 class NotificationType(models.TextChoices):
     """Tipos de notificaciones disponibles en el sistema."""
     # Notificaciones para responsable del proceso
-    PROCESO_CREADO = 'proceso_creado', 'Creación de Proceso'
+    PROCESO_CREADO = 'proceso_creado', 'Proceso Creado'
     FEEDBACK_REQUERIDO = 'feedback_requerido', 'Feedback Requerido'
     CONFIRMACION_ENTREVISTA = 'confirmacion_entrevista', 'Confirmación de Entrevista'
-    FELICITACION_CONTRATACION = 'felicitacion_contratacion', 'Felicitaciones por Contratación'
+    FELICITACION_CONTRATACION = 'felicitacion_contratacion', 'Felicitación por Contratación'
     ACTUALIZACION_CANDIDATO = 'actualizacion_candidato', 'Actualización de Candidato'
     
     # Notificaciones para contacto en cliente
@@ -50,6 +50,51 @@ class NotificationType(models.TextChoices):
     # Notificaciones para todos los usuarios
     SISTEMA_ACTUALIZADO = 'sistema_actualizado', 'Sistema Actualizado'
     EVENTO_PROGRAMADO = 'evento_programado', 'Evento Programado'
+    
+    # Notificaciones para feedback de habilidades
+    SKILL_FEEDBACK_REQUERIDO = 'skill_feedback_requerido', 'Feedback de Habilidades Requerido'
+    SKILL_FEEDBACK_COMPLETADO = 'skill_feedback_completado', 'Feedback de Habilidades Completado'
+    SKILL_FEEDBACK_ALERTA = 'skill_feedback_alerta', 'Alerta de Habilidades Críticas'
+    
+    # Notificaciones de Onboarding
+    ONBOARDING_STARTED = 'ONBOARDING_STARTED', 'Onboarding Iniciado'
+    ONBOARDING_CHECK_IN = 'ONBOARDING_CHECK_IN', 'Check-in de Onboarding'
+    ONBOARDING_CHECK_IN_REMINDER = 'ONBOARDING_CHECK_IN_REMINDER', 'Recordatorio de Check-in'
+    ONBOARDING_COMPLETED = 'ONBOARDING_COMPLETED', 'Onboarding Completado'
+    
+    # Notificaciones de Feedback Post-Contratación
+    CANDIDATO_FEEDBACK_SURVEY = 'CANDIDATO_FEEDBACK_SURVEY', 'Encuesta de Feedback - Candidato'
+    CLIENTE_FEEDBACK_SURVEY = 'CLIENTE_FEEDBACK_SURVEY', 'Encuesta de Feedback - Cliente'
+    
+    # Notificaciones de Proceso
+    PROCESO_ACTUALIZADO = 'PROCESO_ACTUALIZADO', 'Proceso Actualizado'
+    PROCESO_COMPLETADO = 'PROCESO_COMPLETADO', 'Proceso Completado'
+    
+    # Notificaciones de Vacante
+    VACANTE_CREADA = 'VACANTE_CREADA', 'Vacante Creada'
+    VACANTE_ACTUALIZADA = 'VACANTE_ACTUALIZADA', 'Vacante Actualizada'
+    VACANTE_CERRADA = 'VACANTE_CERRADA', 'Vacante Cerrada'
+    
+    # Notificaciones de Candidato
+    CANDIDATO_AGREGADO = 'CANDIDATO_AGREGADO', 'Candidato Agregado'
+    CANDIDATO_ACTUALIZADO = 'CANDIDATO_ACTUALIZADO', 'Candidato Actualizado'
+    CANDIDATO_CONTRATADO = 'CANDIDATO_CONTRATADO', 'Candidato Contratado'
+    
+    # Notificaciones de Entrevista
+    ENTREVISTA_AGENDADA = 'ENTREVISTA_AGENDADA', 'Entrevista Agendada'
+    ENTREVISTA_REMINDER = 'ENTREVISTA_REMINDER', 'Recordatorio de Entrevista'
+    ENTREVISTA_COMPLETADA = 'ENTREVISTA_COMPLETADA', 'Entrevista Completada'
+    
+    # Notificaciones de Documentación
+    DOCUMENTO_REQUERIDO = 'DOCUMENTO_REQUERIDO', 'Documento Requerido'
+    DOCUMENTO_SUBIDO = 'DOCUMENTO_SUBIDO', 'Documento Subido'
+    DOCUMENTO_APROBADO = 'DOCUMENTO_APROBADO', 'Documento Aprobado'
+    DOCUMENTO_RECHAZADO = 'DOCUMENTO_RECHAZADO', 'Documento Rechazado'
+    
+    # Notificaciones de Sistema
+    SISTEMA_ALERTA = 'SISTEMA_ALERTA', 'Alerta del Sistema'
+    SISTEMA_ERROR = 'SISTEMA_ERROR', 'Error del Sistema'
+    SISTEMA_INFO = 'SISTEMA_INFO', 'Información del Sistema'
 
 class NotificationChannel(models.TextChoices):
     """Canales disponibles para enviar notificaciones."""

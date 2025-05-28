@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Evaluación de Skill{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Evaluación de Skill</h2>
+            
+            <!-- Información del Candidato y Skill -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Información del Candidato</h5>
+                            <p><strong>Nombre:</strong> <span id="candidate-name"></span></p>
+                            <p><strong>Email:</strong> <span id="candidate-email"></span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Información del Skill</h5>
+                            <p><strong>Skill:</strong> <span id="skill-name"></span></p>
+                            <p><strong>Nivel de Experticia:</strong> <span id="expertise-level"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detalles de la Evaluación -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5>Detalles de la Evaluación</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Fecha de Evaluación:</strong> <span id="assessment-date"></span></p>
+                            <p><strong>Evaluador:</strong> <span id="evaluator"></span></p>
+                            <p><strong>Tipo de Evaluación:</strong> <span id="assessment-type"></span></p>
+                            <p><strong>Puntuación:</strong> <span id="score"></span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Estado de Validación:</strong> <span id="validation-status" class="badge"></span></p>
+                            <p><strong>Fecha de Validación:</strong> <span id="validation-date"></span></p>
+                            <p><strong>Validador:</strong> <span id="validator"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evidencia y Contexto -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5>Evidencia y Contexto</h5>
+                    <div class="mb-3">
+                        <h6>Evidencia</h6>
+                        <p id="evidence"></p>
+                    </div>
+                    <div>
+                        <h6>Contexto</h6>
+                        <p id="context"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Validación -->
+            {% if user.has_perm('validate_skill_assessment') %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5>Validación</h5>
+                    <form id="validation-form">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="validation-status-select" class="form-label">Estado de Validación</label>
+                            <select class="form-select" id="validation-status-select" name="status" required>
+                                <option value="">Seleccione un estado</option>
+                                <option value="VALIDATED">Validado</option>
+                                <option value="REJECTED">Rechazado</option>
+                                <option value="NEEDS_REVIEW">Necesita Revisión</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="validation-notes" class="form-label">Notas de Validación</label>
+                            <textarea class="form-control" id="validation-notes" name="notes" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Enviar Validación</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Validación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea <span id="confirmation-action"></span> esta evaluación?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirm-validation">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .badge {
+        font-size: 0.9em;
+        padding: 0.5em 1em;
+    }
+    .badge-validated {
+        background-color: #28a745;
+        color: white;
+    }
+    .badge-rejected {
+        background-color: #dc3545;
+        color: white;
+    }
+    .badge-pending {
+        background-color: #ffc107;
+        color: black;
+    }
+    .badge-needs-review {
+        background-color: #17a2b8;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const assessmentId = new URLSearchParams(window.location.search).get('id');
+    if (!assessmentId) {
+        alert('ID de evaluación no proporcionado');
+        return;
+    }
+
+    // Cargar detalles de la evaluación
+    fetch(`/api/skill-assessment/${assessmentId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const assessment = data.assessment;
+                
+                // Llenar información del candidato y skill
+                document.getElementById('candidate-name').textContent = assessment.person.name;
+                document.getElementById('skill-name').textContent = assessment.skill.name;
+                document.getElementById('expertise-level').textContent = assessment.expertise_level;
+                
+                // Llenar detalles de la evaluación
+                document.getElementById('assessment-date').textContent = new Date(assessment.assessment_date).toLocaleDateString();
+                document.getElementById('evaluator').textContent = assessment.evaluator || 'N/A';
+                document.getElementById('assessment-type').textContent = assessment.assessment_type;
+                document.getElementById('score').textContent = assessment.score;
+                
+                // Llenar información de validación
+                const statusBadge = document.getElementById('validation-status');
+                statusBadge.textContent = assessment.validation_status;
+                statusBadge.className = `badge badge-${assessment.validation_status.toLowerCase()}`;
+                
+                document.getElementById('validation-date').textContent = assessment.validation_date ? 
+                    new Date(assessment.validation_date).toLocaleDateString() : 'N/A';
+                document.getElementById('validator').textContent = assessment.validator || 'N/A';
+                
+                // Llenar evidencia y contexto
+                document.getElementById('evidence').textContent = assessment.evidence || 'No hay evidencia disponible';
+                document.getElementById('context').textContent = assessment.context || 'No hay contexto disponible';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles de la evaluación');
+        });
+
+    // Manejar el formulario de validación
+    const validationForm = document.getElementById('validation-form');
+    if (validationForm) {
+        validationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const status = document.getElementById('validation-status-select').value;
+            const notes = document.getElementById('validation-notes').value;
+            
+            // Mostrar modal de confirmación
+            const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+            const confirmationAction = status === 'VALIDATED' ? 'validar' : 
+                                    status === 'REJECTED' ? 'rechazar' : 
+                                    'marcar para revisión';
+            document.getElementById('confirmation-action').textContent = confirmationAction;
+            
+            document.getElementById('confirm-validation').onclick = function() {
+                // Enviar validación
+                fetch(`/api/skill-assessment/${assessmentId}/validate/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        status: status,
+                        notes: notes
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.location.reload();
+                    } else {
+                        alert(data.error || 'Error al validar la evaluación');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al validar la evaluación');
+                });
+                
+                modal.hide();
+            };
+            
+            modal.show();
+        });
+    }
+});
+
+// Función auxiliar para obtener el token CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

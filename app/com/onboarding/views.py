@@ -14,7 +14,7 @@ from datetime import datetime
 from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.core.signing import Signer, BadSignature
@@ -23,8 +23,11 @@ from asgiref.sync import sync_to_async
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from app.models import OnboardingProcess, OnboardingTask, Person, Vacante
+from app.models import OnboardingProcess, OnboardingTask, Person, Vacante, BusinessUnit
 from app.com.onboarding.onboarding_controller import OnboardingController
+from app.com.onboarding.models import OnboardingProcess
+from app.com.onboarding.managers import OnboardingManager
+from app.com.notifications.managers import NotificationManager
 
 logger = logging.getLogger(__name__)
 signer = Signer(salt='onboarding-satisfaction')
@@ -445,3 +448,233 @@ class OnboardingTaskView(View):
         except Exception as e:
             logger.error(f"Error en OnboardingTaskView.delete: {str(e)}")
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+async def onboarding_dashboard(request):
+    """
+    Vista para el dashboard de onboarding.
+    """
+    try:
+        business_unit = request.user.business_unit
+        onboarding_manager = OnboardingManager(business_unit)
+        
+        # Obtener procesos de onboarding activos
+        active_onboarding = await sync_to_async(OnboardingProcess.objects.filter)(
+            business_unit=business_unit,
+            status__in=['in_progress', 'pending']
+        ).select_related('person')
+        
+        # Obtener procesos de onboarding completados
+        completed_onboarding = await sync_to_async(OnboardingProcess.objects.filter)(
+            business_unit=business_unit,
+            status='completed'
+        ).select_related('person')
+        
+        context = {
+            'active_onboarding': active_onboarding,
+            'completed_onboarding': completed_onboarding,
+        }
+        
+        return render(request, 'onboarding/dashboard.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error en onboarding_dashboard: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+async def onboarding_detail(request, onboarding_id):
+    """
+    Vista para ver los detalles de un proceso de onboarding.
+    """
+    try:
+        business_unit = request.user.business_unit
+        onboarding = await sync_to_async(OnboardingProcess.objects.get)(
+            id=onboarding_id,
+            business_unit=business_unit
+        )
+        
+        context = {
+            'onboarding': onboarding,
+            'person': onboarding.person,
+            'check_ins': onboarding.check_ins,
+            'completed_steps': onboarding.completed_steps,
+            'feedback_data': onboarding.feedback_data
+        }
+        
+        return render(request, 'onboarding/detail.html', context)
+        
+    except OnboardingProcess.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Proceso de onboarding no encontrado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error en onboarding_detail: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+async def complete_onboarding_step(request, onboarding_id):
+    """
+    Vista para marcar un paso de onboarding como completado.
+    """
+    try:
+        business_unit = request.user.business_unit
+        onboarding_manager = OnboardingManager(business_unit)
+        
+        step = request.POST.get('step')
+        if not step:
+            return JsonResponse({
+                'success': False,
+                'error': 'Se requiere el paso a completar'
+            }, status=400)
+        
+        result = await onboarding_manager.complete_step(
+            person=request.user,
+            step=step
+        )
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        logger.error(f"Error en complete_onboarding_step: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+async def perform_check_in(request, onboarding_id):
+    """
+    Vista para realizar un check-in de onboarding.
+    """
+    try:
+        business_unit = request.user.business_unit
+        onboarding_manager = OnboardingManager(business_unit)
+        
+        onboarding = await sync_to_async(OnboardingProcess.objects.get)(
+            id=onboarding_id,
+            business_unit=business_unit
+        )
+        
+        result = await onboarding_manager.perform_check_in(
+            person=request.user,
+            onboarding=onboarding
+        )
+        
+        return JsonResponse(result)
+        
+    except OnboardingProcess.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Proceso de onboarding no encontrado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error en perform_check_in: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@require_http_methods(["GET", "POST"])
+async def candidato_feedback(request, onboarding_id):
+    """
+    Vista para manejar el feedback del candidato.
+    """
+    try:
+        onboarding = await sync_to_async(OnboardingProcess.objects.get)(id=onboarding_id)
+        
+        if request.method == "POST":
+            feedback_data = {
+                'general_rating': request.POST.get('general_rating'),
+                'induction_rating': request.POST.get('induction_rating'),
+                'check_in_rating': request.POST.get('check_in_rating'),
+                'improvements': request.POST.get('improvements'),
+                'useful_aspects': request.POST.get('useful_aspects'),
+                'recommendation_rating': request.POST.get('recommendation_rating')
+            }
+            
+            await onboarding.add_feedback('candidato', feedback_data)
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Feedback enviado exitosamente'
+            })
+        
+        return render(request, 'notifications/candidato_feedback_survey.html', {
+            'onboarding': onboarding,
+            'recipient': onboarding.person
+        })
+        
+    except OnboardingProcess.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Proceso de onboarding no encontrado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error en candidato_feedback: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@require_http_methods(["GET", "POST"])
+async def cliente_feedback(request, empresa_id):
+    """
+    Vista para manejar el feedback del cliente.
+    """
+    try:
+        empresa = await sync_to_async(BusinessUnit.objects.get)(id=empresa_id)
+        
+        if request.method == "POST":
+            feedback_data = {
+                'candidate_quality': request.POST.get('candidate_quality'),
+                'process_satisfaction': request.POST.get('process_satisfaction'),
+                'communication_rating': request.POST.get('communication_rating'),
+                'improvements': request.POST.get('improvements'),
+                'useful_aspects': request.POST.get('useful_aspects'),
+                'recommendation_rating': request.POST.get('recommendation_rating'),
+                'suggestions': request.POST.get('suggestions')
+            }
+            
+            # Guardar feedback del cliente
+            notification_manager = NotificationManager(empresa)
+            await notification_manager.send_notification(
+                notification_type='CLIENTE_FEEDBACK_RECIBIDO',
+                recipient=empresa.contact_person,
+                context={
+                    'feedback_data': feedback_data,
+                    'empresa_id': empresa.id
+                }
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Feedback enviado exitosamente'
+            })
+        
+        return render(request, 'notifications/cliente_feedback_survey.html', {
+            'empresa': empresa,
+            'recipient': empresa.contact_person
+        })
+        
+    except BusinessUnit.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Empresa no encontrada'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"Error en cliente_feedback: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

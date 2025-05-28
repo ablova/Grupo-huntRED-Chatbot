@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                    <h2 class="mt-4">¡Gracias por tu Feedback!</h2>
+                    <p class="lead">
+                        Tu retroalimentación es invaluable para mejorar nuestro sistema de detección de skills
+                        y proporcionar un mejor servicio a nuestros clientes.
+                    </p>
+                    
+                    <div class="mt-4">
+                        <h4>¿Qué hacemos con tu feedback?</h4>
+                        <ul class="list-unstyled text-start">
+                            <li><i class="fas fa-robot text-primary"></i> Mejoramos nuestros modelos de ML</li>
+                            <li><i class="fas fa-chart-line text-success"></i> Analizamos tendencias del mercado</li>
+                            <li><i class="fas fa-users text-info"></i> Refinamos nuestros perfiles de candidatos</li>
+                            <li><i class="fas fa-lightbulb text-warning"></i> Desarrollamos nuevas funcionalidades</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'home' %}" class="btn btn-primary">
+                            <i class="fas fa-home"></i> Volver al Inicio
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.list-unstyled li {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+    position: relative;
+}
+
+.list-unstyled li i {
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+}
+
+.btn-primary {
+    padding: 0.75rem 2rem;
+    border-radius: 30px;
+    font-weight: 500;
+}
+</style>
+{% endblock %} 

@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Feedback de Candidato</h2>
+            
+            <form id="feedbackForm" class="needs-validation" novalidate>
+                <!-- Sección de Validación de Skills -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">Validación de Skills</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Precisión de la detección</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="skill_accuracy" id="correct" value="CORRECT" required>
+                                <label class="btn btn-outline-success" for="correct">
+                                    <i class="fas fa-check-circle"></i> Totalmente Correcto
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="skill_accuracy" id="partial" value="PARTIAL">
+                                <label class="btn btn-outline-warning" for="partial">
+                                    <i class="fas fa-exclamation-circle"></i> Parcialmente Correcto
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="skill_accuracy" id="incorrect" value="INCORRECT">
+                                <label class="btn btn-outline-danger" for="incorrect">
+                                    <i class="fas fa-times-circle"></i> Incorrecto
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Skills no detectados</label>
+                            <select class="form-select" id="missing_skills" multiple>
+                                <!-- Se llenará dinámicamente -->
+                            </select>
+                            <div class="form-text">Selecciona los skills que no fueron detectados</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Skills detectados incorrectamente</label>
+                            <select class="form-select" id="extra_skills" multiple>
+                                <!-- Se llenará dinámicamente -->
+                            </select>
+                            <div class="form-text">Marca los skills que fueron detectados por error</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sección de Evaluación del Candidato -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h3 class="mb-0">Evaluación del Candidato</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="was_hired">
+                                <label class="form-check-label" for="was_hired">¿Fue contratado?</label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Ajuste Técnico</label>
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                <input type="radio" name="technical_fit" value="{{ i }}" id="tech{{ i }}">
+                                <label for="tech{{ i }}">☆</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Ajuste Cultural</label>
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                <input type="radio" name="cultural_fit" value="{{ i }}" id="cult{{ i }}">
+                                <label for="cult{{ i }}">☆</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fortalezas</label>
+                            <textarea class="form-control" id="strengths" rows="3" 
+                                    placeholder="Describe las fortalezas más relevantes"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Áreas de Mejora</label>
+                            <textarea class="form-control" id="areas_for_improvement" rows="3"
+                                    placeholder="Describe las áreas que necesitan desarrollo"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sección de Análisis de Potencial -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="mb-0">Análisis de Potencial</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Roles Potenciales</label>
+                            <select class="form-select" id="potential_roles" multiple>
+                                <option value="tech_lead">Liderazgo Técnico</option>
+                                <option value="architect">Arquitecto de Software</option>
+                                <option value="pm">Project Manager</option>
+                                <option value="product">Product Manager</option>
+                                <option value="devops">DevOps Engineer</option>
+                                <option value="data_science">Data Scientist</option>
+                                <option value="ux">UX/UI Designer</option>
+                                <option value="other">Otro</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Potencial de Crecimiento</label>
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                <input type="radio" name="growth_potential" value="{{ i }}" id="growth{{ i }}">
+                                <label for="growth{{ i }}">☆</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Ruta de Desarrollo</label>
+                            <textarea class="form-control" id="development_path" rows="3"
+                                    placeholder="Describe la ruta de desarrollo recomendada"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sección de Contexto de Mercado -->
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h3 class="mb-0">Contexto de Mercado</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Demanda en el Mercado</label>
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                <input type="radio" name="market_demand" value="{{ i }}" id="market{{ i }}">
+                                <label for="market{{ i }}">☆</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Rango Salarial</label>
+                            <input type="text" class="form-control" id="salary_range" 
+                                   placeholder="Ej: $50,000 - $70,000">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notas de Mercado</label>
+                            <textarea class="form-control" id="market_notes" rows="3"
+                                    placeholder="Añade información relevante sobre el mercado"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Guardar Feedback
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('feedbackForm');
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            skill_validation: {
+                skill_accuracy: document.querySelector('input[name="skill_accuracy"]:checked').value,
+                missing_skills: Array.from(document.getElementById('missing_skills').selectedOptions).map(opt => opt.value),
+                extra_skills: Array.from(document.getElementById('extra_skills').selectedOptions).map(opt => opt.value)
+            },
+            candidate_assessment: {
+                was_hired: document.getElementById('was_hired').checked,
+                technical_fit: document.querySelector('input[name="technical_fit"]:checked')?.value,
+                cultural_fit: document.querySelector('input[name="cultural_fit"]:checked')?.value,
+                strengths: document.getElementById('strengths').value,
+                areas_for_improvement: document.getElementById('areas_for_improvement').value
+            },
+            potential_analysis: {
+                potential_roles: Array.from(document.getElementById('potential_roles').selectedOptions).map(opt => opt.value),
+                growth_potential: document.querySelector('input[name="growth_potential"]:checked')?.value,
+                development_path: document.getElementById('development_path').value
+            },
+            market_context: {
+                market_demand: document.querySelector('input[name="market_demand"]:checked')?.value,
+                salary_range: document.getElementById('salary_range').value,
+                market_notes: document.getElementById('market_notes').value
+            }
+        };
+        
+        try {
+            const response = await fetch('/api/feedback/submit/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                showAlert('success', 'Feedback guardado exitosamente');
+                form.reset();
+            } else {
+                showAlert('error', 'Error al guardar el feedback: ' + result.error);
+            }
+        } catch (error) {
+            showAlert('error', 'Error al enviar el formulario: ' + error.message);
+        }
+    });
+});
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.row'));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<style>
+.rating {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.rating input {
+    display: none;
+}
+
+.rating label {
+    cursor: pointer;
+    font-size: 2em;
+    color: #ddd;
+    padding: 0 0.1em;
+}
+
+.rating input:checked ~ label,
+.rating label:hover,
+.rating label:hover ~ label {
+    color: #ffd700;
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+.form-label {
+    font-weight: 500;
+}
+
+.btn-group .btn {
+    flex: 1;
+}
+
+.alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    min-width: 300px;
+}
+</style>
+{% endblock %}
+{% endblock %} 

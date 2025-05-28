@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Onboarding{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">Dashboard de Onboarding</h1>
+        </div>
+    </div>
+
+    <!-- Procesos Activos -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Procesos de Onboarding Activos</h5>
+                </div>
+                <div class="card-body">
+                    {% if active_onboarding %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Candidato</th>
+                                    <th>Fecha de Inicio</th>
+                                    <th>Estado</th>
+                                    <th>Check-ins</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for onboarding in active_onboarding %}
+                                <tr>
+                                    <td>{{ onboarding.person.nombre }}</td>
+                                    <td>{{ onboarding.start_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if onboarding.status == 'in_progress' %}bg-primary{% else %}bg-warning{% endif %}">
+                                            {{ onboarding.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ onboarding.check_ins|length }}</td>
+                                    <td>
+                                        <a href="{% url 'onboarding_detail' onboarding.id %}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> Ver Detalles
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        No hay procesos de onboarding activos en este momento.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Procesos Completados -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Procesos de Onboarding Completados</h5>
+                </div>
+                <div class="card-body">
+                    {% if completed_onboarding %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Candidato</th>
+                                    <th>Fecha de Inicio</th>
+                                    <th>Fecha de Completado</th>
+                                    <th>Check-ins</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for onboarding in completed_onboarding %}
+                                <tr>
+                                    <td>{{ onboarding.person.nombre }}</td>
+                                    <td>{{ onboarding.start_date|date:"d/m/Y" }}</td>
+                                    <td>{{ onboarding.completion_date|date:"d/m/Y" }}</td>
+                                    <td>{{ onboarding.check_ins|length }}</td>
+                                    <td>
+                                        <a href="{% url 'onboarding_detail' onboarding.id %}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> Ver Detalles
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        No hay procesos de onboarding completados.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Inicializar tooltips
+        $('[data-toggle="tooltip"]').tooltip();
+        
+        // Inicializar datatables
+        $('.table').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
+            }
+        });
+    });
+</script>
+{% endblock %} 

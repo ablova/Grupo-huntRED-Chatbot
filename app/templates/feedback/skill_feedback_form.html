@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body">
+                    <!-- Barra de progreso -->
+                    <div class="progress mb-4" style="height: 10px;">
+                        <div class="progress-bar" role="progressbar" style="width: 0%" id="feedbackProgress"></div>
+                    </div>
+
+                    <form method="post" id="feedbackForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="token" value="{{ token }}">
+
+                        <!-- Paso 1: Validación de Skills -->
+                        <div class="feedback-step" id="step1">
+                            <h3 class="mb-4">
+                                <i class="fas fa-check-circle text-primary"></i>
+                                Validación de Skills
+                            </h3>
+                            
+                            <div class="form-group mb-4">
+                                <label class="form-label">¿Qué tan precisa fue la detección de skills?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="skill_accuracy" id="accuracy1" value="CORRECT">
+                                    <label class="btn btn-outline-primary" for="accuracy1">
+                                        <i class="fas fa-check"></i> Totalmente Correcta
+                                    </label>
+                                    <input type="radio" class="btn-check" name="skill_accuracy" id="accuracy2" value="PARTIAL">
+                                    <label class="btn btn-outline-primary" for="accuracy2">
+                                        <i class="fas fa-adjust"></i> Parcialmente Correcta
+                                    </label>
+                                    <input type="radio" class="btn-check" name="skill_accuracy" id="accuracy3" value="INCORRECT">
+                                    <label class="btn btn-outline-primary" for="accuracy3">
+                                        <i class="fas fa-times"></i> Incorrecta
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Skills no detectados</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="missing_skills" 
+                                           placeholder="Escribe un skill y presiona Enter">
+                                    <button class="btn btn-outline-secondary" type="button" id="addMissingSkill">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="missingSkillsList" class="mt-2"></div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Skills detectados incorrectamente</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="extra_skills" 
+                                           placeholder="Escribe un skill y presiona Enter">
+                                    <button class="btn btn-outline-secondary" type="button" id="addExtraSkill">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="extraSkillsList" class="mt-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Paso 2: Evaluación del Candidato -->
+                        <div class="feedback-step" id="step2" style="display: none;">
+                            <h3 class="mb-4">
+                                <i class="fas fa-user-check text-success"></i>
+                                Evaluación del Candidato
+                            </h3>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">¿Fue contratado?</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="was_hired" id="wasHired">
+                                    <label class="form-check-label" for="wasHired">Sí, fue contratado</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Ajuste Técnico</label>
+                                <div class="rating-slider">
+                                    <input type="range" class="form-range" name="technical_fit" 
+                                           min="1" max="5" step="1" id="technicalFit">
+                                    <div class="rating-labels">
+                                        <span>1</span>
+                                        <span>2</span>
+                                        <span>3</span>
+                                        <span>4</span>
+                                        <span>5</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Ajuste Cultural</label>
+                                <div class="rating-slider">
+                                    <input type="range" class="form-range" name="cultural_fit" 
+                                           min="1" max="5" step="1" id="culturalFit">
+                                    <div class="rating-labels">
+                                        <span>1</span>
+                                        <span>2</span>
+                                        <span>3</span>
+                                        <span>4</span>
+                                        <span>5</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Fortalezas</label>
+                                <textarea class="form-control" name="strengths" rows="3" 
+                                          placeholder="¿Cuáles fueron las principales fortalezas del candidato?"></textarea>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Áreas de Mejora</label>
+                                <textarea class="form-control" name="areas_for_improvement" rows="3" 
+                                          placeholder="¿Qué aspectos podrían mejorarse?"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Paso 3: Análisis de Potencial -->
+                        <div class="feedback-step" id="step3" style="display: none;">
+                            <h3 class="mb-4">
+                                <i class="fas fa-chart-line text-warning"></i>
+                                Análisis de Potencial
+                            </h3>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Roles Potenciales</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="potential_roles" 
+                                           placeholder="Escribe un rol y presiona Enter">
+                                    <button class="btn btn-outline-secondary" type="button" id="addPotentialRole">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="potentialRolesList" class="mt-2"></div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Potencial de Crecimiento</label>
+                                <div class="rating-slider">
+                                    <input type="range" class="form-range" name="growth_potential" 
+                                           min="1" max="5" step="1" id="growthPotential">
+                                    <div class="rating-labels">
+                                        <span>1</span>
+                                        <span>2</span>
+                                        <span>3</span>
+                                        <span>4</span>
+                                        <span>5</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Nuevo: Análisis de Desarrollo -->
+                            <div class="form-group mb-4">
+                                <label class="form-label">Tiempo Estimado de Desarrollo</label>
+                                <select class="form-select" name="development_time">
+                                    <option value="">Selecciona un tiempo estimado</option>
+                                    <option value="1-3">1-3 meses</option>
+                                    <option value="3-6">3-6 meses</option>
+                                    <option value="6-12">6-12 meses</option>
+                                    <option value="12+">Más de 12 meses</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Skills Críticos para Desarrollo</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="critical_skills" 
+                                           placeholder="Escribe un skill crítico y presiona Enter">
+                                    <button class="btn btn-outline-secondary" type="button" id="addCriticalSkill">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="criticalSkillsList" class="mt-2"></div>
+                                <small class="form-text text-muted">
+                                    Skills que, si se desarrollan, marcarían una diferencia significativa
+                                </small>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Plan de Desarrollo Sugerido</label>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Formación Recomendada</label>
+                                            <textarea class="form-control" name="training_recommendations" rows="2" 
+                                                      placeholder="Cursos, certificaciones o programas de formación recomendados"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Experiencia Práctica</label>
+                                            <textarea class="form-control" name="practical_experience" rows="2" 
+                                                      placeholder="Tipos de proyectos o experiencias que ayudarían al desarrollo"></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="form-label">Mentoría</label>
+                                            <textarea class="form-control" name="mentorship" rows="2" 
+                                                      placeholder="Tipo de mentoría o guía recomendada"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Comparativa con Perfil Ideal</label>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Gaps Principales</label>
+                                            <textarea class="form-control" name="main_gaps" rows="2" 
+                                                      placeholder="Principales diferencias con el perfil ideal"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Ventajas Comparativas</label>
+                                            <textarea class="form-control" name="comparative_advantages" rows="2" 
+                                                      placeholder="Aspectos donde el candidato supera al perfil ideal"></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="form-label">Riesgos de Desarrollo</label>
+                                            <textarea class="form-control" name="development_risks" rows="2" 
+                                                      placeholder="Posibles obstáculos o riesgos en el desarrollo"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Ruta de Desarrollo</label>
+                                <textarea class="form-control" name="development_path" rows="3" 
+                                          placeholder="¿Qué recomendaciones de desarrollo sugieres?"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Paso 4: Contexto de Mercado -->
+                        <div class="feedback-step" id="step4" style="display: none;">
+                            <h3 class="mb-4">
+                                <i class="fas fa-globe text-info"></i>
+                                Contexto de Mercado
+                            </h3>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Demanda en el Mercado</label>
+                                <div class="rating-slider">
+                                    <input type="range" class="form-range" name="market_demand" 
+                                           min="1" max="5" step="1" id="marketDemand">
+                                    <div class="rating-labels">
+                                        <span>1</span>
+                                        <span>2</span>
+                                        <span>3</span>
+                                        <span>4</span>
+                                        <span>5</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Rango Salarial</label>
+                                <input type="text" class="form-control" name="salary_range" 
+                                       placeholder="Ej: $50,000 - $70,000">
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Notas de Mercado</label>
+                                <textarea class="form-control" name="market_notes" rows="3" 
+                                          placeholder="¿Hay alguna observación relevante sobre el mercado?"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Botones de navegación -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-secondary" id="prevStep" style="display: none;">
+                                <i class="fas fa-arrow-left"></i> Anterior
+                            </button>
+                            <button type="button" class="btn btn-primary" id="nextStep">
+                                Siguiente <i class="fas fa-arrow-right"></i>
+                            </button>
+                            <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
+                                <i class="fas fa-check"></i> Enviar Feedback
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.feedback-step {
+    padding: 20px;
+    border-radius: 10px;
+    background-color: #f8f9fa;
+    margin-bottom: 20px;
+}
+
+.rating-slider {
+    position: relative;
+    padding: 0 10px;
+}
+
+.rating-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+}
+
+.rating-labels span {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.btn-group .btn {
+    flex: 1;
+}
+
+#missingSkillsList, #extraSkillsList, #potentialRolesList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.skill-tag {
+    background-color: #e9ecef;
+    padding: 5px 10px;
+    border-radius: 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.skill-tag .remove-skill {
+    cursor: pointer;
+    color: #dc3545;
+}
+
+.progress {
+    border-radius: 10px;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    background-color: #0d6efd;
+    transition: width 0.3s ease;
+}
+
+.card {
+    border: 1px solid rgba(0,0,0,.125);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+.form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentStep = 1;
+    const totalSteps = 4;
+    const progressBar = document.getElementById('feedbackProgress');
+    const prevBtn = document.getElementById('prevStep');
+    const nextBtn = document.getElementById('nextStep');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Función para actualizar la barra de progreso
+    function updateProgress() {
+        const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+        progressBar.style.width = `${progress}%`;
+    }
+
+    // Función para mostrar/ocultar botones según el paso
+    function updateButtons() {
+        prevBtn.style.display = currentStep > 1 ? 'block' : 'none';
+        nextBtn.style.display = currentStep < totalSteps ? 'block' : 'none';
+        submitBtn.style.display = currentStep === totalSteps ? 'block' : 'none';
+    }
+
+    // Función para cambiar de paso
+    function changeStep(step) {
+        document.querySelectorAll('.feedback-step').forEach(el => el.style.display = 'none');
+        document.getElementById(`step${step}`).style.display = 'block';
+        currentStep = step;
+        updateProgress();
+        updateButtons();
+    }
+
+    // Event listeners para los botones
+    nextBtn.addEventListener('click', () => {
+        if (currentStep < totalSteps && validateStep(currentStep)) {
+            changeStep(currentStep + 1);
+        }
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (currentStep > 1) {
+            changeStep(currentStep - 1);
+        }
+    });
+
+    // Funcionalidad para agregar skills
+    function addSkill(input, listId, name) {
+        const value = input.value.trim();
+        if (value) {
+            const list = document.getElementById(listId);
+            const tag = document.createElement('div');
+            tag.className = 'skill-tag';
+            tag.innerHTML = `
+                ${value}
+                <span class="remove-skill" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </span>
+                <input type="hidden" name="${name}[]" value="${value}">
+            `;
+            list.appendChild(tag);
+            input.value = '';
+        }
+    }
+
+    // Event listeners para agregar skills
+    document.getElementById('addMissingSkill').addEventListener('click', () => {
+        const input = document.querySelector('input[name="missing_skills"]');
+        addSkill(input, 'missingSkillsList', 'missing_skills');
+    });
+
+    document.getElementById('addExtraSkill').addEventListener('click', () => {
+        const input = document.querySelector('input[name="extra_skills"]');
+        addSkill(input, 'extraSkillsList', 'extra_skills');
+    });
+
+    document.getElementById('addPotentialRole').addEventListener('click', () => {
+        const input = document.querySelector('input[name="potential_roles"]');
+        addSkill(input, 'potentialRolesList', 'potential_roles');
+    });
+
+    // Añadir event listener para critical skills
+    document.getElementById('addCriticalSkill').addEventListener('click', () => {
+        const input = document.querySelector('input[name="critical_skills"]');
+        addSkill(input, 'criticalSkillsList', 'critical_skills');
+    });
+
+    // Función para cargar personalización según el rol
+    function loadRoleCustomization(role) {
+        // Aquí se cargarían preguntas y métricas específicas según el rol
+        // Por ejemplo:
+        const roleMetrics = {
+            'developer': {
+                'technical_metrics': ['Code Quality', 'Problem Solving', 'System Design'],
+                'soft_skills': ['Team Collaboration', 'Communication', 'Time Management']
+            },
+            'manager': {
+                'technical_metrics': ['Strategic Planning', 'Resource Management', 'Decision Making'],
+                'soft_skills': ['Leadership', 'Conflict Resolution', 'Stakeholder Management']
+            }
+            // Añadir más roles según sea necesario
+        };
+
+        // Actualizar el formulario con las métricas específicas del rol
+        if (roleMetrics[role]) {
+            // Implementar la lógica de actualización
+        }
+    }
+
+    // Función para validar el formulario antes de avanzar
+    function validateStep(step) {
+        const currentStepElement = document.getElementById(`step${step}`);
+        const requiredFields = currentStepElement.querySelectorAll('[required]');
+        let isValid = true;
+
+        requiredFields.forEach(field => {
+            if (!field.value) {
+                isValid = false;
+                field.classList.add('is-invalid');
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+
+        return isValid;
+    }
+
+    // Inicialización
+    updateProgress();
+    updateButtons();
+});
+</script>
+{% endblock %} 

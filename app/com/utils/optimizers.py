@@ -1,3 +1,4 @@
+# /home/pablo/app/com/utils/optimizers.py
 """
 Optimizadores para el sistema Grupo huntRED®.
 Este módulo registra optimizaciones para NLP, GPT y componentes relacionados
@@ -161,38 +162,54 @@ def initialize_optimizers() -> Dict[str, bool]:
 def optimize_cpu_usage():
     """Configura el entorno para optimizar uso de CPU"""
     try:
-        # Tensorflow (si está disponible)
+        # TensorFlow (si está disponible)
         try:
             import tensorflow as tf
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suprimir logs
-            os.environ["CUDA_VISIBLE_DEVICES"] = ""   # Deshabilitar GPU
-            tf.config.set_soft_device_placement(True)
-            tf.config.threading.set_inter_op_parallelism_threads(1)
-            tf.config.threading.set_intra_op_parallelism_threads(1)
-            logger.info("TensorFlow optimizado para CPU")
-        except ImportError:
-            pass
+            # Configuración de logs
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # 0=INFO, 1=WARNING, 2=ERROR, 3=FATAL
+            os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # Deshabilitar optimizaciones oneDNN
             
-        # Torch (si está disponible)
-        try:
-            import torch
-            torch.set_num_threads(1)
-            if hasattr(torch, 'set_num_interop_threads'):
-                torch.set_num_interop_threads(1)
-            logger.info("PyTorch optimizado para CPU")
-        except ImportError:
-            pass
+            # Configuración de GPU/CPU
+            gpus = tf.config.list_physical_devices('GPU')
+            if gpus:
+                try:
+                    # Restringir el crecimiento de memoria de la GPU
+                    for gpu in gpus:
+                        tf.config.experimental.set_memory_growth(gpu, True)
+                    logger.info(f"TensorFlow usando GPU: {gpus}")
+                except RuntimeError as e:
+                    logger.warning(f"Error configurando GPU: {e}")
+            else:
+                # Configuración para CPU
+                os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Deshabilitar GPU
+                tf.config.threading.set_inter_op_parallelism_threads(1)
+                tf.config.threading.set_intra_op_parallelism_threads(1)
+                logger.info("TensorFlow optimizado para CPU")
+                
+            # Configuración de rendimiento
+            tf.config.optimizer.set_jit(True)  # Habilitar XLA JIT
+            tf.config.optimizer.set_experimental_options({
+                'layout_optimizer': True,
+                'constant_folding': True,
+                'shape_optimization': True,
+                'remapping': True,
+            })
+            
+        except ImportError as e:
+            logger.warning(f"TensorFlow no está disponible: {e}")
             
         # NumPy (si está disponible)
         try:
             import numpy as np
             try:
-                np.set_num_threads(1)
-                logger.info("NumPy optimizado para CPU")
-            except AttributeError:
-                pass
-        except ImportError:
-            pass
+                # Usar MKL optimizado si está disponible
+                np_cores = os.cpu_count()
+                np.set_num_threads(min(4, np_cores) if np_cores else 1)
+                logger.info(f"NumPy optimizado para CPU (hilos: {np.get_num_threads()})")
+            except (AttributeError, RuntimeError) as e:
+                logger.warning(f"No se pudo optimizar NumPy: {e}")
+        except ImportError as e:
+            logger.warning(f"NumPy no está disponible: {e}")
             
         return True
     except Exception as e:

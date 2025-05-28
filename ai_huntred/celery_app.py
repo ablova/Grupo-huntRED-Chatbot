@@ -17,12 +17,17 @@ from django.apps import apps
 
 logger = logging.getLogger("app.tasks")
 
+# Configuración del módulo de Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings.development')
+
+# Inicialización de Django solo si no estamos en comandos de gestión
 if not any(arg in sys.argv for arg in ['migrate', 'makemigrations', 'collectstatic']):
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
     django.setup()
 
+# Configuración de Celery
 app = Celery('ai_huntred')
 
+# Configuración básica de Celery
 app.conf.update(
     broker_url='redis://127.0.0.1:6379/0',
     result_backend='redis://127.0.0.1:6379/0',
@@ -37,10 +42,7 @@ app.conf.update(
     task_track_started=True,
 )
 
-@app.task(bind=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}')
-
+# Configuración de colas
 task_queues = {
     'default': {'exchange': 'default', 'routing_key': 'default'},
     'ml': {'exchange': 'ml', 'routing_key': 'ml.#'},
@@ -48,6 +50,7 @@ task_queues = {
     'notifications': {'exchange': 'notifications', 'routing_key': 'notifications.#'},
 }
 
+# Configuración de rutas
 task_routes = {
     'app.tasks.execute_ml_and_scraping': {'queue': 'ml'},
     'app.tasks.ejecutar_scraping': {'queue': 'scraping'},
@@ -60,6 +63,7 @@ task_routes = {
 app.conf.task_queues = task_queues
 app.conf.task_routes = task_routes
 
+# Configuración de tareas periódicas
 SCHEDULE_DICT = {
     'Ejecutar ML y Scraping (mañana)': {
         'task': 'app.tasks.execute_ml_and_scraping',
@@ -106,11 +110,11 @@ SCHEDULE_DICT = {
         'schedule': crontab(minute=30, hour='*/2'),
     },
     'Scraping de emails (mañana)': {
-        'task': 'tasks.execute_email_scraper',
+        'task': 'app.tasks.execute_email_scraper',
         'schedule': crontab(hour=8, minute=45),
     },
     'Scraping de emails (noche)': {
-        'task': 'tasks.execute_email_scraper',
+        'task': 'app.tasks.execute_email_scraper',
         'schedule': crontab(hour=22, minute=45),
     },
     'Invitaciones para completar perfil': {
@@ -129,6 +133,7 @@ SCHEDULE_DICT = {
 
 @worker_ready.connect
 def setup_periodic_tasks(sender, **kwargs):
+    """Configura las tareas periódicas cuando el worker está listo."""
     if any(arg in sys.argv for arg in ['makemigrations', 'migrate', 'collectstatic', 'shell']):
         logger.info("Skipping periodic task setup for admin commands.")
         return
@@ -188,5 +193,5 @@ def setup_periodic_tasks(sender, **kwargs):
             logger.error(f"❌ Error registering periodic tasks: {str(e)}")
             break
 
-app.on_after_configure.connect(setup_periodic_tasks)
+# Configuración de tareas
 app.autodiscover_tasks()

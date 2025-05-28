@@ -212,6 +212,72 @@ def completion_feedback(request, token):
         'calendar_url': getattr(settings, "MANAGING_DIRECTOR_CALENDAR_URL", "https://huntred.com/agenda-pllh/")
     })
 
+@login_required
+def skill_feedback(request, token):
+    """
+    Vista para mostrar y procesar el formulario de feedback de skills.
+    
+    Esta vista se accede desde un link enviado por email al completar el análisis
+    de skills de un candidato, con un token único que identifica la oportunidad.
+    """
+    # Inicializar el tracker
+    tracker = get_feedback_tracker('skills')
+    token_key = f"{tracker.redis_prefix}token:{token}"
+    opportunity_id = tracker.redis.get(token_key)
+    
+    if not opportunity_id:
+        # Token inválido o expirado
+        return render(request, 'feedback/feedback_error.html', {
+            'error': 'El enlace ha expirado o no es válido. Por favor solicite un nuevo enlace.'
+        })
+    
+    # Si es POST, procesar el formulario
+    if request.method == 'POST':
+        # Recopilar datos del formulario
+        feedback_data = {
+            'skill_validation': {
+                'skill_accuracy': request.POST.get('skill_accuracy'),
+                'missing_skills': request.POST.getlist('missing_skills'),
+                'extra_skills': request.POST.getlist('extra_skills')
+            },
+            'candidate_assessment': {
+                'was_hired': request.POST.get('was_hired') == 'on',
+                'technical_fit': int(request.POST.get('technical_fit', 0)) or None,
+                'cultural_fit': int(request.POST.get('cultural_fit', 0)) or None,
+                'strengths': request.POST.get('strengths'),
+                'areas_for_improvement': request.POST.get('areas_for_improvement')
+            },
+            'potential_analysis': {
+                'potential_roles': request.POST.getlist('potential_roles'),
+                'growth_potential': int(request.POST.get('growth_potential', 0)) or None,
+                'development_path': request.POST.get('development_path')
+            },
+            'market_context': {
+                'market_demand': int(request.POST.get('market_demand', 0)) or None,
+                'salary_range': request.POST.get('salary_range'),
+                'market_notes': request.POST.get('market_notes')
+            }
+        }
+        
+        # Procesar feedback de forma asíncrona
+        feedback = run_async(tracker.process_feedback(token, feedback_data))
+        
+        # Redirigir a página de agradecimiento
+        return render(request, 'feedback/skill_feedback_thanks.html', {
+            'feedback': feedback
+        })
+    
+    # GET: mostrar formulario
+    # Obtener datos de la oportunidad si es posible
+    company_name = "su empresa"
+    service_name = "análisis de skills"
+    
+    return render(request, 'feedback/skill_feedback_form.html', {
+        'company_name': company_name,
+        'service_name': service_name,
+        'token': token
+    })
+
 # VISTAS PARA EL PANEL DE ADMINISTRACIÓN
 
 @login_required

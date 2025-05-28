@@ -32,7 +32,7 @@ def health_check(request):
         'status': 'ok',
         'timestamp': datetime.now().isoformat(),
         'version': '1.0.0',
-        'environment': 'development'
+        'environment': settings.ENVIRONMENT
     })
 
 @csrf_exempt
@@ -66,6 +66,10 @@ urlpatterns = [
     path('', RedirectView.as_view(url='/admin/', permanent=True)),
     # Salud
     path('health/', health_check),
+    # Métricas
+    path('metrics/', metrics),
+    # Debug
+    path('debug/error/', trigger_error),
     # Rutas de la aplicación principal
     path('', include('app.urls')),
 ]

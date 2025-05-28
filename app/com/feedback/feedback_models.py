@@ -386,3 +386,239 @@ class ServiceImprovementSuggestion(models.Model):
     
     def __str__(self):
         return f"{self.title} ({self.get_suggestion_type_display()})"
+
+
+class SkillFeedback(models.Model):
+    """
+    Retroalimentación específica sobre la detección de skills.
+    
+    Captura la evaluación de la precisión del sistema de detección de skills
+    y proporciona información para mejorar el modelo ML.
+    """
+    
+    # Relaciones
+    base_feedback = models.OneToOneField(
+        ServiceFeedback,
+        on_delete=models.CASCADE,
+        related_name='skill_feedback',
+        primary_key=True
+    )
+    
+    # Validación de Skills
+    skill_accuracy = models.CharField(
+        max_length=20,
+        choices=[
+            ('CORRECT', 'Totalmente Correcto'),
+            ('PARTIAL', 'Parcialmente Correcto'),
+            ('INCORRECT', 'Incorrecto')
+        ],
+        verbose_name="Precisión de la detección"
+    )
+    missing_skills = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Skills no detectados"
+    )
+    extra_skills = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Skills detectados incorrectamente"
+    )
+    
+    # Evaluación del Candidato
+    was_hired = models.BooleanField(
+        default=False,
+        verbose_name="¿Fue contratado?"
+    )
+    technical_fit = models.IntegerField(
+        null=True, blank=True,
+        verbose_name="Ajuste Técnico (1-5)"
+    )
+    cultural_fit = models.IntegerField(
+        null=True, blank=True,
+        verbose_name="Ajuste Cultural (1-5)"
+    )
+    strengths = models.TextField(
+        null=True, blank=True,
+        verbose_name="Fortalezas"
+    )
+    areas_for_improvement = models.TextField(
+        null=True, blank=True,
+        verbose_name="Áreas de Mejora"
+    )
+    
+    # Análisis de Potencial
+    potential_roles = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Roles Potenciales"
+    )
+    growth_potential = models.IntegerField(
+        null=True, blank=True,
+        verbose_name="Potencial de Crecimiento (1-5)"
+    )
+    development_path = models.TextField(
+        null=True, blank=True,
+        verbose_name="Ruta de Desarrollo"
+    )
+    
+    # Nuevo: Análisis de Desarrollo Detallado
+    development_time = models.CharField(
+        max_length=20,
+        choices=[
+            ('1-3', '1-3 meses'),
+            ('3-6', '3-6 meses'),
+            ('6-12', '6-12 meses'),
+            ('12+', 'Más de 12 meses')
+        ],
+        null=True, blank=True,
+        verbose_name="Tiempo Estimado de Desarrollo"
+    )
+    critical_skills = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Skills Críticos para Desarrollo"
+    )
+    training_recommendations = models.TextField(
+        null=True, blank=True,
+        verbose_name="Formación Recomendada"
+    )
+    practical_experience = models.TextField(
+        null=True, blank=True,
+        verbose_name="Experiencia Práctica Recomendada"
+    )
+    mentorship_needs = models.TextField(
+        null=True, blank=True,
+        verbose_name="Necesidades de Mentoría"
+    )
+    
+    # Nuevo: Comparativa con Perfil Ideal
+    main_gaps = models.TextField(
+        null=True, blank=True,
+        verbose_name="Gaps Principales"
+    )
+    comparative_advantages = models.TextField(
+        null=True, blank=True,
+        verbose_name="Ventajas Comparativas"
+    )
+    development_risks = models.TextField(
+        null=True, blank=True,
+        verbose_name="Riesgos de Desarrollo"
+    )
+    
+    # Nuevo: Seguimiento y Alertas
+    development_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('NOT_STARTED', 'No Iniciado'),
+            ('IN_PROGRESS', 'En Progreso'),
+            ('COMPLETED', 'Completado'),
+            ('ON_HOLD', 'En Pausa')
+        ],
+        default='NOT_STARTED',
+        verbose_name="Estado del Desarrollo"
+    )
+    last_review_date = models.DateField(
+        null=True, blank=True,
+        verbose_name="Última Revisión"
+    )
+    next_review_date = models.DateField(
+        null=True, blank=True,
+        verbose_name="Próxima Revisión"
+    )
+    critical_skills_alert = models.BooleanField(
+        default=False,
+        verbose_name="Alerta de Skills Críticos"
+    )
+    
+    # Nuevo: Benchmarks y Métricas
+    market_benchmark = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Benchmarks del Mercado"
+    )
+    role_specific_metrics = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Métricas Específicas del Rol"
+    )
+    performance_indicators = models.JSONField(
+        null=True, blank=True,
+        verbose_name="Indicadores de Rendimiento"
+    )
+    
+    # Contexto de Mercado
+    market_demand = models.IntegerField(
+        null=True, blank=True,
+        verbose_name="Demanda en el Mercado (1-5)"
+    )
+    salary_range = models.CharField(
+        max_length=100,
+        null=True, blank=True,
+        verbose_name="Rango Salarial"
+    )
+    market_notes = models.TextField(
+        null=True, blank=True,
+        verbose_name="Notas de Mercado"
+    )
+    
+    # Metadatos
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Feedback de Skills"
+        verbose_name_plural = "Feedback de Skills"
+        indexes = [
+            models.Index(fields=['development_status']),
+            models.Index(fields=['critical_skills_alert']),
+            models.Index(fields=['next_review_date']),
+        ]
+    
+    def __str__(self):
+        return f"Feedback de Skills: {self.base_feedback}"
+    
+    def update_development_status(self):
+        """Actualiza el estado del desarrollo basado en los skills críticos y el tiempo."""
+        if not self.critical_skills:
+            return
+        
+        # Lógica para actualizar el estado
+        if self.development_status == 'NOT_STARTED':
+            self.development_status = 'IN_PROGRESS'
+        elif self.development_status == 'IN_PROGRESS':
+            # Verificar si se han completado los skills críticos
+            # Implementar lógica específica aquí
+            pass
+    
+    def check_critical_skills_alert(self):
+        """Verifica si hay skills críticos que requieren atención inmediata."""
+        if not self.critical_skills:
+            return False
+        
+        # Implementar lógica de alerta basada en:
+        # - Tiempo desde la última revisión
+        # - Progreso en skills críticos
+        # - Cambios en el mercado
+        return self.critical_skills_alert
+    
+    def get_market_benchmarks(self):
+        """Obtiene benchmarks actualizados del mercado."""
+        # Implementar lógica para obtener benchmarks
+        # Podría incluir:
+        # - Salarios promedio
+        # - Demandas de skills
+        # - Tendencias del mercado
+        return self.market_benchmark
+    
+    def generate_development_report(self):
+        """Genera un reporte detallado del desarrollo."""
+        return {
+            'status': self.development_status,
+            'critical_skills': self.critical_skills,
+            'progress': {
+                'training': self.training_recommendations,
+                'experience': self.practical_experience,
+                'mentorship': self.mentorship_needs
+            },
+            'next_steps': self.development_path,
+            'alerts': self.check_critical_skills_alert(),
+            'market_context': {
+                'demand': self.market_demand,
+                'benchmarks': self.get_market_benchmarks()
+            }
+        }

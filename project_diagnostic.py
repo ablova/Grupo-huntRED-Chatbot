@@ -32,8 +32,6 @@ import json
 from datetime import datetime
 import grp
 import pwd
-import systemd.journal
-import systemd.daemon
 
 # Configuración de logging
 logging.basicConfig(
@@ -45,6 +43,15 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Intentar importar systemd, si no está disponible, usar alternativas
+try:
+    import systemd.journal
+    import systemd.daemon
+    SYSTEMD_AVAILABLE = True
+except ImportError:
+    logger.warning("systemd no está disponible. Usando alternativas.")
+    SYSTEMD_AVAILABLE = False
 
 class ProjectManager:
     def __init__(self):
@@ -63,6 +70,9 @@ class ProjectManager:
         
         # Configuración según entorno
         self.configure_environment()
+        
+        # Verificar dependencias
+        self.check_dependencies()
         
         # Configuración de servicios
         self.required_services = {
@@ -124,6 +134,41 @@ class ProjectManager:
                 'group': 'ai_huntred'
             }
         }
+        
+    def check_dependencies(self):
+        """Verifica y maneja las dependencias necesarias."""
+        required_packages = {
+            'psutil': 'psutil',
+            'yaml': 'PyYAML',
+            'django': 'Django',
+            'black': 'black',
+            'isort': 'isort',
+            'flake8': 'flake8',
+            'mypy': 'mypy',
+            'bandit': 'bandit',
+            'safety': 'safety'
+        }
+        
+        missing_packages = []
+        for module, package in required_packages.items():
+            try:
+                importlib.import_module(module)
+            except ImportError:
+                missing_packages.append(package)
+        
+        if missing_packages:
+            logger.warning(f"Faltan las siguientes dependencias: {', '.join(missing_packages)}")
+            try:
+                subprocess.run([sys.executable, '-m', 'pip', 'install'] + missing_packages, check=True)
+                logger.info("Dependencias instaladas correctamente")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Error al instalar dependencias: {str(e)}")
+                self.issues.append(f"Error al instalar dependencias: {str(e)}")
+        
+        # Verificar systemd
+        if not SYSTEMD_AVAILABLE:
+            logger.warning("systemd no está disponible. Algunas funcionalidades estarán limitadas.")
+            self.issues.append("systemd no está disponible. Algunas funcionalidades estarán limitadas.")
         
     def detect_environment(self) -> str:
         """Detecta si estamos en producción o desarrollo."""
@@ -571,8 +616,8 @@ class ProjectManager:
                     sock.close()
                     continue
                 
-                # En producción, verificar servicios systemd
-                if service_info['service']:
+                # En producción, verificar servicios systemd si está disponible
+                if SYSTEMD_AVAILABLE and service_info['service']:
                     result = subprocess.run(['systemctl', 'is-active', service_info['service']], 
                                          capture_output=True, text=True)
                     if result.stdout.strip() != 'active':
@@ -582,6 +627,13 @@ class ProjectManager:
                             self.repairs.append(f"Servicio {service_name} iniciado")
                         except subprocess.CalledProcessError as e:
                             self.issues.append(f"Error al iniciar servicio {service_name}: {str(e)}")
+                else:
+                    # Verificar proceso alternativo
+                    for proc in psutil.process_iter(['name']):
+                        if service_name.lower() in proc.info['name'].lower():
+                            break
+                    else:
+                        self.issues.append(f"Proceso {service_name} no está en ejecución")
                 
                 # Verificar puerto
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -998,63 +1050,167 @@ stopwaitsecs=600"""
         except Exception as e:
             self.issues.append(f"Error en la preparación del despliegue: {str(e)}")
 
+    def verify_django_settings(self):
+        """Verifica la configuración de Django antes de las migraciones."""
+        logger.info("Verificando configuración de Django...")
+        
+        try:
+            # 1. Verificar estructura de settings
+            settings_dir = self.project_root / 'config' / 'settings'
+            if not settings_dir.exists():
+                raise Exception("No se encuentra el directorio de settings")
+            
+            # 2. Verificar archivos de settings
+            required_settings = ['__init__.py', 'base.py', 'development.py', 'production.py']
+            for setting_file in required_settings:
+                if not (settings_dir / setting_file).exists():
+                    raise Exception(f"Falta el archivo de configuración: {setting_file}")
+            
+            # 3. Verificar INSTALLED_APPS
+            if 'app' not in settings.INSTALLED_APPS:
+                raise Exception("La app 'app' no está en INSTALLED_APPS")
+            
+            # 4. Verificar configuración de base de datos
+            if not settings.DATABASES:
+                raise Exception("No hay configuración de base de datos")
+            
+            db_config = settings.DATABASES.get('default', {})
+            if not db_config:
+                raise Exception("No hay configuración para la base de datos 'default'")
+            
+            # 5. Verificar AUTH_USER_MODEL (opcional)
+            if hasattr(settings, 'AUTH_USER_MODEL'):
+                if settings.AUTH_USER_MODEL != 'app.CustomUser':
+                    logger.warning(f"AUTH_USER_MODEL está configurado como {settings.AUTH_USER_MODEL}, pero usaremos el modelo estándar de Django")
+            else:
+                logger.warning("AUTH_USER_MODEL no está configurado, usando el modelo estándar de Django")
+            
+            logger.info("Configuración de Django verificada correctamente")
+            
+        except Exception as e:
+            self.issues.append(f"Error en la verificación de configuración Django: {str(e)}")
+            raise
+
+    def verify_custom_user_model(self):
+        """Verifica que el modelo CustomUser existe y está correctamente configurado."""
+        logger.info("Verificando modelo CustomUser...")
+        
+        try:
+            # 1. Verificar que existe el archivo models.py
+            models_file = self.project_root / 'app' / 'models.py'
+            if not models_file.exists():
+                raise Exception("No se encuentra el archivo models.py")
+            
+            # 2. Verificar que el modelo está definido
+            with open(models_file, 'r') as f:
+                content = f.read()
+                if 'class CustomUser' not in content:
+                    raise Exception("El modelo CustomUser no está definido en models.py")
+            
+            # 3. Verificar que la app está en el PYTHONPATH
+            app_path = self.project_root / 'app'
+            if str(app_path) not in sys.path:
+                sys.path.append(str(app_path))
+                logger.info(f"Agregado {app_path} al PYTHONPATH")
+            
+            # 4. Intentar importar el modelo
+            try:
+                from app.models import CustomUser
+                logger.info("Modelo CustomUser encontrado y configurado correctamente")
+            except ImportError as e:
+                raise Exception(f"Error al importar CustomUser: {str(e)}")
+            
+            logger.info("Modelo CustomUser verificado correctamente")
+            
+        except Exception as e:
+            self.issues.append(f"Error en la verificación del modelo CustomUser: {str(e)}")
+            raise
+
     def migrate_database(self):
         """Realiza la migración completa de la base de datos."""
         logger.info("Iniciando migración de base de datos...")
         
         try:
-            # 1. Crear backup antes de la migración
-            self.create_backup()
+            # 1. Verificar configuración de Django primero
+            self.verify_django_settings()
             
-            # 2. Aplicar migraciones
-            call_command('makemigrations')
-            call_command('migrate')
+            # 2. Verificar conexión a la base de datos
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                logger.info("Conexión a la base de datos establecida")
+            except Exception as e:
+                logger.error(f"Error al conectar con la base de datos: {str(e)}")
+                raise
             
-            # 3. Cargar datos iniciales si existen
-            fixtures_dir = self.project_root / 'fixtures'
-            if fixtures_dir.exists():
-                for fixture in fixtures_dir.glob('*.json'):
-                    call_command('loaddata', str(fixture))
-                    self.repairs.append(f"Datos cargados desde: {fixture}")
+            # 3. Eliminar migraciones existentes si es un proyecto nuevo
+            migrations_dir = self.project_root / 'app' / 'migrations'
+            if migrations_dir.exists():
+                logger.info("Eliminando migraciones existentes...")
+                for file in migrations_dir.glob('*.py'):
+                    if file.name != '__init__.py':
+                        file.unlink()
+                self.repairs.append("Migraciones existentes eliminadas")
             
-            # 4. Verificar integridad de la base de datos
+            # 4. Crear migraciones iniciales
+            logger.info("Creando migraciones iniciales...")
+            try:
+                call_command('makemigrations', 'app', name='initial')
+                self.repairs.append("Migración inicial creada")
+            except Exception as e:
+                self.issues.append(f"Error al crear migración inicial: {str(e)}")
+                raise
+            
+            # 5. Aplicar migraciones
+            logger.info("Aplicando migraciones...")
+            try:
+                call_command('migrate', 'auth')  # Primero auth
+                call_command('migrate', 'contenttypes')  # Luego contenttypes
+                call_command('migrate', 'app')  # Finalmente nuestra app
+                self.repairs.append("Migraciones aplicadas correctamente")
+            except Exception as e:
+                self.issues.append(f"Error al aplicar migraciones: {str(e)}")
+                raise
+            
+            # 6. Verificar que las tablas se crearon correctamente
             with connection.cursor() as cursor:
-                # Verificar tablas
                 cursor.execute("""
                     SELECT table_name 
                     FROM information_schema.tables 
                     WHERE table_schema = 'public'
+                    AND table_type = 'BASE TABLE'
                 """)
                 tables = cursor.fetchall()
                 
-                # Verificar índices
-                for table in tables:
-                    cursor.execute(f"""
-                        SELECT indexname, indexdef 
-                        FROM pg_indexes 
-                        WHERE tablename = '{table[0]}'
-                    """)
-                    indexes = cursor.fetchall()
-                    
-                    # Verificar y reparar índices si es necesario
-                    if not indexes:
-                        self.issues.append(f"Tabla {table[0]} no tiene índices")
-                        # Crear índices básicos
-                        cursor.execute(f"""
-                            CREATE INDEX IF NOT EXISTS idx_{table[0]}_id 
-                            ON {table[0]} (id)
-                        """)
-                        self.repairs.append(f"Índice creado para {table[0]}")
+                if not tables:
+                    self.issues.append("No se encontraron tablas en la base de datos")
+                    raise Exception("No se encontraron tablas en la base de datos")
+                
+                logger.info(f"Tablas creadas: {[table[0] for table in tables]}")
             
-            # 5. Optimizar base de datos
+            # 7. Crear superusuario si no existe
+            try:
+                from django.contrib.auth.models import User
+                if not User.objects.filter(is_superuser=True).exists():
+                    User.objects.create_superuser(
+                        username='PabloLLH',
+                        email='pablo@huntred.com',
+                        password='Natalia&Patricio1113!'
+                    )
+                    self.repairs.append("Superusuario creado correctamente")
+            except Exception as e:
+                self.issues.append(f"Error al crear superusuario: {str(e)}")
+            
+            # 8. Optimizar base de datos
             with connection.cursor() as cursor:
                 cursor.execute("VACUUM ANALYZE")
-                cursor.execute("REINDEX DATABASE huntred")
+                cursor.execute("REINDEX DATABASE g_huntred_ai_db")
             
             logger.info("Migración de base de datos completada")
             
         except Exception as e:
             self.issues.append(f"Error en la migración de la base de datos: {str(e)}")
+            raise
 
     def run(self):
         """Ejecuta todas las verificaciones, reparaciones y optimizaciones."""

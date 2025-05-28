@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio de Onboarding</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .steps {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step {
+            margin-bottom: 15px;
+            padding-left: 20px;
+            position: relative;
+        }
+        .step:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #3498db;
+        }
+        .button {
+            display: inline-block;
+            background: #3498db;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            text-align: center;
+            transition: background 0.3s ease;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>¡Bienvenido a tu Proceso de Onboarding!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hola {{ recipient.nombre }},</p>
+            
+            <p>Nos complace darte la bienvenida a tu proceso de onboarding. Este proceso está diseñado para ayudarte a integrarte de manera efectiva en tu nuevo rol.</p>
+            
+            <div class="steps">
+                <h3>Próximos Pasos:</h3>
+                {% for step in next_steps %}
+                <div class="step">{{ step }}</div>
+                {% endfor %}
+            </div>
+            
+            <p>Hemos programado check-ins regulares para asegurarnos de que todo vaya bien:</p>
+            <ul>
+                <li>Primer check-in: 1 semana después del inicio</li>
+                <li>Segundo check-in: 1 mes después del inicio</li>
+                <li>Tercer check-in: 3 meses después del inicio</li>
+            </ul>
+            
+            <p>Si tienes alguna pregunta o necesitas ayuda en cualquier momento, no dudes en contactarnos.</p>
+            
+            <a href="{{ onboarding_url }}" class="button">Acceder al Portal de Onboarding</a>
+        </div>
+        
+        <div class="footer">
+            <p>Este es un mensaje automático. Por favor, no respondas a este correo.</p>
+        </div>
+    </div>
+</body>
+</html> 

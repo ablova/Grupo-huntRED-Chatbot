@@ -323,3 +323,17 @@ urlpatterns += [
     path('api/talent/retention-risk/<int:person_id>', talent_views.analyze_retention_risk, name='analyze_retention_risk'),
     path('api/talent/intervention-plan/<int:person_id>', talent_views.generate_intervention_plan, name='generate_intervention_plan'),
 ]
+
+# Feedback URLs
+path('api/feedback/submit/', views.feedback_views.submit_feedback, name='submit_feedback'),
+path('api/feedback/stats/<str:skill_id>/', views.feedback_views.get_feedback_stats, name='get_feedback_stats'),
+path('api/feedback/list/', views.feedback_views.list_feedback, name='list_feedback'),
+path('api/feedback/<int:feedback_id>/', views.feedback_views.get_feedback_details, name='get_feedback_details'),
+path('api/feedback/retrain/<str:skill_id>/', views.feedback_views.trigger_retraining, name='trigger_retraining'),
+
+# URLs para validación de skills
+path('skill-assessment/<int:assessment_id>/', views.get_skill_assessment_details, name='skill_assessment_details'),
+path('skill-assessment/<int:assessment_id>/validate/', views.validate_skill_assessment, name='validate_skill_assessment'),
+
+# URLs para características premium
+path('pricing/premium-features/', views.pricing_views.premium_features, name='premium_features'),

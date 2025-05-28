@@ -11,6 +11,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
 import time
+from datetime import timedelta
 
 # Importaciones de Django
 from django.core.exceptions import ValidationError
@@ -60,6 +61,11 @@ from app.com.chatbot.workflow.business_units.sexsi.sexsi import (
     iniciar_flujo_sexsi,
     confirmar_pago_sexsi
 )
+
+from app.com.chatbot.flow import FeedbackFlowManager
+from app.com.chatbot.intents import IntentDetector
+from app.com.notifications.managers import SkillFeedbackNotificationManager
+from app.com.onboarding.managers import OnboardingManager
 
 logger = logging.getLogger('chatbot')
 
@@ -119,6 +125,10 @@ class ChatBotHandler:
         except Exception as e:
             logger.error(f"Error inicializando NLPProcessor: {e}")
             self.nlp_processor = None if NLP_ENABLED else None
+
+        self.feedback_manager = FeedbackFlowManager()
+        self.intent_detector = IntentDetector()
+        self.onboarding_manager = OnboardingManager()
 
     def get_business_unit_key(self, business_unit) -> str:
         """Obtiene una clave segura para el business unit."""
@@ -1220,4 +1230,298 @@ class ChatBotHandler:
         await self.state_manager.update_state(chat_state, next_state)
         
         logger.info(f"[process_message] Usuario: {user.id}, Estado del chat: {chat_state.state}")
+        
+    async def _handle_feedback_intent(self, person: Person, intent: str, message: str) -> Dict[str, Any]:
+        """
+        Maneja los intents relacionados con feedback.
+        """
+        try:
+            if intent == 'feedback_request':
+                # Extraer información del mensaje
+                vacante_id = self._extract_vacante_id(message)
+                candidate_id = self._extract_candidate_id(message)
+                
+                if not vacante_id or not candidate_id:
+                    return {
+                        'success': False,
+                        'error': 'No se pudo identificar la vacante o el candidato'
+                    }
+                
+                vacante = await Vacante.objects.aget(id=vacante_id)
+                candidate = await Person.objects.aget(id=candidate_id)
+                
+                return await self.feedback_manager.handle_feedback_request(
+                    person=person,
+                    vacante=vacante,
+                    candidate=candidate
+                )
+                
+            elif intent == 'feedback_complete':
+                # Extraer información del mensaje
+                vacante_id = self._extract_vacante_id(message)
+                candidate_id = self._extract_candidate_id(message)
+                feedback_data = self._extract_feedback_data(message)
+                
+                if not vacante_id or not candidate_id or not feedback_data:
+                    return {
+                        'success': False,
+                        'error': 'Faltan datos necesarios para completar el feedback'
+                    }
+                
+                vacante = await Vacante.objects.aget(id=vacante_id)
+                candidate = await Person.objects.aget(id=candidate_id)
+                
+                return await self.feedback_manager.handle_feedback_completion(
+                    person=person,
+                    vacante=vacante,
+                    candidate=candidate,
+                    feedback_data=feedback_data
+                )
+            
+            return {
+                'success': False,
+                'error': 'Intent de feedback no reconocido'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error handling feedback intent: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _handle_onboarding_intent(self, person: Person, intent: str, message: str) -> Dict[str, Any]:
+        """
+        Maneja los intents relacionados con onboarding.
+        """
+        try:
+            if intent == 'onboarding_start':
+                return await self.onboarding_manager.start_onboarding(person)
+            elif intent == 'onboarding_check_status':
+                return await self.onboarding_manager.check_status(person)
+            elif intent == 'onboarding_complete_step':
+                step = self._extract_onboarding_step(message)
+                return await self.onboarding_manager.complete_step(person, step)
+            
+            return {
+                'success': False,
+                'error': 'Intent de onboarding no reconocido'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error handling onboarding intent: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _handle_vacante_intent(self, person: Person, intent: str, message: str) -> Dict[str, Any]:
+        """
+        Maneja los intents relacionados con vacantes.
+        """
+        try:
+            if intent == 'vacante_cierre_proximo':
+                vacante_id = self._extract_vacante_id(message)
+                if not vacante_id:
+                    return {
+                        'success': False,
+                        'error': 'No se pudo identificar la vacante'
+                    }
+                
+                vacante = await Vacante.objects.aget(id=vacante_id)
+                return await self._handle_vacante_cierre(vacante)
+            
+            return {
+                'success': False,
+                'error': 'Intent de vacante no reconocido'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error handling vacante intent: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _handle_post_contratacion_intent(self, person: Person, intent: str, message: str) -> Dict[str, Any]:
+        """
+        Maneja los intents relacionados con el seguimiento post-contratación.
+        """
+        try:
+            if intent == 'post_contratacion_feedback_candidato':
+                return await self._handle_candidato_feedback(person)
+            elif intent == 'post_contratacion_feedback_cliente':
+                return await self._handle_cliente_feedback(person)
+            elif intent == 'post_contratacion_check_in':
+                return await self._handle_check_in(person)
+            
+            return {
+                'success': False,
+                'error': 'Intent de post-contratación no reconocido'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error handling post-contratación intent: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _handle_vacante_cierre(self, vacante: Vacante) -> Dict[str, Any]:
+        """
+        Maneja el proceso de cierre de una vacante.
+        """
+        try:
+            # Notificar a todos los stakeholders
+            notifications = []
+            
+            # Notificar al responsable del proceso
+            if vacante.responsible:
+                notifications.append(
+                    await self.notification_manager.notify_vacante_cierre(
+                        recipient=vacante.responsible,
+                        vacante=vacante
+                    )
+                )
+            
+            # Notificar al contacto del cliente
+            if vacante.empresa and vacante.empresa.contacto_principal:
+                notifications.append(
+                    await self.notification_manager.notify_vacante_cierre_cliente(
+                        recipient=vacante.empresa.contacto_principal,
+                        vacante=vacante
+                    )
+                )
+            
+            # Notificar a los candidatos en proceso
+            for candidato in await vacante.candidatos_en_proceso.all():
+                notifications.append(
+                    await self.notification_manager.notify_vacante_cierre_candidato(
+                        recipient=candidato,
+                        vacante=vacante
+                    )
+                )
+            
+            return {
+                'success': True,
+                'notifications_sent': len(notifications)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error handling vacante cierre: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _handle_candidato_feedback(self, person: Person) -> Dict[str, Any]:
+        """
+        Maneja el feedback post-contratación del candidato.
+        """
+        try:
+            # Obtener el proceso de onboarding asociado
+            onboarding = await self.onboarding_manager.get_onboarding_for_person(person)
+            
+            if not onboarding:
+                return {
+                    'success': False,
+                    'error': 'No se encontró un proceso de onboarding'
+                }
+            
+            # Enviar encuesta de feedback
+            return await self.onboarding_manager.send_feedback_survey(
+                person=person,
+                survey_type='candidato',
+                onboarding=onboarding
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling candidato feedback: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _handle_cliente_feedback(self, person: Person) -> Dict[str, Any]:
+        """
+        Maneja el feedback post-contratación del cliente.
+        """
+        try:
+            # Obtener la empresa asociada
+            empresa = await person.empresa_set.first()
+            
+            if not empresa:
+                return {
+                    'success': False,
+                    'error': 'No se encontró una empresa asociada'
+                }
+            
+            # Enviar encuesta de feedback
+            return await self.onboarding_manager.send_feedback_survey(
+                person=person,
+                survey_type='cliente',
+                empresa=empresa
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling cliente feedback: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _handle_check_in(self, person: Person) -> Dict[str, Any]:
+        """
+        Maneja el check-in post-contratación.
+        """
+        try:
+            # Obtener el proceso de onboarding asociado
+            onboarding = await self.onboarding_manager.get_onboarding_for_person(person)
+            
+            if not onboarding:
+                return {
+                    'success': False,
+                    'error': 'No se encontró un proceso de onboarding'
+                }
+            
+            # Realizar check-in
+            return await self.onboarding_manager.perform_check_in(
+                person=person,
+                onboarding=onboarding
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling check-in: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def _extract_vacante_id(self, message: str) -> Optional[int]:
+        """
+        Extrae el ID de la vacante del mensaje.
+        """
+        # Implementar lógica de extracción
+        return None
+    
+    def _extract_candidate_id(self, message: str) -> Optional[int]:
+        """
+        Extrae el ID del candidato del mensaje.
+        """
+        # Implementar lógica de extracción
+        return None
+    
+    def _extract_feedback_data(self, message: str) -> Optional[Dict[str, Any]]:
+        """
+        Extrae los datos del feedback del mensaje.
+        """
+        # Implementar lógica de extracción
+        return None
+    
+    def _extract_onboarding_step(self, message: str) -> Optional[str]:
+        """
+        Extrae el paso de onboarding del mensaje.
+        """
+        # Implementar lógica de extracción
+        return None
         

@@ -550,3 +550,102 @@ class VacanteManager:
         # Agregar más tipos de eventos según sea necesario
         
         return notifications
+
+
+class SkillFeedbackNotificationManager(NotificationManager):
+    """
+    Gestor de notificaciones específico para el feedback de habilidades.
+    """
+    
+    async def notify_feedback_required(
+        self,
+        recipient: Person,
+        vacante: Vacante,
+        candidate: Person,
+        skills: List[str],
+        deadline: datetime = None
+    ) -> Notification:
+        """
+        Notifica a un consultor que se requiere su feedback sobre las habilidades de un candidato.
+        """
+        if not deadline:
+            deadline = timezone.now() + timedelta(days=2)
+            
+        context = {
+            'candidate_name': candidate.nombre,
+            'vacante_title': vacante.titulo,
+            'skills': skills,
+            'deadline': deadline.strftime('%d/%m/%Y'),
+            'feedback_url': f"/feedback/skills/{vacante.id}/{candidate.id}/"
+        }
+        
+        return await self.send_notification(
+            notification_type=NotificationType.SKILL_FEEDBACK_REQUERIDO,
+            recipient=recipient,
+            vacante=vacante,
+            title=f"Feedback requerido: Habilidades de {candidate.nombre}",
+            content=f"Se requiere tu evaluación sobre las habilidades detectadas para {candidate.nombre} en la vacante {vacante.titulo}.",
+            context=context,
+            template_name='notifications/skill_feedback_required.html'
+        )
+    
+    async def notify_feedback_completed(
+        self,
+        recipient: Person,
+        vacante: Vacante,
+        candidate: Person,
+        feedback_data: Dict[str, Any]
+    ) -> Notification:
+        """
+        Notifica que se ha completado el feedback de habilidades de un candidato.
+        """
+        context = {
+            'candidate_name': candidate.nombre,
+            'vacante_title': vacante.titulo,
+            'feedback_summary': {
+                'accuracy': feedback_data.get('skill_accuracy'),
+                'missing_skills': feedback_data.get('missing_skills', []),
+                'extra_skills': feedback_data.get('extra_skills', []),
+                'development_time': feedback_data.get('development_time'),
+                'critical_skills': feedback_data.get('critical_skills', [])
+            }
+        }
+        
+        return await self.send_notification(
+            notification_type=NotificationType.SKILL_FEEDBACK_COMPLETADO,
+            recipient=recipient,
+            vacante=vacante,
+            title=f"Feedback completado: {candidate.nombre}",
+            content=f"Se ha completado la evaluación de habilidades para {candidate.nombre} en la vacante {vacante.titulo}.",
+            context=context,
+            template_name='notifications/skill_feedback_completed.html'
+        )
+    
+    async def notify_critical_skills_alert(
+        self,
+        recipient: Person,
+        vacante: Vacante,
+        candidate: Person,
+        critical_skills: List[str],
+        development_time: int
+    ) -> Notification:
+        """
+        Notifica sobre habilidades críticas que requieren atención inmediata.
+        """
+        context = {
+            'candidate_name': candidate.nombre,
+            'vacante_title': vacante.titulo,
+            'critical_skills': critical_skills,
+            'development_time': development_time,
+            'candidate_url': f"/candidates/{candidate.id}/"
+        }
+        
+        return await self.send_notification(
+            notification_type=NotificationType.SKILL_FEEDBACK_ALERTA,
+            recipient=recipient,
+            vacante=vacante,
+            title=f"Alerta: Habilidades críticas para {candidate.nombre}",
+            content=f"Se han identificado habilidades críticas que requieren atención para {candidate.nombre} en la vacante {vacante.titulo}.",
+            context=context,
+            template_name='notifications/critical_skills_alert.html'
+        )
