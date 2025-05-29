@@ -1,0 +1,263 @@
+{% extends 'pricing/base.html' %}
+{% load tz humanize %}
+
+{% block pricing_title %}Detalles de la Evaluación de Equipo{% endblock %}
+
+{% block pricing_heading %}
+    <i class="fas fa-users me-2"></i> Detalles de la Evaluación
+    <span class="badge bg-{{ evaluation.get_status_color }} ms-2">
+        {{ evaluation.get_status_display }}
+    </span>
+{% endblock %}
+
+{% block pricing_body %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información General</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong><i class="fas fa-hashtag me-2 text-muted"></i>ID de Evaluación:</strong>
+                            <span class="float-end">{{ evaluation.id|truncatechars:14 }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong><i class="fas fa-calendar-alt me-2 text-muted"></i>Fecha de Creación:</strong>
+                            <span class="float-end">{{ evaluation.created_at|date:"d M Y H:i" }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong><i class="fas fa-users me-2 text-muted"></i>Tamaño del Equipo:</strong>
+                            <span class="float-end">{{ evaluation.team_size }} miembros</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong><i class="fas fa-percentage me-2 text-muted"></i>Descuento:</strong>
+                            <span class="float-end">{{ evaluation.discount_percentage }}%</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong><i class="fas fa-clock me-2 text-muted"></i>Estado:</strong>
+                            <span class="float-end">
+                                <span class="badge bg-{{ evaluation.get_status_color }}">
+                                    {{ evaluation.get_status_display }}
+                                </span>
+                            </span>
+                        </p>
+                        <p class="mb-0">
+                            <strong><i class="fas fa-hourglass-end me-2 text-muted"></i>Válido hasta:</strong>
+                            <span class="float-end">
+                                {{ evaluation.expires_at|date:"d M Y H:i" }}
+                                {% if evaluation.is_expired %}
+                                    <span class="badge bg-danger ms-2">Expirado</span>
+                                {% else %}
+                                    <span class="badge bg-success ms-2">Activo</span>
+                                {% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                
+                {% if evaluation.notes %}
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-3"><i class="fas fa-sticky-note me-2"></i>Notas Adicionales</h6>
+                    <div class="bg-light p-3 rounded">
+                        {{ evaluation.notes|linebreaksbr }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if evaluation.coupon %}
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-tag me-2"></i>Cupón de Descuento</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center p-4 bg-light rounded">
+                    <h3 class="text-primary">{{ evaluation.coupon.code }}</h3>
+                    <p class="mb-3">
+                        <span class="badge bg-{{ evaluation.coupon.is_used|yesno:'danger,success' }}">
+                            {{ evaluation.coupon.is_used|yesno:'Usado,Disponible' }}
+                        </span>
+                        {% if evaluation.coupon.is_used %}
+                            <span class="text-muted ms-2">
+                                Usado el {{ evaluation.coupon.used_at|date:"d M Y" }}
+                            </span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Descuento del {{ evaluation.coupon.discount_percentage }}%</strong> en tu próxima contratación
+                    </p>
+                    <p class="text-muted small mt-2">
+                        Válido hasta el {{ evaluation.coupon.expiration_date|date:"d M Y" }}
+                    </p>
+                    
+                    {% if not evaluation.coupon.is_used and not evaluation.is_expired %}
+                    <button class="btn btn-primary mt-2" onclick="copyToClipboard('{{ evaluation.coupon.code }}')">
+                        <i class="far fa-copy me-1"></i> Copiar Código
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Este código de descuento es válido para contrataciones de cualquiera de nuestros servicios.
+                    Simplemente ingrésalo al momento de realizar tu pedido.
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Acciones</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if evaluation.status == 'pending' and not evaluation.is_expired %}
+                        <a href="{% url 'pricing:complete_team_evaluation' evaluation.pk %}" 
+                           class="btn btn-primary mb-2">
+                            <i class="fas fa-check-circle me-1"></i> Completar Evaluación
+                        </a>
+                        <button class="btn btn-outline-secondary mb-2" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                            <i class="fas fa-times-circle me-1"></i> Cancelar Evaluación
+                        </button>
+                    {% elif evaluation.status == 'completed' %}
+                        <a href="#" class="btn btn-success mb-2">
+                            <i class="fas fa-download me-1"></i> Descargar Informe
+                        </a>
+                        <a href="#" class="btn btn-outline-primary mb-2">
+                            <i class="fas fa-calendar-alt me-1"></i> Agendar Seguimiento
+                        </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'pricing:request_team_evaluation' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-plus-circle me-1"></i> Nueva Evaluación
+                    </a>
+                </div>
+                
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-3"><i class="fas fa-question-circle me-2"></i>¿Necesitas ayuda?</h6>
+                    <p class="small text-muted">
+                        Si tienes alguna pregunta sobre tu evaluación o necesitas asistencia, 
+                        no dudes en contactar a nuestro equipo de soporte.
+                    </p>
+                    <a href="{% url 'contact' %}" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="fas fa-headset me-1"></i> Contactar Soporte
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Historial de Estados</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Solicitud Creada</h6>
+                            <small class="text-muted">{{ evaluation.created_at|timesince }} atrás</small>
+                        </div>
+                        <p class="mb-0 small text-muted">Se ha creado tu solicitud de evaluación de equipo.</p>
+                    </div>
+                    
+                    {% if evaluation.updated_at > evaluation.created_at %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Actualización</h6>
+                            <small class="text-muted">{{ evaluation.updated_at|timesince }} atrás</small>
+                        </div>
+                        <p class="mb-0 small text-muted">Se ha actualizado la información de tu evaluación.</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if evaluation.status == 'completed' %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Completada</h6>
+                            <small class="text-muted">{{ evaluation.updated_at|timesince }} atrás</small>
+                        </div>
+                        <p class="mb-0 small text-muted">Has completado la evaluación de tu equipo.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cancelación -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelModalLabel">Confirmar Cancelación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas cancelar esta evaluación de equipo?</p>
+                <p class="text-muted small">
+                    Al cancelar, perderás el cupón de descuento asociado a esta evaluación.
+                    Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Cerrar
+                </button>
+                <form method="post" action="{% url 'pricing:cancel_team_evaluation' evaluation.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt me-1"></i> Confirmar Cancelación
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Función para copiar el código al portapapeles
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            // Mostrar notificación de éxito
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+            alert.style.zIndex = '1060';
+            alert.role = 'alert';
+            alert.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>¡Código copiado!</strong> ${text}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            `;
+            document.body.appendChild(alert);
+            
+            // Cerrar automáticamente después de 3 segundos
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 3000);
+        }).catch(function(err) {
+            console.error('Error al copiar el código: ', err);
+        });
+    }
+    
+    // Inicializar tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %}

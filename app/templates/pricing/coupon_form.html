@@ -1,0 +1,522 @@
+{% extends 'pricing/base.html' %}
+{% load static %}
+
+{% block pricing_title %}{% if form.instance.pk %}Editar{% else %}Crear{% endif %} Cupón de Descuento{% endblock %}
+
+{% block pricing_heading %}
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-{% if form.instance.pk %}edit{% else %}plus-circle{% endif %} me-2"></i>
+            {{ title|default:'Nuevo Cupón de Descuento' }}
+        </div>
+        {% if form.instance.pk %}
+        <div>
+            <span class="badge bg-{{ form.instance.is_used|yesno:'danger,success' }} me-2">
+                {% if form.instance.is_used %}
+                    <i class="fas fa-check-circle me-1"></i> Usado
+                {% elif form.instance.is_expired %}
+                    <i class="fas fa-exclamation-circle me-1"></i> Expirado
+                {% else %}
+                    <i class="fas fa-check-circle me-1"></i> Activo
+                {% endif %}
+            </span>
+            <a href="{% url 'pricing:coupon_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Volver
+            </a>
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block pricing_body %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" id="couponForm">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.code.id_for_label }}" class="form-label fw-bold">
+                                    {{ form.code.label }}
+                                    {% if form.code.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <div class="input-group">
+                                    {{ form.code }}
+                                    <button class="btn btn-outline-secondary" type="button" id="generateCode">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                                {% if form.code.help_text %}
+                                    <small class="form-text text-muted">{{ form.code.help_text }}</small>
+                                {% endif %}
+                                {% if form.code.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.code.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.discount_percentage.id_for_label }}" class="form-label fw-bold">
+                                    {{ form.discount_percentage.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    {{ form.discount_percentage }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                {% if form.discount_percentage.help_text %}
+                                    <small class="form-text text-muted">{{ form.discount_percentage.help_text }}</small>
+                                {% endif %}
+                                {% if form.discount_percentage.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.discount_percentage.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.expiration_date.id_for_label }}" class="form-label fw-bold">
+                                    {{ form.expiration_date.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.expiration_date }}
+                                {% if form.expiration_date.help_text %}
+                                    <small class="form-text text-muted">{{ form.expiration_date.help_text }}</small>
+                                {% endif %}
+                                {% if form.expiration_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.expiration_date.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.max_uses.id_for_label }}" class="form-label fw-bold">
+                                    {{ form.max_uses.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.max_uses }}
+                                {% if form.max_uses.help_text %}
+                                    <small class="form-text text-muted">{{ form.max_uses.help_text }}</small>
+                                {% endif %}
+                                {% if form.max_uses.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.max_uses.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mb-4">
+                        <label for="{{ form.description.id_for_label }}" class="form-label fw-bold">
+                            {{ form.description.label }}
+                            {% if form.description.field.required %}<span class="text-danger">*</span>{% endif %}
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.help_text %}
+                            <small class="form-text text-muted">{{ form.description.help_text }}</small>
+                        {% endif %}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group mb-4">
+                        <label class="form-label fw-bold">
+                            Aplicable a:
+                        </label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="allBusinessUnits" checked>
+                                    <label class="form-check-label" for="allBusinessUnits">
+                                        Todas las unidades de negocio
+                                    </label>
+                                </div>
+                                <div class="ms-4 mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input business-unit" type="checkbox" id="bu_huntred" name="business_units" value="huntred" checked disabled>
+                                        <label class="form-check-label" for="bu_huntred">
+                                            huntRED®
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input business-unit" type="checkbox" id="bu_huntu" name="business_units" value="huntu" checked disabled>
+                                        <label class="form-check-label" for="bu_huntu">
+                                            huntU
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input business-unit" type="checkbox" id="bu_amigro" name="business_units" value="amigro" checked disabled>
+                                        <label class="form-check-label" for="bu_amigro">
+                                            Amigro
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="allServices" checked>
+                                    <label class="form-check-label" for="allServices">
+                                        Todos los servicios
+                                    </label>
+                                </div>
+                                <div class="ms-4 mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input service" type="checkbox" id="service_recruitment" name="services" value="recruitment" checked disabled>
+                                        <label class="form-check-label" for="service_recruitment">
+                                            Reclutamiento
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input service" type="checkbox" id="service_training" name="services" value="training" checked disabled>
+                                        <label class="form-check-label" for="service_training">
+                                            Capacitación
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input service" type="checkbox" id="service_consulting" name="services" value="consulting" checked disabled>
+                                        <label class="form-check-label" for="service_consulting">
+                                            Consultoría
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4 pt-3 border-top">
+                        <a href="{% url 'pricing:coupon_list' %}" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> 
+                            {% if form.instance.pk %}Actualizar Cupón{% else %}Crear Cupón{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if form.instance.pk %}
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Historial de Usos</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if form.instance.usage_history.exists %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th>Monto</th>
+                                <th>Descuento</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usage in form.instance.usage_history.all|slice:":5" %}
+                            <tr>
+                                <td>{{ usage.used_at|date:"d M Y H:i" }}</td>
+                                <td>{{ usage.user.get_full_name|default:usage.user.email }}</td>
+                                <td>${{ usage.original_amount|floatformat:2 }}</td>
+                                <td class="text-danger">-${{ usage.discount_amount|floatformat:2 }}</td>
+                                <td class="fw-bold">${{ usage.final_amount|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <div class="text-muted">
+                        <i class="fas fa-history fa-3x mb-3"></i>
+                        <p class="mb-0">No hay registros de uso para este cupón</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% if form.instance.usage_history.count > 5 %}
+            <div class="card-footer bg-white text-end">
+                <a href="#" class="btn btn-sm btn-outline-primary">
+                    Ver todos los usos ({{ form.instance.usage_history.count }})
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Vista Previa</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="p-4 bg-light rounded mb-4">
+                    <h3 id="previewCode" class="text-primary mb-2">{{ form.instance.code|default:"NUEVO" }}</h3>
+                    <p class="mb-1">
+                        <span class="badge bg-success" id="previewStatus">
+                            {% if form.instance.is_used %}
+                                <i class="fas fa-check-circle me-1"></i> Usado
+                            {% elif form.instance.is_expired %}
+                                <i class="fas fa-exclamation-circle me-1"></i> Expirado
+                            {% else %}
+                                <i class="fas fa-check-circle me-1"></i> Activo
+                            {% endif %}
+                        </span>
+                    </p>
+                    <p class="mb-0">
+                        <strong id="previewDiscount">{{ form.instance.discount_percentage|default:"0" }}%</strong> de descuento
+                    </p>
+                    <p class="text-muted small mt-2 mb-0" id="previewExpiry">
+                        {% if form.instance.expiration_date %}
+                            Válido hasta el {{ form.instance.expiration_date|date:"d M Y" }}
+                        {% else %}
+                            Sin fecha de expiración
+                        {% endif %}
+                    </p>
+                </div>
+                <button type="button" class="btn btn-outline-primary w-100" id="copyPreviewCode">
+                    <i class="far fa-copy me-1"></i> Copiar Código
+                </button>
+                <div class="alert alert-info mt-3 mb-0 small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Esta es una vista previa de cómo se verá el cupón cuando lo compartas.
+                </div>
+            </div>
+        </div>
+        
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Sugerencias</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-light">
+                    <h6 class="alert-heading"><i class="fas fa-percentage me-2"></i>Porcentajes recomendados</h6>
+                    <ul class="mb-0 ps-3">
+                        <li>5-10% para nuevos clientes</li>
+                        <li>10-15% para compras recurrentes</li>
+                        <li>15-25% para promociones especiales</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-light mt-3">
+                    <h6 class="alert-heading"><i class="fas fa-calendar-alt me-2"></i>Vigencia recomendada</h6>
+                    <p class="mb-0">
+                        Establece una vigencia de 30 días para promociones estándar 
+                        y hasta 90 días para promociones especiales.
+                    </p>
+                </div>
+                
+                <div class="alert alert-light mt-3">
+                    <h6 class="alert-heading"><i class="fas fa-tags me-2"></i>Genera códigos fáciles de recordar</h6>
+                    <p class="mb-0">
+                        Usa palabras o combinaciones fáciles como "BIENVENIDO10" o "PRIMERACOMPRA15".
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos para el formulario */
+    .form-control:focus, .form-select:focus, .form-check-input:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+    
+    /* Estilo para la vista previa del cupón */
+    #previewCode {
+        font-family: 'Courier New', monospace;
+        letter-spacing: 2px;
+        font-weight: 700;
+    }
+    
+    /* Estilo para los checkboxes personalizados */
+    .form-check-input[type="checkbox"] {
+        border-radius: 0.25em;
+    }
+    
+    .form-check-input:checked {
+        background-color: #4e73df;
+        border-color: #4e73df;
+    }
+    
+    /* Estilo para los badges */
+    .badge {
+        font-weight: 500;
+        padding: 0.5em 0.8em;
+    }
+    
+    /* Estilo para los tooltips */
+    .tooltip-inner {
+        max-width: 300px;
+        padding: 0.5rem 1rem;
+    }
+    
+    /* Estilo para los campos deshabilitados */
+    .form-control:disabled, .form-select:disabled {
+        background-color: #f8f9fa;
+        opacity: 1;
+    }
+    
+    /* Estilo para los checkboxes deshabilitados */
+    .form-check-input:disabled ~ .form-check-label {
+        opacity: 0.65;
+    }
+    
+    /* Estilo para los grupos de checkboxes */
+    .form-group .row {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .form-group .row > [class*="col-"] {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Generar código aleatorio
+        document.getElementById('generateCode').addEventListener('click', function() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            
+            // Generar un código de 8 caracteres
+            for (let i = 0; i < 8; i++) {
+                // Cada 4 caracteres, agregar un guión (excepto al final)
+                if (i > 0 && i % 4 === 0) {
+                    code += '-';
+                }
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            
+            document.getElementById('{{ form.code.id_for_label }}').value = code;
+            updatePreview();
+        });
+        
+        // Actualizar vista previa cuando cambien los campos
+        const formFields = ['code', 'discount_percentage', 'expiration_date'];
+        formFields.forEach(field => {
+            const element = document.getElementById('{{ form.' + field + '.id_for_label }}');
+            if (element) {
+                element.addEventListener('change', updatePreview);
+                element.addEventListener('keyup', updatePreview);
+            }
+        });
+        
+        // Función para actualizar la vista previa
+        function updatePreview() {
+            const code = document.getElementById('{{ form.code.id_for_label }}').value || 'NUEVO';
+            const discount = document.getElementById('{{ form.discount_percentage.id_for_label }}').value || '0';
+            const expiryDate = document.getElementById('{{ form.expiration_date.id_for_label }}').value;
+            
+            document.getElementById('previewCode').textContent = code;
+            document.getElementById('previewDiscount').textContent = discount + '%';
+            
+            if (expiryDate) {
+                const date = new Date(expiryDate);
+                const options = { day: 'numeric', month: 'short', year: 'numeric' };
+                document.getElementById('previewExpiry').textContent = 'Válido hasta el ' + 
+                    date.toLocaleDateString('es-ES', options);
+            } else {
+                document.getElementById('previewExpiry').textContent = 'Sin fecha de expiración';
+            }
+            
+            // Actualizar estado (solo visual, no afecta la lógica real)
+            const now = new Date();
+            const expiry = new Date(expiryDate);
+            const statusElement = document.getElementById('previewStatus');
+            
+            if (expiryDate && expiry < now) {
+                statusElement.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Expirado';
+                statusElement.className = 'badge bg-warning';
+            } else {
+                statusElement.innerHTML = '<i class="fas fa-check-circle me-1"></i> Activo';
+                statusElement.className = 'badge bg-success';
+            }
+        }
+        
+        // Copiar código al portapapeles
+        document.getElementById('copyPreviewCode').addEventListener('click', function() {
+            const code = document.getElementById('{{ form.code.id_for_label }}').value;
+            if (code) {
+                navigator.clipboard.writeText(code).then(function() {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-check me-1"></i> ¡Copiado!';
+                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('btn-success');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.classList.remove('btn-success');
+                        this.classList.add('btn-outline-primary');
+                    }, 2000);
+                }.bind(this));
+            } else {
+                alert('Primero genera un código válido');
+            }
+        });
+        
+        // Manejar el checkbox "Todas las unidades de negocio"
+        document.getElementById('allBusinessUnits').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.business-unit');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                checkbox.disabled = this.checked;
+            });
+        });
+        
+        // Manejar el checkbox "Todos los servicios"
+        document.getElementById('allServices').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.service');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                checkbox.disabled = this.checked;
+            });
+        });
+        
+        // Inicializar tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Inicializar la vista previa
+        updatePreview();
+    });
+</script>
+{% endblock %}

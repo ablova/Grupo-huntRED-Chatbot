@@ -1,0 +1,107 @@
+{# Banner de promoción que se muestra en la parte superior de la página #}
+{% if show_promotion %}
+<div class="promotion-banner bg-{{ promotion_type }} text-white py-3">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center">
+                    {% if badge_text %}
+                    <span class="badge bg-{{ badge_style }} me-2">{{ badge_text }}</span>
+                    {% endif %}
+                    <h5 class="mb-0">{{ title }}</h5>
+                </div>
+                {% if subtitle %}
+                <p class="mb-0 small">{{ subtitle|safe }}</p>
+                {% endif %}
+                
+                {% if has_countdown and countdown_data %}
+                <div class="countdown mt-2" data-end-date="{{ countdown_data.end_date }}">
+                    <span class="me-2">Termina en:</span>
+                    <span class="countdown-days">{{ countdown_data.days_remaining }}</span>d 
+                    <span class="countdown-hours">{{ countdown_data.hours_remaining|stringformat:"02d" }}</span>h 
+                    <span class="countdown-minutes">{{ countdown_data.minutes_remaining|stringformat:"02d" }}</span>m
+                    <span class="countdown-seconds">{{ countdown_data.seconds_remaining|stringformat:"02d" }}</span>s
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-4 text-md-end mt-2 mt-md-0">
+                <a href="{{ cta_link|default:'#' }}" class="btn btn-outline-light btn-sm">
+                    {{ cta_text }}
+                </a>
+                <button type="button" class="btn-close btn-close-white ms-2" aria-label="Cerrar" onclick="this.closest('.promotion-banner').remove();"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.promotion-banner {
+    position: relative;
+    z-index: 1030;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.promotion-banner .countdown {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.promotion-banner .countdown span {
+    display: inline-block;
+    min-width: 1.5em;
+    text-align: center;
+}
+
+/* Estilos específicos por tipo de promoción */
+.promotion-banner.banner {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+}
+
+.promotion-banner.team_evaluation {
+    background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar contador regresivo si existe
+    const countdownEl = document.querySelector('.countdown');
+    if (countdownEl) {
+        const endDate = new Date(countdownEl.dataset.endDate);
+        
+        function updateCountdown() {
+            const now = new Date();
+            const diff = endDate - now;
+            
+            if (diff <= 0) {
+                // La promoción ha expirado
+                countdownEl.innerHTML = '¡Oferta finalizada!';
+                return;
+            }
+            
+            // Calcular días, horas, minutos y segundos restantes
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            // Actualizar la visualización
+            const daysEl = countdownEl.querySelector('.countdown-days');
+            const hoursEl = countdownEl.querySelector('.countdown-hours');
+            const minutesEl = countdownEl.querySelector('.countdown-minutes');
+            const secondsEl = countdownEl.querySelector('.countdown-seconds');
+            
+            if (daysEl) daysEl.textContent = days;
+            if (hoursEl) hoursEl.textContent = hours.toString().padStart(2, '0');
+            if (minutesEl) minutesEl.textContent = minutes.toString().padStart(2, '0');
+            if (secondsEl) secondsEl.textContent = seconds.toString().padStart(2, '0');
+            
+            // Actualizar cada segundo
+            setTimeout(updateCountdown, 1000);
+        }
+        
+        updateCountdown();
+    }
+});
+</script>
+{% endif %}

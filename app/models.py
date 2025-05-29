@@ -3317,18 +3317,231 @@ class PaymentTransaction(models.Model):
         return f"Pago {self.id} para Acuerdo #{self.agreement.id}"
 
 class DiscountCoupon(models.Model):
-    """Modelo para almacenar cupones de descuento con diferentes porcentajes y un cupón de 100%."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='discount_coupons')
-    code = models.CharField(max_length=10, unique=True)
-    discount_percentage = models.PositiveIntegerField()
-    expiration_date = models.DateTimeField()
-    is_used = models.BooleanField(default=False)
+    """
+    Modelo para almacenar cupones de descuento con diferentes porcentajes.
+    
+    Atributos:
+        user: Usuario al que se le asigna el cupón
+        code: Código único del cupón
+        discount_percentage: Porcentaje de descuento (1-100%)
+        expiration_date: Fecha de expiración del cupón
+        is_used: Indica si el cupón ha sido utilizado
+        used_at: Fecha en que se utilizó el cupón (opcional)
+        created_at: Fecha de creación del cupón
+        proposal: Propuesta asociada al cupón (opcional)
+        description: Descripción del cupón (opcional)
+    """
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='discount_coupons',
+        help_text="Usuario al que se le asigna el cupón"
+    )
+    code = models.CharField(
+        max_length=10, 
+        unique=True,
+        help_text="Código único del cupón"
+    )
+    discount_percentage = models.PositiveIntegerField(
+        validators=[
+            MinValueValidator(1, message="El descuento mínimo es del 1%"),
+            MaxValueValidator(100, message="El descuento máximo es del 100%")
+        ],
+        help_text="Porcentaje de descuento (1-100%)"
+    )
+    expiration_date = models.DateTimeField(
+        help_text="Fecha de expiración del cupón"
+    )
+    is_used = models.BooleanField(
+        default=False,
+        help_text="Indica si el cupón ha sido utilizado"
+    )
+    used_at = models.DateTimeField(
+        null=True, 
+        blank=True,
+        help_text="Fecha en que se utilizó el cupón"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha de creación del cupón"
+    )
+    proposal = models.ForeignKey(
+        'Proposal',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='discount_coupons',
+        help_text="Propuesta asociada al cupón"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Descripción del cupón"
+    )
+    
+    class Meta:
+        verbose_name = "Cupón de Descuento"
+        verbose_name_plural = "Cupones de Descuento"
+        ordering = ['-created_at', 'expiration_date']
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['expiration_date']),
+            models.Index(fields=['is_used']),
+            models.Index(fields=['user']),
+            models.Index(fields=['proposal']),
+        ]
+    
+    def clean(self):
+        """
+        Validaciones adicionales del modelo.
+        """
+        super().clean()
+        
+        # Validar que la fecha de expiración sea futura
+        if self.expiration_date and self.expiration_date <= timezone.now():
+            raise ValidationError({
+                'expiration_date': 'La fecha de expiración debe ser futura'
+            })
+            
+        # Validar que el porcentaje esté en el rango permitido
+        if not 1 <= self.discount_percentage <= 100:
+            raise ValidationError({
+                'discount_percentage': 'El porcentaje de descuento debe estar entre 1 y 100'
+            })
+    
+    def save(self, *args, **kwargs):
+        """
+        Sobrescritura del método save para incluir validaciones.
+        """
+        self.full_clean()
+        super().save(*args, **kwargs)
     
     def is_valid(self):
-        return not self.is_used and self.expiration_date > now()
+        """
+        Verifica si el cupón es válido para su uso.
+        
+        Returns:
+            bool: True si el cupón es válido, False en caso contrario
+        """
+        return not self.is_used and self.expiration_date > timezone.now()
+    
+    def mark_as_used(self):
+        """
+        Marca el cupón como utilizado.
+        
+        Returns:
+            bool: True si se pudo marcar como usado, False si ya estaba usado
+        """
+        if not self.is_used:
+            self.is_used = True
+            self.used_at = timezone.now()
+            self.save(update_fields=['is_used', 'used_at'])
+            return True
+        return False
+    
+    def get_discount_amount(self, amount):
+        """
+        Calcula el monto del descuento para un monto dado.
+        
+        Args:
+            amount: Monto al que se aplicará el descuento
+            
+        Returns:
+            float: Monto del descuento
+        """
+        return (amount * self.discount_percentage) / 100
+    
+    def get_final_amount(self, amount):
+        """
+        Calcula el monto final después de aplicar el descuento.
+        
+        Args:
+            amount: Monto original
+            
+        Returns:
+            float: Monto final después del descuento
+        """
+        return max(amount - self.get_discount_amount(amount), 0)
+    
+    def get_status_display(self):
+        """
+        Obtiene el estado legible del cupón.
+        
+        Returns:
+            str: Estado del cupón
+        """
+        if self.is_used:
+            return "Usado"
+        if self.expiration_date <= timezone.now():
+            return "Expirado"
+        return "Disponible"
+    
+    @classmethod
+    def generate_coupon_code(cls, length=10):
+        """
+        Genera un código de cupón único.
+        
+        Args:
+            length: Longitud del código (por defecto 10 caracteres)
+            
+        Returns:
+            str: Código de cupón único
+        """
+        import random
+        import string
+        
+        while True:
+            # Generar un código aleatorio con letras mayúsculas y dígitos
+            code = ''.join(
+                random.choices(
+                    string.ascii_uppercase + string.digits,
+                    k=length
+                )
+            )
+            
+            # Verificar que el código no exista
+            if not cls.objects.filter(code=code).exists():
+                return code
+    
+    @classmethod
+    def create_coupon(
+        cls,
+        user,
+        discount_percentage=5,
+        validity_hours=4,
+        proposal=None,
+        description=None
+    ):
+        """
+        Método de conveniencia para crear un nuevo cupón.
+        
+        Args:
+            user: Usuario al que se le asigna el cupón
+            discount_percentage: Porcentaje de descuento (1-100%)
+            validity_hours: Horas de validez del cupón
+            proposal: Propuesta asociada (opcional)
+            description: Descripción del cupón (opcional)
+            
+        Returns:
+            DiscountCoupon: El cupón creado
+        """
+        expiration_date = timezone.now() + timezone.timedelta(hours=validity_hours)
+        
+        return cls.objects.create(
+            user=user,
+            code=cls.generate_coupon_code(),
+            discount_percentage=discount_percentage,
+            expiration_date=expiration_date,
+            proposal=proposal,
+            description=description
+        )
     
     def __str__(self):
-        return f"Cupon {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
+        return (
+            f"Cupón {self.code} - {self.discount_percentage}% - "
+            f"{self.get_status_display()} - "
+            f"Vence: {self.expiration_date.strftime('%Y-%m-%d %H:%M')}"
+        )
 
 class VerificationService(models.Model):
     """
@@ -5113,6 +5326,365 @@ class CulturalFitReport(models.Model):
             return "Moderado"
         else:
             return "Bajo" 
+
+# Estados para planes de sucesión
+SUCCESSION_PLAN_STATUS_CHOICES = [
+    ('draft', 'Borrador'),
+    ('active', 'Activo'),
+    ('on_hold', 'En Pausa'),
+    ('completed', 'Completado'),
+    ('cancelled', 'Cancelado')
+]
+
+# Niveles de preparación para la sucesión
+READINESS_LEVEL_CHOICES = [
+    ('ready_now', 'Listo Ahora'),
+    ('one_to_two_years', '1-2 Años'),
+    ('three_to_five_years', '3-5 Años'),
+    ('not_feasible', 'No Factible'),
+    ('not_assessed', 'No Evaluado')
+]
+
+# Categorías de competencias
+COMPETENCY_CATEGORY_CHOICES = [
+    ('leadership', 'Liderazgo'),
+    ('technical', 'Técnicas'),
+    ('strategic', 'Estratégicas'),
+    ('operational', 'Operativas'),
+    ('interpersonal', 'Interpersonales')
+]
+
+class ProfessionalDNA(models.Model):
+    """
+    Modelo para almacenar el ADN profesional de un candidato.
+    Incluye habilidades, competencias, rasgos de personalidad y otra información relevante.
+    """
+    person = models.OneToOneField(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='professional_dna',
+        help_text="Persona asociada a este ADN profesional"
+    )
+    
+    # Habilidades y competencias
+    skills = models.JSONField(
+        default=dict,
+        help_text="Habilidades técnicas y su nivel de competencia"
+    )
+    
+    competencies = models.JSONField(
+        default=dict,
+        help_text="Competencias clave y su nivel de dominio"
+    )
+    
+    # Rasgos de personalidad (Big Five y otros)
+    personality_traits = models.JSONField(
+        default=dict,
+        help_text="Rasgos de personalidad y puntuaciones"
+    )
+    
+    # Estilo de liderazgo y trabajo en equipo
+    leadership_style = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Estilo de liderazgo predominante"
+    )
+    
+    # Potencial de desarrollo
+    potential = models.FloatField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        null=True,
+        blank=True,
+        help_text="Potencial de desarrollo (1-5)"
+    )
+    
+    # Áreas de desarrollo
+    development_areas = ArrayField(
+        models.CharField(max_length=200),
+        blank=True,
+        default=list,
+        help_text="Áreas clave para desarrollo profesional"
+    )
+    
+    # Metadatos y auditoría
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='updated_dna_records'
+    )
+    
+    class Meta:
+        verbose_name = "ADN Profesional"
+        verbose_name_plural = "ADN Profesional"
+        ordering = ['-last_updated']
+    
+    def __str__(self):
+        return f"ADN Profesional de {self.person.nombre}"
+    
+    def get_skill_level(self, skill_name):
+        """Obtiene el nivel de una habilidad específica."""
+        return self.skills.get(skill_name, {}).get('level', 0)
+    
+    def get_competency_score(self, competency_name):
+        """Obtiene la puntuación de una competencia específica."""
+        return self.competencies.get(competency_name, {}).get('score', 0)
+
+
+class SuccessionPlan(models.Model):
+    """
+    Modelo para planes de sucesión de posiciones clave.
+    """
+    title = models.CharField(
+        max_length=200,
+        help_text="Título del plan de sucesión"
+    )
+    
+    position = models.ForeignKey(
+        'Vacante',
+        on_delete=models.CASCADE,
+        related_name='succession_plans',
+        help_text="Posición objetivo del plan de sucesión"
+    )
+    
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='succession_plans',
+        help_text="Unidad de negocio asociada"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=SUCCESSION_PLAN_STATUS_CHOICES,
+        default='draft',
+        help_text="Estado actual del plan de sucesión"
+    )
+    
+    start_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Fecha de inicio del plan"
+    )
+    
+    target_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Fecha objetivo para la sucesión"
+    )
+    
+    # Requisitos clave para la posición
+    key_requirements = models.JSONField(
+        default=dict,
+        help_text="Requisitos clave para la posición (competencias, habilidades, etc.)"
+    )
+    
+    # Metadatos y auditoría
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_succession_plans',
+        help_text="Usuario que creó el plan"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Plan de Sucesión"
+        verbose_name_plural = "Planes de Sucesión"
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"Plan de Sucesión: {self.title} - {self.position.titulo}"
+    
+    @property
+    def is_active(self):
+        return self.status == 'active'
+    
+    def get_candidates(self):
+        """Obtiene todos los candidatos para este plan de sucesión."""
+        return self.candidates.all()
+    
+    def get_ready_candidates(self):
+        """Obtiene los candidatos listos para la sucesión."""
+        return self.candidates.filter(readiness_level='ready_now')
+
+
+class SuccessionCandidate(models.Model):
+    """
+    Modelo para candidatos en un plan de sucesión.
+    """
+    plan = models.ForeignKey(
+        'SuccessionPlan',
+        on_delete=models.CASCADE,
+        related_name='candidates',
+        help_text="Plan de sucesión al que pertenece el candidato"
+    )
+    
+    person = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='succession_candidacies',
+        help_text="Persona candidata"
+    )
+    
+    # Nivel de preparación actual
+    readiness_level = models.CharField(
+        max_length=20,
+        choices=READINESS_LEVEL_CHOICES,
+        default='not_assessed',
+        help_text="Nivel actual de preparación para la sucesión"
+    )
+    
+    # Puntuación de preparación (0-100)
+    readiness_score = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        null=True,
+        blank=True,
+        help_text="Puntuación de preparación (0-100)"
+    )
+    
+    # Plan de desarrollo personalizado
+    development_plan = models.JSONField(
+        default=dict,
+        help_text="Plan de desarrollo personalizado"
+    )
+    
+    # Fechas importantes
+    added_date = models.DateField(auto_now_add=True)
+    last_assessment_date = models.DateField(null=True, blank=True)
+    
+    # Metadatos
+    notes = models.TextField(blank=True, null=True, help_text="Notas adicionales")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Candidato a Sucesión"
+        verbose_name_plural = "Candidatos a Sucesión"
+        unique_together = ['plan', 'person']
+        ordering = ['-readiness_score']
+    
+    def __str__(self):
+        return f"{self.person.nombre} - {self.plan.title}"
+    
+    def update_readiness(self, level, score, development_areas=None):
+        """Actualiza el nivel de preparación del candidato."""
+        self.readiness_level = level
+        self.readiness_score = score
+        self.last_assessment_date = timezone.now().date()
+        
+        if development_areas:
+            if 'development_areas' not in self.development_plan:
+                self.development_plan['development_areas'] = []
+            
+            for area in development_areas:
+                if area not in self.development_plan['development_areas']:
+                    self.development_plan['development_areas'].append(area)
+        
+        self.save()
+    
+    def get_development_plan_progress(self):
+        """Calcula el progreso del plan de desarrollo."""
+        if not self.development_plan or 'items' not in self.development_plan:
+            return 0
+        completed = sum(1 for item in self.development_plan['items'] if item.get('completed', False))
+        total = len(self.development_plan['items'])
+        return round((completed / total) * 100) if total > 0 else 0
+
+
+class SuccessionReadinessAssessment(models.Model):
+    """
+    Modelo para evaluaciones de preparación para la sucesión.
+    """
+    candidate = models.ForeignKey(
+        'SuccessionCandidate',
+        on_delete=models.CASCADE,
+        related_name='assessments',
+        help_text="Candidato evaluado"
+    )
+    
+    readiness_level = models.CharField(
+        max_length=20,
+        choices=READINESS_LEVEL_CHOICES,
+        help_text="Nivel de preparación determinado"
+    )
+    
+    readiness_score = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Puntuación de preparación (0-100)"
+    )
+    
+    strengths = models.JSONField(
+        default=list,
+        help_text="Fortalezas identificadas"
+    )
+    
+    development_areas = models.JSONField(
+        default=list,
+        help_text="Áreas de desarrollo identificadas"
+    )
+    
+    risk_factors = models.JSONField(
+        default=dict,
+        help_text="Factores de riesgo identificados"
+    )
+    
+    recommendations = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Recomendaciones para el desarrollo"
+    )
+    
+    assessed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='conducted_assessments',
+        help_text="Usuario que realizó la evaluación"
+    )
+    
+    assessment_date = models.DateField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Evaluación de Preparación"
+        verbose_name_plural = "Evaluaciones de Preparación"
+        ordering = ['-assessment_date']
+    
+    def __str__(self):
+        return f"Evaluación de {self.candidate.person.nombre} - {self.assessment_date}"
+    
+    def save(self, *args, **kwargs):
+        """Actualiza el estado del candidato al guardar la evaluación."""
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        
+        if is_new:
+            self.candidate.update_readiness(
+                self.readiness_level,
+                self.readiness_score,
+                self.development_areas
+            )
+
+
+# Señales para mantener la integridad de los datos
+@receiver(post_save, sender=SuccessionReadinessAssessment)
+def update_candidate_status(sender, instance, created, **kwargs):
+    """
+    Actualiza automáticamente el estado del candidato cuando se crea una nueva evaluación.
+    """
+    if created:
+        instance.candidate.update_readiness(
+            instance.readiness_level,
+            instance.readiness_score,
+            instance.development_areas
+        )
+
 
 # Tipos de mentoría
 MENTORING_TYPE_CHOICES = [

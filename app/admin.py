@@ -15,7 +15,7 @@ from django.template.loader import select_template
 from django.template.response import TemplateResponse
 from django import forms
 from django.core.mail import send_mail
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from django.utils.translation import gettext_lazy as _
 
 # Module Imports
@@ -40,8 +40,9 @@ from app.models import (
     Division, DominioScraping, EnhancedMLProfile,
     EnhancedNetworkGamificationProfile, GptApi, InstagramAPI, Interview, Provider,
     Invitacion, MetaAPI, MessengerAPI, ModelTrainingLog,
-    Person, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
-    SmtpConfig, TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
+    Person, ProfessionalDNA, QuarterlyInsight, RegistroScraping, ReporteScraping, Skill,
+    SmtpConfig, SuccessionCandidate, SuccessionPlan, SuccessionReadinessAssessment, 
+    TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
     Worker, IntentPattern, StateTransition, IntentTransition, 
     WorkflowStage
 )
@@ -551,13 +552,12 @@ class InvitacionAdmin(admin.ModelAdmin):
     list_display = ('referrer', 'invitado', 'created_at')
     search_fields = ('referrer__name', 'invitado__name')
 
-@admin.register(Application)
-class ApplicationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'vacancy', 'status', 'applied_at', 'updated_at')
-    search_fields = ('user__nombre', 'vacancy__titulo')
-    list_filter = ('status', 'vacancy__business_unit')
-    actions = ['change_status_to_hired']
-
+# Succession Planning Admin
+class SuccessionCandidateInline(admin.TabularInline):
+    model = SuccessionCandidate
+    extra = 0
+    readonly_fields = ('readiness_level', 'readiness_score', 'view_candidate')
+    fields = ('candidate', 'readiness_level', 'readiness_score', 'view_candidate')
     @admin.action(description="Marcar seleccionados como 'Contratado'")
     def change_status_to_hired(self, request, queryset):
         updated = queryset.update(status='hired')
@@ -870,3 +870,164 @@ class TaskExecutionAdmin(admin.ModelAdmin):
             messages.error(request, f"Error ejecutando tarea: {str(e)}")
 
         return redirect('admin:django_celery_beat_periodictask_changelist')
+
+
+# Succession Planning Admin
+class SuccessionCandidateInline(admin.TabularInline):
+    model = SuccessionCandidate
+    extra = 0
+    readonly_fields = ('readiness_level', 'readiness_score', 'view_candidate')
+    fields = ('candidate', 'readiness_level', 'readiness_score', 'view_candidate')
+    
+    def view_candidate(self, obj):
+        if obj.id:
+            url = reverse('admin:app_successioncandidate_change', args=[obj.id])
+            return format_html('<a href="{}">Ver Detalles</a>', url)
+        return ""
+    view_candidate.short_description = "Acciones"
+
+
+@admin.register(ProfessionalDNA)
+class ProfessionalDNAAdmin(admin.ModelAdmin):
+    list_display = ('person', 'potential', 'last_updated')
+    list_filter = ('potential', 'last_updated')
+    search_fields = ('person__nombre', 'person__email')
+    readonly_fields = ('created_at', 'last_updated')
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('person', 'potential', 'leadership_style')
+        }),
+        ('Habilidades y Competencias', {
+            'fields': ('skills', 'competencies'),
+            'classes': ('collapse',)
+        }),
+        ('Rasgos de Personalidad', {
+            'fields': ('personality_traits', 'development_areas'),
+            'classes': ('collapse',)
+        }),
+        ('Auditoría', {
+            'fields': ('created_at', 'last_updated', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.updated_by = request.user
+        obj.save()
+
+
+@admin.register(SuccessionPlan)
+class SuccessionPlanAdmin(admin.ModelAdmin):
+    list_display = ('title', 'position', 'business_unit', 'status', 'start_date', 'target_date')
+    list_filter = ('status', 'business_unit', 'start_date', 'target_date')
+    search_fields = ('title', 'position__titulo', 'position__empresa__name')
+    readonly_fields = ('created_at', 'updated_at')
+    inlines = [SuccessionCandidateInline]
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('title', 'position', 'business_unit', 'status')
+        }),
+        ('Fechas', {
+            'fields': ('start_date', 'target_date')
+        }),
+        ('Requisitos Clave', {
+            'fields': ('key_requirements',),
+            'classes': ('collapse',)
+        }),
+        ('Auditoría', {
+            'fields': ('created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.save()
+
+
+class SuccessionReadinessAssessmentInline(admin.TabularInline):
+    model = SuccessionReadinessAssessment
+    extra = 0
+    readonly_fields = ('assessment_date', 'readiness_level', 'readiness_score', 'view_assessment')
+    fields = ('assessment_date', 'readiness_level', 'readiness_score', 'assessed_by', 'view_assessment')
+    
+    def view_assessment(self, obj):
+        if obj.id:
+            url = reverse('admin:app_successionreadinessassessment_change', args=[obj.id])
+            return format_html('<a href="{}">Ver Detalles</a>', url)
+        return ""
+    view_assessment.short_description = "Acciones"
+
+
+@admin.register(SuccessionCandidate)
+class SuccessionCandidateAdmin(admin.ModelAdmin):
+    list_display = ('candidate', 'plan', 'readiness_level', 'readiness_score', 'last_assessed')
+    list_filter = ('readiness_level', 'plan__status', 'last_assessed')
+    search_fields = ('candidate__nombre', 'plan__title', 'plan__position__titulo')
+    readonly_fields = ('added_at', 'last_assessed', 'development_plan_progress')
+    inlines = [SuccessionReadinessAssessmentInline]
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('plan', 'candidate', 'added_by', 'added_at')
+        }),
+        ('Estado de Preparación', {
+            'fields': ('readiness_level', 'readiness_score', 'last_assessed', 'development_plan_progress')
+        }),
+        ('Análisis', {
+            'fields': ('key_gaps', 'development_plan', 'risk_factors'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def development_plan_progress(self, obj):
+        progress = obj.get_development_plan_progress()
+        color = "green" if progress > 66 else "orange" if progress > 33 else "red"
+        return mark_safe(
+            f'<div style="width:100%; background:#f0f0f0; border-radius:5px;">'
+            f'<div style="width:{progress}%; background:{color}; color:white; text-align:center; border-radius:5px;">'
+            f'{progress}%</div></div>'
+        )
+    development_plan_progress.short_description = 'Progreso del Plan de Desarrollo'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.added_by = request.user
+        obj.save()
+
+
+@admin.register(SuccessionReadinessAssessment)
+class SuccessionReadinessAssessmentAdmin(admin.ModelAdmin):
+    list_display = ('candidate', 'assessment_date', 'readiness_level', 'readiness_score', 'assessed_by')
+    list_filter = ('readiness_level', 'assessment_date')
+    search_fields = ('candidate__candidate__nombre', 'candidate__plan__title')
+    readonly_fields = ('created_at',)
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('candidate', 'assessed_by', 'assessment_date')
+        }),
+        ('Resultados', {
+            'fields': ('readiness_level', 'readiness_score')
+        }),
+        ('Análisis Detallado', {
+            'fields': ('strengths', 'development_areas', 'risk_factors'),
+            'classes': ('collapse',)
+        }),
+        ('Recomendaciones', {
+            'fields': ('recommendations',)
+        }),
+        ('Auditoría', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.assessed_by = request.user
+        obj.save()

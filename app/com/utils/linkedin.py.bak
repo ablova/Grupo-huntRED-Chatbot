@@ -5,84 +5,21 @@ import csv
 import time
 import json
 import random
-import re
 import backoff
 import requests
 import itertools
 import asyncio
-import aiohttp
-import hashlib
-from functools import lru_cache, wraps, partial
-from typing import Optional, List, Dict, Set, Any, Tuple, Callable, TypeVar, Union, Generator, AsyncGenerator
-from datetime import datetime, timedelta, timezone
-from urllib.parse import urlparse, parse_qs, urljoin
-from enum import Enum, auto
-
-# Configuración de la API
-from app.config.api_config import LINKEDIN_CONFIG
-
-# Monitoreo
-from app.utils.monitoring import (
-    monitor_linkedin_request,
-    track_scrape_duration
-)
-
-# Configuración de logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Django
+from typing import Optional, List, Dict
+from datetime import datetime
 from django.conf import settings
-from django.db import transaction, models, connection
-from django.core.cache import cache
-from django.utils import timezone as django_timezone
-
-# Web Scraping
+from django.db import transaction
+from django.utils import timezone
 from bs4 import BeautifulSoup
-import undetected_chromedriver as uc
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    TimeoutException, NoSuchElementException, WebDriverException
-)
-
-# Playwright
-from playwright.async_api import (
-    async_playwright, Browser, Page, BrowserContext,
-    TimeoutError as PlaywrightTimeoutError,
-    Error as PlaywrightError
-)
-
-# Otras utilidades
-from collections import defaultdict, namedtuple
-from tenacity import (
-    retry, stop_after_attempt, wait_exponential, 
-    retry_if_exception_type, before_sleep_log, retry_any
-)
-
-# Importaciones de modelos y utilidades locales
+from playwright.async_api import async_playwright, Browser, Page, sync_playwright
+from collections import defaultdict  # <--- Importado correctamente
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
 from app.com.chatbot.utils import ChatbotUtils
-
-# Configuración de logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('linkedin_scraper.log')
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# Constantes
-MAX_RETRIES = 3
-DEFAULT_TIMEOUT = 30  # segundos
-LINKEDIN_BASE_URL = 'https://www.linkedin.com'
-LINKEDIN_LOGIN_URL = f'{LINKEDIN_BASE_URL}/login'
-LINKEDIN_FEED_URL = f'{LINKEDIN_BASE_URL}/feed'
-get_nlp_processor = ChatbotUtils.get_nlp_processor
+get_nlp_processor = ChatbotUtils.get_nlp_processor  # Importar desde utils.py
 from app.com.utils.loader import DIVISION_SKILLS, BUSINESS_UNITS, DIVISIONES
 from spacy.matcher import PhraseMatcher
 from spacy.lang.es import Spanish
@@ -93,186 +30,44 @@ from app.com.utils.scraping_utils import (
     extraer_y_guardar_cookies
 )
 
-# Configuración de logging
 logger = logging.getLogger(__name__)
 os.environ["TRANSFORMERS_BACKEND"] = "tensorflow"
 
-# Constantes
+
+
+
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID", "781zbztzovea6a")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "WPL_AP1.MKozNnsrqofMSjN4.ua0UOQ==")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", None)
 LINKEDIN_API_BASE = "https://api.linkedin.com/v2"
+
 MIN_DELAY = 8
 MAX_DELAY = 18
+# Ruta base de los catálogos
 CATALOGS_BASE_PATH = "/home/pablo/app/com/utils/catalogs"
 
-# Tipos personalizados
-T = TypeVar('T')
-DecoratedFunc = Callable[..., T]
-
 # =========================================================
-# Utilidades para manejo de habilidades y divisiones
+# Clase para manejar habilidades y divisiones
 # =========================================================
 
-def retry_with_backoff(
-    retries: int = 3, 
-    delay: int = 1, 
-    backoff: int = 2, 
-    exceptions: tuple = (Exception,)
-) -> Callable:
-    """
-    Decorador para reintentos con backoff exponencial.
-    
-    Args:
-        retries: Número máximo de reintentos
-        delay: Tiempo inicial de espera en segundos
-        backoff: Factor de multiplicación para el backoff
-        exceptions: Excepciones que deben provocar reintento
-    """
-    def decorator(f: DecoratedFunc) -> DecoratedFunc:
-        @wraps(f)
-        async def wrapper(*args, **kwargs):
-            _retries, _delay = retries, delay
-            while _retries > 0:
-                try:
-                    return await f(*args, **kwargs)
-                except exceptions as e:
-                    _retries -= 1
-                    if _retries == 0:
-                        logger.error(f"Fallido después de {retries} intentos: {e}")
-                        raise
-                    logger.warning(f"Error: {e}. Reintentando en {_delay} segundos...")
-                    await asyncio.sleep(_delay)
-                    _delay *= backoff
-        return wrapper
-    return decorator
-
-@lru_cache(maxsize=128)
 def extract_skills(text: str, unit: str) -> List[str]:
-    """
-    Extrae habilidades del texto usando NLP y el catálogo de la unidad.
-    
-    Args:
-        text: Texto del que extraer habilidades
-        unit: Unidad de negocio para el catálogo específico
-        
-    Returns:
-        Lista de habilidades únicas encontradas
-    """
-    if not text or not unit:
-        return []
-        
-    # Cache por texto y unidad
-    cache_key = f"extracted_skills_{hash(text)}_{unit}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
-        
-    nlp = get_nlp_processor()
+    nlp = get_nlp_processor()  # Usar instancia singleton
     if nlp is None:
         logger.error(f"No se pudo obtener NLPProcessor para unidad {unit}")
         return []
-        
-    try:
-        # Extraer habilidades usando NLP
-        skills_dict = nlp.extract_skills(text)
-        
-        # Combinar habilidades de todas las categorías
-        all_skills = set()
-        for category in ["technical", "soft", "certifications", "tools"]:
-            all_skills.update(skills_dict.get(category, []))
-            
-        # Procesar habilidades adicionales del catálogo de la unidad
-        skills_processor = SkillsProcessor(unit)
-        catalog_skills = skills_processor.extract_skills(text)
-        all_skills.update(catalog_skills)
-        
-        # Normalizar habilidades (eliminar duplicados, estandarizar formato)
-        normalized_skills = []
-        for skill in all_skills:
-            skill = skill.strip().title()  # Capitalizar primera letra de cada palabra
-            if skill:  # Solo agregar si no está vacío
-                normalized_skills.append(skill)
-        
-        # Eliminar duplicados y ordenar
-        normalized_skills = sorted(list(set(normalized_skills)))
-        
-        # Cachear resultados por 1 hora
-        cache.set(cache_key, normalized_skills, timeout=3600)
-        logger.info(f"Habilidades extraídas para {unit}: {normalized_skills}")
-        return normalized_skills
-        
-    except Exception as e:
-        logger.error(f"Error extrayendo habilidades: {e}")
-        return []
+    skills_dict = nlp.extract_skills(text)
+    skills = list(set(skills_dict["technical"] + skills_dict["soft"] + skills_dict["certifications"] + skills_dict["tools"]))
+    logger.info(f"Habilidades extraídas (deep) para {unit}: {skills}")
+    return skills
 
 class SkillsProcessor:
-    """
-    Procesador de habilidades para extraer y normalizar habilidades
-    a partir de texto usando catálogos específicos por unidad de negocio.
-    """
-    
     def __init__(self, unit_name: str):
-        """
-        Inicializa el procesador para una unidad de negocio específica.
-        
-        Args:
-            unit_name: Nombre de la unidad de negocio (ej. 'huntred', 'huntu')
-        """
         self.unit_name = unit_name
         self.skills_data = self._load_unit_skills()
-        self._matcher = self._build_phrase_matcher()
-
-    def _build_phrase_matcher(self) -> Optional[PhraseMatcher]:
-        """Construye un PhraseMatcher de spaCy para búsqueda eficiente de habilidades."""
-        try:
-            nlp = Spanish()
-            matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
-            
-            # Construir patrones de frases para todas las habilidades
-            patterns = []
-            for division, roles in self.skills_data.items():
-                for role, attributes in roles.items():
-                    for skill_list in [attributes.get("Habilidades Técnicas", []), 
-                                     attributes.get("Habilidades Blandas", [])]:
-                        for skill in skill_list:
-                            # Añadir variaciones comunes de la habilidad
-                            variations = self._generate_skill_variations(skill)
-                            for variation in variations:
-                                patterns.append(nlp.make_doc(variation.lower()))
-            
-            # Añadir todos los patrones al matcher
-            if patterns:
-                matcher.add("SKILLS", patterns)
-                return matcher
-            return None
-        except Exception as e:
-            logger.error(f"Error construyendo PhraseMatcher: {e}")
-            return None
-
-    def _generate_skill_variations(self, skill: str) -> List[str]:
-        """Genera variaciones comunes de una habilidad para mejor matching."""
-        variations = {skill.lower()}
-        
-        # Variaciones comunes
-        variations.add(skill.lower().replace(" y ", " & ").replace(" & ", " y "))
-        variations.add(skill.lower().replace("á", "a").replace("é", "e")
-                      .replace("í", "i").replace("ó", "o").replace("ú", "u"))
-        
-        # Si la habilidad tiene paréntesis, también considerar el contenido sin ellos
-        if "(" in skill and ")" in skill:
-            clean_skill = re.sub(r'\([^)]*\)', '', skill).strip()
-            if clean_skill:
-                variations.add(clean_skill.lower())
-        
-        return list(variations)
 
     def _load_unit_skills(self) -> Dict:
         """
         Carga el archivo skills.json para la unidad de negocio especificada.
-        
-        Returns:
-            Dict con la estructura de habilidades cargada desde el archivo JSON
         """
         skills_path = os.path.join(CATALOGS_BASE_PATH, self.unit_name, "skills.json")
         try:
@@ -290,112 +85,42 @@ class SkillsProcessor:
     def extract_skills(self, text: str) -> List[str]:
         """
         Extrae habilidades del texto utilizando el catálogo específico de la unidad.
-        
-        Args:
-            text: Texto del que extraer habilidades
-            
-        Returns:
-            Lista de habilidades encontradas
         """
-        if not text or not self._matcher:
-            return []
-            
         try:
-            nlp = Spanish()
-            doc = nlp(text.lower())
-            matches = self._matcher(doc)
-            
-            # Obtener las habilidades encontradas
-            skills = set()
-            for match_id, start, end in matches:
-                span = doc[start:end]
-                skills.add(span.text.title())  # Capitalizar primera letra de cada palabra
-                
-            return list(skills)
+            words = text.lower().split()
+            extracted_skills = set()
+
+            for division, roles in self.skills_data.items():
+                for role, attributes in roles.items():
+                    tech_skills = attributes.get("Habilidades Técnicas", [])
+                    soft_skills = attributes.get("Habilidades Blandas", [])
+                    all_skills = tech_skills + soft_skills
+                    for skill in all_skills:
+                        if all(word in words for word in skill.lower().split()):
+                            extracted_skills.add(skill)
+
+            return list(extracted_skills)
         except Exception as e:
-            logger.error(f"Error extrayendo habilidades con PhraseMatcher: {e}")
-            return self._fallback_extract_skills(text)
-
-    def _fallback_extract_skills(self, text: str) -> List[str]:
-        """Método de respaldo para extracción de habilidades si falla el PhraseMatcher."""
-        words = set(text.lower().split())
-        extracted_skills = set()
-
-        for division, roles in self.skills_data.items():
-            for role, attributes in roles.items():
-                tech_skills = attributes.get("Habilidades Técnicas", [])
-                soft_skills = attributes.get("Habilidades Blandas", [])
-                
-                for skill in tech_skills + soft_skills:
-                    skill_lower = skill.lower()
-                    # Verificar si todas las palabras de la habilidad están en el texto
-                    skill_words = set(skill_lower.split())
-                    if skill_words.issubset(words):
-                        extracted_skills.add(skill)
-                        
-        return list(extracted_skills)
+            logger.error(f"Error extrayendo habilidades: {e}")
+            return []
 
     def associate_divisions(self, skills: List[str]) -> List[Dict[str, str]]:
         """
         Asocia divisiones basadas en habilidades extraídas y el catálogo de la unidad.
-        
-        Args:
-            skills: Lista de habilidades a asociar
-            
-        Returns:
-            Lista de diccionarios con la forma [{"skill": str, "division": str}]
         """
         associations = []
-        if not skills:
-            return associations
-            
         try:
-            skill_set = set(skills)
-            
-            for division, roles in self.skills_data.items():
-                for role, attributes in roles.items():
-                    tech_skills = set(attributes.get("Habilidades Técnicas", []))
-                    soft_skills = set(attributes.get("Habilidades Blandas", []))
-                    all_skills = tech_skills.union(soft_skills)
-                    
-                    # Encontrar intersección entre habilidades del perfil y del catálogo
-                    matched_skills = skill_set.intersection(all_skills)
-                    
-                    # Agregar asociaciones
-                    for skill in matched_skills:
-                        associations.append({
-                            "skill": skill, 
-                            "division": division,
-                            "role": role
-                        })
-                        
-            return associations
-            
+            for skill in skills:
+                for division, roles in self.skills_data.items():
+                    for role, attributes in roles.items():
+                        tech_skills = attributes.get("Habilidades Técnicas", [])
+                        soft_skills = attributes.get("Habilidades Blandas", [])
+                        all_skills = tech_skills + soft_skills
+                        if skill in all_skills:
+                            associations.append({"skill": skill, "division": division})
         except Exception as e:
-            logger.error(f"Error asociando divisiones: {e}", exc_info=True)
-            return []
-            
-    def _normalize_skills(self, skills: List[str]) -> List[str]:
-        """
-        Normaliza la lista de habilidades para consistencia.
-        
-        Args:
-            skills: Lista de habilidades a normalizar
-            
-        Returns:
-            Lista de habilidades normalizadas
-        """
-        if not skills:
-            return []
-        
-        normalized = set()
-        for skill in skills:
-            # Eliminar espacios extras, poner en minúsculas, etc.
-            skill = skill.strip().title()  # Capitalizar primera letra de cada palabra
-            if skill:  # Solo agregar si no está vacío
-                normalized.add(skill)
-                
-        return sorted(list(normalized))  # Ordenar para consistencia
+            logger.error(f"Error asociando divisiones: {e}")
+        return associations
 
 
 # =========================================================
@@ -923,475 +648,111 @@ def associate_divisions(skills: List[str], unit: str) -> List[Dict[str, str]]:
     processor = SkillsProcessor(unit)
     return processor.associate_divisions(skills)
 
-
-def retry_with_backoff(retries=3, delay=1, backoff=2, exceptions=(Exception,)):
-    """Decorador para reintentos con backoff exponencial.
-    
-    Args:
-        retries: Número máximo de reintentos
-        delay: Tiempo de espera inicial en segundos
-        backoff: Factor de multiplicación para el backoff
-        exceptions: Excepciones que deben capturarse y reintentarse
-    """
-    def decorator(f):
-        @wraps(f)
-        async def wrapper(*args, **kwargs):
-            retry_count = 0
-            current_delay = delay
-            
-            while retry_count < retries:
-                try:
-                    return await f(*args, **kwargs)
-                except exceptions as e:
-                    retry_count += 1
-                    if retry_count == retries:
-                        logger.error(f"Máximo de reintentos alcanzado ({retries}) para {f.__name__}")
-                        raise
-                    
-                    logger.warning(
-                        f"Error en {f.__name__} (intento {retry_count}/{retries}): {str(e)}. "
-                        f"Reintentando en {current_delay} segundos..."
-                    )
-                    await asyncio.sleep(current_delay)
-                    current_delay *= backoff
-        return wrapper
-    return decorator
-
-
-async def handle_linkedin_login(page, cookies_file):
-    """Maneja el inicio de sesión en LinkedIn y guarda las cookies."""
+async def scrape_linkedin_profile(link_url: str, unit: str) -> Dict:
     try:
-        # Obtener credenciales de variables de entorno
-        username = os.getenv('LINKEDIN_USERNAME')
-        password = os.getenv('LINKEDIN_PASSWORD')
-        
-        if not username or not password:
-            raise ValueError("Credenciales de LinkedIn no configuradas en las variables de entorno")
-        
-        # Navegar a la página de inicio de sesión
-        await page.goto('https://www.linkedin.com/login', timeout=60000)
-        
-        # Rellenar credenciales
-        await page.fill('input[name="session_key"]', username)
-        await page.fill('input[name="session_password"]', password)
-        
-        # Hacer clic en el botón de inicio de sesión
-        await page.click('button[type="submit"]')
-        
-        # Esperar a que se complete la navegación después del inicio de sesión
-        await page.wait_for_load_state('networkidle', timeout=60000)
-        
-        # Verificar si el inicio de sesión fue exitoso
-        if "feed" in page.url or "in" in page.url:
-            logger.info("Inicio de sesión exitoso en LinkedIn")
-            # Guardar cookies para futuras sesiones
-            cookies = await page.context.cookies()
-            with open(cookies_file, 'w') as f:
-                json.dump(cookies, f)
-            logger.info(f"Cookies guardadas en {cookies_file}")
-        else:
-            error_msg = await page.evaluate('''() => {
-                const error = document.querySelector('.error-for-username, .error-for-password');
-                return error ? error.innerText : 'Error desconocido';
-            }''')
-            raise Exception(f"Error en el inicio de sesión: {error_msg}")
+        async with async_playwright() as p:
+            # Seleccionar un USER_AGENT aleatorio
+            user_agent = random.choice(USER_AGENTS)
             
-    except Exception as e:
-        logger.error(f"Error durante el inicio de sesión en LinkedIn: {str(e)}")
-        raise
+            # Lanzar el navegador con configuraciones robustas
+            browser = await p.chromium.launch(headless=True)  # Cambia a False para depurar visualmente
+            context = await browser.new_context(
+                user_agent=user_agent,
+                viewport={"width": 1280, "height": 720},
+                locale="es-ES"  # Simula un navegador en español
+            )
+            
+            # Ruta para almacenar cookies autenticadas
+            cookies_file = "/home/pablo/skills_data/linkedin_cookies.json"
+            
+            # Verificar si hay cookies guardadas y válidas
+            if os.path.exists(cookies_file):
+                await context.storage_state(path=cookies_file)
+                logger.info(f"Cargando cookies desde {cookies_file}")
+            else:
+                logger.warning("No se encontraron cookies guardadas. Intentando login manual.")
+                page = await context.new_page()
+                await page.goto("https://www.linkedin.com/login")
+                await page.fill("#username", "pablo@huntred.com")  # Reemplaza con tu email
+                await page.fill("#password", "Natalia&Patricio1113!")  # Reemplaza con tu contraseña
+                await page.click("button[type=submit]")
+                await page.wait_for_load_state("networkidle", timeout=60000)
+                await context.storage_state(path=cookies_file)  # Guardar cookies tras login
+                logger.info(f"Cookies guardadas en {cookies_file}")
+                await page.close()
 
-
-async def auto_scroll(page):
-    """Desplaza la página hacia abajo para cargar contenido dinámico."""
-    try:
-        # Obtemos la altura del viewport
-        viewport_height = await page.evaluate('window.innerHeight')
-        
-        # Obtenemos la altura total del documento
-        total_height = await page.evaluate('document.body.scrollHeight')
-        
-        # Desplazamiento suave
-        current_position = 0
-        while current_position < total_height:
-            # Desplazar hacia abajo el equivalente al 80% del viewport
-            current_position += int(viewport_height * 0.8)
-            await page.evaluate(f'window.scrollTo(0, {current_position})')
-            
-            # Esperar un tiempo aleatorio entre desplazamientos
-            await asyncio.sleep(random.uniform(0.5, 1.5))
-            
-            # Actualizar la altura total en caso de carga dinámica
-            new_height = await page.evaluate('document.body.scrollHeight')
-            if new_height == total_height:
-                # Si no hay más contenido, salir del bucle
-                break
-            total_height = new_height
-            
-    except Exception as e:
-        logger.warning(f"Error durante el desplazamiento automático: {str(e)}")
-
-
-def extract_personal_info(soup):
-    """Extrae información personal del perfil."""
-    try:
-        name = soup.find('h1', class_='text-heading-xlarge').get_text(strip=True) if soup.find('h1', class_='text-heading-xlarge') else None
-        headline = soup.find('div', class_='text-body-medium').get_text(strip=True) if soup.find('div', class_='text-body-medium') else None
-        
-        return {
-            'name': name,
-            'headline': headline,
-        }
-    except Exception as e:
-        logger.warning(f"Error al extraer información personal: {str(e)}")
-        return {}
-
-def extract_about(soup):
-    """Extrae la sección 'Acerca de' del perfil."""
-    try:
-        about_section = soup.find('div', {'id': 'about'})
-        if about_section:
-            about_content = about_section.find_next('div', class_='display-flex')
-            return about_content.get_text(strip=True) if about_content else None
-        return None
-    except Exception as e:
-        logger.warning(f"Error al extraer sección 'Acerca de': {str(e)}")
-        return None
-
-@retry_with_backoff(retries=3, delay=5, backoff=2)
-@track_scrape_duration()
-async def scrape_linkedin_profile(link_url: str, unit: str) -> Optional[Dict]:
-    """
-    Extrae información estructurada de un perfil de LinkedIn de manera asíncrona.
-    
-    Args:
-        link_url: URL completa del perfil de LinkedIn
-        unit: Unidad de negocio para el procesamiento de habilidades
-        
-    Returns:
-        Dict con la información del perfil o None en caso de error
-    """
-    if not link_url or 'linkedin.com/in/' not in link_url:
-        logger.error(f"URL de LinkedIn no válida: {link_url}")
-        return None
-    
-    # Normalizar la URL
-    if not link_url.startswith(('http://', 'https://')):
-        link_url = f"https://{link_url}"
-    
-    # Verificar si ya tenemos datos en caché
-    cache_key = f"linkedin_profile_{hashlib.md5(link_url.encode()).hexdigest()}"
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        logger.info(f"Datos en caché encontrados para {link_url}")
-        return cached_data
-    
-    # Configuración del navegador desde la configuración
-    browser_config = {
-        'headless': LINKEDIN_CONFIG.get('HEADLESS', True),
-        'args': [
-            '--disable-gpu',
-            '--no-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-setuid-sandbox',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
-            '--disable-extensions',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--disable-site-isolation-trials',
-            '--disable-blink-features=AutomationControlled',
-        ],
-        'timeout': LINKEDIN_CONFIG.get('BROWSER_TIMEOUT', 30000)
-    }
-    
-    # Inicializar Playwright
-    async with async_playwright() as p:
-        try:
-            # Configurar el navegador con opciones de rendimiento
-            browser = await p.chromium.launch(**browser_config)
-            
-            # Configuración del contexto
-            context_config = {
-                'viewport': {'width': 1920, 'height': 1080},
-                'user_agent': LINKEDIN_CONFIG.get('USER_AGENT', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'),
-                'locale': 'es-ES,es;q=0.9,en;q=0.8',
-                'timezone_id': 'Europe/Madrid',
-                'permissions': ['geolocation'],
-                'color_scheme': 'light',
-                'ignore_https_errors': True,
-                'java_script_enabled': True,
-                'bypass_csp': True,
-                'offline': False,
-                'has_touch': False,
-                'is_mobile': False,
-                'device_scale_factor': 1,
-                'screen': {'width': 1920, 'height': 1080},
-            }
-            
-            # Cargar cookies si existen
-            cookies_file = LINKEDIN_CONFIG.get('COOKIES_FILE')
-            if cookies_file and os.path.exists(cookies_file):
-                with open(cookies_file, 'r') as f:
-                    context_config['storage_state'] = json.load(f)
-            
-            # Crear un nuevo contexto
-            context = await browser.new_context(**context_config)
-            
-            # Configurar la página
+            # Abrir la página del perfil
             page = await context.new_page()
-            await page.set_default_timeout(LINKEDIN_CONFIG.get('PAGE_TIMEOUT', 30000))
+            logger.info(f"Intentando acceder a {link_url}")
+            await page.goto(link_url, timeout=60000)  # Timeout aumentado a 60 segundos
             
-            # Navegar al perfil con reintentos
-            max_retries = LINKEDIN_CONFIG.get('MAX_RETRIES', 3)
-            retry_delay = LINKEDIN_CONFIG.get('RETRY_DELAY', 5)
+            # Esperar a que la página cargue completamente
+            await page.wait_for_load_state("networkidle", timeout=60000)
             
-            for attempt in range(max_retries):
-                try:
-                    logger.info(f"Intento {attempt + 1}/{max_retries} - Navegando a {link_url}")
-                    await page.goto(link_url, wait_until='domcontentloaded', timeout=60000)
-                    
-                    # Verificar si necesitamos iniciar sesión
-                    if 'authwall' in page.url:
-                        logger.warning("Se requiere inicio de sesión. Intentando autenticar...")
-                        await handle_linkedin_login(page, LINKEDIN_CONFIG.get('COOKIES_FILE'))
-                        await page.goto(link_url, wait_until='domcontentloaded', timeout=60000)
-                    
-                    # Esperar a que cargue el contenido dinámico
-                    await page.wait_for_selector('div.pv-text-details__left-panel', timeout=10000)
-                    break
-                    
-                except Exception as e:
-                    if attempt == max_retries - 1:
-                        raise
-                    logger.warning(f"Error en el intento {attempt + 1}: {str(e)}. Reintentando en {retry_delay} segundos...")
-                    await asyncio.sleep(retry_delay * (attempt + 1))  # Backoff exponencial
+            # Verificar si requiere login
+            if "Log In or Sign Up" in await page.title():
+                logger.error(f"Autenticación fallida para {link_url}. Actualiza las credenciales o cookies.")
+                await browser.close()
+                return {}
+
+            # Obtener el contenido HTML
+            content = await page.content()
+            soup = BeautifulSoup(content, "html.parser")
             
-            # Extraer información personal
-            personal_info = await extract_personal_info(page)
-            
-            # Extraer sección 'Acerca de'
-            about = await extract_about(page)
-            
-            # Extraer experiencia laboral
-            experience = await extract_experience(page)
-            
-            # Extraer educación
-            education = await extract_education(page)
-            
-            # Extraer habilidades
-            skills = await extract_skills(page, unit)
-            
-            # Extraer información de contacto si está disponible
-            contact_info = await extract_contact_info(page)
-            
-            # Construir el diccionario de resultado
-            result = {
-                'personal_info': personal_info,
-                'about': about,
-                'experience': experience,
-                'education': education,
-                'skills': skills,
-                'contact_info': contact_info,
-                'profile_url': link_url,
-                'scraped_at': datetime.now(timezone.utc).isoformat(),
-                'source': 'linkedin',
-                'unit': unit,
-                'metadata': {
-                    'scraping_method': 'playwright',
-                    'browser': 'chromium',
-                    'retries': 0,
-                    'cached': False
-                }
+            # Extraer datos
+            data = {
+                "headline": extract_headline(soup),
+                "location": extract_location(soup),
+                "experience": extract_experience(soup),
+                "education": extract_education(soup),
+                "skills": extract_skills(soup.get_text(), unit),  # Esto usa NLPProcessor
+                "languages": extract_languages(soup),
+                "contact_info": extract_contact_info(soup),
             }
             
-            # Guardar en caché según la configuración
-            cache_timeout = LINKEDIN_CONFIG.get('CACHE_TIMEOUT', 60*60*24)  # 24 horas por defecto
-            if cache_timeout > 0:
-                cache.set(cache_key, result, timeout=cache_timeout)
+            # Normalizar habilidades y asociar divisiones
+            data["skills"] = normalize_skills(data["skills"], unit)
+            data["divisions"] = associate_divisions(data["skills"], unit)
             
-            return result
+            # Log de éxito
+            logger.info(f"Scrapeado exitosamente {link_url}")
             
-        except Exception as e:
-            logger.error(f"Error al hacer scraping de {link_url}: {str(e)}", exc_info=True)
+            # Cerrar el navegador
+            await browser.close()
             
-            # Intentar con Selenium si falla Playwright
-            logger.info("Intentando con Selenium como respaldo...")
-            try:
-                result = await scrape_with_selenium(link_url, unit)
-                if result:
-                    result['metadata'] = {
-                        'scraping_method': 'selenium',
-                        'browser': 'chrome',
-                        'retries': 0,
-                        'cached': False
-                    }
-                return result
-            except Exception as selenium_error:
-                logger.error(f"Error en Selenium: {str(selenium_error)}")
-                raise
-                
-        finally:
-            # Obtener instancias de manera segura
-            browser_instance = None
-            context_instance = None
+            # Pausa aleatoria para evitar bloqueos
+            await asyncio.sleep(random.uniform(10, 20))
             
-            try:
-                browser_instance = locals().get('browser')
-                context_instance = locals().get('context')
-                
-                # Guardar cookies para la próxima sesión si está habilitado
-                if LINKEDIN_CONFIG.get('SAVE_COOKIES', True) and context_instance:
-                    try:
-                        cookies = await context_instance.cookies()
-                        cookies_file = LINKEDIN_CONFIG.get('COOKIES_FILE')
-                        if cookies and cookies_file:
-                            os.makedirs(os.path.dirname(cookies_file), exist_ok=True)
-                            with open(cookies_file, 'w') as f:
-                                json.dump({'cookies': cookies}, f)
-                    except Exception as cookie_error:
-                        logger.error(f"Error al guardar cookies: {str(cookie_error)}")
-                
-                # Normalizar habilidades y asociar divisiones si hay un resultado
-                if 'result' in locals() and result and isinstance(result, dict) and result.get('skills'):
-                    try:
-                        result['skills'] = await asyncio.get_event_loop().run_in_executor(
-                            None, normalize_skills, result['skills'], unit
-                        )
-                        result['divisions'] = await asyncio.get_event_loop().run_in_executor(
-                            None, associate_divisions, result['skills'], unit
-                        )
-                    except Exception as norm_error:
-                        logger.error(f"Error al normalizar habilidades: {str(norm_error)}")
-                        
-                # Guardar cookies de sesión exitosa
-                if context_instance:
-                    try:
-                        cookies = await context_instance.cookies()
-                        cookies_file = LINKEDIN_CONFIG.get('COOKIES_FILE')
-                        if cookies and cookies_file:
-                            with open(cookies_file, 'w') as f:
-                                json.dump(cookies, f)
-                            logger.info("Cookies de sesión guardadas exitosamente")
-                    except Exception as e:
-                        logger.warning(f"Error al guardar cookies de sesión: {e}")
-                        
-            except Exception as cleanup_error:
-                logger.error(f"Error durante la limpieza: {str(cleanup_error)}")
-                raise
-                
-            finally:
-                # Asegurarse de que el navegador se cierre
-                if browser_instance:
-                    try:
-                        if not browser_instance.is_closed():
-                            await browser_instance.close()
-                    except Exception as close_error:
-                        logger.error(f"Error al cerrar el navegador: {str(close_error)}")
-                
-                # Pausa aleatoria entre solicitudes para evitar bloqueos
-                await asyncio.sleep(random.uniform(5, 15))
+            return data
             
-            logger.info(f"Perfil de {link_url} procesado exitosamente")
-            return result
-
-
-async def scrape_with_selenium(profile_url: str, unit: str) -> Optional[Dict]:
-    """
-    Función de respaldo que utiliza Selenium para el scraping de perfiles de LinkedIn.
-    Se usa cuando falla la implementación con Playwright.
-    """
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.common.exceptions import (
-        TimeoutException, NoSuchElementException, WebDriverException
-    )
-    
-    driver = None
-    try:
-        # Configuración de opciones de Chrome
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-        chrome_options.add_argument(f'user-agent={random.choice(USER_AGENTS)}')
-        
-        # Inicializar el navegador
-        driver = webdriver.Chrome(options=chrome_options)
-        driver.set_page_load_timeout(60)  # 60 segundos de timeout
-        
-        # Navegar al perfil
-        logger.info(f"[SELENIUM] Accediendo a {profile_url}")
-        driver.get(profile_url)
-        
-        # Esperar a que cargue la página
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div.pv-profile-section"))
-        )
-        
-        # Desplazarse para cargar contenido dinámico
-        last_height = driver.execute_script("return document.body.scrollHeight")
-        while True:
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)  # Esperar a que cargue el contenido
-            new_height = driver.execute_script("return document.body.scrollHeight")
-            if new_height == last_height:
-                break
-            last_height = new_height
-        
-        # Obtener el HTML procesado
-        html_content = driver.page_source
-        soup = BeautifulSoup(html_content, 'html.parser')
-        
-        # Extraer datos del perfil
-        profile_data = {
-            'profile_url': profile_url,
-            'scraped_at': datetime.now(timezone.utc).isoformat(),
-            'personal_info': extract_personal_info(soup),
-            'headline': extract_headline(soup),
-            'location': extract_location(soup),
-            'about': extract_about(soup),
-            'experience': extract_experience(soup),
-            'education': extract_education(soup),
-            'languages': extract_languages(soup),
-            'contact_info': extract_contact_info(soup),
-        }
-        
-        # Extraer habilidades
-        raw_text = soup.get_text()
-        profile_data['skills'] = extract_skills(raw_text, unit)
-        
-        # Normalizar habilidades y asociar divisiones
-        if profile_data['skills']:
-            profile_data['skills'] = normalize_skills(profile_data['skills'], unit)
-            profile_data['divisions'] = associate_divisions(profile_data['skills'], unit)
-        
-        logger.info(f"[SELENIUM] Perfil de {profile_url} procesado exitosamente")
-        return profile_data
-        
-    except TimeoutException:
-        logger.error(f"[SELENIUM] Timeout al cargar el perfil {profile_url}")
-        return None
-    except NoSuchElementException as e:
-        logger.error(f"[SELENIUM] Elemento no encontrado en {profile_url}: {str(e)}")
-        return None
-    except WebDriverException as e:
-        logger.error(f"[SELENIUM] Error del navegador al procesar {profile_url}: {str(e)}")
-        return None
     except Exception as e:
-        logger.error(f"[SELENIUM] Error inesperado al procesar {profile_url}: {str(e)}")
-        return None
-    finally:
-        if driver:
-            try:
-                driver.quit()
-            except Exception as e:
-                logger.warning(f"Error al cerrar el navegador: {str(e)}")
+        logger.warning(f"Playwright falló para {link_url}, intentando con Selenium: {e}")
+        try:
+            from selenium import webdriver
+            from selenium.webdriver.chrome.options import Options
+            options = Options()
+            options.add_argument("--headless")  # Ejecutar en modo headless
+            driver = webdriver.Chrome(options=options)
+            driver.get(link_url)
+            content = driver.page_source
+            soup = BeautifulSoup(content, "html.parser")
+            data = {
+                "headline": extract_headline(soup),
+                "location": extract_location(soup),
+                "experience": extract_experience(soup),
+                "education": extract_education(soup),
+                "skills": extract_skills(soup.get_text(), unit),
+                "languages": extract_languages(soup),
+                "contact_info": extract_contact_info(soup),
+            }
+            data["skills"] = normalize_skills(data["skills"], unit)
+            data["divisions"] = associate_divisions(data["skills"], unit)
+            driver.quit()
+            logger.info(f"Scrapeado con Selenium exitosamente {link_url}")
+            return data
+        except Exception as se:
+            logger.error(f"Error con Selenium para {link_url}: {se}", exc_info=True)
+            return {}
             
 @backoff.on_exception(backoff.expo, Exception, max_tries=5, jitter=backoff.full_jitter)
 async def fetch_page(page, url):

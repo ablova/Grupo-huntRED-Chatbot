@@ -4,19 +4,34 @@ Configuración de desarrollo para Grupo huntRED®.
 import os
 import logging
 from pathlib import Path
+import environ
 from .base import *
+
+# Initialize environment variables
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Configuración de desarrollo
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-# Configuración de base de datos
+# Configuración de base de datos PostgreSQL
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME', default='g_huntred_ai_db'),
+        'USER': env('DB_USER', default='g_huntred_pablo'),
+        'PASSWORD': env('DB_PASSWORD', default='Natalia&Patricio1113!'),
+        'HOST': env('DB_HOST', default='localhost'),
+        'PORT': env('DB_PORT', default='5432'),
+        'OPTIONS': {
+            'client_encoding': 'UTF8',
+            'options': '-c search_path=public,pg_catalog',
+        },
     }
 }
+
+# PostgreSQL configuration using psycopg2-binary
 
 # Configuración de correo electrónico
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

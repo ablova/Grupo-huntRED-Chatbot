@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}{% block pricing_title %}{% endblock %} - Gestión de Precios{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Menú de Precios</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'pricing:request_team_evaluation' %}" 
+                       class="list-group-item list-group-item-action {% if active_tab == 'team_evaluation' %}active{% endif %}">
+                        <i class="fas fa-users me-2"></i> Evaluación de Equipo
+                    </a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'pricing:promotion_list' %}" 
+                       class="list-group-item list-group-item-action {% if active_tab == 'promotions' %}active{% endif %}">
+                        <i class="fas fa-bullhorn me-2"></i> Banners Promocionales
+                    </a>
+                    <a href="{% url 'pricing:coupon_list' %}" 
+                       class="list-group-item list-group-item-action {% if active_tab == 'coupons' %}active{% endif %}">
+                        <i class="fas fa-tags me-2"></i> Cupones de Descuento
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% block sidebar_extra %}{% endblock %}
+        </div>
+        
+        <div class="col-md-9">
+            {% block pricing_content %}
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">{% block pricing_heading %}{% endblock %}</h4>
+                </div>
+                <div class="card-body">
+                    {% block pricing_body %}{% endblock %}
+                </div>
+            </div>
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

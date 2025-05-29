@@ -49,6 +49,44 @@ from app.signals.user import (
     profile_completed, cv_analyzed,
     analyze_cv, create_person_profile
 )
+
+from app.models import SuccessionReadinessAssessment, SuccessionCandidate
+from django.utils import timezone
+
+@receiver(post_save, sender=SuccessionReadinessAssessment)
+def update_candidate_readiness(sender, instance, created, **kwargs):
+    """
+    Actualiza automáticamente el estado del candidato cuando se crea una nueva evaluación.
+    """
+    if created:
+        candidate = instance.candidate
+        candidate.readiness_level = instance.readiness_level
+        candidate.readiness_score = instance.readiness_score
+        candidate.last_assessed = timezone.now()
+        
+        # Actualizar las brechas clave desde las áreas de desarrollo
+        if instance.development_areas:
+            candidate.key_gaps = [area['name'] for area in instance.development_areas]
+        
+        candidate.save(update_fields=[
+            'readiness_level', 
+            'readiness_score', 
+            'last_assessed',
+            'key_gaps'
+        ])
+
+@receiver(pre_save, sender=SuccessionCandidate)
+def set_initial_development_plan(sender, instance, **kwargs):
+    """
+    Establece un plan de desarrollo inicial si no existe uno.
+    """
+    if not instance.pk and not instance.development_plan:
+        instance.development_plan = {
+            'goals': [],
+            'timeline': {},
+            'resources': [],
+            'milestones': []
+        }
 from app.signals.publish import (
     publication_created, publication_updated, publication_failed,
     auto_publish_vacancy, handle_publication_result

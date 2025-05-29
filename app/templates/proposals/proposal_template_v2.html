@@ -2279,40 +2279,27 @@
 
     <!-- JavaScript for Interactivity -->
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const servicesContainer = document.getElementById('additionalServicesContainer');
-        const servicesSummary = document.getElementById('servicesSummary');
-        const servicesRoiCalculation = document.getElementById('servicesRoiCalculation');
-        const saveServicesBtn = document.getElementById('saveServicesBtn');
-        const currency = '{{ pricing.currency }}';
-        const selectedServices = new Set();
-        
-        // Load initial selected services from template
-        const selectedServiceIdsTemplate = document.getElementById('selectedServiceIdsTemplate');
-        if (selectedServiceIdsTemplate) {
-            const serviceIds = JSON.parse(selectedServiceIdsTemplate.textContent || '[]');
-            serviceIds.forEach(serviceId => {
-                if (serviceId) {
-                    selectedServices.add(serviceId);
-                    const checkbox = document.querySelector(`.service-checkbox[value="${serviceId}"]`);
-                    if (checkbox) checkbox.checked = true;
-                }
-            });
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const servicesContainer = document.getElementById('additionalServicesContainer');
+            const servicesSummary = document.getElementById('servicesSummary');
+            const servicesRoiCalculation = document.getElementById('servicesRoiCalculation');
+            const saveServicesBtn = document.getElementById('saveServicesBtn');
+            const selectedServicesInput = document.getElementById('selectedServices');
+            const currency = '{{ pricing.currency }}';
 
-        // Update services summary and ROI
-        function updateServicesSummary() {
-            const selectedCheckboxes = document.querySelectorAll('.service-checkbox:checked');
-            let totalInvestment = 0;
-            
-            selectedCheckboxes.forEach(checkbox => {
-                const card = checkbox.closest('.service-card');
-                if (card) {
+            // Load initial selected services
+            const selectedServiceIdsTemplate = document.getElementById('selectedServiceIdsTemplate');
+            const selectedServices = new Set(selectedServiceIdsTemplate ? JSON.parse(selectedServiceIdsTemplate.textContent || '[]') : []);
+
+            // Update services summary and ROI
+            function updateServicesSummary() {
+                const selectedCheckboxes = servicesContainer.querySelectorAll('.service-checkbox:checked');
+                let totalInvestment = 0;
+                selectedCheckboxes.forEach(checkbox => {
+                    const card = checkbox.closest('.service-card');
                     totalInvestment += parseFloat(card.dataset.servicePrice) || 0;
-                }
-            });
+                });
 
-            if (servicesSummary) {
                 servicesSummary.innerHTML = `
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">Servicios Seleccionados:</span>
@@ -2320,21 +2307,19 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">Total Inversión:</span>
-                        <span id="servicesTotalInvestment" class="text-sm font-medium text-gray-800">${currency} ${totalInvestment.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        <span id="servicesTotalInvestment" class="text-sm font-medium text-gray-800">${currency} ${totalInvestment.toFixed(2)}</span>
                     </div>
                 `;
-            }
 
-            // Calculate ROI if container exists
-            if (servicesRoiCalculation) {
-                const avgSalary = {% if pricing.items.0.salary_parameters.max %}{{ pricing.items.0.salary_parameters.max|escapejs }}{% else %}50000{% endif %};
+                // Calculate ROI
+                const avgSalary = {{ pricing.items|first.salary_parameters.max|default:50000 }};
                 const badHireCost = avgSalary * 5;
                 const roiPercentage = totalInvestment > 0 ? ((badHireCost - totalInvestment) / totalInvestment * 100).toFixed(2) : 0;
 
                 servicesRoiCalculation.innerHTML = `
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">Costo Estimado de Mala Contratación:</span>
-                        <span id="servicesBadHireCost" class="text-sm font-medium text-gray-800">${currency} ${badHireCost.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        <span id="servicesBadHireCost" class="text-sm font-medium text-gray-800">${currency} ${badHireCost.toFixed(2)}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">ROI Estimado (6 meses):</span>
@@ -2342,93 +2327,79 @@
                     </div>
                 `;
             }
-            
-            // Update the hidden input with selected services
-            const servicesInput = document.getElementById('selectedServices');
-            if (servicesInput) {
-                servicesInput.value = JSON.stringify(Array.from(selectedServices));
-            }
-        }
 
-        // Update card visual state
-        function updateCardState(checkbox) {
-            const card = checkbox.closest('.service-card');
-            if (!card) return;
-            
-            const statusSpan = card.querySelector('.inline-flex');
-            if (!statusSpan) return;
-            
-            if (checkbox.checked) {
-                card.classList.add('selected', 'ring-2', 'ring-hunt-red');
-                statusSpan.classList.remove('bg-gray-100', 'text-gray-500');
-                statusSpan.classList.add('bg-green-100', 'text-green-800');
-                statusSpan.innerHTML = '<i class="fas fa-check-circle mr-1" aria-hidden="true"></i> Incluido';
-                selectedServices.add(checkbox.value);
-            } else {
-                card.classList.remove('selected', 'ring-2', 'ring-hunt-red');
-                statusSpan.classList.remove('bg-green-100', 'text-green-800');
-                statusSpan.classList.add('bg-gray-100', 'text-gray-500');
-                statusSpan.innerHTML = '<i class="fas fa-plus-circle mr-1" aria-hidden="true"></i> Opcional';
-                selectedServices.delete(checkbox.value);
+            // Update card visual state
+            function updateCardState(checkbox) {
+                const card = checkbox.closest('.service-card');
+                const statusSpan = card.querySelector('.inline-flex');
+                if (checkbox.checked) {
+                    card.classList.add('selected');
+                    statusSpan.classList.remove('bg-gray-100', 'text-gray-500');
+                    statusSpan.classList.add('bg-green-100', 'text-green-800');
+                    statusSpan.innerHTML = '<i class="fas fa-check-circle mr-1" aria-hidden="true"></i> Incluido';
+                    selectedServices.add(checkbox.value);
+                } else {
+                    card.classList.remove('selected');
+                    statusSpan.classList.remove('bg-green-100', 'text-green-800');
+                    statusSpan.classList.add('bg-gray-100', 'text-gray-500');
+                    statusSpan.innerHTML = '<i class="fas fa-plus-circle mr-1" aria-hidden="true"></i> Opcional';
+                    selectedServices.delete(checkbox.value);
+                }
             }
-        }
 
-        // Initialize event listeners
-        function initializeEventListeners() {
-            // Event delegation for service checkboxes
-            if (servicesContainer) {
-                servicesContainer.addEventListener('change', (e) => {
-                    if (e.target.classList.contains('service-checkbox')) {
-                        updateCardState(e.target);
-                        updateServicesSummary();
-                    }
-                });
-            }
+            // Event listeners for checkboxes
+            servicesContainer.addEventListener('change', (e) => {
+                if (e.target.classList.contains('service-checkbox')) {
+                    updateCardState(e.target);
+                    updateServicesSummary();
+                }
+            });
 
             // Save services selection
-            if (saveServicesBtn) {
-                saveServicesBtn.addEventListener('click', () => {
-                    const form = document.getElementById('servicesForm');
-                    if (!form) return;
-                    
-                    fetch(form.action, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}',
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: new URLSearchParams(new FormData(form))
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showToast('Selección guardada exitosamente', 'success');
-                        } else {
-                            showToast('Error al guardar la selección', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('Error al procesar la solicitud', 'error');
-                    });
-                });
-            }
-            
+            saveServicesBtn.addEventListener('click', () => {
+                selectedServicesInput.value = JSON.stringify(Array.from(selectedServices));
+                const form = document.getElementById('servicesForm');
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(new FormData(form))
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const toast = document.createElement('div');
+                        toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg';
+                        toast.innerHTML = `
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                <span>Selección guardada exitosamente</span>
+                            </div>
+                        `;
+                        document.body.appendChild(toast);
+                        setTimeout(() => toast.remove(), 3000);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+
             // Tab switching
             const tabs = document.querySelectorAll('.tab-button');
             const panels = document.querySelectorAll('.tab-panel');
-            
-            function switchTab(e) {
-                e.preventDefault();
-                const targetId = e.currentTarget.id.replace('tab-', 'panel-');
-                
+
+            function switchTab(event) {
+                event.preventDefault();
+                const targetId = event.currentTarget.id.replace('tab-', 'panel-');
+
                 tabs.forEach(tab => {
                     tab.classList.remove('tab-active');
                     tab.setAttribute('aria-selected', 'false');
                 });
-                e.currentTarget.classList.add('tab-active');
-                e.currentTarget.setAttribute('aria-selected', 'true');
-                
+                event.currentTarget.classList.add('tab-active');
+                event.currentTarget.setAttribute('aria-selected', 'true');
+
                 panels.forEach(panel => {
                     panel.classList.remove('active');
                     if (panel.id === targetId) {
@@ -2436,7 +2407,7 @@
                     }
                 });
             }
-            
+
             tabs.forEach(tab => {
                 tab.addEventListener('click', switchTab);
                 tab.addEventListener('keydown', (e) => {
@@ -2446,40 +2417,9 @@
                     }
                 });
             });
-        }
-        
-        // Show toast notification
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-            const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
-            
-            toast.className = `fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in`;
-            toast.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas ${iconClass} mr-2"></i>
-                    <span>${message}</span>
-                </div>
-            `;
-            
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-        
-        // Initialize everything
-        initializeEventListeners();
-        updateServicesSummary();
-        
-        // Initialize any checkboxes that should be checked
-        document.querySelectorAll('.service-checkbox').forEach(checkbox => {
-            if (selectedServices.has(checkbox.value)) {
-                checkbox.checked = true;
-                updateCardState(checkbox);
-            }
-        });
+
+            // Initialize services summary
+            updateServicesSummary();
         });
     </script>
 </section>
@@ -2487,6 +2427,126 @@
     <!-- Template for selected service IDs -->
     <script type="text/template" id="selectedServiceIdsTemplate">
         {{ selected_service_ids|safe }}
+    </script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize service selection
+        const serviceCheckboxes = document.querySelectorAll('.service-checkbox');
+        const selectedServices = new Set();
+        
+        // Load previously selected services from a template
+        const selectedServiceIdsTemplate = document.getElementById('selectedServiceIdsTemplate');
+        if (selectedServiceIdsTemplate) {
+            const serviceIds = JSON.parse(selectedServiceIdsTemplate.textContent || '[]');
+            serviceIds.forEach(function(serviceId) {
+                if (serviceId) selectedServices.add(serviceId);
+            });
+        }
+        
+        // Update UI when service selection changes
+        function updateServiceSelection() {
+            serviceCheckboxes.forEach(checkbox => {
+                const card = checkbox.closest('.service-card');
+                if (checkbox.checked) {
+                    card.classList.add('ring-2', 'ring-hunt-red');
+                    selectedServices.add(checkbox.value);
+                } else {
+                    card.classList.remove('ring-2', 'ring-hunt-red');
+                    selectedServices.delete(checkbox.value);
+                }
+            });
+            
+            updateInvestmentSummary();
+            updateROICalculation();
+        }
+        
+        // Update investment summary
+        function updateInvestmentSummary() {
+            // This would be replaced with actual calculation logic
+            const total = Array.from(selectedServices).reduce((sum, serviceId) => {
+                const serviceCard = document.querySelector(`[data-service-id="${serviceId}"]`);
+                if (serviceCard) {
+                    return sum + parseFloat(serviceCard.dataset.servicePrice || 0);
+                }
+                return sum;
+            }, 0);
+            
+            document.getElementById('investmentSummary').innerHTML = `
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span>Servicios seleccionados:</span>
+                        <span class="font-medium">${selectedServices.size}</span>
+                    </div>
+                    <div class="flex justify-between text-lg font-semibold text-hunt-red">
+                        <span>Inversión total:</span>
+                        <span>$${total.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})} MXN</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Update ROI calculation
+        function updateROICalculation() {
+            // This would be replaced with actual ROI calculation logic
+            const estimatedROI = selectedServices.size * 3.5; // Example calculation
+            
+            document.getElementById('roiCalculation').innerHTML = `
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span>ROI estimado (12 meses):</span>
+                        <span class="font-semibold text-green-600">${estimatedROI}x</span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        Por cada peso invertido, se espera un retorno de $${estimatedROI.toFixed(2)} pesos en valor para su organización.
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Save selection
+        document.getElementById('saveSelectionBtn').addEventListener('click', function() {
+            const form = document.getElementById('servicesForm');
+            const selectedServicesInput = document.getElementById('selectedServices');
+            selectedServicesInput.value = Array.from(selectedServices).join(',');
+            
+            // Submit form via AJAX
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(form))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg';
+                    toast.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span>Selección guardada exitosamente</span>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+        
+        // Initialize
+        serviceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateServiceSelection);
+        });
+        
+        updateServiceSelection();
+    });
     </script>
     
     <style>
@@ -2855,9 +2915,45 @@
                 </div>
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <!-- Video del Managing Director -->
+                <div class="bg-white rounded-xl shadow-xl overflow-hidden transform hover:scale-[1.02] transition-all duration-300">
+                    <div class="aspect-w-16 aspect-h-9 bg-gray-200 relative">
+                        <!-- Placeholder del video -->
+                        <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800">
+                            <div class="text-center p-6">
+                                <i class="fas fa-play-circle text-white text-5xl mb-4 opacity-90"></i>
+                                <p class="text-white font-medium text-lg">Mensaje de nuestro Managing Director</p>
+                                <p class="text-blue-100 text-sm mt-2">Duración: 2:30 min</p>
+                            </div>
+                        </div>
+                        <!-- Botón de reproducción centrado -->
+                        <button class="absolute inset-0 w-full h-full flex items-center justify-center group" aria-label="Reproducir video">
+                            <div class="w-20 h-20 bg-white bg-opacity-90 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform">
+                                <i class="fas fa-play text-blue-600 text-2xl ml-1"></i>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold mb-2 text-gray-800">Agenda con nuestro Socio Fundador</h3>
+                        <p class="text-gray-700 mb-4">Reserve una reunión con Pablo Lelo de Larrea H. - Sr. Managing Partner Grupo huntRED® para discutir su estrategia de desarrollo organizaciona, reclutamiento y/o resolver cualquier duda.</p>
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <img class="h-12 w-12 rounded-full" src="{{ company.ceo_photo_url|default('/static/profiles/default-avatar.png') }}" alt="Managing Director">
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900">Pablo Lelo de Larrea y de Haro</p>
+                                <p class="text-sm text-gray-500">Sr. Managing Partner</p>
+                            </div>
+                        </div>
+                        <a href="https://huntred.com/agenda-pllh/" target="_blank" class="block w-full text-center bg-gradient-to-r from-red-600 to-red-700 text-white font-medium py-3 px-6 rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                            <i class="fas fa-calendar-check mr-2"></i>Agendar Reunión Estratégica
+                        </a>
+                    </div>
+                </div>
+
                 <!-- Formulario de Contacto -->
                 <div class="bg-white rounded-xl shadow-xl p-8">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-6">Programa una llamada con un Consultor</h3>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-6">Programa una llamada</h3>
                     <form id="contactForm" class="space-y-4">
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
@@ -2897,43 +2993,6 @@
                         </p>
                     </form>
                 </div>
-                <!-- Video del Managing Director -->
-                <div class="bg-white rounded-xl shadow-xl overflow-hidden transform hover:scale-[1.02] transition-all duration-300">
-                    <div class="aspect-w-16 aspect-h-9 bg-gray-200 relative">
-                        <!-- Placeholder del video -->
-                        <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800">
-                            <div class="text-center p-6">
-                                <i class="fas fa-play-circle text-white text-5xl mb-4 opacity-90"></i>
-                                <p class="text-white font-medium text-lg">Mensaje de nuestro Managing Director</p>
-                                <p class="text-blue-100 text-sm mt-2">Duración: 2:30 min</p>
-                            </div>
-                        </div>
-                        <!-- Botón de reproducción centrado -->
-                        <button class="absolute inset-0 w-full h-full flex items-center justify-center group" aria-label="Reproducir video">
-                            <div class="w-20 h-20 bg-white bg-opacity-90 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform">
-                                <i class="fas fa-play text-blue-600 text-2xl ml-1"></i>
-                            </div>
-                        </button>
-                    </div>
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold mb-2 text-gray-800">Agenda con nuestro Socio Fundador</h3>
-                        <p class="text-gray-700 mb-4">Reserve una reunión con Pablo Lelo de Larrea H. - Sr. Managing Partner Grupo huntRED® para discutir su estrategia de desarrollo organizaciona, reclutamiento y/o resolver cualquier duda.</p>
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <img class="h-12 w-12 rounded-full" src="{{ company.ceo_photo_url|default('/static/profiles/default-avatar.png') }}" alt="Managing Director">
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm font-medium text-gray-900">Pablo Lelo de Larrea y de Haro</p>
-                                <p class="text-sm text-gray-500">Sr. Managing Partner</p>
-                            </div>
-                        </div>
-                        <a href="https://huntred.com/agenda-pllh/" target="_blank" class="block w-full text-center bg-gradient-to-r from-red-600 to-red-700 text-white font-medium py-3 px-6 rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                            <i class="fas fa-calendar-check mr-2"></i>Agendar Reunión Estratégica
-                        </a>
-                    </div>
-                </div>
-
-                
             </div>
             
             <!-- Datos de contacto adicionales -->
@@ -2958,7 +3017,7 @@
                             <i class="fas fa-map-marker-alt text-blue-600 text-xl"></i>
                         </div>
                         <h4 class="font-medium text-gray-900 mb-1">Oficinas</h4>
-                        <p class="text-gray-600"><a href="https://www.google.com/maps/place/Grupo+huntRED/@19.3609447,-99.2688391,17z/data=!3m2!4b1!5s0x85d200d099f36f4b:0x282479f8527c4783!4m6!3m5!1s0x85d20202accb7bd3:0x29c7da34553ff4a9!8m2!3d19.3609397!4d-99.2662588!16s%2Fg%2F119x4sf0s?entry=ttu&g_ep=EgoyMDI1MDUyNi4wIKXMDSoASAFQAw%3D%3D" target="_blank">   Ciudad de México, México</a></p>
+                        <p class="text-gray-600">Ciudad de México, México</p>
                     </div>
                 </div>
             </div>
@@ -3160,7 +3219,7 @@
                     <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                         <div class="p-6">
                             <h3 class="text-xl font-bold text-center text-gray-800 mb-2">11. Condiciones Generales</h3>
-                            <h4 class="text-md font-medium text-center text-gray-600 mb-5 italic">Contrato de prestación de servicios de consultoría, reclutamiento y selección de profesionales</h4>
+                            <h4 class="text-md font-medium text-center text-gray-600 mb-5 italic">Contrato de prestación de servicios de selección y reclutamiento de profesionales</h4>
                     
                     <div class="text-xs text-gray-700">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
