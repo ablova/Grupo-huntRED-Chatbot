@@ -55,10 +55,17 @@ app/migrations/
 *.pyc
 __pycache__/
 
+# Instaladores de Miniconda
+Miniconda3-*.sh
+
 # Entornos virtuales
-venv/
+venv*/
+venv_*/
+.venv/
 env/
-ENV/
+.conda/
+miniconda3/
+anaconda3/
 
 # Archivos de IDE
 .idea/
@@ -79,11 +86,27 @@ ENV/
 .coverage
 htmlcov/
 
-# Archivos de paquetes
-dist/
+# Archivos de Python / Paquetes
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
-*.egg-info/
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Archivos de sistema
 .DS_Store
