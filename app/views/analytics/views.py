@@ -4,7 +4,7 @@
 
 from django.shortcuts import render
 from django.http import JsonResponse
-from app.analytics.reports import AnalyticsEngine
+from app.ats.analytics.reports import AnalyticsEngine
 import json
 
 class AnalyticsDashboardView:

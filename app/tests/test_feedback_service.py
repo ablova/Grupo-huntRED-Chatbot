@@ -11,8 +11,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 django.setup()
 
 from app.models import Person, Feedback, Notification, Entrevista, Vacante, BusinessUnit
-from app.com.utils.feedback_service import FeedbackService
-from app.com.utils.whatsapp import WhatsAppApi
+from app.ats.utils.feedback_service import FeedbackService
+from app.ats.utils.whatsapp import WhatsAppApi
 
 # Datos de prueba
 TEST_PHONE = '+525518490291'
@@ -108,7 +108,7 @@ class TestFeedbackService:
     @pytest.mark.asyncio
     async def test_send_feedback_notification(self, test_interview, feedback_service):
         """Test de envío de notificación de feedback."""
-        with patch('app.com.utils.notification_service.NotificationService.send_notification', return_value=MagicMock()):
+        with patch('app.ats.utils.notification_service.NotificationService.send_notification', return_value=MagicMock()):
             result = await feedback_service.send_feedback_notification(test_interview)
             
             assert result is not False

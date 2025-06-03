@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Referidos{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2">Programa de Referidos</h1>
+            <p class="lead">Gana comisiones por referir nuevos clientes</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'referrals:create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nueva Referencia
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Referidos</h5>
+                    <h2 class="display-4">{{ stats.total_referrals }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Completados</h5>
+                    <h2 class="display-4">{{ stats.completed_referrals }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Pendientes</h5>
+                    <h2 class="display-4">{{ stats.pending_referrals }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Comisión Total</h5>
+                    <h2 class="display-4">${{ stats.total_commission|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Referidos Activos -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="h5 mb-0">Referidos Activos</h3>
+        </div>
+        <div class="card-body">
+            {% if active_referrals %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Código</th>
+                                <th>Estado</th>
+                                <th>Comisión</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for referral in active_referrals %}
+                            <tr>
+                                <td>{{ referral.referred_company }}</td>
+                                <td><code>{{ referral.referral_code }}</code></td>
+                                <td>
+                                    <span class="badge bg-{{ referral.status|yesno:'success,warning' }}">
+                                        {{ referral.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ referral.commission_percentage }}%</td>
+                                <td>{{ referral.created_at|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="{% url 'referrals:detail' referral.id %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">No tienes referidos activos</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Referidos Completados -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="h5 mb-0">Referidos Completados</h3>
+        </div>
+        <div class="card-body">
+            {% if completed_referrals %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Propuesta</th>
+                                <th>Comisión</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for referral in completed_referrals %}
+                            <tr>
+                                <td>{{ referral.referred_company }}</td>
+                                <td>
+                                    {% if referral.proposal %}
+                                        <a href="{% url 'pricing:proposal_detail' referral.proposal.id %}">
+                                            Ver Propuesta
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if referral.proposal %}
+                                        ${{ referral.calculate_commission|floatformat:2 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ referral.completed_at|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="{% url 'referrals:detail' referral.id %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">No tienes referidos completados</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Actualizar estadísticas cada 5 minutos
+    setInterval(function() {
+        fetch('{% url "referrals:stats" %}')
+            .then(response => response.json())
+            .then(data => {
+                // Actualizar estadísticas en la UI
+                document.querySelector('.total-referrals').textContent = data.total_referrals;
+                document.querySelector('.completed-referrals').textContent = data.completed_referrals;
+                document.querySelector('.pending-referrals').textContent = data.pending_referrals;
+                document.querySelector('.total-commission').textContent = '$' + data.total_commission.toFixed(2);
+            });
+    }, 300000);
+</script>
+{% endblock %} 

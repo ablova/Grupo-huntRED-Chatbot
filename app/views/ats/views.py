@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.core.cache import caches
 from django_ratelimit.decorators import ratelimit
 
-from app.decorators import (
+from app.ats.decorators import (
     bu_complete_required, bu_division_required,
     permission_required, verified_user_required
 )
@@ -27,7 +27,7 @@ from app.models import (
     Application, Interview, Person, Vacante,
     ApplicationStatus, InterviewStatus
 )
-from app.utils import get_business_unit, get_user_permissions
+from app.ats.utils import get_business_unit, get_user_permissions
 
 import logging
 logger = logging.getLogger(__name__)

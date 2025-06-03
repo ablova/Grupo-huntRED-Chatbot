@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detalles de Referencia{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Información Principal -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h1 class="h3 mb-0">Detalles de la Referencia</h1>
+                    <div>
+                        {% if not referral.is_completed %}
+                            <a href="{% url 'referrals:validate' referral.id %}" class="btn btn-success">
+                                <i class="fas fa-check"></i> Validar
+                            </a>
+                            <a href="{% url 'referrals:reject' referral.id %}" class="btn btn-danger">
+                                <i class="fas fa-times"></i> Rechazar
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Empresa Referida</dt>
+                                <dd class="col-sm-8">{{ referral.referred_company }}</dd>
+
+                                <dt class="col-sm-4">Código de Referencia</dt>
+                                <dd class="col-sm-8">
+                                    <code>{{ referral.referral_code }}</code>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('{{ referral.referral_code }}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </dd>
+
+                                <dt class="col-sm-4">Estado</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-{{ referral.status|yesno:'success,warning' }}">
+                                        {{ referral.get_status_display }}
+                                    </span>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Comisión</dt>
+                                <dd class="col-sm-8">{{ referral.commission_percentage }}%</dd>
+
+                                <dt class="col-sm-4">Fecha de Creación</dt>
+                                <dd class="col-sm-8">{{ referral.created_at|date:"d/m/Y H:i" }}</dd>
+
+                                {% if referral.is_completed %}
+                                    <dt class="col-sm-4">Fecha de Completado</dt>
+                                    <dd class="col-sm-8">{{ referral.completed_at|date:"d/m/Y H:i" }}</dd>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Propuesta Asociada -->
+            {% if referral.proposal %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Propuesta Asociada</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">ID de Propuesta</dt>
+                                <dd class="col-sm-8">
+                                    <a href="{% url 'pricing:proposal_detail' referral.proposal.id %}">
+                                        {{ referral.proposal.id }}
+                                    </a>
+                                </dd>
+
+                                <dt class="col-sm-4">Valor Total</dt>
+                                <dd class="col-sm-8">${{ referral.proposal.total_value|floatformat:2 }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Comisión Calculada</dt>
+                                <dd class="col-sm-8">${{ referral.calculate_commission|floatformat:2 }}</dd>
+
+                                <dt class="col-sm-4">Estado de Pago</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-{{ referral.proposal.is_paid|yesno:'success,warning' }}">
+                                        {{ referral.proposal.is_paid|yesno:'Pagado,Pendiente' }}
+                                    </span>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <!-- Acciones Rápidas -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Acciones Rápidas</h2>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'referrals:dashboard' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                        </a>
+                        {% if not referral.is_completed %}
+                            <button class="btn btn-outline-success" onclick="shareReferral()">
+                                <i class="fas fa-share-alt"></i> Compartir Referencia
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información de Ayuda -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Información de Ayuda</h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-0">
+                        <h4 class="alert-heading">¿Cómo funciona?</h4>
+                        <p>Para que la referencia sea válida:</p>
+                        <ol class="mb-0">
+                            <li>Comparte el código con la empresa referida</li>
+                            <li>La empresa debe usar el código al crear su propuesta</li>
+                            <li>Una vez que la propuesta sea aceptada, se calculará tu comisión</li>
+                            <li>El pago se realizará según los términos acordados</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Código copiado al portapapeles');
+        }).catch(function(err) {
+            console.error('Error al copiar el código: ', err);
+        });
+    }
+
+    function shareReferral() {
+        const text = `¡Hola! Te invito a usar huntRED. Usa este código de referencia: ${referralCode}`;
+        if (navigator.share) {
+            navigator.share({
+                title: 'Código de Referencia huntRED',
+                text: text,
+                url: window.location.href
+            }).catch(console.error);
+        } else {
+            copyToClipboard(text);
+        }
+    }
+</script>
+{% endblock %} 

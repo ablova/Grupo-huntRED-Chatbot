@@ -18,8 +18,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
 from app.models import ConsentAgreement, PaymentTransaction, Preference, DiscountCoupon
-from app.sexsi.forms import ConsentAgreementForm
-from app.com.chatbot.integrations.services import send_email, send_message
+from app.ats.sexsi.forms import ConsentAgreementForm
+from app.ats.chatbot.integrations.services import send_email, send_message
 from asgiref.sync import async_to_sync
 import json
 import os

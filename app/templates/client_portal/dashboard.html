@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Portal del Cliente - {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Resumen General -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Resumen General</h2>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Vacantes Activas</h3>
+                                <p class="metric-value">{{ active_vacancies }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Contrataciones Totales</h3>
+                                <p class="metric-value">{{ total_placements }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Tiempo Promedio</h3>
+                                <p class="metric-value">{{ avg_time_to_fill|floatformat:0 }} días</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Inversión Total</h3>
+                                <p class="metric-value">${{ total_investment|floatformat:2 }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan y Addons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Tu Plan y Addons</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="plan-info">
+                                <h3>Plan Actual: {{ portal_access.get_tier_display }}</h3>
+                                <p class="text-muted">Último acceso: {{ portal_access.last_access|date:"d/m/Y H:i" }}</p>
+                                
+                                <h4 class="mt-4">Características Incluidas:</h4>
+                                <ul class="list-group">
+                                    {% for feature in portal_access.get_available_features %}
+                                    <li class="list-group-item">
+                                        <i class="fas fa-check text-success"></i>
+                                        {{ feature|title }}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="addons-info">
+                                <h3>Addons Activos</h3>
+                                {% if portal_access.addons.exists %}
+                                <div class="row">
+                                    {% for addon in portal_access.addons.all %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ addon.name }}</h5>
+                                                <p class="card-text">{{ addon.description }}</p>
+                                                <div class="addon-features">
+                                                    <h6>Características:</h6>
+                                                    <ul class="list-unstyled">
+                                                        {% for feature in addon.features %}
+                                                        <li><i class="fas fa-plus text-info"></i> {{ feature }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-muted">No tienes addons activos.</p>
+                                {% endif %}
+                                
+                                <div class="mt-4">
+                                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addonsModal">
+                                        Ver Addons Disponibles
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vacantes Activas -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Vacantes Activas</h3>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Posición</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vacancy in active_vacancies_list %}
+                                <tr>
+                                    <td>{{ vacancy.title }}</td>
+                                    <td>{{ vacancy.created_at|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ vacancy.status_color }}">
+                                            {{ vacancy.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'proposals:detail' vacancy.proposal.id %}" 
+                                           class="btn btn-sm btn-primary">
+                                            Ver Detalles
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Métricas de Satisfacción</h3>
+                    <div class="list-group">
+                        <div class="list-group-item">
+                            <h5>Tiempo de Contratación</h5>
+                            <p class="metric-value">{{ satisfaction_metrics.time_to_fill|floatformat:0 }} días</p>
+                        </div>
+                        <div class="list-group-item">
+                            <h5>Calidad de Candidatos</h5>
+                            <p class="metric-value">{{ satisfaction_metrics.quality_score|floatformat:1 }}/5</p>
+                        </div>
+                        <div class="list-group-item">
+                            <h5>Tasa de Retención</h5>
+                            <p class="metric-value">{{ satisfaction_metrics.retention_rate|floatformat:1 }}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historial y Documentos -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Contrataciones Recientes</h3>
+                    <div class="list-group">
+                        {% for placement in recent_placements %}
+                        <div class="list-group-item">
+                            <h5>{{ placement.title }}</h5>
+                            <p>
+                                <span class="badge bg-success">
+                                    Contratado: {{ placement.filled_date|date:"d/m/Y" }}
+                                </span>
+                                <span class="badge bg-info">
+                                    {{ placement.time_to_fill }} días
+                                </span>
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Documentos Pendientes</h3>
+                    <div class="list-group">
+                        {% for doc in pending_documents %}
+                        <div class="list-group-item">
+                            <h5>{{ doc.get_document_type_display }}</h5>
+                            <p>
+                                <span class="badge bg-warning">Pendiente</span>
+                                <span class="badge bg-secondary">
+                                    {{ doc.created_at|date:"d/m/Y" }}
+                                </span>
+                            </p>
+                            <a href="{% url 'client_portal:documents' %}" 
+                               class="btn btn-sm btn-primary">
+                                Ver Documentos
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROI -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">ROI por Contratación</h3>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <h3>Inversión Total</h3>
+                                <p class="metric-value">${{ roi_metrics.total_investment|floatformat:2 }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <h3>Contrataciones</h3>
+                                <p class="metric-value">{{ roi_metrics.total_placements }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <h3>Inversión Promedio</h3>
+                                <p class="metric-value">
+                                    ${{ roi_metrics.avg_investment_per_placement|floatformat:2 }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Addons -->
+<div class="modal fade" id="addonsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Addons Disponibles</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    {% for addon in available_addons %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ addon.name }}</h5>
+                                <p class="card-text">{{ addon.description }}</p>
+                                <div class="addon-features">
+                                    <h6>Características:</h6>
+                                    <ul class="list-unstyled">
+                                        {% for feature in addon.features %}
+                                        <li><i class="fas fa-plus text-info"></i> {{ feature }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="addon-price mt-3">
+                                    <h6>Inversión</h6>
+                                    <p class="price">${{ addon.price|floatformat:2 }}</p>
+                                </div>
+                                <button class="btn btn-primary w-100 mt-3"
+                                        onclick="requestAddon('{{ addon.id }}')">
+                                    Solicitar Addon
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function requestAddon(addonId) {
+    if (confirm('¿Estás seguro de que deseas solicitar este addon?')) {
+        fetch(`/client-portal/addons/request/${addonId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('success', data.message);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                showNotification('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('error', 'Error al procesar la solicitud');
+        });
+    }
+}
+
+function showNotification(type, message) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.querySelector('.container-fluid').insertAdjacentElement('afterbegin', notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
+{% endblock %} 

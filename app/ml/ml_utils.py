@@ -5,7 +5,7 @@ Implementa un sistema flexible de matchmaking para diferentes business units.
 """
 
 from typing import List, Dict, Any, Optional, Union
-from app.ml.utils.utils import MLUtils
+from app.ats.ml.utils.utils import MLUtils
 from django.conf import settings
 import logging
 

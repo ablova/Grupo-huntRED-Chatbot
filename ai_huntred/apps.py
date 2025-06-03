@@ -16,7 +16,7 @@ class AiHuntredConfig(AppConfig):
         Inicializa el módulo
         """
         # Importar señales
-        import app.publish.signals
+        import app.ats.publish.signals
         
         # Configurar logger
         import logging
@@ -26,9 +26,9 @@ class AiHuntredConfig(AppConfig):
         )
         
         # Registrar procesadores
-        from app.publish.processors import register_processors
+        from app.ats.publish.processors import register_processors
         register_processors()
         
         # Registrar integraciones
-        from app.publish.integrations import register_integrations
+        from app.ats.publish.integrations import register_integrations
         register_integrations()

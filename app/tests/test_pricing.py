@@ -9,7 +9,7 @@ from django.utils import timezone
 from app.models import (
     Proposal, Contract, PaymentMilestone, BusinessUnit, Company, Vacante, Person
 )
-from app.pricing.utils import calculate_pricing
+from app.ats.pricing.utils import calculate_pricing
 
 
 class PricingModelsTestCase(TestCase):

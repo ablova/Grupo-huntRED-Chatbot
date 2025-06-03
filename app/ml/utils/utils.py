@@ -1,7 +1,7 @@
 # /home/pablo/app/ml/utils/utils.py
 
 from typing import List, Dict, Optional
-from app.com.utils.skill_classifier import SkillClassifier
+from app.ats.utils.skill_classifier import SkillClassifier
 import logging
 
 logger = logging.getLogger(__name__)

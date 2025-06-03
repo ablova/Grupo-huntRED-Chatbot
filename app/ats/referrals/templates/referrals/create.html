@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Nueva Referencia{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="h3 mb-0">Crear Nueva Referencia</h1>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="id_referred_company" class="form-label">Nombre de la Empresa Referida</label>
+                            <input type="text" 
+                                   class="form-control {% if form.referred_company.errors %}is-invalid{% endif %}" 
+                                   id="id_referred_company" 
+                                   name="referred_company" 
+                                   value="{{ form.referred_company.value|default:'' }}"
+                                   required>
+                            {% if form.referred_company.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.referred_company.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Ingresa el nombre de la empresa que estás refiriendo
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_commission_percentage" class="form-label">Porcentaje de Comisión</label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control {% if form.commission_percentage.errors %}is-invalid{% endif %}" 
+                                       id="id_commission_percentage" 
+                                       name="commission_percentage" 
+                                       value="{{ form.commission_percentage.value|default:'5' }}"
+                                       min="1"
+                                       max="20"
+                                       step="0.5"
+                                       required>
+                                <span class="input-group-text">%</span>
+                                {% if form.commission_percentage.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.commission_percentage.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="form-text">
+                                El porcentaje de comisión debe estar entre 1% y 20%
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h4 class="alert-heading">Información Importante</h4>
+                            <p>Al crear una referencia:</p>
+                            <ul class="mb-0">
+                                <li>Se generará un código único para la empresa referida</li>
+                                <li>La empresa referida deberá usar este código al crear su propuesta</li>
+                                <li>La comisión se calculará sobre el valor total de la propuesta</li>
+                                <li>El pago de la comisión se realizará una vez que la propuesta sea aceptada</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Crear Referencia
+                            </button>
+                            <a href="{% url 'referrals:dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Validación del formulario
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+    })()
+</script>
+{% endblock %} 

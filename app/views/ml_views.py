@@ -1,5 +1,5 @@
 # /home/pablo/app/views/ml_views.py
-from app.tasks import train_ml_task
+from app.ats.tasks import train_ml_task
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.http import JsonResponse
 #from ratelimit.decorators import ratelimit
-from app.ml.ml_model import MatchmakingLearningSystem
+from app.ats.ml.ml_model import MatchmakingLearningSystem
 from app.models import Person, BusinessUnit
 from django.shortcuts import get_object_or_404
 

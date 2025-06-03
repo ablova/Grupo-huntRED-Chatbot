@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
 from app.models import Person, Application, Vacante, BusinessUnit
-from app.config.admin_core import (
+from app.ats.config.admin_core import (
     PersonAdmin, ApplicationAdmin, VacanteAdmin, BusinessUnitAdmin,
     GamificationProfileAdmin, WorkflowStageAdmin
 )

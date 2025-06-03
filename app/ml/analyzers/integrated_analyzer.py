@@ -12,15 +12,17 @@ import json
 from django.core.cache import cache
 
 from app.models import BusinessUnit
-from app.ml.analyzers.base_analyzer import BaseAnalyzer
-from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer
-from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer
-from app.ml.analyzers.professional_analyzer import ProfessionalAnalyzer
-from app.ml.analyzers.talent_analyzer import TalentAnalyzer
+from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ats.ml.analyzers.personality_analyzer import PersonalityAnalyzer
+from app.ats.ml.analyzers.cultural_analyzer import CulturalAnalyzer
+from app.ats.ml.analyzers.professional_analyzer import ProfessionalAnalyzer
+from app.ats.ml.analyzers.talent_analyzer import TalentAnalyzer
+from app.ml.base import BaseAnalyzer as NewBaseAnalyzer
+from app.ml.models import MatchmakingLearningSystem
 
 logger = logging.getLogger(__name__)
 
-class IntegratedAnalyzer(BaseAnalyzer):
+class IntegratedAnalyzer(NewBaseAnalyzer):
     """
     Unified analyzer that integrates all assessment types.
     
@@ -41,6 +43,7 @@ class IntegratedAnalyzer(BaseAnalyzer):
         self.cultural_analyzer = CulturalAnalyzer()
         self.professional_analyzer = ProfessionalAnalyzer()
         self.talent_analyzer = TalentAnalyzer()
+        self.model = MatchmakingLearningSystem()
         self.cache_timeout = 7200  # 2 hours (longer than individual analyzers)
         
     def get_required_fields(self) -> List[str]:
@@ -165,12 +168,9 @@ class IntegratedAnalyzer(BaseAnalyzer):
             )
             
             # Generar recomendaciones integrales
-            integrated_results['recommendations'] = self._generate_recommendations(
+            integrated_results['recommendations'] = self._generate_integrated_recommendations(
                 personality_results, 
-                cultural_results,
                 professional_results,
-                talent_results,
-                integrated_results['development_areas'],
                 business_unit
             )
             
@@ -228,231 +228,95 @@ class IntegratedAnalyzer(BaseAnalyzer):
                 'status': 'error',
                 'message': f"Error realizando análisis integrado: {str(e)}"
             }
-        # Deduplicate strengths
-        insights['key_strengths'] = list(set(strengths))[:5]  # Top 5 unique strengths
         
-        # Collect development areas from all analyses
-        development_areas = []
-        
-        if 'personality' in analyses:
-            personality_insights = analyses['personality'].get('insights', {})
-            development_areas.extend(personality_insights.get('areas_improvement', []))
-            
-        if 'professional_dna' in analyses:
-            prof_areas = analyses['professional_dna'].get('development_areas', [])
-            development_areas.extend([a.replace('_', ' ').title() for a in prof_areas])
-            
-        if 'talent' in analyses and 'skill_gaps' in analyses['talent']:
-            talent_gaps = analyses['talent'].get('skill_gaps', [])
-            development_areas.extend([gap['skill'] for gap in talent_gaps if gap['gap_level'] == 'Significativo'])
-            
-        # Deduplicate development areas
-        insights['development_priorities'] = list(set(development_areas))[:3]  # Top 3 unique priorities
-        
-        # Generate compatibility factors
-        compatibility = {}
-        
-        if 'cultural_fit' in analyses:
-            cultural = analyses['cultural_fit']
-            if 'insights' in cultural and 'values_alignment' in cultural['insights']:
-                compatibility['values_alignment'] = cultural['insights']['values_alignment']
-                
-            if 'insights' in cultural and 'workstyle_match' in cultural['insights']:
-                compatibility['workstyle'] = cultural['insights']['workstyle_match']
-                
-        if 'professional_dna' in analyses:
-            prof_dna = analyses['professional_dna']
-            if 'career_recommendations' in prof_dna:
-                top_role = prof_dna['career_recommendations'][0] if prof_dna['career_recommendations'] else {}
-                if top_role:
-                    compatibility['role_fit'] = {
-                        'role': top_role.get('role', ''),
-                        'match_level': top_role.get('match_level', ''),
-                        'match_percentage': top_role.get('match_percentage', 0)
-                    }
-                    
-        insights['compatibility_factors'] = compatibility
-        
-        # Generate profile summary
-        profile_summary = self._generate_profile_summary(analyses)
-        insights['profile_summary'] = profile_summary
-        
-        return insights
-        
-    def _generate_profile_summary(self, analyses: Dict) -> str:
+    def _integrate_results(self, personality_results: Dict[str, Any], 
+                         professional_results: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Generate a concise profile summary from all analyses.
-        
-        Args:
-            analyses: Dictionary containing results from individual analyzers
-            
-        Returns:
-            String with integrated profile summary
+        Integra los resultados de personalidad y perfil profesional.
         """
-        summary_parts = []
-        
-        # Add personality insights
-        if 'personality' in analyses:
-            personality = analyses['personality']
-            traits = personality.get('traits', {})
+        try:
+            # Extraer rasgos y habilidades
+            personality_traits = personality_results.get('traits', {})
+            professional_skills = professional_results.get('skills', {})
             
-            # Find dominant traits (top 2)
-            dominant_traits = sorted(traits.items(), key=lambda x: x[1], reverse=True)[:2]
-            dom_trait_names = [t[0].replace('_', ' ').title() for t in dominant_traits]
+            # Calcular compatibilidad entre rasgos y habilidades
+            trait_skill_compatibility = self.model.calculate_trait_skill_compatibility(personality_traits, professional_skills)
             
-            if dom_trait_names:
-                summary_parts.append(f"Perfil caracterizado por alta {' y '.join(dom_trait_names)}")
-                
-        # Add professional DNA insights
-        if 'professional_dna' in analyses:
-            prof_dna = analyses['professional_dna']
-            strengths = prof_dna.get('strengths', [])
+            # Identificar fortalezas y áreas de mejora integradas
+            strengths = self.model.identify_integrated_strengths(personality_traits, professional_skills)
             
-            if strengths:
-                strength_names = [s.replace('_', ' ').title() for s in strengths[:2]]
-                summary_parts.append(f"Destacado en {' y '.join(strength_names)}")
-                
-        # Add cultural fit insights
-        if 'cultural_fit' in analyses:
-            cultural = analyses['cultural_fit']
-            if 'insights' in cultural and 'values_alignment' in cultural['insights']:
-                alignment = cultural['insights']['values_alignment']
-                summary_parts.append(f"Alineación cultural {alignment.get('level', 'Moderada').lower()}")
-                
-        # Add talent insights
-        if 'talent' in analyses:
-            talent = analyses['talent']
-            if 'growth_potential' in talent:
-                potential = talent['growth_potential']
-                summary_parts.append(f"Potencial de desarrollo {potential.get('potential_level', 'Moderado').lower()}")
-                
-        # Combine parts into coherent summary
-        if summary_parts:
-            summary = "Profesional con " + ", ".join(summary_parts) + "."
-        else:
-            summary = "Perfil profesional balanceado con potencial de desarrollo en múltiples áreas."
+            areas_for_improvement = self.model.identify_integrated_improvements(personality_traits, professional_skills)
             
-        return summary
-        
-    def _generate_integrated_recommendations(self, analyses: Dict, business_unit: Optional[BusinessUnit] = None) -> Dict:
+            return {
+                'trait_skill_compatibility': trait_skill_compatibility,
+                'strengths': strengths,
+                'areas_for_improvement': areas_for_improvement,
+                'professional_level': professional_results.get('professional_level', 'Entry-Level'),
+                'personality_type': self._determine_personality_type(personality_traits)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error integrando resultados: {str(e)}")
+            return {}
+            
+    def _calculate_trait_skill_compatibility(self, traits: Dict[str, float], 
+                                          skills: Dict[str, float]) -> Dict[str, float]:
         """
-        Generate integrated recommendations from all analyses.
-        
-        Args:
-            analyses: Dictionary containing results from individual analyzers
-            business_unit: Business unit context
-            
-        Returns:
-            Dict with integrated recommendations
+        Calcula la compatibilidad entre rasgos de personalidad y habilidades.
         """
-        recommendations = {
-            'career_path': [],
-            'development_plan': [],
-            'interview_focus': []
-        }
-        
-        bu_name = self.get_business_unit_name(business_unit)
-        
-        # Collect career recommendations
-        career_recs = []
-        
-        if 'professional_dna' in analyses and 'career_recommendations' in analyses['professional_dna']:
-            prof_careers = analyses['professional_dna']['career_recommendations']
-            career_recs.extend([
-                {
-                    'role': rec['role'],
-                    'match': rec['match_percentage'],
-                    'source': 'professional_dna'
-                }
-                for rec in prof_careers if 'role' in rec
-            ])
+        try:
+            return self.model.calculate_trait_skill_compatibility(traits, skills)
+        except Exception as e:
+            logger.error(f"Error calculando compatibilidad: {str(e)}")
+            return {}
             
-        if 'talent' in analyses and 'role_recommendations' in analyses['talent']:
-            talent_roles = analyses['talent']['role_recommendations']
-            career_recs.extend([
-                {
-                    'role': rec['role'],
-                    'match': rec['match_percentage'],
-                    'source': 'talent'
-                }
-                for rec in talent_roles if 'role' in rec
-            ])
+    def _identify_integrated_strengths(self, traits: Dict[str, float], 
+                                     skills: Dict[str, float]) -> List[str]:
+        """
+        Identifica fortalezas integradas basadas en rasgos y habilidades.
+        """
+        try:
+            return self.model.identify_integrated_strengths(traits, skills)
+        except Exception as e:
+            logger.error(f"Error identificando fortalezas: {str(e)}")
+            return []
             
-        # Deduplicate and sort career recommendations
-        unique_roles = {}
-        for rec in career_recs:
-            role = rec['role']
-            if role not in unique_roles or rec['match'] > unique_roles[role]['match']:
-                unique_roles[role] = rec
-                
-        # Format top 3 career recommendations
-        recommendations['career_path'] = [
-            f"{rec['role']} ({int(rec['match'])}% match)"
-            for rec in sorted(unique_roles.values(), key=lambda x: x['match'], reverse=True)[:3]
-        ]
-        
-        # Collect development recommendations
-        dev_recs = []
-        
-        if 'professional_dna' in analyses and 'development_recommendations' in analyses['professional_dna']:
-            dev_recs.extend(analyses['professional_dna']['development_recommendations'])
+    def _identify_integrated_improvements(self, traits: Dict[str, float], 
+                                       skills: Dict[str, float]) -> List[str]:
+        """
+        Identifica áreas de mejora integradas basadas en rasgos y habilidades.
+        """
+        try:
+            return self.model.identify_integrated_improvements(traits, skills)
+        except Exception as e:
+            logger.error(f"Error identificando mejoras: {str(e)}")
+            return []
             
-        if 'talent' in analyses and 'development_recommendations' in analyses['talent']:
-            dev_recs.extend(analyses['talent']['development_recommendations'])
+    def _determine_personality_type(self, traits: Dict[str, float]) -> str:
+        """
+        Determina el tipo de personalidad basado en los rasgos.
+        """
+        try:
+            return self.model.determine_personality_type(traits)
+        except Exception as e:
+            logger.error(f"Error determinando tipo de personalidad: {str(e)}")
+            return 'Unknown'
             
-        if 'cultural_fit' in analyses and 'recommendations' in analyses['cultural_fit']:
-            dev_recs.extend(analyses['cultural_fit']['recommendations'])
-            
-        # Deduplicate development recommendations
-        recommendations['development_plan'] = list(set(dev_recs))[:5]  # Top 5 unique recommendations
-        
-        # Generate interview focus areas
-        interview_focus = []
-        
-        # Add focus based on development areas
-        if 'development_priorities' in self._generate_integrated_insights(analyses):
-            dev_priorities = self._generate_integrated_insights(analyses)['development_priorities']
-            for priority in dev_priorities[:2]:  # Top 2 priorities
-                interview_focus.append(f"Explorar experiencia en {priority}")
-                
-        # Add focus based on cultural fit
-        if 'cultural_fit' in analyses and 'overall_fit' in analyses['cultural_fit']:
-            cultural_fit = analyses['cultural_fit']['overall_fit']
-            if cultural_fit < 0.7:  # If cultural fit is below 70%
-                interview_focus.append("Profundizar en alineación cultural y valores")
-                
-        # Add focus based on skill gaps
-        if 'talent' in analyses and 'skill_gaps' in analyses['talent']:
-            skill_gaps = analyses['talent']['skill_gaps']
-            for gap in skill_gaps[:1]:  # Top gap
-                interview_focus.append(f"Validar nivel actual en {gap['skill']}")
-                
-        # Add BU-specific interview focus
-        bu_focus = {
-            'huntRED': "Evaluar capacidad de pensamiento estratégico y toma de decisiones ejecutivas",
-            'huntU': "Explorar conocimientos técnicos actualizados y capacidad de aprendizaje continuo",
-            'Amigro': "Verificar experiencia en entornos diversos y resolución práctica de problemas",
-            'SEXSI': "Validar manejo de confidencialidad y situaciones profesionales complejas"
-        }
-        
-        if bu_name in bu_focus:
-            interview_focus.append(bu_focus[bu_name])
-            
-        # Ensure we have at least 3 interview focus areas
-        if len(interview_focus) < 3:
-            general_focus = [
-                "Explorar motivaciones y expectativas profesionales",
-                "Evaluar capacidad de adaptación a la cultura organizacional",
-                "Validar experiencia práctica con ejemplos concretos"
-            ]
-            
-            for focus in general_focus:
-                if len(interview_focus) < 3 and focus not in interview_focus:
-                    interview_focus.append(focus)
-                    
-        recommendations['interview_focus'] = interview_focus
-        
-        return recommendations
+    def _generate_integrated_recommendations(self, personality_results: Dict[str, Any],
+                                          professional_results: Dict[str, Any],
+                                          business_unit: Optional[BusinessUnit] = None) -> List[str]:
+        """
+        Genera recomendaciones integradas basadas en ambos análisis.
+        """
+        try:
+            return self.model.generate_integrated_recommendations(
+                personality_results,
+                professional_results,
+                business_unit
+            )
+        except Exception as e:
+            logger.error(f"Error generando recomendaciones integradas: {str(e)}")
+            return []
         
     def _calculate_overall_match(self, analyses: Dict, business_unit: Optional[BusinessUnit] = None) -> Dict:
         """

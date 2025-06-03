@@ -5,8 +5,8 @@
 from django.test import TestCase
 from django.utils import timezone
 from app.models import Opportunity, Contract, Vacancy, Person
-from app.analytics.reports import AnalyticsEngine
-from app.views.analytics import AnalyticsDashboardView
+from app.ats.analytics.reports import AnalyticsEngine
+from app.ats.views.analytics import AnalyticsDashboardView
 from datetime import timedelta
 
 class AnalyticsEngineTests(TestCase):

@@ -53,12 +53,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Aplicaciones locales
-    'app.accounts.apps.AccountsConfig',
+    'app.ats.accounts.apps.AccountsConfig',
     
     # Local apps
-    'app.apps.AppConfig',  # Keep only this line for the app
-    'app.sexsi',
-    
+    'app.apps.AppConfig',  # Incluye todos los modelos incluyendo sexsi
     
     # Third-party apps
     'rest_framework',
@@ -70,7 +68,6 @@ INSTALLED_APPS = [
 ]
 
 # Configuración de usuario personalizado
-AUTH_USER_MODEL = 'app.CustomUser'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

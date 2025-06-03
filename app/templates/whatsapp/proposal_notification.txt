@@ -1,0 +1,21 @@
+¡Hola {{ contact_person.name }}! 👋
+
+Tenemos una nueva propuesta para {{ company.name }}.
+
+📋 *Detalles de la Propuesta:*
+• Posición: {{ vacancy.title }}
+• Salario Mensual: ${{ vacancy.salary|floatformat:2 }}
+• Honorarios: ${{ proposal.pricing_total|floatformat:2 }}
+
+📊 *Métricas de Éxito:*
+• Tasa de Éxito: {{ success_metrics.success_rate|floatformat:1 }}%
+• Tiempo Promedio: {{ success_metrics.avg_time_to_fill|floatformat:0 }} días
+
+Para revisar la propuesta completa, haz clic aquí:
+{{ proposal_url }}
+
+Si tienes alguna pregunta, no dudes en contactarnos.
+
+Saludos,
+{{ consultant.name }}
+Consultor huntRED® 

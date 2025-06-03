@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detalle del Servicio{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Información del Servicio -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h1 class="h3 mb-0">Detalle del Servicio</h1>
+                    <span class="badge bg-{{ service.get_status_color }}">
+                        {{ service.get_status_display }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h2 class="h5 mb-3">Información del Puesto</h2>
+                            <dl class="row">
+                                <dt class="col-sm-4">Puesto</dt>
+                                <dd class="col-sm-8">{{ service.position }}</dd>
+
+                                <dt class="col-sm-4">Salario Mensual</dt>
+                                <dd class="col-sm-8">${{ service.monthly_salary|floatformat:2 }}</dd>
+
+                                <dt class="col-sm-4">Meses de Bono</dt>
+                                <dd class="col-sm-8">{{ service.bonus_months }}</dd>
+
+                                <dt class="col-sm-4">Salario Anual</dt>
+                                <dd class="col-sm-8">${{ service.annual_salary|floatformat:2 }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <h2 class="h5 mb-3">Honorarios</h2>
+                            <dl class="row">
+                                <dt class="col-sm-4">Fee</dt>
+                                <dd class="col-sm-8">{{ service.fee_percentage }}%</dd>
+
+                                <dt class="col-sm-4">Honorarios Totales</dt>
+                                <dd class="col-sm-8">${{ service.total_fee|floatformat:2 }}</dd>
+
+                                <dt class="col-sm-4">Estructura</dt>
+                                <dd class="col-sm-8">{{ service.get_payment_structure_display }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagos -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Pagos</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th>Monto</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in service.payments.all %}
+                                <tr>
+                                    <td>{{ payment.get_concept_display }}</td>
+                                    <td>${{ payment.amount|floatformat:2 }}</td>
+                                    <td>{{ payment.due_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ payment.get_status_color }}">
+                                            {{ payment.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if payment.status == 'pending' %}
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-primary"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#sendInvoiceModal{{ payment.id }}">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        {% elif payment.status == 'sent' %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-success"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#markReceivedModal{{ payment.id }}">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Modal para enviar factura -->
+                                <div class="modal fade" id="sendInvoiceModal{{ payment.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Enviar Factura</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>¿Está seguro que desea enviar la factura por ${{ payment.amount|floatformat:2 }}?</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form method="post" action="{% url 'pricing:send_invoice' payment.id %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-primary">Enviar</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Modal para marcar como recibido -->
+                                <div class="modal fade" id="markReceivedModal{{ payment.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Marcar como Recibido</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>¿Está seguro que desea marcar como recibido el pago de ${{ payment.amount|floatformat:2 }}?</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <form method="post" action="{% url 'pricing:mark_payment_received' payment.id %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-success">Marcar como Recibido</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Resumen de Pagos -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Resumen de Pagos</h2>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Pendientes</span>
+                            <span class="badge bg-warning rounded-pill">
+                                ${{ service.pending_amount|floatformat:2 }}
+                            </span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Enviados</span>
+                            <span class="badge bg-info rounded-pill">
+                                ${{ service.sent_amount|floatformat:2 }}
+                            </span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Recibidos</span>
+                            <span class="badge bg-success rounded-pill">
+                                ${{ service.received_amount|floatformat:2 }}
+                            </span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Vencidos</span>
+                            <span class="badge bg-danger rounded-pill">
+                                ${{ service.overdue_amount|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Acciones</h2>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'pricing:calculate_service' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Nuevo Cálculo
+                        </a>
+                        <a href="{% url 'pricing:dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

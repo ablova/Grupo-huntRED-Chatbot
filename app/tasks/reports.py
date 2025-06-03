@@ -19,7 +19,7 @@ from app.models import (
     BusinessUnit, Person, Vacante, Interview, Application,
     RegistroScraping, DominioScraping, OnboardingProcess
 )
-from app.tasks.base import with_retry
+from app.ats.tasks.base import with_retry
 
 # Configuración de logging
 logger = logging.getLogger(__name__)

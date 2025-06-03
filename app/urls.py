@@ -9,67 +9,67 @@ from django.conf.urls.static import static
 from django.contrib.auth.decorators import login_required
 
 # IMPORTACIONES DE VISTAS
-from app.views.main_views import (
+from app.ats.views.main_views import (
     index, interacciones_por_unidad, finalize_candidates, 
     submit_application, home
 )
-from app.views.proposal_views import download_proposal_pdf
-from app.views.auth_views import (
+from app.ats.views.proposal_views import download_proposal_pdf
+from app.ats.views.auth_views import (
     login_view, logout_view, user_management,
     approve_user, profile, change_password,
     forgot_password, reset_password, document_verification
 )
-from app.views.offer_letter_views import (
+from app.ats.views.offer_letter_views import (
     gestion_cartas_oferta, marcar_como_firmada, reenviar_carta, ver_carta, generar_preview
 )
-from app.views.preview_views import generar_preview
-from app.views.dashboard_views import dashboard_view
-from app.views.chatbot_views import ProcessMessageView, ChatbotView, WebhookView
-from app.views.util_views import (
+from app.ats.views.preview_views import generar_preview
+from app.ats.views.dashboard_views import dashboard_view
+from app.ats.views.chatbot_views import ProcessMessageView, ChatbotView, WebhookView
+from app.ats.views.util_views import (
     SendTestMessageView, SendTestNotificationView, TriggerErrorView
 )
-from app.views.verification_views import (
+from app.ats.views.verification_views import (
     verification_list, initiate_verification, analyze_risk,
     verify_incode, webhook_verification
 )
-from app.views.candidatos_views import (
+from app.ats.views.candidatos_views import (
     candidato_dashboard, list_candidatos, add_application, 
     candidato_details, generate_challenges
 )
-from app.views.ml_views import train_ml_api, predict_matches
-from app.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
-from app.views.dashboard import dashboard
+from app.ats.views.ml_views import train_ml_api, predict_matches
+from app.ats.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
+from app.ats.views.dashboard import dashboard
 
 # IMPORTACIONES DE WEBHOOKS (MENSAJERÍA)
-from app.views.webhook_views import (
+from app.ats.views.webhook_views import (
     WhatsAppWebhookView, TelegramWebhookView, 
     MessengerWebhookView, InstagramWebhookView
 )
 
 # IMPORTACIONES DE WORKFLOW (GESTIÓN DE ETAPAS)
-from app.views.workflow_views import (
+from app.ats.views.workflow_views import (
     WorkflowStageListView, WorkflowStageCreateView, 
     WorkflowStageUpdateView, WorkflowStageDeleteView
 )
 
 # IMPORTACIONES DE SEXSI (GESTIÓN DE ACUERDOS)
-from app.sexsi.views import (
+from app.ats.sexsi.views import (
     create_agreement, agreement_detail, sign_agreement,
     download_pdf, upload_signature_and_selfie, finalize_agreement,
     request_revision, revoke_agreement, paypal_webhook
 )
 from django.urls import path
-from app.views.publish_views import (
+from app.ats.views.publish_views import (
     job_opportunities_list,
     create_job_opportunity,
     publish_job_opportunity,
     update_job_opportunity_status,
     webhook_job_opportunity
 )
-from app.com.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_view
+from app.ats.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_view
 
 # Importación para Análisis Cultural
-from app.cultural_assessment import views as cultural_views
+# Migrated to app.ats.chatbot.workflow.assessments.cultural
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +99,8 @@ urlpatterns = [
     path('candidates/', include('app.views.candidates.urls')),
     path('workflow/', include('app.views.workflow.urls')),
     path('sexsi/', include('app.sexsi.urls')),
-    path('pagos/', include('app.pagos.urls', namespace='pagos')),
-    path('cultural/', include('app.cultural_assessment.urls')),
+    path('pagos/', include('app.ats.pagos.urls', namespace='pagos')),
+    # Migrated to app.ats.chatbot.workflow.assessments.cultural
     path('ml/', include('app.views.ml.urls')),
     path('webhooks/', include('app.views.webhook.urls')),
 ]
@@ -178,7 +178,7 @@ urlpatterns += [
     path('login/', login_view, name='login'),
     
     # Rutas de pagos
-    path('pagos/', include('app.pagos.urls', namespace='pagos')),
+    path('pagos/', include('app.ats.pagos.urls', namespace='pagos')),
 ]
 
 # ----------------------------------------
@@ -244,9 +244,9 @@ urlpatterns += [
 # 📌 RUTAS DEL SISTEMA DE RETROALIMENTACIÓN
 # ---------------------------------------
 urlpatterns += [
-    path('feedback/', include('app.com.feedback.urls', namespace='feedback')),
+    path('feedback/', include('app.ats.feedback.urls', namespace='feedback')),
     # Ruta de compatibilidad para mantener URLs existentes
-    path('pricing/feedback/', include('app.com.feedback.urls', namespace='pricing_feedback')),
+    path('pricing/feedback/', include('app.ats.feedback.urls', namespace='pricing_feedback')),
 ]
 
 # ------------------------
@@ -263,14 +263,14 @@ urlpatterns += [
 # 📌 RUTAS DE KANBAN (GESTIÓN DE CANDIDATOS)
 # ----------------------------------------
 urlpatterns += [
-    path('kanban/', include('app.kanban.urls', namespace='kanban')),
+    path('kanban/', include('app.ats.kanban.urls', namespace='kanban')),
 ]
 
 # ----------------------------------------
 # 📌 RUTAS DE ANÁLISIS CULTURAL (CULTURAL FIT)
 # ----------------------------------------
 urlpatterns += [
-    path('cultural-assessment/', include('app.cultural_assessment.urls')),
+    # Migrated to app.ats.chatbot.workflow.assessments.cultural
 ]
 
 # ------------------------
@@ -298,7 +298,7 @@ urlpatterns += [
 # 📌 RUTAS DE ONBOARDING
 # ------------------------
 urlpatterns += [
-    path('onboarding/', include('app.com.onboarding.urls')),
+    path('onboarding/', include('app.ats.onboarding.urls')),
 ]
 
 # Servir archivos estáticos y media en desarrollo
@@ -312,7 +312,7 @@ if settings.DEBUG:
 handler404 = 'app.views.main_views.Custom404View.as_view'
 
 
-from app.views.talent import talent_views
+from app.ats.views.talent import talent_views
 
 urlpatterns += [
     path('api/talent/team-synergy', talent_views.analyze_team_synergy, name='analyze_team_synergy'),

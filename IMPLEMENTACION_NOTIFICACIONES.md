@@ -231,7 +231,7 @@ Realizar pruebas manuales:
 
 1. **Envío de Notificación**:
    ```python
-   from app.com.utils.notification_service import NotificationService
+   from app.ats.utils.notification_service import NotificationService
    from app.models import Person
    
    # Usar el destinatario de prueba
@@ -261,7 +261,7 @@ Realizar pruebas manuales:
 
 2. **Solicitud de Feedback**:
    ```python
-   from app.com.utils.feedback_service import FeedbackService
+   from app.ats.utils.feedback_service import FeedbackService
    from app.models import Entrevista
    
    # Obtener una entrevista existente

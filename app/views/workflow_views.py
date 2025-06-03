@@ -6,7 +6,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
 from app.models import WorkflowStage, BusinessUnit
-from app.forms import WorkflowStageForm
+from app.ats.forms import WorkflowStageForm
 import logging
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page

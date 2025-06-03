@@ -11,14 +11,14 @@ import json
 import asyncio
 from datetime import datetime, date
 
-from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
+from app.ats.talent.trajectory_analyzer import TrajectoryAnalyzer
 from app.models import Person, Skill, Career, SkillAssessment
 
 @pytest.mark.asyncio
 async def test_predict_optimal_path_default():
     """Prueba el path predeterminado cuando no hay datos."""
     # Crear analizador con mock para que _get_person retorne None
-    with patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person', return_value=None):
+    with patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person', return_value=None):
         analyzer = TrajectoryAnalyzer()
         result = await analyzer.predict_optimal_path(999)  # ID no existente
         
@@ -31,7 +31,7 @@ async def test_predict_optimal_path_default():
         assert 'analyzed_at' in result
 
 @pytest.mark.asyncio
-@patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person')
+@patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person')
 async def test_predict_optimal_path_basic(mock_get_person):
     """Prueba el análisis básico de trayectoria."""
     # Simular persona
@@ -44,15 +44,15 @@ async def test_predict_optimal_path_basic(mock_get_person):
     mock_get_person.return_value = person
     
     # Patch adicionales para evitar llamadas a funciones no simuladas
-    with patch('app.com.utils.cv_generator.career_analyzer.CVCareerAnalyzer.analyze_career_potential') as mock_potential, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._get_current_position') as mock_position, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._generate_career_paths') as mock_paths, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._calculate_financial_projection') as mock_financial, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._predict_satisfaction') as mock_satisfaction, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._analyze_market_demand') as mock_market, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._calculate_development_difficulty') as mock_difficulty, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._identify_critical_skills') as mock_skills, \
-         patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._recommend_mentors') as mock_mentors:
+    with patch('app.ats.utils.cv_generator.career_analyzer.CVCareerAnalyzer.analyze_career_potential') as mock_potential, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._get_current_position') as mock_position, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._generate_career_paths') as mock_paths, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._calculate_financial_projection') as mock_financial, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._predict_satisfaction') as mock_satisfaction, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._analyze_market_demand') as mock_market, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._calculate_development_difficulty') as mock_difficulty, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._identify_critical_skills') as mock_skills, \
+         patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._recommend_mentors') as mock_mentors:
         
         # Configurar valores de retorno
         mock_potential.return_value = {}
@@ -149,8 +149,8 @@ async def test_create_path_steps():
     assert len(specialized_path) <= len(standard_path)
     
 @pytest.mark.asyncio
-@patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person')
-@patch('app.com.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person_skills')
+@patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person')
+@patch('app.ats.talent.trajectory_analyzer.TrajectoryAnalyzer._get_person_skills')
 async def test_identify_critical_skills(mock_get_skills, mock_get_person):
     """Prueba la identificación de habilidades críticas para una trayectoria."""
     # Configurar mocks

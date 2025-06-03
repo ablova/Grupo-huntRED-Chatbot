@@ -17,8 +17,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
-from app.config.api_config import LINKEDIN_CONFIG
-from app.com.utils.linkedin import (
+from app.ats.config.api_config import LINKEDIN_CONFIG
+from app.ats.utils.linkedin import (
     scrape_linkedin_profile,
     scrape_with_selenium,
     extract_skills,

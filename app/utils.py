@@ -41,22 +41,22 @@ logger.warning(
 )
 
 # Importar desde módulos específicos para mantener compatibilidad
-from app.utils.common import (
+from app.ats.utils.common import (
     format_duration, truncate_text, get_business_unit,
     sanitize_string, format_currency
 )
 
-from app.utils.http import (
+from app.ats.utils.http import (
     fetch_data_async, post_data_async,
     handle_api_response, retry_request
 )
 
-from app.utils.date import (
+from app.ats.utils.date import (
     get_local_now, format_date_for_locale,
     get_next_business_day, calculate_date_difference
 )
 
-from app.utils.analysis import (
+from app.ats.utils.analysis import (
     calculate_similarity_score, extract_keywords,
     analyze_text_sentiment
 )

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV - {{ candidate.name }}</title>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        /* Encabezado */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #2c3e50;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            margin: 5px 0;
+        }
+        
+        /* Secciones */
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            color: #2c3e50;
+            border-bottom: 1px solid #bdc3c7;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+        
+        /* Tarjetas */
+        .card {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Gráficos */
+        .chart {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        /* Listas */
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        li:before {
+            content: "•";
+            color: #3498db;
+            position: absolute;
+            left: 0;
+        }
+        
+        /* Puntuaciones */
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        /* Pie de página */
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #bdc3c7;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Encabezado -->
+    <div class="header">
+        <h1>{{ candidate.name }}</h1>
+        <p>{{ candidate.title }}</p>
+        <p>{{ candidate.email }} | {{ candidate.phone }}</p>
+    </div>
+    
+    <!-- Perfil Profesional -->
+    {% if sections.professional %}
+    <div class="section">
+        <h2 class="section-title">{{ sections.professional.title }}</h2>
+        
+        <!-- Competencias -->
+        <div class="card">
+            <h3>Competencias</h3>
+            <ul>
+                {% for competency, score in sections.professional.competencies.items() %}
+                <li>{{ competency }}: {{ "%.1f"|format(score * 100) }}%</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Fortalezas -->
+        <div class="card">
+            <h3>Fortalezas</h3>
+            <ul>
+                {% for strength in sections.professional.strengths %}
+                <li>{{ strength }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Áreas de Desarrollo -->
+        <div class="card">
+            <h3>Áreas de Desarrollo</h3>
+            <ul>
+                {% for area in sections.professional.development_areas %}
+                <li>{{ area }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Perfil de Personalidad -->
+    {% if sections.personality %}
+    <div class="section">
+        <h2 class="section-title">{{ sections.personality.title }}</h2>
+        
+        <!-- Rasgos -->
+        <div class="card">
+            <h3>Rasgos de Personalidad</h3>
+            <ul>
+                {% for trait, score in sections.personality.traits.items() %}
+                <li>{{ trait }}: {{ "%.1f"|format(score * 100) }}%</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Insights Clave -->
+        <div class="card">
+            <h3>Insights Clave</h3>
+            <ul>
+                {% for insight in sections.personality.key_insights %}
+                <li>{{ insight }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Compatibilidad Cultural -->
+    {% if sections.cultural %}
+    <div class="section">
+        <h2 class="section-title">{{ sections.cultural.title }}</h2>
+        
+        <!-- Puntuación de Compatibilidad -->
+        <div class="score">
+            Compatibilidad: {{ "%.1f"|format(sections.cultural.compatibility * 100) }}%
+        </div>
+        
+        <!-- Dimensiones Culturales -->
+        <div class="card">
+            <h3>Dimensiones Culturales</h3>
+            <ul>
+                {% for dimension, score in sections.cultural.dimensions.items() %}
+                <li>{{ dimension }}: {{ "%.1f"|format(score * 100) }}%</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Insights -->
+        <div class="card">
+            <h3>Insights Culturales</h3>
+            <ul>
+                {% for insight in sections.cultural.insights %}
+                <li>{{ insight }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Análisis de Talento -->
+    {% if sections.talent %}
+    <div class="section">
+        <h2 class="section-title">{{ sections.talent.title }}</h2>
+        
+        <!-- Potencial -->
+        <div class="score">
+            Potencial: {{ "%.1f"|format(sections.talent.potential * 100) }}%
+        </div>
+        
+        <!-- Plan de Desarrollo -->
+        <div class="card">
+            <h3>Plan de Desarrollo</h3>
+            <ul>
+                {% for step in sections.talent.development_plan %}
+                <li>{{ step }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Recomendaciones -->
+        <div class="card">
+            <h3>Recomendaciones</h3>
+            <ul>
+                {% for recommendation in sections.talent.recommendations %}
+                <li>{{ recommendation }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Análisis Integrado -->
+    <div class="section">
+        <h2 class="section-title">{{ sections.integrated.title }}</h2>
+        
+        <!-- Puntuación Global -->
+        <div class="score">
+            Puntuación Global: {{ "%.1f"|format(sections.integrated.overall_score * 100) }}%
+        </div>
+        
+        <!-- Insights Clave -->
+        <div class="card">
+            <h3>Insights Clave</h3>
+            <ul>
+                {% for insight in sections.integrated.key_insights %}
+                <li>{{ insight }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Recomendaciones -->
+        <div class="card">
+            <h3>Recomendaciones</h3>
+            <ul>
+                {% for recommendation in sections.integrated.recommendations %}
+                <li>{{ recommendation }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Pie de página -->
+    <div class="footer">
+        <p>Generado el {{ generated_at }} por Grupo huntRED®</p>
+    </div>
+</body>
+</html> 

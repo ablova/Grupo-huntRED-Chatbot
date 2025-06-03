@@ -9,7 +9,16 @@ from .base import *
 
 # Initialize environment variables
 env = environ.Env()
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+# Buscar el archivo .env en el directorio raíz del proyecto (donde está manage.py)
+project_root = Path(__file__).resolve().parent.parent.parent
+env_path = project_root / '.env'
+logger = logging.getLogger(__name__)
+logger.info(f"Buscando archivo .env en: {env_path}")
+if env_path.exists():
+    logger.info(f"Archivo .env encontrado en: {env_path}")
+    environ.Env.read_env(env_path)
+else:
+    logger.warning(f"No se encontró el archivo .env en: {env_path}")
 
 # Configuración de desarrollo
 DEBUG = True

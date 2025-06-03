@@ -10,52 +10,52 @@
 # - No Redundancies: Verificar antes de añadir funciones que no existan en el código fuente
 
 # Los módulos de ML deben ser importados directamente con importaciones estándar de Python:  
-# from app.ml.ml_model import MLModel
-# from app.ml.data_loader import DataLoader
+# from app.ats.ml.ml_model import MLModel
+# from app.ats.ml.data_loader import DataLoader
 # etc.
 
 
 def get_ml_model():
     """Get MLModel instance."""
-    from app.ml.ml_model import MLModel
+    from app.ats.ml.ml_model import MLModel
     return MLModel
 
 def get_data_loader():
     """Get DataLoader instance."""
-    from app.ml.data_loader import DataLoader
+    from app.ats.ml.data_loader import DataLoader
     return DataLoader
 
 def get_feature_extractor():
     """Get FeatureExtractor instance."""
-    from app.ml.feature_extractor import FeatureExtractor
+    from app.ats.ml.feature_extractor import FeatureExtractor
     return FeatureExtractor
 
 def get_model_trainer():
     """Get ModelTrainer instance."""
-    from app.ml.model_trainer import ModelTrainer
+    from app.ats.ml.model_trainer import ModelTrainer
     return ModelTrainer
 
 def get_prediction_service():
     """Get PredictionService instance."""
-    from app.ml.prediction_service import PredictionService
+    from app.ats.ml.prediction_service import PredictionService
     return PredictionService
 
 def get_skill_classifier():
     """Get SkillClassifier instance."""
-    from app.ml.skill_classifier import SkillClassifier
+    from app.ats.ml.skill_classifier import SkillClassifier
     return SkillClassifier
 
 def get_cv_analyzer():
     """Get CVAnalyzer instance."""
-    from app.ml.cv_analyzer import CVAnalyzer
+    from app.ats.ml.cv_analyzer import CVAnalyzer
     return CVAnalyzer
 
 def get_nlp_processor():
     """Get NLPProcessor instance."""
-    from app.ml.nlp_processor import NLPProcessor
+    from app.ats.ml.nlp_processor import NLPProcessor
     return NLPProcessor
 
 def get_sentiment_analyzer():
     """Get SentimentAnalyzer instance."""
-    from app.ml.sentiment_analyzer import SentimentAnalyzer
+    from app.ats.ml.sentiment_analyzer import SentimentAnalyzer
     return SentimentAnalyzer

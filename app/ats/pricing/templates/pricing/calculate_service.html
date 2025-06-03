@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Calcular Servicio{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="h3 mb-0">Calcular Servicio de Reclutamiento</h1>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Información del Puesto -->
+                        <div class="mb-4">
+                            <h2 class="h5 mb-3">Información del Puesto</h2>
+                            
+                            <div class="mb-3">
+                                <label for="id_position" class="form-label">Nombre del Puesto</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="id_position" 
+                                       name="position" 
+                                       required>
+                                <div class="form-text">
+                                    Ingrese el nombre completo del puesto a reclutar
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="id_monthly_salary" class="form-label">Salario Mensual</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="id_monthly_salary" 
+                                           name="monthly_salary" 
+                                           min="0"
+                                           step="0.01"
+                                           required>
+                                </div>
+                                <div class="form-text">
+                                    Salario mensual bruto del puesto
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="id_bonus_months" class="form-label">Meses de Bono</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="id_bonus_months" 
+                                       name="bonus_months" 
+                                       min="0"
+                                       max="12"
+                                       step="0.5"
+                                       value="0">
+                                <div class="form-text">
+                                    Número de meses de bono adicionales al año
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Honorarios -->
+                        <div class="mb-4">
+                            <h2 class="h5 mb-3">Honorarios</h2>
+                            
+                            <div class="mb-3">
+                                <label for="id_fee_percentage" class="form-label">Porcentaje de Honorarios</label>
+                                <select class="form-select" 
+                                        id="id_fee_percentage" 
+                                        name="fee_percentage" 
+                                        required>
+                                    <option value="20">20%</option>
+                                    <option value="18">18%</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3 d-none" id="custom_fee_container">
+                                <label for="id_custom_fee" class="form-label">Fee Personalizado (%)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="id_custom_fee" 
+                                       name="custom_fee" 
+                                       min="0"
+                                       max="20"
+                                       step="0.1">
+                                <div class="form-text">
+                                    El fee debe estar entre 0% y 20%
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estructura de Pago -->
+                        <div class="mb-4">
+                            <h2 class="h5 mb-3">Estructura de Pago</h2>
+                            
+                            <div class="mb-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" 
+                                           type="radio" 
+                                           name="payment_structure" 
+                                           id="structure_standard" 
+                                           value="standard" 
+                                           checked>
+                                    <label class="form-check-label" for="structure_standard">
+                                        25% Retainer + 75% Placement
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" 
+                                           type="radio" 
+                                           name="payment_structure" 
+                                           id="structure_extended" 
+                                           value="extended">
+                                    <label class="form-check-label" for="structure_extended">
+                                        17.5% x 2 Retainer + 65% Placement
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="radio" 
+                                           name="payment_structure" 
+                                           id="structure_recurring" 
+                                           value="recurring">
+                                    <label class="form-check-label" for="structure_recurring">
+                                        35% Retainer + 65% Placement (3 pagos)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h4 class="alert-heading">Información Importante</h4>
+                            <p>El cálculo se realiza de la siguiente manera:</p>
+                            <ul class="mb-0">
+                                <li>Salario Anual = (Salario Mensual * (12 meses + Aguinaldo + Promedio de Bono))</li>
+                                <li>Honorarios = Salario Anual * Fee</li>
+                                <li>Los montos se distribuyen según la estructura de pago seleccionada</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-calculator"></i> Calcular Servicio
+                            </button>
+                            <a href="{% url 'pricing:dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Mostrar/ocultar campo de fee personalizado
+    document.getElementById('id_fee_percentage').addEventListener('change', function() {
+        const customFeeContainer = document.getElementById('custom_fee_container');
+        if (this.value === 'custom') {
+            customFeeContainer.classList.remove('d-none');
+        } else {
+            customFeeContainer.classList.add('d-none');
+        }
+    });
+
+    // Validación del formulario
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+    })()
+</script>
+{% endblock %} 

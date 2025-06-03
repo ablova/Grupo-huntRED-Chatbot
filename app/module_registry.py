@@ -13,7 +13,7 @@ import sys
 from typing import Callable, Dict, List, Optional, Set, TypeVar
 import logging
 from pathlib import Path
-from app.lazy_imports import LazyImporter, LazyModule
+from app.ats.lazy_imports import LazyImporter, LazyModule
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class ModuleRegistry:
 
         Args:
             name: The name to use when accessing the module
-            module_path: The full module path (e.g., 'app.com.chatbot.chatbot')
+            module_path: The full module path (e.g., 'app.ats.chatbot.chatbot')
         """
         if name in self._modules:
             logger.warning(f"Module {name} already registered")

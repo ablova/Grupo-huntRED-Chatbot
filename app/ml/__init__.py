@@ -1,16 +1,16 @@
 # This file makes the ml directory a Python package
 
 # Import key components to make them available at the package level
-from .analyzers import (
-    BaseAnalyzer,
+from app.ml.models import MatchmakingLearningSystem
+from app.ml.analyzers import (
     PersonalityAnalyzer,
     ProfessionalAnalyzer,
     IntegratedAnalyzer
 )
 
 __all__ = [
-    'BaseAnalyzer',
+    'MatchmakingLearningSystem',
     'PersonalityAnalyzer',
     'ProfessionalAnalyzer',
-    'IntegratedAnalyzer',
+    'IntegratedAnalyzer'
 ]

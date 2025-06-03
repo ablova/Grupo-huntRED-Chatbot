@@ -10,8 +10,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
-from app.com.utils.signature.digital_signature_providers import get_signature_provider
-from app.sexsi.config import get_document_config, validate_document_fields
+from app.ats.utils.signature.digital_signature_providers import get_signature_provider
+from app.ats.sexsi.config import get_document_config, validate_document_fields
 
 @method_decorator(csrf_exempt, name='dispatch')
 class SignatureRequestView(View):

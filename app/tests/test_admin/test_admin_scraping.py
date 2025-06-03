@@ -15,7 +15,7 @@ from io import BytesIO
 import base64
 
 from app.models import DominioScraping, RegistroScraping, ReporteScraping, BusinessUnit
-from app.config.admin_scraping import (
+from app.ats.config.admin_scraping import (
     DominioScrapingAdmin,
     RegistroScrapingAdmin,
     ReporteScrapingAdmin

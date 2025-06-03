@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 import numpy as np
 import tensorflow as tf
 from functools import lru_cache
-from app.ml.core.utils import LRUCache
+from app.ats.ml.core.utils import LRUCache
 
 logger = logging.getLogger(__name__)
 

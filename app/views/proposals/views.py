@@ -19,7 +19,7 @@ from django.core.cache import caches
 from django_ratelimit.decorators import ratelimit
 from django_prometheus import exports
 
-from app.decorators import (
+from app.ats.decorators import (
     bu_complete_required, bu_division_required,
     permission_required, verified_user_required
 )
@@ -27,10 +27,10 @@ from app.models import (
     Proposal, Opportunity, Vacancy, Person,
     Application, Interview, Contract
 )
-from app.pricing.utils import calculate_pricing
-from app.contracts.contract_generator import ContractGenerator
-from app.proposals.forms import ProposalFilterForm
-from app.utils import get_business_unit, get_user_permissions
+from app.ats.pricing.utils import calculate_pricing
+from app.ats.ats.contracts.contract_generator import ContractGenerator
+from app.ats.proposals.forms import ProposalFilterForm
+from app.ats.utils import get_business_unit, get_user_permissions
 
 import logging
 import pdfkit
@@ -153,7 +153,7 @@ class ProposalViews(View):
         """
         Notifica al chatbot sobre la nueva propuesta.
         """
-        from app.com.chatbot.integrations.services import MessageService
+        from app.ats.chatbot.integrations.services import MessageService
         
         message_service = MessageService()
         
@@ -229,7 +229,7 @@ class ProposalViews(View):
             str: Contenido del PDF
         """
         # Inicializar el proveedor de datos de evaluaciones
-        from app.com.chatbot.workflow.assessments.assessment_data_provider import AssessmentDataProvider
+        from app.ats.chatbot.workflow.assessments.assessment_data_provider import AssessmentDataProvider
         assessment_provider = AssessmentDataProvider()
         
         # Renderizar template

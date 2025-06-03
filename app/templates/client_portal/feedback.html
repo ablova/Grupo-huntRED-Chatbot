@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Feedback - {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Feedback y Satisfacción</h2>
+                    
+                    <!-- Métricas de Satisfacción -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">Satisfacción General</h3>
+                                    <div class="display-4 text-primary">
+                                        {{ metrics.overall_satisfaction }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">Calidad de Candidatos</h3>
+                                    <div class="display-4 text-success">
+                                        {{ metrics.candidate_quality }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">Tiempo de Respuesta</h3>
+                                    <div class="display-4 text-info">
+                                        {{ metrics.response_time }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulario de Feedback -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h3>Enviar Feedback</h3>
+                            <form method="post" action="{% url 'client_portal:feedback' %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="type" class="form-label">Tipo de Feedback</label>
+                                    <select class="form-select" id="type" name="type" required>
+                                        <option value="">Seleccionar tipo...</option>
+                                        <option value="service">Servicio</option>
+                                        <option value="candidate">Candidato</option>
+                                        <option value="process">Proceso</option>
+                                        <option value="other">Otro</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="rating" class="form-label">Calificación</label>
+                                    <select class="form-select" id="rating" name="rating" required>
+                                        <option value="">Seleccionar calificación...</option>
+                                        <option value="5">Excelente (5)</option>
+                                        <option value="4">Muy Bueno (4)</option>
+                                        <option value="3">Bueno (3)</option>
+                                        <option value="2">Regular (2)</option>
+                                        <option value="1">Malo (1)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="comment" class="form-label">Comentarios</label>
+                                    <textarea class="form-control" id="comment" name="comment" rows="4" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Enviar Feedback</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Historial de Feedback -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h3>Historial de Feedback</h3>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Tipo</th>
+                                            <th>Calificación</th>
+                                            <th>Comentarios</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for feedback in feedback_history %}
+                                        <tr>
+                                            <td>{{ feedback.created_at|date:"d/m/Y" }}</td>
+                                            <td>{{ feedback.get_type_display }}</td>
+                                            <td>
+                                                <div class="stars">
+                                                    {% for i in "12345" %}
+                                                    <i class="fas fa-star {% if forloop.counter <= feedback.rating %}text-warning{% else %}text-muted{% endif %}"></i>
+                                                    {% endfor %}
+                                                </div>
+                                            </td>
+                                            <td>{{ feedback.comment }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Inicializar tooltips de Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+</script>
+{% endblock %} 

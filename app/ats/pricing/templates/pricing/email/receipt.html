@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .company-info {
+            margin-bottom: 30px;
+        }
+        .receipt-details {
+            margin-bottom: 30px;
+        }
+        .amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #27ae60;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #27ae60;
+            color: white;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Recibo de Pago</h1>
+    </div>
+
+    <div class="company-info">
+        <h2>{{ company_name }}</h2>
+        <p>{{ company_address }}</p>
+        <p>Tel: {{ company_phone }}</p>
+        <p>Email: {{ company_email }}</p>
+    </div>
+
+    <div class="receipt-details">
+        <h3>Detalles del Pago</h3>
+        <p><strong>Servicio:</strong> {{ service.position }}</p>
+        <p><strong>Concepto:</strong> {{ payment.get_concept_display }}</p>
+        <p><strong>Fecha de Pago:</strong> {{ payment.payment_date|date:"d/m/Y" }}</p>
+        <p><strong>Estado:</strong> <span class="status">Pagado</span></p>
+    </div>
+
+    <div class="amount">
+        Monto Pagado: ${{ payment.amount|floatformat:2 }}
+    </div>
+
+    <div>
+        <h3>Información Adicional</h3>
+        <p>Este recibo confirma que hemos recibido su pago por el servicio de reclutamiento.</p>
+        <p>Gracias por su confianza en {{ company_name }}.</p>
+    </div>
+
+    <div class="footer">
+        <p>Este es un correo electrónico automático, por favor no responda a este mensaje.</p>
+        <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+    </div>
+</body>
+</html> 

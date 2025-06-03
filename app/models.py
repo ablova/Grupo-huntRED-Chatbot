@@ -8,6 +8,9 @@ from django.db.models import JSONField
 from django.utils import timezone
 from django.utils.functional import cached_property
 
+# Import CustomUser from accounts app
+from app.ats.accounts.models import CustomUser
+
 # Importar modelos culturales
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
@@ -111,8 +114,21 @@ NOTIFICATION_TYPE_CHOICES = [
     ('SYSTEM', 'Sistema')
 ]
 
+
+
+
 class NotificationChannel(models.Model):
     """Modelo para configurar canales de notificación por Business Unit."""
+    
+    CHANNEL_CHOICES = [
+        ('email', 'Email'),
+        ('whatsapp', 'WhatsApp'),
+        ('push', 'Notificación push'),
+        ('sms', 'SMS'),
+        ('slack', 'Slack'),
+        ('teams', 'Microsoft Teams'),
+        ('webhook', 'Webhook'),
+    ]
     
     business_unit = models.ForeignKey(
         'BusinessUnit',
@@ -123,7 +139,7 @@ class NotificationChannel(models.Model):
     
     channel = models.CharField(
         max_length=20,
-        choices=NOTIFICATION_CHANNEL_CHOICES,
+        choices=CHANNEL_CHOICES,
         help_text="Canal de notificación"
     )
     
@@ -150,6 +166,12 @@ class NotificationChannel(models.Model):
         
     def __str__(self):
         return f"{self.business_unit.name} - {self.channel}"
+
+
+
+
+
+
 
 class Notification(models.Model):
     """Modelo para manejar todas las notificaciones del sistema."""
@@ -199,6 +221,12 @@ class Notification(models.Model):
         
     def __str__(self):
         return f"{self.notification_type} - {self.recipient.nombre} ({self.channel})"
+
+
+
+
+
+
 
 class Feedback(models.Model):
     """Modelo para almacenar feedback de candidatos y entrevistas."""
@@ -440,6 +468,12 @@ CONDITION_TYPE_CHOICES=[
     ('HAS_TEST','Tiene prueba'),
 ]
 
+
+
+
+
+
+
 class BusinessUnit(models.Model):
     name=models.CharField(max_length=50,choices=BUSINESS_UNIT_CHOICES,unique=True)
     description=models.TextField(blank=True)
@@ -496,6 +530,12 @@ class BusinessUnit(models.Model):
         if not hasattr(self,'configuracionbu'):
             ConfiguracionBU.objects.create(business_unit=self)
             logger.info(f"Creada ConfiguracionBU por defecto para {self.name}")
+
+
+
+
+
+
 
 class Person(models.Model):
     number_interaction = models.IntegerField(default=0)
@@ -673,6 +713,12 @@ class Person(models.Model):
         help_text="Lista de evaluaciones completadas por el usuario"
     )
 
+
+
+
+
+
+
 class SocialConnection(models.Model):
     """Modelo para almacenar conexiones sociales entre candidatos (SocialLink™).
     Principalmente utilizado para candidatos de Amigro que vienen en grupos."""
@@ -718,6 +764,12 @@ class SocialConnection(models.Model):
                 # No lanzamos error, solo registramos la advertencia
         super().save(*args, **kwargs)
 
+
+
+
+
+
+
 class Company(models.Model):
     name = models.CharField(max_length=255, unique=True, help_text="Nombre de la empresa.")
     industry = models.CharField(max_length=100, blank=True, null=True, help_text="Industria.")
@@ -728,9 +780,39 @@ class Company(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     indexes = [models.Index(fields=['name'])]
+    
+    # Datos Fiscales
+    rfc = models.CharField(max_length=13, blank=True, null=True, help_text="RFC de la empresa")
+    razon_social = models.CharField(max_length=255, blank=True, null=True, help_text="Razón social completa")
+    regimen_fiscal = models.CharField(max_length=100, blank=True, null=True, help_text="Régimen fiscal")
+    direccion_fiscal = models.TextField(blank=True, null=True, help_text="Dirección fiscal completa")
+    codigo_postal = models.CharField(max_length=5, blank=True, null=True, help_text="Código postal")
+    ciudad = models.CharField(max_length=100, blank=True, null=True, help_text="Ciudad")
+    estado = models.CharField(max_length=100, blank=True, null=True, help_text="Estado")
+    pais = models.CharField(max_length=100, default="México", help_text="País")
+    email_fiscal = models.EmailField(blank=True, null=True, help_text="Email para facturación")
+    telefono_fiscal = models.CharField(max_length=20, blank=True, null=True, help_text="Teléfono para facturación")
+    uso_cfdi = models.CharField(max_length=100, blank=True, null=True, help_text="Uso de CFDI")
+    metodo_pago = models.CharField(max_length=100, blank=True, null=True, help_text="Método de pago")
+    forma_pago = models.CharField(max_length=100, blank=True, null=True, help_text="Forma de pago")
+    
+    def clean_rfc(self):
+        if self.rfc:
+            return self.rfc.upper()
+        return self.rfc
+    
+    def save(self, *args, **kwargs):
+        self.clean_rfc()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
+
+
+
+
+
+
 
 class Worker(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='workers')
@@ -757,6 +839,12 @@ class Worker(models.Model):
         ]
     def __str__(self):
         return str(self.name)
+
+
+
+
+
+
 
 class Vacante(models.Model):
     titulo = models.CharField(max_length=1000)
@@ -825,6 +913,12 @@ class Vacante(models.Model):
         return f"{self.titulo} - {self.empresa}"
 
 # Propuestas y Contratos
+
+
+
+
+
+
 class Proposal(models.Model):
     qr_code = models.ImageField(upload_to='proposals/qr/', null=True, blank=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='proposals', help_text="Empresa asociada.")
@@ -841,6 +935,12 @@ class Proposal(models.Model):
 
     def __str__(self):
         return f"Propuesta para {self.company} - {self.get_status_display()}"
+
+
+
+
+
+
 
 class Contrato(models.Model):
     proposal = models.OneToOneField(Proposal, on_delete=models.CASCADE, related_name='contrato', help_text="Propuesta asociada.")
@@ -861,6 +961,12 @@ class Contrato(models.Model):
 # Pagos
 
 # Configuraciones de Talento
+
+
+
+
+
+
 
 class WeightingModel(models.Model):
     """Modelo de ponderación dinámica por nivel de posición y Business Unit."""
@@ -1012,6 +1118,12 @@ class WeightingModel(models.Model):
         except cls.DoesNotExist:
             return None
 
+
+
+
+
+
+
 class WeightingHistory(models.Model):
     """Historial de cambios en ponderaciones."""
     weighting = models.ForeignKey(
@@ -1038,6 +1150,12 @@ class WeightingHistory(models.Model):
     
     def __str__(self):
         return f"Cambio en {self.weighting} el {self.timestamp}"
+
+
+
+
+
+
 
 class TalentConfig(models.Model):
     """Configuración dinámica para análisis de talento por Business Unit."""
@@ -1158,6 +1276,12 @@ ACTION_TYPE_CHOICES = [
     ('DEMO', 'Demostración')
 ]
 
+
+
+
+
+
+
 class OpportunityAnalysis(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='opportunity_analyses')
     status = models.CharField(max_length=20, choices=OPPORTUNITY_STATUS_CHOICES, default='NEW')
@@ -1173,6 +1297,12 @@ class OpportunityAnalysis(models.Model):
     def __str__(self):
         return f"{self.company.name} - {self.get_status_display()}"
 
+
+
+
+
+
+
 class AIStrategy(models.Model):
     opportunity = models.ForeignKey(OpportunityAnalysis, on_delete=models.CASCADE, related_name='strategies')
     strategy_type = models.CharField(max_length=50, choices=STRATEGY_TYPE_CHOICES)
@@ -1185,6 +1315,12 @@ class AIStrategy(models.Model):
     
     def __str__(self):
         return f"{self.opportunity.company.name} - {self.get_strategy_type_display()}"
+
+
+
+
+
+
 
 class ActionPlan(models.Model):
     opportunity = models.ForeignKey(OpportunityAnalysis, on_delete=models.CASCADE, related_name='action_plans')
@@ -1200,6 +1336,12 @@ class ActionPlan(models.Model):
         return f"{self.opportunity.company.name} - {self.get_action_type_display()}"
 
 # Pagos
+
+
+
+
+
+
 class PaymentMilestone(models.Model):
     contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name='payment_milestones', help_text="Contrato asociado.")
     name = models.CharField(max_length=100, help_text="Nombre del hito (ej. Inicio).")
@@ -1216,6 +1358,12 @@ class PaymentMilestone(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.contrato}"
+
+
+
+
+
+
 class Application(models.Model):
     user=models.ForeignKey(Person,on_delete=models.CASCADE,related_name='applications')
     vacancy=models.ForeignKey(Vacante,on_delete=models.CASCADE,related_name='applications')
@@ -1226,12 +1374,24 @@ class Application(models.Model):
     def __str__(self):
         return f"{self.user} - {self.vacancy} - {self.status}"
 
+
+
+
+
+
+
 class EntrevistaTipo(models.Model):
     TIPO_CHOICES=[('presencial','Presencial'),('virtual','Virtual'),('panel','Panel'),('otro','Otro')]
     nombre=models.CharField(max_length=50,choices=TIPO_CHOICES)
     descripcion=models.TextField(blank=True,null=True)
     def __str__(self):
         return self.nombre
+
+
+
+
+
+
 
 class Entrevista(models.Model):
     candidato=models.ForeignKey(Person,on_delete=models.CASCADE,related_name='entrevistas')
@@ -1243,18 +1403,42 @@ class Entrevista(models.Model):
     def __str__(self):
         return f"Entrevista de {self.candidato.nombre} para {self.vacante.titulo}"
 
+
+
+
+
+
+
 class OfertaEstado(models.Model):
     nombre=models.CharField(max_length=50)
     descripcion=models.TextField(blank=True,null=True)
     def __str__(self):
         return self.nombre
 
+
+
+
+
+
+
+
 class CartaOfertaManager(models.Manager):
-    def crear_carta_oferta(self,user,vacancy,salary,benefits,start_date,end_date=None):
+    def crear_carta_oferta(self, user, vacancy, salary, benefits, start_date, end_date=None):
         if not user.is_complete_profile():
             raise ValueError("El perfil del usuario debe estar completo para crear una carta de oferta.")
-        estado_pendiente,_=OfertaEstado.objects.get_or_create(nombre='pendiente',defaults={'descripcion':'Oferta pendiente de aceptación'})
-        carta=self.create(user=user,vacancy=vacancy,salary=salary,benefits=benefits,start_date=start_date,end_date=end_date or (start_date+timedelta(days=365)),status=estado_pendiente)
+        estado_pendiente, _ = OfertaEstado.objects.get_or_create(
+            nombre='pendiente',
+            defaults={'descripcion': 'Oferta pendiente de aceptación'}
+        )
+        carta = self.create(
+            user=user,
+            vacancy=vacancy,
+            salary=salary,
+            benefits=benefits,
+            start_date=start_date,
+            end_date=end_date or (start_date + timedelta(days=365)),
+            status=estado_pendiente
+        )
         return carta
 
 class CartaOferta(models.Model):
@@ -1315,6 +1499,12 @@ class CartaOferta(models.Model):
     def __str__(self):
         return f"Carta de Oferta para {self.user.nombre} - {self.vacancy.titulo} ({self.status})"
 
+
+
+
+
+
+
 class JobTracker(models.Model):
     OPERATION_STATUS_CHOICES=[('not_started','No Iniciado'),('in_progress','En Progreso'),('completed','Completado'),('on_hold','En Espera')]
     opportunity=models.OneToOneField(Vacante,on_delete=models.CASCADE,related_name='job_tracker')
@@ -1326,6 +1516,12 @@ class JobTracker(models.Model):
     def handle_job_tracker_status_change(sender,instance,**kwargs):
         if instance.status=='completed':
             print(f"El JobTracker para {instance.opportunity} ha sido completado.")
+
+
+
+
+
+
 
 class Interview(models.Model):
     INTERVIEW_TYPE_CHOICES=[('presencial','Presencial'),('virtual','Virtual'),('panel','Panel')]
@@ -1342,6 +1538,12 @@ class Interview(models.Model):
     candidate_confirmed=models.BooleanField(default=False)
     def days_until_interview(self):
         return (self.interview_date-timezone.now()).days
+
+
+
+
+
+
 
 class PricingBaseline(models.Model):
     BUSINESS_UNIT_CHOICES = [
@@ -1408,6 +1610,12 @@ class PricingBaseline(models.Model):
     class Meta:
         indexes=[models.Index(fields=['dominio'])]
 
+
+
+
+
+
+
 class DominioScraping(models.Model):
     empresa=models.CharField(max_length=75,unique=True,blank=True,null=True)
     dominio=models.URLField(max_length=255,unique=True)
@@ -1465,12 +1673,24 @@ class DominioScraping(models.Model):
     class Meta:
         indexes=[models.Index(fields=['dominio'])]
 
+
+
+
+
+
+
 class ConfiguracionScraping(models.Model):
     dominio=models.ForeignKey(DominioScraping,on_delete=models.CASCADE)
     campo=models.CharField(max_length=50)
     selector=models.CharField(max_length=200)
     tipo_selector=models.CharField(max_length=20,choices=[('css','CSS'),('xpath','XPath')])
     transformacion=models.CharField(max_length=100,null=True,blank=True)
+
+
+
+
+
+
 
 class Certificate(models.Model):
     """
@@ -1513,6 +1733,12 @@ class Certificate(models.Model):
 
     def get_status_display(self):
         return dict(self.STATUS_CHOICES).get(self.status, 'Desconocido')
+
+
+
+
+
+
 
 class ConfiguracionBU(models.Model):
     business_unit=models.OneToOneField(BusinessUnit,on_delete=models.CASCADE)
@@ -1638,6 +1864,12 @@ class ConfiguracionBU(models.Model):
             return {**self.weights,"ubicacion":15,"hard_skills":50,"soft_skills":25,"personalidad":10}
         return self.weights
 
+
+
+
+
+
+
 class InternalDocumentSignature(models.Model):
     """
     Modelo para manejar firmas digitales internas de documentos.
@@ -1718,6 +1950,12 @@ class InternalDocumentSignature(models.Model):
     def get_absolute_url(self):
         return reverse('internal_signature_detail', kwargs={'pk': self.pk})
 
+
+
+
+
+
+
 class WorkflowStage(models.Model):
     name=models.CharField(max_length=100)
     description=models.TextField(blank=True,null=True)
@@ -1728,6 +1966,12 @@ class WorkflowStage(models.Model):
     def __str__(self):
         return f"{self.name} ({self.business_unit.name})"
 
+
+
+
+
+
+
 class RegistroScraping(models.Model):
     dominio=models.ForeignKey(DominioScraping,on_delete=models.CASCADE)
     fecha_inicio=models.DateTimeField(auto_now_add=True)
@@ -1737,6 +1981,12 @@ class RegistroScraping(models.Model):
     error_log=models.TextField(blank=True,null=True)
     def __str__(self):
         return f"Registro {self.dominio.empresa} - {self.estado} - {self.fecha_inicio}"
+
+
+
+
+
+
 
 class IntentPattern(models.Model):
     name=models.CharField(max_length=100,unique=True)
@@ -1756,6 +2006,12 @@ class IntentPattern(models.Model):
     def get_patterns_list(self):
         return self.patterns.split('\n') if self.patterns else []
 
+
+
+
+
+
+
 class StateTransition(models.Model):
     current_state=models.CharField(max_length=50,choices=STATE_TYPE_CHOICES)
     next_state=models.CharField(max_length=50,choices=STATE_TYPE_CHOICES)
@@ -1768,6 +2024,12 @@ class StateTransition(models.Model):
         unique_together=('current_state','next_state','business_unit')
     def __str__(self):
         return f"{self.business_unit.name}: {self.current_state} -> {self.next_state}"
+
+
+
+
+
+
 
 class IntentTransition(models.Model):
     current_intent=models.ForeignKey(IntentPattern,on_delete=models.CASCADE,related_name='transitions_from')
@@ -1782,23 +2044,11 @@ class IntentTransition(models.Model):
     def __str__(self):
         return f"{self.business_unit.name}: {self.current_intent.name} -> {self.next_intent.name}"
 
-class NotificationChannel(models.Model):
-    CHANNEL_CHOICES = [
-        ('WHATSAPP', 'WhatsApp'),
-        ('EMAIL', 'Email'),
-        ('SMS', 'SMS'),
-        ('PUSH', 'Notificación Push')
-    ]
-    
-    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
-    enabled = models.BooleanField(default=True)
-    priority = models.IntegerField(default=1)
-    config = models.JSONField(default=dict)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return f"{self.channel} - {'Habilitado' if self.enabled else 'Deshabilitado'}"
+
+
+
+
+
 
 class MetaAPI(models.Model):
     """Configuración de la API de Meta para WhatsApp Cloud API."""
@@ -1826,6 +2076,12 @@ class MetaAPI(models.Model):
         if self.active:
             MetaAPI.objects.exclude(pk=self.pk).update(active=False)
         super().save(*args, **kwargs)
+
+
+
+
+
+
 
 class WhatsAppConfig(models.Model):
     """Configuración de WhatsApp para notificaciones."""
@@ -1858,6 +2114,12 @@ class WhatsAppConfig(models.Model):
         if self.active:
             WhatsAppConfig.objects.exclude(pk=self.pk).update(active=False)
         super().save(*args, **kwargs)
+
+
+
+
+
+
 
 class MessageLog(models.Model):
     """Registro de mensajes enviados."""
@@ -1897,6 +2159,12 @@ class MessageLog(models.Model):
     def __str__(self):
         recipient = self.phone or self.email or (self.recipient.nombre if self.recipient else "Unknown")
         return f"{self.message_type} a {recipient} [{self.status}]"
+
+
+
+
+
+
 
 class NotificationConfig(models.Model):
     """Configuración global del canal de notificaciones."""
@@ -1964,6 +2232,12 @@ class NotificationConfig(models.Model):
             return True
         return False
 
+
+
+
+
+
+
 class ChatState(models.Model):
     person=models.ForeignKey(Person,on_delete=models.CASCADE,related_name='chat_states')
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,related_name='chat_states')
@@ -2026,286 +2300,15 @@ def update_chat_state_on_offer_accepted(sender,instance,**kwargs):
             chat_state.last_transition=timezone.now()
             chat_state.save()
 
-class CustomUserManager(BaseUserManager):
-    """Manager personalizado para el modelo CustomUser."""
-    
-    def create_user(self, email: str, first_name: str, last_name: str, password: Optional[str] = None, **extra_fields) -> 'CustomUser':
-        """
-        Crea un usuario con email, nombre, apellido y contraseña.
-        
-        Args:
-            email: Dirección de correo electrónico.
-            first_name: Nombre del usuario.
-            last_name: Apellido del usuario.
-            password: Contraseña opcional.
-            **extra_fields: Campos adicionales (e.g., role, business_unit).
-        
-        Returns:
-            CustomUser: Instancia del usuario creado.
-        """
-        if not email:
-            raise ValueError(_('El email es obligatorio'))
-        if not first_name or not last_name:
-            raise ValueError(_('El nombre y apellido son obligatorios'))
-        email = self.normalize_email(email)
-        extra_fields.setdefault('status', 'PENDING_APPROVAL')
-        extra_fields.setdefault('verification_status', 'PENDING')
-        user = self.model(email=email, first_name=first_name, last_name=last_name, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-    
-    def create_superuser(self, email: str, first_name: str, last_name: str, password: Optional[str], **extra_fields) -> 'CustomUser':
-        """
-        Crea un superusuario con email, nombre, apellido y contraseña.
-        
-        Args:
-            email: Dirección de correo electrónico.
-            first_name: Nombre del usuario.
-            last_name: Apellido del usuario.
-            password: Contraseña requerida.
-            **extra_fields: Campos adicionales.
-        
-        Returns:
-            CustomUser: Instancia del superusuario creado.
-        """
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('role', 'SUPER_ADMIN')
-        extra_fields.setdefault('status', 'ACTIVE')
-        extra_fields.setdefault('verification_status', 'VERIFIED')
-        
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError(_('Superuser debe tener is_staff=True'))
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError(_('Superuser debe tener is_superuser=True'))
-        
-        return self.create_user(email, first_name, last_name, password, **extra_fields)
-    
-    def create_consultant(self, email: str, first_name: str, last_name: str, business_unit, password: Optional[str] = None, **extra_fields) -> 'CustomUser':
-        """
-        Crea un usuario consultor asignado a una unidad de negocio.
-        
-        Args:
-            email: Dirección de correo electrónico.
-            first_name: Nombre del usuario.
-            last_name: Apellido del usuario.
-            business_unit: Unidad de negocio asignada.
-            password: Contraseña opcional.
-            **extra_fields: Campos adicionales.
-        
-        Returns:
-            CustomUser: Instancia del consultor creado.
-        """
-        extra_fields.setdefault('role', 'CONSULTANT')
-        extra_fields.setdefault('status', 'ACTIVE')
-        extra_fields.setdefault('business_unit', business_unit)
-        return self.create_user(email, first_name, last_name, password, **extra_fields)
-    
-    def bulk_activate(self, user_ids: List[int]) -> int:
-        """
-        Activa múltiples usuarios en una sola operación.
-        
-        Args:
-            user_ids: Lista de IDs de usuarios a activar.
-        
-        Returns:
-            int: Número de usuarios activados.
-        """
-        return self.filter(id__in=user_ids).update(status='ACTIVE', verification_status='VERIFIED')
+# CustomUser and CustomUserManager moved to app/accounts/models.py to avoid duplicate model definitions
+# Please import them using: from app.ats.accounts.models import CustomUser, CustomUserManager
 
-class CustomUser(AbstractUser):
-    """Modelo de usuario personalizado optimizado para consultores y administradores."""
-    
-    # Campos básicos
-    username = None
-    email = models.EmailField(_('email address'), unique=True, max_length=254)
-    first_name = models.CharField(_('first name'), max_length=150)
-    last_name = models.CharField(_('last name'), max_length=150)
-    
-    # Campos de negocio
-    business_unit = models.ForeignKey(
-        'BusinessUnit',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='users',
-        verbose_name=_('business unit')
-    )
-    division = models.CharField(
-        max_length=50,
-        choices=DIVISION_CHOICES,
-        blank=True,
-        null=True,
-        verbose_name=_('division')
-    )
-    role = models.CharField(
-        max_length=20,
-        choices=ROLE_CHOICES,
-        default='BU_DIVISION',
-        verbose_name=_('role')
-    )
-    status = models.CharField(
-        max_length=20,
-        choices=USER_STATUS_CHOICES,
-        default='PENDING_APPROVAL',
-        verbose_name=_('status')
-    )
-    verification_status = models.CharField(
-        max_length=20,
-        choices=VERIFICATION_STATUS_CHOICES,
-        default='PENDING',
-        verbose_name=_('verification status')
-    )
-    
-    # Campos de contacto
-    phone_number = models.CharField(
-        max_length=20,
-        blank=True,
-        null=True,
-        verbose_name=_('phone number')
-    )
-    emergency_contact = models.CharField(
-        max_length=20,
-        blank=True,
-        null=True,
-        verbose_name=_('emergency contact')
-    )
-    emergency_contact_name = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        verbose_name=_('emergency contact name')
-    )
-    address = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name=_('address')
-    )
-    date_of_birth = models.DateField(
-        blank=True,
-        null=True,
-        verbose_name=_('date of birth')
-    )
-    
-    # Campos de permisos
-    permissions = models.JSONField(
-        default=dict,
-        blank=True,
-        verbose_name=_('custom permissions')
-    )
-    
-    # Campos de auditoría
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('created at'))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('updated at'))
-    
-    # Configuración de autenticación
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
-    
-    # Manager personalizado
-    objects = CustomUserManager()
-    
-    class Meta:
-        verbose_name = _('Usuario')
-        verbose_name_plural = _('Usuarios')
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['email'], name='idx_user_email'),
-            models.Index(fields=['business_unit'], name='idx_user_bu'),
-            models.Index(fields=['role'], name='idx_user_role'),
-            models.Index(fields=['status'], name='idx_user_status'),
-            models.Index(fields=['division'], name='idx_user_division'),
-            models.Index(fields=['created_at'], name='idx_user_created'),
-        ]
-    
-    def __str__(self) -> str:
-        return f"{self.get_full_name()} ({self.email})"
-    
-    def get_full_name(self) -> str:
-        """Devuelve el nombre completo del usuario."""
-        full_name = f"{self.first_name} {self.last_name}".strip()
-        return full_name or self.email
-    
-    @lru_cache(maxsize=128)
-    def has_bu_access(self, bu_name: str) -> bool:
-        """Verifica si el usuario tiene acceso a una unidad de negocio específica."""
-        if self.role in ('SUPER_ADMIN', 'CONSULTANT'):
-            return True
-        if self.business_unit and self.business_unit.name.lower() == bu_name.lower():
-            return True
-        return False
-    
-    @lru_cache(maxsize=128)
-    def has_division_access(self, division_name: str) -> bool:
-        """Verifica si el usuario tiene acceso a una división específica."""
-        if self.role in ('SUPER_ADMIN', 'CONSULTANT'):
-            return True
-        if self.role == 'BU_COMPLETE' and self.business_unit:
-            return self.division == division_name  # Simplified for example
-        return self.division == division_name
-    
-    @lru_cache(maxsize=128)
-    def has_permission(self, permission: str) -> bool:
-        """Verifica si el usuario tiene un permiso específico."""
-        cache_key = f"user_perm_{self.id}_{permission}"
-        cached_result = cache.get(cache_key)
-        if cached_result is not None:
-            return cached_result
-        
-        # Check JSONField permissions
-        result = permission in self.permissions.get('custom', {}) and self.permissions['custom'][permission]
-        # Fallback to UserPermission model
-        if not result:
-            result = self.permissions.filter(permission=permission).exists()
-        
-        cache.set(cache_key, result, 3600)  # Cache for 1 hour
-        return result
-    
-    def clean(self):
-        """Validación personalizada del modelo."""
-        if not self.email:
-            raise ValidationError(_('El email no puede estar vacío'))
-        # Validar formato de email
-        if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', self.email):
-            raise ValidationError(_('El email no es válido'))
-        # Validar formato de teléfono
-        if self.phone_number and not re.match(r'^\+?\d{8,20}$', self.phone_number):
-            raise ValidationError(_('El número de teléfono no es válido'))
-        if self.emergency_contact and not re.match(r'^\+?\d{8,20}$', self.emergency_contact):
-            raise ValidationError(_('El contacto de emergencia no es válido'))
-        super().clean()
-    
-    def save(self, *args, **kwargs):
-        """Guarda el modelo con validación y normalización."""
-        self.email = self.normalize_email(self.email)
-        if not isinstance(self.permissions, dict):
-            self.permissions = {}
-        self.full_clean()
-        super().save(*args, **kwargs)
-    
-    @cached_property
-    def is_active_user(self) -> bool:
-        """Verifica si el usuario está activo y verificado."""
-        return self.status == 'ACTIVE' and self.verification_status == 'VERIFIED'
-    
-    def assign_role(self, role: str, business_unit=None, division=None):
-        """Asigna un nuevo rol al usuario con unidad de negocio y división opcionales."""
-        if role not in dict(ROLE_CHOICES):
-            raise ValueError(_('Rol no válido'))
-        self.role = role
-        if business_unit:
-            self.business_unit = business_unit
-        if division:
-            self.division = division
-        self.save()
-    
-    def bulk_assign_permissions(self, permissions: List[Tuple[str, Optional['BusinessUnit'], Optional[str]]]):
-        """Asigna múltiples permisos al usuario en una sola operación."""
-        UserPermission.objects.bulk_create([
-            UserPermission(user=self, permission=perm, business_unit=bu, division=div)
-            for perm, bu, div in permissions
-        ])
+# UserPermission model
+
+
+
+
+
 
 class UserPermission(models.Model):
     """Modelo para permisos de usuarios, vinculados a unidades de negocio y divisiones."""
@@ -2358,6 +2361,12 @@ class UserPermission(models.Model):
                 raise ValidationError(_('La división no pertenece a la unidad de negocio'))
         super().clean()
 
+
+
+
+
+
+
 class FailedLoginAttempt(models.Model):
     email=models.EmailField()
     ip_address=models.GenericIPAddressField()
@@ -2371,6 +2380,12 @@ class FailedLoginAttempt(models.Model):
     def save(self,*args,**kwargs):
         self.full_clean()
         super().save(*args,**kwargs)
+
+
+
+
+
+
 
 class UserActivityLog(models.Model):
     user=models.ForeignKey(CustomUser,on_delete=models.CASCADE,related_name='activity_logs')
@@ -2423,10 +2438,22 @@ def log_permission_change(sender,instance,created,**kwargs):
         user_agent='System'
     )
 
+
+
+
+
+
+
 class Invitacion(models.Model):
     referrer=models.ForeignKey(Person,related_name='invitaciones_enviadas',on_delete=models.CASCADE)
     invitado=models.ForeignKey(Person,related_name='invitaciones_recibidas',on_delete=models.CASCADE)
     created_at=models.DateTimeField(auto_now_add=True)
+
+
+
+
+
+
 
 class Division(models.Model):
     name=models.CharField(max_length=100,unique=True)
@@ -2434,10 +2461,15 @@ class Division(models.Model):
     def __str__(self):
         return self.name
 
-class Skill(models.Model):
-    name=models.CharField(max_length=100,unique=True)
-    def __str__(self):
-        return self.name
+
+
+
+
+
+
+
+
+
 
 class Badge(models.Model):
     name=models.CharField(max_length=100)
@@ -2446,12 +2478,24 @@ class Badge(models.Model):
     def __str__(self):
         return self.name
 
+
+
+
+
+
+
 class DivisionTransition(models.Model):
     person=models.ForeignKey(Person,on_delete=models.CASCADE)
     from_division=models.CharField(max_length=50)
     to_division=models.CharField(max_length=50)
     success=models.BooleanField(default=True)
     date=models.DateTimeField(auto_now_add=True)
+
+
+
+
+
+
 
 class ApiConfig(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,related_name='api_configs',on_delete=models.CASCADE,null=True,blank=True,help_text="Si está vacío, la configuración es global para todas las unidades de negocio")
@@ -2532,13 +2576,11 @@ class ApiConfig(models.Model):
             return [self.business_unit]
         return BusinessUnit.objects.all()
 
-class MetaAPI(models.Model):
-    business_unit=models.OneToOneField(BusinessUnit,on_delete=models.CASCADE,related_name='meta_api_config')
-    app_id=models.CharField(max_length=255,default='662158495636216')
-    app_secret=models.CharField(max_length=255,default='...')
-    verify_token=models.CharField(max_length=255,default='amigro_secret_token')
-    def __str__(self):
-        return f"MetaAPI {self.business_unit.name} ({self.app_id})"
+
+
+
+
+
 
 class WhatsAppAPI(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,related_name='whatsapp_apis',null=True,blank=True)
@@ -2551,6 +2593,12 @@ class WhatsAppAPI(models.Model):
     is_active=models.BooleanField(default=True)
     def __str__(self):
         return f"{self.business_unit.name if self.business_unit else ''} - WhatsApp API {self.phoneID}"
+
+
+
+
+
+
 
 class Template(models.Model):
     TEMPLATE_TYPES=[('FLOW','Flow'),('BUTTON','Button'),('URL','URL'),('IMAGE','Image')]
@@ -2567,6 +2615,12 @@ class Template(models.Model):
     def __str__(self):
         return f"{self.name} ({self.language_code}) - {self.whatsapp_api.business_unit.name if self.whatsapp_api.business_unit else 'Sin BU'}"
 
+
+
+
+
+
+
 class MessengerAPI(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,related_name='messenger_apis',null=True,blank=True)
     page_id=models.CharField(max_length=255,unique=True)
@@ -2575,6 +2629,12 @@ class MessengerAPI(models.Model):
     is_active=models.BooleanField(default=True)
     def __str__(self):
         return f"{self.business_unit.name if self.business_unit else ''} - Messenger API"
+
+
+
+
+
+
 
 class InstagramAPI(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,related_name='instagram_apis',null=True,blank=True)
@@ -2586,6 +2646,12 @@ class InstagramAPI(models.Model):
     def __str__(self):
         return f"{self.business_unit.name if self.business_unit else ''} - Instagram API"
 
+
+
+
+
+
+
 class TelegramAPI(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE,related_name='telegram_apis',null=True,blank=True)
     api_key=models.CharField(max_length=255)
@@ -2594,10 +2660,22 @@ class TelegramAPI(models.Model):
     def __str__(self):
         return f"{self.business_unit.name if self.business_unit else ''} - Telegram Bot"
 
+
+
+
+
+
+
 class SlackAPI(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE)
     bot_token=models.CharField(max_length=255)
     is_active=models.BooleanField(default=True)
+
+
+
+
+
+
 
 class Provider(models.Model):
     name=models.CharField(max_length=50,unique=True,verbose_name="Nombre del proveedor")
@@ -2627,6 +2705,12 @@ class Provider(models.Model):
             logger.error(f"Error al obtener modelos de {self.name}: {e}")
             return []
 
+
+
+
+
+
+
 class GptApi(models.Model):
     provider=models.ForeignKey(Provider,on_delete=models.CASCADE,verbose_name="Proveedor")
     model=models.CharField(max_length=100,verbose_name="Modelo específico",help_text="Ejemplo: gpt-4o, gemini-1.5-flash-001")
@@ -2653,6 +2737,12 @@ class GptApi(models.Model):
     def available_models(self):
         return self.provider.fetch_models(self.api_token)
 
+
+
+
+
+
+
 class Chat(models.Model):
     body=models.TextField(max_length=1000)
     SmsStatus=models.CharField(max_length=15,null=True,blank=True)
@@ -2666,6 +2756,12 @@ class Chat(models.Model):
     message_count=models.IntegerField(default=0)
     def __str__(self):
         return str(self.body)
+
+
+
+
+
+
 
 class JobOpportunity(models.Model):
     title=models.CharField(max_length=255)
@@ -2700,7 +2796,7 @@ class JobOpportunity(models.Model):
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)
     def get_publish_channels(self):
-        from app.publish.models import Channel
+        from app.ats.publish.models import Channel
         return Channel.objects.filter(business_unit=self.business_unit,is_active=True)
     def get_channel_config(self,channel_type):
         if channel_type=='WHATSAPP':
@@ -2708,6 +2804,12 @@ class JobOpportunity(models.Model):
         elif channel_type=='TELEGRAM':
             return TelegramAPI.objects.filter(business_unit=self.business_unit,is_active=True).first()
         return None
+
+
+
+
+
+
 
 class SmtpConfig(models.Model):
     host=models.CharField(max_length=255)
@@ -2719,6 +2821,12 @@ class SmtpConfig(models.Model):
     def __str__(self):
         return f"{self.host}:{self.port}"
 
+
+
+
+
+
+
 class UserInteractionLog(models.Model):
     user_id=models.CharField(max_length=100,db_index=True)
     platform=models.CharField(max_length=50,blank=True,null=True)
@@ -2727,6 +2835,12 @@ class UserInteractionLog(models.Model):
     message_direction=models.CharField(max_length=10,choices=[('in','Inbound'),('out','Outbound')],default='in')
     def __str__(self):
         return f"{self.user_id} - {self.platform} - {self.timestamp}"
+
+
+
+
+
+
 
 class ReporteScraping(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE)
@@ -2737,6 +2851,12 @@ class ReporteScraping(models.Model):
     parciales=models.IntegerField(default=0)
     def __str__(self):
         return f"Reporte de Scraping - {self.business_unit.name} - {self.fecha}"
+
+
+
+
+
+
 
 class EnhancedMLProfile(models.Model):
     user=models.OneToOneField(Person,on_delete=models.CASCADE,related_name='ml_profile')
@@ -2781,16 +2901,34 @@ class EnhancedMLProfile(models.Model):
         # Implementar lógica de recomendaciones
         return recommendations
 
+
+
+
+
+
+
 class ModelTrainingLog(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE)
     accuracy=models.FloatField()
     trained_at=models.DateTimeField(auto_now_add=True)
     model_version=models.CharField(max_length=50)
 
+
+
+
+
+
+
 class QuarterlyInsight(models.Model):
     business_unit=models.ForeignKey(BusinessUnit,on_delete=models.CASCADE)
     insights_data=models.JSONField(null=True,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
+
+
+
+
+
+
 
 class MigrantSupportPlatform(models.Model):
     user=models.OneToOneField(Person,on_delete=models.CASCADE)
@@ -2808,6 +2946,12 @@ class MigrantSupportPlatform(models.Model):
             opportunities=self._find_opportunities_in_unit(unit)
             matching_opportunities.extend(opportunities)
         return matching_opportunities
+
+
+
+
+
+
 
 class EnhancedNetworkGamificationProfile(models.Model):
     user=models.OneToOneField(Person,on_delete=models.CASCADE)
@@ -2848,6 +2992,12 @@ class EnhancedNetworkGamificationProfile(models.Model):
         ]
         return challenges
 
+
+
+
+
+
+
 class VerificationCode(models.Model):
     PURPOSE_CHOICES=[('update_whatsapp','Actualizar WhatsApp')]
     person=models.ForeignKey(Person,on_delete=models.CASCADE)
@@ -2858,6 +3008,12 @@ class VerificationCode(models.Model):
     def __str__(self):
         return f"{self.person.first_name} {self.person.last_name} - {self.purpose} - {'Usado' if self.is_used else 'No usado'}"
 
+
+
+
+
+
+
 class Interaction(models.Model):
     person=models.ForeignKey(Person,on_delete=models.CASCADE,related_name='interactions')
     timestamp=models.DateTimeField(auto_now_add=True)
@@ -2867,6 +3023,27 @@ class Interaction(models.Model):
         return f"Interacción de {self.person} en {self.timestamp}"
 
 # Modelos de Pagos
+
+class EstadoPago(models.TextChoices):
+    PENDIENTE = 'pendiente', 'Pendiente'
+    COMPLETADO = 'completado', 'Completado'
+    FALLIDO = 'fallido', 'Fallido'
+    RECHAZADO = 'rechazado', 'Rechazado'
+    EN_PROCESO = 'en_proceso', 'En Proceso'
+    REFUNDADO = 'reembolsado', 'Reembolsado'
+
+class TipoPago(models.TextChoices):
+    MONOEDO = 'monoedo', 'Pago Simple'
+    MULTIEDO = 'multiedo', 'Pago Múltiple'
+    RECURRENTE = 'recurrente', 'Pago Recurrente'
+    PRUEBA = 'prueba', 'Pago de Prueba'
+
+class MetodoPago(models.TextChoices):
+    PAYPAL = 'paypal', 'PayPal'
+    STRIPE = 'stripe', 'Stripe'
+    MERCADOPAGO = 'mercadopago', 'MercadoPago'
+    TRANSFERENCIA = 'transferencia', 'Transferencia Bancaria'
+    CRYPTO = 'crypto', 'Criptomonedas'
 
 class EstadoPerfil(models.TextChoices):
     ACTIVO = 'activo', 'Activo'
@@ -2916,38 +3093,11 @@ class Empleador(models.Model):
         """Valida que todos los documentos requeridos estén presentes y sean válidos"""
         return True  # Implementación pendiente
 
-class Worker(models.Model):
-    persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='worker')
-    
-    # Información laboral
-    nss = models.CharField(max_length=11, unique=True, null=True, blank=True)
-    ocupacion = models.CharField(max_length=100)
-    experiencia_anios = models.IntegerField(default=0)
-    
-    # Información bancaria
-    clabe = models.CharField(max_length=18, unique=True)
-    banco = models.CharField(max_length=100)
-    
-    # Estado
-    estado = models.CharField(max_length=20, choices=EstadoPerfil.choices, default=EstadoPerfil.ACTIVO)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
-    
-    # Documentos
-    documento_identidad = models.FileField(upload_to='workers/documentos/')
-    comprobante_domicilio = models.FileField(upload_to='workers/documentos/')
-    
-    class Meta:
-        ordering = ['-fecha_registro']
-        verbose_name = 'Worker'
-        verbose_name_plural = 'Workers'
 
-    def __str__(self):
-        return f"{self.persona.nombre} {self.persona.apellido_paterno}"
 
-    def validar_documentos(self):
-        """Valida que todos los documentos requeridos estén presentes y sean válidos"""
-        return True  # Implementación pendiente
+
+
+
 
 class Oportuncupidad(models.Model):
     empleador = models.ForeignKey(Empleador, on_delete=models.CASCADE, related_name='oportunidades')
@@ -2986,26 +3136,11 @@ class Oportuncupidad(models.Model):
     def __str__(self):
         return self.titulo
 
-class EstadoPago(models.TextChoices):
-    PENDIENTE = 'pendiente', 'Pendiente'
-    COMPLETADO = 'completado', 'Completado'
-    FALLIDO = 'fallido', 'Fallido'
-    RECHAZADO = 'rechazado', 'Rechazado'
-    EN_PROCESO = 'en_proceso', 'En Proceso'
-    REFUNDADO = 'reembolsado', 'Reembolsado'
 
-class TipoPago(models.TextChoices):
-    MONOEDO = 'monoedo', 'Pago Simple'
-    MULTIEDO = 'multiedo', 'Pago Múltiple'
-    RECURRENTE = 'recurrente', 'Pago Recurrente'
-    PRUEBA = 'prueba', 'Pago de Prueba'
 
-class MetodoPago(models.TextChoices):
-    PAYPAL = 'paypal', 'PayPal'
-    STRIPE = 'stripe', 'Stripe'
-    MERCADOPAGO = 'mercadopago', 'MercadoPago'
-    TRANSFERENCIA = 'transferencia', 'Transferencia Bancaria'
-    CRYPTO = 'crypto', 'Criptomonedas'
+
+
+
 
 class Pago(models.Model):
     empleador = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='pagos_enviados')
@@ -3095,6 +3230,12 @@ class Pago(models.Model):
         """Calcula el monto total basado en el número de plazas."""
         return self.monto_por_plaza * self.numero_plazas
 
+
+
+
+
+
+
 class PagoRecurrente(models.Model):
     pago_base = models.OneToOneField(Pago, on_delete=models.CASCADE, related_name='recurrente')
     frecuencia = models.CharField(max_length=20, choices=[
@@ -3133,6 +3274,12 @@ class PagoRecurrente(models.Model):
             self.fecha_proximo_pago += timedelta(days=365)
         self.save()
 
+
+
+
+
+
+
 class PagoHistorico(models.Model):
     pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='historico')
     estado_anterior = models.CharField(max_length=20, choices=EstadoPago.choices)
@@ -3146,6 +3293,12 @@ class PagoHistorico(models.Model):
 
     def __str__(self):
         return f'Historial #{self.id} - Pago #{self.pago.id}'
+
+
+
+
+
+
 
 class WebhookLog(models.Model):
     pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='webhook_logs')
@@ -3173,6 +3326,12 @@ def calculate_age(birth_date):
         age -= 1
     return age
 
+
+
+
+
+
+
 class SexsiConfig(models.Model):
     """
     Configuración exclusiva para el flujo SEXSI.
@@ -3190,6 +3349,12 @@ class SexsiConfig(models.Model):
     
     def __str__(self):
         return self.name
+
+
+
+
+
+
 
 class ConsentAgreement(models.Model):
     """
@@ -3300,6 +3465,12 @@ class ConsentAgreement(models.Model):
     def __str__(self):
         return f"Acuerdo #{self.id} - {self.creator.username}"
 
+
+
+
+
+
+
 class PaymentTransaction(models.Model):
     """
     Modelo para registrar la transacción de pago asociada al Acuerdo SEXSI.
@@ -3315,6 +3486,12 @@ class PaymentTransaction(models.Model):
     
     def __str__(self):
         return f"Pago {self.id} para Acuerdo #{self.agreement.id}"
+
+
+
+
+
+
 
 class DiscountCoupon(models.Model):
     """
@@ -3543,6 +3720,12 @@ class DiscountCoupon(models.Model):
             f"Vence: {self.expiration_date.strftime('%Y-%m-%d %H:%M')}"
         )
 
+
+
+
+
+
+
 class VerificationService(models.Model):
     """
     Modelo que define los tipos de servicios de verificación disponibles.
@@ -3572,6 +3755,12 @@ class VerificationService(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.get_category_display()})"
+
+
+
+
+
+
 
 class VerificationAddon(models.Model):
     """
@@ -3608,6 +3797,12 @@ class VerificationAddon(models.Model):
     def get_tier_display(self):
         return dict(self.TIER_CHOICES).get(self.tier, 'Desconocido')
 
+
+
+
+
+
+
 class OpportunityVerificationPackage(models.Model):
     """
     Modelo que representa un paquete de verificación para una oportunidad.
@@ -3636,6 +3831,12 @@ class OpportunityVerificationPackage(models.Model):
     def __str__(self):
         return f"Paquete de verificación: {self.name} (Oportunidad: {self.opportunity.name})"
 
+
+
+
+
+
+
 class PackageAddonDetail(models.Model):
     """
     Modelo que relaciona addons específicos con un paquete de verificación.
@@ -3662,6 +3863,12 @@ class PackageAddonDetail(models.Model):
         # Calcular el subtotal automáticamente
         self.subtotal = self.unit_price * self.quantity
         super().save(*args, **kwargs)
+
+
+
+
+
+
 
 class CandidateVerification(models.Model):
     """
@@ -3696,6 +3903,12 @@ class CandidateVerification(models.Model):
         self.completed_at = timezone.now()
         self.save()
 
+
+
+
+
+
+
 class CandidateServiceResult(models.Model):
     """
     Modelo que almacena los resultados de cada servicio de verificación.
@@ -3724,6 +3937,12 @@ class CandidateServiceResult(models.Model):
     
     def __str__(self):
         return f"Resultado de {self.service.name} para {self.verification.candidate.name}"
+
+
+
+
+
+
 
 class SocialNetworkVerification(models.Model):
     """
@@ -3761,6 +3980,12 @@ class SocialNetworkVerification(models.Model):
     def __str__(self):
         return f"Verificación de {self.get_network_display()} para {self.service_result.verification.candidate.name}"
 
+
+
+
+
+
+
 class AgreementPreference(models.Model):
     """
     Modelo que representa la relación entre un acuerdo y sus preferencias,
@@ -3779,6 +4004,12 @@ class AgreementPreference(models.Model):
 
     def __str__(self):
         return f"{self.agreement} - {self.preference}"
+
+
+
+
+
+
 
 class Preference(models.Model):
     """
@@ -3838,6 +4069,12 @@ TASK_STATUS_CHOICES = [
     ('OVERDUE', 'Vencido'),
     ('CANCELLED', 'Cancelado')
 ]
+
+
+
+
+
+
 
 class OnboardingProcess(models.Model):
     """
@@ -3997,6 +4234,12 @@ class OnboardingProcess(models.Model):
                 
         return result
 
+
+
+
+
+
+
 class OnboardingTask(models.Model):
     """
     Modelo para gestionar tareas específicas durante el proceso de onboarding.
@@ -4111,6 +4354,12 @@ class OnboardingTask(models.Model):
 
 # Importando el User estándar de Django para módulos como SEXSI
 from django.contrib.auth.models import User
+
+
+
+
+
+
 
 class Experience(models.Model):
     """
@@ -4238,66 +4487,11 @@ class Experience(models.Model):
         self.verification_notes = notes
         self.save()
 
-class Skill(models.Model):
-    """
-    Modelo para almacenar habilidades técnicas y profesionales.
-    """
-    # Niveles de habilidad
-    LEVEL_CHOICES = [
-        ('beginner', 'Principiante'),
-        ('intermediate', 'Intermedio'),
-        ('advanced', 'Avanzado'),
-        ('expert', 'Experto')
-    ]
-    
-    name = models.CharField(
-        max_length=100,
-        unique=True,
-        help_text="Nombre de la habilidad"
-    )
-    category = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        help_text="Categoría de la habilidad (ej: Programación, Diseño, etc.)"
-    )
-    description = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Descripción de la habilidad"
-    )
-    is_technical = models.BooleanField(
-        default=True,
-        help_text="¿Es una habilidad técnica?"
-    )
-    default_level = models.CharField(
-        max_length=20,
-        choices=LEVEL_CHOICES,
-        default='intermediate',
-        help_text="Nivel de habilidad por defecto"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    class Meta:
-        verbose_name = "Habilidad"
-        verbose_name_plural = "Habilidades"
-        ordering = ['name']
-    def __str__(self):
-        return self.name
-    @classmethod
-    def get_or_create_skills(cls, skill_names: list) -> list:
-        if not skill_names:
-            return []
-        skills = []
-        for name in skill_names:
-            if not name.strip():
-                continue
-            skill, created = cls.objects.get_or_create(
-                name__iexact=name.strip(),
-                defaults={'name': name.strip()}
-            )
-            skills.append(skill)
-        return skills
+
+
+
+
+
 
 class Team(models.Model):
     """
@@ -4352,6 +4546,12 @@ class Team(models.Model):
     def get_members_count(self):
         """Retorna el número de miembros activos del equipo."""
         return self.team_members.filter(is_active=True).count()
+
+
+
+
+
+
 
 
 class TeamMember(models.Model):
@@ -4416,6 +4616,75 @@ class TeamMember(models.Model):
         return f"{self.person.nombre} - {self.get_role_display()} en {self.team.name}"
 
 
+
+
+
+
+
+
+class Skill(models.Model):
+    """
+    Modelo para almacenar habilidades técnicas y profesionales.
+    """
+    # Niveles de habilidad
+    LEVEL_CHOICES = [
+        ('beginner', 'Principiante'),
+        ('intermediate', 'Intermedio'),
+        ('advanced', 'Avanzado'),
+        ('expert', 'Experto')
+    ]
+    
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Nombre de la habilidad"
+    )
+    category = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Categoría de la habilidad (ej: Programación, Diseño, etc.)"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Descripción de la habilidad"
+    )
+    is_technical = models.BooleanField(
+        default=True,
+        help_text="¿Es una habilidad técnica?"
+    )
+    default_level = models.CharField(
+        max_length=20,
+        choices=LEVEL_CHOICES,
+        default='intermediate',
+        help_text="Nivel de habilidad por defecto"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Habilidad"
+        verbose_name_plural = "Habilidades"
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+    
+    @classmethod
+    def get_or_create_skills(cls, skill_names: list) -> list:
+        if not skill_names:
+            return []
+        skills = []
+        for name in skill_names:
+            skill, created = cls.objects.get_or_create(
+                name__iexact=name,
+                defaults={'name': name}
+            )
+            skills.append(skill)
+        return skills
+
+
 class PersonSkill(models.Model):
     """Modelo para relacionar personas con sus habilidades y niveles."""
     person = models.ForeignKey(
@@ -4478,6 +4747,12 @@ class PersonSkill(models.Model):
         self.save()
 
 
+
+
+
+
+
+
 class ChatConversation(models.Model):
     """Modelo para almacenar conversaciones de chat entre usuarios y el sistema."""
     CONVERSATION_TYPES = [
@@ -4510,6 +4785,12 @@ class ChatConversation(models.Model):
     
     def __str__(self):
         return f"{self.get_conversation_type_display()}: {self.title}"
+
+
+
+
+
+
 
 
 class ChatMessage(models.Model):
@@ -4557,82 +4838,10 @@ class ChatMessage(models.Model):
             self.save(update_fields=['is_read', 'read_at'])
 
 
-class Notification(models.Model):
-    """Modelo para notificaciones del sistema a los usuarios."""
-    NOTIFICATION_TYPES = [
-        ('info', 'Informativa'),
-        ('warning', 'Advertencia'),
-        ('error', 'Error'),
-        ('success', 'Éxito'),
-        ('action_required', 'Acción Requerida')
-    ]
-    
-    title = models.CharField(max_length=200, help_text="Título de la notificación")
-    message = models.TextField(help_text="Contenido detallado de la notificación")
-    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
-    recipients = models.ManyToManyField('Person', through='NotificationRecipient', related_name='notifications')
-    requires_action = models.BooleanField(default=False, help_text="Indica si se requiere alguna acción")
-    action_url = models.URLField(blank=True, null=True, help_text="URL para la acción requerida")
-    expires_at = models.DateTimeField(null=True, blank=True, help_text="Fecha de expiración de la notificación")
-    created_by = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, related_name='created_notifications')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    metadata = models.JSONField(default=dict, blank=True, help_text="Metadatos adicionales de la notificación")
-    
-    class Meta:
-        verbose_name = "Notificación"
-        verbose_name_plural = "Notificaciones"
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['notification_type']),
-            models.Index(fields=['requires_action']),
-            models.Index(fields=['created_at']),
-            models.Index(fields=['expires_at']),
-        ]
-    
-    def __str__(self):
-        return f"{self.get_notification_type_display()}: {self.title}"
-    
-    def mark_as_read(self, person):
-        """Marca la notificación como leída para un destinatario específico."""
-        from django.db import transaction
-        
-        with transaction.atomic():
-            recipient, created = NotificationRecipient.objects.get_or_create(
-                notification=self,
-                person=person,
-                defaults={'is_read': True, 'read_at': timezone.now()}
-            )
-            
-            if not created and not recipient.is_read:
-                recipient.is_read = True
-                recipient.read_at = timezone.now()
-                recipient.save(update_fields=['is_read', 'read_at', 'updated_at'])
-    
-    def mark_as_unread(self, person):
-        """Marca la notificación como no leída para un destinatario específico."""
-        NotificationRecipient.objects.filter(
-            notification=self,
-            person=person
-        ).update(is_read=False, read_at=None)
-    
-    def is_read_by(self, person):
-        """Verifica si la notificación ha sido leída por una persona específica."""
-        try:
-            return NotificationRecipient.objects.get(
-                notification=self,
-                person=person
-            ).is_read
-        except NotificationRecipient.DoesNotExist:
-            return False
-    
-    def get_read_status(self):
-        """Obtiene el estado de lectura de la notificación para todos los destinatarios."""
-        return {
-            'total_recipients': self.recipients.count(),
-            'read_count': self.notification_recipients.filter(is_read=True).count(),
-            'unread_count': self.notification_recipients.filter(is_read=False).count()
-        }
+
+
+
+
 
 
 class NotificationRecipient(models.Model):
@@ -4656,6 +4865,12 @@ class NotificationRecipient(models.Model):
     def __str__(self):
         status = "leída" if self.is_read else "no leída"
         return f"{self.person} - {self.notification.title} ({status})"
+
+
+
+
+
+
 
 
 class Metric(models.Model):
@@ -4704,6 +4919,12 @@ class Metric(models.Model):
             business_unit=business_unit,
             created_by=created_by
         )
+
+
+
+
+
+
 
 
 class WorkflowStatus(models.Model):
@@ -4770,6 +4991,12 @@ class WorkflowStatus(models.Model):
             self.save(update_fields=['status', 'completed_at', 'updated_at'])
 
 
+
+
+
+
+
+
 class ChannelSettings(models.Model):
     """Modelo para configuraciones de canales de comunicación."""
     CHANNEL_TYPES = [
@@ -4819,6 +5046,12 @@ class ChannelSettings(models.Model):
         
         return config
 
+
+
+
+
+
+
 class Conversation(models.Model):
     """
     Modelo para almacenar conversaciones del chatbot.
@@ -4845,29 +5078,11 @@ class Conversation(models.Model):
     def __str__(self):
         return f"Conversation {self.id} - {self.user} via {self.channel}"
 
-class ChatMessage(models.Model):
-    """
-    Modelo para almacenar mensajes individuales de las conversaciones.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
-    content = models.TextField()
-    direction = models.CharField(max_length=10)  # incoming, outgoing
-    message_type = models.CharField(max_length=50)  # text, image, document, etc.
-    metadata = models.JSONField(default=dict)
-    created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, default='sent')  # sent, delivered, read, failed
 
-    class Meta:
-        ordering = ['created_at']
-        indexes = [
-            models.Index(fields=['conversation', 'created_at']),
-            models.Index(fields=['direction']),
-            models.Index(fields=['status'])
-        ]
 
-    def __str__(self):
-        return f"Message {self.id} - {self.direction} in {self.conversation}"
+
+
+
 
 class SkillAssessment(models.Model):
     """
@@ -5031,6 +5246,12 @@ class SkillAssessment(models.Model):
             )
 
 # Modelos Culturales
+
+
+
+
+
+
 class CulturalDimension(models.Model):
     """Modelo para dimensiones culturales."""
     name = models.CharField(max_length=100)
@@ -5056,6 +5277,12 @@ class CulturalDimension(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.category})"
+
+
+
+
+
+
 
 class CulturalValue(models.Model):
     """Modelo para valores culturales."""
@@ -5083,6 +5310,12 @@ class CulturalValue(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.dimension.name}"
+
+
+
+
+
+
 
 
 
@@ -5124,6 +5357,12 @@ class OrganizationalCulture(models.Model):
     def __str__(self):
         return f"Perfil Cultural de {self.organization.name}"
 
+
+
+
+
+
+
 class CulturalReport(models.Model):
     """Modelo para reportes culturales."""
     title = models.CharField(max_length=255)
@@ -5163,6 +5402,12 @@ class CulturalReport(models.Model):
         import uuid
         self.access_token = str(uuid.uuid4())
         self.save()
+
+
+
+
+
+
 
 
 class PersonCulturalProfile(models.Model):
@@ -5249,6 +5494,12 @@ class PersonCulturalProfile(models.Model):
         """Calcula el fit cultural general con un perfil de compañía."""
         # Implementar lógica de cálculo de fit
         pass
+
+
+
+
+
+
 
 class CulturalFitReport(models.Model):
     """Modelo para almacenar reportes de fit cultural."""
@@ -5354,6 +5605,12 @@ COMPETENCY_CATEGORY_CHOICES = [
     ('interpersonal', 'Interpersonales')
 ]
 
+
+
+
+
+
+
 class ProfessionalDNA(models.Model):
     """
     Modelo para almacenar el ADN profesional de un candidato.
@@ -5434,6 +5691,12 @@ class ProfessionalDNA(models.Model):
         return self.competencies.get(competency_name, {}).get('score', 0)
 
 
+
+
+
+
+
+
 class SuccessionPlan(models.Model):
     """
     Modelo para planes de sucesión de posiciones clave.
@@ -5512,6 +5775,12 @@ class SuccessionPlan(models.Model):
     def get_ready_candidates(self):
         """Obtiene los candidatos listos para la sucesión."""
         return self.candidates.filter(readiness_level='ready_now')
+
+
+
+
+
+
 
 
 class SuccessionCandidate(models.Model):
@@ -5595,6 +5864,12 @@ class SuccessionCandidate(models.Model):
         completed = sum(1 for item in self.development_plan['items'] if item.get('completed', False))
         total = len(self.development_plan['items'])
         return round((completed / total) * 100) if total > 0 else 0
+
+
+
+
+
+
 
 
 class SuccessionReadinessAssessment(models.Model):
@@ -5703,6 +5978,12 @@ MENTORING_SESSION_STATUS_CHOICES = [
     ('CANCELLED', 'Cancelada'),
     ('IN_PROGRESS', 'En Progreso')
 ]
+
+
+
+
+
+
 
 class Mentor(models.Model):
     """Modelo para profesionales que dan mentorías a otros.
@@ -5831,6 +6112,12 @@ class Mentor(models.Model):
             'personality_type': self.personality_type
         }
 
+
+
+
+
+
+
 class MentorSkill(models.Model):
     """Modelo para habilidades específicas de un mentor.
     
@@ -5886,6 +6173,12 @@ class MentorSkill(models.Model):
             'level': self.proficiency_level,
             'years': self.years
         }
+
+
+
+
+
+
 
 class MentorSession(models.Model):
     """Modelo para sesiones de mentoría.
@@ -6001,6 +6294,12 @@ class MentorSession(models.Model):
 # Modelos para evaluaciones y análisis generacional
 # Migrados desde app/models/evaluation.py para centralizar los modelos siguiendo las reglas globales
 
+
+
+
+
+
+
 class GenerationalProfile(models.Model):
     """Perfil generacional que analiza características según la generación del usuario."""
     
@@ -6041,6 +6340,12 @@ class GenerationalProfile(models.Model):
         return f"{self.user.username} - {self.get_generation_display()}"
 
 
+
+
+
+
+
+
 class MotivationalProfile(models.Model):
     """Perfil motivacional que analiza factores intrínsecos y extrínsecos de motivación."""
     
@@ -6076,6 +6381,12 @@ class MotivationalProfile(models.Model):
         return f"{self.user.username} - Perfil Motivacional"
 
 
+
+
+
+
+
+
 class CareerAspiration(models.Model):
     """Aspiraciones de carrera del usuario, incluyendo objetivos y preferencias."""
     
@@ -6106,6 +6417,12 @@ class CareerAspiration(models.Model):
         
     def __str__(self):
         return f"{self.user.username} - {self.desired_position}"
+
+
+
+
+
+
 
 
 class WorkStylePreference(models.Model):
@@ -6139,6 +6456,12 @@ class WorkStylePreference(models.Model):
         return f"{self.user.username} - Estilo de Trabajo"
 
 
+
+
+
+
+
+
 class CulturalAlignment(models.Model):
     """Alineación cultural del usuario con la organización."""
     
@@ -6168,6 +6491,12 @@ class CulturalAlignment(models.Model):
         
     def __str__(self):
         return f"{self.user.username} - Alineación Cultural"
+
+
+
+
+
+
 
 
 class JobSatisfaction(models.Model):
@@ -6234,6 +6563,12 @@ class JobSatisfaction(models.Model):
         if self.overall_satisfaction is None:
             self.calculate_overall_satisfaction()
         super().save(*args, **kwargs)
+
+
+
+
+
+
 
 
 class PerformanceReview(models.Model):
@@ -6320,6 +6655,12 @@ class PerformanceReview(models.Model):
         super().save(*args, **kwargs)
 
 
+
+
+
+
+
+
 class Manager(models.Model):
     """Modelo para gestores/supervisores de personas."""
     person = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='manager_profile')
@@ -6401,6 +6742,12 @@ class Manager(models.Model):
             'retention_rate': self.team_retention_rate,
             'satisfaction_score': self.team_satisfaction_score
         }
+
+
+
+
+
+
 
 
 class InterventionAction(models.Model):
@@ -6500,6 +6847,12 @@ class InterventionAction(models.Model):
         return True
 
 
+
+
+
+
+
+
 class Activity(models.Model):
     """Modelo para actividades y eventos relacionados con una persona."""
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='activities')
@@ -6551,45 +6904,37 @@ class Activity(models.Model):
     def __str__(self):
         return f"{self.get_activity_type_display()} - {self.person.email or self.person.id} - {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
 
-class CustomUser(AbstractUser):
-    """Modelo de usuario personalizado que extiende AbstractUser."""
-    
-    # Campos adicionales
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.SET_NULL, null=True, blank=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='BU_DIVISION')
-    permissions = models.JSONField(default=dict, blank=True)
-    
-    # Campos de auditoría
+
+
+
+
+
+
+class NotificationPreference(models.Model):
+    """
+    Modelo para manejar las preferencias de notificación de los candidatos
+    para slots de entrevista.
+    """
+    person = models.ForeignKey(Person, on_delete=models.CASCADE)
+    job_title = models.CharField(max_length=200)
+    notify_on_slot_available = models.BooleanField(default=True)
+    preferred_time_slots = models.JSONField(default=list)  # Lista de horarios preferidos
+    last_notification = models.DateTimeField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = "Usuario"
-        verbose_name_plural = "Usuarios"
+        unique_together = ('person', 'job_title')
         indexes = [
-            models.Index(fields=['username']),
-            models.Index(fields=['email']),
-            models.Index(fields=['business_unit']),
-            models.Index(fields=['role'])
+            models.Index(fields=['notify_on_slot_available', 'last_notification']),
+            models.Index(fields=['person', 'job_title'])
         ]
     
     def __str__(self):
-        return f"{self.username} ({self.get_role_display()})"
-    
-    def get_full_name(self):
-        return f"{self.first_name} {self.last_name}".strip() or self.username
-    
-    def has_bu_access(self, business_unit):
-        """Verifica si el usuario tiene acceso a una unidad de negocio específica."""
-        if self.role == 'SUPER_ADMIN':
-            return True
-        return self.business_unit == business_unit
-    
-    def has_division_access(self, division):
-        """Verifica si el usuario tiene acceso a una división específica."""
-        if self.role == 'SUPER_ADMIN':
-            return True
-        if self.role == 'BU_COMPLETE':
-            return division.business_unit == self.business_unit
-        return False
+        return f"Preferencias de {self.person} para {self.job_title}"
+
+# CustomUser model has been moved to app/accounts/models.py to avoid duplicate model definitions.
+# Please import it using: from app.ats.accounts.models import CustomUser, CustomUserManager
+
+
+

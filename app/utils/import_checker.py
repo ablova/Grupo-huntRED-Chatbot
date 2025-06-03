@@ -130,7 +130,7 @@ class ImportAnalyzer:
             file_suggestions = []
             
             for line_num, line, pattern in issues:
-                if "from app.import_config import get_" in pattern:
+                if "from app.ats.import_config import get_" in pattern:
                     # Extraer nombre del getter
                     getter_name = re.search(r'get_(\w+)', pattern)
                     if getter_name:
@@ -138,9 +138,9 @@ class ImportAnalyzer:
                         
                         # Crear sugerencia basada en el tipo de getter
                         if "handler" in module_name:
-                            suggested = f"from app.com.chatbot.handlers.{module_name} import {module_name.capitalize()}Handler"
+                            suggested = f"from app.ats.chatbot.handlers.{module_name} import {module_name.capitalize()}Handler"
                         elif "processor" in module_name:
-                            suggested = f"from app.com.chatbot.processors.{module_name} import {module_name.capitalize()}Processor"
+                            suggested = f"from app.ats.chatbot.processors.{module_name} import {module_name.capitalize()}Processor"
                         else:
                             suggested = f"# Importar directamente: from app.<module>.{module_name} import {module_name.capitalize()}"
                         

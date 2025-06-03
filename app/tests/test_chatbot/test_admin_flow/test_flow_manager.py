@@ -4,7 +4,7 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
-from app.com.chatbot.admin.flow_manager import FlowManager
+from app.ats.chatbot.admin.flow_manager import FlowManager
 from app.models import ChatState
 
 class TestFlowManager(unittest.TestCase):
@@ -20,25 +20,25 @@ class TestFlowManager(unittest.TestCase):
 
     def test_start_flow(self):
         """Test de inicio de flujo"""
-        with patch('app.chatbot.admin.flow_manager.ChatState.save') as mock_save:
+        with patch('app.ats.chatbot.admin.flow_manager.ChatState.save') as mock_save:
             self.flow_manager.start_flow(self.chat_state)
             mock_save.assert_called()
 
     def test_next_step(self):
         """Test de paso siguiente"""
-        with patch('app.chatbot.admin.flow_manager.ChatState.save') as mock_save:
+        with patch('app.ats.chatbot.admin.flow_manager.ChatState.save') as mock_save:
             self.flow_manager.next_step(self.chat_state)
             mock_save.assert_called()
 
     def test_complete_flow(self):
         """Test de finalización de flujo"""
-        with patch('app.chatbot.admin.flow_manager.ChatState.save') as mock_save:
+        with patch('app.ats.chatbot.admin.flow_manager.ChatState.save') as mock_save:
             self.flow_manager.complete_flow(self.chat_state)
             mock_save.assert_called()
 
     def test_error_handling(self):
         """Test de manejo de errores"""
-        with patch('app.chatbot.admin.flow_manager.logger.error') as mock_error:
+        with patch('app.ats.chatbot.admin.flow_manager.logger.error') as mock_error:
             self.flow_manager.handle_error(self.chat_state, "Test error")
             mock_error.assert_called()
 

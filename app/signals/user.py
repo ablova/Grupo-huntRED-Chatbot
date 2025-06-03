@@ -8,7 +8,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver, Signal
 from django.utils import timezone
 from app.models import Person, User, EnhancedNetworkGamificationProfile
-from app.com.utils.parser import CVParser
+from app.ats.utils.parser import CVParser
 
 logger = logging.getLogger(__name__)
 

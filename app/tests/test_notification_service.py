@@ -10,8 +10,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings')
 django.setup()
 
 from app.models import Person, Notification, NotificationChannel, NotificationConfig, MetaAPI, WhatsAppConfig
-from app.com.utils.notification_service import NotificationService
-from app.com.utils.whatsapp import WhatsAppApi
+from app.ats.utils.notification_service import NotificationService
+from app.ats.utils.whatsapp import WhatsAppApi
 
 # Datos de prueba
 TEST_PHONE = '+525518490291'

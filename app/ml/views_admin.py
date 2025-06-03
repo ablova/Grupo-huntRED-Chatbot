@@ -26,8 +26,8 @@ from app.models import (
 from app.models import (
     KanbanBoard, KanbanColumn, KanbanCard
 )
-from app.ml.ml_model import MatchmakingLearningSystem
-from app.com.utils.logger_utils import get_module_logger
+from app.ats.ml.ml_model import MatchmakingLearningSystem
+from app.ats.utils.logger_utils import get_module_logger
 
 # Configurar logger
 logger = get_module_logger('ml_admin')
@@ -137,7 +137,7 @@ def ml_dashboard(request):
         for application in recent_applications:
             try:
                 # Calcular score básico
-                from app.ml.ml_model import calculate_match_percentage
+                from app.ats.ml.ml_model import calculate_match_percentage
                 hard_skills_score = calculate_match_percentage(
                     application.user.skills, 
                     application.vacancy.required_skills

@@ -15,8 +15,8 @@ from django.contrib.admin import SimpleListFilter
 from django.db.models import Sum, Count, Q
 import json
 
-from app.config.admin_base import BaseModelAdmin, OptimizedQuerysetMixin
-from app.config.admin_cache import CachedAdminMixin
+from app.ats.config.admin_base import BaseModelAdmin, OptimizedQuerysetMixin
+from app.ats.config.admin_cache import CachedAdminMixin
 
 # Importaciones de modelos (asumiendo que ya existen según la estructura de memoria)
 from app.models import (

@@ -322,7 +322,7 @@ def apply_business_unit_filter(queryset: QuerySet, user, bu_param: str = None) -
     Returns:
         QuerySet filtrado
     """
-    from app.utils.rbac import RBAC
+    from app.ats.utils.rbac import RBAC
     
     # Si hay un parámetro BU explícito, intentar usarlo
     if bu_param:

@@ -12,7 +12,7 @@ from django.db import models, connection
 from django.db.models import QuerySet, Q, F, Count, Prefetch
 from django.core.cache import cache
 from asgiref.sync import sync_to_async
-from app.utils.logging_manager import LoggingManager
+from app.ats.utils.logging_manager import LoggingManager
 
 logger = LoggingManager.get_logger('database')
 

@@ -35,7 +35,7 @@ def process_payment_webhook(self, payload, provider, event_type=None, signature=
     Returns:
         dict: Resultado del procesamiento
     """
-    from app.pagos.gateways.webhook_processor import WebhookProcessor
+    from app.ats.pagos.gateways.webhook_processor import WebhookProcessor
     
     logger.info(f"Processing {provider} webhook: {event_type}")
     
@@ -103,7 +103,7 @@ def send_payment_reminder(payment_id, reminder_type="upcoming", days_before=3):
         dict: Resultado del envío
     """
     from app.models import Pago, Empleador
-    from app.com.notifications.manager import NotificationManager
+    from app.ats.notifications.manager import NotificationManager
     
     logger.info(f"Sending {reminder_type} payment reminder for payment {payment_id}")
     
@@ -199,8 +199,8 @@ def update_payment_status(provider=None, days_threshold=30):
         dict: Estadísticas de la actualización
     """
     from app.models import Pago
-    from app.pagos.gateways.stripe_gateway import StripeGateway
-    from app.pagos.gateways.paypal_gateway import PayPalGateway
+    from app.ats.pagos.gateways.stripe_gateway import StripeGateway
+    from app.ats.pagos.gateways.paypal_gateway import PayPalGateway
     from datetime import timedelta
     
     logger.info(f"Updating payment status for provider={provider}, threshold={days_threshold} days")

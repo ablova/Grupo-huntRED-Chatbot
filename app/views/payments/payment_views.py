@@ -18,7 +18,7 @@ import asyncio
 import logging
 
 from app.models import Pago, Empleador, Worker, Oportunidad, BusinessUnit
-from app.utils.rbac import RBAC
+from app.ats.utils.rbac import RBAC
 from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)

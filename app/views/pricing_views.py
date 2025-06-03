@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
-from app.decorators import (
+from app.ats.decorators import (
     super_admin_required, bu_complete_required, bu_division_required,
     business_unit_required, division_required, permission_required,
     verified_user_required, active_user_required
@@ -17,7 +17,7 @@ from app.decorators import (
 from app.models import (
     Proposal, Contract, PaymentMilestone, BusinessUnit, Company, Vacante
 )
-from app.pricing.utils import calculate_pricing, generate_proposal_pdf, create_payment_milestones
+from app.ats.pricing.utils import calculate_pricing, generate_proposal_pdf, create_payment_milestones
 
 
 class ProposalListView(View):

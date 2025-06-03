@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# ====================
+# TensorFlow para CPU
+# ====================
+tensorflow-cpu>=2.15.0,<2.19.0     # TensorFlow optimizado para CPU
+tensorflow-hub>=0.16.0             # Para cargar modelos pre-entrenados 

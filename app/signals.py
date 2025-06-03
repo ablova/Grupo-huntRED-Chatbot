@@ -29,23 +29,23 @@ logger.warning(
 )
 
 # Importar desde cada módulo específico
-from app.signals.core import (
+from app.ats.signals.core import (
     initialize_signals, register_signal_handler,
     business_unit_changed, candidate_state_changed,
     document_processed, notification_sent, payment_processed,
     whatsapp_message_received
 )
 
-from app.signals.chatbot import process_chat_message, initialize_chat_session
-from app.signals.vacancies import (
+from app.ats.signals.chatbot import process_chat_message, initialize_chat_session
+from app.ats.signals.vacancies import (
     vacancy_published, vacancy_matched,
     update_vacancy_timestamps, vacancy_tags_changed, application_created
 )
-from app.signals.payments import (
+from app.ats.signals.payments import (
     payment_processed, payment_failed, invoice_generated,
     handle_payment_update, handle_invoice_creation
 )
-from app.signals.user import (
+from app.ats.signals.user import (
     profile_completed, cv_analyzed,
     analyze_cv, create_person_profile
 )
@@ -87,11 +87,11 @@ def set_initial_development_plan(sender, instance, **kwargs):
             'resources': [],
             'milestones': []
         }
-from app.signals.publish import (
+from app.ats.signals.publish import (
     publication_created, publication_updated, publication_failed,
     auto_publish_vacancy, handle_publication_result
 )
-from app.signals.notifications import (
+from app.ats.signals.notifications import (
     notification_created, notification_sent, notification_failed,
     handle_notification_created, process_notification_queue
 )

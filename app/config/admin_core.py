@@ -10,7 +10,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from app.config.admin_base import BaseModelAdmin, TokenMaskingMixin
+from app.ats.config.admin_base import BaseModelAdmin, TokenMaskingMixin
 
 # Importaciones de modelos principales
 from app.models import (

@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Pagos{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Pendiente</h5>
+                    <h2 class="card-text">${{ pending_total|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Total Vencido</h5>
+                    <h2 class="card-text">${{ overdue_total|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Recibido</h5>
+                    <h2 class="card-text">${{ received_total|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Enviado</h5>
+                    <h2 class="card-text">${{ sent_total|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Estado</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">Todos</option>
+                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pendiente</option>
+                        <option value="sent" {% if request.GET.status == 'sent' %}selected{% endif %}>Enviado</option>
+                        <option value="received" {% if request.GET.status == 'received' %}selected{% endif %}>Recibido</option>
+                        <option value="overdue" {% if request.GET.status == 'overdue' %}selected{% endif %}>Vencido</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="date_from" class="form-label">Fecha Desde</label>
+                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="date_to" class="form-label">Fecha Hasta</label>
+                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                    <a href="{% url 'pricing:payment_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pagos Pendientes -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Pagos Pendientes</h2>
+            <span class="badge bg-primary">{{ pending_payments|length }}</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Servicio</th>
+                            <th>Concepto</th>
+                            <th>Monto</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in pending_payments %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'pricing:service_detail' payment.service.id %}">
+                                    {{ payment.service.position }}
+                                </a>
+                            </td>
+                            <td>{{ payment.get_concept_display }}</td>
+                            <td>${{ payment.amount|floatformat:2 }}</td>
+                            <td>{{ payment.due_date|date:"d/m/Y" }}</td>
+                            <td>
+                                <button type="button" 
+                                        class="btn btn-sm btn-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#sendInvoiceModal{{ payment.id }}">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Modal para enviar factura -->
+                        <div class="modal fade" id="sendInvoiceModal{{ payment.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Enviar Factura</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>¿Está seguro que desea enviar la factura por ${{ payment.amount|floatformat:2 }}?</p>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <form method="post" action="{% url 'pricing:send_invoice' payment.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-primary">Enviar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No hay pagos pendientes</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagos Vencidos -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Pagos Vencidos</h2>
+            <span class="badge bg-danger">{{ overdue_payments|length }}</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Servicio</th>
+                            <th>Concepto</th>
+                            <th>Monto</th>
+                            <th>Fecha</th>
+                            <th>Días de Atraso</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in overdue_payments %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'pricing:service_detail' payment.service.id %}">
+                                    {{ payment.service.position }}
+                                </a>
+                            </td>
+                            <td>{{ payment.get_concept_display }}</td>
+                            <td>${{ payment.amount|floatformat:2 }}</td>
+                            <td>{{ payment.due_date|date:"d/m/Y" }}</td>
+                            <td>{{ payment.days_overdue }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No hay pagos vencidos</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagos Recibidos -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Pagos Recibidos</h2>
+            <span class="badge bg-success">{{ received_payments|length }}</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Servicio</th>
+                            <th>Concepto</th>
+                            <th>Monto</th>
+                            <th>Fecha de Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in received_payments %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'pricing:service_detail' payment.service.id %}">
+                                    {{ payment.service.position }}
+                                </a>
+                            </td>
+                            <td>{{ payment.get_concept_display }}</td>
+                            <td>${{ payment.amount|floatformat:2 }}</td>
+                            <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No hay pagos recibidos</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -14,8 +14,8 @@ from django.db import models
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from asgiref.sync import sync_to_async
-from app.utils.logging_manager import LoggingManager, log_function_call, log_async_function_call
-from app.utils.rbac import RBAC
+from app.ats.utils.logging_manager import LoggingManager, log_function_call, log_async_function_call
+from app.ats.utils.rbac import RBAC
 
 logger = LoggingManager.get_logger('notifications')
 
@@ -322,7 +322,7 @@ class NotificationService:
         
         # Utilizar Celery para procesamiento en segundo plano
         try:
-            from app.tasks.notifications import send_bulk_notifications_task
+            from app.ats.tasks.notifications import send_bulk_notifications_task
             
             # Normalizar destinatarios para serialización
             normalized_recipients = []

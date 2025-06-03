@@ -8,14 +8,14 @@ from datetime import datetime, timedelta
 from django.test import TestCase, Client, override_settings
 from unittest.mock import patch, MagicMock, AsyncMock
 from app.models import BusinessUnit, Person, ChatState, GptApi
-from app.com.chatbot.chatbot import ChatBotHandler
-from app.com.chatbot.gpt import GPTHandler
-from app.com.chatbot.utils import ChatbotUtils
+from app.ats.chatbot.chatbot import ChatBotHandler
+from app.ats.chatbot.gpt import GPTHandler
+from app.ats.chatbot.utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor  # Reemplazar importación
-from app.com.chatbot.utils import fetch_data_from_url, validate_request_data
-from app.com.utils.vacantes import VacanteManager, procesar_vacante
+from app.ats.chatbot.utils import fetch_data_from_url, validate_request_data
+from app.ats.utils.vacantes import VacanteManager, procesar_vacante
 from django.db import connections
-from app.tasks import send_whatsapp_message_task, train_ml_task, ejecutar_scraping
+from app.ats.tasks import send_whatsapp_message_task, train_ml_task, ejecutar_scraping
 
 # Marcar el módulo como compatible con asyncio
 pytestmark = pytest.mark.asyncio
@@ -82,7 +82,7 @@ class ChatbotTests(TestCase):
         self.handler = ChatBotHandler()
 
     # Pruebas para fetch_data_from_url con REST API
-    @patch("app.chatbot.utils.requests.get")
+    @patch("app.ats.chatbot.utils.requests.get")
     def test_fetch_data_from_rest_api(self, mock_get):
         """Prueba la obtención de vacantes desde el REST API de WordPress con JWT"""
         mock_get.return_value.status_code = 200
@@ -97,7 +97,7 @@ class ChatbotTests(TestCase):
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0]["title"]["rendered"], "Vacante Test 1")
 
-    @patch("app.chatbot.utils.requests.get")
+    @patch("app.ats.chatbot.utils.requests.get")
     def test_fetch_data_with_invalid_jwt(self, mock_get):
         """Prueba el manejo de errores con JWT inválido"""
         mock_get.return_value.status_code = 401
@@ -132,7 +132,7 @@ class ChatbotTests(TestCase):
         self.assertIn("success", response.json())
 
     # Pruebas para gpt.py
-    @patch("app.chatbot.gpt.OpenAI")
+    @patch("app.ats.chatbot.gpt.OpenAI")
     def test_gpt_handler_response(self, mock_openai):
         """Prueba la respuesta generada por GPTHandler"""
         mock_openai.return_value.chat.completions.create.return_value = {
@@ -236,8 +236,8 @@ if __name__ == "__main__":
 # test_nlp.py
 import unittest
 import os
-from app.com.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
-from app.com.chatbot.nlp import SkillExtractionPipeline, SkillExtractorManager
+from app.ats.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
+from app.ats.chatbot.nlp import SkillExtractionPipeline, SkillExtractorManager
 
 class TestNLPIntegration(unittest.TestCase):
     def test_esco_and_nice_integration(self):

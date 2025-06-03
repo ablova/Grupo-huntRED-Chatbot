@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
 from app.models import BusinessUnit, Vacante
-from app.com.utils.scraping import JobScraper
+from app.ats.utils.scraping import JobScraper
 
 import logging
 

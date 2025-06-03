@@ -1080,7 +1080,7 @@ stopwaitsecs=600"""
             
             # 5. Verificar AUTH_USER_MODEL (opcional)
             if hasattr(settings, 'AUTH_USER_MODEL'):
-                if settings.AUTH_USER_MODEL != 'app.CustomUser':
+                if settings.AUTH_USER_MODEL != 'accounts.CustomUser':
                     logger.warning(f"AUTH_USER_MODEL está configurado como {settings.AUTH_USER_MODEL}, pero usaremos el modelo estándar de Django")
             else:
                 logger.warning("AUTH_USER_MODEL no está configurado, usando el modelo estándar de Django")
@@ -1115,7 +1115,7 @@ stopwaitsecs=600"""
             
             # 4. Intentar importar el modelo
             try:
-                from app.models import CustomUser
+                from app.ats.accounts.models import CustomUser
                 logger.info("Modelo CustomUser encontrado y configurado correctamente")
             except ImportError as e:
                 raise Exception(f"Error al importar CustomUser: {str(e)}")

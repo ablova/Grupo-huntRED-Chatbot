@@ -13,7 +13,7 @@ from django.core.cache import caches
 from django_ratelimit.decorators import ratelimit
 from django_prometheus import exports
 
-from app.utils.email_utils import send_purchase_order_notification
+from app.ats.utils.email_utils import send_purchase_order_notification
 from app.models import Proposal
 
 import logging

@@ -1,0 +1,33 @@
+# Requisitos específicos para Mac ARM (Apple Silicon)
+-r requirements.txt
+
+# TensorFlow para Mac ARM
+tensorflow-macos==2.12.0
+tensorflow-metal==1.0.0
+
+# Dependencias adicionales
+numpy>=1.23.5
+scipy>=1.10.1
+pandas>=2.0.0
+scikit-learn>=1.2.2
+
+# Procesamiento de lenguaje natural
+spacy>=3.8.7
+es-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.8.0/es_core_news_sm-3.8.0.tar.gz#egg=es_core_news_sm
+networkx>=3.5
+
+# Procesamiento de datos
+joblib>=1.5.1
+
+# Generación de PDFs
+reportlab>=4.4.1
+pypdf>=5.6.0
+
+# Conversión de monedas
+forex-python>=1.9.2
+
+# Plantillas
+Jinja2>=3.1.6
+
+# Visualización de datos
+seaborn>=0.13.2

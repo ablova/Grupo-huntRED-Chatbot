@@ -43,7 +43,7 @@ def auto_publish_vacancy(sender, instance, created, **kwargs):
             
             if channels.exists():
                 # Programar tarea de publicación en canales
-                from app.tasks.publish import publish_to_channel_task
+                from app.ats.tasks.publish import publish_to_channel_task
                 
                 for channel in channels:
                     try:
@@ -97,7 +97,7 @@ def handle_publication_result(sender, instance, created, **kwargs):
             
             # Programar reintento si es necesario
             if instance.retry_count < instance.channel.max_retries:
-                from app.tasks.publish import retry_publication_task
+                from app.ats.tasks.publish import retry_publication_task
                 
                 try:
                     retry_publication_task.delay(publication_id=instance.id)

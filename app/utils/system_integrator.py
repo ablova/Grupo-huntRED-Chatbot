@@ -95,7 +95,7 @@ class SystemIntegrator:
         # Integrar nuestro NotificationService con el existente
         try:
             # Intentar importar el servicio de notificaciones existente
-            old_notification = importlib.import_module('app.com.utils.notification_service')
+            old_notification = importlib.import_module('app.ats.utils.notification_service')
             new_notification = importlib.import_module('app.utils.notification_service')
             
             # Inyectar funcionalidades avanzadas
@@ -279,7 +279,7 @@ class SystemIntegrator:
         if not notification_service:
             # Fallback al servicio tradicional
             try:
-                from app.com.utils.notification_service import NotificationService
+                from app.ats.utils.notification_service import NotificationService
                 old_service = NotificationService()
                 
                 # Adaptar parámetros

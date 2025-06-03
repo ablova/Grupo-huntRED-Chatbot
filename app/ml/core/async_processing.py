@@ -8,8 +8,8 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
-from app.ml.core.data_cleaning import DataCleaner
-from app.ml.ml_config import ML_CONFIG
+from app.ats.ml.core.data_cleaning import DataCleaner
+from app.ats.ml.ml_config import ML_CONFIG
 
 logger = logging.getLogger(__name__)
 

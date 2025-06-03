@@ -6,7 +6,7 @@ import pytest
 from django.test import TestCase
 from django.contrib.auth.models import User
 from app.models import BusinessUnit, ApiConfig
-from app.com.chatbot.integrations.verification import VerificationService, InCodeClient, BlackTrustClient
+from app.ats.chatbot.integrations.verification import VerificationService, InCodeClient, BlackTrustClient
 import httpx
 from unittest.mock import AsyncMock, patch
 
@@ -40,7 +40,7 @@ class TestVerificationService(TestCase):
         )
         self.verification_service = VerificationService('huntRED')
 
-    @patch('app.chatbot.integrations.verification.httpx.AsyncClient')
+    @patch('app.ats.chatbot.integrations.verification.httpx.AsyncClient')
     async def test_verify_identity_incode(self, mock_async_client):
         mock_response = AsyncMock()
         mock_response.json.return_value = {
@@ -56,7 +56,7 @@ class TestVerificationService(TestCase):
         self.assertTrue(result['success'])
         self.assertIn('verification_id', result)
 
-    @patch('app.chatbot.integrations.verification.httpx.AsyncClient')
+    @patch('app.ats.chatbot.integrations.verification.httpx.AsyncClient')
     async def test_verify_identity_blacktrust(self, mock_async_client):
         mock_response = AsyncMock()
         mock_response.json.return_value = {
@@ -96,7 +96,7 @@ class TestInCodeClient(TestCase):
             }
         )
 
-    @patch('app.chatbot.integrations.verification.httpx.AsyncClient')
+    @patch('app.ats.chatbot.integrations.verification.httpx.AsyncClient')
     async def test_verify_success(self, mock_async_client):
         mock_response = AsyncMock()
         mock_response.json.return_value = {
@@ -122,7 +122,7 @@ class TestBlackTrustClient(TestCase):
             }
         )
 
-    @patch('app.chatbot.integrations.verification.httpx.AsyncClient')
+    @patch('app.ats.chatbot.integrations.verification.httpx.AsyncClient')
     async def test_verify_success(self, mock_async_client):
         mock_response = AsyncMock()
         mock_response.json.return_value = {

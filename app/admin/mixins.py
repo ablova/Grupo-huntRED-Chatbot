@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import Q, Count
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from app.admin.config import ADMIN_CONFIG, get_date_ranges
+from app.ats.admin.config import ADMIN_CONFIG, get_date_ranges
 
 class EnhancedAdminMixin(admin.ModelAdmin):
     """Mixin que agrega mejoras de performance y UX al admin"""

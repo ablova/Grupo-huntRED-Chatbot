@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}huntRED®{% endblock %}</title>
+    <style>
+        /* Estilos base */
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            background-color: #1a237e;
+            color: #ffffff;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+        }
+        
+        .content {
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #1a237e;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .highlight {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #1a237e;
+            margin: 20px 0;
+        }
+        
+        .metrics {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .metric {
+            flex: 1;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin: 0 10px;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a237e;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* Estilos responsivos */
+        @media only screen and (max-width: 600px) {
+            .container {
+                width: 100% !important;
+            }
+            
+            .metrics {
+                flex-direction: column;
+            }
+            
+            .metric {
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{% block logo_url %}{{ logo_url }}{% endblock %}" alt="huntRED®" class="logo">
+            <h1>{% block header_title %}{{ title }}{% endblock %}</h1>
+        </div>
+        
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+        
+        <div class="footer">
+            <p>Este es un correo automático de huntRED®. Por favor, no responda a este mensaje.</p>
+            <p>© {% now "Y" %} huntRED®. Todos los derechos reservados.</p>
+            <p>
+                <a href="{{ unsubscribe_url }}">Cancelar suscripción</a> |
+                <a href="{{ preferences_url }}">Preferencias de correo</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html> 

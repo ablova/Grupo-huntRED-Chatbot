@@ -254,7 +254,7 @@
         }
         .section-divider {
             height: 4px;
-            width: 60px;
+            width: 360px;
             background: linear-gradient(90deg, var(--hunt-blue), var(--hunt-red));
             margin: 1rem 0 2rem;
         }
@@ -1107,7 +1107,7 @@
         <!-- Ecosistema Tecnológico Grupo huntRED® AI -->
         <section class="mb-12" style="padding-bottom: 20px;" name="Ecosistema de Inteligencia Artificial de Grupo huntRED®" aria-labelledby="ecosystem-ai">
             <h2 class="text-2xl font-bold mb-4 accent-gradient">5. Ecosistema de Inteligencia Artificial de Grupo huntRED® </h2>
-            
+            <div class="section-divider"></div>
             <p class="text-gray-700 mb-6">Nuestro ecosistema con inteligencia artificial integra múltiples tecnologías de punta, permitiendo ofrecer soluciones personalizadas, innovadoras e integrales para cada estructura organizacional y en armonia con las necesidades de cada cliente:</p>
             
             <!-- Elemento central: Factor Humano -->
@@ -1438,7 +1438,7 @@
             <!-- Cliente: Contexto y Relación -->
             <div class="mb-6">
                 <h2 class="text-2xl font-bold mb-4 accent-gradient">6. Nuestra Comprensión de {{ client.name }}</h2>
-                
+                <div class="section-divider"></div>
                 <p class="text-gray-700 mb-4">Con base en nuestra experiencia previa y análisis de su organización, comprendemos que {{ client.name }} se encuentra en un momento clave de {% if client.growth_status %}{{ client.growth_status }}{% else %}crecimiento y transformación{% endif %}, donde el talento adecuado no solo es deseable sino estratégicamente crucial.</p>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1505,7 +1505,7 @@
             {% else %}
                 La Oportunidad: {{ position.title }}
             {% endif %}
-        </h2>
+        </h2><div class="section-divider"></div>
         <p class="text-gray-700 mb-4">
             {% if positions|length > 1 %}
                 Basados en nuestras conversaciones y análisis de necesidades, hemos identificado las siguientes posiciones como estratégicas para el logro de sus objetivos organizacionales:

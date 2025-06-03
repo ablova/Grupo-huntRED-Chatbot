@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from app.models import Pago, Empleador, BusinessUnit
-from app.utils.rbac import RBAC
+from app.ats.utils.rbac import RBAC
 
 logger = logging.getLogger(__name__)
 

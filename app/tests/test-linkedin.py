@@ -1,7 +1,7 @@
 # /home/pablo/test/test_linkedin.py
 import pytest
 from asgiref.sync import sync_to_async
-from app.com.utils.linkedin import process_csv
+from app.ats.utils.linkedin import process_csv
 from app.models import BusinessUnit, Person
 import os
 

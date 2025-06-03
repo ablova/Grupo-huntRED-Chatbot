@@ -17,8 +17,8 @@ from app.models import (
     JobOpportunity, BusinessUnit, Channel, WhatsAppAPI, TelegramAPI,
     MessengerAPI, InstagramAPI, SlackAPI
 )
-from app.publish.tasks import process_new_job_opportunity
-from app.publish.utils import get_channel_processor
+from app.ats.publish.tasks import process_new_job_opportunity
+from app.ats.publish.utils import get_channel_processor
 
 logger = logging.getLogger(__name__)
 

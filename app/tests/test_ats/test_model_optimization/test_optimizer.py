@@ -5,8 +5,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
-from app.ml.core.models.matchmaking import MatchmakingModel
-from app.ml.core.models.transition import TransitionModel
+from app.ats.ml.core.models.matchmaking import MatchmakingModel
+from app.ats.ml.core.models.transition import TransitionModel
 
 class TestModelOptimizer(unittest.TestCase):
     def setUp(self):

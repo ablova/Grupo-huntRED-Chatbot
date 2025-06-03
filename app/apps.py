@@ -19,7 +19,7 @@ class AppConfig(DjangoAppConfig):
 
         # Importar signals centralizados
         try:
-            from app.signals import user_signals, model_signals, system_signals  # noqa
+            from app.ats.signals import user_signals, model_signals, system_signals  # noqa
             logger.info("Signals centralizados cargados correctamente")
         except ImportError as e:
             logger.error(f"Error importing signals: {str(e)}")
@@ -78,7 +78,7 @@ class AppConfig(DjangoAppConfig):
     def _setup_periodic_tasks(self, **kwargs):
         try:
             from ai_huntred.celery import app
-            from app.tasks.scheduler import setup_periodic_tasks
+            from app.ats.tasks.scheduler import setup_periodic_tasks
             app.on_after_configure.connect(setup_periodic_tasks)
             logger.info("Periodic tasks registered successfully")
         except Exception as e:

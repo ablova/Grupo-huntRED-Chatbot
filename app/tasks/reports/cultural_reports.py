@@ -17,9 +17,9 @@ from app.models import (
     CulturalAssessment, OrganizationalCulture, CulturalReport,
     CulturalDimension, CulturalValue
 )
-from app.utils.cache import cache_result
-from app.utils.analysis import calculate_confidence_interval, detect_outliers
-from app.utils.date import get_date_range
+from app.ats.utils.cache import cache_result
+from app.ats.utils.analysis import calculate_confidence_interval, detect_outliers
+from app.ats.utils.date import get_date_range
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +283,7 @@ def generate_cultural_report_pdf_task(self, report_id):
         bool: True si se generó correctamente, False en caso contrario
     """
     try:
-        from app.utils.pdf import generate_cultural_report_pdf
+        from app.ats.utils.pdf import generate_cultural_report_pdf
         
         # Recuperar el reporte
         report = CulturalReport.objects.select_related(

@@ -1,7 +1,7 @@
 import pytest
 from django.http import HttpResponseForbidden, HttpResponse
 from django.contrib.auth.models import AnonymousUser
-from app.decorators import role_required, business_unit_required, permission_required
+from app.ats.decorators import role_required, business_unit_required, permission_required
 
 
 def mock_view(request):

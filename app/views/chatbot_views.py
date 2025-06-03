@@ -10,8 +10,8 @@ from django.db import transaction
 import json
 import logging
 from asgiref.sync import sync_to_async
-from app.com.chatbot.conversational_flow import ConversationalFlowManager
-from app.com.chatbot.integrations.services import MessageService
+from app.ats.chatbot.conversational_flow import ConversationalFlowManager
+from app.ats.chatbot.integrations.services import MessageService
 from app.models import Person, BusinessUnit
 
 logger = logging.getLogger(__name__)

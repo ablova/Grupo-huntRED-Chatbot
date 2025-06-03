@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.views import View
-from app.services.email_generator import EmailGenerator
+from app.ats.services.email_generator import EmailGenerator
 from app.models import Company
 
 class SmartEmailView(View):

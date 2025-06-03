@@ -2,7 +2,7 @@
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
-from app.com.utils.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, inicializar_contexto_playwright, visitar_pagina_humanizada, extraer_y_guardar_cookies
+from app.ats.utils.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, inicializar_contexto_playwright, visitar_pagina_humanizada, extraer_y_guardar_cookies
 
 import logging
 

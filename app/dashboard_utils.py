@@ -18,7 +18,7 @@ from app.models import (
     EnhancedNetworkGamificationProfile, ChatState, WorkflowStage,
     GamificationAchievement, GamificationBadge, GamificationEvent
 )
-from app.utils.cache import cache_result, invalidate_cache
+from app.ats.utils.cache import cache_result, invalidate_cache
 
 logger = logging.getLogger(__name__)
 

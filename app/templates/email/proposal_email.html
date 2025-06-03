@@ -1,0 +1,55 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Propuesta de Servicio - huntRED®{% endblock %}
+
+{% block header_title %}Propuesta de Servicio{% endblock %}
+
+{% block content %}
+<div class="highlight">
+    <h2>Estimado/a {{ contact_person.name }},</h2>
+    <p>Gracias por su interés en nuestros servicios. Adjunto encontrará nuestra propuesta detallada para la posición de <strong>{{ vacancy.title }}</strong>.</p>
+</div>
+
+<div class="metrics">
+    <div class="metric">
+        <div class="metric-value">{{ success_metrics.success_rate|floatformat:1 }}%</div>
+        <div class="metric-label">Tasa de Éxito</div>
+    </div>
+    <div class="metric">
+        <div class="metric-value">{{ success_metrics.avg_time_to_fill|floatformat:0 }}</div>
+        <div class="metric-label">Días Promedio</div>
+    </div>
+    <div class="metric">
+        <div class="metric-value">{{ success_metrics.total_positions }}</div>
+        <div class="metric-label">Posiciones Similares</div>
+    </div>
+</div>
+
+<h3>Detalles de la Propuesta</h3>
+<ul>
+    <li><strong>Posición:</strong> {{ vacancy.title }}</li>
+    <li><strong>Salario Mensual:</strong> ${{ vacancy.salary|floatformat:2 }}</li>
+    <li><strong>Meses de Bono:</strong> {{ vacancy.bonus_months }}</li>
+    <li><strong>Honorarios:</strong> ${{ pricing_details.total|floatformat:2 }}</li>
+</ul>
+
+<div class="highlight">
+    <h3>Estructura de Pago</h3>
+    <p>{{ proposal.get_payment_structure_display }}</p>
+    <ul>
+        {% for payment in pricing_details.payments %}
+        <li>{{ payment.concept }}: ${{ payment.amount|floatformat:2 }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<p>Para revisar la propuesta completa y los términos detallados, por favor haga clic en el siguiente botón:</p>
+
+<a href="{{ proposal_url }}" class="button">Ver Propuesta Completa</a>
+
+<p>Si tiene alguna pregunta o necesita ajustes en la propuesta, no dude en contactarnos.</p>
+
+<p>Saludos cordiales,<br>
+{{ consultant.name }}<br>
+Consultor de huntRED®</p>
+{% endblock %} 

@@ -13,8 +13,8 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from celery import shared_task
 from app.models import CulturalAssessment, OrganizationalCulture
-from app.utils.http import send_email
-from app.utils.common import generate_qr_code
+from app.ats.utils.http import send_email
+from app.ats.utils.common import generate_qr_code
 
 logger = logging.getLogger(__name__)
 

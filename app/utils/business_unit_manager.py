@@ -12,7 +12,7 @@ from django.core.cache import cache
 from django.db.models import QuerySet, Q
 from asgiref.sync import sync_to_async
 
-from app.utils.logging_manager import LoggingManager, log_function_call
+from app.ats.utils.logging_manager import LoggingManager, log_function_call
 
 logger = LoggingManager.get_logger('business_units')
 
@@ -307,7 +307,7 @@ class BusinessUnitManager:
             QuerySet filtrado
         """
         # Verificar los permisos a través del RBAC
-        from app.utils.rbac import RBAC
+        from app.ats.utils.rbac import RBAC
         
         # Si el usuario no está autenticado, no mostrar nada
         if not user or not user.is_authenticated:

@@ -13,7 +13,7 @@ from django.core.cache import cache
 from django.db import connection
 
 # Importar el integrador que creamos
-from app.utils.system_integrator import SystemIntegrator
+from app.ats.utils.system_integrator import SystemIntegrator
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +225,7 @@ def apply_query_optimizations():
             Model = apps.get_model(app_label, model_name)
             
             # Obtener sugerencias de índices
-            from app.utils.orm_optimizer import QueryPerformanceAnalyzer
+            from app.ats.utils.orm_optimizer import QueryPerformanceAnalyzer
             suggestions = QueryPerformanceAnalyzer.suggest_indexes(Model)
             
             # Registrar sugerencias

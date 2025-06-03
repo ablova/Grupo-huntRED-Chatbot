@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
 from app.models import Person, Vacante, Application
-from app.ml.core.data_cleaning import DataCleaner
+from app.ats.ml.core.data_cleaning import DataCleaner
 
 
 class TestDataCleaner(unittest.TestCase):

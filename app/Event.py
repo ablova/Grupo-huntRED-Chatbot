@@ -4,7 +4,7 @@ import json
 import os
 from typing import Dict, List, Tuple, Any
 from django.conf import settings
-from app.singleton import singleton
+from app.ats.singleton import singleton
 import logging
 
 # Configuración del logger

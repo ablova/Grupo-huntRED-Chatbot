@@ -1,6 +1,6 @@
 from django.urls import path
 from django.contrib.auth.decorators import login_required
-from app.views.candidatos_views import (
+from app.ats.views.candidatos_views import (
     candidato_dashboard, list_candidatos, add_application,
     candidato_details, generate_challenges
 )

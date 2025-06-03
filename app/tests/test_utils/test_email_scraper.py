@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
 from app.models import BusinessUnit, Vacante
-from app.com.utils.email_scraper import connect_to_imap, fetch_emails, extract_job_info, save_to_vacante, move_email, process_emails
+from app.ats.utils.email_scraper import connect_to_imap, fetch_emails, extract_job_info, save_to_vacante, move_email, process_emails
 
 import logging
 
@@ -80,7 +80,7 @@ async def test_move_email():
 async def test_process_emails():
     """Test processing emails to extract job positions."""
     with patch('aioimaplib.IMAP4_SSL', new=AsyncMock):
-        with patch('app.com.utils.email_scraper.extract_job_info', new=AsyncMock(return_value={
+        with patch('app.ats.utils.email_scraper.extract_job_info', new=AsyncMock(return_value={
             "title": "Test Job",
             "company": "Test Company",
             "description": "Test Description",

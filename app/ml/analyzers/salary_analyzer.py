@@ -17,7 +17,7 @@ from django.core.cache import cache
 from asgiref.sync import sync_to_async
 
 from app.models import Person, BusinessUnit, Vacante, Skill
-from app.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.contrib.auth.decorators import login_required
-from app.sexsi.config import PREFERENCE_CATEGORIES, PRACTICE_DICTIONARY, validate_preference
+from app.ats.sexsi.config import PREFERENCE_CATEGORIES, PRACTICE_DICTIONARY, validate_preference
 from app.models import ConsentAgreement, Preference
 
 @method_decorator(login_required, name='dispatch')

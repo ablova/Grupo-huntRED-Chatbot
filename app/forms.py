@@ -5,8 +5,9 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from app.models import (
     WorkflowStage, Application, Vacante,
-    Person, EnhancedNetworkGamificationProfile, CustomUser, UserPermission
+    Person, EnhancedNetworkGamificationProfile, UserPermission
 )
+from app.ats.accounts.models import CustomUser
 import logging
 from datetime import datetime
 

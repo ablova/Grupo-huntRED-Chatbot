@@ -12,7 +12,7 @@ import asyncio
 from datetime import datetime, date
 import numpy as np
 
-from app.com.talent.team_synergy import TeamSynergyAnalyzer
+from app.ats.talent.team_synergy import TeamSynergyAnalyzer
 from app.models import Person, Skill, SkillAssessment, BusinessUnit
 
 @pytest.mark.asyncio
@@ -30,7 +30,7 @@ async def test_analyze_team_synergy_empty():
     assert 'analyzed_at' in result
 
 @pytest.mark.asyncio
-@patch('app.com.talent.team_synergy.TeamSynergyAnalyzer._get_team_members_data')
+@patch('app.ats.talent.team_synergy.TeamSynergyAnalyzer._get_team_members_data')
 async def test_analyze_team_synergy_basic(mock_get_data):
     """Prueba el análisis básico de sinergia."""
     # Simular miembros del equipo
@@ -71,7 +71,7 @@ async def test_analyze_team_synergy_basic(mock_get_data):
     assert len(result['recommendations']) > 0
 
 @pytest.mark.asyncio
-@patch('app.com.talent.team_synergy.TeamSynergyAnalyzer._get_person')
+@patch('app.ats.talent.team_synergy.TeamSynergyAnalyzer._get_person')
 async def test_get_team_members_data(mock_get_person):
     """Prueba la obtención de datos de miembros del equipo."""
     # Simular persona
@@ -86,9 +86,9 @@ async def test_get_team_members_data(mock_get_person):
     mock_get_person.return_value = person
     
     # Patch adicionales para evitar llamadas a funciones no simuladas
-    with patch('app.com.talent.team_synergy.TeamSynergyAnalyzer._get_personality') as mock_personality, \
-         patch('app.com.talent.team_synergy.TeamSynergyAnalyzer._get_person_skills') as mock_skills, \
-         patch('app.com.talent.team_synergy.TeamSynergyAnalyzer._get_professional_purpose') as mock_purpose:
+    with patch('app.ats.talent.team_synergy.TeamSynergyAnalyzer._get_personality') as mock_personality, \
+         patch('app.ats.talent.team_synergy.TeamSynergyAnalyzer._get_person_skills') as mock_skills, \
+         patch('app.ats.talent.team_synergy.TeamSynergyAnalyzer._get_professional_purpose') as mock_purpose:
         
         # Configurar valores de retorno
         mock_personality.return_value = {'type': 'Analítico'}
@@ -159,7 +159,7 @@ async def test_identify_decision_points():
     
     analyzer = TeamSynergyAnalyzer()
     # Usamos la misma lógica que en trajectory_analyzer ya que ambos usan la misma estructura
-    from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
+    from app.ats.talent.trajectory_analyzer import TrajectoryAnalyzer
     trajectory_analyzer = TrajectoryAnalyzer()
     
     decision_points = trajectory_analyzer._identify_decision_points(path)

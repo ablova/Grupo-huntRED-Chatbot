@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from django.conf import settings
 import stripe
-from app.pagos.gateways import PaymentGateway, StripeGateway, PayPalGateway, MercadoPagoGateway
+from app.ats.pagos.gateways import PaymentGateway, StripeGateway, PayPalGateway, MercadoPagoGateway
 from app.models import ApiConfig
 
 class PaymentGatewayTest(TestCase):
@@ -22,7 +22,7 @@ class PaymentGatewayTest(TestCase):
         gateway = PaymentGateway(self.business_unit)
         self.assertEqual(gateway.business_unit, self.business_unit)
 
-    @patch('app.pagos.gateways.PaymentGateway.create_payment')
+    @patch('app.ats.pagos.gateways.PaymentGateway.create_payment')
     def test_base_create_payment(self, mock_create):
         """Test de creación de pago base."""
         gateway = PaymentGateway(self.business_unit)
@@ -30,7 +30,7 @@ class PaymentGatewayTest(TestCase):
         result = gateway.create_payment(self.amount, self.currency, self.description)
         self.assertTrue(result['success'])
 
-    @patch('app.pagos.gateways.PaymentGateway.execute_payment')
+    @patch('app.ats.pagos.gateways.PaymentGateway.execute_payment')
     def test_base_execute_payment(self, mock_execute):
         """Test de ejecución de pago base."""
         gateway = PaymentGateway(self.business_unit)

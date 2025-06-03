@@ -3,8 +3,8 @@
 # Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
 
 from django.urls import path
-from app.views.proposals.views import ProposalViews
-from app.views.proposals.signature_views import ProposalSignatureView
+from app.ats.views.proposals.views import ProposalViews
+from app.ats.views.proposals.signature_views import ProposalSignatureView
 
 urlpatterns = [
     # Vistas principales de propuestas

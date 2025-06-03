@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
 from app.models import Person, Vacante, Application
-from app.ml.core.models.transition import TransitionModel
+from app.ats.ml.core.models.transition import TransitionModel
 from datetime import datetime, timedelta
 
 class TestTransitionModel(unittest.TestCase):

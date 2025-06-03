@@ -11,10 +11,10 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.conf import settings
 
-from app.utilidades.decorators import rbac_required
+from app.ats.utilidades.decorators import rbac_required
 from app.models import Vacante, Person, BusinessUnit
-from app.ml.ml_model import MatchmakingLearningSystem
-from app.kanban.ml_integration import get_vacancy_recommendations, get_candidate_growth_data, analyze_skill_gaps
+from app.ats.ml.ml_model import MatchmakingLearningSystem
+from app.ats.kanban.ml_integration import get_vacancy_recommendations, get_candidate_growth_data, analyze_skill_gaps
 
 # Opcional: Importar weasyprint solo si está disponible (para generar PDFs)
 try:

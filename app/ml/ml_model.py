@@ -100,7 +100,7 @@ class MatchmakingLearningSystem:
     def process_batch(self, batch_ids):
         """Process a batch of applications to extract features."""
         from app.models import Application
-        from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+        from app.ats.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
         batch_apps = Application.objects.filter(id__in=batch_ids)
         batch_data = []
         for app in batch_apps:
@@ -182,7 +182,7 @@ class MatchmakingLearningSystem:
         logger.info(f"Reporte de clasificación:\n{report}")
 
     def predict_candidate_success(self, person, vacancy):
-        from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+        from app.ats.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
         self.load_model()
         if not self.pipeline:
             raise FileNotFoundError("El modelo no está entrenado.")
@@ -216,7 +216,7 @@ class MatchmakingLearningSystem:
     def predict_batch(self, person_id, batch_vacancy_ids):
         """Predict matches for a batch of vacancies."""
         from app.models import Person, Vacante
-        from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+        from app.ats.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
         person = Person.objects.get(id=person_id)
         batch_vacancies = Vacante.objects.filter(id__in=batch_vacancy_ids, status='activa')
         batch_predictions = []
@@ -259,7 +259,7 @@ class MatchmakingLearningSystem:
 
     # Métodos internos (sin cambios, están bien)
     def _calculate_hard_skills_match(self, application):
-        from app.ml.ml_utils import calculate_match_percentage
+        from app.ats.ml.ml_utils import calculate_match_percentage
         person_skills = (application.person.skills or "").split(',')
         job_skills = application.vacancy.skills_required or []
         return calculate_match_percentage(person_skills, job_skills)
@@ -272,7 +272,7 @@ class MatchmakingLearningSystem:
         return (len(person_soft_skills.intersection(job_soft_skills)) / len(job_soft_skills)) * 100
 
     def _calculate_salary_alignment(self, application):
-        from app.ml.ml_utils import calculate_alignment_percentage
+        from app.ats.ml.ml_utils import calculate_alignment_percentage
         current_salary = application.person.salary_data.get('current_salary', 0)
         offered_salary = application.vacancy.salario or 0
         return calculate_alignment_percentage(current_salary, offered_salary)
@@ -283,7 +283,7 @@ class MatchmakingLearningSystem:
         return (timezone.now().date() - person.fecha_nacimiento).days / 365
 
     def _calculate_hard_skills_match_mock(self, person, vacancy):
-        from app.ml.ml_utils import calculate_match_percentage
+        from app.ats.ml.ml_utils import calculate_match_percentage
         person_skills = (person.skills or "").split(',')
         job_skills = vacancy.skills_required or []
         return calculate_match_percentage(person_skills, job_skills)
@@ -296,7 +296,7 @@ class MatchmakingLearningSystem:
         return (len(p_soft.intersection(v_soft)) / len(v_soft)) * 100
 
     def _calculate_salary_alignment_mock(self, person, vacancy):
-        from app.ml.ml_utils import calculate_alignment_percentage
+        from app.ats.ml.ml_utils import calculate_alignment_percentage
         cur_sal = person.salary_data.get('current_salary', 0)
         off_sal = vacancy.salario or 0
         return calculate_alignment_percentage(cur_sal, off_sal)
@@ -915,7 +915,7 @@ class GrupohuntREDMLPipeline:
 
     def predict_all_active_matches(self, person):
         from app.models import Vacante
-        from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+        from app.ats.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
         self.load_model()
         bu = person.current_stage.business_unit if person.current_stage else None
         if not bu:

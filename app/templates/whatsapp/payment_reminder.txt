@@ -1,0 +1,15 @@
+¡Hola {{ contact_person.name }}! 👋
+
+Recordatorio de pago para {{ company.name }}.
+
+💰 *Detalles del Pago:*
+• Monto: ${{ amount|floatformat:2 }}
+• Fecha de Vencimiento: {{ due_date|date:"d/m/Y" }}
+
+Para realizar el pago, haz clic aquí:
+{{ payment_url }}
+
+Si ya realizaste el pago, por favor ignora este mensaje.
+
+Saludos,
+Equipo huntRED® 

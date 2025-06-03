@@ -14,7 +14,7 @@ from django.db import models
 import textwrap
 
 # Importando configuración centralizada de admin
-from app.config.admin_registry import ADMIN_CLASS_MAPPING
+from app.ats.config.admin_registry import ADMIN_CLASS_MAPPING
 
 logger = logging.getLogger(__name__)
 

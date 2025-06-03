@@ -19,13 +19,13 @@ from django.db.models import Q
 from app.models import (
     DominioScraping, RegistroScraping, Vacante, BusinessUnit
 )
-from app.com.utils.scraping import (
+from app.ats.utils.scraping import (
     validar_url, ScrapingPipeline, scrape_and_publish, process_domain
 )
-from app.com.utils.scraping_utils import ScrapingMetrics
-from app.ml.utils.scrape import MLScraper
-from app.com.utils.email_scraper import EmailScraperV2
-from app.tasks.base import with_retry
+from app.ats.utils.scraping_utils import ScrapingMetrics
+from app.ats.ml.utils.scrape import MLScraper
+from app.ats.utils.email_scraper import EmailScraperV2
+from app.ats.tasks.base import with_retry
 
 # Configuración de logging
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ def process_cv_emails_task(self, business_unit_id):
         dict: Resultado del procesamiento
     """
     try:
-        from app.com.utils.parser import IMAPCVProcessor
+        from app.ats.utils.parser import IMAPCVProcessor
         processor = IMAPCVProcessor(business_unit_id=business_unit_id)
         result = processor.process_emails()
         logger.info(f"Procesados {result['procesados']} correos, {result['nuevos']} nuevos CVs")

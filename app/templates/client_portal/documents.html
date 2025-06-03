@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos - {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Documentos</h2>
+                    
+                    <!-- Contratos -->
+                    <div class="mb-4">
+                        <h3>Contratos</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contract in documents.contracts %}
+                                    <tr>
+                                        <td>{{ contract.created_at|date:"d/m/Y" }}</td>
+                                        <td>{{ contract.get_type_display }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ contract.status_color }}">
+                                                {{ contract.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ contract.file.url }}" 
+                                               class="btn btn-sm btn-primary"
+                                               target="_blank">
+                                                Ver Documento
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Facturas -->
+                    <div class="mb-4">
+                        <h3>Facturas</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invoice in documents.invoices %}
+                                    <tr>
+                                        <td>{{ invoice.created_at|date:"d/m/Y" }}</td>
+                                        <td>${{ invoice.amount|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ invoice.status_color }}">
+                                                {{ invoice.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ invoice.file.url }}" 
+                                               class="btn btn-sm btn-primary"
+                                               target="_blank">
+                                                Ver Factura
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Evaluaciones -->
+                    <div>
+                        <h3>Evaluaciones</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Candidato</th>
+                                        <th>Tipo</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for assessment in documents.assessments %}
+                                    <tr>
+                                        <td>{{ assessment.created_at|date:"d/m/Y" }}</td>
+                                        <td>{{ assessment.candidate.name }}</td>
+                                        <td>{{ assessment.get_type_display }}</td>
+                                        <td>
+                                            <a href="{{ assessment.file.url }}" 
+                                               class="btn btn-sm btn-primary"
+                                               target="_blank">
+                                                Ver Evaluación
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

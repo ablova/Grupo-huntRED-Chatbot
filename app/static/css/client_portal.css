@@ -1,0 +1,833 @@
+/* Estilos generales */
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos para métricas */
+.metric-card {
+    background: linear-gradient(45deg, #f8f9fa, #ffffff);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+}
+
+.metric-card .display-4 {
+    font-weight: 600;
+    margin: 1rem 0;
+}
+
+/* Estilos para tablas */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Estilos para badges */
+.badge {
+    padding: 0.5em 0.75em;
+    font-weight: 500;
+}
+
+/* Estilos para estrellas de calificación */
+.stars {
+    color: #ffc107;
+}
+
+.stars .text-muted {
+    color: #e9ecef !important;
+}
+
+/* Estilos para formularios */
+.form-control, .form-select {
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+    padding: 0.5rem 0.75rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Estilos para botones */
+.btn {
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* Estilos para estados */
+.status-active {
+    color: #198754;
+}
+
+.status-pending {
+    color: #ffc107;
+}
+
+.status-completed {
+    color: #0dcaf0;
+}
+
+/* Estilos responsivos */
+@media (max-width: 768px) {
+    .metric-card {
+        margin-bottom: 1rem;
+    }
+    
+    .display-4 {
+        font-size: 2.5rem;
+    }
+    
+    .table-responsive {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Estilos para tooltips */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+.tooltip-inner {
+    background-color: #212529;
+    border-radius: 0.25rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Estilos para scrollbar personalizado */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Estilos para timeline de career paths */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 40px;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #0d6efd;
+    border: 4px solid #fff;
+    box-shadow: 0 0 0 2px #0d6efd;
+}
+
+.timeline-item:not(:last-child):before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 20px;
+    height: calc(100% + 20px);
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Estilos para gráficos */
+.chart-container {
+    position: relative;
+    height: 200px;
+    margin: 20px 0;
+}
+
+/* Estilos para modales de assessment */
+.modal-content {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+/* Estilos para listas de skills */
+.skill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.skill-item {
+    background: #e9ecef;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    color: #495057;
+}
+
+/* Estilos para recomendaciones */
+.recommendation-list {
+    list-style: none;
+    padding: 0;
+}
+
+.recommendation-item {
+    padding: 0.75rem;
+    border-left: 3px solid #0d6efd;
+    background: #f8f9fa;
+    margin-bottom: 0.5rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+/* Estilos para métricas de assessment */
+.assessment-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.metric-box {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    text-align: center;
+}
+
+.metric-box .value {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #0d6efd;
+    margin: 0.5rem 0;
+}
+
+.metric-box .label {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Estilos para recomendaciones de servicios */
+.recommendation-box {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+
+.service-tags {
+    margin-top: 1rem;
+}
+
+.service-tags .badge {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+/* Estilos para tarjetas de servicio */
+.service-features {
+    margin: 1rem 0;
+}
+
+.service-features li {
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.service-features li i {
+    margin-right: 0.5rem;
+}
+
+.service-price {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    text-align: center;
+}
+
+.service-price .price {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0d6efd;
+    margin: 0.5rem 0;
+}
+
+/* Estilos para modales de servicio */
+.modal-content {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+/* Estilos para botones de servicio */
+.btn-service {
+    width: 100%;
+    padding: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Estilos para oportunidades de mejora */
+.opportunity-card {
+    transition: transform 0.3s ease;
+}
+
+.opportunity-card:hover {
+    transform: translateY(-5px);
+}
+
+.opportunity-card .card-title {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.opportunity-card .recommendation-box {
+    border-left: 3px solid #0d6efd;
+}
+
+/* Estilos para características de servicio */
+.feature-list {
+    list-style: none;
+    padding: 0;
+}
+
+.feature-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.feature-list li:last-child {
+    border-bottom: none;
+}
+
+/* Estilos para precios y planes */
+.pricing-box {
+    text-align: center;
+    padding: 1.5rem;
+    background: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.pricing-box .price {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0d6efd;
+    margin: 1rem 0;
+}
+
+.pricing-box .period {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Estilos responsivos adicionales */
+@media (max-width: 768px) {
+    .timeline-item {
+        padding-left: 30px;
+    }
+    
+    .timeline-marker {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .chart-container {
+        height: 150px;
+    }
+    
+    .assessment-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .service-tags .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .service-price .price {
+        font-size: 1.25rem;
+    }
+    
+    .pricing-box {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Estilos para tarjetas de benchmark */
+.benchmark-card {
+    background: #fff;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    height: 100%;
+    transition: transform 0.3s ease;
+}
+
+.benchmark-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.benchmark-card h3 {
+    font-size: 1.1rem;
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.benchmark-value {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.benchmark-value .company-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0d6efd;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.benchmark-comparison {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.benchmark-comparison small {
+    display: block;
+    margin: 0.25rem 0;
+}
+
+.benchmark-chart {
+    height: 150px;
+    margin-top: 1rem;
+}
+
+/* Estilos para tablas de ROI */
+.table-bordered {
+    border-color: #dee2e6;
+}
+
+.table-bordered th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.table-bordered td {
+    vertical-align: middle;
+}
+
+/* Estilos para gráficos de tendencias */
+.trend-chart {
+    height: 300px;
+    margin: 1rem 0;
+}
+
+/* Estilos para indicadores de rendimiento */
+.performance-indicator {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.performance-indicator.better {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.performance-indicator.worse {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.performance-indicator.similar {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+/* Estilos para tooltips de benchmark */
+.benchmark-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.benchmark-tooltip .tooltip-text {
+    visibility: hidden;
+    width: 200px;
+    background-color: #212529;
+    color: #fff;
+    text-align: center;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.benchmark-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Estilos responsivos para benchmarks */
+@media (max-width: 768px) {
+    .benchmark-card {
+        margin-bottom: 1rem;
+    }
+    
+    .benchmark-value .company-value {
+        font-size: 1.25rem;
+    }
+    
+    .benchmark-chart {
+        height: 120px;
+    }
+    
+    .trend-chart {
+        height: 200px;
+    }
+}
+
+/* Animaciones para benchmarks */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.benchmark-card {
+    animation: slideIn 0.5s ease-out;
+}
+
+/* Estilos para leyendas de gráficos */
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.legend-color {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    margin-right: 0.5rem;
+}
+
+/* Estilos para métricas destacadas */
+.highlight-metric {
+    background: linear-gradient(45deg, #0d6efd, #0dcaf0);
+    color: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    text-align: center;
+}
+
+.highlight-metric .value {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0.5rem 0;
+}
+
+.highlight-metric .label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+
+/* Estilos para comparativas de rendimiento */
+.performance-comparison {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.performance-arrow {
+    font-size: 1.25rem;
+}
+
+.performance-arrow.up {
+    color: #198754;
+}
+
+.performance-arrow.down {
+    color: #dc3545;
+}
+
+.performance-arrow.equal {
+    color: #ffc107;
+}
+
+/* Estilos para tooltips de métricas */
+.metric-tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+}
+
+.metric-tooltip .tooltip-content {
+    visibility: hidden;
+    width: 250px;
+    background-color: #212529;
+    color: #fff;
+    text-align: left;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.metric-tooltip:hover .tooltip-content {
+    visibility: visible;
+    opacity: 1;
+}
+
+.metric-tooltip .tooltip-content::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #212529 transparent transparent transparent;
+}
+
+/* Estilos para gráficos de radar */
+.radar-chart-container {
+    position: relative;
+    height: 300px;
+    margin: 1rem 0;
+}
+
+/* Estilos para tablas de comparación */
+.comparison-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 1rem 0;
+}
+
+.comparison-table th,
+.comparison-table td {
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+}
+
+.comparison-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.comparison-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Estilos para indicadores de tendencia */
+.trend-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.trend-indicator.positive {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.trend-indicator.negative {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.trend-indicator.neutral {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+/* Estilos para métricas de rendimiento */
+.performance-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.performance-metric {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    text-align: center;
+}
+
+.performance-metric .value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0d6efd;
+    margin: 0.5rem 0;
+}
+
+.performance-metric .label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Estilos para gráficos de comparación */
+.comparison-chart {
+    height: 250px;
+    margin: 1rem 0;
+}
+
+/* Estilos para tooltips de comparación */
+.comparison-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.comparison-tooltip .tooltip-content {
+    visibility: hidden;
+    width: 300px;
+    background-color: #212529;
+    color: #fff;
+    text-align: left;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.comparison-tooltip:hover .tooltip-content {
+    visibility: visible;
+    opacity: 1;
+}
+
+.comparison-tooltip .tooltip-content::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #212529 transparent transparent transparent;
+} 

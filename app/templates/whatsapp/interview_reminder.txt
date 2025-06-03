@@ -1,0 +1,17 @@
+¡Hola {{ candidate.name }}! 👋
+
+Recordatorio de tu entrevista con {{ company.name }}.
+
+📅 *Detalles de la Entrevista:*
+• Posición: {{ position }}
+• Fecha: {{ date|date:"d/m/Y" }}
+• Hora: {{ time }}
+• Lugar: {{ location }}
+
+Para ver más detalles, haz clic aquí:
+{{ interview_url }}
+
+¡Te deseamos mucho éxito!
+
+Saludos,
+Equipo huntRED® 

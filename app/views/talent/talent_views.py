@@ -19,13 +19,13 @@ from django.template.loader import get_template
 from django.conf import settings
 from asgiref.sync import sync_to_async
 
-from app.com.talent.trajectory_analyzer import TrajectoryAnalyzer
-from app.com.talent.team_synergy import TeamSynergyAnalyzer
-from app.com.talent.cultural_fit import CulturalFitAnalyzer
-from app.com.talent.learning_engine import LearningEngine
-from app.com.talent.mentor_matcher import MentorMatcher
+from app.ats.talent.trajectory_analyzer import TrajectoryAnalyzer
+from app.ats.talent.team_synergy import TeamSynergyAnalyzer
+from app.ats.talent.cultural_fit import CulturalFitAnalyzer
+from app.ats.talent.learning_engine import LearningEngine
+from app.ats.talent.mentor_matcher import MentorMatcher
 from app.models import Person, BusinessUnit, Role
-from app.utils.decorators import check_role_access
+from app.ats.utils.decorators import check_role_access
 
 logger = logging.getLogger(__name__)
 
@@ -419,7 +419,6 @@ async def generate_pdf_report(analysis_type, analysis_data, include_graphics=Tru
     generar informes profesionales con gráficos y visualizaciones.
     """
     try:
-        from weasyprint import HTML, CSS
         from django.template.loader import render_to_string
         import tempfile
         import os
@@ -494,7 +493,12 @@ async def generate_pdf_report(analysis_type, analysis_data, include_graphics=Tru
         ''')
         
         # Generar PDF
-        pdf = HTML(filename=temp_filename).write_pdf(stylesheets=[css])
+        try:
+            from weasyprint import HTML
+            pdf = HTML(filename=temp_filename).write_pdf(stylesheets=[css])
+        except ImportError:
+            logger.warning("WeasyPrint no está disponible. Se devuelve el HTML como bytes.")
+            pdf = html_string.encode('utf-8')
         
         # Limpiar archivo temporal
         os.unlink(temp_filename)

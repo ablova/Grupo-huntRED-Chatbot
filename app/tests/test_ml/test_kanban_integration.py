@@ -14,8 +14,8 @@ from django.http import HttpResponse
 from django.conf import settings
 
 from app.models import Person, Vacante, BusinessUnit
-from app.views.ml_admin_views import candidate_growth_plan_view, candidate_growth_plan_pdf_view
-from app.kanban.ml_integration import (
+from app.ats.views.ml_admin_views import candidate_growth_plan_view, candidate_growth_plan_pdf_view
+from app.ats.kanban.ml_integration import (
     get_candidate_growth_data, 
     analyze_skill_gaps,
     get_vacancy_recommendations,

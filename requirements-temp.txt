@@ -1,0 +1,123 @@
+# ============================================
+# Grupo huntRED - Requisitos del Proyecto (Temporal)
+# Python 3.12.0+
+# ============================================
+
+# Core Frameworks
+Django>=4.2.0,<5.1.0
+djangorestframework>=3.15.2
+djangorestframework-simplejwt>=5.4.0
+django-cors-headers
+
+# Base de Datos
+psycopg2-binary>=2.9.9
+
+# ASGI/WSGI
+gunicorn>=22.0.0
+uvicorn[standard]>=0.30.0
+
+# Seguridad
+passlib[bcrypt]>=1.7.4
+
+# Variables de Entorno
+django-environ>=0.12.0
+python-dotenv>=1.0.0
+
+# Monitoreo
+sentry-sdk>=2.29.1
+
+# Procesamiento Asíncrono
+celery[redis]>=5.4.0
+django-celery-results>=2.5.0,<2.6.0
+django-celery-beat>=2.5.0,<2.6.0
+redis>=5.0.8
+
+# Almacenamiento y Archivos
+django-storages>=1.14.2
+django-cleanup>=8.0.0
+Pillow>=10.2.0
+python-magic>=0.4.27
+boto3>=1.34.0
+
+# Utilidades Generales
+python-dateutil>=2.9.0
+pytz>=2025.2
+PyYAML>=6.0.2
+requests>=2.31.0
+python-slugify>=8.0.1
+python-multipart>=0.0.6
+
+# Procesamiento de texto
+ftfy>=6.1.1
+regex>=2024.4.24
+
+# Desarrollo y Calidad de Código
+black>=24.4.0
+isort>=5.13.2
+ruff>=0.3.0
+mypy>=1.8.0
+pylint>=3.1.0
+pydantic>=2.7.0
+bandit>=1.7.7
+safety>=2.3.4
+detect-secrets>=1.5.0
+
+# Documentación
+mkdocs>=1.5.0
+mkdocs-material>=9.5.0
+mkdocstrings[python]>=0.25.0
+pydocstyle>=6.3.0
+
+# Testing
+pytest>=8.2.0
+pytest-django>=4.11.0
+pytest-asyncio>=0.25.2
+pytest-cov>=5.0.0
+pytest-xdist>=3.5.0
+pytest-mock>=3.12.0
+factory-boy>=3.3.0
+freezegun>=1.4.0
+responses>=0.25.0
+model-bakery>=1.14.0
+pytest-factoryboy>=2.6.1
+
+# Documentación
+Sphinx>=7.3.7
+sphinx-rtd-theme>=2.0.0
+sphinx-autodoc-typehints>=2.0.0
+django-extensions>=3.2.3
+
+# Procesamiento de PDFs
+pdfplumber>=0.11.6
+PyPDF2>=3.0.1
+reportlab>=4.0.7
+jinja2>=3.1.4
+
+# Pagos
+stripe>=7.10.0
+paypalrestsdk==1.13.3
+
+# Autenticación
+PyJWT>=2.9.0
+oauthlib>=3.2.2
+requests-oauthlib>=2.0.0
+
+# Email
+email_validator>=2.2.0
+
+# Email & Messaging
+aioimaplib>=2.0.1
+IMAPClient>=3.0.1
+tweepy>=4.15.0
+
+# Utilidades adicionales
+backoff
+google.generativeai
+matplotlib
+seaborn
+weasyprint
+wheel
+gunicorn
+aiohttp
+pandas
+playwright 

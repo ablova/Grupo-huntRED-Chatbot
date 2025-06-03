@@ -2,7 +2,7 @@
 import pytest
 import responses
 from celery import shared_task
-from app.tasks import ejecutar_scraping
+from app.ats.tasks import ejecutar_scraping
 from app.models import DominioScraping
 from django.utils import timezone
 

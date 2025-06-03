@@ -14,8 +14,9 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
-from app.models import CustomUser, UserPermission, DocumentVerification
-from app.forms import CustomUserCreationForm, CustomUserChangeForm
+from app.ats.accounts.models import CustomUser
+from app.models import UserPermission, DocumentVerification
+from app.ats.accounts.forms import CustomUserCreationForm, CustomUserChangeForm
 
 import logging
 

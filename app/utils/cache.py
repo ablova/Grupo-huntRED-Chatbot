@@ -125,7 +125,7 @@ def cached_dashboard_stats(business_unit_id=None, timeout=900):
     Returns:
         dict: Estadísticas del dashboard
     """
-    from app.dashboard_utils import DashboardUtils
+    from app.ats.dashboard_utils import DashboardUtils
     
     # Generar clave de caché
     cache_key = f"dashboard:stats:{business_unit_id or 'all'}"

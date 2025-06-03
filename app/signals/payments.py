@@ -8,7 +8,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver, Signal
 from django.utils import timezone
 from app.models import Payment, Invoice, BusinessUnit
-from app.tasks.payments import update_payment_status, process_payment_webhook
+from app.ats.tasks.payments import update_payment_status, process_payment_webhook
 
 logger = logging.getLogger(__name__)
 

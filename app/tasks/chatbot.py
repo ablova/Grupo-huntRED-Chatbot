@@ -35,7 +35,7 @@ def process_message(self, user_id, message, channel, metadata=None):
     Returns:
         dict: Resultado del procesamiento con la respuesta generada
     """
-    from app.com.chatbot.chatbot import ChatBot
+    from app.ats.chatbot.chatbot import ChatBot
     
     logger.info(f"Processing message from user {user_id} via {channel}")
     start_time = time.time()
@@ -75,7 +75,7 @@ def analyze_intent(self, message, user_id, context=None):
     Returns:
         dict: Intención detectada y confianza
     """
-    from app.com.chatbot.intents_handler import IntentsHandler
+    from app.ats.chatbot.intents_handler import IntentsHandler
     
     logger.info(f"Analyzing intent for user {user_id}")
     
@@ -107,7 +107,7 @@ def generate_response(self, user_id, intent, message, context=None):
     Returns:
         dict: Respuesta generada
     """
-    from app.com.chatbot.response_generator import ResponseGenerator
+    from app.ats.chatbot.response_generator import ResponseGenerator
     
     logger.info(f"Generating response for user {user_id} with intent {intent.get('name', 'unknown')}")
     
@@ -125,7 +125,7 @@ def retry_failed_messages():
     Reintenta enviar mensajes que fallaron previamente.
     Esta tarea se ejecuta periódicamente.
     """
-    from app.com.chatbot.middleware.message_retry import MessageRetryManager
+    from app.ats.chatbot.middleware.message_retry import MessageRetryManager
     
     logger.info("Starting retry of failed messages")
     

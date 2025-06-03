@@ -9,8 +9,11 @@ from weasyprint import HTML, CSS
 from django.conf import settings
 import tempfile
 import os
+import logging
 
 from app.models import Proposal
+
+logger = logging.getLogger(__name__)
 
 def download_proposal_pdf(request, proposal_id):
     """
@@ -50,7 +53,12 @@ def download_proposal_pdf(request, proposal_id):
         css = CSS(filename=css_url) if os.path.exists(css_url) else None
         
         # Generar el PDF
-        HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf(tmp.name, stylesheets=[css] if css else None)
+        try:
+            from weasyprint import HTML
+            HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf(tmp.name, stylesheets=[css] if css else None)
+        except ImportError:
+            logger.warning("WeasyPrint no está disponible. Se devuelve el HTML como bytes.")
+            html_string = html_string.encode('utf-8')
         
         # Preparar la respuesta con el PDF adjunto
         with open(tmp.name, 'rb') as pdf_file:

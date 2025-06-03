@@ -16,7 +16,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 from app.models import Person, BusinessUnit, EnhancedMLProfile
-from app.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 

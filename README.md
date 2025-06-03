@@ -238,8 +238,8 @@ El módulo Chatbot (localizado en `app/com/chatbot`) es el núcleo de la comunic
 #### Ejemplo de Flujo de Conversación
 
 ```python
-from app.com.chatbot.workflow import WorkflowManager
-from app.com.chatbot.state import ChatStateManager
+from app.ats.chatbot.workflow import WorkflowManager
+from app.ats.chatbot.state import ChatStateManager
 
 async def process_message(message, channel="whatsapp"):
     # Inicializar manejadores
@@ -315,7 +315,7 @@ app/ml/analyzers/
 
 ```python
 # Uso del IntegratedAssessmentManager
-from app.com.chatbot.workflow.assessments.integrated_assessment_manager import (
+from app.ats.chatbot.workflow.assessments.integrated_assessment_manager import (
     IntegratedAssessmentManager, AssessmentType
 )
 
@@ -770,7 +770,7 @@ El sistema implementa un robusto control de acceso basado en roles (RBAC) para g
 El control de acceso se implementa mediante decoradores Django que verifican permisos antes de ejecutar vistas o acciones:
 
 ```python
-from app.com.utils.rbac import role_required
+from app.ats.utils.rbac import role_required
 
 # Ejemplo de vista protegida por RBAC
 @role_required('SUPER_ADMIN', 'BU_COMPLETE')  # Solo permite Super Admin y Consultor BU Completo
@@ -3605,7 +3605,7 @@ def render_dynamic_content(template_text, context):
         return template_text  # Return the original text in case of error
 
 async def process_text_message(platform, sender_id, message_text, business_unit):
-    from app.chatbot import ChatBotHandler  # Import within the function to avoid circular references
+    from app.ats.chatbot import ChatBotHandler  # Import within the function to avoid circular references
     chatbot_handler = ChatBotHandler()
 
     try:
@@ -3714,7 +3714,7 @@ def notify_employer(worker, message):
         logger.error(f"Error enviando notificación al empleador {worker.name}: {e}", exc_info=True)
 
 async def process_text_message(platform, sender_id, message_text):
-    from app.chatbot import ChatBotHandler  # Mover importación dentro de la función
+    from app.ats.chatbot import ChatBotHandler  # Mover importación dentro de la función
     chatbot_handler = ChatBotHandler()
 
     try:
@@ -3869,7 +3869,7 @@ async def handle_incoming_message(payload):
     Manejo de mensajes entrantes de WhatsApp con conexión al chatbot.
     """
     try:
-        from app.chatbot import ChatBotHandler
+        from app.ats.chatbot import ChatBotHandler
         chatbot_handler = ChatBotHandler()
 
         if 'entry' not in payload:
@@ -4705,7 +4705,7 @@ El sistema genera planes personalizados de desarrollo profesional con tres varia
 ### Generación de Planes de Desarrollo
 
 ```python
-from app.kanban.ml_integration import get_candidate_growth_data
+from app.ats.kanban.ml_integration import get_candidate_growth_data
 
 # Para uso interno (consultores)
 plan_consultor = get_candidate_growth_data(person, audience_type='consultant')

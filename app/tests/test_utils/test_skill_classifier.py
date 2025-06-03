@@ -2,7 +2,7 @@
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
-from app.com.utils.skill_classifier import SkillClassifier
+from app.ats.utils.skill_classifier import SkillClassifier
 
 import logging
 

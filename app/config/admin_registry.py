@@ -11,12 +11,12 @@ import importlib
 import logging
 
 # Importando clases base y mixins
-from app.config.admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
-from app.config.admin_cache import CachedAdminMixin, OptimizedQuerysetMixin, setup_cache_signals
-from app.config.admin_rbac import RBACModelMixin, setup_rbac_groups, rbac_admin_site
+from app.ats.config.admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
+from app.ats.config.admin_cache import CachedAdminMixin, OptimizedQuerysetMixin, setup_cache_signals
+from app.ats.config.admin_rbac import RBACModelMixin, setup_rbac_groups, rbac_admin_site
 
 # Importando administradores desde diferentes módulos
-from app.config.admin_core import (
+from app.ats.config.admin_core import (
     # Core models
     PersonAdmin, 
     ApplicationAdmin, 
@@ -38,14 +38,14 @@ from app.config.admin_core import (
 )
 
 # Importando administradores de scraping
-from app.config.admin_scraping import (
+from app.ats.config.admin_scraping import (
     DominioScrapingAdmin,
     RegistroScrapingAdmin,
     ReporteScrapingAdmin
 )
 
 # Importando administradores de pricing
-from app.config.admin_pricing import (
+from app.ats.config.admin_pricing import (
     PricingBaselineAdmin,
     AddonsAdmin,
     CouponsAdmin,
@@ -111,10 +111,10 @@ ADMIN_CLASS_MAPPING = {
 
 # Módulos de administración específicos que podrían proporcionar sus propios registros
 ADMIN_MODULES = [
-    'app.com.notifications.admin',
-    'app.com.pagos.admin',
-    'app.com.proposals.admin',
-    'app.com.publish.admin',
+    'app.ats.notifications.admin',
+    'app.ats.pagos.admin',
+    'app.ats.proposals.admin',
+    'app.ats.publish.admin',
     'app.sexsi.admin'
 ]
 

@@ -17,7 +17,7 @@ from django.core.cache import caches
 from django_ratelimit.decorators import ratelimit
 from django_prometheus import exports
 
-from app.decorators import (
+from app.ats.decorators import (
     bu_complete_required, bu_division_required,
     permission_required, verified_user_required
 )
@@ -25,9 +25,9 @@ from app.models import (
     ChatState, Person, BusinessUnit,
     Application, Interview
 )
-from app.com.chatbot.conversational_flow import ConversationalFlowManager
-from app.com.chatbot.integrations.services import MessageService
-from app.com.chatbot.utils import analyze_text
+from app.ats.chatbot.conversational_flow import ConversationalFlowManager
+from app.ats.chatbot.integrations.services import MessageService
+from app.ats.chatbot.utils import analyze_text
 
 import logging
 import json

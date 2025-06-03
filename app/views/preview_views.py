@@ -11,7 +11,7 @@ import json
 import logging
 
 from app.models import CartaOferta, Person, Vacante, BusinessUnit
-from app.com.utils.signature.pdf_generator import generate_pdf
+from app.ats.utils.signature.pdf_generator import generate_pdf
 
 logger = logging.getLogger(__name__)
 

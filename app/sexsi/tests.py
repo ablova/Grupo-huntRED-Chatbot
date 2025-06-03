@@ -82,13 +82,13 @@ class SexsiTests(TestCase):
         """Prueba que la tarea de eliminación de tokens expirados funcione correctamente"""
         self.agreement.token_expiry = now() - timedelta(hours=1)
         self.agreement.save()
-        from app.sexsi.tasks import delete_expired_tokens
+        from app.ats.sexsi.tasks import delete_expired_tokens
         delete_expired_tokens()
         self.agreement.refresh_from_db()
         self.assertIsNone(self.agreement.token)
 
     def test_send_signature_reminder_task(self):
         """Prueba que la tarea de recordatorio de firma se ejecuta correctamente"""
-        from app.sexsi.tasks import check_pending_signatures
+        from app.ats.sexsi.tasks import check_pending_signatures
         response = check_pending_signatures()
         self.assertIn("Recordatorios enviados", response)

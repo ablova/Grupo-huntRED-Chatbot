@@ -14,9 +14,9 @@ import logging
 import time
 from asgiref.sync import async_to_sync
 
-from app.tasks.payments import process_payment_webhook
+from app.ats.tasks.payments import process_payment_webhook
 from app.models import WebhookLog
-from app.utils.rbac import RBAC
+from app.ats.utils.rbac import RBAC
 
 logger = logging.getLogger(__name__)
 

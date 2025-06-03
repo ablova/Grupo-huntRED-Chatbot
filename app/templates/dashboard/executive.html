@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Ejecutivo - huntRED®{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Resumen General -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Resumen General</h2>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Ingresos Totales</h3>
+                                <p class="metric-value">${{ total_revenue|floatformat:2 }}</p>
+                                <p class="metric-change {% if revenue_change > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ revenue_change|floatformat:1 }}% vs mes anterior
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Propuestas Activas</h3>
+                                <p class="metric-value">{{ active_proposals }}</p>
+                                <p class="metric-change {% if proposals_change > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ proposals_change|floatformat:1 }}% vs mes anterior
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Tasa de Éxito</h3>
+                                <p class="metric-value">{{ success_rate|floatformat:1 }}%</p>
+                                <p class="metric-change {% if success_rate_change > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ success_rate_change|floatformat:1 }}% vs mes anterior
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Tiempo Promedio</h3>
+                                <p class="metric-value">{{ avg_time_to_fill|floatformat:0 }} días</p>
+                                <p class="metric-change {% if time_change < 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ time_change|floatformat:1 }}% vs mes anterior
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Ingresos por Mes</h3>
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Tasa de Éxito por Tipo de Puesto</h3>
+                    <canvas id="successRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Detalladas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Top 5 Puestos</h3>
+                    <div class="list-group">
+                        {% for position in top_positions %}
+                        <div class="list-group-item">
+                            <h5>{{ position.title }}</h5>
+                            <p>
+                                <span class="badge bg-success">{{ position.success_rate|floatformat:1 }}% éxito</span>
+                                <span class="badge bg-info">{{ position.avg_time|floatformat:0 }} días</span>
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Top 5 Clientes</h3>
+                    <div class="list-group">
+                        {% for client in top_clients %}
+                        <div class="list-group-item">
+                            <h5>{{ client.name }}</h5>
+                            <p>
+                                <span class="badge bg-primary">${{ client.revenue|floatformat:2 }}</span>
+                                <span class="badge bg-secondary">{{ client.proposals }} propuestas</span>
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Métricas de Referidos</h3>
+                    <div class="list-group">
+                        <div class="list-group-item">
+                            <h5>Total Referidos</h5>
+                            <p class="metric-value">{{ total_referrals }}</p>
+                        </div>
+                        <div class="list-group-item">
+                            <h5>Tasa de Conversión</h5>
+                            <p class="metric-value">{{ referral_conversion_rate|floatformat:1 }}%</p>
+                        </div>
+                        <div class="list-group-item">
+                            <h5>Ingresos por Referidos</h5>
+                            <p class="metric-value">${{ referral_revenue|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Predicciones -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Predicciones</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h3>Ingresos Proyectados</h3>
+                            <canvas id="projectedRevenueChart"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <h3>Tendencias de Mercado</h3>
+                            <div class="list-group">
+                                {% for trend in market_trends %}
+                                <div class="list-group-item">
+                                    <h5>{{ trend.position }}</h5>
+                                    <p>
+                                        <span class="badge {% if trend.demand > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ trend.demand|floatformat:1 }}% demanda
+                                        </span>
+                                        <span class="badge bg-info">
+                                            ${{ trend.avg_salary|floatformat:2 }} salario
+                                        </span>
+                                    </p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Gráfico de Ingresos
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: {{ revenue_labels|safe }},
+            datasets: [{
+                label: 'Ingresos',
+                data: {{ revenue_data|safe }},
+                borderColor: '#1a237e',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    // Gráfico de Tasa de Éxito
+    const successRateCtx = document.getElementById('successRateChart').getContext('2d');
+    new Chart(successRateCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ position_labels|safe }},
+            datasets: [{
+                label: 'Tasa de Éxito',
+                data: {{ success_rate_data|safe }},
+                backgroundColor: '#1a237e'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    // Gráfico de Ingresos Proyectados
+    const projectedRevenueCtx = document.getElementById('projectedRevenueChart').getContext('2d');
+    new Chart(projectedRevenueCtx, {
+        type: 'line',
+        data: {
+            labels: {{ projected_labels|safe }},
+            datasets: [{
+                label: 'Proyección',
+                data: {{ projected_data|safe }},
+                borderColor: '#1a237e',
+                borderDash: [5, 5],
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+</script>
+{% endblock %} 

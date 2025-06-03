@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+
+{% block title %}Assessments - {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Métricas de Assessments -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Métricas de Assessments</h2>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Total Assessments</h3>
+                                <p class="metric-value">{{ metrics.total_assessments }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Puntuación Promedio</h3>
+                                <p class="metric-value">{{ metrics.avg_score|floatformat:1 }}/10</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Tasa de Éxito</h3>
+                                <p class="metric-value">{{ metrics.success_rate|floatformat:1 }}%</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h3>Top Skills</h3>
+                                <div class="list-group">
+                                    {% for skill in metrics.top_skills %}
+                                    <div class="list-group-item">
+                                        {{ skill.skills }} ({{ skill.count }})
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Benchmarks y Métricas Comparativas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Benchmarks del Mercado - {{ industry|title }}</h2>
+                    
+                    <!-- Métricas Principales -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="benchmark-card">
+                                <h3>Tasa de Retención</h3>
+                                <div class="benchmark-value">
+                                    <span class="company-value">{{ benchmarks.retention.company|floatformat:1 }}%</span>
+                                    <div class="benchmark-comparison">
+                                        <small>Industria: {{ benchmarks.retention.industry|floatformat:1 }}%</small>
+                                        <small>Top Performers: {{ benchmarks.retention.top_performers|floatformat:1 }}%</small>
+                                    </div>
+                                </div>
+                                <div class="benchmark-chart">
+                                    <canvas id="retentionChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="benchmark-card">
+                                <h3>Tiempo de Contratación</h3>
+                                <div class="benchmark-value">
+                                    <span class="company-value">{{ benchmarks.time_to_fill.company|floatformat:1 }} días</span>
+                                    <div class="benchmark-comparison">
+                                        <small>Industria: {{ benchmarks.time_to_fill.industry|floatformat:1 }} días</small>
+                                        <small>Top Performers: {{ benchmarks.time_to_fill.top_performers|floatformat:1 }} días</small>
+                                    </div>
+                                </div>
+                                <div class="benchmark-chart">
+                                    <canvas id="timeToFillChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="benchmark-card">
+                                <h3>Costo por Contratación</h3>
+                                <div class="benchmark-value">
+                                    <span class="company-value">${{ benchmarks.cost_per_hire.company|floatformat:2 }}</span>
+                                    <div class="benchmark-comparison">
+                                        <small>Industria: ${{ benchmarks.cost_per_hire.industry|floatformat:2 }}</small>
+                                        <small>Top Performers: ${{ benchmarks.cost_per_hire.top_performers|floatformat:2 }}</small>
+                                    </div>
+                                </div>
+                                <div class="benchmark-chart">
+                                    <canvas id="costPerHireChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="benchmark-card">
+                                <h3>Puntuación de Assessments</h3>
+                                <div class="benchmark-value">
+                                    <span class="company-value">{{ benchmarks.assessment_scores.company|floatformat:1 }}/10</span>
+                                    <div class="benchmark-comparison">
+                                        <small>Industria: {{ benchmarks.assessment_scores.industry|floatformat:1 }}/10</small>
+                                        <small>Top Performers: {{ benchmarks.assessment_scores.top_performers|floatformat:1 }}/10</small>
+                                    </div>
+                                </div>
+                                <div class="benchmark-chart">
+                                    <canvas id="assessmentScoresChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tendencias del Mercado -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h3>Tendencias del Mercado</h3>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h4>Tendencias Salariales</h4>
+                                            <canvas id="salaryTrendsChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h4>Demanda de Skills</h4>
+                                            <canvas id="skillDemandChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ROI Comparativo -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h3>ROI Comparativo</h3>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Métrica</th>
+                                            <th>Tu Empresa</th>
+                                            <th>Promedio Industria</th>
+                                            <th>Top Performers</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Inversión Total</td>
+                                            <td>${{ roi_comparison.company.investment|floatformat:2 }}</td>
+                                            <td>${{ roi_comparison.industry.investment|floatformat:2 }}</td>
+                                            <td>${{ roi_comparison.top_performers.investment|floatformat:2 }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Contrataciones</td>
+                                            <td>{{ roi_comparison.company.placements }}</td>
+                                            <td>{{ roi_comparison.industry.placements }}</td>
+                                            <td>{{ roi_comparison.top_performers.placements }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Tasa de Retención</td>
+                                            <td>{{ roi_comparison.company.retention_rate|floatformat:1 }}%</td>
+                                            <td>{{ roi_comparison.industry.retention_rate|floatformat:1 }}%</td>
+                                            <td>{{ roi_comparison.top_performers.retention_rate|floatformat:1 }}%</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Tiempo Promedio de Contratación</td>
+                                            <td>{{ roi_comparison.company.avg_time_to_fill|floatformat:1 }} días</td>
+                                            <td>{{ roi_comparison.industry.avg_time_to_fill|floatformat:1 }} días</td>
+                                            <td>{{ roi_comparison.top_performers.avg_time_to_fill|floatformat:1 }} días</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assessments Recientes -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Assessments Recientes</h3>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Candidato</th>
+                                    <th>Posición</th>
+                                    <th>Puntuación</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assessment in assessments %}
+                                <tr>
+                                    <td>{{ assessment.created_at|date:"d/m/Y" }}</td>
+                                    <td>{{ assessment.candidate.name }}</td>
+                                    <td>{{ assessment.vacancy.title }}</td>
+                                    <td>{{ assessment.score|floatformat:1 }}/10</td>
+                                    <td>
+                                        <span class="badge bg-{{ assessment.status_color }}">
+                                            {{ assessment.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-primary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#assessmentModal{{ assessment.id }}">
+                                            Ver Detalles
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Career Paths -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Career Paths</h3>
+                    <div class="row">
+                        {% for path in career_paths %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h4>{{ path.candidate.name }}</h4>
+                                    <div class="timeline">
+                                        {% for step in path.steps %}
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker"></div>
+                                            <div class="timeline-content">
+                                                <h5>{{ step.title }}</h5>
+                                                <p>{{ step.description }}</p>
+                                                <small class="text-muted">
+                                                    {{ step.estimated_time }} meses
+                                                </small>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis Organizacional -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Análisis Organizacional</h3>
+                    <div class="row">
+                        {% for analytics in org_analytics %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h4>{{ analytics.title }}</h4>
+                                    <p>{{ analytics.description }}</p>
+                                    <div class="chart-container">
+                                        <canvas id="chart{{ analytics.id }}"></canvas>
+                                    </div>
+                                    <div class="mt-3">
+                                        <h5>Recomendaciones</h5>
+                                        <ul class="list-group">
+                                            {% for rec in analytics.recommendations %}
+                                            <li class="list-group-item">{{ rec }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Oportunidades de Mejora -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Oportunidades de Mejora</h3>
+                    <div class="row">
+                        {% for opportunity in improvement_opportunities %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h4 class="card-title">{{ opportunity.title }}</h4>
+                                    <p class="card-text">{{ opportunity.description }}</p>
+                                    <div class="recommendation-box">
+                                        <h5>Recomendación</h5>
+                                        <p>{{ opportunity.recommendation }}</p>
+                                        <div class="service-tags">
+                                            {% for service in opportunity.services %}
+                                            <span class="badge bg-primary">{{ service|title }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-primary mt-3" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#serviceModal{{ forloop.counter }}">
+                                        Ver Servicios Recomendados
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Servicios Recomendados -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Servicios Recomendados</h3>
+                    
+                    <!-- Assessments -->
+                    <div class="mb-4">
+                        <h4>Assessments</h4>
+                        <div class="row">
+                            {% for assessment in service_recommendations.assessments %}
+                            <div class="col-md-4 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ assessment.name }}</h5>
+                                        <p class="card-text">{{ assessment.description }}</p>
+                                        <div class="service-features">
+                                            <ul class="list-unstyled">
+                                                {% for feature in assessment.features %}
+                                                <li><i class="fas fa-check text-success"></i> {{ feature }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                        <div class="service-price mt-3">
+                                            <h6>Inversión</h6>
+                                            <p class="price">${{ assessment.price|floatformat:2 }}</p>
+                                        </div>
+                                        <button class="btn btn-primary w-100 mt-3"
+                                                onclick="requestService('{{ assessment.id }}')">
+                                            Solicitar Servicio
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Addons -->
+                    <div class="mb-4">
+                        <h4>Addons</h4>
+                        <div class="row">
+                            {% for addon in service_recommendations.addons %}
+                            <div class="col-md-4 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ addon.name }}</h5>
+                                        <p class="card-text">{{ addon.description }}</p>
+                                        <div class="service-features">
+                                            <ul class="list-unstyled">
+                                                {% for feature in addon.features %}
+                                                <li><i class="fas fa-check text-success"></i> {{ feature }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                        <div class="service-price mt-3">
+                                            <h6>Inversión</h6>
+                                            <p class="price">${{ addon.price|floatformat:2 }}</p>
+                                        </div>
+                                        <button class="btn btn-primary w-100 mt-3"
+                                                onclick="requestService('{{ addon.id }}')">
+                                            Solicitar Addon
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Modelos de Búsqueda -->
+                    <div>
+                        <h4>Modelos de Búsqueda</h4>
+                        <div class="row">
+                            {% for model in service_recommendations.search_models %}
+                            <div class="col-md-4 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ model.name }}</h5>
+                                        <p class="card-text">{{ model.description }}</p>
+                                        <div class="service-features">
+                                            <ul class="list-unstyled">
+                                                {% for feature in model.features %}
+                                                <li><i class="fas fa-check text-success"></i> {{ feature }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                        <div class="service-price mt-3">
+                                            <h6>Inversión</h6>
+                                            <p class="price">${{ model.price|floatformat:2 }}</p>
+                                        </div>
+                                        <button class="btn btn-primary w-100 mt-3"
+                                                onclick="requestService('{{ model.id }}')">
+                                            Solicitar Modelo
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales de Detalles de Assessment -->
+{% for assessment in assessments %}
+<div class="modal fade" id="assessmentModal{{ assessment.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Assessment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Información General</h6>
+                        <p><strong>Candidato:</strong> {{ assessment.candidate.name }}</p>
+                        <p><strong>Posición:</strong> {{ assessment.vacancy.title }}</p>
+                        <p><strong>Fecha:</strong> {{ assessment.created_at|date:"d/m/Y" }}</p>
+                        <p><strong>Puntuación:</strong> {{ assessment.score|floatformat:1 }}/10</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Skills Evaluadas</h6>
+                        <div class="list-group">
+                            {% for skill in assessment.skills.all %}
+                            <div class="list-group-item">
+                                {{ skill.name }}: {{ skill.score }}/10
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h6>Comentarios</h6>
+                        <p>{{ assessment.comments }}</p>
+                    </div>
+                </div>
+                {% if assessment.recommendations %}
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h6>Recomendaciones</h6>
+                        <ul class="list-group">
+                            {% for rec in assessment.recommendations %}
+                            <li class="list-group-item">{{ rec }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modales de Servicios -->
+{% for opportunity in improvement_opportunities %}
+<div class="modal fade" id="serviceModal{{ forloop.counter }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Servicios Recomendados</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    {% for service in opportunity.services %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ service.name }}</h5>
+                                <p class="card-text">{{ service.description }}</p>
+                                <div class="service-features">
+                                    <ul class="list-unstyled">
+                                        {% for feature in service.features %}
+                                        <li><i class="fas fa-check text-success"></i> {{ feature }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="service-price mt-3">
+                                    <h6>Inversión</h6>
+                                    <p class="price">${{ service.price|floatformat:2 }}</p>
+                                </div>
+                                <button class="btn btn-primary w-100 mt-3"
+                                        onclick="requestService('{{ service.id }}')">
+                                    Solicitar Servicio
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Configuración común para gráficos de benchmark
+    const benchmarkChartConfig = {
+        type: 'bar',
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    };
+
+    // Gráfico de Retención
+    new Chart(document.getElementById('retentionChart'), {
+        ...benchmarkChartConfig,
+        data: {
+            labels: ['Tu Empresa', 'Industria', 'Top Performers'],
+            datasets: [{
+                data: [
+                    {{ benchmarks.retention.company }},
+                    {{ benchmarks.retention.industry }},
+                    {{ benchmarks.retention.top_performers }}
+                ],
+                backgroundColor: ['#0d6efd', '#6c757d', '#198754']
+            }]
+        }
+    });
+
+    // Gráfico de Tiempo de Contratación
+    new Chart(document.getElementById('timeToFillChart'), {
+        ...benchmarkChartConfig,
+        data: {
+            labels: ['Tu Empresa', 'Industria', 'Top Performers'],
+            datasets: [{
+                data: [
+                    {{ benchmarks.time_to_fill.company }},
+                    {{ benchmarks.time_to_fill.industry }},
+                    {{ benchmarks.time_to_fill.top_performers }}
+                ],
+                backgroundColor: ['#0d6efd', '#6c757d', '#198754']
+            }]
+        }
+    });
+
+    // Gráfico de Costo por Contratación
+    new Chart(document.getElementById('costPerHireChart'), {
+        ...benchmarkChartConfig,
+        data: {
+            labels: ['Tu Empresa', 'Industria', 'Top Performers'],
+            datasets: [{
+                data: [
+                    {{ benchmarks.cost_per_hire.company }},
+                    {{ benchmarks.cost_per_hire.industry }},
+                    {{ benchmarks.cost_per_hire.top_performers }}
+                ],
+                backgroundColor: ['#0d6efd', '#6c757d', '#198754']
+            }]
+        }
+    });
+
+    // Gráfico de Puntuaciones de Assessment
+    new Chart(document.getElementById('assessmentScoresChart'), {
+        ...benchmarkChartConfig,
+        data: {
+            labels: ['Tu Empresa', 'Industria', 'Top Performers'],
+            datasets: [{
+                data: [
+                    {{ benchmarks.assessment_scores.company }},
+                    {{ benchmarks.assessment_scores.industry }},
+                    {{ benchmarks.assessment_scores.top_performers }}
+                ],
+                backgroundColor: ['#0d6efd', '#6c757d', '#198754']
+            }]
+        }
+    });
+
+    // Gráfico de Tendencias Salariales
+    new Chart(document.getElementById('salaryTrendsChart'), {
+        type: 'line',
+        data: {
+            labels: {{ market_trends.salary_trends.labels|safe }},
+            datasets: [{
+                label: 'Tendencia Salarial',
+                data: {{ market_trends.salary_trends.data|safe }},
+                borderColor: '#0d6efd',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Demanda de Skills
+    new Chart(document.getElementById('skillDemandChart'), {
+        type: 'radar',
+        data: {
+            labels: {{ market_trends.skill_demand.labels|safe }},
+            datasets: [{
+                label: 'Demanda de Skills',
+                data: {{ market_trends.skill_demand.data|safe }},
+                backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                borderColor: '#0d6efd',
+                pointBackgroundColor: '#0d6efd'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Función para solicitar servicios
+    function requestService(serviceId) {
+        // Aquí implementaremos la lógica para solicitar el servicio
+        // Por ejemplo, redirigir a un formulario de solicitud o mostrar un modal
+        console.log('Solicitando servicio:', serviceId);
+        // TODO: Implementar lógica de solicitud
+    }
+</script>
+{% endblock %} 

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from app.com.utils.signature import DigitalSignature
+from app.ats.utils.signature import DigitalSignature
 
 
 @pytest.fixture

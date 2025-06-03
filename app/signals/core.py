@@ -55,7 +55,7 @@ def register_signal_handler(signal: Signal, handler: Callable, sender=None, **kw
         try:
             # Monitorear rendimiento si existe el tracker
             try:
-                from app.utils.system_integrator import SystemIntegrator
+                from app.ats.utils.system_integrator import SystemIntegrator
                 performance_tracker = SystemIntegrator.get_component('performance_tracker')
                 
                 if performance_tracker:
@@ -208,7 +208,7 @@ def initialize_signals():
     
     # Intentar registrar manejadores de rendimiento global
     try:
-        from app.utils.system_optimization import PerformanceTracker
+        from app.ats.utils.system_optimization import PerformanceTracker
         
         # Monitorear inicio y fin de peticiones
         @receiver(request_started)

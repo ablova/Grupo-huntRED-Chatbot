@@ -67,8 +67,6 @@ requests>=2.31.0                         # Cliente HTTP
 python-slugify>=8.0.1                    # Generación de slugs
 python-multipart>=0.0.6                  # Manejo de formularios multiparte
 
-
-
 # Procesamiento de texto
 ftfy>=6.1.1                              # Arregla problemas de codificación en texto
 regex>=2024.4.24                         # Expresiones regulares mejoradas
@@ -89,8 +87,7 @@ pydantic>=2.7.0                          # Validación de datos con tipos
 # Seguridad
 bandit>=1.7.7                            # Análisis de seguridad
 safety>=2.3.4                            # Escaneo de dependencias vulnerables
-# Herramientas de Seguridad
-detect-secrets>=1.5.0  # Escaneo de secretos en el código
+detect-secrets>=1.5.0                    # Escaneo de secretos en el código
 
 # Documentación
 mkdocs>=1.5.0                            # Generador de documentación
@@ -117,39 +114,30 @@ model-bakery>=1.14.0                     # Creación de instancias de modelos
 pytest-factoryboy>=2.6.1                 # Integración de factory_boy con pytest
 
 # ====================
-# Documentación
-# ====================
-Sphinx>=7.3.7                             # Generador de documentación
-sphinx-rtd-theme>=2.0.0                  # Tema para documentación
-sphinx-autodoc-typehints>=2.0.0          # Soporte para type hints
-django-extensions>=3.2.3                # Comandos de gestión adicionales
-pytest-cov>=4.1.0                       # Cobertura de código
-coverage>=7.4.0                         # Mide cobertura de código
-
-# Formateo y Linting
-black>=23.12.1                          # Formateador de código Python
-flake8>=6.1.0                           # Linter de Python
-isort>=5.13.2                           # Ordenamiento de imports
-mypy>=1.8.0                             # Chequeo de tipos estático
-
-# Seguridad
-bandit>=1.7.6                           # Análisis de seguridad de código
-safety>=2.3.4                           # Escaneo de dependencias vulnerables
-
-
-
-# ====================
 # Procesamiento de Lenguaje Natural y Machine Learning
 # ====================
-spacy>=3.7.4,<4.0.0                      # NLP industrial
+# Procesamiento de Lenguaje Natural y Machine Learning
+spacy>=3.8.7,<4.0.0                      # NLP industrial
+networkx>=3.5
+joblib>=1.5.1
+scikit-learn>=1.2.2
+pandas>=2.0.0
+numpy>=1.23.5
+scipy>=1.10.1
+
+# Plantillas y generación de documentos
+Jinja2>=3.1.6
+reportlab>=4.4.1
+pypdf>=5.6.0
+
+# Utilidades
+forex-python>=1.9.2
+seaborn>=0.13.2
 transformers>=4.40.0,<5.0.0             # Modelos de IA pre-entrenados
 sentence-transformers>=3.0.0,<4.0.0     # Embeddings de oraciones
 nltk>=3.9.1                             # Kit de herramientas de lenguaje natural
-scikit-learn>=1.4.0                     # Machine learning en Python
-openai>=0.27.8,<2.0.0                   # API de OpenAI para GPT
-tensorflow-cpu>=2.16.0,<2.17.0          # Machine Learning
-# tensorflow-text no es compatible con Python 3.12 aún, se comenta temporalmente
-# tensorflow-text>=2.16.0,<2.17.0  # Para procesamiento de texto con TensorFlow
+scikit-learn                     # Machine learning en Python
+openai                                  # API de OpenAI para GPT
 huggingface-hub>=0.25.0,<1.0.0          # Para acceder a modelos de Hugging Face
 langdetect>=1.0.9                       # Detección de idioma
 deep-translator>=1.11.4                 # Traducción de texto
@@ -245,3 +233,15 @@ weasyprint
 wheel  
 gunicorn 
 psycopg2-binary==2.9.9 
+aiohttp
+pandas
+playwright
+selenium
+requests
+tenacity
+forex_python
+django-filter
+django-silk
+django-debug-toolbar
+django-environ
+protobuf

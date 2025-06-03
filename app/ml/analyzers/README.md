@@ -41,7 +41,7 @@ El sistema incluye los siguientes analizadores especializados:
 
 ```python
 # Ejemplo: Realizar un assessment de personalidad
-from app.com.chatbot.workflow.assessments.integrated_assessment_manager import IntegratedAssessmentManager, AssessmentType
+from app.ats.chatbot.workflow.assessments.integrated_assessment_manager import IntegratedAssessmentManager, AssessmentType
 
 # Inicializar el gestor
 assessment_manager = IntegratedAssessmentManager(business_unit="huntRED")

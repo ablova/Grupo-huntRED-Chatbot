@@ -11,8 +11,8 @@ import asyncio
 from celery import shared_task
 from django.conf import settings
 from app.models import BusinessUnit
-from app.com.chatbot.integrations.services import send_email, send_message
-from app.tasks.base import with_retry
+from app.ats.chatbot.integrations.services import send_email, send_message
+from app.ats.tasks.base import with_retry
 
 # Configuración de logging
 logger = logging.getLogger(__name__)

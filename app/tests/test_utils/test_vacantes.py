@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
 from app.models import Vacante, BusinessUnit
-from app.com.utils.vacantes import VacanteManager
+from app.ats.utils.vacantes import VacanteManager
 
 import logging
 

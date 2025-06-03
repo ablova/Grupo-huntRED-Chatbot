@@ -20,9 +20,9 @@ from django.utils.translation import gettext_lazy as _
 
 # Module Imports
 # Importaciones directas sin usar __init__.py
-from app.com.chatbot.core.gpt import PromptManager, GPTHandler
-from app.com.chatbot.core.intents_handler import detect_intents
-from app.com.utils.scraping import enrich_with_gpt
+from app.ats.chatbot.core.gpt import PromptManager, GPTHandler
+from app.ats.chatbot.core.intents_handler import detect_intents
+from app.ats.utils.scraping import enrich_with_gpt
 
 # Utility Imports
 from io import BytesIO
@@ -30,9 +30,6 @@ import base64
 import matplotlib.pyplot as plt
 import json
 import re
-
-# Importing Admin modules from apps
-from app.sexsi.admin import *
 
 # Model Imports - Consolidated from admin.py and admin_config.py
 from app.models import (
@@ -46,22 +43,22 @@ from app.models import (
     Worker, IntentPattern, StateTransition, IntentTransition, 
     WorkflowStage
 )
-from app.com.chatbot.components.chat_state_manager import ContextCondition
+from app.ats.chatbot.components.chat_state_manager import ContextCondition
 
 # Admin Mixins
-from app.admin.mixins import EnhancedAdminMixin, BulkActionsMixin, DateRangeFilter, StatusFilter
+from app.ats.admin.mixins import EnhancedAdminMixin, BulkActionsMixin, DateRangeFilter, StatusFilter
 
 # Service Imports
-from app.com.chatbot.integrations.services import send_email, send_message
+from app.ats.chatbot.integrations.services import send_email, send_message
 
 # Utility Imports for Specific Functionalidades
-from app.com.utils.vacantes import VacanteManager
+from app.ats.utils.vacantes import VacanteManager
 from asgiref.sync import async_to_sync
 from django.contrib.auth.decorators import user_passes_test
 
 # Importando el sistema centralizado de administración
-from app.config.admin_registry import initialize_admin
-from app.config.admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
+from app.ats.config.admin_registry import initialize_admin
+from app.ats.config.admin_base import BaseModelAdmin, TokenMaskingMixin, ReadOnlyAdminMixin
 
 # Inicializando la configuración administrativa centralizada
 # Esto registra todos los modelos con sus clases admin correspondientes
@@ -74,7 +71,7 @@ initialize_admin(force_register=True)
 # El registro de ConfiguracionAdmin ahora se maneja en app/config/admin_registry.py
 
 # Importar el admin de BusinessUnit desde su módulo específico
-from app.admin.business_unit import BusinessUnitAdmin
+from app.ats.admin.business_unit import BusinessUnitAdmin
 
 # Personalizar el admin site
 admin.site.site_header = "Grupo huntRED® Admin"
@@ -202,7 +199,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
             buffer.close()
             return grafico_base64
 
-        from app.tasks import generate_dashboard_graph
+        from app.ats.tasks import generate_dashboard_graph
         result = generate_dashboard_graph.delay()
         grafico_base64 = result.get(timeout=10)
         context = {
@@ -215,7 +212,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
 
     def ejecutar_scraping_view(self, request, dominio_id):
         from app.models import DominioScraping
-        from app.tasks import ejecutar_scraping
+        from app.ats.tasks import ejecutar_scraping
         try:
             dominio = DominioScraping.objects.get(pk=dominio_id)
             ejecutar_scraping.delay(dominio.id)
@@ -229,14 +226,14 @@ class DominioScrapingAdmin(admin.ModelAdmin):
 
     @admin.action(description="Ejecutar scraping para dominios seleccionados")
     def ejecutar_scraping_action(self, request, queryset):
-        from app.tasks import ejecutar_scraping
+        from app.ats.tasks import ejecutar_scraping
         for dominio in queryset:
             ejecutar_scraping.delay(dominio.id)
         self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
     
     @admin.action(description="Ejecutar Email Scraping en JOBS para dominios seleccionados")
     def ejecutar_email_scraper_action(self, request, queryset):
-        from app.tasks import execute_email_scraper
+        from app.ats.tasks import execute_email_scraper
         for dominio in queryset:
             execute_email_scraper.delay(dominio.id)
         self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
@@ -269,7 +266,7 @@ class VacanteAdmin(admin.ModelAdmin):
     autocomplete_fields = ['business_unit', 'empresa']
 
     def save_model(self, request, obj, form, change):
-        from app.com.chatbot.gpt import GPTHandler
+        from app.ats.chatbot.gpt import GPTHandler
         if not obj.descripcion:
             prompt = (
                 f"Genera una descripción profesional para un puesto de trabajo con el título '{obj.titulo}' "
@@ -845,7 +842,7 @@ class TaskExecutionAdmin(admin.ModelAdmin):
 
     @user_passes_test(lambda u: u.is_superuser)
     def execute_task(self, request, task_name):
-        from app.tasks import (
+        from app.ats.tasks import (
         execute_ml_and_scraping, ejecutar_scraping, verificar_dominios_scraping,
         train_ml_task, process_linkedin_csv_task
     )

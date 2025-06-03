@@ -10,47 +10,47 @@
 # - Modularity: Se usa código modular y reusable
 
 # La nueva forma de registrar módulos es a través de ModuleRegistry:
-# from app.module_registry import module_registry
+# from app.ats.module_registry import module_registry
 # module_registry.register_module('contract_generator', 'app.sexsi.contract_generator.ContractGenerator')
 
 # Estas llamadas a register_module ya no son necesarias, el registro es automático
 
 def get_contract_generator():
     """Get ContractGenerator instance."""
-    from app.sexsi.contract_generator import ContractGenerator
+    from app.ats.sexsi.contract_generator import ContractGenerator
     return ContractGenerator
 
 def get_contract_validator():
     """Get ContractValidator instance."""
-    from app.sexsi.contract_validator import ContractValidator
+    from app.ats.sexsi.contract_validator import ContractValidator
     return ContractValidator
 
 def get_payment_processor():
     """Get SEXSIPaymentProcessor instance."""
-    from app.sexsi.payment_processor import SEXSIPaymentProcessor
+    from app.ats.sexsi.payment_processor import SEXSIPaymentProcessor
     return SEXSIPaymentProcessor
 
 def get_contract_manager():
     """Get ContractManager instance."""
-    from app.sexsi.contract_manager import ContractManager
+    from app.ats.sexsi.contract_manager import ContractManager
     return ContractManager
 
 def get_signature_handler():
     """Get SignatureHandler instance."""
-    from app.sexsi.signature_handler import SignatureHandler
+    from app.ats.sexsi.signature_handler import SignatureHandler
     return SignatureHandler
 
 def get_contract_analyzer():
     """Get ContractAnalyzer instance."""
-    from app.sexsi.contract_analyzer import ContractAnalyzer
+    from app.ats.sexsi.contract_analyzer import ContractAnalyzer
     return ContractAnalyzer
 
 def get_contract_template_manager():
     """Get ContractTemplateManager instance."""
-    from app.sexsi.contract_template_manager import ContractTemplateManager
+    from app.ats.sexsi.contract_template_manager import ContractTemplateManager
     return ContractTemplateManager
 
 def get_contract_history():
     """Get ContractHistory instance."""
-    from app.sexsi.contract_history import ContractHistory
+    from app.ats.sexsi.contract_history import ContractHistory
     return ContractHistory

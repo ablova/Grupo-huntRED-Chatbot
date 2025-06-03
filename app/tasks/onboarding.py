@@ -15,11 +15,11 @@ import os
 import pandas as pd
 
 from app.models import BusinessUnit, Person, Vacante, OnboardingProcess, ClientFeedback
-from app.com.chatbot.workflow.amigro import (
+from app.ats.chatbot.workflow.amigro import (
     generate_candidate_summary_task, send_migration_docs_task,
     follow_up_migration_task
 )
-from app.tasks.base import with_retry
+from app.ats.tasks.base import with_retry
 
 # Configuración de logging
 logger = logging.getLogger(__name__)

@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 from asgiref.sync import sync_to_async
-from app.com.utils.parser import IMAPCVProcessor, CVParser
+from app.ats.utils.parser import IMAPCVProcessor, CVParser
 from app.models import BusinessUnit, Person
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -103,7 +103,7 @@ import asyncio
 from unittest.mock import patch, AsyncMock
 from bs4 import BeautifulSoup
 from app.models import BusinessUnit, Vacante
-from app.com.utils.parser import parse_job_listing, extract_url, save_job_to_vacante
+from app.ats.utils.parser import parse_job_listing, extract_url, save_job_to_vacante
 
 import logging
 

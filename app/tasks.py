@@ -18,26 +18,26 @@ warnings.warn(
 )
 
 # Importar todas las tareas desde los módulos específicos
-from app.tasks.base import with_retry, add
-from app.tasks.notifications import (
+from app.ats.tasks.base import with_retry, add
+from app.ats.tasks.notifications import (
     send_ntfy_notification, send_linkedin_login_link,
     send_whatsapp_message_task, send_telegram_message_task, send_messenger_message_task
 )
-from app.tasks.scraping import (
+from app.ats.tasks.scraping import (
     ejecutar_scraping, retrain_ml_scraper, verificar_dominios_scraping,
     procesar_scraping_dominio, procesar_sublinks_task, execute_ml_and_scraping,
     execute_email_scraper, process_cv_emails_task
 )
-from app.tasks.ml import (
+from app.ats.tasks.ml import (
     train_ml_task, ejecutar_ml, train_matchmaking_model_task,
     predict_top_candidates_task, sync_jobs_with_api
 )
-from app.tasks.onboarding import (
+from app.ats.tasks.onboarding import (
     process_client_feedback_task, update_client_metrics_task,
     generate_client_feedback_reports_task, process_onboarding_ml_data_task,
     generate_employee_satisfaction_reports_task
 )
-from app.tasks.reports import (
+from app.ats.tasks.reports import (
     generate_weekly_report_task, generate_scraping_efficiency_report_task,
     generate_conversion_funnel_report_task
 )
@@ -50,9 +50,9 @@ logger.warning(
 )
 
 # Mantenemos get_business_unit por compatibilidad
-from app.tasks.utils import get_business_unit
+from app.ats.tasks.utils import get_business_unit
 
-# Definir __all__ para controlar qué se importa con 'from app.tasks import *'
+# Definir __all__ para controlar qué se importa con 'from app.ats.tasks import *'
 __all__ = [
     # Utilitarios
     'with_retry', 'add', 'get_business_unit',
@@ -194,7 +194,7 @@ def get_business_unit(business_unit_id=None, default_name="amigro"):
 @with_retry
 def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.com.chatbot.integrations.services import send_message
+    from app.ats.chatbot.integrations.services import send_message
     try:
         bu = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('whatsapp', recipient, message, bu))
@@ -208,7 +208,7 @@ def send_whatsapp_message_task(self, recipient, message, business_unit_id=None):
 @with_retry
 def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.com.chatbot.integrations.services import send_message
+    from app.ats.chatbot.integrations.services import send_message
     try:
         business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('telegram', chat_id, message, business_unit))
@@ -221,7 +221,7 @@ def send_telegram_message_task(self, chat_id, message, business_unit_id=None):
 @with_retry
 def send_messenger_message_task(self, recipient_id, message, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.com.chatbot.integrations.services import send_message
+    from app.ats.chatbot.integrations.services import send_message
     try:
         business_unit = BusinessUnit.objects.get(id=business_unit_id) if business_unit_id else BusinessUnit.objects.filter(name='amigro').first()
         asyncio.run(send_message('messenger', recipient_id, message, business_unit))
@@ -237,8 +237,8 @@ def send_messenger_message_task(self, recipient_id, message, business_unit_id=No
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def train_ml_task(self, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.ml.ml_model import GrupohuntREDMLPipeline
-    from app.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
+    from app.ats.ml.ml_model import GrupohuntREDMLPipeline
+    from app.ats.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
     import pandas as pd
     try:
         if not check_system_load(threshold=70):
@@ -272,7 +272,7 @@ def ejecutar_ml(self):
     """
     Tarea para entrenar y evaluar el modelo de Machine Learning para cada Business Unit.
     """
-    from app.ml.ml_model import GrupohuntREDMLPipeline
+    from app.ats.ml.ml_model import GrupohuntREDMLPipeline
     from app.models import BusinessUnit
     import pandas as pd
     logger.info("🧠 Iniciando tarea de ML.")
@@ -680,7 +680,7 @@ def send_satisfaction_survey(self, onboarding_id, period_days):
         period_days: Días transcurridos desde contratación para esta encuesta
     """
     try:
-        from app.com.onboarding.satisfaction_tracker import SatisfactionTracker
+        from app.ats.onboarding.satisfaction_tracker import SatisfactionTracker
         
         logger.info(f"Enviando encuesta de satisfacción para onboarding {onboarding_id} a {period_days} días")
         tracker = SatisfactionTracker()
@@ -718,9 +718,9 @@ def generate_client_satisfaction_report(self, company_id, period='6_months'):
         period: Período de tiempo a considerar ('1_month', '3_months', '6_months', '1_year')
     """
     try:
-        from app.com.onboarding.satisfaction_tracker import SatisfactionTracker
+        from app.ats.onboarding.satisfaction_tracker import SatisfactionTracker
         from app.models import Company
-        from app.com.utils.email_sender import EmailSender
+        from app.ats.utils.email_sender import EmailSender
         
         logger.info(f"Generando reporte de satisfacción para empresa {company_id}")
         
@@ -744,7 +744,7 @@ def generate_client_satisfaction_report(self, company_id, period='6_months'):
                 return {"status": "warning", "message": "No hay datos de satisfacción"}
                 
             # Generar PDF
-            from app.com.utils.pdf_generator import generate_pdf
+            from app.ats.utils.pdf_generator import generate_pdf
             pdf_content = loop.run_until_complete(generate_pdf(
                 'onboarding/satisfaction_company_report.html',
                 {
@@ -908,7 +908,7 @@ def create_onboarding_event(self, person_id, vacancy_id, event_type, start_time,
         consultant_id: ID del consultor responsable (opcional)
     """
     try:
-        from app.com.utils.google_calendar import create_onboarding_event
+        from app.ats.utils.google_calendar import create_onboarding_event
         
         logger.info(f"Creando evento de onboarding tipo {event_type} para persona {person_id}")
         
@@ -961,7 +961,7 @@ def trigger_amigro_workflows(candidate_id):
 @shared_task
 def process_batch_task():
     logger.info("Procesando lote de usuarios recientes.")
-    from app.com.chatbot.nlp import process_recent_users_batch
+    from app.ats.chatbot.nlp import process_recent_users_batch
     process_recent_users_batch()
     return "Lote procesado"
 
@@ -1454,7 +1454,7 @@ def send_satisfaction_survey_task(self, onboarding_id, period):
         period (int): Período de días desde contratación (3, 7, 15, 30, 60, 90, 180, 365)
     """
     from app.models import OnboardingProcess
-    from app.com.onboarding.onboarding_controller import OnboardingController
+    from app.ats.onboarding.onboarding_controller import OnboardingController
     
     try:
         # Obtener proceso de onboarding
@@ -1554,7 +1554,7 @@ def generate_client_satisfaction_reports_task(self):
     Genera reportes de satisfacción mensuales para los clientes con procesos activos.
     """
     from app.models import OnboardingProcess, Person
-    from app.com.onboarding.onboarding_controller import OnboardingController
+    from app.ats.onboarding.onboarding_controller import OnboardingController
     import uuid
     from django.core.files.storage import default_storage
     from django.core.files.base import ContentFile

@@ -1,17 +1,17 @@
 import pytest
 from django.test import Client
-from app.com.chatbot.views import ChatbotView
-from app.com.chatbot.workflow.personality import PersonalityAnalyzer
-from app.com.chatbot.components.state_manager import ChatStateManager
+from app.ats.chatbot.views import ChatbotView
+from app.ats.chatbot.workflow.personality import PersonalityAnalyzer
+from app.ats.chatbot.components.state_manager import ChatStateManager
 import asyncio
 import os
 from unittest.mock import patch, AsyncMock, MagicMock
 from app.models import Person, BusinessUnit, ChatState
-from app.com.chatbot.components.chat_state_manager import ChatStateManager
-from app.com.chatbot.intents_handler import IntentProcessor
-from app.com.chatbot.integrations.whatsapp import WhatsAppHandler
-from app.com.chatbot.workflow.common import finalizar_creacion_perfil
-from app.com.utils.cv_generator.cv_generator import CVGenerator
+from app.ats.chatbot.components.chat_state_manager import ChatStateManager
+from app.ats.chatbot.intents_handler import IntentProcessor
+from app.ats.chatbot.integrations.whatsapp import WhatsAppHandler
+from app.ats.chatbot.workflow.common import finalizar_creacion_perfil
+from app.ats.utils.cv_generator.cv_generator import CVGenerator
 
 # Mock data for testing
 TEST_USER_ID = 'test_user_123'
@@ -143,10 +143,10 @@ class TestChatbotWorkflow:
             assert "Initialization failed" in response.get("error", "")
     
     @pytest.mark.asyncio
-    @patch('app.com.utils.cv_generator.cv_generator.CVGenerator.save_cv')
+    @patch('app.ats.utils.cv_generator.cv_generator.CVGenerator.save_cv')
     @patch('os.makedirs')
-    @patch('app.com.chatbot.workflow.common.send_message', new=AsyncMock())
-    @patch('app.com.chatbot.workflow.common.send_menu', new=AsyncMock())
+    @patch('app.ats.chatbot.workflow.common.send_message', new=AsyncMock())
+    @patch('app.ats.chatbot.workflow.common.send_menu', new=AsyncMock())
     @patch('asgiref.sync.sync_to_async', return_value=AsyncMock())
     async def test_cv_and_development_plan_generation(self, mock_sync_to_async, mock_makedirs, mock_save_cv):
         """Test automatic generation of CV and development plan when profile is completed."""
@@ -182,10 +182,10 @@ class TestChatbotWorkflow:
             assert any("cv_plan" in path for path in cv_paths), "Development plan should be generated for users with personality test"
     
     @pytest.mark.asyncio
-    @patch('app.com.utils.cv_generator.cv_generator.CVGenerator.save_cv')
+    @patch('app.ats.utils.cv_generator.cv_generator.CVGenerator.save_cv')
     @patch('os.makedirs')
-    @patch('app.com.chatbot.workflow.common.send_message', new=AsyncMock())
-    @patch('app.com.chatbot.workflow.common.send_menu', new=AsyncMock())
+    @patch('app.ats.chatbot.workflow.common.send_message', new=AsyncMock())
+    @patch('app.ats.chatbot.workflow.common.send_menu', new=AsyncMock())
     @patch('asgiref.sync.sync_to_async', return_value=AsyncMock())
     async def test_cv_generation_without_development_plan(self, mock_sync_to_async, mock_makedirs, mock_save_cv):
         """Test generation of CV without development plan when profile is completed but no personality test."""

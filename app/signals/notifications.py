@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 from app.models import Person, Vacante, Pago, BusinessUnit
 
 # Importar servicio de notificaciones centralizado
-from app.com.notifications.manager import NotificationManager
+from app.ats.notifications.manager import NotificationManager
 
 
 @receiver(post_save, sender=Vacante)

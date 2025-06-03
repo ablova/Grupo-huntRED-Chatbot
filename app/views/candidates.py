@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils import timezone
 from app.models import Proposal, Opportunity, Person, Vacancy
-from app.proposals.qrcode_generator import QRCodeGenerator
+from app.ats.proposals.qrcode_generator import QRCodeGenerator
 from datetime import timedelta
 
 class CandidateNotification:

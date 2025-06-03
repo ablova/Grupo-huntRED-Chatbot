@@ -6,8 +6,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from app.models import Proposal, Opportunity, Vacancy, Person
-from app.views.proposals import ProposalView
-from app.pricing.utils import calculate_pricing
+from app.ats.views.proposals import ProposalView
+from app.ats.pricing.utils import calculate_pricing
 from datetime import timedelta
 
 class ProposalViewTests(TestCase):
@@ -83,7 +83,7 @@ class ProposalViewTests(TestCase):
         """
         Testea la notificación por email de una propuesta.
         """
-        from app.proposals.tasks import send_proposal_email
+        from app.ats.proposals.tasks import send_proposal_email
         
         # Crear propuesta de prueba
         pricing = calculate_pricing(self.opportunity.id)

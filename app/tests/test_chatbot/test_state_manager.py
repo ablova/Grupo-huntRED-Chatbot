@@ -5,9 +5,9 @@
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.com.chatbot.components.chat_state_manager import ChatStateManager
+from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.models import Person, BusinessUnit, ChatState
-from app.com.chatbot.workflow.common import get_workflow_context
+from app.ats.chatbot.workflow.common import get_workflow_context
 
 @pytest.fixture
 def mock_person():
@@ -30,7 +30,7 @@ def mock_redis():
 
 @pytest.fixture
 def mock_get_redis_connection(mock_redis):
-    with patch('app.chatbot.chat_state_manager.get_redis_connection') as mock:
+    with patch('app.ats.chatbot.chat_state_manager.get_redis_connection') as mock:
         mock.return_value = mock_redis
         yield mock
 

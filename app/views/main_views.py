@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
-from app.decorators import (
+from app.ats.decorators import (
     super_admin_required, bu_complete_required, bu_division_required,
     business_unit_required, division_required, permission_required,
     verified_user_required, active_user_required
@@ -20,10 +20,10 @@ from django.middleware.csrf import get_token
 from app.models import (
     BusinessUnit, ChatState, Configuracion, Application, Vacante, Person
 )
-from app.com.chatbot.utils import analyze_text
-from app.com.chatbot.gpt import GPTHandler
-from app.com.chatbot.chatbot import ChatBotHandler
-from app.com.chatbot.integrations.services import MessageService, get_business_unit
+from app.ats.chatbot.utils import analyze_text
+from app.ats.chatbot.gpt import GPTHandler
+from app.ats.chatbot.chatbot import ChatBotHandler
+from app.ats.chatbot.integrations.services import MessageService, get_business_unit
 
 import json
 import logging

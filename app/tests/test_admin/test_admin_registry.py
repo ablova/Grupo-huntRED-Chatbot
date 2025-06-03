@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.apps import apps
-from app.config.admin_registry import initialize_admin, ADMIN_CLASS_MAPPING
+from app.ats.config.admin_registry import initialize_admin, ADMIN_CLASS_MAPPING
 
 
 class TestAdminRegistry(TestCase):
@@ -40,7 +40,7 @@ class TestAdminRegistry(TestCase):
     @patch('importlib.import_module')
     def test_initialize_admin_imports_all_modules(self, mock_import):
         """Verificando que initialize_admin importa todos los módulos de admin especificados."""
-        from app.config.admin_registry import ADMIN_MODULES, _initialize_admin_modules
+        from app.ats.config.admin_registry import ADMIN_MODULES, _initialize_admin_modules
 
         # Ejecutando función a probar
         _initialize_admin_modules()

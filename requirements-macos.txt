@@ -1,0 +1,9 @@
+-r requirements.txt
+
+# ====================
+# TensorFlow para macOS (CPU, Python 3.12)
+# ====================
+tensorflow>=2.15.0,<2.19.0           # Versión CPU, compatible con 3.12
+tensorflow-hub>=0.16.0                # Para cargar modelos pre-entrenados
+tensorflow-metal==1.1.0  # Soporte para GPU en macOS
+tensorflow-macos==2.15.0 

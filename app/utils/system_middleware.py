@@ -260,7 +260,7 @@ class RBACMiddleware(MiddlewareMixin):
                 
         # Verificar permisos RBAC
         try:
-            from app.utils.rbac import RBAC
+            from app.ats.utils.rbac import RBAC
             
             required_permission = None
             
