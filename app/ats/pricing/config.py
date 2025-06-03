@@ -9,6 +9,7 @@ propuestas modularizadas y personalizadas por Business Unit.
 
 import os
 from django.conf import settings
+from app.config import settings as global_settings
 
 # Configuración de directorios
 PROPOSAL_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, 'app/templates/proposals')
@@ -163,3 +164,62 @@ OPTIMIZATION_CONFIG = {
         'remove_empty_elements': True
     }
 }
+
+# Exportar la configuración de precios
+PRICING_CONFIG = global_settings.pricing
+
+# Exportar configuraciones específicas
+PROGRESSIVE_CONFIG = PRICING_CONFIG.progressive
+VOLUME_CONFIG = PRICING_CONFIG.volume
+PROPOSAL_CONFIG = PRICING_CONFIG.proposal
+TRACKING_CONFIG = PRICING_CONFIG.tracking
+NOTIFICATION_CONFIG = PRICING_CONFIG.notifications
+VALIDATION_CONFIG = PRICING_CONFIG.validation
+SECURITY_CONFIG = PRICING_CONFIG.security
+CACHE_CONFIG = PRICING_CONFIG.cache
+LOGGING_CONFIG = PRICING_CONFIG.logging
+
+# Exportar funciones de utilidad
+def get_tier_config(tier_name: str):
+    """Obtiene la configuración de un nivel específico."""
+    return PRICING_CONFIG.get_tier_config(tier_name)
+
+def get_volume_tier_config(tier_name: str):
+    """Obtiene la configuración de un nivel de volumen específico."""
+    return PRICING_CONFIG.get_volume_tier_config(tier_name)
+
+def get_template_config(template: str):
+    """Obtiene la configuración de una plantilla específica."""
+    return PRICING_CONFIG.get_template_config(template)
+
+def is_template_enabled(template: str) -> bool:
+    """Verifica si una plantilla está habilitada."""
+    return PRICING_CONFIG.is_template_enabled(template)
+
+def calculate_progressive_price(volume: int) -> float:
+    """Calcula el precio progresivo para un volumen dado."""
+    return PRICING_CONFIG.calculate_progressive_price(volume)
+
+def calculate_volume_price(volume: int) -> float:
+    """Calcula el precio por volumen para un volumen dado."""
+    return PRICING_CONFIG.calculate_volume_price(volume)
+
+# Exportar todo
+__all__ = [
+    'PRICING_CONFIG',
+    'PROGRESSIVE_CONFIG',
+    'VOLUME_CONFIG',
+    'PROPOSAL_CONFIG',
+    'TRACKING_CONFIG',
+    'NOTIFICATION_CONFIG',
+    'VALIDATION_CONFIG',
+    'SECURITY_CONFIG',
+    'CACHE_CONFIG',
+    'LOGGING_CONFIG',
+    'get_tier_config',
+    'get_volume_tier_config',
+    'get_template_config',
+    'is_template_enabled',
+    'calculate_progressive_price',
+    'calculate_volume_price'
+]

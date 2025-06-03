@@ -22,7 +22,7 @@ from app.ats.chatbot.values.principles import ValuesPrinciples
 
 # Importar el nuevo analizador si está disponible
 try:
-    from app.ats.ml.analyzers.intervention_analyzer import InterventionAnalyzerImpl
+    from app.ml.analyzers.intervention_analyzer import InterventionAnalyzerImpl
     USE_NEW_ANALYZER = True
 except ImportError:
     USE_NEW_ANALYZER = False

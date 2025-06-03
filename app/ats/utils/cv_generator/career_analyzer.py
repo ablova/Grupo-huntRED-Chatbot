@@ -33,10 +33,10 @@ def extract_career_insights(conversation_data):
 from app.ats.chatbot.values.core import ValuesPrinciples
 
 # Importamos la clase real de MatchmakingLearningSystem
-from app.ats.ml.ml_model import MatchmakingLearningSystem
+from app.ml.core.models.base import MatchmakingLearningSystem
 
 # Importamos la clase MLUtils que contiene funcionalidades similares
-from app.ats.ml.utils.utils import MLUtils
+from app.ml.core.utils.general import MLUtils
 
 # Funciones de compatibilidad para mantener las interfaces existentes
 def calculate_match_percentage(data1, data2):

@@ -15,7 +15,7 @@ import numpy as np
 from django.conf import settings
 
 from app.models import Person, Skill, SkillAssessment
-from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ml.analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 

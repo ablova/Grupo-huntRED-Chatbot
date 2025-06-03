@@ -1,19 +1,18 @@
 # /home/pablo/app/ml/analyzers/professional_analyzer.py
 """
-Professional DNA Analyzer module for Grupo huntRED® assessment system.
+Analizador profesional para Grupo huntRED®.
 
-This module provides analysis of professional DNA assessments, focusing on key
-professional dimensions like strategic thinking, emotional intelligence, 
-adaptability, and results orientation.
+Este módulo implementa el análisis de competencias y habilidades profesionales.
 """
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, List
 import numpy as np
 from django.core.cache import cache
+from pathlib import Path
 
-from app.models import BusinessUnit
+from ai_huntred import settings
 from app.ml.analyzers.base_analyzer import BaseAnalyzer
-from app.ml.models import MatchmakingLearningSystem
+from app.ml.core.models.base import MatchmakingLearningSystem
 
 logger = logging.getLogger(__name__)
 

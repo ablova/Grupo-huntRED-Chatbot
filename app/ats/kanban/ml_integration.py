@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Tuple, Optional
 from asgiref.sync import sync_to_async
 
 # Importaciones directas siguiendo reglas de Grupo huntRED®
-from app.ats.ml.ml_model import MatchmakingLearningSystem
+from app.ml.core.models.base import MatchmakingLearningSystem
 from app.models import (
     Person, Vacante, Application, BusinessUnit
 )
@@ -269,7 +269,7 @@ class KanbanMLIntegration:
             for other_card in other_cards[:50]:  # Limitar para optimizar rendimiento
                 try:
                     # Simplificado: usar similitud de habilidades entre vacantes como base
-                    from app.ats.ml.ml_model import calculate_match_percentage
+                    from app.ml.core.models.base import calculate_match_percentage
                     
                     # Usando habilidades requeridas de las vacantes como base de similitud
                     vacancy1_skills = card.application.vacancy.required_skills or []

@@ -1,20 +1,24 @@
 """
-Script para entrenar y evaluar el modelo de compatibilidad cultural.
+Entrenamiento del modelo de ajuste cultural.
 
-Este script carga datos históricos, entrena el modelo y evalúa su rendimiento.
+Este módulo maneja el entrenamiento y la actualización del modelo
+de ajuste cultural basado en las dimensiones culturales.
 """
-import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from pathlib import Path
 import logging
+from typing import List, Dict, Any
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import joblib
+from pathlib import Path
 import sys
 import os
 
 # Añadir el directorio raíz al path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from app.ml.models.cultural_fit_model import CulturalFitModel
+from django.conf import settings
+from app.ml.core.models.assessments.cultural_fit_model import CulturalFitModel
 from app.ml.data.data_loader import DataLoader
 
 # Configurar logging

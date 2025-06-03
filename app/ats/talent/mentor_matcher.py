@@ -18,11 +18,11 @@ from django.conf import settings
 
 from app.models import Person, Skill, SkillAssessment, BusinessUnit, Mentor, MentorSkill, MentorSession
 from app.ats.talent.trajectory_analyzer import TrajectoryAnalyzer
-from app.ats.ml.analyzers.personality_analyzer import PersonalityAnalyzer as PersonalityAnalysis
+from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer as PersonalityAnalysis
 from app.ats.chatbot.workflow.assessments.professional_dna.analysis import ProfessionalDNAAnalysis
-from app.ats.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
+from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
 # Actualizado para usar el analizador consolidado en la nueva ruta
-from app.ats.ml.analyzers.generational_analyzer import GenerationalAnalyzer as GenerationalAnalysis
+from app.ml.analyzers.generational_analyzer import GenerationalAnalyzer as GenerationalAnalysis
 from app.ats.chatbot.values.core import ValuesPrinciples
 from app.ats.chatbot.values.principles import PrinciplesAnalyzer
 from app.ats.chatbot.values.purpose import PurposeAnalyzer
@@ -65,7 +65,7 @@ class MentorMatcher:
         
         # Usar el nuevo implementador para el análisis real
         try:
-            from app.ats.ml.analyzers.mentor_analyzer import MentorAnalyzerImpl
+            from app.ml.analyzers.mentor_analyzer import MentorAnalyzerImpl
             self._impl = MentorAnalyzerImpl()
             self._using_new_impl = True
             logger.info("MentorMatcher usando implementación mejorada")

@@ -17,7 +17,7 @@ from django.utils import timezone
 from functools import wraps
 from asgiref.sync import sync_to_async
 from app.models import Vacante, BusinessUnit, ConfiguracionBU, DominioScraping, Worker, USER_AGENTS
-from app.ats.ml.utils.scrape import MLScraper
+from app.ml.core.utils.scraping import MLScraper
 from app.ats.utils.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, generate_summary_report
 from app.ats.chatbot.gpt import GPTHandler
 from urllib.parse import urlparse, urljoin

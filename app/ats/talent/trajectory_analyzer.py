@@ -53,7 +53,7 @@ class TrajectoryAnalyzer:
         
         # Usar el nuevo implementador para el análisis real
         try:
-            from app.ats.ml.analyzers.trajectory_analyzer import TrajectoryAnalyzerImpl
+            from app.ml.analyzers.trajectory_analyzer import TrajectoryAnalyzerImpl
             self._impl = TrajectoryAnalyzerImpl()
             self._using_new_impl = True
             logger.info("TrajectoryAnalyzer usando implementación mejorada")

@@ -1,28 +1,28 @@
 # /home/pablo/app/ml/analyzers/integrated_analyzer.py
 """
-Integrated Analyzer module for Grupo huntRED® assessment system.
+Analizador integrado para Grupo huntRED®.
 
-This module provides a unified interface for analyzing all assessment types,
-integrating personality, cultural, professional, and talent assessments
-into a comprehensive profile analysis.
+Este módulo implementa el análisis integrado de personalidad, cultura y competencias profesionales.
 """
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 import json
 from django.core.cache import cache
+import numpy as np
+from pathlib import Path
 
 from app.models import BusinessUnit
-from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
-from app.ats.ml.analyzers.personality_analyzer import PersonalityAnalyzer
-from app.ats.ml.analyzers.cultural_analyzer import CulturalAnalyzer
-from app.ats.ml.analyzers.professional_analyzer import ProfessionalAnalyzer
-from app.ats.ml.analyzers.talent_analyzer import TalentAnalyzer
-from app.ml.base import BaseAnalyzer as NewBaseAnalyzer
-from app.ml.models import MatchmakingLearningSystem
+from app.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer
+from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer
+from app.ml.analyzers.professional_analyzer import ProfessionalAnalyzer
+from app.ml.analyzers.talent_analyzer import TalentAnalyzer
+from app.ml.core.models.base import MatchmakingLearningSystem
+from app.ats.integrations.services.assessment import Assessment
 
 logger = logging.getLogger(__name__)
 
-class IntegratedAnalyzer(NewBaseAnalyzer):
+class IntegratedAnalyzer(BaseAnalyzer):
     """
     Unified analyzer that integrates all assessment types.
     

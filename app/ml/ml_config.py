@@ -1,5 +1,105 @@
+"""
+Configuración centralizada para los modelos de Machine Learning.
+"""
+
 import os
+from pathlib import Path
 from django.conf import settings
+
+# Directorios
+ML_MODELS_DIR = os.path.join(settings.BASE_DIR, 'ml_models')
+ML_DATA_DIR = os.path.join(settings.BASE_DIR, 'ml_data')
+ML_LOGS_DIR = os.path.join(settings.BASE_DIR, 'ml_logs')
+
+# Crear directorios si no existen
+for directory in [ML_MODELS_DIR, ML_DATA_DIR, ML_LOGS_DIR]:
+    Path(directory).mkdir(parents=True, exist_ok=True)
+
+# Configuración de modelos
+MODEL_CONFIG = {
+    'matchmaking': {
+        'type': 'random_forest',
+        'n_estimators': 100,
+        'max_depth': 10,
+        'random_state': 42
+    },
+    'transition': {
+        'type': 'random_forest',
+        'n_estimators': 100,
+        'max_depth': 10,
+        'random_state': 42
+    },
+    'market': {
+        'type': 'random_forest',
+        'n_estimators': 100,
+        'max_depth': 10,
+        'random_state': 42
+    }
+}
+
+# Configuración de unidades de negocio
+BUSINESS_UNIT_CONFIG = {
+    'huntRED®': {
+        'matchmaking_threshold': 0.7,
+        'transition_threshold': 0.8,
+        'market_update_frequency': 'daily'
+    },
+    'huntU': {
+        'matchmaking_threshold': 0.6,
+        'transition_threshold': 0.7,
+        'market_update_frequency': 'weekly'
+    },
+    'Amigro': {
+        'matchmaking_threshold': 0.6,
+        'transition_threshold': 0.7,
+        'market_update_frequency': 'weekly'
+    }
+}
+
+# Configuración de características
+FEATURE_CONFIG = {
+    'matchmaking': [
+        'hard_skills_score',
+        'soft_skills_score',
+        'salary_alignment',
+        'age',
+        'experience_years'
+    ],
+    'transition': [
+        'experience_years',
+        'skills_count',
+        'certifications_count',
+        'education_level',
+        'personality_traits'
+    ],
+    'market': [
+        'skill_demand',
+        'salary_trends',
+        'experience_requirements',
+        'education_requirements'
+    ]
+}
+
+# Configuración de evaluación
+EVALUATION_CONFIG = {
+    'test_size': 0.2,
+    'random_state': 42,
+    'metrics': ['accuracy', 'precision', 'recall', 'f1']
+}
+
+# Configuración de caché
+CACHE_CONFIG = {
+    'enabled': True,
+    'ttl': 3600,  # 1 hora
+    'max_size': 1000
+}
+
+# Configuración de logging
+LOGGING_CONFIG = {
+    'level': 'INFO',
+    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    'file': os.path.join(ML_LOGS_DIR, 'ml.log')
+}
 
 ML_CONFIG = {
     'SYSTEM': {

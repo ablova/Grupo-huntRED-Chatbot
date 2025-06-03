@@ -13,7 +13,7 @@ import numpy as np
 from django.conf import settings
 
 from app.models import Person, Experience, Skill, SkillAssessment, BusinessUnit
-from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ml.analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 

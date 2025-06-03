@@ -56,8 +56,8 @@ from app.ats.chatbot.workflow.common.common import (
 )
 
 # Importaciones de ML
-from app.ats.ml.core.models.matchmaking import MatchmakingModel
-from app.ats.ml.core.utils import BUSINESS_UNIT_HIERARCHY
+from app.ml.core.models.matchmaking import MatchmakingModel
+from app.ml.core.utils import BUSINESS_UNIT_HIERARCHY
 
 # Importaciones de utilidades
 from app.ats.utils.logger_utils import get_module_logger, log_async_function_call, ResourceMonitor

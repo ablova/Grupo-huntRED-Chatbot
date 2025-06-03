@@ -1,15 +1,17 @@
+# /home/pablo/app/ml/analyzers/cultural_analyzer.py
 """
-Analizador cultural para Grupo huntRED®
+Analizador de compatibilidad cultural.
 
-Este módulo proporciona análisis avanzado de compatibilidad cultural
-utilizando modelos de aprendizaje automático para generar insights
-y recomendaciones personalizadas.
+Este módulo implementa el análisis de compatibilidad cultural entre
+candidatos y empresas basado en dimensiones culturales.
 """
 import logging
 from typing import Dict, List, Any, Optional
 import numpy as np
+from pathlib import Path
+
+from app.ml.core.models.assessments.cultural_fit_model import CulturalFitModel
 from sklearn.preprocessing import MinMaxScaler
-from app.ml.models import CulturalFitModel
 
 logger = logging.getLogger(__name__)
 

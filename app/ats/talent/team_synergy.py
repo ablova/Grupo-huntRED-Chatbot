@@ -32,7 +32,7 @@ from django.db.models import Q, Count, Avg, F
 from django.core.exceptions import ObjectDoesNotExist
 
 from app.models import Person, BusinessUnit, Skill, SkillAssessment
-from app.ats.ml.analyzers.personality_analyzer import PersonalityAnalyzer
+from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer
 from app.ats.utils.cv_generator.career_analyzer import CVCareerAnalyzer
 from app.ats.chatbot.values.principles import ValuesPrinciples
 
@@ -42,7 +42,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 
 # Importar el nuevo analizador si está disponible
 try:
-    from app.ats.ml.analyzers.team_analyzer import TeamAnalyzerImpl
+    from app.ml.analyzers.team_analyzer import TeamAnalyzerImpl
     USE_NEW_ANALYZER = True
 except ImportError:
     USE_NEW_ANALYZER = False

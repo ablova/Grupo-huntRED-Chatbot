@@ -25,7 +25,7 @@ from app.ats.utils.cv_generator.cv_utils import CVUtils
 from app.ats.utils.cv_generator.cv_data import CVData
 from app.ats.utils.cv_generator.career_analyzer import career_analyzer, CVCareerAnalyzer
 from app.ats.chatbot.values.core import ValuesPrinciples
-from app.ats.ml.ml_model import MatchmakingLearningSystem
+from app.ml.core.models.base import MatchmakingLearningSystem
 # Importamos las funciones adaptadoras de career_analyzer
 from app.ats.utils.cv_generator.career_analyzer import calculate_match_percentage, calculate_alignment_percentage
 from app.ats.utils.cv_generator.values_adapter import CVValuesAdapter as ValuesAdapter
@@ -448,9 +448,9 @@ class EnhancedCVGenerator(CVGenerator):
         """
         try:
             # Obtener insights del sistema ML
-            from app.ats.ml.personality_analyzer import get_personality_insights
-            from app.ats.ml.talent_analyzer import get_talent_insights
-            from app.ats.ml.cultural_analyzer import get_cultural_insights
+            from app.ml.personality_analyzer import get_personality_insights
+            from app.ml.talent_analyzer import get_talent_insights
+            from app.ml.cultural_analyzer import get_cultural_insights
             
             # Ejecutar análisis en paralelo
             personality_insights, talent_insights, cultural_insights = await asyncio.gather(

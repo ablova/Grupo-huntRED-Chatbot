@@ -12,8 +12,8 @@ import asyncio
 import numpy as np
 import pandas as pd
 from app.models import Person, Vacante, Application
-from app.ats.ml.core.async_processing import AsyncProcessor
-from app.ats.ml.core.data_cleaning import DataCleaner
+from app.ml.core.async_processing import AsyncProcessor
+from app.ml.core.data_cleaning import DataCleaner
 
 
 class TestAsyncProcessor(unittest.TestCase):

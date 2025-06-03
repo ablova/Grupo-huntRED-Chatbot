@@ -4,7 +4,7 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
-from app.ats.ml.core.scheduling.cache import RedisCache
+from app.ml.core.scheduling.cache import RedisCache
 
 class TestRedisCache(unittest.TestCase):
     def setUp(self):

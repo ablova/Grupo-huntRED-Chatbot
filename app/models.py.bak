@@ -1,5 +1,4 @@
 # app/models.py
-    
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -7,11 +6,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db.models import JSONField
 from django.utils import timezone
 from django.utils.functional import cached_property
-
-# Import CustomUser from accounts app
 from app.ats.accounts.models import CustomUser
-
-# Importar modelos culturales
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -26,191 +21,72 @@ import re
 import uuid
 import logging
 import requests
-logger=logging.getLogger(__name__)
-ROLE_CHOICES=[('SUPER_ADMIN','Super Administrador'),('BU_COMPLETE','Consultor BU Completo'),('BU_DIVISION','Consultor BU División')]
+
+logger = logging.getLogger(__name__)
+ROLE_CHOICES = [('SUPER_ADMIN', 'Super Administrador'), ('BU_COMPLETE', 'Consultor BU Completo'), ('BU_DIVISION', 'Consultor BU División')]
 
 # Estados para Propuestas
-PROPOSAL_STATUS_CHOICES = [
-    ('DRAFT', 'Borrador'),
-    ('SENT', 'Enviada'),
-    ('ACCEPTED', 'Aceptada'),
-    ('REJECTED', 'Rechazada')
-]
+PROPOSAL_STATUS_CHOICES = [('DRAFT', 'Borrador'), ('SENT', 'Enviada'), ('ACCEPTED', 'Aceptada'), ('REJECTED', 'Rechazada')]
 
 # Estados para Contratos
-CONTRATO_STATUS_CHOICES = [
-    ('PENDING_APPROVAL', 'Pendiente de Aprobación'),
-    ('APPROVED', 'Aprobado'),
-    ('SIGNED', 'Firmado'),
-    ('REJECTED', 'Rechazado')
-]
+CONTRATO_STATUS_CHOICES = [('PENDING_APPROVAL', 'Pendiente de Aprobación'), ('APPROVED', 'Aprobado'),('SIGNED', 'Firmado'), ('REJECTED', 'Rechazado')]
 
 # Eventos que activan hitos de pago
-TRIGGER_EVENT_CHOICES = [
-    ('CONTRACT_SIGNING', 'Firma del contrato'),
-    ('START_DATE', 'Fecha de inicio'),
-    ('MILESTONE_1', 'Hitos de proyecto'),
-    ('CUSTOM_EVENT', 'Evento personalizado')
-]
+TRIGGER_EVENT_CHOICES = [('CONTRACT_SIGNING', 'Firma del contrato'), ('START_DATE', 'Fecha de inicio'),('MILESTONE_1', 'Hitos de proyecto'), ('CUSTOM_EVENT', 'Evento personalizado')]
 
 # Estados de pagos
-PAYMENT_STATUS_CHOICES = [
-    ('PENDING', 'Pendiente'),
-    ('PAID', 'Pagado'),
-    ('OVERDUE', 'Vencido'),
-    ('CANCELLED', 'Cancelado')
-]
+PAYMENT_STATUS_CHOICES = [('PENDING', 'Pendiente'), ('PAID', 'Pagado'),('OVERDUE', 'Vencido'), ('CANCELLED', 'Cancelado')]
 
 # Estados de Feedback
-FEEDBACK_STATUS_CHOICES = [
-    ('PENDING', 'Pendiente'),
-    ('COMPLETED', 'Completado'),
-    ('SKIPPED', 'Omitido')
-]
+FEEDBACK_STATUS_CHOICES = [('PENDING', 'Pendiente'), ('COMPLETED', 'Completado'), ('SKIPPED', 'Omitido')]
 
 # Tipos de Feedback
-FEEDBACK_TYPE_CHOICES = [
-    ('INTERVIEW', 'Entrevista'),
-    ('CANDIDATE', 'Candidato'),
-    ('PROPOSAL', 'Propuesta'),
-    ('HIRE', 'Contratación')
-]
+FEEDBACK_TYPE_CHOICES = [('INTERVIEW', 'Entrevista'), ('CANDIDATE', 'Candidato'),('PROPOSAL', 'Propuesta'), ('HIRE', 'Contratación')]
 
 # Resultados de Feedback
-FEEDBACK_RESULT_CHOICES = [
-    ('YES', 'Sí'),
-    ('NO', 'No'),
-    ('PARTIAL', 'Parcial'),
-    ('NOT_APPLICABLE', 'No Aplica')
-]
+FEEDBACK_RESULT_CHOICES = [('YES', 'Sí'), ('NO', 'No'),('PARTIAL', 'Parcial'), ('NOT_APPLICABLE', 'No Aplica')]
 
 # Permisos
-PERMISSION_CHOICES=[('ALL_ACCESS','Acceso Total'),('BU_ACCESS','Acceso a BU'),('DIVISION_ACCESS','Acceso a División'),('VIEW_REPORTS','Ver Reportes'),('MANAGE_USERS','Gestionar Usuarios'),('EDIT_CONTENT','Editar Contenido')]
+PERMISSION_CHOICES = [('ALL_ACCESS', 'Acceso Total'), ('BU_ACCESS', 'Acceso a BU'),('DIVISION_ACCESS', 'Acceso a División'), ('VIEW_REPORTS', 'Ver Reportes'),('MANAGE_USERS', 'Gestionar Usuarios'),('EDIT_CONTENT', 'Editar Contenido')]
 
 # Canales de Notificación
-NOTIFICATION_CHANNEL_CHOICES = [
-    ('WHATSAPP', 'WhatsApp'),
-    ('TELEGRAM', 'Telegram'),
-    ('EMAIL', 'Email'),
-    ('SLACK', 'Slack'),
-    ('NTFY', 'ntfy.sh')
-]
+NOTIFICATION_CHANNEL_CHOICES = [('WHATSAPP', 'WhatsApp'), ('TELEGRAM', 'Telegram'), ('EMAIL', 'Email'),('SLACK', 'Slack'), ('NTFY', 'ntfy.sh')]
 
 # Estados de Notificación
-NOTIFICATION_STATUS_CHOICES = [
-    ('PENDING', 'Pendiente'),
-    ('SENT', 'Enviada'),
-    ('DELIVERED', 'Entregada'),
-    ('READ', 'Leída'),
-    ('FAILED', 'Fallida')
-]
+NOTIFICATION_STATUS_CHOICES = [('PENDING', 'Pendiente'), ('SENT', 'Enviada'), ('DELIVERED', 'Entregada'),('READ', 'Leída'), ('FAILED', 'Fallida')]
 
 # Tipos de Notificación
-NOTIFICATION_TYPE_CHOICES = [
-    ('FEEDBACK', 'Feedback'),
-    ('MATCHING', 'Matching'),
-    ('PROPOSAL', 'Propuesta'),
-    ('HIRE', 'Contratación'),
-    ('SYSTEM', 'Sistema')
-]
+NOTIFICATION_TYPE_CHOICES = [('FEEDBACK', 'Feedback'), ('MATCHING', 'Matching'), ('PROPOSAL', 'Propuesta'),('HIRE', 'Contratación'), ('SYSTEM', 'Sistema')]
 
 
 
 
 class NotificationChannel(models.Model):
     """Modelo para configurar canales de notificación por Business Unit."""
-    
-    CHANNEL_CHOICES = [
-        ('email', 'Email'),
-        ('whatsapp', 'WhatsApp'),
-        ('push', 'Notificación push'),
-        ('sms', 'SMS'),
-        ('slack', 'Slack'),
-        ('teams', 'Microsoft Teams'),
-        ('webhook', 'Webhook'),
-    ]
-    
-    business_unit = models.ForeignKey(
-        'BusinessUnit',
-        on_delete=models.CASCADE,
-        related_name='notification_channels',
-        help_text="Business Unit asociada a este canal"
-    )
-    
-    channel = models.CharField(
-        max_length=20,
-        choices=CHANNEL_CHOICES,
-        help_text="Canal de notificación"
-    )
-    
-    enabled = models.BooleanField(
-        default=True,
-        help_text="¿Este canal está habilitado para esta BU?"
-    )
-    
-    config = models.JSONField(
-        default=dict,
-        help_text="Configuración específica del canal (tokens, URLs, etc.)"
-    )
-    
-    priority = models.IntegerField(
-        default=10,
-        help_text="Prioridad del canal (menor número = mayor prioridad)"
-    )
+    CHANNEL_CHOICES = [('email', 'Email'), ('whatsapp', 'WhatsApp'), ('push', 'Notificación push'),('sms', 'SMS'), ('slack', 'Slack'), ('teams', 'Microsoft Teams'),('webhook', 'Webhook'),]
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='notification_channels', help_text="Business Unit asociada a este canal")
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, help_text="Canal de notificación")
+    enabled = models.BooleanField(default=True, help_text="¿Este canal está habilitado para esta BU?")
+    config = models.JSONField(default=dict, help_text="Configuración específica del canal (tokens, URLs, etc.)")
+    priority = models.IntegerField(default=10, help_text="Prioridad del canal (menor número = mayor prioridad)")
     
     class Meta:
         verbose_name = "Canal de Notificación"
         verbose_name_plural = "Canales de Notificación"
         unique_together = ['business_unit', 'channel']
         ordering = ['business_unit', 'priority']
-        
+    
     def __str__(self):
         return f"{self.business_unit.name} - {self.channel}"
 
-
-
-
-
-
-
 class Notification(models.Model):
     """Modelo para manejar todas las notificaciones del sistema."""
-    
-    recipient = models.ForeignKey(
-        'Person',
-        on_delete=models.CASCADE,
-        related_name='notifications',
-        help_text="Destinatario de la notificación"
-    )
-    
-    notification_type = models.CharField(
-        max_length=20,
-        choices=NOTIFICATION_TYPE_CHOICES,
-        help_text="Tipo de notificación"
-    )
-    
-    channel = models.CharField(
-        max_length=20,
-        choices=NOTIFICATION_CHANNEL_CHOICES,
-        help_text="Canal utilizado para enviar la notificación"
-    )
-    
-    status = models.CharField(
-        max_length=20,
-        choices=NOTIFICATION_STATUS_CHOICES,
-        default='PENDING',
-        help_text="Estado de la notificación"
-    )
-    
-    content = models.TextField(
-        help_text="Contenido de la notificación"
-    )
-    
-    metadata = models.JSONField(
-        default=dict,
-        help_text="Datos adicionales de la notificación"
-    )
-    
+    recipient = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='notifications', help_text="Destinatario de la notificación")
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPE_CHOICES, help_text="Tipo de notificación")
+    channel = models.CharField(max_length=20, choices=NOTIFICATION_CHANNEL_CHOICES, help_text="Canal utilizado para enviar la notificación")
+    status = models.CharField(max_length=20, choices=NOTIFICATION_STATUS_CHOICES, default='PENDING', help_text="Estado de la notificación")
+    content = models.TextField(help_text="Contenido de la notificación")
+    metadata = models.JSONField(default=dict, help_text="Datos adicionales de la notificación")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -222,30 +98,12 @@ class Notification(models.Model):
     def __str__(self):
         return f"{self.notification_type} - {self.recipient.nombre} ({self.channel})"
 
-
-
-
-
-
-
 class Feedback(models.Model):
     """Modelo para almacenar feedback de candidatos y entrevistas."""
-    
     # Relaciones
-    candidate = models.ForeignKey(
-        'Person', 
-        on_delete=models.CASCADE,
-        related_name='feedbacks',
-        help_text="Candidato asociado al feedback"
-    )
+    candidate = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='feedbacks', help_text="Candidato asociado al feedback")
     
-    interviewer = models.ForeignKey(
-        'Person', 
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='given_feedbacks',
-        help_text="Entrevistador que proporcionó el feedback"
-    )
+    interviewer = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, related_name='given_feedbacks', help_text="Entrevistador que proporcionó el feedback")
     
     # Tipos de Feedback
     feedback_type = models.CharField(
@@ -2998,6 +2856,220 @@ class EnhancedNetworkGamificationProfile(models.Model):
 
 
 
+class RecoveryAttempt(models.Model):
+    """
+    Modelo para rastrear los intentos de recuperación de usuarios inactivos.
+    
+    Este modelo registra cuándo un usuario ha sido identificado como inactivo
+    y los intentos realizados para recuperar su atención.
+    """
+    class RecoveryStatus(models.TextChoices):
+        ACTIVE = 'active', 'Activo'
+        INACTIVE = 'inactive', 'Inactivo'
+        RECOVERED = 'recovered', 'Recuperado'
+        ABANDONED = 'abandoned', 'Abandonado'
+    
+    user = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='recovery_attempts',
+        help_text="Usuario que está siendo monitoreado"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=RecoveryStatus.choices,
+        default=RecoveryStatus.ACTIVE,
+        help_text="Estado actual del intento de recuperación"
+    )
+    
+    attempts = models.PositiveIntegerField(
+        default=0,
+        help_text="Número de intentos de recuperación realizados"
+    )
+    
+    max_attempts = models.PositiveIntegerField(
+        default=3,
+        help_text="Número máximo de intentos permitidos"
+    )
+    
+    last_attempt = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Último intento de recuperación"
+    )
+    
+    first_attempt = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Primer intento de recuperación"
+    )
+    
+    ended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Cuándo finalizó el proceso de recuperación"
+    )
+    
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Datos adicionales sobre los intentos de recuperación"
+    )
+    
+    class Meta:
+        verbose_name = "Intento de Recuperación"
+        verbose_name_plural = "Intentos de Recuperación"
+        ordering = ['-first_attempt']
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['status']),
+            models.Index(fields=['last_attempt'])
+        ]
+    
+    def __str__(self):
+        return f"{self.user} - {self.get_status_display()} ({self.attempts}/{self.max_attempts} intentos)"
+    
+    def mark_as_recovered(self):
+        """Marca el intento como exitosamente recuperado"""
+        self.status = self.RecoveryStatus.RECOVERED
+        self.ended_at = timezone.now()
+        self.save(update_fields=['status', 'ended_at'])
+    
+    def mark_as_abandoned(self):
+        """Marca el intento como abandonado"""
+        self.status = self.RecoveryStatus.ABANDONED
+        self.ended_at = timezone.now()
+        self.save(update_fields=['status', 'ended_at'])
+    
+    def record_attempt(self):
+        """Registra un nuevo intento de recuperación"""
+        self.attempts += 1
+        self.last_attempt = timezone.now()
+        
+        # Si superamos el máximo de intentos, marcamos como abandonado
+        if self.attempts >= self.max_attempts:
+            self.mark_as_abandoned()
+        else:
+            self.save(update_fields=['attempts', 'last_attempt'])
+        
+        return self.attempts <= self.max_attempts
+
+
+class ConsultorInteraction(models.Model):
+    """
+    Registra las interacciones de los consultores con los candidatos.
+    Permite hacer seguimiento de acciones como mensajes directos, reinicios de conversación, etc.
+    """
+    class ActionType(models.TextChoices):
+        DIRECT_MESSAGE = 'direct_message', 'Mensaje Directo'
+        RESET_CONVERSATION = 'reset_conversation', 'Reinicio de Conversación'
+        STATUS_UPDATE = 'status_update', 'Actualización de Estado'
+        NOTE_ADDED = 'note_added', 'Nota Agregada'
+        FOLLOW_UP = 'follow_up', 'Seguimiento Programado'
+    
+    consultor = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='consultor_actions',
+        help_text="Consultor que realizó la acción"
+    )
+    
+    candidate = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='consultor_interactions',
+        help_text="Candidato con quien se interactuó"
+    )
+    
+    action_type = models.CharField(
+        max_length=50,
+        choices=ActionType.choices,
+        help_text="Tipo de acción realizada por el consultor"
+    )
+    
+    details = models.JSONField(
+        default=dict,
+        help_text="Detalles adicionales de la interacción"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Interacción de Consultor'
+        verbose_name_plural = 'Interacciones de Consultores'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['consultor', 'action_type']),
+            models.Index(fields=['candidate', 'created_at']),
+            models.Index(fields=['action_type', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_action_type_display()} - {self.consultor} -> {self.candidate}"
+    
+    @classmethod
+    def log_interaction(cls, consultor, candidate, action_type, details=None):
+        """
+        Registra una nueva interacción de un consultor con un candidato.
+        
+        Args:
+            consultor: Instancia de Person (debe ser un consultor)
+            candidate: Instancia de Person (candidato)
+            action_type: Uno de los valores de ActionType
+            details: Diccionario con detalles adicionales de la interacción
+            
+        Returns:
+            La instancia de ConsultorInteraction creada
+        """
+        return cls.objects.create(
+            consultor=consultor,
+            candidate=candidate,
+            action_type=action_type,
+            details=details or {}
+        )
+    
+    @classmethod
+    def get_candidate_interactions(cls, candidate, days=30):
+        """
+        Obtiene todas las interacciones de un candidato en los últimos N días.
+        
+        Args:
+            candidate: Instancia de Person (candidato)
+            days: Número de días hacia atrás para buscar interacciones
+            
+        Returns:
+            QuerySet de interacciones ordenadas por fecha descendente
+        """
+        since = timezone.now() - timezone.timedelta(days=days)
+        return cls.objects.filter(
+            candidate=candidate,
+            created_at__gte=since
+        ).select_related('consultor').order_by('-created_at')
+    
+    @classmethod
+    def get_consultor_activity(cls, consultor, days=7):
+        """
+        Obtiene el resumen de actividad de un consultor en los últimos N días.
+        
+        Args:
+            consultor: Instancia de Person (consultor)
+            days: Número de días hacia atrás para buscar interacciones
+            
+        Returns:
+            Diccionario con el conteo de interacciones por tipo
+        """
+        since = timezone.now() - timezone.timedelta(days=days)
+        from django.db.models import Count
+        
+        return cls.objects.filter(
+            consultor=consultor,
+            created_at__gte=since
+        ).values('action_type').annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+
 class VerificationCode(models.Model):
     PURPOSE_CHOICES=[('update_whatsapp','Actualizar WhatsApp')]
     person=models.ForeignKey(Person,on_delete=models.CASCADE)
@@ -3009,23 +3081,7 @@ class VerificationCode(models.Model):
         return f"{self.person.first_name} {self.person.last_name} - {self.purpose} - {'Usado' if self.is_used else 'No usado'}"
 
 
-
-
-
-
-
-class Interaction(models.Model):
-    person=models.ForeignKey(Person,on_delete=models.CASCADE,related_name='interactions')
-    timestamp=models.DateTimeField(auto_now_add=True)
-    business_unit=models.ForeignKey(BusinessUnit,on_delete=models.SET_NULL,null=True,blank=True)
-    chat_state=models.CharField(max_length=100,null=True,blank=True)
-    def __str__(self):
-        return f"Interacción de {self.person} en {self.timestamp}"
-
-# Modelos de Pagos
-
-class EstadoPago(models.TextChoices):
-    PENDIENTE = 'pendiente', 'Pendiente'
+# ... (rest of the code remains the same)
     COMPLETADO = 'completado', 'Completado'
     FALLIDO = 'fallido', 'Fallido'
     RECHAZADO = 'rechazado', 'Rechazado'
@@ -3140,6 +3196,17 @@ class Oportuncupidad(models.Model):
 
 
 
+
+
+class EstadoPago(models.TextChoices):
+    PENDIENTE = 'pendiente', 'Pendiente de Pago'
+    PAGADO = 'pagado', 'Pagado'
+    FALLIDO = 'fallido', 'Pago Fallido'
+    REEMBOLSADO = 'reembolsado', 'Reembolsado'
+    CANCELADO = 'cancelado', 'Cancelado'
+    EN_PROCESO = 'en_proceso', 'En Proceso de Pago'
+    COMPLETADO = 'completado', 'Completado'
+    RECHAZADO = 'rechazado', 'Rechazado'
 
 
 class Pago(models.Model):

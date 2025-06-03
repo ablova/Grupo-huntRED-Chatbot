@@ -29,8 +29,8 @@ from django.conf import settings
 
 # Local imports
 from app.models import BusinessUnit, Person, Vacante, Skill  # Importaciones de modelos
-from app.ats.ml.ml_model import MatchmakingLearningSystem  # Sistema de ML
-from app.ml.base import BaseAnalyzer
+from app.ml.core.models.base import MatchmakingLearningSystem  # Sistema de ML
+from app.ml.analyzers.base_analyzer import BaseAnalyzer
 
 # Tipos genéricos para decoradores
 F = TypeVar('F', bound=Callable[..., Any])

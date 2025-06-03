@@ -37,7 +37,7 @@ from urllib.parse import urlparse
 from asgiref.sync import sync_to_async
 from app.ats.chatbot.workflow.assessments.personality import get_questions_personality, get_random_tipi_questions
 from app.ats.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
-from app.ats.ml.core.utils import BUSINESS_UNIT_HIERARCHY
+from app.ml.core.utils import BUSINESS_UNIT_HIERARCHY
 
 
 logger = logging.getLogger(__name__)

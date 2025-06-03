@@ -30,7 +30,7 @@ def update_embeddings(self, model_name="default", force_update=False):
     Returns:
         dict: Estadísticas de la actualización
     """
-    from app.ats.ml.core.models.base import ModelManager
+    from app.ml.core.models.base import ModelManager
     
     logger.info(f"Updating embeddings for model {model_name}, force={force_update}")
     start_time = time.time()
@@ -73,7 +73,7 @@ def process_matching(self, vacancy_id=None, candidate_ids=None, limit=50, thresh
     Returns:
         dict: Resultados de las coincidencias
     """
-    from app.ats.ml.core.models.matchmaking.matchmaking import MatchMakingEngine
+    from app.ml.core.models.matchmaking.matchmaking import MatchMakingEngine
     
     logger.info(f"Processing matching for vacancy_id={vacancy_id}, candidates={len(candidate_ids) if candidate_ids else 'all'}")
     start_time = time.time()
@@ -120,7 +120,7 @@ def train_model(self, model_name, parameters=None, dataset_ids=None):
     Returns:
         dict: Métricas y estado del entrenamiento
     """
-    from app.ats.ml.core.models.base import ModelManager
+    from app.ml.core.models.base import ModelManager
     
     logger.info(f"Starting training for model {model_name}")
     start_time = time.time()
@@ -183,7 +183,7 @@ def optimize_model_performance(model_name, target_metric="accuracy", target_thre
     Returns:
         dict: Resultados de la optimización
     """
-    from app.ats.ml.core.optimizers.PerformanceOptimizer import PerformanceOptimizer
+    from app.ml.core.optimizers.PerformanceOptimizer import PerformanceOptimizer
     
     logger.info(f"Optimizing model {model_name} for {target_metric}")
     start_time = time.time()

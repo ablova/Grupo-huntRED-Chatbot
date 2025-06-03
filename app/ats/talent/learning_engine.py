@@ -54,7 +54,7 @@ class LearningEngine:
         
         # Usar el nuevo implementador para el análisis real
         try:
-            from app.ats.ml.analyzers.learning_analyzer import LearningAnalyzerImpl
+            from app.ml.analyzers.learning_analyzer import LearningAnalyzerImpl
             self._impl = LearningAnalyzerImpl()
             self._using_new_impl = True
             logger.info("LearningEngine usando implementación mejorada")

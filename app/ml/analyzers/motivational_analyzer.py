@@ -15,7 +15,7 @@ from django.conf import settings
 from django.core.cache import cache
 
 from app.models import Person, BusinessUnit, EnhancedMLProfile
-from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ml.analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 

@@ -237,14 +237,14 @@ def send_messenger_message_task(self, recipient_id, message, business_unit_id=No
 @shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='ml')
 def train_ml_task(self, business_unit_id=None):
     from app.models import BusinessUnit
-    from app.ats.ml.ml_model import GrupohuntREDMLPipeline
-    from app.ats.ml.ml_opt import check_system_load, configure_tensorflow_based_on_load
+    from app.ml.core.models.base import GrupohuntREDMLPipeline
+    from app.ml.core.optimizers.PerformanceOptimizer import TensorFlowConfigurator
     import pandas as pd
     try:
-        if not check_system_load(threshold=70):
+        if not TensorFlowConfigurator.check_system_load(threshold=70):
             logger.info("Carga del sistema alta. Reintentando en 10 minutos.")
             raise self.retry(countdown=600)
-        configure_tensorflow_based_on_load()
+        TensorFlowConfigurator.configure_tensorflow_based_on_load()
         logger.info("🧠 Iniciando tarea de entrenamiento de Machine Learning.")
         if business_unit_id:
             business_units = BusinessUnit.objects.filter(id=business_unit_id)
@@ -272,7 +272,7 @@ def ejecutar_ml(self):
     """
     Tarea para entrenar y evaluar el modelo de Machine Learning para cada Business Unit.
     """
-    from app.ats.ml.ml_model import GrupohuntREDMLPipeline
+    from app.ml.core.models.base import GrupohuntREDMLPipeline
     from app.models import BusinessUnit
     import pandas as pd
     logger.info("🧠 Iniciando tarea de ML.")

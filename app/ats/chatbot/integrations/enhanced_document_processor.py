@@ -27,8 +27,8 @@ from app.models import (
     Conversation, ChatMessage, Notification,
     Metric, WorkflowStatus, ChannelSettings
 )
-from app.ats.ml.ml_model import MatchmakingLearningSystem
-from app.ats.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
+from app.ml.core.models.base import MatchmakingLearningSystem
+from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
 
 # Configuramos el logger
 logger = logging.getLogger('chatbot')

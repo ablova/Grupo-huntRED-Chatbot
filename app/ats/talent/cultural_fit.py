@@ -19,9 +19,9 @@ from app.models import (
     OrganizationalCulture
 )
 
-from app.ats.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
-from app.ats.ml.analyzers.personality_analyzer import PersonalityAnalyzer as PersonalityAnalysis
-from app.ats.ml.analyzers.generational_analyzer import GenerationalAnalyzer as GenerationalAnalysis
+from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
+from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer as PersonalityAnalysis
+from app.ml.analyzers.generational_analyzer import GenerationalAnalyzer as GenerationalAnalysis
 from app.ats.chatbot.values.principles import ValuesPrinciples
 from app.ats.chatbot.values.principles import PrinciplesAnalyzer
 from app.ats.chatbot.values.purpose import PurposeAnalyzer

@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any, Optional, List, Tuple
 
 from app.models import BusinessUnit
-from app.ats.ml.analyzers.base_analyzer import BaseAnalyzer
+from app.ml.analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 

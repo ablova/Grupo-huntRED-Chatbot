@@ -7,9 +7,11 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.http import JsonResponse
 #from ratelimit.decorators import ratelimit
-from app.ats.ml.ml_model import MatchmakingLearningSystem
-from app.models import Person, BusinessUnit
+from app.ml.core.models.base import MatchmakingLearningSystem, MatchmakingModel, TransitionModel, MarketAnalysisModel
+from app.models import Person, BusinessUnit, Vacante
 from django.shortcuts import get_object_or_404
+from django.shortcuts import render
+from django.views.decorators.http import require_http_methods
 
 
 @csrf_exempt
@@ -54,3 +56,56 @@ async def predict_matches(request, user_id):
         return JsonResponse({
             "error": str(e)
         }, status=500)
+
+@require_http_methods(["GET"])
+def predict_candidate_success(request, person_id, vacancy_id):
+    try:
+        person = Person.objects.get(id=person_id)
+        vacancy = Vacante.objects.get(id=vacancy_id)
+        
+        model = MatchmakingModel(business_unit=vacancy.business_unit)
+        prediction = model.predict_candidate_success(person, vacancy)
+        
+        return JsonResponse({
+            'success': True,
+            'prediction': prediction
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@require_http_methods(["GET"])
+def predict_transition(request, person_id):
+    try:
+        person = Person.objects.get(id=person_id)
+        
+        model = TransitionModel(business_unit=person.current_stage.business_unit)
+        prediction = model.predict_transition(person)
+        
+        return JsonResponse({
+            'success': True,
+            'prediction': prediction
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@require_http_methods(["GET"])
+def analyze_market(request, business_unit):
+    try:
+        model = MarketAnalysisModel(business_unit=business_unit)
+        analysis = model.analyze_market()
+        
+        return JsonResponse({
+            'success': True,
+            'analysis': analysis
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

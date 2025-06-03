@@ -4,7 +4,7 @@ import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 from django.core.cache import cache
@@ -13,7 +13,7 @@ from django.conf import settings
 
 from app.ats.utilidades.decorators import rbac_required
 from app.models import Vacante, Person, BusinessUnit
-from app.ats.ml.ml_model import MatchmakingLearningSystem
+from app.ml.core.models.base import MatchmakingLearningSystem, MatchmakingModel, TransitionModel, MarketAnalysisModel
 from app.ats.kanban.ml_integration import get_vacancy_recommendations, get_candidate_growth_data, analyze_skill_gaps
 
 # Opcional: Importar weasyprint solo si está disponible (para generar PDFs)
@@ -546,3 +546,81 @@ def _get_example_skills(count=5):
     import random
     random.seed(count)  # Para consistencia
     return [all_skills[i % len(all_skills)] for i in range(count)]
+
+@require_http_methods(["POST"])
+def train_matchmaking_model(request, business_unit):
+    try:
+        model = MatchmakingModel(business_unit=business_unit)
+        data = model.prepare_training_data()
+        model.train_model(data)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Modelo de matchmaking entrenado para {business_unit}'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@require_http_methods(["POST"])
+def train_transition_model(request, business_unit):
+    try:
+        model = TransitionModel(business_unit=business_unit)
+        data = model.prepare_training_data()
+        model.train_model(data)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Modelo de transición entrenado para {business_unit}'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@require_http_methods(["POST"])
+def train_market_model(request, business_unit):
+    try:
+        model = MarketAnalysisModel(business_unit=business_unit)
+        data = model.prepare_training_data()
+        model.train_model(data)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Modelo de análisis de mercado entrenado para {business_unit}'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@require_http_methods(["GET"])
+def model_status(request):
+    try:
+        business_units = BusinessUnit.objects.all()
+        status = {}
+        
+        for bu in business_units:
+            matchmaking_model = MatchmakingModel(business_unit=bu.name)
+            transition_model = TransitionModel(business_unit=bu.name)
+            market_model = MarketAnalysisModel(business_unit=bu.name)
+            
+            status[bu.name] = {
+                'matchmaking': matchmaking_model.is_trained(),
+                'transition': transition_model.is_trained(),
+                'market': market_model.is_trained()
+            }
+        
+        return JsonResponse({
+            'success': True,
+            'status': status
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

@@ -48,7 +48,7 @@ class RetentionPredictor:
         
         # Usar el nuevo implementador para el análisis real
         try:
-            from app.ats.ml.analyzers.retention_analyzer import RetentionAnalyzerImpl
+            from app.ml.analyzers.retention_analyzer import RetentionAnalyzerImpl
             self._impl = RetentionAnalyzerImpl()
             self._using_new_impl = True
             logger.info("RetentionPredictor usando implementación mejorada")

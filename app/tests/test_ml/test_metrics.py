@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
 from app.models import Person, Vacante, Application
-from app.ats.ml.monitoring.metrics import ATSMetrics
+from app.ml.monitoring.metrics import ATSMetrics
 from datetime import datetime, timedelta
 
 class TestATSMetrics(unittest.TestCase):

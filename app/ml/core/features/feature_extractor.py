@@ -1,10 +1,10 @@
 from typing import Dict, List, Optional, Tuple
 from app.models import Person, Vacante
-from app.ats.ml.analyzers import BaseAnalyzer
-from app.ats.ml.core.models.base import BaseModel
-from app.ats.ml.core.utils import DistributedCache
-from app.ats.ml.core.scheduling import AsyncProcessor
-from app.ats.ml.analyzers import SkillAnalyzer, CulturalFitAnalyzer
+from app.ml.analyzers import BaseAnalyzer
+from app.ml.core.models.base import BaseModel
+from app.ml.core.utils import DistributedCache
+from app.ml.core.scheduling import AsyncProcessor
+from app.ml.analyzers import SkillAnalyzer, CulturalFitAnalyzer
 import numpy as np
 import logging
 

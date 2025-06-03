@@ -1,3 +1,4 @@
+# /home/pablo/app/ml/analyzers/succession_analyzer.py
 """
 Succession Analyzer - Módulo de análisis para planes de sucesión.
 
@@ -17,8 +18,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
 
-from ....models import Employee, Position, Assessment
-from ..base_analyzer import BaseAnalyzer
+from app.ml.analyzers.base_analyzer import BaseAnalyzer
 
 logger = logging.getLogger(__name__)
 

@@ -23,7 +23,7 @@ from app.ats.utils.scraping import (
     validar_url, ScrapingPipeline, scrape_and_publish, process_domain
 )
 from app.ats.utils.scraping_utils import ScrapingMetrics
-from app.ats.ml.utils.scrape import MLScraper
+from app.ml.utils.scrape import MLScraper
 from app.ats.utils.email_scraper import EmailScraperV2
 from app.ats.tasks.base import with_retry
 

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
 from app.models import Person, Vacante
-from app.ats.ml.core.features.feature_extractor import FeatureExtractor
+from app.ml.core.features.feature_extractor import FeatureExtractor
 
 class TestFeatureExtractor(unittest.TestCase):
     def setUp(self):

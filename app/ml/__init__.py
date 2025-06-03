@@ -1,16 +1,29 @@
 # This file makes the ml directory a Python package
 
-# Import key components to make them available at the package level
-from app.ml.models import MatchmakingLearningSystem
+"""
+Módulo principal de Machine Learning para Grupo huntRED®.
+"""
+from app.ml.core.models.base import (
+    BaseMLModel,
+    MatchmakingModel,
+    TransitionModel,
+    MarketAnalysisModel
+)
+
 from app.ml.analyzers import (
     PersonalityAnalyzer,
+    CulturalAnalyzer,
     ProfessionalAnalyzer,
     IntegratedAnalyzer
 )
 
 __all__ = [
-    'MatchmakingLearningSystem',
+    'BaseMLModel',
+    'MatchmakingModel',
+    'TransitionModel',
+    'MarketAnalysisModel',
     'PersonalityAnalyzer',
+    'CulturalAnalyzer',
     'ProfessionalAnalyzer',
     'IntegratedAnalyzer'
 ]

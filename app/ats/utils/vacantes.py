@@ -20,7 +20,7 @@ from app.ats.chatbot.utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor  # Importar desde utils.py
 from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
 from app.ats.chatbot.integrations.services import EmailService, MessageService
-from app.ats.ml.core.models.matchmaking import MatchmakingModel
+from app.ml.core.models.matchmaking import MatchmakingModel
 from app.ats.chatbot.utils import ChatbotUtils
 
 # Configuración del logger

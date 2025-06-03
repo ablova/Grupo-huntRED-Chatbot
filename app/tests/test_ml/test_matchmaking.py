@@ -6,8 +6,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
 from app.models import Person, Vacante, Application
-from app.ats.ml.core.models.matchmaking import MatchmakingModel, TransitionModel
-from app.ats.ml.monitoring.metrics import ATSMetrics
+from app.ml.core.models.matchmaking import MatchmakingModel, TransitionModel
+from app.ml.monitoring.metrics import ATSMetrics
 from datetime import datetime, timedelta
 
 class TestATS(unittest.TestCase):

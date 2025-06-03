@@ -1,9 +1,12 @@
+# /home/pablo/app/ml/analyzers/register_assessments.py
 """
-Registro de assessments y modelos de ML para Grupo huntRED®
+Registro y gestión de evaluaciones.
 
-Este módulo registra todos los assessments y modelos de ML disponibles
-al inicio de la aplicación.
+Este módulo maneja el registro y la gestión de las diferentes evaluaciones
+que se realizan en el sistema.
 """
+from typing import Dict, List, Any, Optional
+from datetime import datetime
 import logging
 from pathlib import Path
 import sys
@@ -11,16 +14,18 @@ import sys
 # Añadir el directorio raíz al path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+from app.ats.integrations.services.assessment import Assessment
+
+from app.ml.core.models.assessments.cultural_fit_model import CulturalFitModel
+from app.ml.core.models.assessments.personality_model import PersonalityModel
+from app.ml.core.models.assessments.professional_model import ProfessionalModel
+from app.ml.core.models.assessments.integrated_model import IntegratedModel
+
 from app.ml.analyzers.assessment_registry import (
     AssessmentType,
     AssessmentMetadata,
     assessment_registry
 )
-from app.ml.models.cultural_fit_model import CulturalFitModel
-from app.ml.models.personality_model import PersonalityModel
-from app.ml.models.professional_model import ProfessionalModel
-from app.ml.models.integrated_model import IntegratedModel
-
 from app.ats.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
 from app.ats.chatbot.workflow.assessments.cultural.cultural_fit_workflow import CulturalFitWorkflow
 from app.ats.chatbot.workflow.assessments.professional_dna.core import ProfessionalDNAWorkflow
