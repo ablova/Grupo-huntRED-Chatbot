@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/parser.py
+# /home/pablo/app/ats/utils/parser.py
 from typing import Dict, List, Optional, Any, Tuple, Union
 import sys
 import logging
@@ -13,7 +13,7 @@ from functools import lru_cache
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple, Union
+from urllib.parse import urljoin, urlparse
 from tempfile import NamedTemporaryFile
 import unicodedata
 from bs4 import BeautifulSoup
@@ -27,10 +27,22 @@ from spacy.tokens import Doc
 import psutil
 import gc
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')  # Log to file for debugging
+    ]
+)
+
 # Check for resume-parser
 try:
     import resume_parser as resumeparse
     HAS_RESUME_PARSER = True
+    logger.info("resume_parser available, using en_core_web_sm")
 except ImportError:
     HAS_RESUME_PARSER = False
     logger.warning("resume-parser not installed. Some features may be limited.")
@@ -43,11 +55,9 @@ try:
     from langdetect import detect, LangDetectException
     from langdetect.lang_detect_exception import LangDetectException as LDE
     import spacy
-    from resume_parser import resumeparse
     from spacy.language import Language
     from spacy_langdetect import LanguageDetector
     from aioimaplib import aioimaplib
-    from tempfile import NamedTemporaryFile
     from contextlib import ExitStack
     from django.utils.timezone import now
     from django.db import transaction
@@ -55,9 +65,8 @@ try:
     from django.core.mail import send_mail
     from django.template.loader import render_to_string
     from asgiref.sync import sync_to_async
-    from app.ats.chatbot.utils import ChatbotUtils
-    get_nlp_processor = ChatbotUtils.get_nlp_processor
-    from app.ats.chatbot.nlp import NLPProcessor
+    from app.ats.chatbot.utils.nlp_utils import NLPUtils
+    from app.ats.chatbot.nlp.nlp import NLPProcessor
     from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation, Vacante
     from app.ats.chatbot.integrations.services import EmailService, MessageService
     from app.ats.chatbot.components.chat_state_manager import ChatStateManager
@@ -69,20 +78,14 @@ try:
     from app.ats.tasks import process_message
     from app.ats.utils.report_generator import ReportGenerator
 except ImportError as e:
-    logging.error(f"Missing required package: {e}")
+    logger.error(f"Missing required package: {e}")
     raise
-
-# Logging setup
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-logger.addHandler(handler)
 
 # Configuration
 DEFAULT_LANGUAGE = 'es'
-MAX_WORKERS = 4  # Number of parallel workers for processing
-CACHE_TIMEOUT = 60 * 60 * 24  # 24 hours cache
+MAX_WORKERS = 4
+CACHE_TIMEOUT = 60 * 60 * 24  # 24 hours
+JOB_KEYWORDS = ['job', 'vacancy', 'position', 'opening', 'empleo', 'vacante', 'puesto']
 
 # Global cache for division skills
 DIVISION_SKILLS_CACHE = None
@@ -98,20 +101,17 @@ def get_nlp(lang: str = 'es') -> Language:
                 NLP_MODELS[lang] = spacy.load('es_core_news_lg')
             else:
                 NLP_MODELS[lang] = spacy.load('en_core_web_lg')
-            
-            # Add language detection pipeline if not present
             if 'language_detector' not in NLP_MODELS[lang].pipe_names:
                 def create_lang_detector(nlp, name):
                     return LanguageDetector()
                 Language.factory('language_detector', func=create_lang_detector)
                 NLP_MODELS[lang].add_pipe('language_detector', last=True)
-                
         except OSError:
             logger.warning(f"SpaCy model for {lang} not found, downloading...")
             try:
                 import subprocess
-                subprocess.run([sys.executable, "-m", "spacy", "download", 
-                              f"{lang}_core_news_lg" if lang == 'es' else "en_core_web_lg"], 
+                subprocess.run([sys.executable, "-m", "spacy", "download",
+                              f"{lang}_core_news_lg" if lang == 'es' else "en_core_web_lg"],
                              check=True)
                 return get_nlp(lang)
             except Exception as e:
@@ -129,94 +129,55 @@ FOLDER_CONFIG = {
 
 @lru_cache(maxsize=1024)
 def detect_language(text: str, default: str = DEFAULT_LANGUAGE) -> str:
-    """
-    Detect the language of the given text with improved caching and fallback.
-    
-    Args:
-        text: The text to analyze
-        default: Default language to return if detection fails
-        
-    Returns:
-        str: Language code (es, en, etc.)
-    """
+    """Detect the language of the given text with caching."""
     if not text or not text.strip():
         return default
-    
-    # Check cache first
     cache_key = f'lang_detect:{hash(text[:200])}'
     cached = cache.get(cache_key)
-    if cached is not None:
+    if cached:
         return cached
-    
     try:
-        # Try with spaCy first for better accuracy
-        nlp = get_nlp('es')  # Start with Spanish model
+        nlp = get_nlp('es')
         if nlp:
-            doc = nlp(text[:5000])  # Limit text length for performance
+            doc = nlp(text[:5000])
             if hasattr(doc, '_.language'):
                 lang = doc._.language.get('language')
-                if lang and lang in ['es', 'en']:  # We only care about Spanish and English
+                if lang in ['es', 'en']:
                     cache.set(cache_key, lang, CACHE_TIMEOUT)
                     return lang
-        
-        # Fallback to langdetect
-        lang = detect(text[:1000])  # Use first 1000 chars for better accuracy
+        lang = detect(text[:1000])
         if lang in ['es', 'en']:
             cache.set(cache_key, lang, CACHE_TIMEOUT)
             return lang
-            
         return default
-        
-    except (LangDetectException, LDE) as e:
+    except (LangDetectException, LDE, Exception) as e:
         logger.warning(f"Language detection error: {e}")
-        return default
-    except Exception as e:
-        logger.error(f"Unexpected error in language detection: {e}", exc_info=True)
         return default
 
 @lru_cache(maxsize=4096)
 def normalize_text(text: str, lang: str = None) -> str:
-    """
-    Normalize text by removing accents and converting to lowercase.
-    
-    Args:
-        text: Text to normalize
-        lang: Optional language code for language-specific normalization
-        
-    Returns:
-        str: Normalized text
-    """
+    """Normalize text by removing accents and converting to lowercase."""
     if not text:
         return ""
-        
-    # Check cache
     cache_key = f'norm_text:{hash(text[:100])}:{lang}'
     cached = cache.get(cache_key)
-    if cached is not None:
+    if cached:
         return cached
-    
     try:
-        # Basic normalization
         normalized = ''.join(
             char for char in unicodedata.normalize('NFD', str(text))
             if unicodedata.category(char) != 'Mn'
         ).lower().strip()
-        
-        # Language-specific normalization
         if lang == 'es':
-            # Handle Spanish-specific cases
             normalized = normalized.replace('ñ', 'n')
-        
-        # Cache the result
         cache.set(cache_key, normalized, CACHE_TIMEOUT)
         return normalized
-        
     except Exception as e:
-        logger.error(f"Error normalizing text: {e}", exc_info=True)
+        logger.error(f"Error normalizing text: {e}")
         return str(text).lower().strip()
 
 def load_division_skills() -> Dict[str, List[str]]:
-    """Carga las habilidades de las divisiones una vez y las almacena en caché global."""
+    """Load division skills once and store in global cache."""
     global DIVISION_SKILLS_CACHE
     if DIVISION_SKILLS_CACHE is None:
         try:
@@ -226,14 +187,12 @@ def load_division_skills() -> Dict[str, List[str]]:
                 for division in divisions
             }
         except Exception as e:
-            logger.error(f"Error cargando habilidades de divisiones: {e}")
+            logger.error(f"Error loading division skills: {e}")
             DIVISION_SKILLS_CACHE = {"finance": ["budgeting"], "tech": ["programming"]}
     return DIVISION_SKILLS_CACHE
 
-
 class IMAPCVProcessor:
     def __init__(self, business_unit: BusinessUnit, batch_size: int = 10, sleep_time: float = 2.0):
-        """Inicializa el procesador de CVs por IMAP."""
         self.business_unit = business_unit
         self.config = self._load_config(business_unit)
         self.parser = CVParser(business_unit)
@@ -243,7 +202,6 @@ class IMAPCVProcessor:
         self.sleep_time = sleep_time
 
     def _load_config(self, business_unit: BusinessUnit) -> Dict:
-        """Carga la configuración IMAP desde la base de datos."""
         try:
             config = ConfiguracionBU.objects.get(business_unit=business_unit)
             return {
@@ -253,46 +211,42 @@ class IMAPCVProcessor:
                 'password': config.smtp_password,
             }
         except ConfiguracionBU.DoesNotExist:
-            raise ValueError(f"No se encontró configuración para la unidad de negocio: {business_unit.name}")
+            raise ValueError(f"No configuration for business unit: {business_unit.name}")
 
     async def _connect_imap(self, config: Dict) -> Optional[aioimaplib.IMAP4_SSL]:
-        """Conecta al servidor IMAP de forma asíncrona."""
         try:
             client = aioimaplib.IMAP4_SSL(config['server'], config['port'])
             await client.wait_hello_from_server()
             await client.login(config['username'], config['password'])
             if not await self._verify_folders(client):
-                raise ValueError("Las carpetas IMAP no están configuradas correctamente")
-            logger.info(f"✅ Conectado al servidor IMAP: {config['server']}")
+                raise ValueError("IMAP folders not configured correctly")
+            logger.info(f"Connected to IMAP server: {config['server']}")
             return client
         except Exception as e:
-            logger.error(f"❌ Error conectando al servidor IMAP: {e}")
+            logger.error(f"Error connecting to IMAP server: {e}")
             return None
 
     async def _verify_folders(self, mail) -> bool:
-        """Verifica la existencia de las carpetas IMAP requeridas."""
         for folder_key, folder_name in self.FOLDER_CONFIG.items():
             try:
                 resp, folder_list = await mail.list(pattern=folder_name)
                 if not folder_list:
-                    logger.error(f"❌ Carpeta no encontrada: {folder_name}")
+                    logger.error(f"Folder not found: {folder_name}")
                     return False
             except Exception as e:
-                logger.error(f"❌ Error verificando carpeta {folder_name}: {e}")
+                logger.error(f"Error verifying folder {folder_name}: {e}")
                 return False
         return True
 
     async def _move_email(self, mail, msg_id: str, dest_folder: str):
-        """Mueve un correo a la carpeta de destino."""
         try:
             await mail.copy(msg_id, dest_folder)
             await mail.store(msg_id, '+FLAGS', '\\Deleted')
-            logger.info(f"📩 Correo {msg_id} movido a {dest_folder}")
+            logger.info(f"Email {msg_id} moved to {dest_folder}")
         except Exception as e:
-            logger.error(f"❌ Error moviendo correo {msg_id} a {dest_folder}: {e}")
+            logger.error(f"Error moving email {msg_id} to {dest_folder}: {e}")
 
     def _update_stats(self, result: Dict):
-        """Actualiza las estadísticas de procesamiento."""
         if result.get("status") == "created":
             self.stats["created"] += 1
         elif result.get("status") == "updated":
@@ -300,27 +254,22 @@ class IMAPCVProcessor:
         self.stats["processed"] += 1
 
     async def _process_single_email(self, mail, email_id: str):
-        """Procesa un solo correo y maneja errores."""
         try:
             resp, data = await mail.fetch(email_id, "(RFC822)")
             if resp != "OK":
-                raise ValueError(f"Error al obtener correo {email_id}")
-
+                raise ValueError(f"Error fetching email {email_id}")
             message = email.message_from_bytes(data[0][1])
             attachments = self.parser.extract_attachments(message)
-
             if not attachments:
-                logger.warning(f"⚠️ Correo {email_id} sin adjuntos válidos")
+                logger.warning(f"Email {email_id} has no valid attachments")
                 await self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
                 self.stats["errors"] += 1
                 return
-
             with ExitStack() as stack:
                 for attachment in attachments:
                     temp_file = stack.enter_context(NamedTemporaryFile(delete=False))
                     temp_path = Path(temp_file.name)
                     temp_path.write_bytes(attachment['content'])
-
                     text = self.parser.extract_text_from_file(temp_path)
                     if text:
                         parsed_data = await self.parser.parse(text)
@@ -329,18 +278,15 @@ class IMAPCVProcessor:
                             phone = parsed_data.get("phone", "")
                             candidate = await sync_to_async(Person.objects.filter)(email=email_addr).first() or \
                                         await sync_to_async(Person.objects.filter)(phone=phone).first()
-
                             if candidate:
                                 await self.parser._update_candidate(candidate, parsed_data, temp_path)
                                 self._update_stats({"status": "updated"})
                             else:
                                 await self.parser._create_new_candidate(parsed_data, temp_path)
                                 self._update_stats({"status": "created"})
-
             await self._move_email(mail, email_id, self.FOLDER_CONFIG['parsed_folder'])
-
         except Exception as e:
-            logger.error(f"❌ Error procesando correo {email_id}: {e}")
+            logger.error(f"Error processing email {email_id}: {e}")
             await self._move_email(mail, email_id, self.FOLDER_CONFIG['error_folder'])
             self.stats["errors"] += 1
             if self.business_unit.admin_email:
@@ -348,106 +294,72 @@ class IMAPCVProcessor:
                 await email_service.send_email(
                     subject=f"Error en CV Parser: {email_id}",
                     to_email=self.business_unit.admin_email,
-                    body=f"Error procesando CV en correo {email_id}: {str(e)}",
+                    body=f"Error processing CV in email {email_id}: {str(e)}",
                     from_email="noreply@huntred.com"
                 )
 
     async def process_emails(self):
-        """Procesa todos los correos en la carpeta de CVs."""
         mail = await self._connect_imap(self.config)
         if not mail:
             return
-
         try:
             resp, _ = await mail.select(self.FOLDER_CONFIG['cv_folder'])
             if resp != "OK":
-                raise ValueError(f"Error seleccionando {self.FOLDER_CONFIG['cv_folder']}")
-
+                raise ValueError(f"Error selecting {self.FOLDER_CONFIG['cv_folder']}")
             resp, messages = await mail.search("ALL")
             if resp != "OK":
-                raise ValueError("Error buscando mensajes")
-
+                raise ValueError("Error searching messages")
             email_ids = messages[0].split()
-            logger.info(f"📬 Total de correos a procesar: {len(email_ids)}")
+            logger.info(f"Total emails to process: {len(email_ids)}")
             for i in range(0, len(email_ids), self.batch_size):
                 batch = email_ids[i:i + self.batch_size]
-                logger.info(f"📤 Procesando lote de {len(batch)} correos")
+                logger.info(f"Processing batch of {len(batch)} emails")
                 await asyncio.gather(*[self._process_single_email(mail, email_id) for email_id in batch])
                 await asyncio.sleep(self.sleep_time)
-                logger.info(f"Procesados {len(batch)} emails")
-
             await mail.expunge()
-            logger.info("🗑️ Correos eliminados expurgados")
-
+            logger.info("Expunged deleted emails")
         finally:
             await mail.logout()
-            logger.info("🔌 Desconectado del servidor IMAP")
+            logger.info("Disconnected from IMAP server")
             await self._generate_summary_and_send_report(**self.stats)
 
     async def _generate_summary_and_send_report(self, processed: int, created: int, updated: int, errors: int):
-        """Genera y envía un resumen del procesamiento."""
         admin_email = self.business_unit.admin_email
         if not admin_email:
-            logger.warning("⚠️ Correo del administrador no configurado")
+            logger.warning("Admin email not configured")
             return
-
         summary = f"""
-        <h2>Resumen de Procesamiento de CVs para {self.business_unit.name}:</h2>
+        <h2>CV Processing Summary for {self.business_unit.name}:</h2>
         <ul>
-            <li>Total de correos procesados: {processed}</li>
-            <li>Nuevos candidatos creados: {created}</li>
-            <li>Candidatos actualizados: {updated}</li>
-            <li>Errores encontrados: {errors}</li>
+            <li>Total emails processed: {processed}</li>
+            <li>New candidates created: {created}</li>
+            <li>Candidates updated: {updated}</li>
+            <li>Errors encountered: {errors}</li>
         </ul>
         """
-        logger.info(f"📊 Resumen generado:\n{summary}")
-
+        logger.info(f"Summary generated:\n{summary}")
         email_service = EmailService(self.business_unit)
         await email_service.send_email(
-            subject=f"Resumen de Procesamiento de CVs - {self.business_unit.name}",
+            subject=f"CV Processing Summary - {self.business_unit.name}",
             to_email=admin_email,
             body=summary,
             from_email="noreply@huntred.com"
         )
 
-
 class CVParser:
-    """
-    Enhanced CV Parser with parallel processing and language support.
-    
-    Features:
-    - Parallel processing of multiple CVs
-    - Support for multiple languages (Spanish/English)
-    - Fallback mechanisms for different file formats
-    - Integration with resume-parser when available
-    - Caching for improved performance
-    """
-    
     def __init__(self, business_unit: BusinessUnit, max_workers: int = None):
-        """Initialize the CV Parser with business unit context."""
         self.business_unit = business_unit
         self.max_workers = max_workers or MAX_WORKERS
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
-        
-        # Initialize NLP components
         self.nlp = get_nlp()
-        self.matcher = Matcher(self.nlp.vocab)
+        self.matcher = Matcher(self.nlp.vocab) if self.nlp else None
         self._init_skill_patterns()
-        
-        # Initialize resume parser if available
-        self.resume_parser = None
-        if HAS_RESUME_PARSER:
-            try:
-                self.resume_parser = resumeparse.ResumeParser()
-            except Exception as e:
-                logger.warning(f"Could not initialize resume parser: {e}")
-        
-        # Initialize legacy components
         self._init_legacy()
         self._init_business_unit_skills()
-    
+
     def _init_skill_patterns(self):
-        """Initialize skill patterns for the matcher."""
+        if not self.matcher:
+            return
         patterns = [
             [{"LOWER": "python"}],
             [{"LOWER": "java"}],
@@ -459,40 +371,36 @@ class CVParser:
             [{"LOWER": "devops"}],
             [{"LOWER": "agile"}],
             [{"LOWER": "scrum"}],
-            # Add more patterns as needed
         ]
         self.matcher.add("SKILLS", patterns)
-    
+
     def _init_legacy(self):
-        """Legacy initialization for backward compatibility."""
         self.DIVISION_SKILLS = load_division_skills()
         self.email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
         self.phone_pattern = r'\b\d{10}\b'
-    
+
     def _init_business_unit_skills(self):
-        """Initialize skills specific to each business unit."""
         self.HUNTRED_TECH_SKILLS = {
             'python', 'django', 'fastapi', 'sql', 'nosql', 'aws', 'gcp', 'azure',
             'devops', 'ci/cd', 'kubernetes', 'docker', 'terraform', 'ansible',
             'machine_learning', 'deep_learning', 'nlp', 'computer_vision'
         }
-        
-        # Add other business unit skills here...
-    
+        self.HUNTRED_SOFT_SKILLS = {'leadership', 'teamwork', 'communication'}
+        self.HUNTRED_TOOLS = {'git', 'jira', 'confluence'}
+        self.HUNTRED_CERTS = {'aws certified', 'pmp', 'scrum master'}
+        self.HUNTU_TECH_SKILLS = {'javascript', 'react', 'node.js'}
+        self.HUNTU_SOFT_SKILLS = {'adaptability', 'problem-solving'}
+        self.HUNTU_TOOLS = {'vscode', 'slack'}
+        self.HUNTU_CERTS = {'react certified', 'node.js certified'}
+        self.SEXSI_TECH_SKILLS = {'communication', 'psychology'}
+        self.SEXSI_SOFT_SKILLS = {'empathy', 'active listening'}
+        self.SEXSI_TOOLS = {'zoom', 'teams'}
+        self.SEXSI_CERTS = {'coaching certified', 'hr certified'}
+
     def __del__(self):
-        """Clean up resources."""
         self.executor.shutdown(wait=True)
-    
+
     async def parse_resume(self, file_content: bytes, file_extension: str = None) -> Dict:
-        """Parse a single resume asynchronously.
-        
-        Args:
-            file_content: Binary content of the resume file
-            file_extension: File extension (e.g., 'pdf', 'docx')
-            
-        Returns:
-            Dict: Parsed resume data
-        """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
             self.executor,
@@ -500,150 +408,109 @@ class CVParser:
             file_content,
             file_extension
         )
-    
+
     def _parse_resume_sync(self, file_content: bytes, file_extension: str = None) -> Dict:
-        """Synchronously parse a single resume with fallback mechanisms."""
+        cpu_before = psutil.cpu_percent()
         try:
-            # Try with resume_parser first if available
-            if self.resume_parser and file_extension in ['pdf', 'docx', 'doc']:
+            if HAS_RESUME_PARSER and file_extension in ['pdf', 'docx', 'doc']:
                 with NamedTemporaryFile(suffix=f'.{file_extension}', delete=False) as temp_file:
-                    temp_file.write(file_content)
                     temp_path = temp_file.name
-                
+                    temp_file.write(file_content)
                 try:
-                    parsed = self.resume_parser.parse_file(temp_path)
-                    if parsed and any(parsed.values()):
-                        return self._process_parsed_resume(parsed)
+                    data = resumeparse.read_file(temp_path)
+                    data.pop("degree", None)  # Skip degree parsing
+                    result = self._process_parsed_resume(data)
+                    logger.info("Parsed resume with %d skills using resume_parser", len(result.get("skills", [])))
+                    return result
                 except Exception as e:
-                    logger.warning(f"Resume parser failed: {e}")
+                    logger.warning(f"resume_parser failed: {e}")
                 finally:
                     try:
                         Path(temp_path).unlink()
                     except Exception:
                         pass
-            
-            # Fall back to custom parsing
             text = self._extract_text(file_content, file_extension)
             if not text:
-                return {"error": "No text could be extracted from the file"}
-            
-            # Detect language and process
+                return {"error": "No text extracted", "status": "error"}
             lang = detect_language(text)
             normalized_text = normalize_text(text, lang)
-            
-            # Basic entity extraction
             email = self._extract_email(normalized_text)
             phone = self._extract_phone(normalized_text)
-            
-            return {
+            result = {
                 "email": email,
                 "phone": phone,
                 "language": lang,
                 "text_length": len(normalized_text),
                 "status": "success"
             }
-            
+            logger.info("Parsed resume with fallback method, text length: %d", len(normalized_text))
+            return result
         except Exception as e:
             logger.error(f"Error parsing resume: {e}", exc_info=True)
             return {"error": str(e), "status": "error"}
-    
+        finally:
+            cpu_after = psutil.cpu_percent()
+            logger.info("CPU usage during resume parsing: %s%%", cpu_after - cpu_before)
+            gc.collect()
+
     async def parse_resume_batch(self, files: List[Tuple[bytes, str]]) -> List[Dict]:
-        """Procesa un lote de CVs de manera optimizada."""
         results = []
         chunk_size = self._calculate_optimal_chunk_size(files)
-        
         for i in range(0, len(files), chunk_size):
             chunk = files[i:i + chunk_size]
             try:
                 chunk_results = await self._process_chunk(chunk)
                 results.extend(chunk_results)
-                
-                # Verificar salud del sistema
                 if await self._check_system_health():
-                    await asyncio.sleep(self.sleep_time)
-                    
+                    await asyncio.sleep(2.0)
             except Exception as e:
-                logger.error(f"Error procesando chunk: {e}")
-                # Continuar con el siguiente chunk
-                continue
-                
+                logger.error(f"Error processing chunk: {e}")
         return results
 
     def _calculate_optimal_chunk_size(self, files: List[Tuple[bytes, str]]) -> int:
-        """Calcula el tamaño óptimo de chunk basado en el tamaño de los archivos."""
         if not files:
             return 1
-            
         total_size = sum(len(content) for content, _ in files)
         avg_size = total_size / len(files)
-        
-        # Ajustar chunk_size basado en el tamaño promedio
-        if avg_size > 1000000:  # > 1MB
+        if avg_size > 1000000:
             return 1
-        elif avg_size > 500000:  # > 500KB
+        elif avg_size > 500000:
             return 2
-        elif avg_size > 100000:  # > 100KB
+        elif avg_size > 100000:
             return 5
         else:
             return 10
 
     async def _process_chunk(self, chunk: List[Tuple[bytes, str]]) -> List[Dict]:
-        """Procesa un chunk de archivos de manera asíncrona."""
-        tasks = []
-        for content, extension in chunk:
-            task = asyncio.create_task(self._process_single_file(content, extension))
-            tasks.append(task)
-            
+        tasks = [asyncio.create_task(self._process_single_file(content, extension)) for content, extension in chunk]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Filtrar resultados exitosos
         valid_results = []
         for result in results:
             if isinstance(result, Exception):
-                logger.error(f"Error procesando archivo: {result}")
+                logger.error(f"Error processing file: {result}")
                 continue
             if result:
                 valid_results.append(result)
-                
         return valid_results
 
     async def _process_single_file(self, content: bytes, extension: str) -> Optional[Dict]:
-        """Procesa un solo archivo con manejo de errores robusto."""
         try:
-            # Crear archivo temporal
             with NamedTemporaryFile(suffix=extension, delete=False) as temp_file:
                 temp_path = Path(temp_file.name)
                 temp_path.write_bytes(content)
-                
-                # Extraer texto
                 text = self.extract_text_from_file(temp_path)
                 if not text:
-                    raise ValueError("No se pudo extraer texto del archivo")
-                    
-                # Procesar con NLP
+                    raise ValueError("No text extracted")
                 doc = self.nlp(text)
-                
-                # Extraer entidades
                 entities = self._extract_entities(text)
                 validated_entities = self._validate_entities(entities)
-                
-                # Analizar experiencia y educación
                 experience = self._process_experience(doc, self.business_unit)
                 education = self._process_education(doc, self.business_unit)
-                
-                # Analizar nivel de experiencia
                 experience_level = self._analyze_experience_level(doc)
-                
-                # Analizar sentimiento y tono
                 sentiment_analysis = self._analyze_sentiment_and_tone(text)
-                
-                # Generar mensaje de bienvenida
                 welcome_message = self._generate_welcome_message(
-                    self.business_unit, 
-                    experience_level,
-                    sentiment_analysis
+                    self.business_unit, experience_level, sentiment_analysis
                 )
-                
                 return {
                     "text": text,
                     "entities": validated_entities,
@@ -658,71 +525,52 @@ class CVParser:
                         "file_size": len(content)
                     }
                 }
-                
         except Exception as e:
-            logger.error(f"Error procesando archivo: {e}")
+            logger.error(f"Error processing file: {e}")
             return None
-            
         finally:
-            # Limpiar archivo temporal
             try:
                 if temp_path.exists():
                     temp_path.unlink()
-            except Exception as e:
-                logger.warning(f"Error eliminando archivo temporal: {e}")
+            except Exception:
+                logger.warning(f"Error deleting temp file: {e}")
 
     async def _check_system_health(self) -> bool:
-        """Verifica la salud del sistema y ajusta parámetros si es necesario."""
         try:
             process = psutil.Process()
             memory_info = process.memory_info()
-            
-            # Verificar uso de memoria
             if memory_info.rss > 500 * 1024 * 1024:  # > 500MB
-                logger.warning("Alto uso de memoria detectado")
+                logger.warning("High memory usage detected")
                 gc.collect()
                 return True
-                
-            # Verificar uso de CPU
             cpu_percent = process.cpu_percent(interval=0.1)
             if cpu_percent > 80:
-                logger.warning("Alto uso de CPU detectado")
+                logger.warning("High CPU usage detected")
                 return True
-                
             return False
-            
         except Exception as e:
-            logger.error(f"Error verificando salud del sistema: {e}")
+            logger.error(f"Error checking system health: {e}")
             return False
 
     async def _handle_error(self, error: Exception, context: str) -> None:
-        """Maneja errores de manera centralizada."""
         error_type = type(error).__name__
         error_msg = str(error)
-        
-        # Registrar error
-        logger.error(f"Error en {context}: {error_type} - {error_msg}")
-        
-        # Notificar si es crítico
+        logger.error(f"Error in {context}: {error_type} - {error_msg}")
         if isinstance(error, (MemoryError, OSError)):
             await self._send_error_notification(error_type, error_msg, context)
-            
-        # Ajustar parámetros si es necesario
         if isinstance(error, MemoryError):
             self.max_workers = max(1, self.max_workers - 1)
         elif isinstance(error, TimeoutError):
             self.sleep_time *= 1.5
 
     async def _send_error_notification(self, error_type: str, error_msg: str, context: str) -> None:
-        """Envía notificación de error crítico."""
         try:
-            subject = f"Error crítico en CV Parser: {error_type}"
+            subject = f"Critical Error in CV Parser: {error_type}"
             body = f"""
-            Contexto: {context}
+            Context: {context}
             Error: {error_msg}
             Timestamp: {datetime.now().isoformat()}
             """
-            
             await sync_to_async(send_mail)(
                 subject=subject,
                 message=body,
@@ -731,10 +579,9 @@ class CVParser:
                 fail_silently=True
             )
         except Exception as e:
-            logger.error(f"Error enviando notificación: {e}")
+            logger.error(f"Error sending notification: {e}")
 
     def _extract_text(self, file_content: bytes, file_extension: str) -> str:
-        """Extract text from different file formats."""
         try:
             if file_extension == 'pdf':
                 return self._extract_text_from_pdf(file_content)
@@ -745,29 +592,23 @@ class CVParser:
             else:
                 logger.warning(f"Unsupported file extension: {file_extension}")
                 return ""
-                
         except Exception as e:
             logger.error(f"Error extracting text: {e}")
             return ""
-    
+
     def _extract_email(self, text: str) -> str:
-        """Extract email address from text."""
         email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
         return email_match.group(0) if email_match else ""
-    
+
     def _extract_phone(self, text: str) -> str:
-        """Extract phone number from text."""
-        # Match various phone number formats
         phone_match = re.search(
             r'(\+\d{1,3}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}',
             text
         )
         return phone_match.group(0) if phone_match else ""
-    
+
     def _process_parsed_resume(self, parsed: Dict) -> Dict:
-        """Process and normalize the output from resume-parser."""
         try:
-            # Basic normalization
             result = {
                 'name': parsed.get('name', '').strip(),
                 'email': parsed.get('email', '').lower().strip(),
@@ -778,53 +619,29 @@ class CVParser:
                 'languages': [l.strip() for l in parsed.get('languages', []) if l.strip()],
                 'raw': parsed
             }
-            
-            # Detect language from text if not specified
-            if not parsed.get('language'):
-                text = ' '.join([
-                    result['name'],
-                    ' '.join(result['skills']),
-                    ' '.join(result['education'])
-                ])
-                result['language'] = detect_language(text)
-            
+            text = ' '.join([
+                result['name'],
+                ' '.join(result['skills']),
+                ' '.join(result['education'])
+            ])
+            result['language'] = detect_language(text)
             return result
-            
         except Exception as e:
             logger.error(f"Error processing parsed resume: {e}", exc_info=True)
             return {"error": str(e), "status": "error", "raw": parsed}
 
     async def parse(self, text: str) -> Dict:
-        """Procesa un CV y extrae información relevante."""
         try:
-            # Detectar idioma
             detected_lang = detect_language(text)
-            logger.info(f" Detected language: {detected_lang}")
-            
-            # Procesar con NLP
-            analysis = await self.nlp.analyze(text)
-            
-            # Extraer skills específicas para la unidad de negocio
-            skills = self._extract_skills(analysis, self.business_unit)
-            
-            # Extraer entidades (email, phone)
+            logger.info(f"Detected language: {detected_lang}")
+            doc = self.nlp(text)
+            skills = self._extract_skills(doc, self.business_unit)
             entities = self._extract_entities(text)
-            
-            # Procesar experiencia según la unidad de negocio
-            experience = self._process_experience(analysis, self.business_unit)
-            
-            # Procesar educación según la unidad de negocio
-            education = self._process_education(analysis, self.business_unit)
-            
-            # Analizar nivel de experiencia
-            experience_level = self._analyze_experience_level(analysis)
-            
-            # Analizar sentimiento y tono
+            experience = self._process_experience(doc, self.business_unit)
+            education = self._process_education(doc, self.business_unit)
+            experience_level = self._analyze_experience_level(doc)
             sentiment_analysis = self._analyze_sentiment_and_tone(text)
-            
-            # Generar mensaje de bienvenida específico
             welcome_message = self._generate_welcome_message(self.business_unit, experience_level, sentiment_analysis)
-            
             return {
                 "email": entities["email"],
                 "phone": entities["phone"],
@@ -835,13 +652,11 @@ class CVParser:
                 "experience_level": experience_level,
                 "welcome_message": welcome_message
             }
-            
         except Exception as e:
-            logger.error(f"❌ Error analizando texto del CV: {e}")
+            logger.error(f"Error parsing CV text: {e}")
             return {}
 
     def extract_attachments(self, message) -> List[Dict]:
-        """Extrae adjuntos de un mensaje de correo."""
         attachments = []
         for part in message.walk():
             if part.get_content_maintype() == 'multipart':
@@ -852,14 +667,15 @@ class CVParser:
             if filename:
                 content = part.get_payload(decode=True)
                 attachments.append({'filename': filename, 'content': content})
-        logger.info(f"📎 Encontrados {len(attachments)} adjuntos")
+        logger.info(f"Found {len(attachments)} attachments")
         return attachments
-    
-    def _extract_skills(self, analysis: Dict, business_unit: BusinessUnit) -> Dict:
-        """Extrae skills específicas para la unidad de negocio."""
-        skills = analysis.get("skills", {"technical": [], "soft": [], "tools": [], "certifications": []})
-        
-        # Filtrar skills según la unidad de negocio
+
+    def _extract_skills(self, analysis: Doc, business_unit: BusinessUnit) -> Dict:
+        skills = {"technical": [], "soft": [], "tools": [], "certifications": []}
+        if not self.matcher:
+            return skills
+        matches = self.matcher(analysis)
+        skills["technical"] = [analysis[start:end].text for _, start, end in matches]
         if business_unit.name.lower() == 'huntred':
             return self._filter_huntred_skills(skills)
         elif business_unit.name.lower() == 'huntu':
@@ -867,51 +683,37 @@ class CVParser:
         elif business_unit.name.lower() == 'sexsi':
             return self._filter_sexsi_skills(skills)
         return skills
-    
+
     def _filter_huntred_skills(self, skills: Dict) -> Dict:
-        """Filtra skills específicas para HuntRED."""
         return {
             "technical": [s for s in skills["technical"] if s.lower() in self.HUNTRED_TECH_SKILLS],
             "soft": [s for s in skills["soft"] if s.lower() in self.HUNTRED_SOFT_SKILLS],
             "tools": [s for s in skills["tools"] if s.lower() in self.HUNTRED_TOOLS],
             "certifications": [s for s in skills["certifications"] if s.lower() in self.HUNTRED_CERTS]
         }
-    
+
     def _filter_huntu_skills(self, skills: Dict) -> Dict:
-        """Filtra skills específicas para Huntu."""
         return {
             "technical": [s for s in skills["technical"] if s.lower() in self.HUNTU_TECH_SKILLS],
             "soft": [s for s in skills["soft"] if s.lower() in self.HUNTU_SOFT_SKILLS],
             "tools": [s for s in skills["tools"] if s.lower() in self.HUNTU_TOOLS],
             "certifications": [s for s in skills["certifications"] if s.lower() in self.HUNTU_CERTS]
         }
-    
+
     def _filter_sexsi_skills(self, skills: Dict) -> Dict:
-        """Filtra skills específicas para SEXSI."""
         return {
             "technical": [s for s in skills["technical"] if s.lower() in self.SEXSI_TECH_SKILLS],
             "soft": [s for s in skills["soft"] if s.lower() in self.SEXSI_SOFT_SKILLS],
             "tools": [s for s in skills["tools"] if s.lower() in self.SEXSI_TOOLS],
             "certifications": [s for s in skills["certifications"] if s.lower() in self.SEXSI_CERTS]
         }
-    
-    def _extract_entities(self, text: str) -> Dict:
-        """Extrae entidades usando spaCy NER y patrones personalizados."""
-        doc = self.nlp(text)
-        entities = {
-            "name": [],
-            "email": [],
-            "phone": [],
-            "organization": [],
-            "location": [],
-            "skills": [],
-            "education": [],
-            "experience": [],
-            "certifications": [],
-            "languages": []
-        }
 
-        # Extraer entidades nombradas con spaCy
+    def _extract_entities(self, text: str) -> Dict:
+        entities = {
+            "name": [], "email": [], "phone": [], "organization": [], "location": [],
+            "skills": [], "education": [], "experience": [], "certifications": [], "languages": []
+        }
+        doc = self.nlp(text)
         for ent in doc.ents:
             if ent.label_ == "PER":
                 entities["name"].append(ent.text)
@@ -920,110 +722,49 @@ class CVParser:
             elif ent.label_ == "LOC":
                 entities["location"].append(ent.text)
             elif ent.label_ == "DATE":
-                # Intentar extraer años de experiencia
                 if "año" in ent.text.lower() or "year" in ent.text.lower():
                     entities["experience"].append(ent.text)
-
-        # Extraer emails con patrón mejorado
-        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-        entities["email"] = re.findall(email_pattern, text)
-
-        # Extraer teléfonos con patrón internacional
-        phone_pattern = r'(?:\+\d{1,3}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}'
-        entities["phone"] = re.findall(phone_pattern, text)
-
-        # Extraer habilidades usando el matcher y patrones específicos
-        matches = self.matcher(doc)
-        entities["skills"] = [doc[start:end].text for _, start, end in matches]
-
-        # Extraer certificaciones
+        entities["email"] = re.findall(self.email_pattern, text)
+        entities["phone"] = re.findall(self.phone_pattern, text)
+        if self.matcher:
+            matches = self.matcher(doc)
+            entities["skills"] = [doc[start:end].text for _, start, end in matches]
         cert_pattern = r'(?:AWS|Azure|GCP|Oracle|Microsoft|Cisco|CompTIA|PMP|ITIL|Scrum|Agile)[^.,\n]*'
         entities["certifications"] = re.findall(cert_pattern, text, re.IGNORECASE)
-
-        # Extraer idiomas
         lang_pattern = r'(?:Inglés|Español|Francés|Alemán|Italiano|Portugués|Chino|Japonés|Ruso)[^.,\n]*'
         entities["languages"] = re.findall(lang_pattern, text, re.IGNORECASE)
-
-        # Extraer educación con patrón mejorado
         education_pattern = r'(?:Bachelor|Master|PhD|B\.S\.|M\.S\.|B\.A\.|M\.A\.|Licenciatura|Maestría|Doctorado|Ingeniería|Grado|Diplomatura)[^.,\n]*'
         entities["education"] = re.findall(education_pattern, text, re.IGNORECASE)
-
-        # Extraer experiencia con patrón mejorado
         experience_pattern = r'(?:\d+\s*(?:años|years|yr|yrs)\s+de\s+experiencia|experience|experiencia)[^.,\n]*'
         entities["experience"] = re.findall(experience_pattern, text, re.IGNORECASE)
-
         return entities
 
     def _validate_entities(self, entities: Dict) -> Dict:
-        """Valida y limpia las entidades extraídas."""
         validated = {}
-        
-        # Validar email con patrón más estricto
         validated["email"] = next(
-            (email for email in entities["email"] 
-             if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email)),
+            (email for email in entities["email"] if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email)),
             ""
         )
-        
-        # Validar teléfono con formato internacional
         validated["phone"] = next(
-            (phone for phone in entities["phone"] 
-             if re.match(r'^\+?\d{8,15}$', phone.replace(' ', '').replace('-', ''))),
+            (phone for phone in entities["phone"] if re.match(r'^\+?\d{8,15}$', phone.replace(' ', '').replace('-', ''))),
             ""
         )
-        
-        # Validar nombre (debe ser una cadena no vacía y tener al menos dos palabras)
         names = [name for name in entities["name"] if len(name.split()) >= 2]
         validated["name"] = names[0] if names else ""
-        
-        # Validar organizaciones (eliminar duplicados y normalizar)
-        validated["organizations"] = list(set(
-            org.strip() for org in entities["organization"] 
-            if org.strip() and len(org) > 2
-        ))
-        
-        # Validar ubicaciones (eliminar duplicados y normalizar)
-        validated["locations"] = list(set(
-            loc.strip() for loc in entities["location"] 
-            if loc.strip() and len(loc) > 2
-        ))
-        
-        # Validar habilidades (eliminar duplicados, normalizar y filtrar por relevancia)
-        validated["skills"] = list(set(
-            skill.strip().lower() for skill in entities["skills"] 
-            if skill.strip() and len(skill) > 2
-        ))
-        
-        # Validar certificaciones
-        validated["certifications"] = list(set(
-            cert.strip() for cert in entities["certifications"]
-            if cert.strip() and len(cert) > 2
-        ))
-        
-        # Validar idiomas
-        validated["languages"] = list(set(
-            lang.strip() for lang in entities["languages"]
-            if lang.strip() and len(lang) > 2
-        ))
-        
-        # Validar educación
-        validated["education"] = list(set(
-            edu.strip() for edu in entities["education"]
-            if edu.strip() and len(edu) > 2
-        ))
-        
-        # Validar experiencia
-        validated["experience"] = list(set(
-            exp.strip() for exp in entities["experience"]
-            if exp.strip() and len(exp) > 2
-        ))
-        
+        validated["organizations"] = list(set(org.strip() for org in entities["organization"] if org.strip() and len(org) > 2))
+        validated["locations"] = list(set(loc.strip() for loc in entities["location"] if loc.strip() and len(loc) > 2))
+        validated["skills"] = list(set(skill.strip().lower() for skill in entities["skills"] if skill.strip() and len(skill) > 2))
+        validated["certifications"] = list(set(cert.strip() for cert in entities["certifications"] if cert.strip() and len(cert) > 2))
+        validated["languages"] = list(set(lang.strip() for lang in entities["languages"] if lang.strip() and len(lang) > 2))
+        validated["education"] = list(set(edu.strip() for edu in entities["education"] if edu.strip() and len(edu) > 2))
+        validated["experience"] = list(set(exp.strip() for exp in entities["experience"] if exp.strip() and len(exp) > 2))
         return validated
 
-    def _process_experience(self, analysis: Dict, business_unit: BusinessUnit) -> List:
-        """Procesa la experiencia según la unidad de negocio."""
-        experience = analysis.get("experience", [])
-        
+    def _process_experience(self, analysis: Doc, business_unit: BusinessUnit) -> List:
+        experience = []
+        for sent in analysis.sents:
+            if any(keyword in sent.text.lower() for keyword in ["experience", "experiencia", "worked", "trabajó"]):
+                experience.append({"text": sent.text.strip()})
         if business_unit.name.lower() == 'huntred':
             return self._process_huntred_experience(experience)
         elif business_unit.name.lower() == 'huntu':
@@ -1031,79 +772,36 @@ class CVParser:
         elif business_unit.name.lower() == 'sexsi':
             return self._process_sexsi_experience(experience)
         return experience
-    
+
     def _process_huntred_experience(self, experience: List) -> List:
-        """Procesa la experiencia para HuntRED."""
         processed = []
         for exp in experience:
-            role = exp.get("role", "").lower()
-            company = exp.get("company", "").lower()
-            years = exp.get("years", 0)
-            
-            # Validar experiencia relevante para HuntRED
-            if any(skill in role for skill in self.HUNTRED_TECH_SKILLS) or \
-               any(skill in company for skill in self.HUNTRED_TECH_SKILLS):
-                processed.append({
-                    "role": exp["role"],
-                    "company": exp["company"],
-                    "years": years,
-                    "level": self._get_experience_level(years)
-                })
+            text = exp["text"].lower()
+            if any(skill in text for skill in self.HUNTRED_TECH_SKILLS):
+                processed.append(exp)
         return processed
-    
+
     def _process_huntu_experience(self, experience: List) -> List:
-        """Procesa la experiencia para Huntu."""
         processed = []
         for exp in experience:
-            role = exp.get("role", "").lower()
-            company = exp.get("company", "").lower()
-            years = exp.get("years", 0)
-            
-            # Validar experiencia relevante para Huntu
-            if any(skill in role for skill in self.HUNTU_TECH_SKILLS) or \
-               any(skill in company for skill in self.HUNTU_TECH_SKILLS):
-                processed.append({
-                    "role": exp["role"],
-                    "company": exp["company"],
-                    "years": years,
-                    "level": self._get_experience_level(years)
-                })
+            text = exp["text"].lower()
+            if any(skill in text for skill in self.HUNTU_TECH_SKILLS):
+                processed.append(exp)
         return processed
-    
+
     def _process_sexsi_experience(self, experience: List) -> List:
-        """Procesa la experiencia para SEXSI."""
         processed = []
         for exp in experience:
-            role = exp.get("role", "").lower()
-            company = exp.get("company", "").lower()
-            years = exp.get("years", 0)
-            
-            # Validar experiencia relevante para SEXSI
-            if any(skill in role for skill in self.SEXSI_TECH_SKILLS) or \
-               any(skill in company for skill in self.SEXSI_TECH_SKILLS):
-                processed.append({
-                    "role": exp["role"],
-                    "company": exp["company"],
-                    "years": years,
-                    "level": self._get_experience_level(years)
-                })
+            text = exp["text"].lower()
+            if any(skill in text for skill in self.SEXSI_TECH_SKILLS):
+                processed.append(exp)
         return processed
-    
-    def _get_experience_level(self, years: int) -> str:
-        """Obtiene el nivel de experiencia basado en años."""
-        if years >= 10:
-            return "expert"
-        elif years >= 5:
-            return "senior"
-        elif years >= 2:
-            return "mid"
-        else:
-            return "junior"
-    
-    def _process_education(self, analysis: Dict, business_unit: BusinessUnit) -> List:
-        """Procesa la educación según la unidad de negocio."""
-        education = analysis.get("education", [])
-        
+
+    def _process_education(self, analysis: Doc, business_unit: BusinessUnit) -> List:
+        education = []
+        for sent in analysis.sents:
+            if any(keyword in sent.text.lower() for keyword in ["bachelor", "master", "phd", "licenciatura", "maestría"]):
+                education.append({"text": sent.text.strip()})
         if business_unit.name.lower() == 'huntred':
             return self._process_huntred_education(education)
         elif business_unit.name.lower() == 'huntu':
@@ -1111,151 +809,89 @@ class CVParser:
         elif business_unit.name.lower() == 'sexsi':
             return self._process_sexsi_education(education)
         return education
-    
+
     def _process_huntred_education(self, education: List) -> List:
-        """Procesa la educación para HuntRED."""
         processed = []
         for edu in education:
-            degree = edu.get("degree", "").lower()
-            institution = edu.get("institution", "").lower()
-            
-            # Validar educación relevante para HuntRED
-            if any(word in degree for word in ["computer", "software", "engineering", "technology", "data", "analytics"]):
-                processed.append({
-                    "degree": edu["degree"],
-                    "institution": edu["institution"],
-                    "year": edu.get("year", "")
-                })
+            text = edu["text"].lower()
+            if any(word in text for word in ["computer", "software", "engineering", "technology", "data", "analytics"]):
+                processed.append(edu)
         return processed
-    
+
     def _process_huntu_education(self, education: List) -> List:
-        """Procesa la educación para Huntu."""
         processed = []
         for edu in education:
-            degree = edu.get("degree", "").lower()
-            institution = edu.get("institution", "").lower()
-            
-            # Validar educación relevante para Huntu
-            if any(word in degree for word in ["computer", "software", "engineering", "technology", "data", "analytics"]):
-                processed.append({
-                    "degree": edu["degree"],
-                    "institution": edu["institution"],
-                    "year": edu.get("year", "")
-                })
+            text = edu["text"].lower()
+            if any(word in text for word in ["computer", "software", "engineering", "technology", "data", "analytics"]):
+                processed.append(edu)
         return processed
-    
+
     def _process_sexsi_education(self, education: List) -> List:
-        """Procesa la educación para SEXSI."""
         processed = []
         for edu in education:
-            degree = edu.get("degree", "").lower()
-            institution = edu.get("institution", "").lower()
-            
-            # Validar educación relevante para SEXSI
-            if any(word in degree for word in ["communication", "psychology", "sociology", "humanities"]):
-                processed.append({
-                    "degree": edu["degree"],
-                    "institution": edu["institution"],
-                    "year": edu.get("year", "")
-                })
+            text = edu["text"].lower()
+            if any(word in text for word in ["communication", "psychology", "sociology", "humanities"]):
+                processed.append(edu)
         return processed
-    
-    def _analyze_experience_level(self, analysis: Dict) -> Dict:
-        """Analiza el nivel de experiencia del candidato."""
-        experience = analysis.get("experience", [])
-        total_years = sum([exp.get("years", 0) for exp in experience])
-        
-        if total_years >= 10:
-            return {"level": "expert", "years": total_years}
-        elif total_years >= 5:
-            return {"level": "senior", "years": total_years}
-        elif total_years >= 2:
-            return {"level": "mid", "years": total_years}
+
+    def _analyze_experience_level(self, analysis: Doc) -> Dict:
+        years = 0
+        for sent in analysis.sents:
+            if any(keyword in sent.text.lower() for keyword in ["year", "año", "years", "años"]):
+                match = re.search(r'(\d+)\s*(?:year|years|año|años)', sent.text, re.IGNORECASE)
+                if match:
+                    years += int(match.group(1))
+        if years >= 10:
+            return {"level": "expert", "years": years}
+        elif years >= 5:
+            return {"level": "senior", "years": years}
+        elif years >= 2:
+            return {"level": "mid", "years": years}
         else:
-            return {"level": "junior", "years": total_years}
-    
+            return {"level": "junior", "years": years}
+
     def _analyze_sentiment_and_tone(self, text: str) -> Dict:
-        """Analiza el sentimiento y tono del texto del CV."""
         try:
             doc = self.nlp(text)
-            
-            # Análisis de sentimiento básico
             sentiment_score = 0
-            positive_words = set(['excelente', 'experto', 'experiencia', 'habilidad', 'logro', 'éxito', 'innovador'])
-            negative_words = set(['básico', 'limitado', 'poco', 'mínimo', 'inicial'])
-            
+            positive_words = {'excelente', 'experto', 'experiencia', 'habilidad', 'logro', 'éxito', 'innovador'}
+            negative_words = {'básico', 'limitado', 'poco', 'mínimo', 'inicial'}
             for token in doc:
                 if token.text.lower() in positive_words:
                     sentiment_score += 1
                 elif token.text.lower() in negative_words:
                     sentiment_score -= 1
-            
-            # Determinar sentimiento
-            if sentiment_score > 2:
-                sentiment = "muy positivo"
-            elif sentiment_score > 0:
-                sentiment = "positivo"
-            elif sentiment_score < -2:
-                sentiment = "muy negativo"
-            elif sentiment_score < 0:
-                sentiment = "negativo"
-            else:
-                sentiment = "neutral"
-            
-            # Análisis de tono
-            tone = {
-                "profesional": 0,
-                "técnico": 0,
-                "creativo": 0,
-                "formal": 0
-            }
-            
-            # Palabras clave para cada tono
+            sentiment = (
+                "muy positivo" if sentiment_score > 2 else
+                "positivo" if sentiment_score > 0 else
+                "muy negativo" if sentiment_score < -2 else
+                "negativo" if sentiment_score < 0 else
+                "neutral"
+            )
+            tone = {"profesional": 0, "técnico": 0, "creativo": 0, "formal": 0}
             tone_keywords = {
                 "profesional": ['experiencia', 'responsabilidad', 'liderazgo', 'gestión', 'equipo'],
                 "técnico": ['tecnología', 'desarrollo', 'implementación', 'optimización', 'arquitectura'],
                 "creativo": ['innovación', 'diseño', 'creatividad', 'solución', 'idea'],
                 "formal": ['objetivo', 'meta', 'resultado', 'proceso', 'sistema']
             }
-            
-            # Contar ocurrencias de palabras clave
             for tone_type, keywords in tone_keywords.items():
                 for keyword in keywords:
                     tone[tone_type] += len(re.findall(r'\b' + keyword + r'\b', text.lower()))
-            
-            # Determinar tono dominante
             dominant_tone = max(tone.items(), key=lambda x: x[1])[0]
-            
-            # Análisis de confianza
             confidence_indicators = [
                 'experto', 'experiencia', 'dominio', 'conocimiento', 'habilidad',
                 'capacidad', 'aptitud', 'competencia', 'maestría', 'pericia'
             ]
-            
-            confidence_score = sum(
-                1 for word in confidence_indicators 
-                if word in text.lower()
-            )
-            
+            confidence_score = sum(1 for word in confidence_indicators if word in text.lower())
             confidence_level = "alto" if confidence_score > 5 else "medio" if confidence_score > 2 else "bajo"
-            
             return {
-                "sentiment": {
-                    "score": sentiment_score,
-                    "label": sentiment
-                },
-                "tone": {
-                    "analysis": tone,
-                    "dominant": dominant_tone
-                },
-                "confidence": {
-                    "score": confidence_score,
-                    "level": confidence_level
-                }
+                "sentiment": {"score": sentiment_score, "label": sentiment},
+                "tone": {"analysis": tone, "dominant": dominant_tone},
+                "confidence": {"score": confidence_score, "level": confidence_level}
             }
-            
         except Exception as e:
-            logger.error(f"Error en análisis de sentimiento: {e}")
+            logger.error(f"Error in sentiment analysis: {e}")
             return {
                 "sentiment": {"score": 0, "label": "neutral"},
                 "tone": {"analysis": {}, "dominant": "neutral"},
@@ -1263,55 +899,40 @@ class CVParser:
             }
 
     def _generate_welcome_message(self, business_unit: BusinessUnit, experience_level: Dict, sentiment_analysis: Dict = None) -> str:
-        """Genera un mensaje de bienvenida personalizado basado en el análisis."""
         bu_name = business_unit.name.lower()
         experience_years = experience_level.get('years', 0)
         experience_label = experience_level.get('level', 'junior')
-        
-        # Mensajes base según la unidad de negocio
         base_messages = {
             'huntred': f"¡Bienvenido/a a HuntRED! 💼 Con {experience_years} años de experiencia, ",
             'huntu': f"¡Bienvenido/a a Huntu! 🏆 Con {experience_years} años de experiencia, ",
             'sexsi': f"¡Bienvenido/a a SEXSI! 📜 Con {experience_years} años de experiencia, "
         }
-        
-        # Mensajes según el nivel de experiencia
         experience_messages = {
             'expert': "tu perfil destaca por su amplia experiencia y conocimientos avanzados. ",
             'senior': "tienes un perfil sólido y bien establecido. ",
             'mid': "tienes un buen nivel de experiencia. ",
             'junior': "estás comenzando tu carrera profesional. "
         }
-        
-        # Mensajes según el tono detectado
         tone_messages = {
             'profesional': "Tu enfoque profesional es muy valorado. ",
             'técnico': "Tu perfil técnico es muy interesante. ",
             'creativo': "Tu enfoque creativo es muy apreciado. ",
             'formal': "Tu perfil formal es muy adecuado. "
         }
-        
-        # Mensajes según el nivel de confianza
         confidence_messages = {
             'alto': "Tu perfil muestra gran seguridad y dominio. ",
             'medio': "Tu perfil muestra buena confianza. ",
             'bajo': "Tu perfil muestra potencial de crecimiento. "
         }
-        
-        # Construir mensaje
         message = base_messages.get(bu_name, "¡Bienvenido/a a Grupo huntRED! ")
         message += experience_messages.get(experience_label, "")
-        
         if sentiment_analysis:
             message += tone_messages.get(sentiment_analysis['tone']['dominant'], "")
             message += confidence_messages.get(sentiment_analysis['confidence']['level'], "")
-        
         message += "Por favor, responde con el código de verificación que recibirá en su email."
-        
         return message
 
     def extract_text_from_file(self, file_path: Path) -> Optional[str]:
-        """Extrae texto de archivos PDF, DOCX, HTML o imágenes usando métodos avanzados."""
         try:
             if file_path.suffix.lower() == '.pdf':
                 return self._extract_text_from_pdf(file_path)
@@ -1322,66 +943,82 @@ class CVParser:
             elif file_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
                 return self._extract_text_from_image(file_path)
             else:
-                logger.warning(f"⚠️ Formato no soportado: {file_path}")
+                logger.warning(f"Unsupported format: {file_path}")
                 return None
         except Exception as e:
-            logger.error(f"❌ Error extrayendo texto de {file_path}: {e}")
+            logger.error(f"Error extracting text from {file_path}: {e}")
             return None
 
-    def _extract_text_from_pdf(self, file_path: Path) -> str:
-        """Extrae texto de PDFs usando PyMuPDF para mejor precisión."""
+    def _extract_text_from_pdf(self, file_path: Union[Path, bytes]) -> str:
         text = ""
         try:
-            doc = fitz.open(str(file_path))
+            if isinstance(file_path, bytes):
+                doc = fitz.open(stream=file_path, filetype="pdf")
+            else:
+                doc = fitz.open(str(file_path))
             for page in doc:
-                # Extraer texto con mejor precisión
                 text += page.get_text("text", sort=True)
-                # Extraer tablas si existen
                 tables = page.find_tables()
                 if tables:
                     for table in tables:
                         text += "\n" + table.to_text()
+            doc.close()
             return text.strip()
         except Exception as e:
-            logger.error(f"Error extrayendo texto de PDF: {e}")
-            # Fallback a pdfplumber con mejor manejo de tablas
+            logger.error(f"Error extracting PDF text: {e}")
             try:
-                with pdfplumber.open(str(file_path)) as pdf:
-                    text = ""
-                    for page in pdf.pages:
-                        text += page.extract_text() or ""
-                        # Extraer tablas
-                        tables = page.extract_tables()
-                        if tables:
-                            for table in tables:
-                                text += "\n" + "\n".join([" | ".join(row) for row in table])
-                    return text.strip()
+                if isinstance(file_path, bytes):
+                    with io.BytesIO(file_path) as f:
+                        with pdfplumber.open(f) as pdf:
+                            text = ""
+                            for page in pdf.pages:
+                                text += page.extract_text() or ""
+                                tables = page.extract_tables()
+                                if tables:
+                                    for table in tables:
+                                        text += "\n" + "\n".join([" | ".join(row) for row in table])
+                            return text.strip()
+                else:
+                    with pdfplumber.open(str(file_path)) as pdf:
+                        text = ""
+                        for page in pdf.pages:
+                            text += page.extract_text() or ""
+                            tables = page.extract_tables()
+                            if tables:
+                                for table in tables:
+                                    text += "\n" + "\n".join([" | ".join(row) for row in table])
+                        return text.strip()
             except Exception as e2:
-                logger.error(f"Error en fallback de PDF: {e2}")
+                logger.error(f"PDF fallback error: {e2}")
                 return ""
 
-    def _extract_text_from_docx(self, file_path: Path) -> str:
-        """Extrae texto de documentos DOCX."""
-        doc = Document(str(file_path))
-        return "\n".join(para.text for para in doc.paragraphs)
+    def _extract_text_from_docx(self, file_path: Union[Path, bytes]) -> str:
+        try:
+            if isinstance(file_path, bytes):
+                with io.BytesIO(file_path) as f:
+                    doc = Document(f)
+            else:
+                doc = Document(str(file_path))
+            return "\n".join(para.text for para in doc.paragraphs)
+        except Exception as e:
+            logger.error(f"Error extracting DOCX text: {e}")
+            return ""
 
     def _extract_text_from_html(self, file_path: Path) -> str:
-        """Extrae texto de archivos HTML."""
         with open(file_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
         return trafilatura.extract(html_content) or ""
 
     def _extract_text_from_image(self, file_path: Path) -> str:
-        """Extrae texto de imágenes usando OCR."""
         try:
-            image = Image.open(str(file_path))
-            return pytesseract.image_to_string(image)
+            image = Image.open(str(file_path)).convert("L")
+            text = pytesseract.image_to_string(image)
+            return text
         except Exception as e:
-            logger.error(f"Error en OCR: {e}")
+            logger.error(f"Error in OCR: {e}")
             return ""
 
     async def _update_candidate(self, candidate: Person, parsed_data: Dict, file_path: Path):
-        """Actualiza un candidato existente de forma asíncrona."""
         candidate.cv_file = str(file_path)
         candidate.cv_analysis = parsed_data
         candidate.cv_parsed = True
@@ -1393,7 +1030,7 @@ class CVParser:
             "sentiment": parsed_data["sentiment"]
         })
         await sync_to_async(candidate.save)()
-        logger.info(f"✅ Perfil actualizado: {candidate.nombre} {candidate.apellido_paterno}")
+        logger.info(f"Updated profile: {candidate.nombre} {candidate.apellido_paterno}")
 
     async def _create_new_candidate(self, parsed_data: Dict, file_path: Path):
         """Crea un nuevo candidato de forma asíncrona."""

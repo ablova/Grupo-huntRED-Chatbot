@@ -506,7 +506,7 @@ class ChatStateManager:
         try:
             global _chatbot_utils, _workflow_manager
             if _chatbot_utils is None:
-                from app.ats.chatbot.utils import ChatbotUtils
+                from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
                 _chatbot_utils = ChatbotUtils
             if _workflow_manager is None:
                 from app.ats.chatbot.workflow.core.workflow_manager import WorkflowManager

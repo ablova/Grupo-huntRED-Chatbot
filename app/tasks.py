@@ -961,7 +961,7 @@ def trigger_amigro_workflows(candidate_id):
 @shared_task
 def process_batch_task():
     logger.info("Procesando lote de usuarios recientes.")
-    from app.ats.chatbot.nlp import process_recent_users_batch
+    from app.ats.chatbot.nlp.nlp import process_recent_users_batch
     process_recent_users_batch()
     return "Lote procesado"
 

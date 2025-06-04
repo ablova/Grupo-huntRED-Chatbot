@@ -5,9 +5,9 @@ from tensorflow.keras import layers, models
 from sklearn.preprocessing import StandardScaler
 from typing import Dict, List, Optional, Tuple
 from app.models import Person, Vacante
-from app.ml.core.models.base import BaseModel
+from app.ml.core.models.base import BaseMLModel
 
-class MatchmakingModel(BaseModel):
+class MatchmakingModel(BaseMLModel):
     """
     Modelo de emparejamiento para el sistema ATS AI.
     

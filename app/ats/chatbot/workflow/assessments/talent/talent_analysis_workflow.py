@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/workflow/assessments/talent/talent_analysis_workflow.py
+# /home/pablo/app/ats/chatbot/workflow/assessments/talent/talent_analysis_workflow.py
 """
 Workflow para Análisis de Talento 360°.
 
@@ -23,8 +23,9 @@ from app.ats.talent.mentor_matcher import MentorMatcher
 from app.ats.talent.retention_predictor import RetentionPredictor
 from app.ats.talent.intervention_system import InterventionSystem
 
-# Importar los analizadores centralizados
-from app.ml.analyzers import TalentAnalyzer, IntegratedAnalyzer
+# Importar los analizadores directamente desde sus módulos para evitar problemas de importación circular
+from app.ml.analyzers.talent_analyzer import TalentAnalyzer
+from app.ml.analyzers.integrated_analyzer import IntegratedAnalyzer
 
 logger = logging.getLogger(__name__)
 

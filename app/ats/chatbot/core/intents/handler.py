@@ -7,7 +7,7 @@ Created: 2025-05-15
 Updated: 2025-05-15
 """
 
-from app.ats.chatbot.nlp.nlp import NLPProcessor
+from app.ats.chatbot.nlp.nlp.nlp import NLPProcessor
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.ats.chatbot.components.response_generator import ResponseGenerator
 

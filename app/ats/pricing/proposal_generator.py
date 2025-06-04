@@ -1,3 +1,4 @@
+# /home/pablo/app/ats/pricing/proposal_generator.py
 import logging
 import os
 import json
@@ -10,7 +11,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from weasyprint import HTML, CSS
 from app.models import Proposal, Company, Vacante, Person, BusinessUnit
-from app.ats.chatbot.gpt import GPTHandler
+from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.pricing.config import (
     PROPOSAL_TEMPLATES_DIR, PROPOSAL_PDF_DIR, PDF_CONFIG,
     CACHE_CONFIG, AI_CONFIG, OPTIMIZATION_CONFIG

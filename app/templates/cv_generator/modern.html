@@ -1842,6 +1842,16 @@
         </section>
         {% endif %}
 
+        {% if references %}
+        <section class="section" id="references">
+            <div class="section-header">
+                <img src="https://cdn-icons-animated.flaticon.com/512/8617/8617214.gif" alt="Referencias" class="animated-icon">
+                <h2 class="section-title">{{ translations.references }}</h2>
+            </div>
+            {% include 'cv_generator/references/client.html' %}
+        </section>
+        {% endif %}
+
         {% if personality_test %}
         {% include 'components/analysis_section.html' with section_id='personality-title' title=translations.personality metrics=personality_test.metrics disclaimer=personality_test.disclaimer %}
         {% endif %}

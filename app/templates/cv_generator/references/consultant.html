@@ -1,0 +1,92 @@
+{% if references %}
+<div class="references-section">
+    <h2 class="section-title">Análisis de Referencias</h2>
+    
+    {% if references.analysis %}
+    <div class="analysis-summary">
+        <div class="quality-metrics">
+            <h3>Métricas de Calidad</h3>
+            <div class="metrics-grid">
+                {% for metric, value in references.analysis.quality_metrics.items %}
+                <div class="metric-card">
+                    <span class="metric-label">{{ metric|title }}</span>
+                    <div class="metric-value">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ value|multiply:100 }}%"></div>
+                        </div>
+                        <span class="value-text">{{ value|floatformat:2 }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        {% if references.analysis.risk_factors %}
+        <div class="risk-factors">
+            <h3>Factores de Riesgo Identificados</h3>
+            <ul>
+                {% for risk in references.analysis.risk_factors %}
+                <li class="risk-item">{{ risk }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="references-list">
+        {% for ref in references.references %}
+        <div class="reference-card">
+            <div class="reference-header">
+                <h3>{{ ref.name }}</h3>
+                <div class="reference-meta">
+                    <span class="position">{{ ref.position }}</span>
+                    <span class="company">{{ ref.company }}</span>
+                </div>
+                <div class="reference-relationship">
+                    {{ ref.relationship }}
+                </div>
+            </div>
+            
+            <div class="reference-content">
+                <div class="quality-metrics">
+                    {% for metric, value in ref.quality_metrics.items %}
+                    <div class="metric">
+                        <span class="metric-label">{{ metric|title }}</span>
+                        <div class="metric-value">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {{ value|multiply:100 }}%"></div>
+                            </div>
+                            <span class="value-text">{{ value|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if ref.key_insights %}
+                <div class="key-insights">
+                    <h4>Insights Clave</h4>
+                    <ul>
+                        {% for insight in ref.key_insights %}
+                        <li>{{ insight }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if ref.risk_factors %}
+                <div class="risk-factors">
+                    <h4>Factores de Riesgo</h4>
+                    <ul>
+                        {% for risk in ref.risk_factors %}
+                        <li class="risk-item">{{ risk }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %} 

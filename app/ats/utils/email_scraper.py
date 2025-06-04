@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/email_scraper.py
+# /home/pablo/app/ats/utils/email_scraper.py
 import asyncio
 import aioimaplib
 import email
@@ -19,7 +19,7 @@ from asgiref.sync import sync_to_async
 from app.models import Vacante, BusinessUnit, ConfiguracionBU, DominioScraping, Worker, USER_AGENTS
 from app.ml.core.utils.scraping import MLScraper
 from app.ats.utils.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, generate_summary_report
-from app.ats.chatbot.gpt import GPTHandler
+from app.ats.chatbot.core.gpt import GPTHandler
 from urllib.parse import urlparse, urljoin
 import aiohttp
 import environ

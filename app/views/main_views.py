@@ -21,7 +21,7 @@ from app.models import (
     BusinessUnit, ChatState, Configuracion, Application, Vacante, Person
 )
 from app.ats.chatbot.utils import analyze_text
-from app.ats.chatbot.gpt import GPTHandler
+from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.chatbot import ChatBotHandler
 from app.ats.chatbot.integrations.services import MessageService, get_business_unit
 

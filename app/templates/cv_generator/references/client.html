@@ -1,0 +1,95 @@
+{% if references %}
+<div class="references-section">
+    <h2 class="section-title">Referencias Profesionales</h2>
+    
+    {% if references.summary %}
+    <div class="references-summary">
+        <div class="summary-stats">
+            <div class="stat-item">
+                <span class="stat-value">{{ references.summary.total }}</span>
+                <span class="stat-label">Referencias</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">{{ references.summary.average_score|floatformat:1 }}</span>
+                <span class="stat-label">Puntuación Promedio</span>
+            </div>
+        </div>
+        
+        {% if references.summary.top_skills %}
+        <div class="top-skills">
+            <h3>Habilidades Destacadas</h3>
+            <div class="skills-list">
+                {% for skill, count in references.summary.top_skills %}
+                <span class="skill-tag">{{ skill }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if references.summary.key_achievements %}
+        <div class="key-achievements">
+            <h3>Logros Clave</h3>
+            <ul>
+                {% for achievement in references.summary.key_achievements %}
+                <li>{{ achievement }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="references-list">
+        {% for ref in references.references %}
+        <div class="reference-card">
+            <div class="reference-header">
+                <h3>{{ ref.name }}</h3>
+                <div class="reference-meta">
+                    <span class="position">{{ ref.position }}</span>
+                    <span class="company">{{ ref.company }}</span>
+                </div>
+                <div class="reference-relationship">
+                    {{ ref.relationship }}
+                </div>
+            </div>
+            
+            <div class="reference-content">
+                {% if ref.key_points %}
+                <div class="key-points">
+                    <h4>Puntos Clave</h4>
+                    <ul>
+                        {% for point in ref.key_points %}
+                        <li>{{ point }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <div class="reference-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Puntuación</span>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: {{ ref.score|multiply:20 }}%"></div>
+                            <span class="score-value">{{ ref.score|floatformat:1 }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if ref.gamification %}
+                    <div class="gamification">
+                        <span class="points">{{ ref.gamification.points }} puntos</span>
+                        {% if ref.gamification.achievements %}
+                        <div class="achievements">
+                            {% for achievement in ref.gamification.achievements %}
+                            <span class="achievement-badge">{{ achievement }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %} 

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detalle de Referencia - Grupo huntRED®{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Información General -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title mb-0">Detalle de Referencia</h4>
+                        <span class="badge bg-{{ reference.status|status_color }}">
+                            {{ reference.status|title }}
+                        </span>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Información de la Referencia</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Nombre:</th>
+                                    <td>{{ reference.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Relación:</th>
+                                    <td>{{ reference.relationship }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Empresa:</th>
+                                    <td>{{ reference.company }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Cargo:</th>
+                                    <td>{{ reference.title }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Email:</th>
+                                    <td>{{ reference.email }}</td>
+                                </tr>
+                                {% if reference.phone %}
+                                <tr>
+                                    <th>Teléfono:</th>
+                                    <td>{{ reference.phone }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Información del Candidato</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Nombre:</th>
+                                    <td>{{ reference.candidate.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Unidad de Negocio:</th>
+                                    <td>{{ reference.candidate.business_unit.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Fecha de Solicitud:</th>
+                                    <td>{{ reference.created_at|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                {% if reference.response_date %}
+                                <tr>
+                                    <th>Fecha de Respuesta:</th>
+                                    <td>{{ reference.response_date|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis de Calidad -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Métricas de Calidad</h5>
+                    <div class="mb-4">
+                        <h6>Score General</h6>
+                        {% with width=analysis.quality_score|multiply:20 %}
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ width }}%">
+                                {{ analysis.quality_score|floatformat:1 }}/5
+                            </div>
+                        </div>
+                        {% endwith %}
+                    </div>
+                    <div class="mb-4">
+                        <h6>Completitud</h6>
+                        {% with width=analysis.completeness|multiply:100 %}
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {{ width }}%">
+                                {{ width|floatformat:0 }}%
+                            </div>
+                        </div>
+                        {% endwith %}
+                    </div>
+                    <div>
+                        <h6>Nivel de Detalle</h6>
+                        {% with width=analysis.detail_level|multiply:100 %}
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ width }}%">
+                                {{ width|floatformat:0 }}%
+                            </div>
+                        </div>
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis de Sentimiento -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Análisis de Sentimiento</h5>
+                    <div class="row">
+                        {% for question, sentiment in analysis.sentiment.items %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">
+                                        {{ config.questions|get_question_text:question }}
+                                    </h6>
+                                    {% with width=sentiment.score|multiply:100 %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar {% if sentiment.score > 0.6 %}bg-success{% elif sentiment.score > 0.4 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ width }}%">
+                                            {{ width|floatformat:0 }}%
+                                        </div>
+                                    </div>
+                                    {% endwith %}
+                                    <p class="card-text mt-2">
+                                        <small class="text-muted">
+                                            {{ sentiment.label|title }}
+                                        </small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Competencias Identificadas -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Competencias Identificadas</h5>
+                    <div class="row">
+                        {% for category, competencies in analysis.competencies.items %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">
+                                        {{ category|title }}
+                                    </h6>
+                                    <ul class="list-group list-group-flush">
+                                        {% for competency, count in competencies.items %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            {{ competency }}
+                                            <span class="badge bg-primary rounded-pill">{{ count }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Original -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Feedback Original</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Pregunta</th>
+                                    <th>Respuesta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for question_id, answer in reference.feedback.items %}
+                                <tr>
+                                    <td>{{ config.questions|get_question_text:question_id }}</td>
+                                    <td>{{ answer }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Inicializar tooltips
+$(document).ready(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %} 

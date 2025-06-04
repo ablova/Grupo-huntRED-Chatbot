@@ -1,0 +1,15 @@
+¡Hola {{ reference_name }}!
+
+Te recordamos que aún tenemos pendiente tu referencia para {{ candidate_name }} en {{ business_unit.name }}.
+
+{% if days_remaining <= 3 %}
+⚠️ Solo quedan {{ days_remaining }} días para proporcionar tu referencia.
+{% endif %}
+
+Por favor, tómate un momento para compartir tu feedback profesional:
+{{ feedback_link }}
+
+Tu opinión es muy valiosa para nosotros.
+
+Gracias,
+Equipo de {{ business_unit.name }} 

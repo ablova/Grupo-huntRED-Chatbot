@@ -266,7 +266,7 @@ class VacanteAdmin(admin.ModelAdmin):
     autocomplete_fields = ['business_unit', 'empresa']
 
     def save_model(self, request, obj, form, change):
-        from app.ats.chatbot.gpt import GPTHandler
+        from app.ats.chatbot.core.gpt import GPTHandler
         if not obj.descripcion:
             prompt = (
                 f"Genera una descripción profesional para un puesto de trabajo con el título '{obj.titulo}' "

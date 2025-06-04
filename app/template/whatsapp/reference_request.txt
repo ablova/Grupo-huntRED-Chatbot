@@ -1,0 +1,20 @@
+¡Hola {{ reference_name }}!
+
+{{ candidate_name }} te ha proporcionado como referencia profesional para {{ business_unit.name }}.
+
+Para ayudarnos a conocer mejor a {{ candidate_name }}, necesitamos tu feedback profesional. Por favor, responde estas preguntas:
+
+1. ¿Cómo describirías el desempeño de {{ candidate_name }}?
+2. ¿Cuáles son sus principales fortalezas?
+3. ¿Recomendarías trabajar con {{ candidate_name }}? ¿Por qué?
+
+Puedes responder aquí mismo o usar este enlace:
+{{ feedback_link }}
+
+También necesitamos tu autorización para usar esta información:
+{{ consent_link }}
+
+Gracias por tu tiempo.
+
+Saludos,
+Equipo de {{ business_unit.name }} 

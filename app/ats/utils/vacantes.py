@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/vacantes.py
+# /home/pablo/app/ats/utils/vacantes.py
 import requests
 import sys
 import logging
@@ -16,12 +16,11 @@ from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
-from app.ats.chatbot.utils import ChatbotUtils
-get_nlp_processor = ChatbotUtils.get_nlp_processor  # Importar desde utils.py
+from app.ats.chatbot.utils.nlp_utils import NLPUtils
 from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
 from app.ats.chatbot.integrations.services import EmailService, MessageService
 from app.ml.core.models.matchmaking import MatchmakingModel
-from app.ats.chatbot.utils import ChatbotUtils
+from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 
 # Configuración del logger
 logger = logging.getLogger(__name__)

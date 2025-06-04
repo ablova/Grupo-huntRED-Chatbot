@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Referencias - Grupo huntRED®{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Dashboard de Referencias</h1>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="fas fa-filter"></i> Filtros
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="exportData()">
+                <i class="fas fa-download"></i> Exportar
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas Principales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Referencias</h5>
+                    <h2 class="card-text">{{ metrics.total_references }}</h2>
+                    <p class="text-muted">
+                        <i class="fas fa-arrow-{{ metrics.total_references_trend > 0|yesno:'up,down' }}"></i>
+                        {{ metrics.total_references_trend|abs }}% vs mes anterior
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tasa de Respuesta</h5>
+                    <h2 class="card-text">{{ metrics.completion_rate|floatformat:1 }}%</h2>
+                    <p class="text-muted">
+                        <i class="fas fa-arrow-{{ metrics.completion_rate_trend > 0|yesno:'up,down' }}"></i>
+                        {{ metrics.completion_rate_trend|abs }}% vs mes anterior
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tasa de Conversión</h5>
+                    <h2 class="card-text">{{ metrics.conversion_rate|floatformat:1 }}%</h2>
+                    <p class="text-muted">
+                        <i class="fas fa-arrow-{{ metrics.conversion_rate_trend > 0|yesno:'up,down' }}"></i>
+                        {{ metrics.conversion_rate_trend|abs }}% vs mes anterior
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tiempo Promedio</h5>
+                    <h2 class="card-text">{{ metrics.avg_response_time|floatformat:1 }} días</h2>
+                    <p class="text-muted">
+                        <i class="fas fa-arrow-{{ metrics.avg_response_time_trend < 0|yesno:'up,down' }}"></i>
+                        {{ metrics.avg_response_time_trend|abs }}% vs mes anterior
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tendencias de Referencias</h5>
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Distribución de Calidad</h5>
+                    <canvas id="qualityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Gamificación -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ranking de Referencias</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Posición</th>
+                                    <th>Referencia</th>
+                                    <th>Puntos</th>
+                                    <th>Logros</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in leaderboard %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ entry.reference.name }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            {{ entry.points }} pts
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% for achievement in entry.achievements %}
+                                        <span class="badge bg-success me-1">
+                                            {{ achievement }}
+                                        </span>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Recomendaciones Inteligentes</h5>
+                    <div class="list-group">
+                        {% for rec in recommendations %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ rec.message }}</h6>
+                                <small class="text-{{ rec.priority|yesno:'danger,success' }}">
+                                    {{ rec.priority|title }}
+                                </small>
+                            </div>
+                            {% if rec.suggested_questions %}
+                            <small class="text-muted">
+                                Preguntas sugeridas:
+                                <ul class="mb-0">
+                                    {% for question in rec.suggested_questions %}
+                                    <li>{{ question }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Referencias Recientes -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Referencias Recientes</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Referencia</th>
+                            <th>Candidato</th>
+                            <th>Estado</th>
+                            <th>Calidad</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reference in recent_references %}
+                        <tr>
+                            <td>{{ reference.name }}</td>
+                            <td>{{ reference.candidate.get_full_name }}</td>
+                            <td>
+                                <span class="badge bg-{{ reference.status|status_color }}">
+                                    {{ reference.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ reference.metadata.analysis.metrics.score|multiply:100 }}%"
+                                         aria-valuenow="{{ reference.metadata.analysis.metrics.score|multiply:100 }}"
+                                         aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ reference.created_at|date:"d/m/Y" }}</td>
+                            <td>
+                                <a href="{% url 'reference_detail' reference.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Filtros -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filtros</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="filterForm">
+                    <div class="mb-3">
+                        <label class="form-label">Período</label>
+                        <select class="form-select" name="period">
+                            <option value="7">Últimos 7 días</option>
+                            <option value="30" selected>Últimos 30 días</option>
+                            <option value="90">Últimos 90 días</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select class="form-select" name="status" multiple>
+                            <option value="pending">Pendiente</option>
+                            <option value="completed">Completada</option>
+                            <option value="expired">Expirada</option>
+                            <option value="converted">Convertida</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Calidad Mínima</label>
+                        <input type="range" class="form-range" name="min_quality" min="0" max="100" value="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">Aplicar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Datos para los gráficos
+const trendsData = {{ trends_data|safe }};
+const qualityData = {{ quality_data|safe }};
+
+// Gráfico de Tendencias
+const trendsChart = new Chart(
+    document.getElementById('trendsChart'),
+    {
+        type: 'line',
+        data: {
+            labels: trendsData.labels,
+            datasets: [
+                {
+                    label: 'Referencias',
+                    data: trendsData.references,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                },
+                {
+                    label: 'Completadas',
+                    data: trendsData.completed,
+                    borderColor: 'rgb(54, 162, 235)',
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    }
+);
+
+// Gráfico de Calidad
+const qualityChart = new Chart(
+    document.getElementById('qualityChart'),
+    {
+        type: 'bar',
+        data: {
+            labels: qualityData.labels,
+            datasets: [{
+                label: 'Referencias',
+                data: qualityData.values,
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgb(75, 192, 192)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    }
+);
+
+// Funciones de utilidad
+function applyFilters() {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+    
+    // Recargar página con filtros
+    window.location.href = `${window.location.pathname}?${params.toString()}`;
+}
+
+function exportData() {
+    // Implementar exportación de datos
+    alert('Función de exportación en desarrollo');
+}
+</script>
+{% endblock %} 

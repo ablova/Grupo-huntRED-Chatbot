@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Bienvenido a Grupo huntRED®!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{ business_unit.logo_url }}" alt="Grupo huntRED®" class="logo">
+        <h1>¡Bienvenido a Grupo huntRED®!</h1>
+    </div>
+    
+    <div class="content">
+        <p>Hola {{ candidate_name }},</p>
+        
+        <p>Gracias por tu interés en explorar oportunidades profesionales con {{ business_unit.name }}.</p>
+        
+        <div class="highlight">
+            <p>Para comenzar, necesitamos que completes tu perfil profesional. Esto nos ayudará a:</p>
+            <ul>
+                <li>Conocer mejor tu experiencia y habilidades</li>
+                <li>Identificar las mejores oportunidades para ti</li>
+                <li>Personalizar tu experiencia con nosotros</li>
+            </ul>
+        </div>
+        
+        <p>
+            <a href="{{ profile_link }}" class="button">Completar Mi Perfil</a>
+        </p>
+        
+        <p>Algunos beneficios de tener un perfil completo:</p>
+        <ul>
+            <li>Acceso a oportunidades exclusivas</li>
+            <li>Recomendaciones personalizadas</li>
+            <li>Reportes de mercado gratuitos</li>
+            <li>Prioridad en procesos de selección</li>
+        </ul>
+        
+        <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+        
+        <p>¡Bienvenido a la comunidad de Grupo huntRED®!</p>
+        
+        <p>Saludos cordiales,<br>
+        Equipo de {{ business_unit.name }}</p>
+    </div>
+    
+    <div class="footer">
+        <p>Este es un mensaje automático. Por favor, no respondas a este correo.</p>
+        <p>© {{ current_year }} Grupo huntRED®. Todos los derechos reservados.</p>
+    </div>
+</body>
+</html> 

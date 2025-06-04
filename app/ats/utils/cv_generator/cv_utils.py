@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/cv_generator/cv_utils.py
+# /home/pablo/app/ats/utils/cv_generator/cv_utils.py
 """
 CV Utilities module.
 

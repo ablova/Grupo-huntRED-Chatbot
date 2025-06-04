@@ -144,6 +144,14 @@
     </div>
     {% endif %}
     
+    <!-- Referencias -->
+    {% if references %}
+    <div class="section">
+        <h2 class="section-title">Feedback de Referencias</h2>
+        {% include 'cv_generator/references/candidate.html' %}
+    </div>
+    {% endif %}
+    
     <!-- Perfil de Personalidad -->
     {% if sections.personality %}
     <div class="section">

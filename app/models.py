@@ -2809,44 +2809,227 @@ class MigrantSupportPlatform(models.Model):
             matching_opportunities.extend(opportunities)
         return matching_opportunities
 
-class EnhancedNetworkGamificationProfile(models.Model):
-    user=models.OneToOneField(Person,on_delete=models.CASCADE)
-    professional_points=models.IntegerField(default=0)
-    skill_endorsements=models.IntegerField(default=0)
-    network_expansion_level=models.IntegerField(default=1)
-    def award_points(self,activity_type):
-        point_system={
-            'profile_update':10,
-            'skill_endorsement':15,
-            'successful_referral':50,
-            'completed_challenge':25,
-            'connection_made':5
-        }
-        points=point_system.get(activity_type,0)
-        self.professional_points+=points
-        self._update_network_level()
-        self.save()
-    def _update_network_level(self):
-        level_thresholds=[(100,2),(250,3),(500,4),(1000,5)]
-        for threshold,level in level_thresholds:
-            if self.professional_points>=threshold:
-                self.network_expansion_level=level
-    def generate_networking_challenges(self):
-        challenges=[
-            {
-                'title':'Expand Your Network',
-                'description':'Connect with 5 professionals in your industry',
-                'points_reward':25,
-                'deadline':timezone.now()+timezone.timedelta(days=30)
-            },
-            {
-                'title':'Skill Showcase',
-                'description':'Get 3 endorsements for a new skill',
-                'points_reward':30,
-                'deadline':timezone.now()+timezone.timedelta(days=45)
-            }
+class GamificationTier(models.TextChoices):
+    BRONZE = 'bronze', 'Bronze'
+    SILVER = 'silver', 'Silver'
+    GOLD = 'gold', 'Gold'
+    PLATINUM = 'platinum', 'Platinum'
+    DIAMOND = 'diamond', 'Diamond'
+
+class GamificationBadge(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    icon = models.CharField(max_length=50)
+    tier = models.CharField(max_length=20, choices=GamificationTier.choices)
+    xp_reward = models.IntegerField(default=0)
+    is_secret = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.get_tier_display()}: {self.name}"
+
+class UserBadge(models.Model):
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='badges')
+    badge = models.ForeignKey(GamificationBadge, on_delete=models.CASCADE)
+    awarded_at = models.DateTimeField(auto_now_add=True)
+    is_notified = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('user', 'badge')
+        ordering = ['-awarded_at']
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} - {self.badge.name}"
+
+class GamificationEvent(models.Model):
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='gamification_events')
+    event_type = models.CharField(max_length=100)
+    xp_earned = models.IntegerField(default=0)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'event_type']),
+            models.Index(fields=['created_at'])
         ]
-        return challenges
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} - {self.event_type} (+{self.xp_earned} XP)"
+
+class UserChallenge(models.Model):
+    user = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='challenges')
+    challenge_type = models.CharField(max_length=100)
+    progress = models.IntegerField(default=0)
+    target = models.IntegerField()
+    is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    xp_reward = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} - {self.challenge_type} ({self.progress}/{self.target})"
+
+class EnhancedNetworkGamificationProfile(models.Model):
+    user = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='gamification_profile')
+    xp_total = models.BigIntegerField(default=0, help_text='XP total acumulada')
+    current_level = models.IntegerField(default=1, help_text='Nivel actual')
+    xp_to_next_level = models.IntegerField(default=100, help_text='XP necesaria para el siguiente nivel')
+    streak_days = models.IntegerField(default=0, help_text='Días consecutivos activos')
+    last_activity_date = models.DateField(auto_now=True, help_text='Último día de actividad')
+    highest_streak = models.IntegerField(default=0, help_text='Récord de días consecutivos')
+    
+    # Categorías de XP
+    xp_skills = models.IntegerField(default=0, help_text='XP en habilidades')
+    xp_network = models.IntegerField(default=0, help_text='XP en red')
+    xp_community = models.IntegerField(default=0, help_text='XP en comunidad')
+    xp_achievements = models.IntegerField(default=0, help_text='XP por logros')
+    
+    # Estadísticas
+    total_challenges = models.IntegerField(default=0, help_text='Desafíos completados')
+    total_badges = models.IntegerField(default=0, help_text='Insignias obtenidas')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Perfil de Gamificación'
+        verbose_name_plural = 'Perfiles de Gamificación'
+        ordering = ['-xp_total']
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} - Nivel {self.current_level} ({self.xp_total} XP)"
+
+    def calculate_level_xp(self, level: int) -> int:
+        """Calcula la XP necesaria para un nivel específico."""
+        return int(100 * (level ** 1.5))
+
+    def update_level(self):
+        """Actualiza el nivel del usuario basado en su XP total."""
+        while self.xp_total >= self.xp_to_next_level and self.current_level < 100:
+            self.current_level += 1
+            self.xp_to_next_level = self.calculate_level_xp(self.current_level + 1)
+            
+            # Otorgar recompensa por subir de nivel
+            level_reward = self.current_level * 10
+            self.xp_total += level_reward
+            
+            # Registrar evento
+            GamificationEvent.objects.create(
+                user=self.user,
+                event_type='level_up',
+                xp_earned=level_reward,
+                metadata={'level': self.current_level}
+            )
+
+    def add_xp(self, amount: int, category: str = 'general'):
+        """Añade XP al perfil del usuario."""
+        self.xp_total += amount
+        
+        # Actualizar categoría específica
+        xp_field = f'xp_{category}'
+        if hasattr(self, xp_field):
+            setattr(self, xp_field, getattr(self, xp_field) + amount)
+        
+        # Actualizar nivel si es necesario
+        self.update_level()
+        self.save()
+
+    def update_streak(self):
+        """Actualiza la racha de días consecutivos."""
+        today = timezone.now().date()
+        if self.last_activity_date < today - timedelta(days=1):
+            # Resetear racha si pasó más de un día
+            self.streak_days = 1
+        elif self.last_activity_date < today:
+            # Incrementar racha si es el primer ingreso del día
+            self.streak_days += 1
+            
+        self.last_activity_date = today
+        self.highest_streak = max(self.highest_streak, self.streak_days)
+        
+        # Recompensa por racha
+        if self.streak_days % 7 == 0:  # Semanal
+            streak_bonus = min(50 * (self.streak_days // 7), 200)  # Máximo 200 XP
+            self.add_xp(streak_bonus, 'community')
+            
+            # Registrar evento
+            GamificationEvent.objects.create(
+                user=self.user,
+                event_type='streak_bonus',
+                xp_earned=streak_bonus,
+                metadata={'streak_days': self.streak_days}
+            )
+        
+        self.save()
+
+    def award_badge(self, badge_name: str):
+        """Otorga una insignia al usuario."""
+        try:
+            badge = GamificationBadge.objects.get(name=badge_name)
+            user_badge, created = UserBadge.objects.get_or_create(
+                user=self.user,
+                badge=badge,
+                defaults={'awarded_at': timezone.now()}
+            )
+            
+            if created:
+                self.total_badges += 1
+                self.add_xp(badge.xp_reward, 'achievements')
+                self.save()
+                return True
+            return False
+        except GamificationBadge.DoesNotExist:
+            logger.warning(f"Badge {badge_name} no encontrado")
+            return False
+
+    def complete_challenge(self, challenge_type: str, xp_reward: int = 0):
+        """Marca un desafío como completado."""
+        challenge, created = UserChallenge.objects.get_or_create(
+            user=self.user,
+            challenge_type=challenge_type,
+            defaults={
+                'progress': 1,
+                'target': 1,
+                'is_completed': True,
+                'completed_at': timezone.now(),
+                'xp_reward': xp_reward
+            }
+        )
+        
+        if not created and not challenge.is_completed:
+            challenge.progress += 1
+            if challenge.progress >= challenge.target:
+                challenge.is_completed = True
+                challenge.completed_at = timezone.now()
+                self.add_xp(xp_reward, 'achievements')
+                self.total_challenges += 1
+                self.save()
+            challenge.save()
+            return True
+            
+        return False
+
+    def get_progress(self):
+        """Obtiene el progreso general del perfil."""
+        return {
+            'level': self.current_level,
+            'xp': self.xp_total,
+            'xp_to_next_level': self.xp_to_next_level,
+            'xp_current_level': self.calculate_level_xp(self.current_level),
+            'progress_percentage': min(100, int((self.xp_total - self.calculate_level_xp(self.current_level)) / 
+                                        (self.xp_to_next_level - self.calculate_level_xp(self.current_level)) * 100)) if self.current_level < 100 else 100,
+            'streak_days': self.streak_days,
+            'highest_streak': self.highest_streak,
+            'total_challenges': self.total_challenges,
+            'total_badges': self.total_badges
+        }
 
 class VerificationCode(models.Model):
     PURPOSE_CHOICES=[('update_whatsapp','Actualizar WhatsApp')]

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de Referencia - Grupo huntRED®</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{ business_unit.logo_url }}" alt="Grupo huntRED®" class="logo">
+        <h1>Solicitud de Referencia</h1>
+    </div>
+    
+    <div class="content">
+        <p>Hola {{ reference_name }},</p>
+        
+        <p>{{ candidate_name }} te ha nombrado como referencia para un proceso de selección en {{ business_unit.name }}.</p>
+        
+        <p>Tu opinión es muy valiosa para nosotros. Por favor, tómate 2 minutos para responder algunas preguntas sobre {{ candidate_name }}.</p>
+        
+        <p>Las preguntas son:</p>
+        <ul>
+            <li>¿Cómo calificarías el desempeño de {{ candidate_name }} en su rol? (1-5)</li>
+            <li>¿Cuáles consideras que son sus principales fortalezas?</li>
+            <li>¿Recomendarías a {{ candidate_name }} para este puesto? ¿Por qué?</li>
+        </ul>
+        
+        <p>
+            <a href="{{ feedback_link }}" class="button">Proporcionar Referencia</a>
+        </p>
+        
+        <p>También nos gustaría saber si estarías interesado en explorar oportunidades profesionales con nosotros:</p>
+        
+        <p>
+            <a href="{{ consent_link }}" class="button">Autorizar Uso de Datos</a>
+        </p>
+        
+        <p>Gracias por tu tiempo y colaboración.</p>
+        
+        <p>Saludos cordiales,<br>
+        Equipo de {{ business_unit.name }}</p>
+    </div>
+    
+    <div class="footer">
+        <p>Este es un mensaje automático. Por favor, no respondas a este correo.</p>
+        <p>© {{ current_year }} Grupo huntRED®. Todos los derechos reservados.</p>
+    </div>
+</body>
+</html> 

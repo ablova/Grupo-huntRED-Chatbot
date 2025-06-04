@@ -7,7 +7,7 @@ import logging
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from app.models import Person, ChatSession, ChatMessage
-from app.ats.chatbot.utils import ChatbotUtils
+from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor
 
 logger = logging.getLogger(__name__)

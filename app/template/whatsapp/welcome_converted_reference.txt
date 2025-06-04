@@ -1,0 +1,21 @@
+¡Hola {{ candidate_name }}!
+
+¡Bienvenido a {{ business_unit.name }}! 
+
+Gracias por tu interés en explorar oportunidades profesionales con nosotros. Para comenzar, necesitamos que completes tu perfil profesional.
+
+Completar tu perfil te dará acceso a:
+• Oportunidades exclusivas
+• Recomendaciones personalizadas
+• Reportes de mercado gratuitos
+• Prioridad en procesos de selección
+
+Haz clic aquí para completar tu perfil:
+{{ profile_link }}
+
+Si tienes alguna pregunta, no dudes en contactarnos.
+
+¡Bienvenido a la comunidad de Grupo huntRED®!
+
+Saludos,
+Equipo de {{ business_unit.name }} 

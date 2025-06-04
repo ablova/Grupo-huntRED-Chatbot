@@ -1,3 +1,4 @@
+# /home/pablo/app/ats/chatbot/core/chatbot.py
 """
 Chatbot principal para Grupo huntRED®.
 """
@@ -34,11 +35,12 @@ from app.ats.chatbot.components.channel_config import ChannelConfig
 from app.ats.chatbot.components.rate_limiter import RateLimiter
 
 # Importaciones de servicios
-from app.ats.chatbot.integrations.services import MessageService, GamificationService
+from app.ats.chatbot.integrations.services import MessageService
+from app.ats.integrations.services.gamification import gamification_service
 from app.ats.chatbot.integrations.enhanced_document_processor import CVParser
 
 # Importaciones de NLP
-from app.ats.chatbot.nlp.processors import NLPProcessor
+from app.ats.chatbot.nlp.nlp.processors import NLPProcessor
 
 # Importaciones de middleware
 from app.ats.chatbot.middleware.message_retry import MessageRetry
@@ -111,7 +113,8 @@ class ChatBotHandler:
         self.response_generator = ResponseGenerator()
         self.state_manager = ChatStateManager()
         self.message_service = MessageService()
-        self.gamification_service = GamificationService()
+        # Usar la instancia global del servicio de gamificación
+        self.gamification_service = gamification_service
         self.cv_parser = CVParser()
         
         # Inicializar el gestor de workflows
@@ -935,45 +938,91 @@ class ChatBotHandler:
         await sync_to_async(person.save)()
         return "Tu CV ha sido recibido y será analizado."
 
-    async def award_gamification_points(self, user: Person, activity_type: str):
+    async def award_gamification_points(self, user: Person, activity_type: str, points: int = None, metadata: dict = None):
+        """
+        Otorga puntos de gamificación a un usuario por una actividad específica.
+        
+        Args:
+            user: Usuario al que se le otorgan los puntos
+            activity_type: Tipo de actividad (puede ser string o ActivityType)
+            points: Cantidad de puntos a otorgar (opcional, se usará el valor por defecto si no se especifica)
+            metadata: Metadatos adicionales para la actividad
+        """
         try:
-            profile, created = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get_or_create)(
-                user=user, defaults={'points': 0, 'level': 1}
+            from app.ats.integrations.services.gamification import ActivityType, gamification_service
+            
+            # Mapeo de tipos de actividad antiguos a los nuevos
+            activity_mapping = {
+                'job_application': ActivityType.JOB_APPLICATION,
+                'profile_completion': ActivityType.PROFILE_COMPLETED,
+                'test_completion': ActivityType.TEST_COMPLETED,
+                'referral': ActivityType.REFERRAL_MADE,
+                'connection': ActivityType.CONNECTION_MADE,
+                'post_created': ActivityType.POST_CREATED,
+                'comment_added': ActivityType.COMMENT_ADDED,
+                'like_received': ActivityType.LIKE_RECEIVED
+            }
+            
+            # Convertir a ActivityType si es necesario
+            activity = activity_mapping.get(activity_type, activity_type)
+            
+            # Registrar la actividad
+            result = await gamification_service.record_activity(
+                user=user,
+                activity_type=activity,
+                xp_amount=points,
+                metadata=metadata or {}
             )
-            await sync_to_async(profile.award_points)(activity_type)
-            await sync_to_async(profile.save)()
-            await self.notify_user_gamification_update(user, activity_type)
+            
+            return result
+            
         except Exception as e:
-            logger.error(f"Error otorgando puntos de gamificación a {user.id}: {e}", exc_info=True)
+            logger.error(f"Error en award_gamification_points para {user.id}: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
 
     async def notify_user_gamification_update(self, user: Person, activity_type: str):
-        try:
-            profile = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get)(user=user)
-            message = f"¡Has ganado puntos por {activity_type}! Ahora tienes {profile.points} puntos."
-            platform = user.chat_state.platform if hasattr(user, 'chat_state') else 'whatsapp'
-            business_unit = user.chat_state.business_unit if hasattr(user, 'chat_state') else user.businessunit_set.first()
-            if platform and business_unit:
-                await send_message(platform, user.phone, message, self.get_business_unit_key(business_unit))
-        except EnhancedNetworkGamificationProfile.DoesNotExist:
-            logger.warning(f"No se encontró perfil de gamificación para {user.nombre}")
-        except Exception as e:
-            logger.error(f"Error notificando gamificación a {user.nombre}: {e}", exc_info=True)
+        """
+        Notifica al usuario sobre actualizaciones de gamificación.
+        Esta función ahora es manejada internamente por el servicio de gamificación.
+        """
+        pass  # Las notificaciones ahora se manejan en el servicio
 
-    async def generate_challenges(self, user: Person) -> List[str]:
+    async def generate_challenges(self, user: Person) -> List[Dict]:
+        """
+        Genera desafíos personalizados para el usuario.
+        
+        Returns:
+            Lista de diccionarios con información de los desafíos
+        """
+        from app.ats.integrations.services.gamification import gamification_service
+        
         try:
-            profile = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get)(user=user)
-            return await sync_to_async(profile.generate_networking_challenges)()
-        except EnhancedNetworkGamificationProfile.DoesNotExist:
+            # Obtener desafíos del servicio de gamificación
+            challenges = await gamification_service.generate_challenges(user)
+            return challenges or []
+        except Exception as e:
+            logger.error(f"Error generando desafíos para {user.id}: {e}", exc_info=True)
             return []
 
     async def notify_user_challenges(self, user: Person):
-        challenges = await self.generate_challenges(user)
-        if challenges:
-            message = f"Tienes nuevos desafíos: {', '.join(challenges)}"
-            platform = user.chat_state.platform if hasattr(user, 'chat_state') else 'whatsapp'
-            business_unit = user.chat_state.business_unit if hasattr(user, 'chat_state') else user.businessunit_set.first()
-            if platform and business_unit:
-                await send_message(platform, user.phone, message, self.get_business_unit_key(business_unit))
+        """
+        Notifica al usuario sobre nuevos desafíos disponibles.
+        """
+        try:
+            challenges = await self.generate_challenges(user)
+            if challenges:
+                # Formatear mensaje con los desafíos
+                challenge_list = "\n".join([f"- {c.get('title', 'Nuevo desafío')}" for c in challenges])
+                message = f"🎯 *Tienes nuevos desafíos disponibles:*\n\n{challenge_list}"
+                
+                # Obtener plataforma y business unit
+                platform = user.chat_state.platform if hasattr(user, 'chat_state') else 'whatsapp'
+                business_unit = user.chat_state.business_unit if hasattr(user, 'chat_state') else user.businessunit_set.first()
+                
+                if platform and business_unit:
+                    await send_message(platform, user.phone, message, self.get_business_unit_key(business_unit))
+        except Exception as e:
+            logger.error(f"Error notificando desafíos a {user.id}: {e}", exc_info=True)
     
     # Métodos para gestión de workflows
     async def start_talent_analysis_workflow(self, platform: str, user_id: str, business_unit: BusinessUnit, chat_state: ChatState, person: Person, **kwargs):

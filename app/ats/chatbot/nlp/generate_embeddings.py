@@ -31,7 +31,7 @@ except ImportError as e:
     logging.error(f"Error setting up Django: {str(e)}")
     sys.exit(1)
 
-from app.ats.chatbot.nlp import load_use_model, FILE_PATHS, EMBEDDINGS_CACHE
+from app.ats.chatbot.nlp.nlp import load_use_model, FILE_PATHS, EMBEDDINGS_CACHE
 
 # Configuración de logging
 log_dir = "/home/pablo/logs"

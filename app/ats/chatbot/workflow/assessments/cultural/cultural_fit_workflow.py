@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/workflow/assessments/cultural/cultural_fit_workflow.py
+# /home/pablo/app/ats/chatbot/workflow/assessments/cultural/cultural_fit_workflow.py
 """
 Módulo para la evaluación de compatibilidad cultural en Grupo huntRED®
 
@@ -24,7 +24,8 @@ from app.ats.chatbot.workflow.assessments.cultural.cultural_fit_test import (
     get_cultural_fit_questions, analyze_cultural_fit_responses, save_cultural_profile
 )
 from app.ats.chatbot.values import values_middleware
-from app.ml.analyzers import CulturalAnalyzer
+# Importar directamente desde el módulo cultural_analyzer para evitar problemas de importación circular
+from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer
 
 logger = logging.getLogger(__name__)
 

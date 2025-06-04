@@ -63,7 +63,7 @@ from tenacity import (
 
 # Importaciones de modelos y utilidades locales
 from app.models import BusinessUnit, Person, ChatState, USER_AGENTS
-from app.ats.chatbot.utils import ChatbotUtils
+from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 
 # Configuración de logging
 logging.basicConfig(
@@ -1475,7 +1475,7 @@ async def process_linkedin_updates():
 
 
 def process_linkedin_batch():
-    from app.ats.chatbot.nlp import process_recent_users_batch
+    from app.ats.chatbot.nlp.nlp import process_recent_users_batch
     process_recent_users_batch()
 
 def main_test():

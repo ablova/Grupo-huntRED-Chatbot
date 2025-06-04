@@ -9,8 +9,8 @@ from django.test import TestCase, Client, override_settings
 from unittest.mock import patch, MagicMock, AsyncMock
 from app.models import BusinessUnit, Person, ChatState, GptApi
 from app.ats.chatbot.chatbot import ChatBotHandler
-from app.ats.chatbot.gpt import GPTHandler
-from app.ats.chatbot.utils import ChatbotUtils
+from app.ats.chatbot.core.gpt import GPTHandler
+from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor  # Reemplazar importación
 from app.ats.chatbot.utils import fetch_data_from_url, validate_request_data
 from app.ats.utils.vacantes import VacanteManager, procesar_vacante
@@ -132,7 +132,7 @@ class ChatbotTests(TestCase):
         self.assertIn("success", response.json())
 
     # Pruebas para gpt.py
-    @patch("app.ats.chatbot.gpt.OpenAI")
+    @patch("app.ats.chatbot.core.gpt.OpenAI")
     def test_gpt_handler_response(self, mock_openai):
         """Prueba la respuesta generada por GPTHandler"""
         mock_openai.return_value.chat.completions.create.return_value = {
@@ -237,7 +237,7 @@ if __name__ == "__main__":
 import unittest
 import os
 from app.ats.chatbot.extractors import ESCOExtractor, NICEExtractor, unify_data
-from app.ats.chatbot.nlp import SkillExtractionPipeline, SkillExtractorManager
+from app.ats.chatbot.nlp.nlp import SkillExtractionPipeline, SkillExtractorManager
 
 class TestNLPIntegration(unittest.TestCase):
     def test_esco_and_nice_integration(self):

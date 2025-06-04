@@ -927,9 +927,23 @@ async def finalizar_prueba(plataforma: str, user_id: str, test_type: str, estado
     import os
     os.remove(report_path)
 
-    # Gamificación
-    gamification_service = GamificationService()
-    await gamification_service.award_points(persona, f"prueba_{test_type}", points=100)
+    # Gamificación - Usar la instancia global del servicio
+    from app.ats.integrations.services.gamification import gamification_service, ActivityType
+    
+    # Mapear tipos de prueba a actividades de gamificación
+    test_activity_map = {
+        'hardskills': ActivityType.CERTIFICATION_EARNED,
+        'softskills': ActivityType.TEST_COMPLETED,
+        'idiomas': ActivityType.CERTIFICATION_EARNED,
+        'tecnica': ActivityType.CERTIFICATION_EARNED
+    }
+    
+    activity_type = test_activity_map.get(test_type, ActivityType.TEST_COMPLETED)
+    await gamification_service.record_activity(
+        user=persona,
+        activity_type=activity_type,
+        metadata={'test_type': test_type, 'score': points}
+    )
     
     estado_chat.state = 'idle'
     await sync_to_async(estado_chat.save)()

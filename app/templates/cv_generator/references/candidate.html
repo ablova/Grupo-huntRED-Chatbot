@@ -1,0 +1,91 @@
+{% if references %}
+<div class="references-section">
+    <h2 class="section-title">Feedback de Referencias</h2>
+    
+    {% if references.growth_insights %}
+    <div class="growth-insights">
+        <div class="insights-grid">
+            {% if references.growth_insights.strengths %}
+            <div class="insight-card strengths">
+                <h3>Fortalezas Identificadas</h3>
+                <ul>
+                    {% for strength in references.growth_insights.strengths %}
+                    <li>{{ strength }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if references.growth_insights.areas_for_improvement %}
+            <div class="insight-card improvements">
+                <h3>Áreas de Mejora</h3>
+                <ul>
+                    {% for area in references.growth_insights.areas_for_improvement %}
+                    <li>{{ area }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if references.growth_insights.career_recommendations %}
+            <div class="insight-card recommendations">
+                <h3>Recomendaciones de Carrera</h3>
+                <ul>
+                    {% for rec in references.growth_insights.career_recommendations %}
+                    <li>{{ rec }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="references-list">
+        {% for ref in references.references %}
+        <div class="reference-card">
+            <div class="reference-header">
+                <h3>{{ ref.name }}</h3>
+                <div class="reference-meta">
+                    <span class="position">{{ ref.position }}</span>
+                    <span class="company">{{ ref.company }}</span>
+                </div>
+                <div class="reference-relationship">
+                    {{ ref.relationship }}
+                </div>
+            </div>
+            
+            <div class="reference-content">
+                {% if ref.feedback_summary %}
+                <div class="feedback-summary">
+                    <p>{{ ref.feedback_summary }}</p>
+                </div>
+                {% endif %}
+                
+                {% if ref.strengths %}
+                <div class="strengths">
+                    <h4>Fortalezas Mencionadas</h4>
+                    <ul>
+                        {% for strength in ref.strengths %}
+                        <li>{{ strength }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if ref.areas_for_improvement %}
+                <div class="improvements">
+                    <h4>Áreas de Mejora Sugeridas</h4>
+                    <ul>
+                        {% for area in ref.areas_for_improvement %}
+                        <li>{{ area }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %} 

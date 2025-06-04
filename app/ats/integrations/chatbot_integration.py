@@ -1,4 +1,4 @@
-# /home/pablo/app/com/integrations/chatbot_integration.py
+# /home/pablo/app/ats/integrations/chatbot_integration.py
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
@@ -11,8 +11,8 @@ from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.ats.chatbot.components.context_manager import ConversationContext as ContextManager
 from app.ats.chatbot.flow.conversational_flow import ConversationalFlowManager
 from app.ats.chatbot.intents_handler import IntentHandler
-from app.ats.chatbot.nlp import NLPProcessor
-from app.ats.chatbot.gpt import GPTHandler
+from app.ats.chatbot.nlp.nlp import NLPProcessor
+from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.workflow.common.common import get_possible_transitions, process_business_unit_transition
 from app.ats.chatbot.workflow.business_units.huntred.huntred import process_huntred_candidate
 from app.ats.chatbot.workflow.business_units.huntred_executive import process_huntred_executive_candidate

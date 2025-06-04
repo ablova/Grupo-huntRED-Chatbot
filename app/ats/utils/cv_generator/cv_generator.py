@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/cv_generator/cv_generator.py
+# /home/pablo/app/ats/utils/cv_generator/cv_generator.py
 """
 Sistema de generación de CVs para Grupo huntRED®
 
@@ -24,6 +24,7 @@ from app.ats.utils.cv_generator.cv_template import CVTemplate
 from app.ats.utils.cv_generator.cv_utils import CVUtils
 from app.ats.utils.cv_generator.cv_data import CVData
 from app.ats.utils.cv_generator.career_analyzer import career_analyzer, CVCareerAnalyzer
+from app.ats.utils.cv_generator.reference_processor import ReferenceProcessor
 from app.ats.chatbot.values.core import ValuesPrinciples
 from app.ml.core.models.base import MatchmakingLearningSystem
 # Importamos las funciones adaptadoras de career_analyzer
@@ -281,25 +282,71 @@ class CVGenerator:
 
 class EnhancedCVGenerator(CVGenerator):
     """
-    Generador mejorado de CVs que integra análisis de carrera y valores.
+    Genera CVs mejorados con análisis de carrera y valores integrados.
     """
     
-    def __init__(self, template: str = 'modern', include_growth_plan: bool = True, 
-                 integration_level: str = 'enhanced'):
+    def __init__(self, template: str = 'modern', include_growth_plan: bool = False):
         """
-        Inicializa el generador de CVs mejorado.
+        Inicializa el EnhancedCVGenerator.
         
         Args:
-            template: Plantilla a utilizar para el CV
+            template: Plantilla a utilizar
             include_growth_plan: Si se debe incluir plan de desarrollo profesional
-            integration_level: Nivel de integración de valores ('basic', 'enhanced', 'full')
         """
         super().__init__(template, include_growth_plan)
-        self.integration_level = integration_level
-        self.values_principles = ValuesPrinciples()
         self.career_analyzer = CVCareerAnalyzer()
-        self.ml_system = MatchmakingLearningSystem()
         self.values_adapter = ValuesAdapter()
+        self.reference_processor = None  # Se inicializará con la business_unit
+    
+    async def _enrich_candidate_data(self, person: Dict, career_analysis: Dict, 
+                               ml_insights: Dict) -> Dict:
+        """
+        Enriquece los datos del candidato con análisis y valores.
+        """
+        enriched_data = {}
+        
+        # Datos básicos
+        enriched_data['name'] = f"{person.first_name} {person.last_name}"
+        enriched_data['contact_info'] = {
+            'email': person.email,
+            'phone': person.phone,
+            'address': person.address if hasattr(person, 'address') else None
+        }
+        
+        # Añadir resumen
+        enriched_data['summary'] = person.professional_summary if hasattr(person, 'professional_summary') else ""
+        
+        # Procesar experiencia, educación, habilidades
+        enriched_data['experience'] = self._process_experience(career_analysis.get('experience', []))
+        enriched_data['education'] = self._process_education(career_analysis.get('education', []))
+        enriched_data['skills'] = self._process_skills(person.skills if hasattr(person, 'skills') else "", ml_insights)
+        
+        # Añadir idiomas
+        enriched_data['languages'] = self._process_languages(career_analysis.get('languages', []))
+        
+        # Procesar referencias según el tipo de audiencia
+        if self.reference_processor:
+            enriched_data['references'] = await self.reference_processor.process_references_for_cv(
+                person,
+                self.audience_type
+            )
+        
+        # Añadir insights de ML
+        if ml_insights:
+            enriched_data['personality_insights'] = ml_insights.get('personality', {})
+            enriched_data['talent_insights'] = ml_insights.get('talent', {})
+            enriched_data['cultural_insights'] = ml_insights.get('cultural', {})
+            
+            # Roles recomendados basados en análisis de ML
+            if 'talent' in ml_insights and 'success_probabilities' in ml_insights['talent']:
+                enriched_data['recommended_roles'] = self._get_top_roles(
+                    ml_insights['talent']['success_probabilities']
+                )
+        
+        # Añadir fecha de análisis
+        enriched_data['ml_analysis_date'] = datetime.now()
+        
+        return enriched_data
     
     async def generate_enhanced_cv(self, candidate_data: Union[Dict, CVData], 
                                   business_unit: str,
@@ -336,6 +383,10 @@ class EnhancedCVGenerator(CVGenerator):
             person = await self._get_person(candidate_id)
             if not person:
                 raise ValueError(f"No se encontró la persona con ID {candidate_id}")
+            
+            # Inicializar procesador de referencias
+            self.reference_processor = ReferenceProcessor(business_unit)
+            self.audience_type = audience_type
             
             # Obtener análisis de carrera y ML en paralelo
             career_analysis, ml_insights = await asyncio.gather(
@@ -467,49 +518,6 @@ class EnhancedCVGenerator(CVGenerator):
         except Exception as e:
             logger.error(f"Error obteniendo insights ML: {str(e)}")
             return {}
-    
-    async def _enrich_candidate_data(self, person: Dict, career_analysis: Dict, 
-                               ml_insights: Dict) -> Dict:
-        """
-        Enriquece los datos del candidato con análisis y valores.
-        """
-        enriched_data = {}
-        
-        # Datos básicos
-        enriched_data['name'] = f"{person.first_name} {person.last_name}"
-        enriched_data['contact_info'] = {
-            'email': person.email,
-            'phone': person.phone,
-            'address': person.address if hasattr(person, 'address') else None
-        }
-        
-        # Añadir resumen
-        enriched_data['summary'] = person.professional_summary if hasattr(person, 'professional_summary') else ""
-        
-        # Procesar experiencia, educación, habilidades
-        enriched_data['experience'] = self._process_experience(career_analysis.get('experience', []))
-        enriched_data['education'] = self._process_education(career_analysis.get('education', []))
-        enriched_data['skills'] = self._process_skills(person.skills if hasattr(person, 'skills') else "", ml_insights)
-        
-        # Añadir idiomas
-        enriched_data['languages'] = self._process_languages(career_analysis.get('languages', []))
-        
-        # Añadir insights de ML
-        if ml_insights:
-            enriched_data['personality_insights'] = ml_insights.get('personality', {})
-            enriched_data['talent_insights'] = ml_insights.get('talent', {})
-            enriched_data['cultural_insights'] = ml_insights.get('cultural', {})
-            
-            # Roles recomendados basados en análisis de ML
-            if 'talent' in ml_insights and 'success_probabilities' in ml_insights['talent']:
-                enriched_data['recommended_roles'] = self._get_top_roles(
-                    ml_insights['talent']['success_probabilities']
-                )
-        
-        # Añadir fecha de análisis
-        enriched_data['ml_analysis_date'] = datetime.now()
-        
-        return enriched_data
     
     def _process_skills(self, skills: str, ml_insights: Dict) -> List[Dict]:
         """
