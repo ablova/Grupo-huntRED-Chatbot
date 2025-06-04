@@ -1,9 +1,9 @@
 # /home/pablo/app/ats/integrations/services/gamification.py
 """
-Enhanced Network Gamification Service
+Sistema de gamificación para el chatbot
 
-Sistema avanzado de gamificación para el seguimiento y recompensa de actividades
-y logros de los usuarios en la plataforma.
+Este módulo proporciona funcionalidad para gamificar la interacción
+con el chatbot, incluyendo puntos, logros y desafíos.
 """
 
 import logging
@@ -15,6 +15,8 @@ from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count, Case, When, Value, IntegerField, Max
 from asgiref.sync import sync_to_async
+from celery import shared_task
+from app.ats.tasks.base import with_retry
 
 from app.models import (
     Person,
@@ -27,289 +29,628 @@ from app.models import (
 )
 from app.ats.chatbot.integrations.services import send_message
 
-logger = logging.getLogger("gamification")
+logger = logging.getLogger(__name__)
 
 class ActivityType(Enum):
-    """Tipos de actividades rastreables en el sistema de gamificación."""
-    # Actividades básicas
-    PROFILE_UPDATE = "profile_update"
-    SKILL_ENDORSEMENT = "skill_endorsement"
-    REFERRAL = "successful_referral"
-    CHALLENGE_COMPLETE = "completed_challenge"
-    CONNECTION_MADE = "connection_made"
+    """Tipos de actividades que pueden ser gamificadas"""
     
-    # Actividades de contenido
-    CONTENT_SHARED = "content_shared"
-    FEEDBACK_PROVIDED = "feedback_provided"
+    # Actividades de mensajería
+    MESSAGE_SENT = 'message_sent'
+    MESSAGE_RECEIVED = 'message_received'
+    QUICK_REPLY = 'quick_reply'
+    BUTTON_CLICK = 'button_click'
+    
+    # Actividades de evaluación
+    EVALUATION_STARTED = 'evaluation_started'
+    EVALUATION_COMPLETED = 'evaluation_completed'
+    EVALUATION_SCORE = 'evaluation_score'
+    
+    # Actividades de referencia
+    REFERENCE_REQUESTED = 'reference_requested'
+    REFERENCE_COMPLETED = 'reference_completed'
+    REFERENCE_QUALITY = 'reference_quality'
+    
+    # Actividades de perfil
+    PROFILE_UPDATED = 'profile_updated'
+    SKILL_ADDED = 'skill_added'
+    EXPERIENCE_ADDED = 'experience_added'
+    
+    # Actividades de interacción
+    MENU_ACCESS = 'menu_access'
+    FEATURE_USED = 'feature_used'
+    HELP_REQUESTED = 'help_requested'
     
     # Actividades de comunidad
-    COMMUNITY_CONTRIBUTION = "community_contribution"
-    MENTORSHIP = "mentorship"
-    
-    # Actividades de progreso
-    DAILY_LOGIN = "daily_login"
-    MILESTONE_REACHED = "milestone_reached"
-    
-    # Actividades profesionales
-    JOB_APPLICATION = "job_application"
-    INTERVIEW_COMPLETED = "interview_completed"
-    CERTIFICATION_EARNED = "certification_earned"
-    PROJECT_COMPLETION = "project_completion"
+    RECOMMENDATION_GIVEN = 'recommendation_given'
+    RECOMMENDATION_RECEIVED = 'recommendation_received'
+    FEEDBACK_PROVIDED = 'feedback_provided'
 
-class ChallengeCategory(Enum):
-    """Categorías de desafíos."""
-    SKILLS = "Habilidades"
-    NETWORK = "Red"
-    COMMUNITY = "Comunidad"
-    ACHIEVEMENT = "Logros"
-    DAILY = "Diarios"
-    WEEKLY = "Semanales"
-    SEASONAL = "De temporada"
+class AchievementType(Enum):
+    """Tipos de logros disponibles"""
+    
+    # Logros de mensajería
+    MESSAGE_MILESTONE = 'message_milestone'
+    QUICK_REPLY_MASTER = 'quick_reply_master'
+    BUTTON_EXPERT = 'button_expert'
+    
+    # Logros de evaluación
+    EVALUATION_NOVICE = 'evaluation_novice'
+    EVALUATION_EXPERT = 'evaluation_expert'
+    PERFECT_SCORE = 'perfect_score'
+    
+    # Logros de referencia
+    REFERENCE_COLLECTOR = 'reference_collector'
+    REFERENCE_QUALITY = 'reference_quality'
+    REFERENCE_SPEED = 'reference_speed'
+    
+    # Logros de perfil
+    PROFILE_COMPLETE = 'profile_complete'
+    SKILL_MASTER = 'skill_master'
+    EXPERIENCE_SHARER = 'experience_sharer'
+    
+    # Logros de interacción
+    MENU_NAVIGATOR = 'menu_navigator'
+    FEATURE_EXPLORER = 'feature_explorer'
+    HELPFUL_USER = 'helpful_user'
+    
+    # Logros de comunidad
+    RECOMMENDATION_GIVER = 'recommendation_giver'
+    RECOMMENDATION_RECEIVER = 'recommendation_receiver'
+    FEEDBACK_PROVIDER = 'feedback_provider'
+    
+    # Logros especiales
+    DAILY_STREAK = 'daily_streak'
+    WEEKLY_CHALLENGE = 'weekly_challenge'
+    MONTHLY_GOAL = 'monthly_goal'
 
-class GamificationService:
-    """
-    Servicio avanzado de gamificación que maneja puntos, logros y desafíos.
-    """
+class Level:
+    """Clase para manejar niveles de usuario"""
     
-    # Sistema de puntos base por tipo de actividad
-    BASE_XP = {
-        # Actividades básicas
-        ActivityType.PROFILE_UPDATE: 10,
-        ActivityType.SKILL_ENDORSEMENT: 15,
-        ActivityType.REFERRAL: 50,
-        ActivityType.CHALLENGE_COMPLETE: 25,
-        ActivityType.CONNECTION_MADE: 5,
-        
-        # Actividades de contenido
-        ActivityType.CONTENT_SHARED: 10,
-        ActivityType.FEEDBACK_PROVIDED: 15,
-        
-        # Actividades de comunidad
-        ActivityType.COMMUNITY_CONTRIBUTION: 20,
-        ActivityType.MENTORSHIP: 40,
-        
-        # Actividades de progreso
-        ActivityType.DAILY_LOGIN: 5,
-        ActivityType.MILESTONE_REACHED: 100,
-        
-        # Actividades profesionales
-        ActivityType.JOB_APPLICATION: 30,
-        ActivityType.INTERVIEW_COMPLETED: 50,
-        ActivityType.CERTIFICATION_EARNED: 75,
-        ActivityType.PROJECT_COMPLETION: 60
-    }
-    
-    # Categorías de XP para cada actividad
-    XP_CATEGORIES = {
-        ActivityType.PROFILE_UPDATE: 'skills',
-        ActivityType.SKILL_ENDORSEMENT: 'skills',
-        ActivityType.REFERRAL: 'network',
-        ActivityType.CONNECTION_MADE: 'network',
-        ActivityType.CONTENT_SHARED: 'community',
-        ActivityType.FEEDBACK_PROVIDED: 'community',
-        ActivityType.COMMUNITY_CONTRIBUTION: 'community',
-        ActivityType.MENTORSHIP: 'community',
-        ActivityType.DAILY_LOGIN: 'general',
-        ActivityType.MILESTONE_REACHED: 'achievements',
-        ActivityType.JOB_APPLICATION: 'skills',
-        ActivityType.INTERVIEW_COMPLETED: 'skills',
-        ActivityType.CERTIFICATION_EARNED: 'skills',
-        ActivityType.PROJECT_COMPLETION: 'skills',
-        ActivityType.CHALLENGE_COMPLETE: 'achievements'
-    }
-    
-    def __init__(self, business_unit: Optional[BusinessUnit] = None):
-        self.business_unit = business_unit
-        self.cache_prefix = f"gamification_{business_unit.slug}_" if business_unit else "gamification_"
-    
-    async def _get_or_create_profile(self, user: Person) -> EnhancedNetworkGamificationProfile:
-        """Obtiene o crea un perfil de gamificación."""
-        return await sync_to_async(EnhancedNetworkGamificationProfile.objects.get_or_create)(
-            user=user,
-            defaults={
-                'xp_total': 0,
-                'current_level': 1,
-                'xp_to_next_level': 100,
-                'streak_days': 0,
-                'last_activity_date': timezone.now().date(),
-                'highest_streak': 0,
-                'xp_skills': 0,
-                'xp_network': 0,
-                'xp_community': 0,
-                'xp_achievements': 0,
-                'total_challenges': 0,
-                'total_badges': 0
-            }
-        )[0]
-    
-    async def record_activity(self, user: Person, activity_type: ActivityType, 
-                            xp_amount: int = None, metadata: dict = None) -> Dict[str, Any]:
+    def __init__(self, level: int, name: str, points_required: int, rewards: Dict[str, Any]):
         """
-        Registra una actividad del usuario y otorga XP correspondiente.
+        Inicializa un nivel
         
         Args:
-            user: Usuario que realiza la actividad
-            activity_type: Tipo de actividad (de ActivityType)
-            xp_amount: Cantidad de XP a otorgar (opcional, usa el valor por defecto si no se especifica)
-            metadata: Metadatos adicionales para el evento
+            level: Número de nivel
+            name: Nombre del nivel
+            points_required: Puntos requeridos para alcanzar el nivel
+            rewards: Recompensas por alcanzar el nivel
+        """
+        self.level = level
+        self.name = name
+        self.points_required = points_required
+        self.rewards = rewards
+
+class Achievement:
+    """Clase para manejar logros"""
+    
+    def __init__(self, 
+                 achievement_type: AchievementType,
+                 name: str,
+                 description: str,
+                 points: int,
+                 requirements: Dict[str, Any],
+                 icon: str = None):
+        """
+        Inicializa un logro
+        
+        Args:
+            achievement_type: Tipo de logro
+            name: Nombre del logro
+            description: Descripción del logro
+            points: Puntos otorgados
+            requirements: Requisitos para desbloquear
+            icon: Icono del logro
+        """
+        self.achievement_type = achievement_type
+        self.name = name
+        self.description = description
+        self.points = points
+        self.requirements = requirements
+        self.icon = icon
+
+class GamificationService:
+    """Servicio de gamificación"""
+    
+    def __init__(self):
+        """Inicializa el servicio de gamificación"""
+        self.levels = self._initialize_levels()
+        self.achievements = self._initialize_achievements()
+        self.points_config = self._get_points_config()
+    
+    def _initialize_levels(self) -> List[Level]:
+        """
+        Inicializa los niveles disponibles
+        
+        Returns:
+            List[Level]: Lista de niveles
+        """
+        return [
+            Level(1, "Novato", 0, {"features": ["basic_menu"]}),
+            Level(2, "Aprendiz", 100, {"features": ["quick_replies"]}),
+            Level(3, "Intermedio", 500, {"features": ["evaluations"]}),
+            Level(4, "Avanzado", 1000, {"features": ["references"]}),
+            Level(5, "Experto", 2000, {"features": ["all_features"]})
+        ]
+        
+    def _initialize_achievements(self) -> List[Achievement]:
+        """
+        Inicializa los logros disponibles
+        
+        Returns:
+            List[Achievement]: Lista de logros
+        """
+        return [
+            # Logros de mensajería
+            Achievement(
+                AchievementType.MESSAGE_MILESTONE,
+                "Comunicador",
+                "Envía 100 mensajes",
+                50,
+                {"messages_sent": 100},
+                "message_icon"
+            ),
+            Achievement(
+                AchievementType.QUICK_REPLY_MASTER,
+                "Maestro de Respuestas Rápidas",
+                "Usa 50 respuestas rápidas",
+                75,
+                {"quick_replies_used": 50},
+                "quick_reply_icon"
+            ),
+            
+            # Logros de evaluación
+            Achievement(
+                AchievementType.EVALUATION_NOVICE,
+                "Evaluador Novato",
+                "Completa 5 evaluaciones",
+                100,
+                {"evaluations_completed": 5},
+                "evaluation_icon"
+            ),
+            Achievement(
+                AchievementType.EVALUATION_EXPERT,
+                "Evaluador Experto",
+                "Completa 20 evaluaciones con puntuación alta",
+                200,
+                {"evaluations_completed": 20, "min_score": 8},
+                "expert_icon"
+            ),
+            
+            # Logros de referencia
+            Achievement(
+                AchievementType.REFERENCE_COLLECTOR,
+                "Coleccionista de Referencias",
+                "Obtén 10 referencias completadas",
+                150,
+                {"references_completed": 10},
+                "reference_icon"
+            ),
+            Achievement(
+                AchievementType.REFERENCE_QUALITY,
+                "Referencias de Calidad",
+                "Obtén 5 referencias con puntuación alta",
+                200,
+                {"high_quality_references": 5},
+                "quality_icon"
+            ),
+            
+            # Logros de perfil
+            Achievement(
+                AchievementType.PROFILE_COMPLETE,
+                "Perfil Completo",
+                "Completa todos los campos de tu perfil",
+                100,
+                {"profile_completion": 100},
+                "profile_icon"
+            ),
+            Achievement(
+                AchievementType.SKILL_MASTER,
+                "Maestro de Habilidades",
+                "Añade 10 habilidades a tu perfil",
+                150,
+                {"skills_added": 10},
+                "skills_icon"
+            ),
+            
+            # Logros de interacción
+            Achievement(
+                AchievementType.MENU_NAVIGATOR,
+                "Navegador del Menú",
+                "Accede a todas las secciones del menú",
+                75,
+                {"menu_sections_accessed": "all"},
+                "menu_icon"
+            ),
+            Achievement(
+                AchievementType.FEATURE_EXPLORER,
+                "Explorador de Características",
+                "Usa todas las características disponibles",
+                100,
+                {"features_used": "all"},
+                "explorer_icon"
+            ),
+            
+            # Logros de comunidad
+            Achievement(
+                AchievementType.RECOMMENDATION_GIVER,
+                "Recomendador",
+                "Da 5 recomendaciones",
+                150,
+                {"recommendations_given": 5},
+                "recommendation_icon"
+            ),
+            Achievement(
+                AchievementType.FEEDBACK_PROVIDER,
+                "Proveedor de Feedback",
+                "Proporciona feedback en 10 ocasiones",
+                100,
+                {"feedback_provided": 10},
+                "feedback_icon"
+            ),
+            
+            # Logros especiales
+            Achievement(
+                AchievementType.DAILY_STREAK,
+                "Racha Diaria",
+                "Usa el chatbot 7 días seguidos",
+                200,
+                {"daily_streak": 7},
+                "streak_icon"
+            ),
+            Achievement(
+                AchievementType.WEEKLY_CHALLENGE,
+                "Desafío Semanal",
+                "Completa todos los desafíos semanales",
+                300,
+                {"weekly_challenges_completed": "all"},
+                "challenge_icon"
+            )
+        ]
+        
+    def _get_points_config(self) -> Dict[str, int]:
+        """
+        Obtiene la configuración de puntos por actividad
+        
+        Returns:
+            Dict[str, int]: Configuración de puntos
+        """
+        return {
+            ActivityType.MESSAGE_SENT.value: 1,
+            ActivityType.MESSAGE_RECEIVED.value: 1,
+            ActivityType.QUICK_REPLY.value: 2,
+            ActivityType.BUTTON_CLICK.value: 1,
+            ActivityType.EVALUATION_STARTED.value: 5,
+            ActivityType.EVALUATION_COMPLETED.value: 10,
+            ActivityType.EVALUATION_SCORE.value: 5,
+            ActivityType.REFERENCE_REQUESTED.value: 5,
+            ActivityType.REFERENCE_COMPLETED.value: 20,
+            ActivityType.REFERENCE_QUALITY.value: 10,
+            ActivityType.PROFILE_UPDATED.value: 5,
+            ActivityType.SKILL_ADDED.value: 10,
+            ActivityType.EXPERIENCE_ADDED.value: 15,
+            ActivityType.MENU_ACCESS.value: 1,
+            ActivityType.FEATURE_USED.value: 5,
+            ActivityType.HELP_REQUESTED.value: 2,
+            ActivityType.RECOMMENDATION_GIVEN.value: 15,
+            ActivityType.RECOMMENDATION_RECEIVED.value: 10,
+            ActivityType.FEEDBACK_PROVIDED.value: 5
+        }
+        
+    async def record_activity(self, 
+                            user_id: str,
+                            activity_type: ActivityType,
+                            data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Registra una actividad y actualiza puntos/logros
+        
+        Args:
+            user_id: ID del usuario
+            activity_type: Tipo de actividad
+            data: Datos adicionales de la actividad
             
         Returns:
-            Dict con información sobre la operación
+            Dict con el resultado de la actividad
         """
-        result = {"success": False, "xp_earned": 0, "level_up": False, "badges_earned": []}
-        
         try:
-            if not isinstance(activity_type, ActivityType):
-                raise ValueError("Tipo de actividad no válido")
-                
-            xp_amount = xp_amount or self.BASE_XP.get(activity_type, 0)
-            if xp_amount <= 0:
-                return result
-                
-            async with transaction.atomic():
-                # Obtener o crear perfil
-                profile = await self._get_or_create_profile(user)
-                
-                # Obtener nivel actual antes de la actualización
-                old_level = profile.current_level
-                
-                # Actualizar racha
-                await sync_to_async(profile.update_streak)()
-                
-                # Añadir XP
-                category = self.XP_CATEGORIES.get(activity_type, 'general')
-                await sync_to_async(profile.add_xp)(xp_amount, category)
-                
-                # Registrar evento
-                await sync_to_async(GamificationEvent.objects.create)(
-                    user=user,
-                    event_type=activity_type.value,
-                    xp_earned=xp_amount,
-                    metadata=metadata or {}
-                )
-                
-                # Verificar logros
-                badges = await self._check_achievements(user, activity_type, profile)
-                
-                # Actualizar resultado
-                result.update({
-                    "success": True,
-                    "xp_earned": xp_amount,
-                    "level_up": profile.current_level > old_level,
-                    "badges_earned": badges,
-                    "current_level": profile.current_level,
-                    "xp_total": profile.xp_total,
-                    "xp_to_next_level": profile.xp_to_next_level
-                })
-                
-                # Notificar al usuario
-                await self._notify_user_update(user, activity_type, result)
-                
-                return result
-                
+            # Obtener puntos por la actividad
+            points = self.points_config.get(activity_type.value, 0)
+            
+            # Actualizar puntos del usuario
+            user_points = await self._update_user_points(user_id, points)
+            
+            # Verificar logros
+            new_achievements = await self._check_achievements(user_id, activity_type, data)
+            
+            # Verificar nivel
+            new_level = await self._check_level(user_id, user_points)
+            
+            return {
+                'points_earned': points,
+                'total_points': user_points,
+                'new_achievements': new_achievements,
+                'new_level': new_level
+            }
+            
         except Exception as e:
-            logger.error(f"[Gamification] Error registrando actividad: {str(e)}", exc_info=True)
-            return result
-    
-    async def _check_achievements(self, user: Person, activity_type: ActivityType, 
-                                profile: EnhancedNetworkGamificationProfile) -> List[Dict]:
-        """Verifica si el usuario ha desbloqueado logros."""
-        badges_earned = []
+            logger.error(f"Error recording activity: {str(e)}")
+            raise
+            
+    async def _update_user_points(self, user_id: str, points: int) -> int:
+        """
+        Actualiza los puntos del usuario
         
-        # Verificar logros basados en actividad
-        achievement_triggers = {
-            ActivityType.PROFILE_UPDATE: "complete_profile",
-            ActivityType.SKILL_ENDORSEMENT: "skill_expert",
-            ActivityType.REFERRAL: "referral_master",
-            ActivityType.DAILY_LOGIN: "daily_streak"
+        Args:
+            user_id: ID del usuario
+            points: Puntos a añadir
+            
+        Returns:
+            int: Total de puntos actualizado
+        """
+        cache_key = f"user_points_{user_id}"
+        current_points = cache.get(cache_key, 0)
+        new_points = current_points + points
+        cache.set(cache_key, new_points)
+        return new_points
+        
+    async def _check_achievements(self,
+                                user_id: str,
+                                activity_type: ActivityType,
+                                data: Dict[str, Any] = None) -> List[Achievement]:
+        """
+        Verifica si se han desbloqueado nuevos logros
+        
+        Args:
+            user_id: ID del usuario
+            activity_type: Tipo de actividad
+            data: Datos adicionales de la actividad
+            
+        Returns:
+            List[Achievement]: Lista de logros desbloqueados
+        """
+        new_achievements = []
+        user_achievements = await self._get_user_achievements(user_id)
+        
+        for achievement in self.achievements:
+            if achievement.achievement_type.value == activity_type.value:
+                if await self._check_achievement_requirements(user_id, achievement, data):
+                    if achievement not in user_achievements:
+                        new_achievements.append(achievement)
+                        await self._unlock_achievement(user_id, achievement)
+                        
+        return new_achievements
+        
+    async def _check_level(self, user_id: str, points: int) -> Optional[Level]:
+        """
+        Verifica si el usuario ha subido de nivel
+        
+        Args:
+            user_id: ID del usuario
+            points: Puntos totales del usuario
+            
+        Returns:
+            Optional[Level]: Nuevo nivel o None
+        """
+        current_level = await self._get_user_level(user_id)
+        
+        for level in self.levels:
+            if points >= level.points_required and level.level > current_level.level:
+                await self._update_user_level(user_id, level)
+                return level
+                
+        return None
+        
+    async def _get_user_achievements(self, user_id: str) -> List[Achievement]:
+        """
+        Obtiene los logros del usuario
+        
+        Args:
+            user_id: ID del usuario
+            
+        Returns:
+            List[Achievement]: Lista de logros
+        """
+        cache_key = f"user_achievements_{user_id}"
+        return cache.get(cache_key, [])
+        
+    async def _unlock_achievement(self, user_id: str, achievement: Achievement):
+        """
+        Desbloquea un logro para el usuario
+        
+        Args:
+            user_id: ID del usuario
+            achievement: Logro a desbloquear
+        """
+        user_achievements = await self._get_user_achievements(user_id)
+        user_achievements.append(achievement)
+        
+        cache_key = f"user_achievements_{user_id}"
+        cache.set(cache_key, user_achievements)
+        
+    async def _get_user_level(self, user_id: str) -> Level:
+        """
+        Obtiene el nivel actual del usuario
+        
+        Args:
+            user_id: ID del usuario
+            
+        Returns:
+            Level: Nivel actual
+        """
+        cache_key = f"user_level_{user_id}"
+        level_number = cache.get(cache_key, 1)
+        
+        for level in self.levels:
+            if level.level == level_number:
+                return level
+                
+        return self.levels[0]
+        
+    async def _update_user_level(self, user_id: str, level: Level):
+        """
+        Actualiza el nivel del usuario
+        
+        Args:
+            user_id: ID del usuario
+            level: Nuevo nivel
+        """
+        cache_key = f"user_level_{user_id}"
+        cache.set(cache_key, level.level)
+        
+    async def _check_achievement_requirements(self,
+                                           user_id: str,
+                                           achievement: Achievement,
+                                           data: Dict[str, Any] = None) -> bool:
+        """
+        Verifica si se cumplen los requisitos de un logro
+        
+        Args:
+            user_id: ID del usuario
+            achievement: Logro a verificar
+            data: Datos adicionales
+            
+        Returns:
+            bool: True si se cumplen los requisitos
+        """
+        # Implementación específica para cada tipo de logro
+        return False
+        
+    async def get_user_stats(self, user_id: str) -> Dict[str, Any]:
+        """
+        Obtiene las estadísticas del usuario
+        
+        Args:
+            user_id: ID del usuario
+            
+        Returns:
+            Dict con las estadísticas
+        """
+        return {
+            'points': await self._get_user_points(user_id),
+            'level': await self._get_user_level(user_id),
+            'achievements': await self._get_user_achievements(user_id)
         }
         
-        badge_name = achievement_triggers.get(activity_type)
-        if badge_name:
-            earned = await sync_to_async(profile.award_badge)(badge_name)
-            if earned:
-                badges_earned.append({"name": badge_name, "xp": 0})
+    async def _get_user_points(self, user_id: str) -> int:
+        """
+        Obtiene los puntos del usuario
         
-        # Verificar logros por nivel
-        level_badges = {
-            5: "rising_star",
-            10: "experienced",
-            25: "veteran",
-            50: "legendary"
-        }
-        
-        badge_name = level_badges.get(profile.current_level)
-        if badge_name:
-            earned = await sync_to_async(profile.award_badge)(badge_name)
-            if earned:
-                badges_earned.append({"name": badge_name, "xp": 0})
-        
-        return badges_earned
-    
-    async def _notify_user_update(self, user: Person, activity_type: ActivityType, 
-                                result: Dict[str, Any]) -> None:
-        """Notifica al usuario sobre la actualización de su progreso."""
-        try:
-            messages = []
+        Args:
+            user_id: ID del usuario
             
-            # Mensaje de actividad
-            activity_message = f"¡Actividad registrada! +{result['xp_earned']} XP por {activity_type.value.replace('_', ' ')}"
-            messages.append(activity_message)
-            
-            # Mensaje de subida de nivel
-            if result['level_up']:
-                level_message = f"¡Nuevo nivel {result['current_level']} alcanzado!"
-                messages.append(level_message)
-            
-            # Mensaje de logros
-            for badge in result['badges_earned']:
-                badge_message = f"¡Logro desbloqueado: {badge['name']}!"
-                messages.append(badge_message)
-            
-            # Enviar mensaje consolidado
-            if messages:
-                platform = getattr(user, 'chat_state', {}).get('platform', 'whatsapp')
-                business_unit = getattr(user, 'business_unit', self.business_unit)
-                
-                if platform and business_unit:
-                    full_message = "\n".join(messages)
-                    await send_message(
-                        platform=platform,
-                        user_id=user.phone,
-                        message=full_message,
-                        business_unit=business_unit.name if hasattr(business_unit, 'name') else str(business_unit)
-                    )
-                    
-        except Exception as e:
-            logger.error(f"[Gamification] Error notificando actualización: {str(e)}")
-    
-    async def get_user_progress(self, user: Person) -> Dict[str, Any]:
-        """Obtiene el progreso actual del usuario."""
-        try:
-            profile = await self._get_or_create_profile(user)
-            return await sync_to_async(profile.get_progress)()
-        except Exception as e:
-            logger.error(f"[Gamification] Error obteniendo progreso: {str(e)}")
-            return {}
-    
-    async def get_leaderboard(self, category: str = None, limit: int = 10) -> List[Dict]:
-        """Obtiene la tabla de clasificación."""
-        try:
-            # Implementar lógica de clasificación
-            pass
-        except Exception as e:
-            logger.error(f"[Gamification] Error obteniendo clasificación: {str(e)}")
-            return []
-    
-    async def generate_challenges(self, user: Person, category: str = None, 
-                               limit: int = 3) -> List[Dict]:
-        """Genera desafíos personalizados para el usuario."""
-        try:
-            # Implementar generación de desafíos
-            pass
-        except Exception as e:
-            logger.error(f"[Gamification] Error generando desafíos: {str(e)}")
-            return []
+        Returns:
+            int: Puntos totales
+        """
+        cache_key = f"user_points_{user_id}"
+        return cache.get(cache_key, 0)
 
 # Instancia global del servicio
 gamification_service = GamificationService()
+
+@shared_task(bind=True, max_retries=3, queue='gamification')
+@with_retry
+async def process_gamification_event(self, user_id: str, event_type: str, data: Dict[str, Any]):
+    """
+    Procesa eventos de gamificación
+    
+    Args:
+        user_id: ID del usuario
+        event_type: Tipo de evento
+        data: Datos del evento
+    """
+    try:
+        service = GamificationService()
+        await service.record_activity(user_id, ActivityType(event_type), data)
+        logger.info(f"Evento de gamificación procesado: {event_type} para usuario {user_id}")
+    except Exception as e:
+        logger.error(f"Error procesando evento de gamificación: {str(e)}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, queue='gamification')
+@with_retry
+async def update_user_level(self, user_id: str):
+    """
+    Actualiza el nivel del usuario
+    
+    Args:
+        user_id: ID del usuario
+    """
+    try:
+        service = GamificationService()
+        points = await service._get_user_points(user_id)
+        new_level = await service._check_level(user_id, points)
+        
+        if new_level:
+            await service._update_user_level(user_id, new_level)
+            logger.info(f"Nivel actualizado para usuario {user_id}: {new_level.name}")
+            
+            # Notificar al usuario
+            await send_message(
+                platform='whatsapp',
+                user_id=user_id,
+                message=f"¡Felicidades! Has alcanzado el nivel {new_level.name}",
+                business_unit=None
+            )
+    except Exception as e:
+        logger.error(f"Error actualizando nivel de usuario: {str(e)}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, queue='gamification')
+@with_retry
+async def check_achievements(self, user_id: str):
+    """
+    Verifica logros del usuario
+    
+    Args:
+        user_id: ID del usuario
+    """
+    try:
+        service = GamificationService()
+        stats = await service.get_user_stats(user_id)
+        
+        for achievement in service.achievements:
+            if await service._check_achievement_requirements(user_id, achievement, stats):
+                await service._unlock_achievement(user_id, achievement)
+                logger.info(f"Logro desbloqueado para usuario {user_id}: {achievement.name}")
+                
+                # Notificar al usuario
+                await send_message(
+                    platform='whatsapp',
+                    user_id=user_id,
+                    message=f"¡Nuevo logro desbloqueado! {achievement.name}",
+                    business_unit=None
+                )
+    except Exception as e:
+        logger.error(f"Error verificando logros de usuario: {str(e)}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, queue='gamification')
+@with_retry
+async def process_rewards(self, user_id: str, reward_type: str, data: Dict[str, Any]):
+    """
+    Procesa recompensas para el usuario
+    
+    Args:
+        user_id: ID del usuario
+        reward_type: Tipo de recompensa
+        data: Datos de la recompensa
+    """
+    try:
+        service = GamificationService()
+        level = await service._get_user_level(user_id)
+        
+        if reward_type in level.rewards:
+            # Procesar recompensa
+            reward = level.rewards[reward_type]
+            logger.info(f"Recompensa procesada para usuario {user_id}: {reward_type}")
+            
+            # Notificar al usuario
+            await send_message(
+                platform='whatsapp',
+                user_id=user_id,
+                message=f"¡Has recibido una recompensa! {reward_type}",
+                business_unit=None
+            )
+    except Exception as e:
+        logger.error(f"Error procesando recompensa: {str(e)}")
+        raise self.retry(exc=e)

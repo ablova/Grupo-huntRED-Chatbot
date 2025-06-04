@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, Callable
 from functools import wraps
 import logging
+from django.core.cache import cache
+from django.conf import settings
 
 from ..base.services import BaseService
 from .options import (
@@ -22,6 +24,45 @@ from .options import (
 )
 
 logger = logging.getLogger(__name__)
+
+def menu_handler(payload: str, permissions: List[str] = None, version: str = "1.0"):
+    """
+    Decorador para registrar manejadores de menú con validación de permisos y versionado
+    
+    Args:
+        payload: Identificador del menú/acción
+        permissions: Lista de permisos requeridos
+        version: Versión del manejador
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            # Validar permisos
+            if permissions and not check_permissions(permissions, kwargs.get('user_permissions', [])):
+                return {
+                    'error': 'No tienes permisos para acceder a esta opción',
+                    'code': 'PERMISSION_DENIED'
+                }
+            
+            # Validar versión
+            if version != kwargs.get('menu_version', '1.0'):
+                return {
+                    'error': 'Versión de menú no compatible',
+                    'code': 'VERSION_MISMATCH',
+                    'required_version': version
+                }
+            
+            return await func(self, *args, **kwargs)
+        
+        # Registrar el manejador
+        wrapper.menu_handler = {
+            'payload': payload,
+            'permissions': permissions,
+            'version': version
+        }
+        
+        return wrapper
+    return decorator
 
 def check_permissions(required_permissions: List[str] = None, user_permissions: List[str] = None) -> bool:
     """
@@ -53,10 +94,44 @@ class BaseMenu(ABC):
             business_unit: Unidad de negocio (amigro/huntred/huntu)
         """
         self.business_unit = business_unit
-        self.menu_structure = MENU_STRUCTURE.get(business_unit, {})
-        self.menu_options = self._process_menu_options(MENU_OPTIONS_BY_BU.get(business_unit, []))
-        self.evaluations_menu = self._process_menu_item(EVALUATIONS_MENU)
+        self.menu_structure = self._get_cached_menu_structure()
+        self.menu_options = self._get_cached_menu_options()
+        self.evaluations_menu = self._get_cached_evaluations_menu()
         self.handlers: Dict[str, Callable] = {}
+        self.version = "1.0"
+        
+    def _get_cached_menu_structure(self) -> Dict:
+        """Obtiene la estructura del menú desde caché o la genera"""
+        cache_key = f"menu_structure_{self.business_unit}"
+        menu_structure = cache.get(cache_key)
+        
+        if not menu_structure:
+            menu_structure = MENU_STRUCTURE.get(self.business_unit, {})
+            cache.set(cache_key, menu_structure, timeout=3600)  # 1 hora
+            
+        return menu_structure
+        
+    def _get_cached_menu_options(self) -> List[Dict]:
+        """Obtiene las opciones del menú desde caché o las genera"""
+        cache_key = f"menu_options_{self.business_unit}"
+        menu_options = cache.get(cache_key)
+        
+        if not menu_options:
+            menu_options = self._process_menu_options(MENU_OPTIONS_BY_BU.get(self.business_unit, []))
+            cache.set(cache_key, menu_options, timeout=3600)  # 1 hora
+            
+        return menu_options
+        
+    def _get_cached_evaluations_menu(self) -> Dict:
+        """Obtiene el menú de evaluaciones desde caché o lo genera"""
+        cache_key = f"evaluations_menu_{self.business_unit}"
+        evaluations_menu = cache.get(cache_key)
+        
+        if not evaluations_menu:
+            evaluations_menu = self._process_menu_item(EVALUATIONS_MENU)
+            cache.set(cache_key, evaluations_menu, timeout=3600)  # 1 hora
+            
+        return evaluations_menu
         
     def _process_menu_options(self, options: List[Dict]) -> List[Dict]:
         """Procesa las opciones de menú para asegurar que tengan la estructura correcta"""
@@ -68,6 +143,7 @@ class BaseMenu(ABC):
         item.setdefault('type', MENU_TYPE_MAIN)
         item.setdefault('required_permissions', [])
         item.setdefault('handler', None)
+        item.setdefault('version', self.version)
         
         # Procesar submenús recursivamente
         if 'submenu' in item and isinstance(item['submenu'], list):
@@ -122,6 +198,12 @@ class BaseMenu(ABC):
                     return found
                     
         return None
+        
+    def invalidate_cache(self):
+        """Invalida la caché del menú"""
+        cache.delete(f"menu_structure_{self.business_unit}")
+        cache.delete(f"menu_options_{self.business_unit}")
+        cache.delete(f"evaluations_menu_{self.business_unit}")
         
     @abstractmethod
     def create_menu(self, options: List[Dict[str, Any]], **kwargs) -> Any:

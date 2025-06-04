@@ -1716,3 +1716,126 @@ def execute_email_scraper(dominio_id=None, batch_size=10):
     except Exception as e:
         logger.error(f"❌ Error en email_scraper: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
+
+# =========================================================
+# Tareas de mantenimiento
+# =========================================================
+
+@shared_task(bind=True, max_retries=3, queue='maintenance')
+@with_retry
+def cleanup_old_logs(self, days: int = 30):
+    """
+    Limpia logs antiguos
+    
+    Args:
+        days: Días a mantener
+    """
+    try:
+        from app.ats.utils.logging import cleanup_old_log_files
+        cleanup_old_log_files(days)
+        logger.info(f"Logs más antiguos de {days} días limpiados")
+    except Exception as e:
+        logger.error(f"Error limpiando logs: {str(e)}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, queue='maintenance')
+@with_retry
+def cleanup_temp_files(self):
+    """
+    Limpia archivos temporales
+    """
+    try:
+        import os
+        import glob
+        from django.conf import settings
+        
+        # Limpiar archivos temporales
+        temp_dir = getattr(settings, 'TEMP_DIR', '/tmp')
+        pattern = os.path.join(temp_dir, 'huntred_*')
+        
+        for file in glob.glob(pattern):
+            try:
+                if os.path.isfile(file):
+                    os.remove(file)
+            except Exception as e:
+                logger.error(f"Error eliminando archivo temporal {file}: {str(e)}")
+                
+        logger.info("Archivos temporales limpiados")
+    except Exception as e:
+        logger.error(f"Error limpiando archivos temporales: {str(e)}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, queue='maintenance')
+@with_retry
+def cleanup_old_cache(self):
+    """
+    Limpia caché antigua
+    """
+    try:
+        from django.core.cache import cache
+        from django.conf import settings
+        
+        # Obtener todas las claves de caché
+        keys = cache.keys('*')
+        
+        # Eliminar claves antiguas
+        for key in keys:
+            try:
+                if not key.startswith(('system_stats', 'task_stats')):
+                    cache.delete(key)
+            except Exception as e:
+                logger.error(f"Error eliminando clave de caché {key}: {str(e)}")
+                
+        logger.info("Caché antigua limpiada")
+    except Exception as e:
+        logger.error(f"Error limpiando caché: {str(e)}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, queue='maintenance')
+@with_retry
+def cleanup_old_data(self):
+    """
+    Limpia datos antiguos de la base de datos
+    """
+    try:
+        from app.models import (
+            GamificationEvent, UserBadge, UserChallenge,
+            ChatState, Notification
+        )
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Fecha límite
+        limit_date = timezone.now() - timedelta(days=90)
+        
+        # Limpiar eventos de gamificación antiguos
+        GamificationEvent.objects.filter(created_at__lt=limit_date).delete()
+        
+        # Limpiar estados de chat antiguos
+        ChatState.objects.filter(updated_at__lt=limit_date).delete()
+        
+        # Limpiar notificaciones antiguas
+        Notification.objects.filter(created_at__lt=limit_date).delete()
+        
+        logger.info("Datos antiguos limpiados")
+    except Exception as e:
+        logger.error(f"Error limpiando datos antiguos: {str(e)}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, queue='maintenance')
+@with_retry
+def run_maintenance_tasks(self):
+    """
+    Ejecuta todas las tareas de mantenimiento
+    """
+    try:
+        # Programar tareas de mantenimiento
+        cleanup_old_logs.delay(days=30)
+        cleanup_temp_files.delay()
+        cleanup_old_cache.delay()
+        cleanup_old_data.delay()
+        
+        logger.info("Tareas de mantenimiento programadas")
+    except Exception as e:
+        logger.error(f"Error programando tareas de mantenimiento: {str(e)}")
+        raise self.retry(exc=e)

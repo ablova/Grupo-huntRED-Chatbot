@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional
 import asyncio
 import logging
 from datetime import datetime
-from app.ats.integrations.base.base_handler import BaseHandler
+from app.ats.integrations.handlers.base import BaseHandler
 from app.ats.chatbot.services.response.generator import ResponseGenerator
 from app.ats.config.settings.chatbot import CHATBOT_CONFIG
 
