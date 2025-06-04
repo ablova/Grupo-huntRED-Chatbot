@@ -1,6 +1,35 @@
+# /home/pablo/app/ats/integrations/menu/options.py
 """
 Opciones de menú por unidad de negocio
+
+Este módulo define la estructura de los menús para cada unidad de negocio.
+Cada menú puede tener submenús anidados y se adapta automáticamente
+a las capacidades de cada plataforma (WhatsApp, Telegram, etc.).
 """
+
+# Constantes para tipos de menú
+MENU_TYPE_MAIN = "main"
+MENU_TYPE_SUB = "submenu"
+MENU_TYPE_ACTION = "action"
+
+# Estructura base para los menús
+MENU_STRUCTURE = {
+    "amigro": {
+        "name": "Amigro",
+        "description": "Oportunidades para migrantes",
+        "icon": "🌎"
+    },
+    "huntred": {
+        "name": "huntRED",
+        "description": "Profesionales y ejecutivos",
+        "icon": "🎯"
+    },
+    "huntu": {
+        "name": "huntU",
+        "description": "Estudiantes y recién graduados",
+        "icon": "🎓"
+    }
+}
 
 # Menús dinámicos por unidad de negocio con submenús
 MENU_OPTIONS_BY_BU = {
@@ -90,14 +119,36 @@ MENU_OPTIONS_BY_BU = {
     ],
     "huntred": [
         {
-            "title": "👤 Mi Perfil",
-            "payload": "mi_perfil",
-            "description": "Crea y gestiona tu perfil profesional.",
+            "title": "👤 Mi Perfil Ejecutivo",
+            "payload": "mi_perfil_ejecutivo",
+            "description": "Gestiona tu perfil profesional ejecutivo.",
+            "type": MENU_TYPE_MAIN,
+            "required_permissions": ["view_profile"],
             "submenu": [
-                {"title": "📝 Crear Perfil", "payload": "crear_perfil"},
-                {"title": "👀 Ver Perfil", "payload": "ver_perfil"},
-                {"title": "✏️ Editar Perfil", "payload": "editar_perfil"},
-                {"title": "📊 Ver Evaluaciones", "payload": "ver_evaluaciones"}
+                {
+                    "title": "📝 Completar Perfil", 
+                    "payload": "completar_perfil_ejecutivo",
+                    "type": MENU_TYPE_ACTION,
+                    "handler": "handle_complete_profile"
+                },
+                {
+                    "title": "👁️ Ver Perfil", 
+                    "payload": "ver_perfil_ejecutivo",
+                    "type": MENU_TYPE_ACTION,
+                    "handler": "handle_view_profile"
+                },
+                {
+                    "title": "✏️ Actualizar CV", 
+                    "payload": "actualizar_cv_ejecutivo",
+                    "type": MENU_TYPE_ACTION,
+                    "handler": "handle_update_cv"
+                },
+                {
+                    "title": "📊 Mis Evaluaciones", 
+                    "payload": "ver_evaluaciones_ejecutivo",
+                    "type": MENU_TYPE_SUB,
+                    "handler": "handle_view_assessments"
+                }
             ]
         },
         {
@@ -190,9 +241,12 @@ MENU_OPTIONS_BY_BU = {
     ]
 }
 
-# Menú de evaluaciones
+# Menú de evaluaciones para todas las unidades de negocio
 EVALUATIONS_MENU = {
     "title": "🎯 Evaluaciones Disponibles",
+    "type": MENU_TYPE_MAIN,
+    "description": "Selecciona una evaluación para comenzar",
+    "required_permissions": ["take_assessments"],
     "description": "Selecciona una evaluación para comenzar",
     "options": [
         {
