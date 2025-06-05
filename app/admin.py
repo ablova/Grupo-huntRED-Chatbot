@@ -199,7 +199,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
             buffer.close()
             return grafico_base64
 
-        from app.ats.tasks import generate_dashboard_graph
+        from app.tasks import generate_dashboard_graph
         result = generate_dashboard_graph.delay()
         grafico_base64 = result.get(timeout=10)
         context = {
@@ -212,7 +212,7 @@ class DominioScrapingAdmin(admin.ModelAdmin):
 
     def ejecutar_scraping_view(self, request, dominio_id):
         from app.models import DominioScraping
-        from app.ats.tasks import ejecutar_scraping
+        from app.tasks import ejecutar_scraping
         try:
             dominio = DominioScraping.objects.get(pk=dominio_id)
             ejecutar_scraping.delay(dominio.id)
@@ -226,14 +226,14 @@ class DominioScrapingAdmin(admin.ModelAdmin):
 
     @admin.action(description="Ejecutar scraping para dominios seleccionados")
     def ejecutar_scraping_action(self, request, queryset):
-        from app.ats.tasks import ejecutar_scraping
+        from app.tasks import ejecutar_scraping
         for dominio in queryset:
             ejecutar_scraping.delay(dominio.id)
         self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
     
     @admin.action(description="Ejecutar Email Scraping en JOBS para dominios seleccionados")
     def ejecutar_email_scraper_action(self, request, queryset):
-        from app.ats.tasks import execute_email_scraper
+        from app.tasks import execute_email_scraper
         for dominio in queryset:
             execute_email_scraper.delay(dominio.id)
         self.message_user(request, f"Scraping iniciado para {queryset.count()} dominios.")
@@ -842,7 +842,7 @@ class TaskExecutionAdmin(admin.ModelAdmin):
 
     @user_passes_test(lambda u: u.is_superuser)
     def execute_task(self, request, task_name):
-        from app.ats.tasks import (
+        from app.tasks import (
         execute_ml_and_scraping, ejecutar_scraping, verificar_dominios_scraping,
         train_ml_task, process_linkedin_csv_task
     )

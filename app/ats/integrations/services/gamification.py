@@ -562,7 +562,7 @@ async def process_gamification_event(self, user_id: str, event_type: str, data: 
         service = GamificationService()
         await service.record_activity(user_id, ActivityType(event_type), data)
         logger.info(f"Evento de gamificación procesado: {event_type} para usuario {user_id}")
-    except Exception as e:
+        except Exception as e:
         logger.error(f"Error procesando evento de gamificación: {str(e)}")
         raise self.retry(exc=e)
 
@@ -591,7 +591,7 @@ async def update_user_level(self, user_id: str):
                 message=f"¡Felicidades! Has alcanzado el nivel {new_level.name}",
                 business_unit=None
             )
-    except Exception as e:
+        except Exception as e:
         logger.error(f"Error actualizando nivel de usuario: {str(e)}")
         raise self.retry(exc=e)
 
@@ -620,7 +620,7 @@ async def check_achievements(self, user_id: str):
                     message=f"¡Nuevo logro desbloqueado! {achievement.name}",
                     business_unit=None
                 )
-    except Exception as e:
+        except Exception as e:
         logger.error(f"Error verificando logros de usuario: {str(e)}")
         raise self.retry(exc=e)
 

@@ -1,10 +1,11 @@
+# /home/pablo/app/ats/chatbot/references/utils.py
 """
 Utilidades para el manejo de referencias.
 """
 
 from typing import Dict, List, Optional
-from django.utils import timezone
 from app.models import Reference, Person
+from django.utils import timezone
 from app.ats.chatbot.nlp.nlp import NLPProcessor
 from app.ats.utils.cv_generator.cv_generator import CVGenerator
 

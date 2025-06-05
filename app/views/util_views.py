@@ -2,7 +2,7 @@
 
 from django.views import View
 from django.http import JsonResponse
-from app.ats.tasks import send_notification_task
+from app.tasks import send_notification_task
 from django.shortcuts import render
 from app.ats.utils.salario import calcular_neto, calcular_bruto, obtener_tipo_cambio
 from app.ats.chatbot.integrations.services import send_message

@@ -11,7 +11,7 @@ from app.models import (
 )
 from app.ats.pricing.utils import calculate_pricing, generate_proposal_pdf
 from app.ats.chatbot.integrations.services import send_email, send_message
-from app.ats.tasks import send_whatsapp_message_task
+from app.tasks import send_whatsapp_message_task
 
 
 class PricingIntegrationTestCase(TestCase):

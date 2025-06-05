@@ -5,7 +5,7 @@ from django.db import transaction
 import logging
 from typing import Dict, Any, Optional
 from app.models import Conversation, ChatMessage, Notification, Person, BusinessUnit 
-from app.ats.tasks import process_message, send_notification
+from app.tasks import process_message, send_notification
 from app.ats.utils.report_generator import ReportGenerator
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.ats.chatbot.components.context_manager import ConversationContext as ContextManager

@@ -1,5 +1,5 @@
 # /home/pablo/app/views/ml_views.py
-from app.ats.tasks import train_ml_task
+from app.tasks import train_ml_task
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache

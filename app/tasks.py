@@ -1839,3 +1839,885 @@ def run_maintenance_tasks(self):
     except Exception as e:
         logger.error(f"Error programando tareas de mantenimiento: {str(e)}")
         raise self.retry(exc=e)
+
+# Tareas del módulo ATS
+@shared_task(
+    name='ats.process_message',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60
+)
+def process_message(self, conversation_id: int, content: str, channel: str) -> bool:
+    """
+    Procesa un mensaje recibido a través de cualquier canal.
+    
+    Args:
+        conversation_id: ID de la conversación
+        content: Contenido del mensaje
+        channel: Canal de comunicación
+        
+    Returns:
+        bool: True si el procesamiento fue exitoso
+    """
+    try:
+        # Verificar configuración del canal
+        channel_config = ATS_CONFIG['COMMUNICATION']['CHANNELS'].get(channel)
+        if not channel_config or not channel_config['enabled']:
+            logger.warning(f"Canal {channel} no configurado o deshabilitado")
+            return False
+        
+        # Obtener conversación
+        conversation = Conversation.objects.get(id=conversation_id)
+        
+        # Crear mensaje
+        message = ChatMessage.objects.create(
+            conversation=conversation,
+            content=content,
+            direction='in',
+            status='received',
+            channel=channel
+        )
+        
+        # Actualizar estado de la conversación
+        conversation.last_message = content
+        conversation.last_message_at = message.created_at
+        conversation.save()
+        
+        # Registrar métrica
+        Metric.objects.create(
+            name=f'messages_received_{channel}',
+            value=1,
+            metadata={
+                'conversation_id': conversation_id,
+                'channel': channel
+            }
+        )
+        
+        logger.info(f"Mensaje procesado exitosamente para conversación {conversation_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error procesando mensaje: {str(e)}")
+        self.retry(exc=e)
+
+@shared_task(
+    name='ats.send_notification',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60
+)
+def send_notification(
+    self,
+    recipient_id: int,
+    notification_type: str,
+    channel: str,
+    content: str,
+    metadata: dict = None
+) -> bool:
+    """
+    Envía una notificación a través del canal especificado.
+    
+    Args:
+        recipient_id: ID del destinatario
+        notification_type: Tipo de notificación
+        channel: Canal de comunicación
+        content: Contenido de la notificación
+        metadata: Metadatos adicionales
+        
+    Returns:
+        bool: True si el envío fue exitoso
+    """
+    try:
+        # Verificar configuración del canal
+        channel_config = ATS_CONFIG['COMMUNICATION']['CHANNELS'].get(channel)
+        if not channel_config or not channel_config['enabled']:
+            logger.warning(f"Canal {channel} no configurado o deshabilitado")
+            return False
+        
+        # Crear notificación
+        notification = Notification.objects.create(
+            recipient_id=recipient_id,
+            type=notification_type,
+            channel=channel,
+            content=content,
+            metadata=metadata or {},
+            status='pending'
+        )
+        
+        # Intentar envío
+        success = True  # Aquí iría la lógica de envío real
+        if success:
+            notification.status = 'sent'
+        else:
+            notification.status = 'failed'
+        notification.save()
+        
+        # Registrar métrica
+        Metric.objects.create(
+            name=f'notifications_{notification.status}',
+            value=1,
+            metadata={
+                'type': notification_type,
+                'channel': channel
+            }
+        )
+        
+        logger.info(f"Notificación {notification.id} procesada con estado: {notification.status}")
+        return success
+        
+    except Exception as e:
+        logger.error(f"Error enviando notificación: {str(e)}")
+        self.retry(exc=e)
+
+@shared_task(
+    name='ats.update_workflow_state',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60
+)
+def update_workflow_state(
+    self,
+    conversation_id: int,
+    new_state: str,
+    workflow_type: str = 'candidate'
+) -> bool:
+    """
+    Actualiza el estado del flujo de trabajo.
+    
+    Args:
+        conversation_id: ID de la conversación
+        new_state: Nuevo estado
+        workflow_type: Tipo de flujo de trabajo ('candidate' o 'client')
+        
+    Returns:
+        bool: True si la actualización fue exitosa
+    """
+    try:
+        # Obtener configuración del flujo
+        workflow_config = ATS_CONFIG['WORKFLOW'].get(workflow_type)
+        if not workflow_config:
+            logger.error(f"Tipo de flujo de trabajo no válido: {workflow_type}")
+            return False
+        
+        # Validar estado
+        if new_state not in workflow_config['states']:
+            logger.error(f"Estado no válido para {workflow_type}: {new_state}")
+            return False
+        
+        # Obtener estado actual
+        current_state = WorkflowState.objects.filter(
+            conversation_id=conversation_id
+        ).order_by('-timestamp').first()
+        
+        # Validar transición
+        if current_state:
+            valid_transitions = workflow_config['transitions'].get(current_state.state, [])
+            if new_state not in valid_transitions:
+                logger.warning(
+                    f"Transición no válida: {current_state.state} -> {new_state}"
+                )
+                return False
+        
+        # Crear nuevo estado
+        WorkflowState.objects.create(
+            conversation_id=conversation_id,
+            state=new_state,
+            workflow_type=workflow_type
+        )
+        
+        # Registrar métrica
+        Metric.objects.create(
+            name='workflow_transitions',
+            value=1,
+            metadata={
+                'workflow_type': workflow_type,
+                'from_state': current_state.state if current_state else None,
+                'to_state': new_state
+            }
+        )
+        
+        logger.info(
+            f"Estado de flujo actualizado a {new_state} para conversación {conversation_id}"
+        )
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error actualizando estado de flujo: {str(e)}")
+        self.retry(exc=e)
+
+# Tareas de Analytics
+@shared_task
+def generate_conversion_report():
+    """
+    Genera el reporte de conversión de oportunidades.
+    """
+    analytics = AnalyticsEngine()
+    report = analytics.generate_opportunity_conversion_report()
+    
+    # Almacenar en cache
+    cache.set('conversion_report', json.dumps(report), timeout=3600)
+    return report
+
+@shared_task
+def generate_industry_trends():
+    """
+    Genera las tendencias por industria.
+    """
+    analytics = AnalyticsEngine()
+    report = analytics.generate_industry_trends()
+    
+    # Almacenar en cache
+    cache.set('industry_trends', json.dumps(report), timeout=3600)
+    return report
+
+@shared_task
+def generate_location_heatmap():
+    """
+    Genera el heatmap de ubicaciones.
+    """
+    analytics = AnalyticsEngine()
+    report = analytics.generate_location_heatmap()
+    
+    # Almacenar en cache
+    cache.set('location_heatmap', json.dumps(report), timeout=3600)
+    return report
+
+@shared_task
+def predict_conversion(opportunity_data):
+    """
+    Predice la probabilidad de conversión de una oportunidad.
+    
+    Args:
+        opportunity_data: Datos de la oportunidad
+        
+    Returns:
+        dict: Resultado de la predicción
+    """
+    analytics = AnalyticsEngine()
+    opportunity = Opportunity(**opportunity_data)
+    probability = analytics.predict_conversion_probability(opportunity)
+    
+    return {
+        'probability': probability,
+        'recommendation': analytics._get_recommendation(probability)
+    }
+
+# Tareas de Onboarding
+@shared_task(bind=True, max_retries=3)
+def send_client_feedback_survey_task(self, feedback_id):
+    """
+    Envía una encuesta de satisfacción a un cliente.
+    
+    Args:
+        feedback_id (int): ID del feedback a enviar
+    """
+    try:
+        # Enviar encuesta
+        result = asyncio.run(ClientFeedbackController.send_feedback_survey(feedback_id))
+        
+        if not result.get('success'):
+            raise ValueError(f"Error enviando encuesta: {result.get('error')}")
+        
+        return f"Encuesta enviada correctamente: {feedback_id}"
+        
+    except Exception as e:
+        logger.error(f"Error enviando encuesta a cliente: {str(e)}")
+        self.retry(exc=e, countdown=60 * 5)  # Reintentar en 5 minutos
+
+@shared_task(bind=True)
+def check_pending_client_feedback_task(self):
+    """
+    Verifica encuestas pendientes de envío según las programaciones.
+    """
+    try:
+        # Verificar encuestas pendientes
+        result = asyncio.run(ClientFeedbackController.check_pending_feedback())
+        
+        if not result.get('success'):
+            raise ValueError(f"Error verificando encuestas pendientes: {result.get('error')}")
+        
+        # Programar envío de encuestas pendientes
+        count = 0
+        for feedback in result.get('pending_feedback', []):
+            feedback_id = feedback.get('feedback_id')
+            if feedback_id:
+                send_client_feedback_survey_task.delay(feedback_id)
+                count += 1
+                logger.info(f"Programado envío de encuesta {feedback_id} a cliente {feedback.get('empresa_name')}")
+        
+        return f"Programado envío de {count} encuestas pendientes"
+        
+    except Exception as e:
+        logger.error(f"Error verificando encuestas pendientes para clientes: {str(e)}")
+        return f"Error: {str(e)}"
+
+@shared_task(bind=True)
+def generate_client_feedback_reports_task(self):
+    """
+    Genera reportes mensuales de satisfacción de clientes por Business Unit.
+    """
+    from app.models import BusinessUnit
+    import os
+    from django.conf import settings
+    
+    try:
+        # Obtener todas las Business Units activas
+        business_units = BusinessUnit.objects.filter(is_active=True)
+        reports_generated = 0
+        
+        for bu in business_units:
+            # Verificar si hay encuestas para esta BU
+            feedback_count = ClientFeedback.objects.filter(
+                business_unit=bu,
+                status='COMPLETED'
+            ).count()
+            
+            if feedback_count == 0:
+                continue
+            
+            # Generar reporte para la BU
+            report_data = asyncio.run(
+                ClientFeedbackController.generate_bu_satisfaction_report(bu.id)
+            )
+            
+            # Crear directorio si no existe
+            reports_dir = os.path.join(settings.MEDIA_ROOT, 'client_feedback_reports')
+            os.makedirs(reports_dir, exist_ok=True)
+            
+            # Guardar reporte en formato HTML
+            current_month = timezone.now().strftime('%B_%Y').lower()
+            report_filename = f"{bu.code.lower()}_client_satisfaction_{current_month}.html"
+            report_path = os.path.join(reports_dir, report_filename)
+            
+            # Renderizar HTML
+            from django.template.loader import render_to_string
+            context = {
+                'report': report_data,
+                'year': datetime.now().year,
+                'logo_url': f"{settings.STATIC_URL}images/logo.png"
+            }
+            html_content = render_to_string('onboarding/client_satisfaction_report.html', context)
+            
+            # Guardar reporte
+            with open(report_path, 'w') as f:
+                f.write(html_content)
+            
+            reports_generated += 1
+            logger.info(f"Generado reporte de satisfacción de clientes para BU {bu.name}: {report_path}")
+        
+        return f"Generados {reports_generated} reportes de satisfacción de clientes"
+        
+    except Exception as e:
+        logger.error(f"Error generando reportes de satisfacción de clientes: {str(e)}")
+        return f"Error: {str(e)}"
+
+@shared_task(bind=True)
+def analyze_client_feedback_trends_task(self):
+    """
+    Analiza tendencias en el feedback de clientes e identifica patrones.
+    """
+    from app.models import BusinessUnit
+    from app.ml.onboarding_processor import OnboardingMLProcessor
+    
+    try:
+        # Procesar datos de feedback para ML
+        ml_processor = OnboardingMLProcessor()
+        results = asyncio.run(ml_processor.analyze_client_feedback_trends())
+        
+        return f"Análisis de tendencias de feedback completado: {results}"
+        
+    except Exception as e:
+        logger.error(f"Error analizando tendencias de feedback: {str(e)}")
+        return f"Error: {str(e)}"
+
+# Tareas de Proposals
+@shared_task
+def send_proposal_email(proposal_id):
+    """
+    Envía un correo electrónico con la propuesta adjunta.
+    
+    Args:
+        proposal_id: ID de la propuesta
+    """
+    proposal = Proposal.objects.get(id=proposal_id)
+    
+    # Construir el mensaje
+    subject = f"Propuesta de Servicios - {proposal.company.name}"
+    message = f"Estimado(a) {proposal.company.name},\n\nAdjunto encontrará nuestra propuesta de servicios para las oportunidades identificadas.\n\nAtentamente,\nEl equipo de Grupo huntRED®"
+    
+    # Crear el email
+    email = EmailMessage(
+        subject=subject,
+        body=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[proposal.company.email],
+        cc=[settings.DEFAULT_FROM_EMAIL]
+    )
+    
+    # Adjuntar el PDF de la propuesta
+    pdf_path = os.path.join(settings.MEDIA_ROOT, 'proposals', f"proposal_{proposal_id}.pdf")
+    if os.path.exists(pdf_path):
+        with open(pdf_path, 'rb') as f:
+            email.attach(f"proposal_{proposal_id}.pdf", f.read(), 'application/pdf')
+    
+    # Enviar el email
+    email.send()
+    
+    # Notificar al equipo
+    notification_handler = NotificationHandler()
+    message = f"Propuesta enviada a {proposal.company.name}"
+    notification_handler.send_notification(
+        recipient='pablo@huntred.com',
+        message=message,
+        subject='Propuesta Enviada'
+    )
+
+@shared_task
+def generate_monthly_report():
+    """
+    Genera un reporte mensual de propuestas.
+    """
+    from datetime import datetime, timedelta
+    from django.db.models import Count, Sum
+    
+    # Obtener fecha de inicio del mes
+    now = datetime.now()
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Obtener estadísticas
+    proposals = Proposal.objects.filter(
+        created_at__gte=start_of_month
+    ).aggregate(
+        total_count=Count('id'),
+        total_value=Sum('pricing_total')
+    )
+    
+    # Notificar al equipo
+    notification_handler = NotificationHandler()
+    message = f"Reporte Mensual de Propuestas:\n\nTotal de Propuestas: {proposals['total_count']}\nValor Total: ${proposals['total_value']:.2f}"
+    notification_handler.send_notification(
+        recipient='pablo@huntred.com',
+        message=message,
+        subject='Reporte Mensual de Propuestas'
+    )
+
+# Tareas de Pagos
+@shared_task
+def sincronizar_opportunidad_task(opportunidad_id: int) -> Dict[str, Any]:
+    """
+    Tarea Celery para sincronizar una oportunidad con WordPress.
+    
+    Args:
+        oportunidad_id: ID de la oportunidad a sincronizar
+        
+    Returns:
+        Dict con el resultado de la sincronización
+    """
+    try:
+        # Inicializar sincronizador
+        sync = WordPressSync()
+        sync.initialize()
+        
+        # Registrar inicio de sincronización
+        log = SincronizacionLog.objects.create(
+            oportunidad_id=oportunidad_id,
+            estado='in_progress'
+        )
+        
+        # Realizar sincronización
+        result = sync.sincronizar_oportunidad(opportunidad_id)
+        
+        # Actualizar log de sincronización
+        log.estado = 'completed'
+        log.resultado = result
+        log.save()
+        
+        return result
+        
+    except Exception as e:
+        # Registrar error
+        error = SincronizacionError.objects.create(
+            oportunidad_id=oportunidad_id,
+            mensaje=str(e),
+            intento=log.intentos + 1
+        )
+        
+        # Actualizar log de sincronización
+        log.estado = 'failed'
+        log.error = error
+        log.save()
+        raise
+
+@shared_task
+def sincronizar_empresa_task(empresa_id: int) -> Dict[str, Any]:
+    """
+    Tarea Celery para sincronizar una empresa con WordPress.
+    
+    Args:
+        empresa_id: ID de la empresa a sincronizar
+        
+    Returns:
+        Dict con el resultado de la sincronización
+    """
+    try:
+        # Inicializar sincronizador
+        sync = WordPressSync()
+        sync.initialize()
+        
+        # Obtener empresa
+        empresa = Empleador.objects.get(id=empresa_id)
+        
+        # Realizar sincronización
+        success, result = sync.sincronizar_empresa(empresa)
+        
+        # Registrar resultado
+        if success:
+            log = SincronizacionLog.objects.create(
+                oportunidad_id=None,
+                estado='completed',
+                detalle={'empresa_id': empresa_id, 'resultado': result}
+            )
+        else:
+            error = SincronizacionError.objects.create(
+                oportunidad_id=None,
+                mensaje=f"Error sincronizando empresa {empresa_id}: {result.get('error', 'Desconocido')}",
+                intento=1
+            )
+            log = SincronizacionLog.objects.create(
+                oportunidad_id=None,
+                estado='failed',
+                error=error
+            )
+        
+        return {'success': success, 'result': result}
+        
+    except Exception as e:
+        error = SincronizacionError.objects.create(
+            oportunidad_id=None,
+            mensaje=f"Error sincronizando empresa {empresa_id}: {str(e)}",
+            intento=1
+        )
+        log = SincronizacionLog.objects.create(
+            oportunidad_id=None,
+            estado='failed',
+            error=error
+        )
+        raise
+
+@shared_task
+def sincronizar_candidato_task(candidato_id: int) -> Dict[str, Any]:
+    """
+    Tarea Celery para sincronizar un candidato con WordPress.
+    
+    Args:
+        candidato_id: ID del candidato a sincronizar
+        
+    Returns:
+        Dict con el resultado de la sincronización
+    """
+    try:
+        # Inicializar sincronizador
+        sync = WordPressSync()
+        sync.initialize()
+        
+        # Obtener candidato
+        candidato = Candidato.objects.get(id=candidato_id)
+        
+        # Realizar sincronización
+        success, result = sync.sincronizar_candidato(candidato)
+        
+        # Registrar resultado
+        if success:
+            log = SincronizacionLog.objects.create(
+                oportunidad_id=None,
+                estado='completed',
+                detalle={'candidato_id': candidato_id, 'resultado': result}
+            )
+        else:
+            error = SincronizacionError.objects.create(
+                oportunidad_id=None,
+                mensaje=f"Error sincronizando candidato {candidato_id}: {result.get('error', 'Desconocido')}",
+                intento=1
+            )
+            log = SincronizacionLog.objects.create(
+                oportunidad_id=None,
+                estado='failed',
+                error=error
+            )
+        
+        return {'success': success, 'result': result}
+        
+    except Exception as e:
+        error = SincronizacionError.objects.create(
+            oportunidad_id=None,
+            mensaje=f"Error sincronizando candidato {candidato_id}: {str(e)}",
+            intento=1
+        )
+        log = SincronizacionLog.objects.create(
+            oportunidad_id=None,
+            estado='failed',
+            error=error
+        )
+        raise
+
+@shared_task
+def sincronizar_pricing_task(business_unit: str) -> Dict[str, Any]:
+    """
+    Tarea Celery para sincronizar la configuración de pricing para una Business Unit específica.
+    
+    Args:
+        business_unit: Nombre de la Business Unit (huntRED, huntU, Amigro)
+        
+    Returns:
+        Dict con estadísticas de la sincronización
+    """
+    try:
+        # Inicializar sincronizador para la Business Unit específica
+        sync = WordPressSync(business_unit)
+        sync.initialize()
+        
+        # Obtener configuraciones de pricing
+        pricing_config = {
+            'baselines': PricingBaseline.objects.filter(bu=business_unit),
+            'addons': Addons.objects.filter(bu=business_unit),
+            'coupons': Coupons.objects.filter(bu=business_unit),
+            'milestones': PaymentMilestones.objects.filter(bu=business_unit)
+        }
+        
+        # Sincronizar cada tipo de configuración
+        stats = {
+            'baselines': sync.sincronizar_baselines(pricing_config['baselines']),
+            'addons': sync.sincronizar_addons(pricing_config['addons']),
+            'coupons': sync.sincronizar_coupons(pricing_config['coupons']),
+            'milestones': sync.sincronizar_milestones(pricing_config['milestones'])
+        }
+        
+        return stats
+    except Exception as e:
+        logger.error(f"Error sincronizando pricing: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+# =========================================================
+# Tareas de unidades de negocio
+# =========================================================
+
+@shared_task
+def process_huntu_candidate(person_id: int):
+    """
+    Procesa un candidato de Huntu, generando contratos.
+    
+    Args:
+        person_id: ID de la persona.
+    """
+    try:
+        person = Person.objects.get(id=person_id)
+        application = Application.objects.filter(user=person).first()
+        if not application or not application.vacancy:
+            return "Candidato sin vacante asignada."
+
+        contract_path = generate_contract_pdf(person, None, application.vacancy.titulo, person.business_unit)
+        request_digital_signature(
+            user=person,
+            document_path=contract_path,
+            document_name=f"Carta Propuesta - {application.vacancy.titulo}.pdf"
+        )
+        return f"Contrato generado y enviado a {person.nombre}"
+    except Person.DoesNotExist:
+        logger.error(f"Candidato {person_id} no encontrado.")
+        return "Candidato no encontrado."
+    except Exception as e:
+        logger.error(f"Error procesando candidato {person_id}: {e}", exc_info=True)
+        return f"Error: {str(e)}"
+
+@shared_task
+def process_amigro_candidate(person_id: int):
+    """
+    Procesa un candidato de Amigro, generando contratos.
+    
+    Args:
+        person_id: ID de la persona.
+    """
+    try:
+        person = Person.objects.get(id=person_id)
+        application = Application.objects.filter(user=person).first()
+        if not application or not application.vacancy:
+            return "Candidato sin vacante asignada."
+
+        contract_path = generate_contract_pdf(person, None, application.vacancy.titulo, person.business_unit)
+        request_digital_signature(
+            user=person,
+            document_path=contract_path,
+            document_name=f"Carta Propuesta - {application.vacancy.titulo}.pdf"
+        )
+        return f"Contrato generado y enviado a {person.nombre}"
+    except Person.DoesNotExist:
+        logger.error(f"Candidato {person_id} no encontrado.")
+        return "Candidato no encontrado."
+    except Exception as e:
+        logger.error(f"Error procesando candidato {person_id}: {e}", exc_info=True)
+        return f"Error: {str(e)}"
+
+# Tareas de Notificaciones
+@shared_task
+def process_notification_queue(limit=50):
+    """
+    Procesa la cola de notificaciones pendientes.
+    
+    Args:
+        limit: Número máximo de notificaciones a procesar
+    """
+    try:
+        # Obtener notificaciones pendientes
+        notifications = Notification.objects.filter(
+            status='pending'
+        ).order_by('created_at')[:limit]
+        
+        for notification in notifications:
+            try:
+                # Procesar notificación
+                notification_handler = NotificationHandler()
+                notification_handler.send_notification(
+                    recipient=notification.recipient,
+                    message=notification.message,
+                    subject=notification.subject
+                )
+                
+                # Actualizar estado
+                notification.status = 'sent'
+                notification.sent_at = timezone.now()
+                notification.save()
+                
+            except Exception as e:
+                logger.error(f"Error procesando notificación {notification.id}: {str(e)}")
+                notification.status = 'failed'
+                notification.error = str(e)
+                notification.save()
+                
+    except Exception as e:
+        logger.error(f"Error procesando cola de notificaciones: {str(e)}")
+
+@shared_task
+def send_scheduled_notification(notification_id):
+    """
+    Envía una notificación programada.
+    
+    Args:
+        notification_id: ID de la notificación
+    """
+    try:
+        notification = Notification.objects.get(id=notification_id)
+        
+        # Verificar si es hora de enviar
+        if notification.scheduled_at <= timezone.now():
+            notification_handler = NotificationHandler()
+            notification_handler.send_notification(
+                recipient=notification.recipient,
+                message=notification.message,
+                subject=notification.subject
+            )
+            
+            # Actualizar estado
+            notification.status = 'sent'
+            notification.sent_at = timezone.now()
+            notification.save()
+            
+    except Notification.DoesNotExist:
+        logger.error(f"Notificación {notification_id} no encontrada")
+    except Exception as e:
+        logger.error(f"Error enviando notificación programada {notification_id}: {str(e)}")
+
+@shared_task
+def send_daily_status_reports():
+    """
+    Envía reportes diarios de estado.
+    """
+    try:
+        # Obtener estadísticas
+        stats = {
+            'notifications': {
+                'pending': Notification.objects.filter(status='pending').count(),
+                'sent': Notification.objects.filter(status='sent').count(),
+                'failed': Notification.objects.filter(status='failed').count()
+            },
+            'opportunities': {
+                'active': Opportunity.objects.filter(status='active').count(),
+                'completed': Opportunity.objects.filter(status='completed').count(),
+                'cancelled': Opportunity.objects.filter(status='cancelled').count()
+            },
+            'candidates': {
+                'active': Candidate.objects.filter(status='active').count(),
+                'hired': Candidate.objects.filter(status='hired').count(),
+                'rejected': Candidate.objects.filter(status='rejected').count()
+            }
+        }
+        
+        # Enviar reporte
+        notification_handler = NotificationHandler()
+        message = f"Reporte Diario de Estado:\n\nNotificaciones:\n- Pendientes: {stats['notifications']['pending']}\n- Enviadas: {stats['notifications']['sent']}\n- Fallidas: {stats['notifications']['failed']}\n\nOportunidades:\n- Activas: {stats['opportunities']['active']}\n- Completadas: {stats['opportunities']['completed']}\n- Canceladas: {stats['opportunities']['cancelled']}\n\nCandidatos:\n- Activos: {stats['candidates']['active']}\n- Contratados: {stats['candidates']['hired']}\n- Rechazados: {stats['candidates']['rejected']}"
+        
+        notification_handler.send_notification(
+            recipient='pablo@huntred.com',
+            message=message,
+            subject='Reporte Diario de Estado'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error enviando reporte diario: {str(e)}")
+
+@shared_task
+def send_payment_reminders():
+    """
+    Envía recordatorios de pago.
+    """
+    try:
+        # Obtener pagos pendientes
+        pending_payments = Payment.objects.filter(
+            status='pending',
+            due_date__lte=timezone.now() + timedelta(days=7)
+        )
+        
+        for payment in pending_payments:
+            try:
+                # Enviar recordatorio
+                notification_handler = NotificationHandler()
+                message = f"Recordatorio de Pago:\n\nMonto: ${payment.amount}\nFecha de vencimiento: {payment.due_date.strftime('%d/%m/%Y')}\n\nPor favor, realice el pago lo antes posible."
+                
+                notification_handler.send_notification(
+                    recipient=payment.company.email,
+                    message=message,
+                    subject='Recordatorio de Pago'
+                )
+                
+                # Actualizar estado
+                payment.reminder_sent = True
+                payment.save()
+                
+            except Exception as e:
+                logger.error(f"Error enviando recordatorio de pago {payment.id}: {str(e)}")
+                
+    except Exception as e:
+        logger.error(f"Error procesando recordatorios de pago: {str(e)}")
+
+@shared_task
+def clean_old_notifications(days=90):
+    """
+    Limpia notificaciones antiguas.
+    
+    Args:
+        days: Número de días a mantener en el historial
+    """
+    try:
+        # Calcular fecha límite
+        limit_date = timezone.now() - timedelta(days=days)
+        
+        # Eliminar notificaciones antiguas
+        Notification.objects.filter(
+            created_at__lt=limit_date,
+            status__in=['sent', 'failed']
+        ).delete()
+        
+    except Exception as e:
+        logger.error(f"Error limpiando notificaciones antiguas: {str(e)}")
+
+# Tareas de Mantenimiento
+#// ... existing code ...

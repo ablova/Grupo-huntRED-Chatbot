@@ -1,0 +1,1389 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo huntRED® AI - GenIA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+            --neon-blue: #40c4ff;
+            --neon-pink: #f50057;
+        }
+
+        [data-theme="dark"] {
+            --primary-gradient: linear-gradient(135deg, #1f3544, #283593);
+            --accent-gradient: linear-gradient(45deg, #ff6b6b, #f50057);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-light: rgba(255, 255, 255, 0.92);
+            --text-dark: rgba(255, 255, 255, 0.7);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --bubble-bot: linear-gradient(45deg, #0288d1, #0277bd);
+            --bubble-user: var(--accent-gradient);
+            --particle-fill: rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="light"] {
+            --primary-gradient: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            --accent-gradient: linear-gradient(45deg, #ff4081, #d81b60);
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-light: rgba(0, 0, 0, 0.9);
+            --text-dark: rgba(0, 0, 0, 0.7);
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --bubble-bot: linear-gradient(45deg, #29b6f6, #0288d1);
+            --bubble-user: var(--accent-gradient);
+            --particle-fill: rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            color: var(--text-light);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 200;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .theme-toggle i {
+            font-size: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"%3E%3Ccircle cx="10" cy="10" r="1" fill="var(--particle-fill)" /%3E%3Ccircle cx="50" cy="50" r="1" fill="var(--particle-fill)" /%3E%3Ccircle cx="150" cy="150" r="1" fill="var(--particle-fill)" /%3E%3C/svg%3E');
+            background-size: 5px 5px;
+            animation: twinkle 8s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav {
+            position: sticky;
+            top: 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 15px 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .nav ul {
+            display: flex;
+            justify-content: center;
+            list-style: none;
+            gap: 30px;
+        }
+
+        .nav a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav a:hover {
+            color: var(--neon-blue);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 80px;
+            perspective: 1200px;
+        }
+
+        .header h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--text-light), var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            transform: rotateX(15deg);
+            transition: transform 0.6s ease;
+        }
+
+        .header h1:hover {
+            transform: rotateX(0deg);
+        }
+
+        .header p {
+            font-size: 1.6rem;
+            font-weight: 300;
+            opacity: 0.85;
+            margin-top: 15px;
+            color: var(--text-dark);
+        }
+
+        .section {
+            background: var(--glass-bg);
+            border-radius: 30px;
+            padding: 60px;
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            margin-bottom: 80px;
+            animation: fadeIn 1s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 3rem;
+            font-weight: 600;
+            margin-bottom: 50px;
+            text-shadow: 0 3px 10px rgba(0,0,0,0.4);
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .component-card {
+            background: var(--glass-bg);
+            border-radius: 25px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .component-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--accent-gradient);
+        }
+
+        .component-card:hover {
+            transform: translateY(-12px) scale(1.03);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+        }
+
+        .component-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .component-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            background: var(--accent-gradient);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            margin-right: 20px;
+        }
+
+        .component-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .component-description {
+            font-size: 1.2rem;
+            line-height: 1.7;
+            opacity: 0.85;
+            margin-bottom: 20px;
+            color: var(--text-dark);
+        }
+
+        .component-features {
+            list-style: none;
+        }
+
+        .component-features li {
+            padding: 10px 0;
+            font-size: 1.1rem;
+            position: relative;
+            padding-left: 25px;
+            color: var(--text-light);
+        }
+
+        .component-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--neon-blue);
+            font-weight: bold;
+        }
+
+        .dual-flow-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 0;
+        }
+
+        .flow-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            position: relative;
+            padding: 20px;
+        }
+
+        .flow-node {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        .flow-node:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.5);
+        }
+
+        .node-icon {
+            width: 70px;
+            height: 70px;
+            background: var(--accent-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            color: white;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .node-content {
+            flex: 1;
+        }
+
+        .node-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-light);
+        }
+
+        .node-description {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            opacity: 0.85;
+            margin-bottom: 15px;
+            color: var(--text-dark);
+        }
+
+        .sub-steps {
+            list-style: none;
+            padding-left: 15px;
+            font-size: 1rem;
+            opacity: 0.9;
+            color: var(--text-light);
+        }
+
+        .sub-steps li {
+            position: relative;
+            padding: 6px 0;
+        }
+
+        .sub-steps li::before {
+            content: '→';
+            position: absolute;
+            left: -15px;
+            color: var(--neon-blue);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(2,136,209,0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            max-width: 250px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            z-index: 3;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .sub-steps li:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .flow-connector {
+            position: absolute;
+            width: 3px;
+            background: var(--accent-gradient);
+            left: 85px;
+            z-index: 1;
+            animation: flow 3s infinite;
+        }
+
+        @keyframes flow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .flow-connector::after {
+            content: '↓';
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            color: var(--neon-blue);
+        }
+
+        .flow-title {
+            font-size: 2rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--text-light);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .conversation-demo {
+            background: var(--glass-bg);
+            border-radius: 30px;
+            padding: 60px;
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            margin-bottom: 80px;
+        }
+
+        .chat-simulation {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 50px;
+            height: 700px;
+            overflow-y: auto;
+            border: 1px solid var(--glass-border);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        .message {
+            margin-bottom: 30px;
+            animation: fadeInUp 0.7s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.bot {
+            text-align: left;
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            padding: 20px 30px;
+            border-radius: 30px;
+            max-width: 80%;
+            line-height: 1.6;
+            font-size: 1.3rem;
+            position: relative;
+        }
+
+        .message.bot .message-bubble {
+            background: var(--bubble-bot);
+            color: white;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.user .message-bubble {
+            background: var(--bubble-user);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .input-container {
+            max-width: 1000px;
+            margin: 30px auto 0;
+            display: flex;
+            gap: 20px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 18px 25px;
+            border-radius: 30px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            color: var(--text-light);
+            font-size: 1.3rem;
+            outline: none;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .chat-input:focus {
+            box-shadow: 0 0 20px rgba(2,136,209,0.5);
+        }
+
+        .send-button {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 30px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .send-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .typing-indicator {
+            display: none;
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-bubble {
+            display: inline-block;
+            padding: 20px 30px;
+            border-radius: 30px;
+            background: var(--bubble-bot);
+            color: white;
+            border-bottom-left-radius: 5px;
+        }
+
+        .dots span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: white;
+            margin: 0 4px;
+            animation: typing 1.3s infinite;
+        }
+
+        .dots span:nth-child(2) { animation-delay: 0.3s; }
+        .dots span:nth-child(3) { animation-delay: 0.6s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+            30% { transform: translateY(-10px); opacity: 1; }
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .demo-button {
+            background: var(--bubble-bot);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 30px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            margin: 0 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .business-units {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .business-unit {
+            background: var(--card-bg);
+            border-radius: 25px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .business-unit:hover {
+            transform: translateY(-12px) scale(1.03);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+        }
+
+        .unit-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: var(--text-light);
+        }
+
+        .unit-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text-light);
+        }
+
+        .unit-description {
+            font-size: 1.2rem;
+            line-height: 1.7;
+            opacity: 0.85;
+            color: var(--text-dark);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .metric-card {
+            background: var(--accent-gradient);
+            color: white;
+            padding: 40px;
+            border-radius: 25px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            transition: transform 0.4s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-8px);
+        }
+
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 15px;
+        }
+
+        .metric-label {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .tech-stack {
+            background: var(--glass-bg);
+            border-radius: 30px;
+            padding: 60px;
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .tech-items {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .tech-item {
+            background: var(--accent-gradient);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.3rem;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            transition: transform 0.3s ease;
+        }
+
+        .tech-item:hover {
+            transform: translateY(-4px);
+        }
+
+        @media (max-width: 1200px) {
+            .architecture-grid, .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .business-units {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .dual-flow-container {
+                grid-template-columns: 1fr;
+                gap: 60px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 3rem;
+            }
+            .section {
+                padding: 40px 20px;
+            }
+            .architecture-grid, .metrics-grid, .business-units {
+                grid-template-columns: 1fr;
+            }
+            .input-container {
+                flex-direction: column;
+            }
+            .chat-input, .send-button {
+                width: 100%;
+            }
+            .nav ul {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .flow-timeline {
+                padding: 20px 10px;
+            }
+            .flow-node {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+                padding: 20px;
+            }
+            .node-icon {
+                margin: 0 auto;
+            }
+            .flow-connector {
+                left: 50%;
+                transform: translateX(-1.5px);
+            }
+            .node-title {
+                font-size: 1.4rem;
+            }
+            .node-description, .sub-steps li {
+                font-size: 0.95rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            .header p {
+                font-size: 1.3rem;
+            }
+            .section-title {
+                font-size: 2.2rem;
+            }
+            .node-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+            .node-title {
+                font-size: 1.3rem;
+            }
+            .node-description, .sub-steps li {
+                font-size: 0.9rem;
+            }
+            .theme-toggle {
+                width: 40px;
+                height: 40px;
+            }
+            .theme-toggle i {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <div class="particles"></div>
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-moon"></i>
+    </button>
+    <div class="container">
+        <nav class="nav">
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#flows">Flujos</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#business">Business Units</a></li>
+                <li><a href="#metrics">Metrics</a></li>
+                <li><a href="#tech">Tech Stack</a></li>
+            </ul>
+        </nav>
+
+        <div class="header" id="overview">
+            <h1>Grupo huntRED® AI - GenIA</h1>
+            <p>Transformando el Reclutamiento con Inteligencia Artificial</p>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Arquitectura del Sistema</h2>
+            <div class="architecture-grid">
+                <div class="component-card">
+                    <div class="component-header">
+                        <div class="component-icon">🎯</div>
+                        <div class="component-title">Frontend</div>
+                    </div>
+                    <div class="component-description">
+                        Interfaces modernas para una experiencia de usuario excepcional.
+                    </div>
+                    <ul class="component-features">
+                        <li>Client Portal interactivo</li>
+                        <li>Dashboard con analytics</li>
+                        <li>Kanban Board visual</li>
+                        <li>Componentes UI modulares</li>
+                        <li>Notificaciones en tiempo real</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <div class="component-header">
+                        <div class="component-icon">🤖</div>
+                        <div class="component-title">ATS Core</div>
+                    </div>
+                    <div class="component-description">
+                        Núcleo del sistema con chatbot y automatización avanzada.
+                    </div>
+                    <ul class="component-features">
+                        <li>Chatbot con NLP</li>
+                        <li>Gestión de cuentas</li>
+                        <li>Workflow Engine</li>
+                        <li>Sistema de eventos</li>
+                        <li>Validadores automáticos</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <div class="component-header">
+                        <div class="component-icon">🧠</div>
+                        <div class="component-title">Machine Learning</div>
+                    </div>
+                    <div class="component-description">
+                        IA para análisis predictivo y personalización.
+                    </div>
+                    <ul class="component-features">
+                        <li>Análisis de sentimiento</li>
+                        <li>Scoring de candidatos</li>
+                        <li>Recomendaciones</li>
+                        <li>Modelos optimizados</li>
+                        <li>Mejora continua</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <div class="component-header">
+                        <div class="component-icon">🔗</div>
+                        <div class="component-title">Integraciones</div>
+                    </div>
+                    <div class="component-description">
+                        Conectividad seamless con sistemas externos.
+                    </div>
+                    <ul class="component-features">
+                        <li>API Gateway escalable</li>
+                        <li>Omnicanal (WhatsApp, Email)</li>
+                        <li>CRM/HR Systems</li>
+                        <li>Pasarelas de pago</li>
+                        <li>RabbitMQ para colas</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <div class="component-header">
+                        <div class="component-icon">⚙️</div>
+                        <div class="component-title">Servicios</div>
+                    </div>
+                    <div class="component-description">
+                        Infraestructura robusta para soporte y escalabilidad.
+                    </div>
+                    <ul class="component-features">
+                        <li>Autenticación OAuth</li>
+                        <li>Gestión de archivos</li>
+                        <li>Colas con RabbitMQ</li>
+                        <li>Cache con Redis</li>
+                        <li>Configuración dinámica</li>
+                    </ul>
+                </div>
+                <div class="component-card">
+                    <div class="component-header">
+                        <div class="component-icon">📊</div>
+                        <div class="component-title">Monitoreo</div>
+                    </div>
+                    <div class="component-description">
+                        Observabilidad completa en tiempo real.
+                    </div>
+                    <ul class="component-features">
+                        <li>Prometheus/Grafana</li>
+                        <li>ELK Stack logging</li>
+                        <li>Jaeger tracing</li>
+                        <li>Alertas inteligentes</li>
+                        <li>APM con Datadog</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="flows">
+            <h2 class="section-title">Flujos de Procesos</h2>
+            <div class="dual-flow-container">
+                <!-- Chatbot Flow -->
+                <div class="flow-timeline">
+                    <h3 class="flow-title">Flujo del Chatbot</h3>
+                    <div class="flow-node">
+                        <div class="node-icon">🚀</div>
+                        <div class="node-content">
+                            <div class="node-title">Inicio</div>
+                            <div class="node-description">
+                                El candidato inicia la interacción, y el chatbot carga el contexto.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Authentication<span class="tooltip">Verifica identidad con OAuth (`app/ats/services/auth.py`).</span></li>
+                                <li>Context Load<span class="tooltip">Recupera datos de Redis y PostgreSQL (`app/ats/models/memory.py`).</span></li>
+                                <li>Session Start<span class="tooltip">Inicia sesión WebSocket (`app/ats/services/websocket.py`).</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 120px; height: calc(100% - 240px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">🎯</div>
+                        <div class="node-content">
+                            <div class="node-title">Identificación</div>
+                            <div class="node-description">
+                                Analiza intenciones y perfil con NLP avanzado.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Intent Classification<span class="tooltip">Usa spaCy en `app/ats/chatbot/nlp/nlp.py`.</span></li>
+                                <li>Entity Extraction<span class="tooltip">Identifica habilidades con modelos NER.</span></li>
+                                <li>Sentiment Analysis<span class="tooltip">Evalúa tono con TensorFlow.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 300px; height: calc(100% - 420px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">🏢</div>
+                        <div class="node-content">
+                            <div class="node-title">Unidad de Negocio</div>
+                            <div class="node-description">
+                                Selecciona unidad y activa flujo personalizado.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Unit Detection<span class="tooltip">Compara input en `app/ats/chatbot/workflow/common/common.py`.</span></li>
+                                <li>Flow Activation<span class="tooltip">Carga flujo específico (e.g., huntRED, Amigro).</span></li>
+                                <li>Context Update<span class="tooltip">Actualiza estado en `app/ats/chatbot/models/chat_state.py`.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 480px; height: calc(100% - 600px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">📋</div>
+                        <div class="node-content">
+                            <div class="node-title">Flujo Específico</div>
+                            <div class="node-description">
+                                Ejecuta procesos como referencias o entrevistas.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Workflow Execution<span class="tooltip">Usa Workflow Engine en `app/ats/chatbot/workflow`.</span></li>
+                                <li>Integration Calls<span class="tooltip">Consulta CRM (`app/ats/integrations/services/*.py`).</span></li>
+                                <li>Validation<span class="tooltip">Valida datos en `app/ats/utils/validators.py`.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 660px; height: calc(100% - 780px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">🤖</div>
+                        <div class="node-content">
+                            <div class="node-title">Análisis ML</div>
+                            <div class="node-description">
+                                Aplica ML para scoring y recomendaciones.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Scoring<span class="tooltip">Calcula puntajes en `app/ats/chatbot/core/gpt.py`.</span></li>
+                                <li>Recommendations<span class="tooltip">Usa OpenAI embeddings.</span></li>
+                                <li>Predictions<span class="tooltip">Fit cultural con TensorFlow.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 840px; height: calc(100% - 960px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">📊</div>
+                        <div class="node-content">
+                            <div class="node-title">Evaluación</div>
+                            <div class="node-description">
+                                Genera reportes y actualiza estado del candidato.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Report Generation<span class="tooltip">Crea PDF en `app/models.py`.</span></li>
+                                <li>Status Update<span class="tooltip">Persiste en PostgreSQL, notifica vía RabbitMQ.</span></li>
+                                <li>Feedback<span class="tooltip">Recolecta datos para reentrenamiento.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Organizational Analysis / Professional DNA / Assessments Flow -->
+                <div class="flow-timeline">
+                    <h3 class="flow-title">Análisis Organizacional / Professional DNA</h3>
+                    <div class="flow-node">
+                        <div class="node-icon">🏛️</div>
+                        <div class="node-content">
+                            <div class="node-title">Organizational Profiling</div>
+                            <div class="node-description">
+                                Analiza necesidades y cultura organizacional.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Data Collection<span class="tooltip">Extrae datos de Workday (`app/ats/integrations/services/hr.py`).</span></li>
+                                <li>Culture Analysis<span class="tooltip">Evalúa valores con NLP (`app/ats/chatbot/nlp/nlp.py`).</span></li>
+                                <li>Role Mapping<span class="tooltip">Define requisitos (`app/ats/utils/vacantes.py`).</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 120px; height: calc(100% - 240px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">🧬</div>
+                        <div class="node-content">
+                            <div class="node-title">Professional DNA Mapping</div>
+                            <div class="node-description">
+                                Construye perfiles con evaluaciones conductuales.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Behavioral Assessment<span class="tooltip">Cuestionarios en `app/ats/integrations/services/assessment.py`.</span></li>
+                                <li>Skill Profiling<span class="tooltip">Mapea habilidades con ML (`app/ats/chatbot/core/gpt.py`).</span></li>
+                                <li>Data Enrichment<span class="tooltip">Integra LinkedIn vía API.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 300px; height: calc(100% - 420px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">📝</div>
+                        <div class="node-content">
+                            <div class="node-title">Assessment Execution</div>
+                            <div class="node-description">
+                                Realiza evaluaciones personalizadas.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Test Deployment<span class="tooltip">Ejecuta tests (`app/ats/integrations/services/assessment.py`).</span></li>
+                                <li>Real-Time Scoring<span class="tooltip">Puntúa con ML en tiempo real.</span></li>
+                                <li>Feedback Capture<span class="tooltip">Recolecta respuestas.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 480px; height: calc(100% - 600px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">🔍</div>
+                        <div class="node-content">
+                            <div class="node-title">ML-Driven Insights</div>
+                            <div class="node-description">
+                                Genera insights de compatibilidad.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Fit Scoring<span class="tooltip">Calcula compatibilidad con TensorFlow.</span></li>
+                                <li>Prediction Models<span class="tooltip">Predice éxito (`app/ats/chatbot/core/gpt.py`).</span></li>
+                                <li>Recommendation<span class="tooltip">Sugiere roles óptimos.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flow-connector" style="top: 660px; height: calc(100% - 780px);"></div>
+
+                    <div class="flow-node">
+                        <div class="node-icon">📈</div>
+                        <div class="node-content">
+                            <div class="node-title">Reporting</div>
+                            <div class="node-description">
+                                Entrega reportes accionables.
+                            </div>
+                            <ul class="sub-steps">
+                                <li>Dashboard Generation<span class="tooltip">Visualizaciones en `app/ats/utils/reporting.py`.</span></li>
+                                <li>Data Export<span class="tooltip">Genera PDFs vía RabbitMQ.</span></li>
+                                <li>Notification<span class="tooltip">Notifica via WhatsApp/Email.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section conversation-demo" id="demo">
+            <h2 class="section-title">Simulación de Conversación</h2>
+            <div class="chat-simulation" id="chatSimulation">
+                <div class="message bot">
+                    <div class="message-bubble">
+                        ¡Hola! 👋 Soy GenIA, el asistente de huntRED. ¿En qué puedo ayudarte hoy?
+                    </div>
+                </div>
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-bubble">
+                    <div class="dots"><span></span><span></span><span></span></div>
+                </div>
+            </div>
+            <div class="input-container">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Escribe tu mensaje...">
+                <button class="send-button" onclick="sendMessage()">Enviar</button>
+            </div>
+            <div class="controls">
+                <button class="demo-button" onclick="startDemo()">Iniciar Demo</button>
+                <button class="demo-button" onclick="resetDemo()">Reiniciar</button>
+            </div>
+        </div>
+
+        <div class="section" id="business">
+            <h2 class="section-title">Unidades de Negocio</h2>
+            <div class="business-units">
+                <div class="business-unit">
+                    <div class="unit-icon">🌟</div>
+                    <div class="unit-name">huntRED® Executive</div>
+                    <div class="unit-description">Reclutamiento ejecutivo con evaluación de soft skills y entrevistas estructuradas.</div>
+                </div>
+                <div class="business-unit">
+                    <div class="unit-icon">🎯</div>
+                    <div class="unit-name">huntRED®</div>
+                    <div class="unit-description">Reclutamiento especializado con enfoque en referencias y validaciones profundas.</div>
+                </div>
+                <div class="business-unit">
+                    <div class="unit-icon">💻</div>
+                    <div class="unit-name">huntU®</div>
+                    <div class="unit-description">Reclutamiento tecnológico con evaluaciones técnicas avanzadas.</div>
+                </div>
+                <div class="business-unit">
+                    <div class="unit-icon">💼</div>
+                    <div class="unit-name">Amigro®</div>
+                    <div class="unit-description">Talento comercial con evaluación de habilidades de ventas y negociación.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="metrics">
+            <h2 class="section-title">Métricas del Sistema</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">99.9%</div>
+                    <div class="metric-label">Disponibilidad</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">< 200ms</div>
+                    <div class="metric-label">Tiempo de Respuesta</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">10K+</div>
+                    <div class="metric-label">Candidatos/Mes</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">95%</div>
+                    <div class="metric-label">Precisión ML</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">24/7</div>
+                    <div class="metric-label">Monitoreo</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">4</div>
+                    <div class="metric-label">Unidades de Negocio</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section tech-stack" id="tech">
+            <h2 class="section-title">Stack Tecnológico</h2>
+            <div class="tech-items">
+                <div class="tech-item">Python</div>
+                <div class="tech-item">TensorFlow</div>
+                <div class="tech-item">spaCy</div>
+                <div class="tech-item">Redis</div>
+                <div class="tech-item">WebSocket</div>
+                <div class="tech-item">FastAPI</div>
+                <div class="tech-item">PostgreSQL</div>
+                <div class="tech-item">Docker</div>
+                <div class="tech-item">Kubernetes</div>
+                <div class="tech-item">OpenAI</div>
+                <div class="tech-item">Elasticsearch</div>
+                <div class="tech-item">RabbitMQ</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            const body = document.body;
+            const toggleButton = document.querySelector('.theme-toggle i');
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            body.setAttribute('data-theme', newTheme);
+            toggleButton.className = newTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', savedTheme);
+            document.querySelector('.theme-toggle i').className = savedTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+        });
+
+        // Partículas de fondo
+        function createParticles() {
+            const particles = document.querySelector('.particles');
+            particles.style.background = `url("data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\"%3E%3Ccircle cx=\"10\" cy=\"10\" r=\"1\" fill=\"var(--particle-fill)\" /%3E%3Ccircle cx=\"50\" cy=\"50\" r=\"1\" fill=\"var(--particle-fill)\" /%3E%3Ccircle cx=\"150\" cy=\"150\" r=\"1\" fill=\"var(--particle-fill)\" /%3E%3C/svg%3E")`;
+            particles.style.backgroundSize = '5px 5px';
+        }
+
+        // Demo de conversación
+        const demoConversation = [
+            { type: 'user', text: 'Quiero aplicar para una posición en huntRED' },
+            { type: 'bot', text: '¡Perfecto! 🎯 ¿Qué experiencia tienes? Por ejemplo, ¿has trabajado en ventas o tecnología? En que puesto?' },
+            { type: 'user', text: 'Tengo 5 años en ventas B2B, como ejecutivo de ventas' },
+            { type: 'bot', text: '¡Gran perfil! 📊 ¿En huntU contamos con multiples oportunidades que podrían ser de tu interés?' },
+            { type: 'user', text: 'Magnífico, me interesa mucho' },
+            { type: 'bot', text: 'Ok, Para capturar más de tus datos. 🚀 Cómo gustas que lo realicemos? Me brindas tu Curriculum Vitae, con tu perfil de Linkedin o lo platicamos más detalladamente?' },
+            { type: 'user', text: 'Me encanta, que facil. Te envío mi CV' },
+            { type: 'bot', text: '¡Genial! Recibido, lo voy procesando. El proceso normalmente toma 5-7 días, con entrevistas y todo. ¿Te brindo alternativas de trabajo? 💼' }
+        ];
+
+        let currentMessageIndex = 0;
+        let demoActive = false;
+        const responses = {
+            'huntred executive': 'Para huntRED Executive, enfocamos en soft skills y entrevistas ejecutivas. ¿Tienes referencias de directivos?',
+            'huntred': 'En huntRED, validamos referencias y entrevistas estructuradas. ¿Tienes contactos de supervisores?',
+            'huntu': 'huntU busca talento técnico. ¿Qué lenguajes de programación dominas?',
+            'amigro': 'En Amigro, evaluamos habilidades de ventas. ¿Tienes experiencia en B2B o B2C?'
+        };
+
+        function addMessage(type, text) {
+            const chatSimulation = document.getElementById('chatSimulation');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.textContent = text;
+            messageDiv.appendChild(bubbleDiv);
+            chatSimulation.appendChild(messageDiv);
+            chatSimulation.scrollTop = chatSimulation.scrollHeight;
+        }
+
+        function showTyping() {
+            document.getElementById('typingIndicator').classList.add('active');
+        }
+
+        function hideTyping() {
+            document.getElementById('typingIndicator').classList.remove('active');
+        }
+
+        function startDemo() {
+            if (demoActive) return;
+            demoActive = true;
+            currentMessageIndex = 0;
+
+            function playNextMessage() {
+                if (currentMessageIndex >= demoConversation.length) {
+                    demoActive = false;
+                    return;
+                }
+                const message = demoConversation[currentMessageIndex];
+                if (message.type === 'bot') {
+                    showTyping();
+                    setTimeout(() => {
+                        hideTyping();
+                        addMessage(message.type, message.text);
+                        currentMessageIndex++;
+                        setTimeout(playNextMessage, 1500);
+                    }, 2000);
+                } else {
+                    addMessage(message.type, message.text);
+                    currentMessageIndex++;
+                    setTimeout(playNextMessage, 1000);
+                }
+            }
+            playNextMessage();
+        }
+
+        function resetDemo() {
+            const chatSimulation = document.getElementById('chatSimulation');
+            chatSimulation.innerHTML = `
+                <div class="message bot">
+                    <div class="message-bubble">
+                        ¡Hola! 👋 Soy GenIA, el mejor asistente de reclutamiento. ¿En qué puedo ayudarte hoy?
+                    </div>
+                </div>
+            `;
+            hideTyping();
+            demoActive = false;
+            currentMessageIndex = 0;
+            document.getElementById('chatInput').value = '';
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim().toLowerCase();
+            if (!text) return;
+
+            addMessage('user', text);
+            input.value = '';
+            showTyping();
+
+            setTimeout(() => {
+                hideTyping();
+                let response = 'No entendí. ¿Puedes especificar si te interesa huntRED Executive, huntRED, huntU, o Amigro?';
+                for (const [key, value] of Object.entries(responses)) {
+                    if (text.includes(key)) {
+                        response = value;
+                        break;
+                    }
+                }
+                addMessage('bot', response);
+            }, 1500);
+        }
+
+        // Animaciones de scroll
+        function animateOnScroll() {
+            const elements = document.querySelectorAll('.component-card, .flow-node, .business-unit, .metric-card');
+            elements.forEach(element => {
+                const rect = element.getBoundingClientRect();
+                if (rect.top < window.innerHeight - 150) {
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }
+            });
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            createParticles();
+            const elements = document.querySelectorAll('.component-card, .flow-node, .business-unit, .metric-card');
+            elements.forEach(element => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(50px)';
+                element.style.transition = 'all 0.9s ease';
+            });
+            animateOnScroll();
+
+            document.getElementById('chatInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') sendMessage();
+            });
+
+            // Smooth scroll for navigation
+            document.querySelectorAll('.nav a').forEach(anchor => {
+                anchor.addEventListener('click', e => {
+                    e.preventDefault();
+                    document.querySelector(anchor.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+                });
+            });
+
+            // Animaciones de flujo
+            const nodes = document.querySelectorAll('.flow-node');
+            nodes.forEach((node, index) => {
+                node.style.opacity = '0';
+                node.style.transform = 'translateY(40px)';
+                node.style.transition = `all 0.7s ease ${index * 0.15}s`;
+            });
+
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+
+            nodes.forEach(node => observer.observe(node));
+        });
+
+        window.addEventListener('scroll', animateOnScroll);
+    </script>
+</body>
+</html>

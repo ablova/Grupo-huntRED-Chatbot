@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from app.models import Person, Vacante, Company, OnboardingProcess
 from app.ats.chatbot.message_service import MessageService
+from app.tasks import send_satisfaction_survey
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,6 @@ class SatisfactionTracker:
     
     async def _schedule_survey(self, onboarding_id: int, survey_date: datetime, period_days: int):
         """Programa una encuesta específica en Celery"""
-        from app.ats.tasks import send_satisfaction_survey
         
         # Programar tarea asíncrona
         send_satisfaction_survey.apply_async(

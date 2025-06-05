@@ -9,7 +9,11 @@ from django.db.models.signals import post_save, m2m_changed, pre_save
 from django.dispatch import receiver, Signal
 from django.utils import timezone
 from app.models import Vacante, BusinessUnit, WorkflowStage, Person, Application
-from app.ats.tasks.ml import train_matchmaking_model_task, predict_top_candidates_task
+from app.tasks import (
+    train_matchmaking_model_task,
+    predict_top_candidates_task,
+    send_notification
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +85,6 @@ def application_created(sender, instance, created, **kwargs):
         logger.info(f"Nueva aplicación: {instance.person.email} para vacante {instance.vacancy.title}")
         
         # Notificar al reclutador si es necesario
-        from app.ats.tasks.notifications import send_notification
-        
         try:
             # Actualizar estadísticas de la vacante
             instance.vacancy.application_count = (

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arquitectura del Sistema GenIA - Grupo huntRED® AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: auto;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            font-weight: 300;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .component-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .component-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+        }
+
+        .component-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .component-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .component-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 24px;
+            color: white;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .component-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .component-description {
+            color: #7f8c8d;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .component-features {
+            list-style: none;
+        }
+
+        .component-features li {
+            padding: 8px 0;
+            color: #34495e;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .component-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .flow-diagram {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 30px 0;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .flow-title {
+            text-align: center;
+            font-size: 2em;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+
+        .process-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+
+        .process-step {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 150px;
+            margin: 10px;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .process-step:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .process-step::after {
+            content: '→';
+            position: absolute;
+            right: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: #667eea;
+        }
+
+        .process-step:last-child::after {
+            display: none;
+        }
+
+        .business-units {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .business-unit {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .business-unit:hover {
+            transform: scale(1.05);
+            border-color: #667eea;
+        }
+
+        .unit-huntred {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+        }
+
+        .unit-amigro {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        }
+
+        .unit-huntu {
+            background: linear-gradient(135deg, #45b7d1, #2196f3);
+        }
+
+        .unit-sexsi {
+            background: linear-gradient(135deg, #96ceb4, #00b09b);
+        }
+
+        .unit-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .unit-name {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .unit-description {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9em;
+        }
+
+        .interactive-section {
+            margin: 50px 0;
+        }
+
+        .tab-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-buttons {
+            display: flex;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 20px;
+            background: none;
+            border: none;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            padding: 40px;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .data-flow-viz {
+            position: relative;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 30px 0;
+        }
+
+        .flow-node {
+            position: absolute;
+            width: 100px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8em;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .flow-connection {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            animation: flow 3s infinite;
+        }
+
+        @keyframes flow {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .process-flow {
+                flex-direction: column;
+            }
+            
+            .process-step::after {
+                content: '↓';
+                right: 50%;
+                top: 100%;
+                transform: translateX(50%);
+            }
+            
+            .tab-buttons {
+                flex-direction: column;
+            }
+        }
+
+        .floating-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .floating-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-elements">
+        <div class="floating-circle" style="width: 80px; height: 80px; top: 10%; left: 10%; animation-delay: 0s;"></div>
+        <div class="floating-circle" style="width: 120px; height: 120px; top: 20%; right: 10%; animation-delay: 2s;"></div>
+        <div class="floating-circle" style="width: 60px; height: 60px; bottom: 20%; left: 15%; animation-delay: 4s;"></div>
+        <div class="floating-circle" style="width: 100px; height: 100px; bottom: 10%; right: 20%; animation-delay: 1s;"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Grupo huntRED® AI - GenIA</h1>
+            <p>Arquitectura del Sistema ATS + ML + Chatbot + Integraciones + Servicios</p>
+        </div>
+
+        <div class="architecture-grid">
+            <div class="component-card">
+                <div class="component-header">
+                    <div class="component-icon">🎯</div>
+                    <div class="component-title">Frontend</div>
+                </div>
+                <div class="component-description">
+                    Interfaces de usuario modernas y responsivas para una experiencia óptima
+                </div>
+                <ul class="component-features">
+                    <li>Client Portal interactivo</li>
+                    <li>Dashboard con analytics en tiempo real</li>
+                    <li>Kanban Board para gestión visual</li>
+                    <li>Componentes UI reutilizables</li>
+                    <li>Sistema de notificaciones</li>
+                </ul>
+            </div>
+
+            <div class="component-card">
+                <div class="component-header">
+                    <div class="component-icon">🤖</div>
+                    <div class="component-title">ATS Core</div>
+                </div>
+                <div class="component-description">
+                    Núcleo del sistema con chatbot inteligente y procesos automatizados
+                </div>
+                <ul class="component-features">
+                    <li>Chatbot con NLP avanzado</li>
+                    <li>Gestión de cuentas y roles</li>
+                    <li>Motor de workflows</li>
+                    <li>Sistema de eventos</li>
+                    <li>Validadores automáticos</li>
+                </ul>
+            </div>
+
+            <div class="component-card">
+                <div class="component-header">
+                    <div class="component-icon">🧠</div>
+                    <div class="component-title">Machine Learning</div>
+                </div>
+                <div class="component-description">
+                    Inteligencia artificial para análisis predictivo y automatización
+                </div>
+                <ul class="component-features">
+                    <li>Análisis de sentimiento</li>
+                    <li>Clasificación de candidatos</li>
+                    <li>Recomendaciones personalizadas</li>
+                    <li>Predicción de resultados</li>
+                    <li>Mejora continua</li>
+                </ul>
+            </div>
+
+            <div class="component-card">
+                <div class="component-header">
+                    <div class="component-icon">🔗</div>
+                    <div class="component-title">Integraciones</div>
+                </div>
+                <div class="component-description">
+                    Conectividad completa con sistemas externos y canales de comunicación
+                </div>
+                <ul class="component-features">
+                    <li>API Gateway escalable</li>
+                    <li>Comunicación omnicanal</li>
+                    <li>Integración HR/CRM</li>
+                    <li>Pasarelas de pago</li>
+                    <li>Sistemas externos</li>
+                </ul>
+            </div>
+
+            <div class="component-card">
+                <div class="component-header">
+                    <div class="component-icon">⚙️</div>
+                    <div class="component-title">Servicios</div>
+                </div>
+                <div class="component-description">
+                    Servicios base para soporte, logging y configuración del sistema
+                </div>
+                <ul class="component-features">
+                    <li>Autenticación segura</li>
+                    <li>Gestión de archivos</li>
+                    <li>Sistema de colas</li>
+                    <li>Cache distribuido</li>
+                    <li>Configuración dinámica</li>
+                </ul>
+            </div>
+
+            <div class="component-card">
+                <div class="component-header">
+                    <div class="component-icon">📊</div>
+                    <div class="component-title">Monitoreo</div>
+                </div>
+                <div class="component-description">
+                    Observabilidad completa con métricas, logs y alertas en tiempo real
+                </div>
+                <ul class="component-features">
+                    <li>Métricas en tiempo real</li>
+                    <li>Logging centralizado</li>
+                    <li>Trazabilidad distribuida</li>
+                    <li>Alertas inteligentes</li>
+                    <li>Dashboards ejecutivos</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="flow-diagram">
+            <h2 class="flow-title">Flujo de Proceso de Reclutamiento de GenIA</h2>
+            <div class="process-flow">
+                <div class="process-step">
+                    <div>🚪</div>
+                    <div>Inicio</div>
+                </div>
+                <div class="process-step">
+                    <div>🤖</div>
+                    <div>Conversacional AI</div>
+                </div>
+                <div class="process-step">
+                    <div>🧠</div>
+                    <div>ML / NLP</div>
+                </div>
+                <div class="process-step">
+                    <div>⚡</div>
+                    <div>Workflow</div>
+                </div>
+                <div class="process-step">
+                    <div>🔄</div>
+                    <div>Análisis / Procesamiento / Integración</div>
+                </div>
+                <div class="process-step">
+                    <div>✍️</div>
+                    <div>Feedback</div>
+                </div>
+                <div class="process-step">
+                    <div>📊</div>
+                    <div>Resultado / Contratación</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-diagram">
+            <h2 class="flow-title">Unidades de Negocio</h2>
+            <div class="business-units">
+                <div class="business-unit unit-sexsi">
+                    <div class="unit-icon">🌟</div>
+                    <div class="unit-name">huntRED® Executive</div>
+                    <div class="unit-description">Reclutamiento ejecutivo con evaluación de soft skills</div>
+                </div>
+                <div class="business-unit unit-huntred">
+                    <div class="unit-icon">🎯</div>
+                    <div class="unit-name">huntRED®</div>
+                    <div class="unit-description">Reclutamiento especializado con enfoque en referencias y entrevistas estructuradas</div>
+                </div>
+                
+                <div class="business-unit unit-huntu">
+                    <div class="unit-icon">💻</div>
+                    <div class="unit-name">huntU®</div>
+                    <div class="unit-description">Reclutamiento tecnológico con evaluaciones técnicas avanzadas</div>
+                </div>
+                <div class="business-unit unit-amigro">
+                    <div class="unit-icon">💼</div>
+                    <div class="unit-name">Amigro®</div>
+                    <div class="unit-description">Talento comercial con evaluación de habilidades de ventas</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="interactive-section">
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="showTab('metrics')">Métricas</button>
+                    <button class="tab-button" onclick="showTab('dataflow')">Flujo de Datos</button>
+                    <button class="tab-button" onclick="showTab('architecture')">Arquitectura</button>
+                </div>
+
+                <div id="metrics" class="tab-content active">
+                    <h3 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">Métricas del Sistema</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">99.9%</div>
+                            <div class="metric-label">Disponibilidad</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">< 200ms</div>
+                            <div class="metric-label">Tiempo de Respuesta</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">10K+</div>
+                            <div class="metric-label">Candidatos/Mes</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">95%</div>
+                            <div class="metric-label">Precisión ML</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">24/7</div>
+                            <div class="metric-label">Monitoreo</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">4</div>
+                            <div class="metric-label">Unidades de Negocio</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="dataflow" class="tab-content">
+                    <h3 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">Flujo de Datos ML</h3>
+                    <div class="data-flow-viz">
+                        <div class="flow-node" style="top: 50px; left: 50px;">Datos</div>
+                        <div class="flow-node" style="top: 50px; left: 200px;">Features</div>
+                        <div class="flow-node" style="top: 50px; left: 350px;">Training</div>
+                        <div class="flow-node" style="top: 150px; left: 50px;">Validación</div>
+                        <div class="flow-node" style="top: 150px; left: 200px;">Modelo</div>
+                        <div class="flow-node" style="top: 150px; left: 350px;">Deploy</div>
+                        <div class="flow-node" style="top: 250px; left: 125px;">Monitor</div>
+                        <div class="flow-node" style="top: 250px; left: 275px;">Feedback</div>
+                        
+                        <div class="flow-connection" style="top: 75px; left: 150px; width: 50px;"></div>
+                        <div class="flow-connection" style="top: 75px; left: 300px; width: 50px;"></div>
+                        <div class="flow-connection" style="top: 175px; left: 150px; width: 50px;"></div>
+                        <div class="flow-connection" style="top: 175px; left: 300px; width: 50px;"></div>
+                        <div class="flow-connection" style="top: 275px; left: 225px; width: 50px;"></div>
+                    </div>
+                </div>
+
+                <div id="architecture" class="tab-content">
+                    <h3 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">Arquitectura de Alto Nivel</h3>
+                    <div style="text-align: center; color: #7f8c8d; line-height: 1.8;">
+                        <p><strong>Capa de Presentación:</strong> React/Vue.js con componentes modulares</p>
+                        <p><strong>Capa de Aplicación:</strong> Node.js/Python con microservicios</p>
+                        <p><strong>Capa de Datos:</strong> PostgreSQL/MongoDB con Redis Cache</p>
+                        <p><strong>Capa de ML:</strong> TensorFlow/PyTorch con MLFlow</p>
+                        <p><strong>Infraestructura:</strong> Docker/Kubernetes en AWS/GCP</p>
+                        <p><strong>Monitoreo:</strong> Prometheus/Grafana con ELK Stack</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // Add smooth scroll behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate cards on scroll
+            const cards = document.querySelectorAll('.component-card');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(50px)';
+                card.style.transition = `all 0.6s ease ${index * 0.1}s`;
+                observer.observe(card);
+            });
+
+            // Animate floating elements
+            const floatingElements = document.querySelectorAll('.floating-circle');
+            floatingElements.forEach((element, index) => {
+                element.style.animationDelay = `${index * 0.5}s`;
+            });
+        });
+
+        // Add interactive hover effects
+        document.querySelectorAll('.component-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        // Add click interactions for business units
+        document.querySelectorAll('.business-unit').forEach(unit => {
+            unit.addEventListener('click', function() {
+                const unitName = this.querySelector('.unit-name').textContent;
+                alert(`Explorando ${unitName}...\n\nEste módulo contiene flujos específicos para ${unitName} con integraciones personalizadas y métricas dedicadas.`);
+            });
+        });
+    </script>
+</body>
+</html>

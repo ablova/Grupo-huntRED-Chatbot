@@ -78,7 +78,7 @@ class AppConfig(DjangoAppConfig):
     def _setup_periodic_tasks(self, **kwargs):
         try:
             from ai_huntred.celery import app
-            from app.ats.tasks.scheduler import setup_periodic_tasks
+            from app.tasks import setup_periodic_tasks
             app.on_after_configure.connect(setup_periodic_tasks)
             logger.info("Periodic tasks registered successfully")
         except Exception as e:

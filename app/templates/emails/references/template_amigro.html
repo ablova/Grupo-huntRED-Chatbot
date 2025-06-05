@@ -1,0 +1,40 @@
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #2c3e50;">Solicitud de Referencia - Amigro</h2>
+    
+    <p>Hola {{ reference.name }},</p>
+    
+    <p>Espero que estés bien. {{ reference.candidate.get_full_name }} nos ha compartido que trabajaron juntos en {{ reference.company }} y nos ha proporcionado tu información para solicitar una referencia.</p>
+    
+    <p>En Amigro, nos especializamos en la búsqueda de talento para el sector de ventas y servicio al cliente. Tu opinión es muy importante para nosotros y nos ayudaría mucho conocer tu perspectiva sobre el desempeño de {{ reference.candidate.get_full_name }} en estas áreas.</p>
+    
+    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Para completar la referencia, haz clic en el siguiente enlace:</strong></p>
+        <p style="margin: 10px 0;"><a href="{{ reference_url }}" style="color: #3498db; text-decoration: none;">Completar Referencia</a></p>
+    </div>
+    
+    <p>La referencia incluye preguntas sobre:</p>
+    <ul>
+        <li>Desempeño en sus empleos</li>
+        <li>Relación con clientes</li>
+        <li>Logros principales</li>
+        <li>Habilidades de comunicación e incluso gestión</li>
+        <li>Recomendación general</li>
+    </ul>
+    
+    <p>El proceso te tomará aproximadamente 4 a 5 minutos, es realmente rápido, ágil y sencillo.</p>
+    
+    <p>Si tienes alguna duda o necesitas ayuda, no dudes en contactarnos.</p>
+    
+    <p>Saludos,<br>
+    El equipo de Amigro</p>
+    
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
+        <p>Este es un correo automático. Por favor, no respondas a este mensaje.</p>
+        <p>Si no deseas recibir más solicitudes de referencia, puedes <a href="{{ unsubscribe_url }}" style="color: #666;">darte de baja aquí</a>.</p>
+    </div>
+</div>
+{% endblock %} 

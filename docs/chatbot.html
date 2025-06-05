@@ -1,0 +1,779 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>huntRED - Flujo del Chatbot</title>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(45deg, #4b6cb7, #182848);
+            --accent-gradient: linear-gradient(45deg, #ff6b6b, #ffa726);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-light: rgba(255, 255, 255, 0.9);
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            color: var(--text-light);
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 3px 3px;
+            animation: twinkle-bg 10s infinite;
+        }
+
+        @keyframes twinkle-bg {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            perspective: 1000px;
+        }
+
+        .header h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #e3f2fd, #90caf9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            transform: rotateX(10deg);
+            transition: transform 0.5s ease;
+        }
+
+        .header h1:hover {
+            transform: rotateX(0deg);
+        }
+
+        .header p {
+            font-size: 1.5rem;
+            font-weight: 300;
+            opacity: 0.85;
+            margin-top: 10px;
+        }
+
+        .chatbot-container {
+            background: var(--glass-bg);
+            border-radius: 30px;
+            padding: 60px;
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            margin-bottom: 60px;
+            animation: fadeIn 1s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .flow-title {
+            text-align: center;
+            font-size: 2.8rem;
+            font-weight: 600;
+            margin-bottom: 40px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .chatbot-flow {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Cambia de repeat(auto-fit, minmax(320px, 1fr)) a repeat(3, 1fr) */
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .flow-stage {
+            background: var(--glass-bg);
+            border-radius: 25px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .flow-stage::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 10%, transparent 20%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .flow-stage:hover::before {
+            opacity: 1;
+        }
+
+        .flow-stage:hover {
+            transform: translateY(-12px) scale(1.03);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+        }
+
+        .stage-icon {
+            width: 90px;
+            height: 90px;
+            background: var(--accent-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+            font-size: 2.5rem;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .stage-title {
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .stage-description {
+            text-align: center;
+            line-height: 1.7;
+            font-size: 1.2rem;
+            opacity: 0.85;
+        }
+
+        .conversation-demo {
+            background: var(--glass-bg);
+            border-radius: 30px;
+            padding: 50px;
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            margin-bottom: 60px;
+        }
+
+        .demo-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 40px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .chat-simulation {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 40px;
+            height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--glass-border);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+        }
+
+        .message {
+            margin-bottom: 25px;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.bot {
+            text-align: left;
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            padding: 18px 25px;
+            border-radius: 25px;
+            max-width: 75%;
+            line-height: 1.5;
+            font-size: 1.2rem;
+            position: relative;
+        }
+
+        .message.bot .message-bubble {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .input-container {
+            max-width: 900px;
+            margin: 20px auto 0;
+            display: flex;
+            gap: 15px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 15px 20px;
+            border-radius: 25px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            color: white;
+            font-size: 1.2rem;
+            outline: none;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .chat-input:focus {
+            box-shadow: 0 0 15px rgba(102,126,234,0.5);
+        }
+
+        .send-button {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .send-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+
+        .typing-indicator {
+            display: none;
+            text-align: left;
+            margin-bottom: 25px;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-bubble {
+            display: inline-block;
+            padding: 18px 25px;
+            border-radius: 25px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-left-radius: 5px;
+        }
+
+        .dots span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: white;
+            margin: 0 3px;
+            animation: typing 1.2s infinite;
+        }
+
+        .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .demo-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin: 0 15px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .feature-card {
+            background: var(--glass-bg);
+            border-radius: 25px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+        }
+
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            color: white;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .feature-title {
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .feature-description {
+            line-height: 1.7;
+            font-size: 1.2rem;
+            opacity: 0.85;
+        }
+
+        .tech-stack {
+            background: var(--glass-bg);
+            border-radius: 30px;
+            padding: 50px;
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .tech-title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 40px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .tech-items {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 25px;
+        }
+
+        .tech-item {
+            background: var(--accent-gradient);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .tech-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+
+        @media (max-width: 1024px) {
+            .chatbot-flow {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+            .header h1 {
+                font-size: 3.2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.8rem;
+            }
+            .chatbot-container, .conversation-demo, .tech-stack {
+                padding: 30px 15px;
+            }
+            .flow-title, .demo-title, .tech-title {
+                font-size: 2rem;
+            }
+            .chatbot-flow, .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .input-container {
+                flex-direction: column;
+            }
+            .chat-input, .send-button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 2.2rem;
+            }
+            .header p {
+                font-size: 1.2rem;
+            }
+            .stage-icon {
+                width: 70px;
+                height: 70px;
+                font-size: 2rem;
+            }
+            .stage-title {
+                font-size: 1.5rem;
+            }
+            .stage-description {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+    <div class="container">
+        <div class="header">
+            <h1>Grupo huntRED® AI - GenIA</h1>
+            <p>Sistema de Chatbot Inteligente para Reclutamiento</p>
+        </div>
+
+        <div class="chatbot-container">
+            <h2 class="flow-title">Flujo del Chatbot</h2>
+            <div class="chatbot-flow">
+                <div class="flow-stage">
+                    <div class="stage-icon">🚀</div>
+                    <div class="stage-title">Inicio</div>
+                    <div class="stage-description">
+                        El candidato inicia la conversación, y el chatbot identifica su contexto usando memoria a corto y largo plazo.
+                    </div>
+                </div>
+                <div class="flow-stage">
+                    <div class="stage-icon">🎯</div>
+                    <div class="stage-title">Identificación</div>
+                    <div class="stage-description">
+                        Análisis de intenciones y perfil con NLP avanzado, incluyendo análisis de sentimientos.
+                    </div>
+                </div>
+                <div class="flow-stage">
+                    <div class="stage-icon">🏢</div>
+                    <div class="stage-title">Unidad de Negocio</div>
+                    <div class="stage-description">
+                        Selecciona la unidad (huntRED, Amigro, Huntu, Sexsi) y activa flujos personalizados.
+                    </div>
+                </div>
+                <div class="flow-stage">
+                    <div class="stage-icon">📋</div>
+                    <div class="stage-title">Flujo Específico</div>
+                    <div class="stage-description">
+                        Ejecuta procesos como referencias, evaluaciones técnicas, o entrevistas según la unidad.
+                    </div>
+                </div>
+                <div class="flow-stage">
+                    <div class="stage-icon">🤖</div>
+                    <div class="stage-title">Análisis ML</div>
+                    <div class="stage-description">
+                        Usa ML para scoring, recomendaciones, y predicciones basadas en datos integrados.
+                    </div>
+                </div>
+                <div class="flow-stage">
+                    <div class="stage-icon">📊</div>
+                    <div class="stage-title">Evaluación</div>
+                    <div class="stage-description">
+                        Genera reportes detallados y actualiza el estado del candidato en tiempo real.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="conversation-demo">
+            <h2 class="demo-title">Simulación de Conversación</h2>
+            <div class="chat-simulation" id="chatSimulation">
+                <div class="message bot">
+                    <div class="message-bubble">
+                        ¡Hola! 👋 Soy el asistente de huntRED. ¿En qué puedo ayudarte hoy?
+                    </div>
+                </div>
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-bubble">
+                    <div class="dots"><span></span><span></span><span></span></div>
+                </div>
+            </div>
+            <div class="input-container">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Escribe tu mensaje...">
+                <button class="send-button" onclick="sendMessage()">Enviar</button>
+            </div>
+            <div class="controls">
+                <button class="demo-button" onclick="startDemo()">Iniciar Demo</button>
+                <button class="demo-button" onclick="resetDemo()">Reiniciar</button>
+            </div>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <div class="feature-title">NLP Avanzado</div>
+                <div class="feature-description">
+                    Comprensión contextual con análisis de sentimientos y reconocimiento de intenciones en tiempo real.
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔄</div>
+                <div class="feature-title">Gestión de Contexto</div>
+                <div class="feature-description">
+                    Memoria a corto y largo plazo para conversaciones fluidas y personalizadas.
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Respuesta Instantánea</div>
+                <div class="feature-description">
+                    Procesamiento optimizado con WebSocket y FastAPI para latencia mínima.
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-title">Flujos Personalizados</div>
+                <div class="feature-description">
+                    Adaptación dinámica para huntRED, Amigro, Huntu, y Sexsi con integración omnicanal.
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📈</div>
+                <div class="feature-title">Analytics Avanzados</div>
+                <div class="feature-description">
+                    Monitoreo en tiempo real con Prometheus y visualización en Grafana.
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔗</div>
+                <div class="feature-title">Integración Completa</div>
+                <div class="feature-description">
+                    Conexión con CRM, ATS, WhatsApp, y sistemas de pago mediante RabbitMQ.
+                </div>
+            </div>
+        </div>
+
+        <div class="tech-stack">
+            <h2 class="tech-title">Stack Tecnológico</h2>
+            <div class="tech-items">
+                <div class="tech-item">Python</div>
+                <div class="tech-item">TensorFlow</div>
+                <div class="tech-item">spaCy</div>
+                <div class="tech-item">Redis</div>
+                <div class="tech-item">WebSocket</div>
+                <div class="tech-item">FastAPI</div>
+                <div class="tech-item">PostgreSQL</div>
+                <div class="tech-item">Docker</div>
+                <div class="tech-item">Kubernetes</div>
+                <div class="tech-item">OpenAI</div>
+                <div class="tech-item">Elasticsearch</div>
+                <div class="tech-item">RabbitMQ</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Crear fondo de estrellas
+        function createStars() {
+            const starsContainer = document.querySelector('.stars');
+            starsContainer.style.background = 'radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)';
+            starsContainer.style.backgroundSize = '3px 3px';
+        }
+
+        // Demo de conversación
+        const demoConversation = [
+            { type: 'user', text: 'Quiero aplicar para una posición en huntRED' },
+            { type: 'bot', text: '¡Perfecto! 🎯 ¿Qué experiencia tienes? Por ejemplo, ¿has trabajado en ventas o tecnología?' },
+            { type: 'user', text: 'Tengo 5 años en ventas B2B' },
+            { type: 'bot', text: '¡Gran perfil! 📊 ¿Para qué unidad te interesa aplicar? (huntRED, Amigro, Huntu, Sexsi)' },
+            { type: 'user', text: 'Amigro' },
+            { type: 'bot', text: 'Ok, en Amigro buscamos expertos en ventas. 🚀 Te enviaré un formulario para referencias. ¿Tienes contactos listos?' },
+            { type: 'user', text: 'Sí, tengo dos referencias' },
+            { type: 'bot', text: '¡Genial! Te enviaré el formulario ahora. El proceso toma 5-7 días. ¿Alguna duda? 💼' }
+        ];
+
+        let currentMessageIndex = 0;
+        let demoActive = false;
+        const responses = {
+            'huntred': 'Para huntRED, enfocamos en referencias y entrevistas ejecutivas. ¿Tienes referencias de supervisores?',
+            'amigro': 'En Amigro, evaluamos habilidades de ventas. ¿Tienes experiencia en B2B o B2C?',
+            'huntu': 'Huntu busca talento técnico. ¿Qué lenguajes de programación dominas?',
+            'sexsi': 'Sexsi se centra en servicio al cliente. ¿Has trabajado en atención al cliente?'
+        };
+
+        function addMessage(type, text) {
+            const chatSimulation = document.getElementById('chatSimulation');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.textContent = text;
+            messageDiv.appendChild(bubbleDiv);
+            chatSimulation.appendChild(messageDiv);
+            chatSimulation.scrollTop = chatSimulation.scrollHeight;
+        }
+
+        function showTyping() {
+            document.getElementById('typingIndicator').classList.add('active');
+        }
+
+        function hideTyping() {
+            document.getElementById('typingIndicator').classList.remove('active');
+        }
+
+        function startDemo() {
+            if (demoActive) return;
+            demoActive = true;
+            currentMessageIndex = 0;
+
+            function playNextMessage() {
+                if (currentMessageIndex >= demoConversation.length) {
+                    demoActive = false;
+                    return;
+                }
+                const message = demoConversation[currentMessageIndex];
+                if (message.type === 'bot') {
+                    showTyping();
+                    setTimeout(() => {
+                        hideTyping();
+                        addMessage(message.type, message.text);
+                        currentMessageIndex++;
+                        setTimeout(playNextMessage, 1500);
+                    }, 2000);
+                } else {
+                    addMessage(message.type, message.text);
+                    currentMessageIndex++;
+                    setTimeout(playNextMessage, 1000);
+                }
+            }
+            playNextMessage();
+        }
+
+        function resetDemo() {
+            const chatSimulation = document.getElementById('chatSimulation');
+            chatSimulation.innerHTML = `
+                <div class="message bot">
+                    <div class="message-bubble">
+                        ¡Hola! 👋 Soy el asistente de huntRED. ¿En qué puedo ayudarte hoy?
+                    </div>
+                </div>
+            `;
+            hideTyping();
+            demoActive = false;
+            currentMessageIndex = 0;
+            document.getElementById('chatInput').value = '';
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim().toLowerCase();
+            if (!text) return;
+
+            addMessage('user', text);
+            input.value = '';
+            showTyping();
+
+            setTimeout(() => {
+                hideTyping();
+                let response = 'Lo siento, no entendí. ¿Puedes especificar si te interesa huntRED, Amigro, Huntu, o Sexsi?';
+                for (const [key, value] of Object.entries(responses)) {
+                    if (text.includes(key)) {
+                        response = value;
+                        break;
+                    }
+                }
+                addMessage('bot', response);
+            }, 1500);
+        }
+
+        // Animaciones de scroll
+        function animateOnScroll() {
+            const elements = document.querySelectorAll('.flow-stage, .feature-card');
+            elements.forEach(element => {
+                const rect = element.getBoundingClientRect();
+                if (rect.top < window.innerHeight - 100) {
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }
+            });
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            createStars();
+            const elements = document.querySelectorAll('.flow-stage, .feature-card');
+            elements.forEach(element => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(40px)';
+                element.style.transition = 'all 0.8s ease';
+            });
+            animateOnScroll();
+
+            document.getElementById('chatInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') sendMessage();
+            });
+        });
+
+        window.addEventListener('scroll', animateOnScroll);
+    </script>
+</body>
+</html>

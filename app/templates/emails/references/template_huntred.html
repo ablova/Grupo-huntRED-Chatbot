@@ -1,0 +1,42 @@
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #2c3e50;">Solicitud de Referencia Laboral - huntRED®</h2>
+    
+    <p>Hola {{ reference.name }},</p>
+    
+    <p>Espero que este mensaje te encuentre bien y gracias por tu tiempo. <br>
+        {{ reference.candidate.get_full_name }} ha indicado que usted ha sido su {{ reference.relationship }} en {{ reference.company }} y nos ha proporcionado su información para solicitar una referencia laboral, ya sea por un proceso de selección activo o simplemente en el desarrollo de sus capacidades, cualidades y competencias.</p>
+    
+    <p>En huntRED, nos especializamos en la búsqueda y selección de talento ejecutivo, y su opinión es muy valiosa para nosotros. Nos ayudaría mucho conocer su perspectiva sobre el desempeño y las competencias de {{ reference.candidate.get_full_name }} en el tiempo que trabajaron juntos.</p>
+    
+    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Para completar la referencia, por favor haga clic en el siguiente enlace:</strong></p>
+        <p style="margin: 10px 0;"><a href="{{ reference_url }}" style="color: #3498db; text-decoration: none;">Completar Referencia</a></p>
+    </div>
+    
+    <p>La referencia consta de preguntas sobre:</p>
+    <ul>
+        <li>Desempeño general</li>
+        <li>Fortalezas principales</li>
+        <li>Estilo de liderazgo</li>
+        <li>Habilidades técnicas</li>
+        <li>Recomendación general</li>
+    </ul>
+    
+    <p>El proceso tomará aproximadamente 7 minutos de su tiempo, y no solo apoyará a {{ reference.candidate.get_full_name }} en su proceso de selección, sino que también nos ayudará a mejorar nuestros procesos de búsqueda y selección de talento.</p>
+    <p>Al termino del mismo, podrás acceder a tu panel de control para ver el estado de tu referencia, y en caso de que sea necesario, podrás realizar modificaciones o agregar más información y quien sabe, hasta chance lo convencemos de conocernos como Headhunter y también en un futuro cercano le ofrecemos un trabajo.</p>
+    
+    <p>Si tiene alguna pregunta o necesita asistencia, no dude en contactarnos.</p>
+    
+    <p>Saludos cordiales,<br>
+    El equipo de huntRED®</p>
+    
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
+        <p>Este es un correo automático. Por favor, no responda a este mensaje.</p>
+        <p>Si no desea recibir más solicitudes de referencia, puede <a href="{{ unsubscribe_url }}" style="color: #666;">darse de baja aquí</a>.</p>
+    </div>
+</div>
+{% endblock %} 

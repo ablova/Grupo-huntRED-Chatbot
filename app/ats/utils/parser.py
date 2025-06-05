@@ -26,6 +26,7 @@ from spacy.matcher import Matcher
 from spacy.tokens import Doc
 import psutil
 import gc
+from app.tasks import process_message
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -75,7 +76,6 @@ try:
     from app.ats.chatbot.workflow.business_units.huntu.huntu import process_huntu_candidate
     from app.ats.chatbot.workflow.business_units.amigro.amigro import process_amigro_candidate
     from app.ats.chatbot.workflow.business_units.sexsi.sexsi import process_sexsi_payment
-    from app.ats.tasks import process_message
     from app.ats.utils.report_generator import ReportGenerator
 except ImportError as e:
     logger.error(f"Missing required package: {e}")

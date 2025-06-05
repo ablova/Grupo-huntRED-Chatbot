@@ -5,7 +5,7 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from app.models import Proposal, Opportunity, Vacancy, Person
+from app.models import Proposal, Opportunity, Vacancy, Person, Vacante
 from app.ats.views.proposals import ProposalView
 from app.ats.pricing.utils import calculate_pricing
 from datetime import timedelta

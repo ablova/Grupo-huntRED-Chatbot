@@ -549,6 +549,25 @@ class Person(models.Model):
     
     # Ya están definidos arriba
     # Conexiones sociales para SocialLink™ (principalmente para candidatos Amigro)
+    # Métodos relacionados con referencias
+    def get_references_given(self):
+        """Obtiene todas las referencias que ha dado esta persona."""
+        return self.references_given.all()
+    
+    def get_references_received(self):
+        """Obtiene todas las referencias que ha recibido esta persona."""
+        return self.references_received.all()
+    
+    def get_pending_reference_requests(self):
+        """Obtiene las solicitudes de referencia pendientes de esta persona."""
+        return self.references_given.filter(status='pending')
+    
+    def can_give_reference(self, candidate):
+        """Verifica si esta persona puede dar una referencia al candidato."""
+        # Aquí podrías agregar lógica adicional, como verificar si ya ha dado una referencia
+        # o si existe alguna relación laboral previa
+        return True
+    
     def __str__(self):
         nombre_completo=f"{self.nombre} {self.apellido_paterno or ''} {self.apellido_materno or ''}".strip()
         return nombre_completo
@@ -840,7 +859,248 @@ class Proposal(models.Model):
         indexes = [models.Index(fields=['company', 'status'])]
 
     def __str__(self):
-        return f"Propuesta para {self.company} - {self.get_status_display()}"
+        return f"Propuesta {self.id} - {self.company.name} - {self.get_status_display()}"
+
+
+class Reference(models.Model):
+    """
+    Modelo para gestionar referencias laborales de candidatos.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('in_progress', 'En Progreso'),
+        ('completed', 'Completada'),
+        ('expired', 'Expirada'),
+        ('declined', 'Rechazada')
+    ]
+
+    # Relaciones
+    candidate = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='references_received',
+        help_text="Persona que está siendo referenciada"
+    )
+    reference = models.ForeignKey(
+        'Person',
+        on_delete=models.PROTECT,
+        related_name='references_given',
+        help_text="Persona que proporciona la referencia"
+    )
+    
+    # Información básica
+    relationship = models.CharField(
+        max_length=100,
+        help_text="Relación laboral (ej: 'Jefe Directo', 'Colega', 'Subordinado')"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Estado actual de la referencia"
+    )
+    
+    # Metadatos
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Datos adicionales como respuestas del formulario, análisis, etc."
+    )
+    feedback = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Comentarios adicionales"
+    )
+    
+    # Fechas importantes
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    response_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha en que se completó la referencia"
+    )
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de expiración del enlace de referencia"
+    )
+
+    class Meta:
+        verbose_name = "Referencia"
+        verbose_name_plural = "Referencias"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', 'status']),
+            models.Index(fields=['reference', 'status']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"Referencia de {self.reference} para {self.candidate} - {self.get_status_display()}"
+    
+    def save(self, *args, **kwargs):
+        # Si se está completando la referencia, establecer la fecha de respuesta
+        if self.status == 'completed' and not self.response_date:
+            self.response_date = timezone.now()
+        
+        # Si es nueva y no tiene fecha de expiración, establecer 7 días por defecto
+        if not self.pk and not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(days=7)
+        
+        super().save(*args, **kwargs)
+    
+    def is_expired(self):
+        """Verifica si la referencia ha expirado."""
+        if self.expires_at and timezone.now() > self.expires_at:
+            return True
+            return False
+
+    def get_absolute_url(self):
+        """URL para ver el detalle de la referencia."""
+        from django.urls import reverse
+        return reverse('reference_detail', kwargs={'pk': self.pk})
+    
+    def get_responses(self):
+        """Obtiene las respuestas del formulario de referencia."""
+        return self.metadata.get('responses', {})
+    
+    def get_analysis(self):
+        """Obtiene el análisis de la referencia si existe."""
+        return self.metadata.get('analysis', {})
+    
+    def get_verification_status(self):
+        """Obtiene el estado de verificación de la referencia."""
+        return self.metadata.get('verification', {}).get('status', 'not_verified')
+    
+    def get_score(self):
+        """Obtiene la puntuación de la referencia si está disponible."""
+        return self.metadata.get('analysis', {}).get('metrics', {}).get('score')
+    
+    def get_competencies(self):
+        """Obtiene las competencias evaluadas en la referencia."""
+        return self.metadata.get('analysis', {}).get('competencies', {})
+    
+    def get_insights(self):
+        """Obtiene los insights generados del análisis de la referencia."""
+        return self.metadata.get('analysis', {}).get('insights', {})
+
+
+class ReferenceResponse(models.Model):
+    """
+    Modelo para almacenar respuestas individuales a preguntas de referencia.
+    Permite un manejo más estructurado que solo usar el campo metadata del modelo Reference.
+    """
+    reference = models.ForeignKey(
+        'Reference',
+        on_delete=models.CASCADE,
+        related_name='responses',
+        help_text="Referencia a la que pertenece esta respuesta"
+    )
+    
+    # Identificador de la pregunta (puede ser un ID o una clave única)
+    question_id = models.CharField(
+        max_length=100,
+        help_text="Identificador único de la pregunta"
+    )
+    
+    # Texto de la pregunta (puede ser redundante pero útil para consultas)
+    question_text = models.TextField(
+        help_text="Texto completo de la pregunta"
+    )
+    
+    # Tipo de respuesta (texto, número, opción múltiple, etc.)
+    response_type = models.CharField(
+        max_length=50,
+        default='text',
+        help_text="Tipo de respuesta (text, number, select, multi_select, rating, etc.)"
+    )
+    
+    # La respuesta del usuario (puede ser texto, JSON, etc.)
+    response_value = models.JSONField(
+        help_text="Valor de la respuesta (puede ser texto, número, lista, etc.)"
+    )
+    
+    # Análisis de la respuesta (opcional, puede ser llenado por IA)
+    analysis = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Análisis de la respuesta (sentimiento, temas clave, etc.)"
+    )
+    
+    # Metadatos adicionales
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Metadatos adicionales de la respuesta"
+    )
+    
+    # Fechas
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Respuesta de Referencia"
+        verbose_name_plural = "Respuestas de Referencia"
+        ordering = ['reference', 'question_id']
+        unique_together = ['reference', 'question_id']
+    
+    def __str__(self):
+        return f"Respuesta a '{self.question_id}' para referencia {self.reference.id}"
+    
+    def get_response_display(self):
+        """Formatea la respuesta para mostrarla en la interfaz."""
+        if self.response_type == 'rating':
+            return f"{self.response_value}/5"
+        elif self.response_type in ['select', 'multi_select']:
+            if isinstance(self.response_value, list):
+                return ", ".join(str(v) for v in self.response_value)
+            return str(self.response_value)
+        return str(self.response_value)
+
+
+# Actualización de la clase Reference para incluir métodos de ayuda con ReferenceResponse
+class Reference(models.Model):
+    """
+    Modelo para gestionar referencias laborales de candidatos.
+    """
+    # ... (el resto del código de Reference permanece igual) ...
+    
+    def add_response(self, question_id, question_text, response_value, response_type='text', **kwargs):
+        """
+        Método de ayuda para agregar una respuesta a una pregunta de referencia.
+        """
+        return ReferenceResponse.objects.create(
+            reference=self,
+            question_id=question_id,
+            question_text=question_text,
+            response_type=response_type,
+            response_value=response_value,
+            **kwargs
+        )
+    
+    def get_responses_dict(self):
+        """
+        Devuelve un diccionario con todas las respuestas indexadas por question_id.
+        """
+        return {r.question_id: r for r in self.responses.all()}
+    
+    def get_question_responses(self, question_id):
+        """
+        Obtiene todas las respuestas para una pregunta específica.
+        """
+        return self.responses.filter(question_id=question_id).first()
+    
+    def is_complete(self):
+        """
+        Verifica si la referencia está completa (todas las preguntas obligatorias respondidas).
+        Esto debería implementarse según la lógica de negocio específica.
+        """
+        # Ejemplo: Verificar si se han respondido todas las preguntas requeridas
+        required_questions = ['experience', 'skills', 'recommendation']  # Ajustar según sea necesario
+        responses = set(self.responses.values_list('question_id', flat=True))
+        return all(q in responses for q in required_questions)
 
 class Contrato(models.Model):
     proposal = models.OneToOneField(Proposal, on_delete=models.CASCADE, related_name='contrato', help_text="Propuesta asociada.")
@@ -3010,7 +3270,7 @@ class EnhancedNetworkGamificationProfile(models.Model):
                 challenge.completed_at = timezone.now()
                 self.add_xp(xp_reward, 'achievements')
                 self.total_challenges += 1
-                self.save()
+        self.save()
             challenge.save()
             return True
             

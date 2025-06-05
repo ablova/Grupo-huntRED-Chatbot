@@ -8,6 +8,10 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver, Signal
 from django.utils import timezone
 from app.models import Vacante, PublicationChannel, PublicationRecord
+from app.tasks import (
+    publish_to_channel_task,
+    retry_publication_task
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +47,6 @@ def auto_publish_vacancy(sender, instance, created, **kwargs):
             
             if channels.exists():
                 # Programar tarea de publicación en canales
-                from app.ats.tasks.publish import publish_to_channel_task
                 
                 for channel in channels:
                     try:
@@ -97,8 +100,6 @@ def handle_publication_result(sender, instance, created, **kwargs):
             
             # Programar reintento si es necesario
             if instance.retry_count < instance.channel.max_retries:
-                from app.ats.tasks.publish import retry_publication_task
-                
                 try:
                     retry_publication_task.delay(publication_id=instance.id)
                     logger.info(f"Programado reintento #{instance.retry_count+1} para publicación {instance.id}")

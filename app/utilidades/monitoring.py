@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from celery import Celery
 from django.core.cache import cache
 from django.conf import settings
-from app.ats.tasks.base import with_retry
+from app.tasks import with_retry
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
