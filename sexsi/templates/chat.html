@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Chat IA - huntRED{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pt-16">
+    <div class="container mx-auto px-4 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Chats</h2>
+                    
+                    <!-- New Chat Button -->
+                    <button class="w-full mb-4 px-4 py-2 bg-gradient-to-r from-tech-blue to-tech-purple text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span>Nuevo Chat</span>
+                    </button>
+
+                    <!-- Chat History -->
+                    <div class="space-y-2">
+                        {% for chat in chat_history %}
+                        <a href="{% url 'chat_detail' chat.id %}" class="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors {% if chat.id == current_chat.id %}bg-gray-50 dark:bg-gray-700{% endif %}">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-gradient-to-r from-tech-blue to-tech-purple rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ chat.title }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ chat.last_message_time|timesince }} atrás</p>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="lg:col-span-3">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg flex flex-col h-[calc(100vh-8rem)]">
+                    <!-- Chat Header -->
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ current_chat.title|default:"Nuevo Chat" }}</h2>
+                    </div>
+
+                    <!-- Messages Area -->
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container">
+                        {% for message in messages %}
+                        <div class="flex {% if message.is_user %}justify-end{% else %}justify-start{% endif %}">
+                            <div class="max-w-[80%] {% if message.is_user %}bg-tech-blue text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white{% endif %} rounded-lg p-4">
+                                <p class="text-sm">{{ message.content }}</p>
+                                <p class="text-xs mt-1 {% if message.is_user %}text-blue-100{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                                    {{ message.timestamp|time:"H:i" }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                        <form id="chat-form" class="flex space-x-4">
+                            <div class="flex-1">
+                                <input type="text" id="message-input" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-tech-blue" placeholder="Escribe tu mensaje...">
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-gradient-to-r from-tech-blue to-tech-purple text-white rounded-lg hover:opacity-90 transition-opacity">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const messagesContainer = document.getElementById('messages-container');
+    const chatForm = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message-input');
+
+    // Scroll to bottom of messages
+    function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Initial scroll
+    scrollToBottom();
+
+    // Handle form submission
+    chatForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        // Add user message to chat
+        appendMessage(message, true);
+        messageInput.value = '';
+
+        try {
+            // Send message to server
+            const response = await fetch('{% url "chat_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    message: message,
+                    chat_id: '{{ current_chat.id|default:"" }}'
+                })
+            });
+
+            const data = await response.json();
+            
+            // Add AI response to chat
+            appendMessage(data.response, false);
+        } catch (error) {
+            console.error('Error:', error);
+            appendMessage('Lo siento, ha ocurrido un error. Por favor, intenta de nuevo.', false);
+        }
+    });
+
+    // Append message to chat
+    function appendMessage(content, isUser) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = `max-w-[80%] ${isUser ? 'bg-tech-blue text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} rounded-lg p-4`;
+        
+        const messageText = document.createElement('p');
+        messageText.className = 'text-sm';
+        messageText.textContent = content;
+        
+        const messageTime = document.createElement('p');
+        messageTime.className = `text-xs mt-1 ${isUser ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`;
+        messageTime.textContent = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        
+        messageContent.appendChild(messageText);
+        messageContent.appendChild(messageTime);
+        messageDiv.appendChild(messageContent);
+        messagesContainer.appendChild(messageDiv);
+        
+        scrollToBottom();
+    }
+
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %} 

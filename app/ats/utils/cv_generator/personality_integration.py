@@ -33,37 +33,117 @@ class PersonalityCVIntegrator:
             PersonalityDimension.ADJUSTMENT: [
                 'Resiliencia',
                 'Manejo del estrés',
-                'Adaptabilidad'
+                'Adaptabilidad',
+                'Estabilidad emocional',
+                'Gestión de presión',
+                'Recuperación rápida'
             ],
             PersonalityDimension.AMBITION: [
                 'Orientación a resultados',
                 'Liderazgo',
-                'Visión estratégica'
+                'Visión estratégica',
+                'Impulso al logro',
+                'Iniciativa',
+                'Pensamiento a largo plazo'
             ],
             PersonalityDimension.SOCIABILITY: [
                 'Trabajo en equipo',
                 'Comunicación efectiva',
-                'Relaciones interpersonales'
+                'Relaciones interpersonales',
+                'Networking',
+                'Colaboración',
+                'Influencia social'
             ],
             PersonalityDimension.INTERPERSONAL_SENSITIVITY: [
                 'Inteligencia emocional',
                 'Empatía',
-                'Gestión de conflictos'
+                'Gestión de conflictos',
+                'Percepción social',
+                'Adaptabilidad cultural',
+                'Diplomacia'
             ],
             PersonalityDimension.PRUDENCE: [
                 'Pensamiento analítico',
                 'Toma de decisiones',
-                'Gestión de riesgos'
+                'Gestión de riesgos',
+                'Planificación estratégica',
+                'Atención al detalle',
+                'Cumplimiento normativo'
             ],
             PersonalityDimension.INQUISITIVE: [
                 'Innovación',
                 'Aprendizaje continuo',
-                'Pensamiento crítico'
+                'Pensamiento crítico',
+                'Creatividad',
+                'Curiosidad intelectual',
+                'Resolución de problemas'
             ],
             PersonalityDimension.LEARNING_APPROACH: [
                 'Desarrollo profesional',
                 'Adaptabilidad',
-                'Mejora continua'
+                'Mejora continua',
+                'Aprendizaje ágil',
+                'Mentoría',
+                'Transferencia de conocimiento'
+            ]
+        }
+        
+        self.keyword_mapping = {
+            PersonalityDimension.ADJUSTMENT: [
+                'resilient',
+                'stress_management',
+                'adaptable',
+                'emotional_stability',
+                'pressure_handling',
+                'recovery'
+            ],
+            PersonalityDimension.AMBITION: [
+                'results_driven',
+                'leadership',
+                'strategic_vision',
+                'achievement_oriented',
+                'initiative',
+                'long_term_thinking'
+            ],
+            PersonalityDimension.SOCIABILITY: [
+                'team_player',
+                'effective_communication',
+                'interpersonal_skills',
+                'networking',
+                'collaboration',
+                'social_influence'
+            ],
+            PersonalityDimension.INTERPERSONAL_SENSITIVITY: [
+                'emotional_intelligence',
+                'empathy',
+                'conflict_management',
+                'social_perception',
+                'cultural_adaptability',
+                'diplomacy'
+            ],
+            PersonalityDimension.PRUDENCE: [
+                'analytical_thinking',
+                'decision_making',
+                'risk_management',
+                'strategic_planning',
+                'attention_to_detail',
+                'compliance'
+            ],
+            PersonalityDimension.INQUISITIVE: [
+                'innovation',
+                'continuous_learning',
+                'critical_thinking',
+                'creativity',
+                'intellectual_curiosity',
+                'problem_solving'
+            ],
+            PersonalityDimension.LEARNING_APPROACH: [
+                'professional_development',
+                'adaptability',
+                'continuous_improvement',
+                'agile_learning',
+                'mentoring',
+                'knowledge_transfer'
             ]
         }
         
@@ -72,34 +152,46 @@ class PersonalityCVIntegrator:
                 'high': {
                     'tone': 'confident',
                     'emphasis': 'achievements',
-                    'format': 'dynamic'
+                    'format': 'dynamic',
+                    'language': 'assertive',
+                    'structure': 'impact_first'
                 },
                 'medium': {
                     'tone': 'balanced',
                     'emphasis': 'experience',
-                    'format': 'standard'
+                    'format': 'standard',
+                    'language': 'professional',
+                    'structure': 'chronological'
                 },
                 'low': {
                     'tone': 'professional',
                     'emphasis': 'skills',
-                    'format': 'structured'
+                    'format': 'structured',
+                    'language': 'formal',
+                    'structure': 'functional'
                 }
             },
             'ambition': {
                 'high': {
                     'tone': 'assertive',
                     'emphasis': 'goals',
-                    'format': 'impact'
+                    'format': 'impact',
+                    'language': 'strategic',
+                    'structure': 'achievement_based'
                 },
                 'medium': {
                     'tone': 'motivated',
                     'emphasis': 'growth',
-                    'format': 'progressive'
+                    'format': 'progressive',
+                    'language': 'developmental',
+                    'structure': 'hybrid'
                 },
                 'low': {
                     'tone': 'steady',
                     'emphasis': 'stability',
-                    'format': 'traditional'
+                    'format': 'traditional',
+                    'language': 'consistent',
+                    'structure': 'standard'
                 }
             }
         }
@@ -107,28 +199,28 @@ class PersonalityCVIntegrator:
         self.section_optimization = {
             'summary': {
                 'adjustment': {
-                    'high': 'Enfocado en logros y manejo de desafíos',
-                    'medium': 'Balance entre experiencia y adaptabilidad',
-                    'low': 'Énfasis en habilidades técnicas y estabilidad'
+                    'high': 'Enfocado en logros y manejo de desafíos, destacando resiliencia y adaptabilidad',
+                    'medium': 'Balance entre experiencia y adaptabilidad, con énfasis en estabilidad',
+                    'low': 'Énfasis en habilidades técnicas y consistencia, destacando confiabilidad'
                 },
                 'ambition': {
-                    'high': 'Orientado a resultados y crecimiento',
-                    'medium': 'Balance entre desarrollo y contribución',
-                    'low': 'Énfasis en experiencia y confiabilidad'
+                    'high': 'Orientado a resultados y crecimiento, destacando logros y visión estratégica',
+                    'medium': 'Balance entre desarrollo y contribución, con enfoque en progreso',
+                    'low': 'Énfasis en experiencia y confiabilidad, destacando consistencia'
                 }
             },
             'experience': {
                 'adjustment': {
-                    'high': 'Enfocado en logros en situaciones desafiantes',
-                    'medium': 'Balance entre responsabilidades y resultados',
-                    'low': 'Énfasis en consistencia y cumplimiento'
+                    'high': 'Enfocado en logros en situaciones desafiantes, destacando manejo de presión',
+                    'medium': 'Balance entre responsabilidades y resultados, con énfasis en adaptabilidad',
+                    'low': 'Énfasis en consistencia y cumplimiento, destacando estabilidad'
                 }
             },
             'skills': {
                 'adjustment': {
-                    'high': 'Destacar habilidades de adaptación y resiliencia',
-                    'medium': 'Balance entre habilidades técnicas y blandas',
-                    'low': 'Énfasis en habilidades técnicas específicas'
+                    'high': 'Destacar habilidades de adaptación y resiliencia, con énfasis en manejo de cambio',
+                    'medium': 'Balance entre habilidades técnicas y blandas, destacando versatilidad',
+                    'low': 'Énfasis en habilidades técnicas específicas, destacando especialización'
                 }
             }
         }
@@ -246,7 +338,7 @@ class PersonalityCVIntegrator:
         # Keywords de personalidad
         for insight in personality_insights:
             if insight.score >= 0.7:
-                keywords.extend(insight.strengths)
+                keywords.extend(self.keyword_mapping.get(insight.dimension, []))
         
         # Keywords de valores
         for insight in value_insights:
@@ -269,7 +361,9 @@ class PersonalityCVIntegrator:
         style = {
             'tone': 'professional',
             'emphasis': 'experience',
-            'format': 'standard'
+            'format': 'standard',
+            'language': 'formal',
+            'structure': 'chronological'
         }
         
         # Ajustar estilo basado en personalidad
@@ -284,8 +378,10 @@ class PersonalityCVIntegrator:
             if insight.score >= 0.7:
                 if insight.dimension == ValueDimension.RECOGNITION:
                     style['tone'] = 'achievement-focused'
+                    style['structure'] = 'impact_first'
                 elif insight.dimension == ValueDimension.POWER:
                     style['format'] = 'impact'
+                    style['language'] = 'strategic'
         
         return style
     
@@ -363,7 +459,8 @@ class PersonalityCVIntegrator:
         tone_mapping = {
             'confident': lambda x: x.replace('managed', 'led').replace('helped', 'drove'),
             'assertive': lambda x: x.replace('participated', 'spearheaded').replace('assisted', 'directed'),
-            'professional': lambda x: x.replace('did', 'executed').replace('made', 'developed')
+            'professional': lambda x: x.replace('did', 'executed').replace('made', 'developed'),
+            'achievement-focused': lambda x: x.replace('worked on', 'achieved').replace('involved in', 'delivered')
         }
         
         return tone_mapping.get(tone, lambda x: x)(content)
@@ -373,7 +470,9 @@ class PersonalityCVIntegrator:
         emphasis_mapping = {
             'achievements': lambda x: f"Achieved: {x}",
             'goals': lambda x: f"Goal-oriented: {x}",
-            'skills': lambda x: f"Demonstrated skills in: {x}"
+            'skills': lambda x: f"Demonstrated skills in: {x}",
+            'impact': lambda x: f"Impact: {x}",
+            'growth': lambda x: f"Growth: {x}"
         }
         
         return emphasis_mapping.get(emphasis, lambda x: x)(content)

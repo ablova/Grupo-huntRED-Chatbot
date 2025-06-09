@@ -1,0 +1,99 @@
+<!-- Header -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+    <div class="container mx-auto px-4 lg:px-8">
+        <nav class="flex items-center justify-between h-16">
+            <!-- Logo -->
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-gradient-to-r from-tech-blue to-tech-purple rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">HR</span>
+                </div>
+                <span class="text-xl font-bold bg-gradient-to-r from-tech-blue to-tech-purple bg-clip-text text-transparent">
+                    huntRED
+                </span>
+            </div>
+
+            <!-- Desktop Navigation -->
+            <div class="hidden md:flex items-center space-x-8">
+                <a href="{% url 'dashboard' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors">Dashboard</a>
+                <a href="{% url 'chat' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors">Chat IA</a>
+                <a href="{% url 'skills' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors">Habilidades</a>
+                <a href="{% url 'occupations' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors">Ocupaciones</a>
+                <a href="{% url 'notifications' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors">
+                    Notificaciones
+                    {% if unread_notifications %}
+                    <span class="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">{{ unread_notifications }}</span>
+                    {% endif %}
+                </a>
+                <a href="{% url 'docs' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors">Documentación</a>
+            </div>
+
+            <!-- Desktop Actions -->
+            <div class="hidden md:flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"></path>
+                    </svg>
+                </button>
+                {% if user.is_authenticated %}
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <img src="{{ user.profile.avatar.url|default:'/static/images/default-avatar.png' }}" alt="Avatar" class="w-8 h-8 rounded-full">
+                            <span class="text-sm font-medium">{{ user.username }}</span>
+                        </button>
+                        <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2">
+                            <a href="{% url 'profile' %}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Perfil</a>
+                            <a href="{% url 'settings' %}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Configuración</a>
+                            <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                            <a href="{% url 'logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">Cerrar Sesión</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <a href="{% url 'login' %}" class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors">Iniciar Sesión</a>
+                    <a href="{% url 'register' %}" class="px-4 py-2 bg-gradient-to-r from-tech-blue to-tech-purple text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">Registrarse</a>
+                {% endif %}
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <div class="md:hidden flex items-center space-x-2">
+                <button id="theme-toggle-mobile" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"></path>
+                    </svg>
+                </button>
+                <button id="mobile-menu-toggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Mobile Navigation -->
+        <div id="mobile-menu" class="md:hidden hidden py-4 border-t border-gray-200 dark:border-gray-800">
+            <div class="flex flex-col space-y-3">
+                <a href="{% url 'dashboard' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Dashboard</a>
+                <a href="{% url 'chat' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Chat IA</a>
+                <a href="{% url 'skills' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Habilidades</a>
+                <a href="{% url 'occupations' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Ocupaciones</a>
+                <a href="{% url 'notifications' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">
+                    Notificaciones
+                    {% if unread_notifications %}
+                    <span class="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">{{ unread_notifications }}</span>
+                    {% endif %}
+                </a>
+                <a href="{% url 'docs' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Documentación</a>
+                
+                {% if user.is_authenticated %}
+                    <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                    <a href="{% url 'profile' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Perfil</a>
+                    <a href="{% url 'settings' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Configuración</a>
+                    <a href="{% url 'logout' %}" class="text-sm font-medium text-red-600 hover:text-red-700 transition-colors py-2">Cerrar Sesión</a>
+                {% else %}
+                    <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                    <a href="{% url 'login' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Iniciar Sesión</a>
+                    <a href="{% url 'register' %}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-tech-blue transition-colors py-2">Registrarse</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</header> 

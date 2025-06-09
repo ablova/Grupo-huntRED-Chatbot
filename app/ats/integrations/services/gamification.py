@@ -64,6 +64,14 @@ class ActivityType(Enum):
     RECOMMENDATION_GIVEN = 'recommendation_given'
     RECOMMENDATION_RECEIVED = 'recommendation_received'
     FEEDBACK_PROVIDED = 'feedback_provided'
+    
+    # Actividades de CV
+    CV_GENERATED = 'cv_generated'
+    CV_OPTIMIZED = 'cv_optimized'
+    CV_SECTION_ENHANCED = 'cv_section_enhanced'
+    CV_TEMPLATE_USED = 'cv_template_used'
+    CV_PERSONALITY_MATCH = 'cv_personality_match'
+    CV_OPTIMIZATION_SCORE = 'cv_optimization_score'
 
 class AchievementType(Enum):
     """Tipos de logros disponibles"""
@@ -102,6 +110,14 @@ class AchievementType(Enum):
     DAILY_STREAK = 'daily_streak'
     WEEKLY_CHALLENGE = 'weekly_challenge'
     MONTHLY_GOAL = 'monthly_goal'
+    
+    # Logros de CV
+    CV_CREATOR = 'cv_creator'
+    CV_OPTIMIZER = 'cv_optimizer'
+    CV_MASTER = 'cv_master'
+    CV_PERSONALITY_EXPERT = 'cv_personality_expert'
+    CV_TEMPLATE_EXPLORER = 'cv_template_explorer'
+    CV_PERFECTIONIST = 'cv_perfectionist'
 
 class Level:
     """Clase para manejar niveles de usuario"""
@@ -180,7 +196,7 @@ class GamificationService:
         Returns:
             List[Achievement]: Lista de logros
         """
-        return [
+        achievements = [
             # Logros de mensajería
             Achievement(
                 AchievementType.MESSAGE_MILESTONE,
@@ -305,8 +321,60 @@ class GamificationService:
                 300,
                 {"weekly_challenges_completed": "all"},
                 "challenge_icon"
+            ),
+            
+            # Logros de CV
+            Achievement(
+                AchievementType.CV_CREATOR,
+                "Creador de CV",
+                "Genera tu primer CV optimizado",
+                100,
+                {"cvs_generated": 1},
+                "cv_creator_icon"
+            ),
+            Achievement(
+                AchievementType.CV_OPTIMIZER,
+                "Optimizador de CV",
+                "Optimiza 5 CVs con personalidad",
+                200,
+                {"cvs_optimized": 5},
+                "cv_optimizer_icon"
+            ),
+            Achievement(
+                AchievementType.CV_MASTER,
+                "Maestro del CV",
+                "Genera 10 CVs con puntuación alta",
+                300,
+                {"high_score_cvs": 10},
+                "cv_master_icon"
+            ),
+            Achievement(
+                AchievementType.CV_PERSONALITY_EXPERT,
+                "Experto en Personalidad",
+                "Alcanza un match de personalidad perfecto en 3 CVs",
+                250,
+                {"perfect_personality_matches": 3},
+                "personality_expert_icon"
+            ),
+            Achievement(
+                AchievementType.CV_TEMPLATE_EXPLORER,
+                "Explorador de Plantillas",
+                "Usa todas las plantillas disponibles",
+                150,
+                {"templates_used": "all"},
+                "template_explorer_icon"
+            ),
+            Achievement(
+                AchievementType.CV_PERFECTIONIST,
+                "Perfeccionista del CV",
+                "Alcanza una puntuación de optimización de 0.9 o superior",
+                400,
+                {"optimization_score": 0.9},
+                "perfectionist_icon"
             )
         ]
+        
+        return achievements
         
     def _get_points_config(self) -> Dict[str, int]:
         """
@@ -334,7 +402,13 @@ class GamificationService:
             ActivityType.HELP_REQUESTED.value: 2,
             ActivityType.RECOMMENDATION_GIVEN.value: 15,
             ActivityType.RECOMMENDATION_RECEIVED.value: 10,
-            ActivityType.FEEDBACK_PROVIDED.value: 5
+            ActivityType.FEEDBACK_PROVIDED.value: 5,
+            ActivityType.CV_GENERATED.value: 50,
+            ActivityType.CV_OPTIMIZED.value: 75,
+            ActivityType.CV_SECTION_ENHANCED.value: 25,
+            ActivityType.CV_TEMPLATE_USED.value: 30,
+            ActivityType.CV_PERSONALITY_MATCH.value: 40,
+            ActivityType.CV_OPTIMIZATION_SCORE.value: 50
         }
         
     async def record_activity(self, 
@@ -562,7 +636,7 @@ async def process_gamification_event(self, user_id: str, event_type: str, data: 
         service = GamificationService()
         await service.record_activity(user_id, ActivityType(event_type), data)
         logger.info(f"Evento de gamificación procesado: {event_type} para usuario {user_id}")
-        except Exception as e:
+    except Exception as e:
         logger.error(f"Error procesando evento de gamificación: {str(e)}")
         raise self.retry(exc=e)
 
@@ -591,7 +665,7 @@ async def update_user_level(self, user_id: str):
                 message=f"¡Felicidades! Has alcanzado el nivel {new_level.name}",
                 business_unit=None
             )
-        except Exception as e:
+    except Exception as e:
         logger.error(f"Error actualizando nivel de usuario: {str(e)}")
         raise self.retry(exc=e)
 
@@ -620,7 +694,7 @@ async def check_achievements(self, user_id: str):
                     message=f"¡Nuevo logro desbloqueado! {achievement.name}",
                     business_unit=None
                 )
-        except Exception as e:
+    except Exception as e:
         logger.error(f"Error verificando logros de usuario: {str(e)}")
         raise self.retry(exc=e)
 

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo huntRED® AI - Inteligencia Artificial de Vanguardia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0078D4',
+                        secondary: '#2B88D8',
+                        accent: '#00BCF2',
+                        dark: '#201F1E',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Canvas para partículas -->
+    <div class="fixed inset-0 pointer-events-none">
+        <canvas id="particlesCanvas" class="w-full h-full"></canvas>
+    </div>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200">
+        <nav class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">HR</span>
+                <span class="text-lg font-semibold text-gray-800">huntRED®</span>
+            </div>
+            <div class="hidden md:flex items-center space-x-8">
+                <a href="#chatbot" class="text-gray-600 hover:text-primary transition-colors">Chatbot IA</a>
+                <a href="#genia" class="text-gray-600 hover:text-primary transition-colors">GenIA</a>
+                <a href="#unidades" class="text-gray-600 hover:text-primary transition-colors">Unidades</a>
+                <a href="#arquitectura" class="text-gray-600 hover:text-primary transition-colors">Arquitectura</a>
+                <a href="#servicios" class="text-gray-600 hover:text-primary transition-colors">Servicios</a>
+            </div>
+            <button class="md:hidden text-gray-600">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-dark to-gray-900">
+        <div class="absolute inset-0 bg-[url('data:image/svg+xml,<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"1\" height=\"1\" fill=\"rgba(255,255,255,0.05)\"/></svg>')] opacity-10"></div>
+        <div class="container mx-auto px-4 text-center relative z-10">
+            <h1 class="text-5xl md:text-7xl font-bold text-white mb-6 animate-float">
+                Grupo huntRED® AI
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-300 mb-12 animate-float" style="animation-delay: 0.2s">
+                Inteligencia Artificial de Vanguardia
+            </p>
+            <div class="flex flex-col md:flex-row items-center justify-center gap-4 animate-float" style="animation-delay: 0.4s">
+                <a href="#contacto" class="px-8 py-4 bg-primary hover:bg-secondary text-white rounded-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl">
+                    Contactar
+                </a>
+                <a href="#servicios" class="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all transform hover:scale-105 backdrop-blur-lg">
+                    Explorar Servicios
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tecnologías -->
+    <section id="tecnologias" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center mb-16 text-gray-800">Nuestras Tecnologías</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-robot text-2xl text-primary"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">Chatbot Conversacional</h3>
+                    <p class="text-gray-600">Asistencia inteligente 24/7 con procesamiento de lenguaje natural avanzado.</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-brain text-2xl text-primary"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">Generación de Contenido</h3>
+                    <p class="text-gray-600">Creación de contenido personalizado con IA generativa de última generación.</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-chart-line text-2xl text-primary"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">Análisis Predictivo</h3>
+                    <p class="text-gray-600">Predicción de tendencias y patrones con modelos de machine learning.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Unidades de Negocio -->
+    <section id="unidades" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center mb-16 text-gray-800">Unidades de Negocio</h2>
+            
+            <!-- Unidades Principales -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">huntRED® Executive</h3>
+                    <p class="text-gray-600">Dirección estratégica y gestión de la transformación digital.</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">huntRED® Core</h3>
+                    <p class="text-gray-600">Desarrollo e implementación de soluciones tecnológicas.</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">amigro</h3>
+                    <p class="text-gray-600">Plataforma de gestión y optimización de recursos.</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">huntu</h3>
+                    <p class="text-gray-600">Soluciones de inteligencia artificial personalizadas.</p>
+                </div>
+            </div>
+
+            <!-- Divisiones Especializadas -->
+            <h3 class="text-2xl font-semibold text-center mb-12 text-gray-800">Divisiones Especializadas</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-university text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Servicios Financieros</h4>
+                    <p class="text-gray-600">Soluciones IA para el sector financiero</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-balance-scale text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Legal</h4>
+                    <p class="text-gray-600">Automatización y análisis legal</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-bolt text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Energía</h4>
+                    <p class="text-gray-600">Optimización energética con IA</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-heartbeat text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Healthcare</h4>
+                    <p class="text-gray-600">Soluciones IA para la salud</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-chart-bar text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Ventas y Mercadotecnia</h4>
+                    <p class="text-gray-600">Análisis predictivo y personalización</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-calculator text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Finanzas y Contabilidad</h4>
+                    <p class="text-gray-600">Automatización financiera</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-industry text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Manufactura e Industria</h4>
+                    <p class="text-gray-600">IA para la industria 4.0</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-microchip text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Tecnologías de la Información</h4>
+                    <p class="text-gray-600">Soluciones IT avanzadas</p>
+                </div>
+                <div class="group p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                        <i class="fas fa-leaf text-2xl text-primary"></i>
+                    </div>
+                    <h4 class="text-lg font-semibold mb-2 text-gray-800">Sustentabilidad</h4>
+                    <p class="text-gray-600">IA para un futuro sostenible</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Panel de Configuración -->
+    <section class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-4xl font-bold text-center mb-16 text-gray-800">huntRED® Executive</h2>
+                <div class="flex space-x-4 mb-8 overflow-x-auto pb-4">
+                    <button class="px-6 py-3 bg-primary text-white rounded-lg font-semibold">Dashboard</button>
+                    <button class="px-6 py-3 bg-gray-100 text-gray-600 rounded-lg font-semibold hover:bg-gray-200">Análisis</button>
+                    <button class="px-6 py-3 bg-gray-100 text-gray-600 rounded-lg font-semibold hover:bg-gray-200">Reportes</button>
+                    <button class="px-6 py-3 bg-gray-100 text-gray-600 rounded-lg font-semibold hover:bg-gray-200">Configuración</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="group p-6 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20">
+                            <i class="fas fa-chart-pie text-xl text-primary"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold mb-2 text-gray-800">Análisis Predictivo</h4>
+                        <p class="text-gray-600">Visualización de tendencias y patrones</p>
+                    </div>
+                    <div class="group p-6 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20">
+                            <i class="fas fa-robot text-xl text-primary"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold mb-2 text-gray-800">Automatización</h4>
+                        <p class="text-gray-600">Procesos inteligentes y eficientes</p>
+                    </div>
+                    <div class="group p-6 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20">
+                            <i class="fas fa-shield-alt text-xl text-primary"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold mb-2 text-gray-800">Seguridad</h4>
+                        <p class="text-gray-600">Protección avanzada de datos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-16">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+                <div>
+                    <h4 class="text-lg font-semibold mb-6">Contacto</h4>
+                    <p class="text-gray-400 mb-2">Email: hola@huntred.com</p>
+                    <p class="text-gray-400">Teléfono: +52 55 1234 5678</p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-6">Unidades</h4>
+                    <div class="space-y-2">
+                        <a href="#executive" class="text-gray-400 hover:text-white transition-colors block">huntRED® Executive</a>
+                        <a href="#core" class="text-gray-400 hover:text-white transition-colors block">huntRED® Core</a>
+                        <a href="#amigro" class="text-gray-400 hover:text-white transition-colors block">amigro</a>
+                        <a href="#huntu" class="text-gray-400 hover:text-white transition-colors block">huntu</a>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-6">Servicios</h4>
+                    <div class="space-y-2">
+                        <a href="#chatbot" class="text-gray-400 hover:text-white transition-colors block">Chatbot IA</a>
+                        <a href="#genia" class="text-gray-400 hover:text-white transition-colors block">GenIA</a>
+                        <a href="#analisis" class="text-gray-400 hover:text-white transition-colors block">Análisis Predictivo</a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 Grupo huntRED®. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="styles/js/effects.js"></script>
+</body>
+</html>

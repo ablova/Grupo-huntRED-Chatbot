@@ -1,0 +1,994 @@
+<html lang="es" data-theme="light"><head>
+  <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+  <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechAI - Inteligencia Artificial de Vanguardia</title>
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <!-- Logo -->
+                <div class="logo">
+                    <div class="logo-icon">AI</div>
+                    <span class="logo-text">TechAI</span>
+                </div>
+
+                <!-- Desktop Navigation -->
+                <div class="nav-desktop">
+                    <a href="#hero" class="nav-link">Inicio</a>
+                    <a href="#technology" class="nav-link">Tecnología</a>
+                    <a href="#ml-flows" class="nav-link">Flujos ML</a>
+                    <a href="#business-units" class="nav-link">Negocios</a>
+                    <a href="#quantum-lab" class="nav-link">Lab Cuántico</a>
+                    <a href="#metaverse" class="nav-link">Metaverso</a>
+                    <a href="#services" class="nav-link">Servicios</a>
+                </div>
+
+                <!-- Desktop Actions -->
+                <div class="nav-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+                    <button class="btn btn-primary">Agendar Demo</button>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            </nav>
+
+            <!-- Mobile Menu -->
+            <div class="mobile-menu" id="mobileMenu">
+                <a href="#hero" class="mobile-nav-link">Inicio</a>
+                <a href="#technology" class="mobile-nav-link">Tecnología</a>
+                <a href="#ml-flows" class="mobile-nav-link">Flujos ML</a>
+                <a href="#business-units" class="mobile-nav-link">Negocios</a>
+                <a href="#quantum-lab" class="mobile-nav-link">Lab Cuántico</a>
+                <a href="#metaverse" class="mobile-nav-link">Metaverso</a>
+                <a href="#services" class="mobile-nav-link">Servicios</a>
+                <button class="btn btn-primary mobile-cta">Agendar Demo</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="hero" class="hero">
+            <div class="hero-bg"></div>
+            <div class="floating-elements">
+                <div class="floating-circle floating-1"></div>
+                <div class="floating-circle floating-2"></div>
+                <div class="floating-circle floating-3"></div>
+            </div>
+            
+            <div class="container">
+                <div class="hero-content">
+                    <div class="hero-text">
+                        <h1 class="hero-title">
+                            Inteligencia Artificial de <span class="gradient-text">Nueva Generación</span>
+                        </h1>
+                        <p class="hero-subtitle">
+                            Transformamos tu negocio con soluciones de IA avanzadas y personalizadas
+                        </p>
+                        <p class="hero-description">
+                            Desarrollamos sistemas inteligentes que se adaptan a las necesidades únicas de tu empresa, optimizando procesos y generando resultados medibles.
+                        </p>
+                        
+                        <div class="hero-cta">
+                            <button class="btn btn-primary btn-lg">📅 Agendar Demo</button>
+                            <button class="btn btn-outline btn-lg">Descubre Nuestras Soluciones →</button>
+                        </div>
+                        
+                        <div class="slide-indicators">
+                            <div class="indicator active"></div>
+                            <div class="indicator"></div>
+                            <div class="indicator"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="hero-visual">
+                        <div class="hero-image">
+                            <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&amp;auto=format&amp;fit=crop&amp;w=2000&amp;q=80" alt="AI Technology">
+                            <div class="hero-overlay"></div>
+                            <div class="tech-badge">
+                                <div class="status-dot"></div>
+                                <span>AI System Active</span>
+                            </div>
+                            <div class="accuracy-badge">
+                                <div class="accuracy-value">99.7%</div>
+                                <div class="accuracy-label">Accuracy</div>
+                            </div>
+                        </div>
+                        
+                        <div class="floating-stats">
+                            <div class="stat-card stat-1">
+                                <div class="stat-value">500+</div>
+                                <div class="stat-label">Proyectos</div>
+                            </div>
+                            <div class="stat-card stat-2">
+                                <div class="stat-value">24/7</div>
+                                <div class="stat-label">Soporte</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Technology Section -->
+        <section id="technology" class="technology">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        Tecnologías de <span class="gradient-text">Vanguardia</span>
+                    </h2>
+                    <p class="section-description">
+                        Impulsamos la innovación con las tecnologías de IA más avanzadas, diseñadas para resolver los desafíos más complejos de tu industria
+                    </p>
+                </div>
+
+                <div class="tech-tabs">
+                    <button class="tech-tab active" onclick="switchTech(0)">Natural Language Processing</button>
+                    <button class="tech-tab" onclick="switchTech(1)">Computer Vision</button>
+                    <button class="tech-tab" onclick="switchTech(2)">Predictive Analytics</button>
+                </div>
+
+                <div class="tech-content">
+                    <div class="tech-info">
+                        <h3 class="tech-title">Natural Language Processing</h3>
+                        <p class="tech-description">
+                            Procesamiento avanzado de lenguaje natural con modelos transformer de última generación
+                        </p>
+                        
+                        <div class="tech-features">
+                            <div class="feature">
+                                <div class="feature-dot blue"></div>
+                                <span>Análisis de sentimientos</span>
+                            </div>
+                            <div class="feature">
+                                <div class="feature-dot blue"></div>
+                                <span>Generación de texto</span>
+                            </div>
+                            <div class="feature">
+                                <div class="feature-dot blue"></div>
+                                <span>Traducción automática</span>
+                            </div>
+                            <div class="feature">
+                                <div class="feature-dot blue"></div>
+                                <span>Chatbots conversacionales</span>
+                            </div>
+                        </div>
+
+                        <div class="tech-metrics">
+                            <div class="metric">
+                                <div class="metric-value">99.9%</div>
+                                <div class="metric-label">Precisión</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">&lt;100ms</div>
+                                <div class="metric-label">Latencia</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">24/7</div>
+                                <div class="metric-label">Disponibilidad</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-visual">
+                        <div class="tech-image">
+                            <img src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?ixlib=rb-4.0.3&amp;auto=format&amp;fit=crop&amp;w=1000&amp;q=80" alt="NLP Technology">
+                            <div class="tech-image-overlay"></div>
+                            <div class="ai-badge">AI Powered</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ML Flows Section -->
+        <section id="ml-flows" class="ml-flows">
+            <canvas class="particles-canvas" id="particlesCanvas" width="1098" height="2032"></canvas>
+            <div class="quantum-grid"></div>
+            
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-badge">
+                        <span class="badge-icon">✨</span>
+                        <span>ARQUITECTURA HIPERDIMENSIONAL</span>
+                    </div>
+                    <h2 class="section-title quantum">
+                        Flujos Cuánticos de<br>
+                        <span class="animate-pulse">Inteligencia Neural</span>
+                    </h2>
+                    <p class="section-description">
+                        Arquitectura hiperdimensional con flujos bidireccionales que procesan datos en múltiples realidades paralelas
+                    </p>
+                </div>
+
+                <div class="quantum-flows">
+                    <div class="flow-container">
+                        <div class="flow-card">
+                            <div class="flow-header">
+                                <div class="flow-indicator cyan"></div>
+                                <h3 class="flow-title cyan-gradient">Flujo de Entrada Neural</h3>
+                            </div>
+                            <p class="flow-description">Ingesta ultrarrápida con IA cuántica</p>
+                            
+                            <div class="flow-steps">
+                                <div class="step">
+                                    <div class="step-icon">📊</div>
+                                    <span>Captura Sensorial</span>
+                                </div>
+                                <div class="step">
+                                    <div class="step-icon">⚡</div>
+                                    <span>Validación Cuántica</span>
+                                </div>
+                                <div class="step">
+                                    <div class="step-icon">🗄️</div>
+                                    <span>Normalización 5D</span>
+                                </div>
+                                <div class="step">
+                                    <div class="step-icon">✨</div>
+                                    <span>Enriquecimiento</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="central-hub">
+                            <div class="hub-circle">
+                                <div class="hub-inner">→</div>
+                                <div class="orbital-particle particle-1"></div>
+                                <div class="orbital-particle particle-2"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="spacer"></div>
+                    </div>
+
+                    <div class="flow-container reverse">
+                        <div class="flow-card">
+                            <div class="flow-header">
+                                <div class="flow-indicator purple"></div>
+                                <h3 class="flow-title purple-gradient">Flujo de Procesamiento Cuántico</h3>
+                            </div>
+                            <p class="flow-description">Análisis hiperdimensional con neuronas sintéticas</p>
+                            
+                            <div class="flow-steps">
+                                <div class="step">
+                                    <div class="step-icon">🧠</div>
+                                    <span>Feature Synthesis</span>
+                                </div>
+                                <div class="step">
+                                    <div class="step-icon">💻</div>
+                                    <span>Neural Training</span>
+                                </div>
+                                <div class="step">
+                                    <div class="step-icon">⚡</div>
+                                    <span>Quantum Validation</span>
+                                </div>
+                                <div class="step">
+                                    <div class="step-icon">✨</div>
+                                    <span>Hyperstatic Optimization</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="central-hub">
+                            <div class="hub-circle purple-hub">
+                                <div class="hub-inner">←</div>
+                                <div class="orbital-particle particle-1"></div>
+                                <div class="orbital-particle particle-2"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="spacer"></div>
+                    </div>
+                </div>
+
+                <div class="architecture-layers">
+                    <h3 class="layers-title">Arquitectura Hiperdimensional</h3>
+                    <p class="layers-subtitle">Capas interconectadas que operan en múltiples dimensiones simultáneamente</p>
+                    
+                    <div class="layers">
+                        <div class="layer">
+                            <div class="layer-content">
+                                <div class="layer-icon cyan-bg">📊</div>
+                                <div class="layer-info">
+                                    <h4 class="layer-name cyan-gradient">Capa de Experiencia Cuántica</h4>
+                                    <p class="layer-desc">Interfaces neuromórficas y APIs hiperdimensionales</p>
+                                </div>
+                                <div class="layer-techs">
+                                    <span class="tech-tag">React Quantum</span>
+                                    <span class="tech-tag">Neural REST</span>
+                                    <span class="tech-tag">GraphQL 5D</span>
+                                    <span class="tech-tag">Holographic Apps</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="layer">
+                            <div class="layer-content">
+                                <div class="layer-icon purple-bg">🧠</div>
+                                <div class="layer-info">
+                                    <h4 class="layer-name purple-gradient">Capa de Inteligencia Sintética</h4>
+                                    <p class="layer-desc">Modelos de consciencia artificial y procesamiento hiperespacial</p>
+                                </div>
+                                <div class="layer-techs">
+                                    <span class="tech-tag">TensorFlow Quantum</span>
+                                    <span class="tech-tag">PyTorch Neural</span>
+                                    <span class="tech-tag">Scikit-Hyper</span>
+                                    <span class="tech-tag">Custom Consciousness</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="layer">
+                            <div class="layer-content">
+                                <div class="layer-icon pink-bg">🗄️</div>
+                                <div class="layer-info">
+                                    <h4 class="layer-name pink-gradient">Núcleo Hiperdimensional</h4>
+                                    <p class="layer-desc">Infraestructura cuántica y gestión de datos multiversal</p>
+                                </div>
+                                <div class="layer-techs">
+                                    <span class="tech-tag">Kubernetes 5D</span>
+                                    <span class="tech-tag">Docker Quantum</span>
+                                    <span class="tech-tag">PostgreSQL Neural</span>
+                                    <span class="tech-tag">Redis Hyperspatial</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Business Units Section -->
+        <section id="business-units" class="business-units">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-badge">
+                        <span class="badge-icon">⚙️</span>
+                        <span>CONFIGURACIONES AVANZADAS</span>
+                    </div>
+                    <h2 class="section-title">
+                        Unidades de <span class="gradient-text">Negocio</span>
+                    </h2>
+                    <p class="section-description">
+                        Soluciones altamente configurables con ajustes específicos para cada industria
+                    </p>
+                </div>
+
+                <div class="business-grid">
+                    <div class="business-card fintech" onclick="selectBusinessUnit(0)">
+                        <div class="business-image">
+                            <img src="https://images.unsplash.com/photo-1605810230434-7631ac76ec81?ixlib=rb-4.0.3&amp;auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="FinTech">
+                            <div class="business-overlay fintech-gradient"></div>
+                            <div class="business-badge">Especializado</div>
+                            <div class="business-config">⚙️</div>
+                        </div>
+                        <div class="business-content">
+                            <h3 class="business-title">FinTech &amp; Banking</h3>
+                            <p class="business-desc">
+                                Soluciones de IA para servicios financieros, detección de fraudes y análisis de riesgo crediticio.
+                            </p>
+                            <div class="business-tags">
+                                <span class="tag">Análisis de Riesgo</span>
+                                <span class="tag">Detección de Fraudes</span>
+                                <span class="tag">+2 más</span>
+                            </div>
+                            <button class="business-btn">
+                                Configurar ⚙️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="business-card healthcare" onclick="selectBusinessUnit(1)">
+                        <div class="business-image">
+                            <img src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?ixlib=rb-4.0.3&amp;auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Healthcare">
+                            <div class="business-overlay healthcare-gradient"></div>
+                            <div class="business-badge">Especializado</div>
+                            <div class="business-config">⚙️</div>
+                        </div>
+                        <div class="business-content">
+                            <h3 class="business-title">Healthcare &amp; Medical</h3>
+                            <p class="business-desc">
+                                Tecnologías de diagnóstico asistido por IA y análisis de imágenes médicas avanzadas.
+                            </p>
+                            <div class="business-tags">
+                                <span class="tag">Diagnóstico por IA</span>
+                                <span class="tag">Análisis de Imágenes</span>
+                                <span class="tag">+2 más</span>
+                            </div>
+                            <button class="business-btn">
+                                Configurar ⚙️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="business-card retail" onclick="selectBusinessUnit(2)">
+                        <div class="business-image">
+                            <img src="https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?ixlib=rb-4.0.3&amp;auto=format&amp;fit=crop&amp;w=800&amp;q=80" alt="Retail">
+                            <div class="business-overlay retail-gradient"></div>
+                            <div class="business-badge">Especializado</div>
+                            <div class="business-config">⚙️</div>
+                        </div>
+                        <div class="business-content">
+                            <h3 class="business-title">Retail &amp; E-commerce</h3>
+                            <p class="business-desc">
+                                Personalización de experiencias de compra y optimización de inventarios mediante IA.
+                            </p>
+                            <div class="business-tags">
+                                <span class="tag">Recomendaciones</span>
+                                <span class="tag">Optimización</span>
+                                <span class="tag">+2 más</span>
+                            </div>
+                            <button class="business-btn">
+                                Configurar ⚙️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-panel">
+                    <div class="config-header">
+                        <div class="config-indicator fintech-gradient"></div>
+                        <h3 class="config-title">Configuración Avanzada: FinTech &amp; Banking</h3>
+                    </div>
+                    
+                    <div class="config-tabs">
+                        <button class="config-tab active" onclick="switchConfigTab('features')">✨ Características</button>
+                        <button class="config-tab" onclick="switchConfigTab('compliance')">🛡️ Cumplimiento</button>
+                        <button class="config-tab" onclick="switchConfigTab('integrations')">💻 Integraciones</button>
+                        <button class="config-tab" onclick="switchConfigTab('models')">🧠 Modelos IA</button>
+                        <button class="config-tab" onclick="switchConfigTab('security')">🗄️ Seguridad</button>
+                    </div>
+                    
+                    <div class="config-content">
+                        <div class="config-items"><div class="config-item">
+            <span class="check-icon">✅</span>
+            <span>Análisis de Riesgo</span>
+        </div><div class="config-item">
+            <span class="check-icon">✅</span>
+            <span>Detección de Fraudes</span>
+        </div><div class="config-item">
+            <span class="check-icon">✅</span>
+            <span>Robo-Advisory</span>
+        </div><div class="config-item">
+            <span class="check-icon">✅</span>
+            <span>KYC Automatizado</span>
+        </div></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quantum Lab Section -->
+        <section id="quantum-lab" class="quantum-lab">
+            <canvas class="quantum-canvas" id="quantumCanvas" width="1098" height="1008"></canvas>
+            <div class="quantum-fields"></div>
+            
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-badge quantum-badge">
+                        <span class="badge-icon quantum-spin">⚛️</span>
+                        <span>LABORATORIO CUÁNTICO</span>
+                    </div>
+                    <h2 class="section-title quantum">
+                        Investigación de<br>
+                        <span class="animate-pulse">Vanguardia</span>
+                    </h2>
+                    <p class="section-description">
+                        Explorando los límites de la inteligencia artificial y la computación cuántica
+                    </p>
+                </div>
+
+                <div class="quantum-metrics">
+                    <div class="metric-card">
+                        <div class="metric-icon cyan">📊</div>
+                        <div class="metric-value">47</div>
+                        <div class="metric-label">Experimentos Activos</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon purple">🧠</div>
+                        <div class="metric-value">23</div>
+                        <div class="metric-label">Modelos Evolutivos</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon cyan">⚛️</div>
+                        <div class="metric-value">1,024</div>
+                        <div class="metric-label">Qubits Simulados</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon pink">🗄️</div>
+                        <div class="metric-value">∞</div>
+                        <div class="metric-label">Dimensiones Paralelas</div>
+                    </div>
+                </div>
+
+                <div class="experiments-grid">
+                    <div class="experiment-card active" onclick="selectExperiment(0)">
+                        <div class="experiment-header">
+                            <div class="experiment-icon cyan-bg">⚛️</div>
+                            <div class="experiment-info">
+                                <h3 class="experiment-title">Computación Cuántica Neural</h3>
+                                <span class="experiment-status">En Progreso</span>
+                            </div>
+                            <div class="experiment-progress">
+                                <div class="progress-label">Progreso</div>
+                                <div class="progress-value">78%</div>
+                            </div>
+                        </div>
+                        <p class="experiment-desc">
+                            Algoritmos híbridos que combinan qubits con redes neuronales para procesamiento hiperdimensional
+                        </p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 78%"></div>
+                        </div>
+                        <div class="experiment-features">
+                            <div class="feature-item">
+                                <div class="feature-dot cyan"></div>
+                                <span>Q-Learning</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-dot cyan"></div>
+                                <span>Quantum Gates</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-dot cyan"></div>
+                                <span>Neural Superposition</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-dot cyan"></div>
+                                <span>Entangled Networks</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="experiment-card" onclick="selectExperiment(1)">
+                        <div class="experiment-header">
+                            <div class="experiment-icon purple-bg">🧠</div>
+                            <div class="experiment-info">
+                                <h3 class="experiment-title">Consciencia Artificial Emergente</h3>
+                                <span class="experiment-status experimental">Experimental</span>
+                            </div>
+                            <div class="experiment-progress">
+                                <div class="progress-label">Progreso</div>
+                                <div class="progress-value">34%</div>
+                            </div>
+                        </div>
+                        <p class="experiment-desc">
+                            Investigación en la creación de sistemas con auto-conciencia y razonamiento abstracto
+                        </p>
+                        <div class="progress-bar">
+                            <div class="progress-fill purple-fill" style="width: 34%"></div>
+                        </div>
+                        <div class="experiment-features">
+                            <div class="feature-item">
+                                <div class="feature-dot purple"></div>
+                                <span>Self-Reflection</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-dot purple"></div>
+                                <span>Abstract Reasoning</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-dot purple"></div>
+                                <span>Emotional AI</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-dot purple"></div>
+                                <span>Creative Thinking</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Metaverse Section -->
+        <section id="metaverse" class="metaverse">
+            <canvas class="metaverse-canvas" id="metaverseCanvas" width="1098" height="1034"></canvas>
+            <div class="ambient-effects"></div>
+            
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-badge">
+                        <span class="badge-icon spin-slow">🌍</span>
+                        <span>METAVERSO IA</span>
+                    </div>
+                    <h2 class="section-title quantum">
+                        Mundos Virtuales<br>
+                        <span class="animate-pulse">Inteligentes</span>
+                    </h2>
+                    <p class="section-description">
+                        Espacios digitales donde la inteligencia artificial amplifica la creatividad y colaboración humana
+                    </p>
+                </div>
+
+                <div class="tech-progress">
+                    <h3 class="progress-title">Stack Tecnológico del Metaverso</h3>
+                    <div class="progress-grid">
+                        <div class="progress-item">
+                            <div class="progress-header">
+                                <span class="progress-icon">🎧</span>
+                                <span class="progress-name">Realidad Virtual</span>
+                                <span class="progress-percent">95%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-bar-fill" style="width: 95%"></div>
+                            </div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-header">
+                                <span class="progress-icon">👁️</span>
+                                <span class="progress-name">Realidad Aumentada</span>
+                                <span class="progress-percent">88%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-bar-fill" style="width: 88%"></div>
+                            </div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-header">
+                                <span class="progress-icon">💻</span>
+                                <span class="progress-name">Inteligencia Artificial</span>
+                                <span class="progress-percent">92%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-bar-fill" style="width: 92%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metaverse-worlds">
+                    <div class="world-card active" onclick="selectWorld(0)">
+                        <div class="world-header">
+                            <div class="world-icon blue-bg">👥</div>
+                            <div class="world-info">
+                                <h3 class="world-title">Neural Academy</h3>
+                                <span class="world-participants">15.2K usuarios</span>
+                            </div>
+                            <div class="world-status">
+                                <div class="status-dot live"></div>
+                                <span>En Vivo</span>
+                            </div>
+                        </div>
+                        <p class="world-desc">Campus virtual donde la IA enseña a través de experiencias inmersivas</p>
+                        <div class="world-features">
+                            <div class="world-feature">
+                                <div class="feature-dot blue"></div>
+                                <span>Tutores Holográficos</span>
+                            </div>
+                            <div class="world-feature">
+                                <div class="feature-dot blue"></div>
+                                <span>Laboratorios Virtuales</span>
+                            </div>
+                        </div>
+                        <button class="world-btn blue-gradient">Acceder al Mundo →</button>
+                    </div>
+
+                    <div class="world-card" onclick="selectWorld(1)">
+                        <div class="world-header">
+                            <div class="world-icon purple-bg">💻</div>
+                            <div class="world-info">
+                                <h3 class="world-title">Quantum Workspace</h3>
+                                <span class="world-participants">8.7K usuarios</span>
+                            </div>
+                            <div class="world-status">
+                                <div class="status-dot live"></div>
+                                <span>En Vivo</span>
+                            </div>
+                        </div>
+                        <p class="world-desc">Oficinas virtuales con colaboración aumentada por inteligencia artificial</p>
+                        <div class="world-features">
+                            <div class="world-feature">
+                                <div class="feature-dot purple"></div>
+                                <span>Meetings Holográficos</span>
+                            </div>
+                            <div class="world-feature">
+                                <div class="feature-dot purple"></div>
+                                <span>IA Asistente</span>
+                            </div>
+                        </div>
+                        <button class="world-btn purple-gradient">Acceder al Mundo →</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Services Section -->
+        <section id="services" class="services">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        Servicios y <span class="gradient-text">Evaluaciones</span>
+                    </h2>
+                    <p class="section-description">
+                        Desde consultoría estratégica hasta implementaciones completas, te acompañamos en cada etapa de tu transformación con IA
+                    </p>
+                </div>
+
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-badge">Consultoría</div>
+                        <h3 class="service-title">Evaluación de IA</h3>
+                        <p class="service-desc">
+                            Análisis completo de la madurez de IA en tu organización y roadmap de implementación.
+                        </p>
+                        <div class="service-details">
+                            <div class="service-detail">
+                                <span class="detail-label">Duración:</span>
+                                <span class="detail-value">2-4 semanas</span>
+                            </div>
+                            <div class="service-deliverables">
+                                <span class="deliverable">• Audit Report</span>
+                                <span class="deliverable">• Implementation Roadmap</span>
+                                <span class="deliverable">• ROI Analysis</span>
+                            </div>
+                        </div>
+                        <div class="service-price">Desde $15,000</div>
+                        <button class="service-btn">Solicitar Cotización</button>
+                    </div>
+
+                    <div class="service-card popular">
+                        <div class="popular-banner">Más Popular</div>
+                        <div class="service-badge">Desarrollo</div>
+                        <h3 class="service-title">MVP de IA</h3>
+                        <p class="service-desc">
+                            Desarrollo rápido de un producto mínimo viable para validar tu idea con IA real.
+                        </p>
+                        <div class="service-details">
+                            <div class="service-detail">
+                                <span class="detail-label">Duración:</span>
+                                <span class="detail-value">6-12 semanas</span>
+                            </div>
+                            <div class="service-deliverables">
+                                <span class="deliverable">• MVP Functional</span>
+                                <span class="deliverable">• Tech Documentation</span>
+                                <span class="deliverable">• Training Dataset</span>
+                            </div>
+                        </div>
+                        <div class="service-price">Desde $50,000</div>
+                        <button class="service-btn primary">Solicitar Cotización</button>
+                    </div>
+
+                    <div class="service-card">
+                        <div class="service-badge">Implementación</div>
+                        <h3 class="service-title">Solución Enterprise</h3>
+                        <p class="service-desc">
+                            Desarrollo completo de soluciones de IA escalables para grandes organizaciones.
+                        </p>
+                        <div class="service-details">
+                            <div class="service-detail">
+                                <span class="detail-label">Duración:</span>
+                                <span class="detail-value">3-9 meses</span>
+                            </div>
+                            <div class="service-deliverables">
+                                <span class="deliverable">• Full Solution</span>
+                                <span class="deliverable">• Integration</span>
+                                <span class="deliverable">• Training &amp; Support</span>
+                            </div>
+                        </div>
+                        <div class="service-price">Consultar</div>
+                        <button class="service-btn">Solicitar Cotización</button>
+                    </div>
+                </div>
+
+                <div class="addons-section">
+                    <h3 class="addons-title">Servicios Adicionales</h3>
+                    <div class="addons-grid">
+                        <div class="addon-card">
+                            <h4 class="addon-name">Soporte 24/7</h4>
+                            <p class="addon-desc">Monitoreo continuo y soporte técnico especializado</p>
+                            <div class="addon-price">$5,000/mes</div>
+                        </div>
+                        <div class="addon-card">
+                            <h4 class="addon-name">Training Personalizado</h4>
+                            <p class="addon-desc">Capacitación del equipo interno en las tecnologías implementadas</p>
+                            <div class="addon-price">$10,000</div>
+                        </div>
+                        <div class="addon-card">
+                            <h4 class="addon-name">Data Augmentation</h4>
+                            <p class="addon-desc">Enriquecimiento y limpieza de datasets existentes</p>
+                            <div class="addon-price">$15,000</div>
+                        </div>
+                        <div class="addon-card">
+                            <h4 class="addon-name">API Integration</h4>
+                            <p class="addon-desc">Integración con sistemas existentes vía APIs personalizadas</p>
+                            <div class="addon-price">$8,000</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="services-cta">
+                    <h3 class="cta-title">¿Listo para transformar tu negocio?</h3>
+                    <p class="cta-description">
+                        Agenda una consultoría gratuita con nuestros expertos y descubre cómo la IA puede revolucionar tu empresa
+                    </p>
+                    <div class="cta-buttons">
+                        <button class="btn btn-primary btn-lg">📅 Agendar Consultoría Gratuita</button>
+                        <button class="btn btn-outline btn-lg">Ver Casos de Éxito</button>
+                    </div>
+                    <div class="cta-stats">
+                        <div class="cta-stat">
+                            <div class="stat-value">30min</div>
+                            <div class="stat-label">Consultoría inicial</div>
+                        </div>
+                        <div class="cta-stat">
+                            <div class="stat-value">100%</div>
+                            <div class="stat-label">Sin compromiso</div>
+                        </div>
+                        <div class="cta-stat">
+                            <div class="stat-value">24h</div>
+                            <div class="stat-label">Respuesta garantizada</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-cta">
+            <div class="container">
+                <div class="cta-card">
+                    <h3 class="footer-cta-title">
+                        Agenda una Demo con nuestro <span class="gradient-text">CEO</span>
+                    </h3>
+                    <p class="footer-cta-desc">
+                        Conecta directamente con nuestra dirección ejecutiva para discutir cómo podemos transformar tu negocio con IA
+                    </p>
+                    <div class="footer-cta-buttons">
+                        <button class="btn btn-primary btn-lg" onclick="openScheduleModal()">📅 Agendar con CEO</button>
+                        <button class="btn btn-outline btn-lg">✉️ Contacto Directo</button>
+                    </div>
+                    <div class="footer-cta-stats">
+                        <div class="footer-stat">
+                            <div class="stat-value">C-Level</div>
+                            <div class="stat-label">Atención ejecutiva</div>
+                        </div>
+                        <div class="footer-stat">
+                            <div class="stat-value">Demo Live</div>
+                            <div class="stat-label">Productos reales</div>
+                        </div>
+                        <div class="footer-stat">
+                            <div class="stat-value">ROI</div>
+                            <div class="stat-label">Análisis incluido</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-content">
+            <div class="container">
+                <div class="footer-grid">
+                    <div class="footer-company">
+                        <div class="footer-logo">
+                            <div class="logo-icon">AI</div>
+                            <span class="logo-text">TechAI</span>
+                        </div>
+                        <p class="footer-company-desc">
+                            Transformando empresas con Inteligencia Artificial de vanguardia. Soluciones personalizadas para el futuro digital.
+                        </p>
+                        <div class="footer-contact">
+                            <div class="contact-item">
+                                <span class="contact-icon">✉️</span>
+                                <span>contact@techai.com</span>
+                            </div>
+                            <div class="contact-item">
+                                <span class="contact-icon">📞</span>
+                                <span>+1 (555) 123-4567</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="footer-section">
+                        <h4 class="footer-section-title">Unidades de Negocio</h4>
+                        <div class="footer-units">
+                            <div class="footer-unit">
+                                <div class="unit-name">FinTech Solutions</div>
+                                <div class="unit-contact">fintech@techai.com</div>
+                                <div class="unit-phone">+1 (555) 123-4567</div>
+                            </div>
+                            <div class="footer-unit">
+                                <div class="unit-name">Healthcare AI</div>
+                                <div class="unit-contact">healthcare@techai.com</div>
+                                <div class="unit-phone">+1 (555) 234-5678</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="footer-section">
+                        <h4 class="footer-section-title">Enlaces Rápidos</h4>
+                        <div class="footer-links">
+                            <a href="#" class="footer-link">Tecnologías</a>
+                            <a href="#" class="footer-link">Casos de Éxito</a>
+                            <a href="#" class="footer-link">Blog</a>
+                            <a href="#" class="footer-link">Recursos</a>
+                            <a href="#" class="footer-link">Documentación</a>
+                            <a href="#" class="footer-link">Soporte</a>
+                        </div>
+                    </div>
+
+                    <div class="footer-section">
+                        <h4 class="footer-section-title">Síguenos</h4>
+                        <div class="social-links">
+                            <a href="#" class="social-link">LI</a>
+                            <a href="#" class="social-link">TW</a>
+                            <a href="#" class="social-link">GH</a>
+                            <a href="#" class="social-link">YT</a>
+                        </div>
+                        <div class="footer-legal">
+                            <h5 class="legal-title">Legal</h5>
+                            <a href="#" class="legal-link">Términos de Servicio</a>
+                            <a href="#" class="legal-link">Política de Privacidad</a>
+                            <a href="#" class="legal-link">Cookies</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <div class="container">
+                <div class="footer-bottom-content">
+                    <div class="copyright">
+                        © 2024 TechAI. Todos los derechos reservados.
+                    </div>
+                    <div class="locations">
+                        🇲🇽 México • 🇺🇸 Estados Unidos • 🇪🇸 España
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Schedule Modal -->
+    <div class="modal" id="scheduleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Agendar Demo Ejecutiva</h3>
+                <button class="modal-close" onclick="closeScheduleModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    Serás redirigido a nuestro sistema de citas de Google Calendar para seleccionar el mejor horario.
+                </p>
+                <div class="modal-stats">
+                    <div class="modal-stat">
+                        <div class="stat-value">60min</div>
+                        <div class="stat-label">Demo completa</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="stat-value">CEO</div>
+                        <div class="stat-label">Atención directa</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="stat-value">1:1</div>
+                        <div class="stat-label">Personalizado</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-lg modal-btn" onclick="openGoogleCalendar()">
+                    Continuar a Google Calendar →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="styles/script.js"></script>
+
+
+</body></html>

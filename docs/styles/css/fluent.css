@@ -1,0 +1,468 @@
+/* Estilos mejorados basados en fluent-tech-flow-91 */
+
+/* Variables de color y efectos */
+:root {
+    --fluent-primary: #0078D4;
+    --fluent-secondary: #2B88D8;
+    --fluent-accent: #00BCF2;
+    --fluent-success: #107C10;
+    --fluent-warning: #FFB900;
+    --fluent-error: #E81123;
+    --fluent-neutral: #323130;
+    --fluent-neutral-light: #F3F2F1;
+    --fluent-neutral-dark: #201F1E;
+    
+    /* Gradientes mejorados */
+    --gradient-primary: linear-gradient(135deg, #0078D4, #2B88D8, #00BCF2);
+    --gradient-accent: linear-gradient(135deg, #00BCF2, #2B88D8, #0078D4);
+    --gradient-dark: linear-gradient(135deg, #201F1E, #000000);
+    --gradient-light: linear-gradient(135deg, #FFFFFF, #F3F2F1);
+    --gradient-glow: linear-gradient(135deg, rgba(0, 188, 242, 0.1), rgba(43, 136, 216, 0.1));
+    
+    /* Sombras mejoradas */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+    --shadow-glow: 0 0 20px rgba(0, 188, 242, 0.2);
+    
+    /* Efectos de cristal mejorados */
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --glass-blur: blur(20px);
+}
+
+/* Efectos de fondo mejorados */
+.hero {
+    position: relative;
+    overflow: hidden;
+    background: var(--gradient-dark);
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 20%, rgba(0, 188, 242, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(43, 136, 216, 0.1) 0%, transparent 50%);
+    z-index: 1;
+}
+
+.hero::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1" fill="rgba(255,255,255,0.05)"/></svg>');
+    opacity: 0.1;
+    z-index: 2;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 3;
+}
+
+/* Mejoras en las tarjetas de negocio */
+.business-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 2.5rem;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.business-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-glow);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: 0;
+}
+
+.business-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: var(--shadow-xl), var(--shadow-glow);
+}
+
+.business-card:hover::before {
+    opacity: 1;
+}
+
+/* Grid de divisiones mejorado */
+.divisions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin: 3rem 0;
+    perspective: 1000px;
+}
+
+.division-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: var(--glass-blur);
+    border-radius: 24px;
+    padding: 2.5rem;
+    text-align: center;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--glass-border);
+    transform-style: preserve-3d;
+    position: relative;
+    overflow: hidden;
+}
+
+.division-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-glow);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.division-card:hover {
+    transform: translateY(-5px) rotateX(5deg);
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.division-card:hover::before {
+    opacity: 1;
+}
+
+.division-icon {
+    font-size: 3rem;
+    margin-bottom: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    color: white;
+    transition: all 0.5s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.division-card:hover .division-icon {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: var(--shadow-glow);
+}
+
+/* Panel de configuración mejorado */
+.config-panel {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: var(--glass-blur);
+    border-radius: 24px;
+    padding: 3rem;
+    margin-top: 3rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--glass-border);
+    position: relative;
+    overflow: hidden;
+}
+
+.config-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-glow);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.config-panel:hover::before {
+    opacity: 1;
+}
+
+/* Tabs mejorados */
+.config-tabs {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 1.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    position: relative;
+    z-index: 1;
+}
+
+.config-tab {
+    padding: 1.25rem 2.5rem;
+    border: none;
+    background: none;
+    color: var(--fluent-neutral);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    position: relative;
+    white-space: nowrap;
+}
+
+.config-tab.active {
+    color: var(--fluent-primary);
+}
+
+.config-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1.5rem;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--gradient-primary);
+    border-radius: 3px;
+    box-shadow: var(--shadow-glow);
+}
+
+/* Elementos de configuración mejorados */
+.config-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.config-item {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    background: var(--fluent-neutral-light);
+    border-radius: 16px;
+    transition: all 0.4s ease;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.config-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-primary);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.config-item:hover {
+    transform: translateX(5px);
+    color: white;
+}
+
+.config-item:hover::before {
+    opacity: 1;
+}
+
+.config-item > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Footer mejorado */
+.footer {
+    background: var(--gradient-dark);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 20%, rgba(0, 188, 242, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(43, 136, 216, 0.1) 0%, transparent 50%);
+    opacity: 0.1;
+}
+
+.footer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1" fill="rgba(255,255,255,0.05)"/></svg>');
+    opacity: 0.1;
+}
+
+.footer-content {
+    position: relative;
+    z-index: 1;
+}
+
+/* Animaciones mejoradas */
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* Efectos de hover en botones */
+.btn {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md), var(--shadow-glow);
+}
+
+.btn:hover::before {
+    width: 300%;
+    height: 300%;
+}
+
+/* Efectos de partículas mejorados */
+.particles-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 0;
+    opacity: 0.5;
+}
+
+#particlesCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    filter: blur(1px);
+}
+
+/* Mejoras en la responsividad */
+@media (max-width: 768px) {
+    .divisions-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .config-items {
+        grid-template-columns: 1fr;
+    }
+
+    .business-card,
+    .division-card {
+        padding: 2rem;
+    }
+
+    .division-icon {
+        width: 80px;
+        height: 80px;
+        font-size: 2.5rem;
+    }
+
+    .config-panel {
+        padding: 2rem;
+    }
+}
+
+/* Efectos de scroll mejorados */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Efectos de cursor personalizado mejorados */
+.custom-cursor {
+    width: 20px;
+    height: 20px;
+    background: var(--fluent-primary);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    mix-blend-mode: difference;
+    z-index: 9999;
+    transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease;
+    box-shadow: var(--shadow-glow);
+}
+
+.custom-cursor.active {
+    transform: scale(2);
+    background: var(--fluent-accent);
+} 

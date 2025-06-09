@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador huntRED® AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Poppins:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <style>
+        .simulator-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--spacing-8);
+            background: var(--color-white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            padding: var(--spacing-4);
+            background: var(--color-gray-100);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: var(--spacing-4);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: var(--spacing-4);
+            border-radius: var(--radius-lg);
+            background: var(--color-white);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .message.bot .message-content {
+            background: var(--gradient-primary);
+            color: var(--color-white);
+        }
+
+        .message.user .message-content {
+            background: var(--color-gray-200);
+        }
+
+        .input-container {
+            display: flex;
+            gap: var(--spacing-4);
+        }
+
+        .input-field {
+            flex: 1;
+            padding: var(--spacing-4);
+            border: 2px solid var(--color-gray-300);
+            border-radius: var(--radius-lg);
+            font-size: var(--font-size-base);
+            transition: var(--transition-normal);
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--color-huntred-blue);
+            box-shadow: 0 0 0 3px rgba(31, 53, 68, 0.1);
+        }
+
+        .send-button {
+            padding: var(--spacing-4) var(--spacing-8);
+            background: var(--gradient-primary);
+            color: var(--color-white);
+            border: none;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-normal);
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: var(--spacing-2);
+            padding: var(--spacing-4);
+            background: var(--color-gray-100);
+            border-radius: var(--radius-lg);
+            width: fit-content;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--color-huntred-blue);
+            border-radius: 50%;
+            animation: typing 1s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="simulator-container">
+        <div class="chat-container" id="chatContainer">
+            <div class="message bot">
+                <div class="message-content">
+                    ¡Hola! Soy el asistente virtual de huntRED® AI. ¿En qué puedo ayudarte hoy?
+                </div>
+            </div>
+        </div>
+        <div class="input-container">
+            <input type="text" class="input-field" id="userInput" placeholder="Escribe tu mensaje aquí..." autofocus>
+            <button class="send-button" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        let isTyping = false;
+
+        // Respuestas predefinidas
+        const responses = {
+            'hola': '¡Hola! ¿Cómo puedo ayudarte hoy?',
+            'ayuda': 'Puedo ayudarte con:\n- Información sobre vacantes\n- Evaluación de habilidades\n- Creación de CV\n- Programación de entrevistas',
+            'cv': '¿Te gustaría crear un CV profesional? Puedo guiarte en el proceso.',
+            'entrevista': '¿Te gustaría programar una entrevista? Puedo ayudarte a encontrar el mejor horario.',
+            'default': 'Entiendo. ¿Podrías proporcionarme más detalles para ayudarte mejor?'
+        };
+
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot';
+            typingDiv.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return typingDiv;
+        }
+
+        function getResponse(message) {
+            message = message.toLowerCase();
+            for (let key in responses) {
+                if (message.includes(key)) {
+                    return responses[key];
+                }
+            }
+            return responses.default;
+        }
+
+        function sendMessage() {
+            if (isTyping) return;
+            
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            userInput.value = '';
+
+            isTyping = true;
+            const typingIndicator = showTypingIndicator();
+
+            setTimeout(() => {
+                typingIndicator.remove();
+                addMessage(getResponse(message));
+                isTyping = false;
+            }, 1500);
+        }
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 

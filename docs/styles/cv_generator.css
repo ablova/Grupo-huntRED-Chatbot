@@ -1,0 +1,274 @@
+/* CV Generator Styles - Grupo huntRED® */
+
+/* CV Layout */
+.cv-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--spacing-8);
+    background-color: var(--color-background);
+}
+
+.cv-header {
+    text-align: center;
+    margin-bottom: var(--spacing-8);
+}
+
+.cv-title {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-4);
+}
+
+.cv-subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-6);
+}
+
+/* CV Sections */
+.cv-section {
+    margin-bottom: var(--spacing-8);
+    padding: var(--spacing-6);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.cv-section-title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-4);
+    padding-bottom: var(--spacing-2);
+    border-bottom: 2px solid var(--color-primary);
+}
+
+.cv-section-content {
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--color-text);
+}
+
+/* CV Templates */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-6);
+    margin: var(--spacing-8) 0;
+}
+
+.template-card {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-6);
+    cursor: pointer;
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.template-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.template-card.selected {
+    border: 2px solid var(--color-primary);
+}
+
+.template-preview {
+    width: 100%;
+    height: 200px;
+    background-color: var(--color-background);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-4);
+    overflow: hidden;
+}
+
+.template-name {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-bottom: var(--spacing-2);
+}
+
+.template-description {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* CV Editor */
+.editor-section {
+    margin-top: var(--spacing-8);
+}
+
+.editor-toolbar {
+    display: flex;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-4);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+}
+
+.editor-button {
+    padding: var(--spacing-2) var(--spacing-4);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.editor-button:hover {
+    background-color: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.editor-content {
+    min-height: 400px;
+    padding: var(--spacing-4);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+}
+
+/* Personality Insights */
+.insights-section {
+    margin-top: var(--spacing-8);
+    padding: var(--spacing-6);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+}
+
+.insights-title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    margin-bottom: var(--spacing-4);
+}
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-4);
+}
+
+.insight-card {
+    padding: var(--spacing-4);
+    background-color: var(--color-background);
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.insight-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-2);
+}
+
+.insight-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+/* Optimization Score */
+.score-section {
+    margin-top: var(--spacing-8);
+    text-align: center;
+}
+
+.score-circle {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto var(--spacing-4);
+    border-radius: 50%;
+    background: conic-gradient(var(--color-primary) var(--score-percentage), var(--color-surface) 0);
+    position: relative;
+}
+
+.score-circle::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    background-color: var(--color-background);
+    border-radius: 50%;
+}
+
+.score-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.score-label {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+}
+
+/* Recommendations */
+.recommendations-section {
+    margin-top: var(--spacing-8);
+}
+
+.recommendation-list {
+    list-style: none;
+    padding: 0;
+}
+
+.recommendation-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-4);
+}
+
+.recommendation-icon {
+    font-size: 1.5rem;
+    color: var(--color-primary);
+}
+
+.recommendation-content {
+    flex: 1;
+}
+
+.recommendation-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    margin-bottom: var(--spacing-2);
+}
+
+.recommendation-description {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+/* Print Styles */
+@media print {
+    .cv-container {
+        padding: 0;
+    }
+    
+    .cv-section {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid var(--color-border);
+    }
+    
+    .editor-toolbar,
+    .insights-section,
+    .score-section,
+    .recommendations-section {
+        display: none;
+    }
+} 

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Grupo huntRED® AI{% endblock %}</title>
+    
+    <!-- Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Estilos Base -->
+    <link rel="stylesheet" href="../styles/base.css">
+    {% block styles %}{% endblock %}
+    
+    <!-- Scripts -->
+    <script>
+        // Tema oscuro/claro
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Inicializar tema
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+    </script>
+</head>
+<body>
+    <!-- Navegación -->
+    <nav class="nav">
+        <div class="container">
+            <ul>
+                <li><a href="../GenIA.html">GenIA</a></li>
+                <li><a href="../chatbot.html">Chatbot</a></li>
+                <li><a href="../Arquitectura.html">Arquitectura</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Botón de tema -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <!-- Contenido principal -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Scripts adicionales -->
+    {% block scripts %}{% endblock %}
+</body>
+</html> 
