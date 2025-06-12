@@ -41,6 +41,28 @@ if not os.access(env_file, os.R_OK):
     raise PermissionError(f"Environment file not readable: {env_file}")
 environ.Env.read_env(env_file)
 
+# Validación de variables de entorno requeridas
+required_env_vars = [
+    'DJANGO_SECRET_KEY',
+    'DB_NAME',
+    'DB_USER',
+    'DB_PASSWORD',
+    'DB_HOST',
+    'REDIS_HOST',
+    'REDIS_PASSWORD',
+    'EMAIL_HOST',
+    'EMAIL_HOST_USER',
+    'EMAIL_HOST_PASSWORD',
+    'WHATSAPP_API_TOKEN',
+    'TELEGRAM_BOT_TOKEN',
+    'MESSENGER_APP_SECRET',
+    'INSTAGRAM_APP_SECRET',
+]
+
+for var in required_env_vars:
+    if not env(var, default=None):
+        raise ImproperlyConfigured(f"Environment variable {var} is required in production")
+
 # Configuración de producción
 DEBUG = False
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['huntred.com', 'www.huntred.com'])
@@ -49,10 +71,10 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['huntred.com', 'www.huntred.c
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME', default='g_huntred_ai_db'),
-        'USER': env('DB_USER', default='g_huntred_pablo'),
-        'PASSWORD': env('DB_PASSWORD', default=''),
-        'HOST': env('DB_HOST', default='localhost'),
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
         'PORT': env('DB_PORT', default='5432'),
         'CONN_MAX_AGE': 60,
         'OPTIONS': {
@@ -60,7 +82,9 @@ DATABASES = {
             'keepalives': 1,
             'keepalives_idle': 30,
             'keepalives_interval': 10,
-            'keepalives_count': 5
+            'keepalives_count': 5,
+            'application_name': 'ai_huntred',
+            'options': '-c statement_timeout=30000 -c idle_in_transaction_session_timeout=30000',
         }
     }
 }
@@ -73,6 +97,12 @@ SECURE_HSTS_SECONDS = 31536000  # 1 año
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_HTTPONLY = True
+SECURE_REFERRER_POLICY = 'same-origin'
 
 # Configuración de caché
 CACHES = {
@@ -82,6 +112,14 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'PASSWORD': REDIS_CONFIG['password'],
+            'SOCKET_TIMEOUT': 5,
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'RETRY_ON_TIMEOUT': True,
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 100,
+            },
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
         }
     }
 }
@@ -89,14 +127,40 @@ CACHES = {
 # Configuración de sesiones
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
+SESSION_COOKIE_AGE = 86400  # 24 horas
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # Configuración de CORS
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 # Configuración de Celery
 CELERY_BROKER_USE_SSL = True
 CELERY_REDIS_BACKEND_USE_SSL = True
+CELERY_TASK_ALWAYS_EAGER = False
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+CELERY_TASK_TIME_LIMIT = 3600  # 1 hora
+CELERY_TASK_SOFT_TIME_LIMIT = 3000  # 50 minutos
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 3600
+CELERY_TASK_SOFT_TIME_LIMIT = 3000
 
 # Configuración de logging
 LOGGING = {
@@ -122,15 +186,43 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'error.log',
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
+            'handlers': ['file', 'console', 'error_file'],
             'level': 'INFO',
             'propagate': True,
         },
         'app': {
-            'handlers': ['file', 'console'],
+            'handlers': ['file', 'console', 'error_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'whatsapp': {
+            'handlers': ['file', 'console', 'error_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'telegram': {
+            'handlers': ['file', 'console', 'error_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'messenger': {
+            'handlers': ['file', 'console', 'error_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'instagram': {
+            'handlers': ['file', 'console', 'error_file'],
             'level': 'INFO',
             'propagate': True,
         },
@@ -139,6 +231,10 @@ LOGGING = {
 
 # Configuración de archivos estáticos
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_MAX_AGE = 31536000  # 1 año
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_MANIFEST_STRICT = True
+WHITENOISE_ALLOW_ALL_ORIGINS = False
 
 # Configuración de Silk
 SILKY_PYTHON_PROFILER = False
@@ -147,13 +243,6 @@ SILKY_AUTHORISATION = True
 SILKY_MAX_RECORDED_REQUESTS = 100
 SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10
 
-# Configuración de seguridad adicional
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = 'DENY'
-CSRF_COOKIE_HTTPONLY = True
-SESSION_COOKIE_HTTPONLY = True
-
 # Configuración de Sentry
 if env('SENTRY_DSN', default=None):
     sentry_sdk.init(
@@ -161,23 +250,24 @@ if env('SENTRY_DSN', default=None):
         integrations=[DjangoIntegration()],
         traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=0.1),
         send_default_pii=True,
-        environment='production'
+        environment='production',
+        release=env('APP_VERSION', default='1.0.0'),
+        before_send=lambda event, hint: {
+            **event,
+            'tags': {
+                **event.get('tags', {}),
+                'environment': 'production',
+            }
+        }
     )
-
-# Celery configuration
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/1')
-CELERY_TASK_ALWAYS_EAGER = False
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
-CELERY_WORKER_PREFETCH_MULTIPLIER = 4
 
 # Email backend
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = env('EMAIL_HOST', default='mail.huntred.com')
+EMAIL_HOST = env('EMAIL_HOST')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
-EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='hola@huntred.com')
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Grupo huntRED® <hola@huntred.com>')
 
 # API configuration
@@ -201,6 +291,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+    'EXCEPTION_HANDLER': 'ai_huntred.error_handling.custom_exception_handler',
 }
 
 # WhatsApp configuration
@@ -237,6 +328,7 @@ try:
     logger.info('Redis connection established successfully')
 except Exception as e:
     logger.error(f'Error during production configuration initialization: {e}')
+    raise
 
 # Debug print
 logger.info("DEBUG: DATABASES configuration (production.py): %s", DATABASES)

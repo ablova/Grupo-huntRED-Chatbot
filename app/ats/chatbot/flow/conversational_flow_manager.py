@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/conversational_flow_manager.py
+# /home/pablo/app/ats/chatbot/flow/conversational_flow_manager.py
 """
 Gestiona los flujos conversacionales del chatbot.
 Implementado siguiendo las reglas globales de Grupo huntRED® para optimización.

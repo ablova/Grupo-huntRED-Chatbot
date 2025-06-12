@@ -26,7 +26,7 @@ from app.ats.utils.salario import (
 from app.ats.chatbot.validation import truth_analyzer
 # Deferred imports to prevent circular dependencies
 def get_send_functions():
-    from app.ats.chatbot.integrations.services import send_menu, send_message, send_image, send_options_async, send_smart_options
+    from app.ats.integrations.services import send_menu, send_message, send_image, send_options_async, send_smart_options
     return send_menu, send_message, send_image, send_options_async
 
 # Initialize the functions when the module is first imported
@@ -395,18 +395,157 @@ async def send_welcome_message(user_id: str, platform: str, business_unit: Busin
 # Manejo de Respuestas
 # =========================================================
 async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, unidad_negocio: BusinessUnit, estado_chat: ChatState, persona: Person, gpt_handler=None):
-    """Maneja la respuesta del usuario en el flujo de creación o actualización de perfil.
-
-    Args:
-        plataforma: Plataforma de comunicación.
-        user_id: ID del usuario en la plataforma.
-        texto: Texto de la respuesta del usuario.
-        unidad_negocio: Unidad de negocio actual.
-        estado_chat: Estado actual del chat.
-        persona: Instancia del modelo Person.
-        gpt_handler: Manejador para procesar con GPT.
-    """
-
+    """Maneja las respuestas relacionadas con el perfil del usuario."""
+    
+    async def handle_profile_gaps():
+        """Maneja el análisis de brechas del perfil."""
+        try:
+            # Obtener análisis de brechas
+            gaps_analysis = await analyze_profile_gaps(persona, None)
+            
+            # Generar mensaje personalizado según unidad de negocio
+            if unidad_negocio.name.lower() == 'huntred_executive':
+                return (
+                    "🎯 *Análisis de Perfil Ejecutivo*\n\n"
+                    f"Basado en tu perfil actual ({gaps_analysis.get('profile_level', 'No especificado')}), "
+                    "he identificado algunas áreas de oportunidad para potenciar tu carrera:\n\n"
+                    f"{_format_gaps_for_executive(gaps_analysis)}"
+                )
+            elif unidad_negocio.name.lower() == 'huntu':
+                return (
+                    "🎓 *Análisis de Perfil Estudiantil*\n\n"
+                    f"Como estudiante, estas son las áreas que podrías fortalecer:\n\n"
+                    f"{_format_gaps_for_student(gaps_analysis)}"
+                )
+            elif unidad_negocio.name.lower() == 'amigro':
+                return (
+                    "👋 *Análisis de Perfil Básico*\n\n"
+                    "Para mejorar tus oportunidades, te sugiero:\n\n"
+                    f"{_format_gaps_for_amigro(gaps_analysis)}"
+                )
+            else:
+                return _format_gaps_generic(gaps_analysis)
+                
+        except Exception as e:
+            logger.error(f"Error analizando brechas de perfil: {str(e)}")
+            return "Lo siento, hubo un error al analizar tu perfil. Por favor, intenta nuevamente."
+    
+    def _format_gaps_for_executive(gaps_analysis: Dict) -> str:
+        """Formatea las brechas para perfiles ejecutivos."""
+        response = ""
+        
+        # Habilidades estratégicas
+        if gaps_analysis.get('gaps', {}).get('skills', {}).get('missing_skills'):
+            response += "📊 *Habilidades Estratégicas*\n"
+            for skill in gaps_analysis['gaps']['skills']['missing_skills'][:3]:
+                response += f"• {skill['skill']} (Prioridad: {skill['priority']})\n"
+            response += "\n"
+        
+        # Experiencia de liderazgo
+        if gaps_analysis.get('gaps', {}).get('experience', {}).get('years_gap', 0) > 0:
+            response += "👥 *Experiencia de Liderazgo*\n"
+            response += f"• Considera buscar roles que te permitan liderar equipos más grandes\n"
+            response += f"• Enfócate en proyectos estratégicos de mayor impacto\n\n"
+        
+        # Impacto potencial
+        impact = gaps_analysis.get('potential_impact', {})
+        response += "📈 *Impacto Potencial*\n"
+        response += f"• Mejora en oportunidades: {impact.get('opportunity_increase', 0)*100:.1f}%\n"
+        response += f"• Potencial salarial: {impact.get('salary_potential', 0)*100:.1f}%\n\n"
+        
+        # Próximos pasos
+        response += "🚀 *Próximos Pasos Recomendados*\n"
+        for step in gaps_analysis.get('next_steps', [])[:3]:
+            response += f"• {step['description']} (Tiempo estimado: {step['estimated_time']})\n"
+        
+        return response
+    
+    def _format_gaps_for_student(gaps_analysis: Dict) -> str:
+        """Formatea las brechas para perfiles estudiantiles."""
+        response = ""
+        
+        # Habilidades académicas
+        if gaps_analysis.get('gaps', {}).get('skills', {}).get('missing_skills'):
+            response += "📚 *Habilidades Académicas*\n"
+            for skill in gaps_analysis['gaps']['skills']['missing_skills'][:3]:
+                response += f"• {skill['skill']} (Prioridad: {skill['priority']})\n"
+            response += "\n"
+        
+        # Experiencia práctica
+        if gaps_analysis.get('gaps', {}).get('experience', {}).get('years_gap', 0) > 0:
+            response += "💼 *Experiencia Práctica*\n"
+            response += "• Busca pasantías o proyectos prácticos\n"
+            response += "• Participa en competencias o hackathons\n\n"
+        
+        # Impacto potencial
+        impact = gaps_analysis.get('potential_impact', {})
+        response += "📈 *Impacto en tu Carrera*\n"
+        response += f"• Mejora en oportunidades: {impact.get('opportunity_increase', 0)*100:.1f}%\n"
+        response += f"• Potencial de desarrollo: {impact.get('score_improvement', 0)*100:.1f}%\n\n"
+        
+        # Próximos pasos
+        response += "🎯 *Próximos Pasos Recomendados*\n"
+        for step in gaps_analysis.get('next_steps', [])[:3]:
+            response += f"• {step['description']} (Tiempo estimado: {step['estimated_time']})\n"
+        
+        return response
+    
+    def _format_gaps_for_amigro(gaps_analysis: Dict) -> str:
+        """Formatea las brechas para perfiles básicos."""
+        response = ""
+        
+        # Habilidades básicas
+        if gaps_analysis.get('gaps', {}).get('skills', {}).get('missing_skills'):
+            response += "🔧 *Habilidades Básicas*\n"
+            for skill in gaps_analysis['gaps']['skills']['missing_skills'][:3]:
+                response += f"• {skill['skill']} (Prioridad: {skill['priority']})\n"
+            response += "\n"
+        
+        # Ubicación
+        if gaps_analysis.get('gaps', {}).get('location', {}).get('distance_gap', 0) > 0:
+            response += "📍 *Consideraciones de Ubicación*\n"
+            response += "• Busca oportunidades más cercanas a tu ubicación\n"
+            response += "• Considera opciones de transporte público\n\n"
+        
+        # Impacto potencial
+        impact = gaps_analysis.get('potential_impact', {})
+        response += "📈 *Beneficios Potenciales*\n"
+        response += f"• Más oportunidades laborales: {impact.get('opportunity_increase', 0)*100:.1f}%\n"
+        response += f"• Mejor matching: {impact.get('score_improvement', 0)*100:.1f}%\n\n"
+        
+        # Próximos pasos
+        response += "🎯 *Próximos Pasos Recomendados*\n"
+        for step in gaps_analysis.get('next_steps', [])[:3]:
+            response += f"• {step['description']} (Tiempo estimado: {step['estimated_time']})\n"
+        
+        return response
+    
+    def _format_gaps_generic(gaps_analysis: Dict) -> str:
+        """Formatea las brechas de manera genérica."""
+        response = "📊 *Análisis de Perfil*\n\n"
+        
+        # Brechas principales
+        gaps = gaps_analysis.get('gaps', {})
+        if gaps.get('skills', {}).get('missing_skills'):
+            response += "• Habilidades a desarrollar:\n"
+            for skill in gaps['skills']['missing_skills'][:3]:
+                response += f"  - {skill['skill']} (Prioridad: {skill['priority']})\n"
+        
+        if gaps.get('experience', {}).get('years_gap', 0) > 0:
+            response += f"• Experiencia recomendada: {gaps['experience']['years_gap']} años adicionales\n"
+        
+        # Recomendaciones
+        response += "\n💡 *Recomendaciones*\n"
+        for rec in gaps_analysis.get('recommendations', [])[:3]:
+            response += f"• {rec['message']}\n"
+        
+        # Próximos pasos
+        response += "\n🚀 *Próximos Pasos*\n"
+        for step in gaps_analysis.get('next_steps', [])[:3]:
+            response += f"• {step['description']} (Tiempo estimado: {step['estimated_time']})\n"
+        
+        return response
+    
     async def handle_selecting_method():
         if texto.lower() in ['1', 'dinámico', 'dinamico']:
             await iniciar_perfil_conversacional(plataforma, user_id, unidad_negocio, estado_chat, persona)
@@ -681,6 +820,8 @@ async def manejar_respuesta_perfil(plataforma: str, user_id: str, texto: str, un
         return await handle_linkedin()
     elif estado_chat.state == "updating_profile":
         return await handle_updating_profile()
+    elif estado_chat.state == "analyzing_profile_gaps":
+        return await handle_profile_gaps()
     elif estado_chat.state.startswith("waiting_for_"):
         return await handle_validation()
     

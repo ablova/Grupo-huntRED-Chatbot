@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from app.models import (
     WorkflowStage, Application, Vacante,
-    Person, EnhancedNetworkGamificationProfile, UserPermission
+    Person, EnhancedNetworkGamificationProfile, UserPermission, LinkedInMessageTemplate
 )
 from app.ats.accounts.models import CustomUser
 import logging
@@ -334,40 +334,46 @@ class UserPermissionForm(forms.ModelForm):
         if commit:
             permission.save()
         return permission
-    """Formulario para gestionar perfiles de gamificación."""
-    
+
+class LinkedInMessageTemplateForm(forms.ModelForm):
+    """Formulario para templates de mensajes de LinkedIn."""
     class Meta:
-        model = EnhancedNetworkGamificationProfile
-        fields = [
-            'points', 'level', 'badges', 'achievements',
-            'last_activity', 'engagement_score'
-        ]
+        model = LinkedInMessageTemplate
+        fields = ['name', 'template', 'is_active', 'include_skills', 
+                 'include_job_count', 'include_ai_insight']
         widgets = {
-            'achievements': forms.Textarea(attrs={'rows': 3}),
-            'badges': forms.Textarea(attrs={'rows': 2}),
+            'template': forms.Textarea(attrs={
+                'rows': 5,
+                'placeholder': 'Ejemplo:\n¡Hola {name}!\n\nVeo que trabajas en {company} y tienes experiencia en {skills}. {ai_insight}\n\nActualmente tenemos {job_count} ofertas que podrían interesarte.\n\n¿Te gustaría conocer más sobre estas oportunidades?'
+            }),
         }
-
-    def clean_points(self):
-        """Valida que los puntos no sean negativos."""
-        points = self.cleaned_data['points']
-        if points < 0:
-            raise ValidationError(_('Los puntos no pueden ser negativos'))
-        return points
-
-    def clean_level(self):
-        """Valida que el nivel sea válido."""
-        level = self.cleaned_data['level']
-        if level < 1 or level > 100:
-            raise ValidationError(_('El nivel debe estar entre 1 y 100'))
-        return level
-
-    def save(self, commit=True):
-        """Guarda el perfil y actualiza el ranking."""
-        profile = super().save(commit=False)
-        if commit:
-            profile.save()
+        
+    def clean_template(self):
+        template = self.cleaned_data['template']
+        required_vars = ['{name}', '{company}']
+        optional_vars = ['{skills}', '{job_count}', '{ai_insight}']
+        
+        # Verificar variables requeridas
+        missing_vars = [var for var in required_vars if var not in template]
+        if missing_vars:
+            raise forms.ValidationError(
+                f'El template debe incluir las variables: {", ".join(missing_vars)}'
+            )
             
-            # Actualizar ranking
-            profile.update_ranking()
+        # Verificar variables opcionales según las opciones seleccionadas
+        if self.cleaned_data.get('include_skills') and '{skills}' not in template:
+            raise forms.ValidationError(
+                'Si incluyes habilidades, el template debe contener {skills}'
+            )
             
-        return profile
+        if self.cleaned_data.get('include_job_count') and '{job_count}' not in template:
+            raise forms.ValidationError(
+                'Si incluyes el conteo de ofertas, el template debe contener {job_count}'
+            )
+            
+        if self.cleaned_data.get('include_ai_insight') and '{ai_insight}' not in template:
+            raise forms.ValidationError(
+                'Si incluyes insights de IA, el template debe contener {ai_insight}'
+            )
+            
+        return template

@@ -65,6 +65,8 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'django_filters',
     'silk',
+    'channels',
+    'drf_yasg',
 ]
 
 # Configuración de usuario personalizado
@@ -143,6 +145,8 @@ REST_FRAMEWORK = {
         'anon': env('THROTTLE_ANON', default='100/day'),
         'user': env('THROTTLE_USER', default='1000/day'),
     },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
 }
 
 # Configuración CORS
@@ -158,6 +162,29 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = False
+CELERY_TASK_ROUTES = {
+    'app.ats.tasks.process_media.*': {'queue': 'media'},
+    'app.ats.tasks.send_message.*': {'queue': 'messages'},
+    'app.ats.tasks.analyze_content.*': {'queue': 'analysis'},
+}
+CELERY_TASK_QUEUES = {
+    'default': {
+        'exchange': 'default',
+        'routing_key': 'default',
+    },
+    'media': {
+        'exchange': 'media',
+        'routing_key': 'media',
+    },
+    'messages': {
+        'exchange': 'messages',
+        'routing_key': 'messages',
+    },
+    'analysis': {
+        'exchange': 'analysis',
+        'routing_key': 'analysis',
+    },
+}
 
 # Configuración de correo electrónico
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -198,6 +225,63 @@ REDIS_CONFIG = {
     'port': env.int('REDIS_PORT', default=6379),
     'db': env.int('REDIS_DB', default=0),
     'password': env('REDIS_PASSWORD', default=None),
+    'socket_timeout': 5,
+    'socket_connect_timeout': 5,
+    'retry_on_timeout': True,
+    'max_connections': 100,
+}
+
+# Configuración de caché
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f"redis://{REDIS_CONFIG['host']}:{REDIS_CONFIG['port']}/{REDIS_CONFIG['db']}",
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PASSWORD': REDIS_CONFIG['password'],
+            'SOCKET_TIMEOUT': REDIS_CONFIG['socket_timeout'],
+            'SOCKET_CONNECT_TIMEOUT': REDIS_CONFIG['socket_connect_timeout'],
+            'RETRY_ON_TIMEOUT': REDIS_CONFIG['retry_on_timeout'],
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': REDIS_CONFIG['max_connections'],
+            },
+        },
+        'KEY_PREFIX': 'ai_huntred_',
+    }
+}
+
+# Configuración de APIs de mensajería
+MESSAGING_APIS = {
+    'whatsapp': {
+        'ENABLED': env.bool('WHATSAPP_ENABLED', default=True),
+        'API_URL': env('WHATSAPP_API_URL', default=''),
+        'API_TOKEN': env('WHATSAPP_API_TOKEN', default=''),
+        'WEBHOOK_SECRET': env('WHATSAPP_WEBHOOK_SECRET', default=''),
+        'VERIFY_TOKEN': env('WHATSAPP_VERIFY_TOKEN', default=''),
+        'MAX_RETRIES': 3,
+        'TIMEOUT': 30,
+    },
+    'telegram': {
+        'ENABLED': env.bool('TELEGRAM_ENABLED', default=True),
+        'BOT_TOKEN': env('TELEGRAM_BOT_TOKEN', default=''),
+        'WEBHOOK_SECRET': env('TELEGRAM_WEBHOOK_SECRET', default=''),
+        'MAX_RETRIES': 3,
+        'TIMEOUT': 30,
+    },
+    'messenger': {
+        'ENABLED': env.bool('MESSENGER_ENABLED', default=True),
+        'APP_SECRET': env('MESSENGER_APP_SECRET', default=''),
+        'VERIFY_TOKEN': env('MESSENGER_VERIFY_TOKEN', default=''),
+        'MAX_RETRIES': 3,
+        'TIMEOUT': 30,
+    },
+    'instagram': {
+        'ENABLED': env.bool('INSTAGRAM_ENABLED', default=True),
+        'APP_SECRET': env('INSTAGRAM_APP_SECRET', default=''),
+        'ACCESS_TOKEN': env('INSTAGRAM_ACCESS_TOKEN', default=''),
+        'MAX_RETRIES': 3,
+        'TIMEOUT': 30,
+    }
 }
 
 # Configuración de PayPal

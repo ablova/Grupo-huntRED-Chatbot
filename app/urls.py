@@ -71,6 +71,9 @@ from app.ats.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_v
 # Importación para Análisis Cultural
 # Migrated to app.ats.chatbot.workflow.assessments.cultural
 
+# IMPORTACIONES DE DOCUMENTOS (RRHH)
+from app.ats.documents import urls as documents_urls
+
 logger = logging.getLogger(__name__)
 
 # -------------------------------
@@ -99,8 +102,8 @@ urlpatterns = [
     path('candidates/', include('app.views.candidates.urls')),
     path('workflow/', include('app.views.workflow.urls')),
     path('sexsi/', include('app.sexsi.urls')),
+    path('documents/', include(documents_urls, namespace='documents')),
     path('pagos/', include('app.ats.pagos.urls', namespace='pagos')),
-    # Migrated to app.ats.chatbot.workflow.assessments.cultural
     path('ml/', include('app.views.ml.urls')),
     path('webhooks/', include('app.views.webhook.urls')),
 ]
@@ -337,3 +340,21 @@ path('skill-assessment/<int:assessment_id>/validate/', views.validate_skill_asse
 
 # URLs para características premium
 path('pricing/premium-features/', views.pricing_views.premium_features, name='premium_features'),
+
+# LinkedIn
+path('linkedin/templates/', message_templates.template_list, name='linkedin:template_list'),
+path('linkedin/templates/create/', message_templates.template_create, name='linkedin:template_create'),
+path('linkedin/templates/<int:pk>/edit/', message_templates.template_edit, name='linkedin:template_edit'),
+path('linkedin/templates/<int:pk>/toggle/', message_templates.template_toggle, name='linkedin:template_toggle'),
+path('linkedin/templates/<int:pk>/delete/', message_templates.template_delete, name='linkedin:template_delete'),
+
+from app.views.linkedin import schedules
+
+urlpatterns += [
+    # LinkedIn Schedules
+    path('linkedin/schedules/', schedules.schedule_list, name='linkedin:schedule_list'),
+    path('linkedin/schedules/create/', schedules.schedule_create, name='linkedin:schedule_create'),
+    path('linkedin/schedules/<int:pk>/edit/', schedules.schedule_edit, name='linkedin:schedule_edit'),
+    path('linkedin/schedules/<int:pk>/toggle/', schedules.schedule_toggle, name='linkedin:schedule_toggle'),
+    path('linkedin/schedules/<int:pk>/delete/', schedules.schedule_delete, name='linkedin:schedule_delete'),
+]

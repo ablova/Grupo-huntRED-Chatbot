@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from app.ats.publish.integrations.base_integration import BaseIntegration
 from app.models import WhatsAppAPI
-from app.ats.chatbot.integrations.whatsapp import fetch_whatsapp_user_data
+from app.ats.integrations.channels.whatsapp import fetch_whatsapp_user_data
 
 
 class WhatsAppIntegration(BaseIntegration):

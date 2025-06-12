@@ -2,7 +2,7 @@ import pytest
 from django.test import TestCase
 from asgiref.sync import async_to_sync
 from app.models import BusinessUnit
-from app.ats.chatbot.integrations.services import MessageService
+from app.ats.integrations.services import MessageService
 
 class TestMessageService(TestCase):
     def setUp(self):
@@ -40,7 +40,7 @@ class TestMessageService(TestCase):
 
     def test_message_caching(self):
         """Test caché de mensajes"""
-        from app.ats.chatbot.integrations.services import cache
+        from app.ats.integrations.services import cache
         
         cache_key = "test_message_cache"
         message = "Test message"

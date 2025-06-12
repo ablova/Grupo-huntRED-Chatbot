@@ -955,6 +955,12 @@ class TalentAnalysisWorkflow(BaseWorkflow):
                 person_id = self.target_person_id
                 business_unit = self.business_unit
                 
+                # Obtener persona
+                person = await Person.objects.aget(id=person_id)
+                
+                # Analizar brechas usando el nuevo sistema
+                gaps_analysis = await self.analyze_profile_gaps(person, None)
+                
                 # Generar los diferentes análisis
                 trajectory_result = await self.trajectory_analyzer.predict_optimal_path(
                     person_id=person_id,
@@ -983,71 +989,47 @@ class TalentAnalysisWorkflow(BaseWorkflow):
                 response += "👤 *Información del Candidato*\n"
                 response += f"• Nombre: {self.phases_data['discovery'].get('person_name', 'No especificado')}\n"
                 response += f"• Posición Actual: {trajectory_result.get('current_position', 'No especificada')}\n"
-                response += f"• Unidad de Negocio: {business_unit}\n\n"
+                response += f"• Unidad de Negocio: {business_unit}\n"
+                response += f"• Nivel de Perfil: {gaps_analysis.get('profile_level', 'No especificado')}\n\n"
                 
-                # Resumen Ejecutivo
-                response += "📊 *Resumen Ejecutivo*\n"
-                potential_score = trajectory_result.get('potential_score', 80)
-                risk_score = retention_result.get('risk_score', 65)
-                risk_level = retention_result.get('risk_level', 'medium').title()
+                # Análisis de Brechas
+                response += "📊 *Análisis de Brechas y Oportunidades*\n"
+                gaps = gaps_analysis.get('gaps', {})
                 
-                # Barras de progreso visuales
-                potential_progress = "🟢" * int(potential_score/20) + "⚪" * (5 - int(potential_score/20))
-                risk_progress = "🔴" * int(risk_score/20) + "⚪" * (5 - int(risk_score/20))
+                # Habilidades
+                if gaps.get('skills', {}).get('missing_skills'):
+                    response += "• Habilidades Faltantes:\n"
+                    for skill in gaps['skills']['missing_skills'][:3]:
+                        response += f"  - {skill['skill']} (Prioridad: {skill['priority']})\n"
                 
-                response += f"• Potencial de Desarrollo: {potential_progress} {potential_score}/100\n"
-                response += f"• Riesgo de Rotación: {risk_progress} {risk_score}/100 ({risk_level})\n"
-                response += f"• Compatibilidad Cultural: {'🟢' * 3 + '⚪' * 2} 75/100\n\n"
+                # Experiencia
+                if gaps.get('experience', {}).get('years_gap', 0) > 0:
+                    response += f"• Brecha de Experiencia: {gaps['experience']['years_gap']} años\n"
                 
-                # Trayectoria Profesional
-                response += "🎯 *Trayectoria Profesional*\n"
-                optimal_path = trajectory_result.get('optimal_path', {})
-                response += f"• Próxima posición recomendada: {optimal_path.get('next_position', 'No especificada')}\n"
-                response += f"• Timeframe estimado: {optimal_path.get('timeframe', 18)} meses\n"
-                response += f"• Habilidades clave a desarrollar: {', '.join(optimal_path.get('key_skills', ['No especificadas']))}\n\n"
+                # Ubicación
+                if gaps.get('location', {}).get('distance_gap', 0) > 0:
+                    response += f"• Consideraciones de Ubicación: {gaps['location'].get('recommendations', ['No especificadas'])[0]}\n"
                 
-                # Factores de Retención
-                response += "🔍 *Factores de Riesgo de Rotación*\n"
-                causal_factors = retention_result.get('causal_factors', [])
-                for factor in causal_factors[:3]:
-                    factor_name = factor.get('factor', 'unknown').replace('_', ' ').title()
-                    factor_score = factor.get('score', 50)
-                    factor_progress = "🔴" * int(factor_score/20) + "⚪" * (5 - int(factor_score/20))
-                    response += f"• {factor_name}: {factor_progress} {factor_score}/100\n"
                 response += "\n"
                 
-                # Plan de Aprendizaje
-                response += "📚 *Plan de Aprendizaje Personalizado*\n"
-                learning_modules = learning_result.get('learning_modules', [])
-                for module in learning_modules[:3]:
-                    response += f"• {module.get('title', 'Módulo')}: {module.get('description', 'No especificado')}\n"
+                # Recomendaciones Específicas
+                response += "💡 *Recomendaciones Personalizadas*\n"
+                for rec in gaps_analysis.get('recommendations', [])[:3]:
+                    response += f"• {rec['message']}\n"
                 response += "\n"
                 
-                # Mentores Recomendados
-                response += "👥 *Mentores Recomendados*\n"
-                mentors = mentor_result.get('mentors', [])
-                for mentor in mentors:
-                    response += f"• {mentor.get('name', 'Mentor')}: {mentor.get('expertise', 'No especificado')}\n"
-                response += "\n"
-                
-                # Recomendaciones Finales
-                response += "💡 *Recomendaciones Clave*\n"
-                recommendations = [
-                    "Mantener un plan de desarrollo personalizado",
-                    "Establecer objetivos claros de carrera",
-                    "Participar en programas de mentoría",
-                    "Desarrollar habilidades identificadas como críticas"
-                ]
-                for rec in recommendations:
-                    response += f"• {rec}\n"
-                response += "\n"
+                # Impacto Potencial
+                impact = gaps_analysis.get('potential_impact', {})
+                response += "📈 *Impacto Potencial de Mejoras*\n"
+                response += f"• Mejora en Score: {impact.get('score_improvement', 0)*100:.1f}%\n"
+                response += f"• Aumento en Oportunidades: {impact.get('opportunity_increase', 0)*100:.1f}%\n"
+                response += f"• Potencial Salarial: {impact.get('salary_potential', 0)*100:.1f}%\n\n"
                 
                 # Próximos Pasos
-                response += "🚀 *Próximos Pasos*\n"
-                response += "1. Revisar y validar el plan de desarrollo\n"
-                response += "2. Establecer reuniones con mentores recomendados\n"
-                response += "3. Iniciar los módulos de aprendizaje prioritarios\n"
-                response += "4. Programar seguimiento en 3 meses\n\n"
+                response += "🚀 *Próximos Pasos Recomendados*\n"
+                for step in gaps_analysis.get('next_steps', [])[:3]:
+                    response += f"• {step['description']} (Tiempo estimado: {step['estimated_time']})\n"
+                response += "\n"
                 
                 response += "¿Te gustaría profundizar en algún aspecto específico del análisis?"
                 

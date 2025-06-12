@@ -6,10 +6,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 #from ratelimit.decorators import ratelimit
 from app.ats.chatbot.chatbot import ChatBotHandler
-from app.ats.chatbot.integrations.instagram import instagram_webhook
-from app.ats.chatbot.integrations.telegram import telegram_webhook
-from app.ats.chatbot.integrations.messenger import messenger_webhook
-from app.ats.chatbot.integrations.whatsapp import whatsapp_webhook
+from app.ats.integrations.channels.instagram import instagram_webhook
+from app.ats.integrations.channels.telegram import telegram_webhook
+from app.ats.integrations.channels.messenger import messenger_webhook
+from app.ats.integrations.channels.whatsapp import whatsapp_webhook
 import logging
 import json
 

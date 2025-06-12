@@ -1,8 +1,21 @@
+"""Integración con MercadoPago."""
+
+from typing import Dict, Optional
+import logging
 import mercadopago
 from django.conf import settings
 from app.models import ApiConfig
 from app.ats.pagos.gateways.base import PaymentGateway
-from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
+
+def get_api_config():
+    from app.models import ApiConfig
+    return ApiConfig
+
+def get_payment():
+    from app.models import Pago
+    return Pago
 
 class MercadoPagoGateway(PaymentGateway):
     def __init__(self, business_unit=None):

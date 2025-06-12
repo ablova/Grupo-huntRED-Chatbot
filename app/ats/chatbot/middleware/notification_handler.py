@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/middleware/notification_handler.py
+# /home/pablo/app/ats/chatbot/middleware/notification_handler.py
 """
 Middleware para manejar mensajes entrantes en relación con notificaciones de servicio.
 
@@ -17,7 +17,7 @@ from django.db.models import Q
 
 from app.models import ChatState, Person, BusinessUnit
 from app.ats.chatbot.chatbot import ChatBotHandler
-from app.ats.chatbot.integrations.services import MessageService
+from app.ats.integrations.services import MessageService
 
 logger = logging.getLogger('middleware')
 

@@ -1,0 +1,55 @@
+name: huntred_mobile
+description: Aplicación móvil de Grupo huntRED®
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.7.0
+  cupertino_icons: ^1.0.2
+  google_fonts: ^6.1.0
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.4
+  flutter_secure_storage: ^9.0.0
+  # Estado y gestión de datos
+  flutter_bloc: ^8.1.3
+  # Navegación
+  go_router: ^10.0.0
+  # Redes y API
+  dio: ^5.3.2
+  web_socket_channel: ^2.4.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  # UI y componentes
+  flutter_svg: ^2.0.7
+  cached_network_image: ^3.2.3
+  shimmer: ^3.0.0
+  # Utilidades
+  intl: ^0.18.1
+  logger: ^2.0.1
+  # Biometría y cámara
+  local_auth: ^2.1.6
+  camera: ^0.10.5+2
+  # Firma y documentos
+  signature: ^5.4.0
+  pdf: ^3.10.4
+  path_provider: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  build_runner: ^2.4.6
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/ 

@@ -1048,7 +1048,7 @@ async def process_domain(scraper, domain, registro, pipeline: ScrapingPipeline) 
         await pipeline.ml_scraper.save_training_data(domain, [], "failed", str(e))
         bu = await sync_to_async(BusinessUnit.objects.filter)(scraping_domains=domain).first()
         if bu and bu.admin_email:
-            from app.ats.chatbot.integrations.services import send_email
+            from app.ats.integrations.services import send_email
             await send_email(
                 business_unit_name=bu.name,
                 subject=f"Scraping Error for {domain.dominio}",
@@ -1524,7 +1524,7 @@ class ScrapingMonitor:
 
     async def _send_notification(self, domain: str, error: str):
         """Envía una notificación sobre el error."""
-        from app.ats.chatbot.integrations.services import send_email
+        from app.ats.integrations.services import send_email
         
         subject = f"⚠️ Error de Scraping: {domain}"
         body = f"""

@@ -87,19 +87,19 @@ def reverse_imports(apps, schema_editor):
     patterns = [
         # Handlers
         (r'from app\.ats\.integrations\.handlers import (.*)',
-         r'from app.ats.chatbot.integrations.handlers import \1'),
+         r'from app.ats.integrations.handlers import \1'),
         
         # Email
         (r'from app\.ats\.integrations\.email import (.*)',
-         r'from app.ats.chatbot.integrations.email import \1'),
+         r'from app.ats.integrations.services.email import \1'),
         
         # Mensajes
         (r'from app\.ats\.integrations\.message_sender import (.*)',
-         r'from app.ats.chatbot.integrations.message_sender import \1'),
+         r'from app.ats.integrations.services.message import \1'),
         
         # Procesadores de documentos
         (r'from app\.ats\.integrations\.document_processor import (.*)',
-         r'from app.ats.chatbot.integrations.enhanced_document_processor import \1'),
+         r'from app.ats.integrations.services.document import \1'),
         
         # Handlers específicos
         (r'from app\.ats\.integrations\.(whatsapp|telegram|instagram|slack|messenger) import (.*)',
@@ -107,7 +107,7 @@ def reverse_imports(apps, schema_editor):
         
         # Servicios
         (r'from app\.ats\.integrations\.services import (.*)',
-         r'from app.ats.chatbot.integrations.services import \1'),
+         r'from app.ats.integrations.services import \1'),
     ]
     
     # Archivos a actualizar

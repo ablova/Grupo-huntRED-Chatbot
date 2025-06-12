@@ -5,7 +5,8 @@ import logging
 from typing import Dict, Any
 import requests
 from django.conf import settings
-from app.models import Vacante, Worker, BusinessUnit
+from app.models import Vacante, BusinessUnit
+from app.ats.models.worker import Worker
 from app.ats.publish.integrations.base_integration import BaseIntegration
 
 logger = logging.getLogger(__name__)

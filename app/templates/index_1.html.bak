@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo huntRED® - Sistema Inteligente</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="nav-container">
+            <img src="{% static 'images/logo/huntred-logo.png' %}" alt="Grupo huntRED® Logo" class="logo">
+            <nav>
+                {% if user.is_authenticated %}
+                    <span class="user-welcome">Bienvenido, {{ user.username }}</span>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1 class="hero-title">Sistema Inteligente de Grupo huntRED®</h1>
+                <p class="hero-subtitle">Plataforma integral para optimizar los procesos de reclutamiento, verificación y gestión de talento</p>
+                <div class="hero-cta">
+                    <a href="#flows" class="btn btn-primary">Explorar Flujos</a>
+                    <a href="#integrations" class="btn btn-secondary">Ver Integraciones</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Flows Section -->
+        <section id="flows" class="flow-section">
+            <div class="flow-container">
+                <h2 class="section-title text-center">Flujos de Trabajo Inteligentes</h2>
+                <p class="text-center mb-3">Procesos optimizados para cada unidad de negocio</p>
+                
+                <div class="flow-grid">
+                    <!-- Flujo Principal -->
+                    <div class="flow-card">
+                        <div class="flow-icon">🚀</div>
+                        <h3 class="flow-title">Flujo Principal</h3>
+                        <div class="flow-description">
+                            <ul>
+                                <li>Inicio y Registro</li>
+                                <li>IA Conversacional</li>
+                                <li>Análisis de Perfil</li>
+                                <li>Analítica Predictiva</li>
+                                <li>Oferta de Vacantes</li>
+                                <li>Aplicación y Matchmaking</li>
+                                <li>Agenda y Entrevista</li>
+                                <li>Seguimiento y Feedback</li>
+                                <li>Geolocalización</li>
+                                <li>Carta Oferta</li>
+                                <li>Verificación de Referencias</li>
+                                <li>Firma Digital</li>
+                                <li>Onboarding</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Flujo de Análisis -->
+                    <div class="flow-card">
+                        <div class="flow-icon">📊</div>
+                        <h3 class="flow-title">Flujo de Análisis</h3>
+                        <div class="flow-description">
+                            <ul>
+                                <li>Registro y Evaluación</li>
+                                <li>Análisis ML Predictivo</li>
+                                <li>Plan de Carrera</li>
+                                <li>Evaluación de Competencias</li>
+                                <li>Análisis de Potencial</li>
+                                <li>Recomendaciones Personalizadas</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Flujo de Verificación -->
+                    <div class="flow-card">
+                        <div class="flow-icon">✅</div>
+                        <h3 class="flow-title">Flujo de Verificación</h3>
+                        <div class="flow-description">
+                            <ul>
+                                <li>Verificación de Identidad</li>
+                                <li>Validación de Documentación</li>
+                                <li>Verificación de Experiencia</li>
+                                <li>Verificación de Educación</li>
+                                <li>Verificación de Referencias</li>
+                                <li>Análisis de Riesgo</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ML Section -->
+        <section class="ml-section">
+            <div class="flow-container">
+                <h2 class="section-title text-center">Tecnologías de IA</h2>
+                <p class="text-center mb-3">Procesamiento avanzado en paralelo</p>
+                
+                <div class="ml-grid">
+                    <div class="ml-card">
+                        <div class="ml-icon">🤖</div>
+                        <h3 class="ml-title">Machine Learning</h3>
+                        <p class="ml-description">Análisis predictivo y clasificación de candidatos</p>
+                    </div>
+                    <div class="ml-card">
+                        <div class="ml-icon">💬</div>
+                        <h3 class="ml-title">NLP</h3>
+                        <p class="ml-description">Procesamiento de lenguaje natural para análisis de texto</p>
+                    </div>
+                    <div class="ml-card">
+                        <div class="ml-icon">🧠</div>
+                        <h3 class="ml-title">GPT</h3>
+                        <p class="ml-description">Generación de contenido y análisis contextual</p>
+                    </div>
+                    <div class="ml-card">
+                        <div class="ml-icon">📝</div>
+                        <h3 class="ml-title">CV Generator</h3>
+                        <p class="ml-description">Generación y optimización de currículums</p>
+                    </div>
+                    <div class="ml-card">
+                        <div class="ml-icon">📋</div>
+                        <h3 class="ml-title">Proposal Management</h3>
+                        <p class="ml-description">Gestión inteligente de propuestas y ofertas</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Integration Section -->
+        <section id="integrations" class="integration-section">
+            <div class="flow-container">
+                <h2 class="section-title text-center">Integraciones</h2>
+                <p class="text-center mb-3">Conectamos con las mejores plataformas</p>
+                
+                <div class="integration-grid">
+                    <div class="integration-card">
+                        <div class="integration-icon">📱</div>
+                        <h3 class="integration-title">WhatsApp Business API</h3>
+                        <p class="integration-description">Comunicación directa con candidatos</p>
+                    </div>
+                    <div class="integration-card">
+                        <div class="integration-icon">💳</div>
+                        <h3 class="integration-title">Stripe</h3>
+                        <p class="integration-description">Procesamiento seguro de pagos</p>
+                    </div>
+                    <div class="integration-card">
+                        <div class="integration-icon">📧</div>
+                        <h3 class="integration-title">Email API</h3>
+                        <p class="integration-description">Comunicación por correo electrónico</p>
+                    </div>
+                    <div class="integration-card">
+                        <div class="integration-icon">🔒</div>
+                        <h3 class="integration-title">INCODE</h3>
+                        <p class="integration-description">Verificación de identidad</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {% if user.is_authenticated and is_admin %}
+            <section class="section">
+                <div class="container">
+                    <h2 class="section-title">Panel de Administración</h2>
+                    <form id="send-message-form" method="POST" action="{% url 'index' %}" class="animate-fade-in">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="recipient_type" class="form-label">Tipo de Destinatario:</label>
+                            <select name="recipient_type" id="recipient_type" class="form-control" required>
+                                <option value="chatstate">ChatState (ID)</option>
+                                <option value="person">Persona (ID)</option>
+                                <option value="direct">Número Directo</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="recipient_id" class="form-label">ID o Número:</label>
+                            <input type="text" name="recipient_id" id="recipient_id" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="business_unit" class="form-label">Unidad de Negocio:</label>
+                            <select name="business_unit" id="business_unit" class="form-control" required>
+                                {% for unit in business_units %}
+                                    <option value="{{ unit.name }}">{{ unit.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="channel" class="form-label">Canal:</label>
+                            <select name="channel" id="channel" class="form-control" required>
+                                {% for channel in channels %}
+                                    <option value="{{ channel }}">{{ channel|capfirst }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="message" class="form-label">Mensaje:</label>
+                            <textarea name="message" id="message" class="form-control" rows="5" required></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
+                    </form>
+                    <div id="response-message" class="mt-2"></div>
+                </div>
+            </section>
+        {% endif %}
+    </main>
+
+    <script>
+        document.getElementById('send-message-form')?.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const responseDiv = document.getElementById('response-message');
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                });
+                const data = await response.json();
+                responseDiv.innerHTML = `<div class="alert alert-${data.status}">${data.message}</div>`;
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="alert alert-error">Error al enviar el mensaje: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>

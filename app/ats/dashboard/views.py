@@ -5,6 +5,13 @@ from datetime import timedelta
 from app.ats.pricing.models import ServiceCalculation, Payment
 from app.ats.referrals.models import Referral
 from app.ats.proposals.models import Proposal
+from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from app.ats.models.business_unit import BusinessUnit
+from app.ats.pricing.models.addons import BusinessUnitAddon
+from app.ats.market.services.report_generator import MarketReportGenerator
+from app.ats.learning.services.recommendation_service import LearningRecommendationService
+from typing import Dict, Any, List
 
 def executive_dashboard(request):
     # Período de análisis
@@ -169,4 +176,145 @@ def executive_dashboard(request):
         'market_trends': market_trends
     }
 
-    return render(request, 'dashboard/executive.html', context) 
+    return render(request, 'dashboard/executive.html', context)
+
+class AddonDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """Dashboard para addons premium"""
+    template_name = 'dashboard/addon_dashboard.html'
+    
+    def test_func(self):
+        """Verifica permisos de acceso"""
+        return (
+            self.request.user.is_superuser or
+            self.request.user.is_consultant or
+            self.request.user.business_unit.has_active_addon()
+        )
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        business_unit = self.request.user.business_unit
+        
+        # Obtener addons activos
+        active_addons = BusinessUnitAddon.objects.filter(
+            business_unit=business_unit,
+            is_active=True
+        )
+        
+        # Generar datos según addons activos
+        for addon in active_addons:
+            if addon.addon.type == 'market_report':
+                context['market_data'] = self._get_market_data(business_unit)
+            elif addon.addon.type == 'learning_analytics':
+                context['learning_data'] = self._get_learning_data(business_unit)
+        
+        return context
+    
+    def _get_market_data(self, business_unit: BusinessUnit) -> Dict[str, Any]:
+        """Obtiene datos de mercado"""
+        generator = MarketReportGenerator()
+        return generator.generate_market_report(business_unit)
+    
+    def _get_learning_data(self, business_unit: BusinessUnit) -> Dict[str, Any]:
+        """Obtiene datos de aprendizaje"""
+        service = LearningRecommendationService()
+        return service.generate_recommendations(
+            user=self.request.user,
+            business_unit=business_unit
+        )
+
+class ConsultantDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """Dashboard para consultores"""
+    template_name = 'dashboard/consultant_dashboard.html'
+    
+    def test_func(self):
+        return self.request.user.is_consultant
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Obtener todas las unidades de negocio
+        business_units = BusinessUnit.objects.all()
+        
+        # Datos agregados de mercado
+        context['market_summary'] = self._get_market_summary(business_units)
+        
+        # Datos agregados de aprendizaje
+        context['learning_summary'] = self._get_learning_summary(business_units)
+        
+        return context
+    
+    def _get_market_summary(self, business_units: List[BusinessUnit]) -> Dict[str, Any]:
+        """Obtiene resumen de mercado para todas las unidades"""
+        generator = MarketReportGenerator()
+        return {
+            'total_trends': sum(
+                len(generator._get_trends())
+                for _ in business_units
+            ),
+            'active_benchmarks': sum(
+                len(generator._get_benchmarks())
+                for _ in business_units
+            )
+        }
+    
+    def _get_learning_summary(self, business_units: List[BusinessUnit]) -> Dict[str, Any]:
+        """Obtiene resumen de aprendizaje para todas las unidades"""
+        service = LearningRecommendationService()
+        return {
+            'total_recommendations': sum(
+                len(service.course_recommender.get_recommendations())
+                for _ in business_units
+            ),
+            'active_paths': sum(
+                len(service.path_generator.generate_path())
+                for _ in business_units
+            )
+        }
+
+class SuperAdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """Dashboard para super admin"""
+    template_name = 'dashboard/superadmin_dashboard.html'
+    
+    def test_func(self):
+        return self.request.user.is_superuser
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Datos de addons
+        context['addon_stats'] = self._get_addon_stats()
+        
+        # Datos de mercado globales
+        context['global_market_data'] = self._get_global_market_data()
+        
+        # Datos de aprendizaje globales
+        context['global_learning_data'] = self._get_global_learning_data()
+        
+        return context
+    
+    def _get_addon_stats(self) -> Dict[str, Any]:
+        """Obtiene estadísticas de addons"""
+        return {
+            'total_addons': PremiumAddon.objects.count(),
+            'active_addons': BusinessUnitAddon.objects.filter(is_active=True).count(),
+            'revenue': sum(
+                addon.price
+                for addon in BusinessUnitAddon.objects.filter(is_active=True)
+            )
+        }
+    
+    def _get_global_market_data(self) -> Dict[str, Any]:
+        """Obtiene datos globales de mercado"""
+        generator = MarketReportGenerator()
+        return {
+            'trends': generator._get_trends(),
+            'benchmarks': generator._get_benchmarks()
+        }
+    
+    def _get_global_learning_data(self) -> Dict[str, Any]:
+        """Obtiene datos globales de aprendizaje"""
+        service = LearningRecommendationService()
+        return {
+            'recommendations': service.course_recommender.get_recommendations(),
+            'paths': service.path_generator.generate_path()
+        } 

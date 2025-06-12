@@ -39,7 +39,7 @@ from app.ats.chatbot.components.channel_config import ChannelConfig
 from app.ats.chatbot.components.metrics import chatbot_metrics
 
 # Importaciones de servicios
-from app.ats.chatbot.integrations.message_sender import (
+from app.ats.integrations.services.message import (
     send_message, 
     send_smart_options, 
     send_options, 

@@ -35,9 +35,9 @@ from app.ats.chatbot.components.channel_config import ChannelConfig
 from app.ats.chatbot.components.rate_limiter import RateLimiter
 
 # Importaciones de servicios
-from app.ats.chatbot.integrations.services import MessageService
+from app.ats.integrations.services import MessageService
 from app.ats.integrations.services.gamification import gamification_service
-from app.ats.chatbot.integrations.enhanced_document_processor import CVParser
+from app.ats.integrations.services.document import CVParser
 
 # Importaciones de NLP
 from app.ats.chatbot.nlp.nlp.processors import NLPProcessor
@@ -521,7 +521,7 @@ class ChatBotHandler:
         return text, attachment
 
     async def get_or_create_user(self, user_id: str, platform: str, business_unit: BusinessUnit, payload: Dict[str, Any] = None):
-        from app.ats.chatbot.integrations.services import MessageService
+        from app.ats.integrations.services import MessageService
         message_service = MessageService(business_unit)
         user_data = await message_service.fetch_user_data(platform, user_id, payload)
 

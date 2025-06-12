@@ -2,7 +2,7 @@
 import logging
 from asgiref.sync import sync_to_async
 from app.models import Person, ChatState, BusinessUnit, Application, EnhancedNetworkGamificationProfile, NotificationPreference
-from app.ats.chatbot.integrations.services import send_message, send_options, send_menu
+from app.ats.integrations.services import send_message, send_options, send_menu
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)

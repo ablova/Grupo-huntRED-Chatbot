@@ -1,3 +1,4 @@
+# /home/pablo/app/ats/chatbot/flow/feedback_flow.py
 from typing import Dict, Any, Optional
 from django.utils import timezone
 from datetime import timedelta
@@ -7,6 +8,11 @@ from app.models import Person, BusinessUnit, Vacante
 from app.ats.feedback.feedback_models import SkillFeedback
 from app.ats.notifications.managers import SkillFeedbackNotificationManager
 from app.ats.chatbot.flow.conversational_flow import ConversationalFlowManager
+from app.ats.notifications.specific_notifications import (
+    user_notifier, placement_notifier, payment_notifier,
+    process_notifier, metrics_notifier, event_notifier,
+    alert_notifier
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +25,12 @@ class FeedbackFlowManager(ConversationalFlowManager):
     def __init__(self, business_unit: BusinessUnit):
         super().__init__(business_unit)
         self.notification_manager = SkillFeedbackNotificationManager(business_unit)
+        
+        # Inicializar notificadores específicos
+        self.user_notifier = user_notifier(business_unit)
+        self.process_notifier = process_notifier(business_unit)
+        self.event_notifier = event_notifier(business_unit)
+        self.alert_notifier = alert_notifier(business_unit)
         
     async def handle_feedback_request(self, person: Person, vacante: Vacante, candidate: Person) -> Dict[str, Any]:
         """
@@ -55,6 +67,25 @@ class FeedbackFlowManager(ConversationalFlowManager):
             
             # Programar recordatorios
             await self._schedule_reminders(person, vacante, candidate, feedback)
+            
+            # Notificar inicio del proceso de feedback
+            await self.process_notifier.notify_process_start(
+                recipient=person,
+                process_type='feedback_request',
+                process_id=str(feedback.id)
+            )
+            
+            # Notificar evento del sistema
+            await self.event_notifier.notify_system_event(
+                recipient=person,
+                event_name='feedback_requested',
+                event_type='feedback_event',
+                event_data={
+                    'feedback_id': feedback.id,
+                    'vacante_id': vacante.id,
+                    'candidate_id': candidate.id
+                }
+            )
             
             return {
                 'success': True,
@@ -121,14 +152,33 @@ class FeedbackFlowManager(ConversationalFlowManager):
                 feedback_data=feedback_data
             )
             
+            # Notificar finalización del proceso
+            await self.process_notifier.notify_process_start(
+                recipient=person,
+                process_type='feedback_completed',
+                process_id=str(feedback.id)
+            )
+            
+            # Notificar evento del sistema
+            await self.event_notifier.notify_system_event(
+                recipient=person,
+                event_name='feedback_completed',
+                event_type='feedback_event',
+                event_data={
+                    'feedback_id': feedback.id,
+                    'vacante_id': vacante.id,
+                    'candidate_id': candidate.id,
+                    'feedback_data': feedback_data
+                }
+            )
+            
             # Si hay habilidades críticas, enviar alerta
             if feedback_data.get('critical_skills'):
-                await self.notification_manager.notify_critical_skills_alert(
+                await self.alert_notifier.notify_system_alert(
                     recipient=person,
-                    vacante=vacante,
-                    candidate=candidate,
-                    critical_skills=feedback_data['critical_skills'],
-                    development_time=feedback_data.get('development_time')
+                    alert_type='critical_skills',
+                    alert_message=f"Habilidades críticas detectadas para {candidate.name}",
+                    severity='high'
                 )
             
             return {
@@ -156,13 +206,12 @@ class FeedbackFlowManager(ConversationalFlowManager):
             
             # Si el feedback está pendiente y han pasado más de 24 horas
             if not feedback.is_completed and (timezone.now() - feedback.created_at) > timedelta(hours=24):
-                # Enviar recordatorio urgente
-                await self.notification_manager.notify_feedback_required(
+                # Enviar alerta de recordatorio urgente
+                await self.alert_notifier.notify_system_alert(
                     recipient=person,
-                    vacante=vacante,
-                    candidate=candidate,
-                    skills=feedback.detected_skills,
-                    deadline=timezone.now() + timedelta(hours=12)
+                    alert_type='feedback_reminder',
+                    alert_message=f"Recordatorio urgente de feedback para {candidate.name}",
+                    severity='medium'
                 )
                 
                 return {

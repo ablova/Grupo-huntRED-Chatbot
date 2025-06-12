@@ -1,0 +1,10 @@
+
+/* TechAI - Modular CSS Import for Django */
+@import url('./variables.css');
+@import url('./layout.css');
+@import url('./components.css');
+@import url('./animations.css');
+@import url('./utilities.css');
+
+/* Main CSS file - imports all modular CSS files */
+/* Include this file in your Django template with: {% static 'css/main.css' %} */

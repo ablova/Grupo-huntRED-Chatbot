@@ -176,16 +176,16 @@ class ChatStateManager:
         global _channel_handlers
         if channel_type not in _channel_handlers:
             if channel_type == 'whatsapp':
-                from app.ats.chatbot.integrations.services import get_whatsapp_handler
+                from app.ats.integrations.services import get_whatsapp_handler
                 _channel_handlers[channel_type] = get_whatsapp_handler()
             elif channel_type == 'telegram':
-                from app.ats.chatbot.integrations.services import get_telegram_handler
+                from app.ats.integrations.services import get_telegram_handler
                 _channel_handlers[channel_type] = get_telegram_handler()
             elif channel_type == 'instagram':
-                from app.ats.chatbot.integrations.services import get_instagram_handler
+                from app.ats.integrations.services import get_instagram_handler
                 _channel_handlers[channel_type] = get_instagram_handler()
             elif channel_type == 'slack':
-                from app.ats.chatbot.integrations.services import get_slack_handler
+                from app.ats.integrations.services import get_slack_handler
                 _channel_handlers[channel_type] = get_slack_handler()
             else:
                 raise ValueError(f"Canal no soportado: {channel_type}")

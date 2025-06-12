@@ -206,7 +206,7 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
         return False
 
 if __name__ == "__main__":
-    from app.ats.chatbot.integrations.services import send_message_async
+    from app.ats.integrations.services import send_message_async
     import asyncio
     try:
         logger.info("Iniciando generación de embeddings")

@@ -23,7 +23,7 @@ from app.models import (
 from app.ats.chatbot.utils import analyze_text
 from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.chatbot import ChatBotHandler
-from app.ats.chatbot.integrations.services import MessageService, get_business_unit
+from app.ats.integrations.services import MessageService, get_business_unit
 
 import json
 import logging

@@ -32,6 +32,11 @@ def setup_logging():
             'mexico': {
                 'format': ('%(asctime)s [%(levelname)s] %(name)s %(filename)s:%(lineno)d - %(message)s'),
                 'datefmt': DATE_FORMAT
+            },
+            'debug': {
+                'format': ('%(asctime)s [%(levelname)s] %(name)s %(filename)s:%(lineno)d '
+                          'PID:%(process)d TID:%(thread)d - %(message)s'),
+                'datefmt': DATE_FORMAT
             }
         },
         'handlers': {
@@ -71,6 +76,38 @@ def setup_logging():
                 'maxBytes': 1024*1024*10,  # 10MB
                 'backupCount': 7,
                 'formatter': 'mexico',
+            },
+            'whatsapp_file': {
+                'level': 'INFO',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join(LOG_DIR, f'whatsapp_{datetime.now().strftime("%Y%m%d")}.log'),
+                'maxBytes': 1024*1024*10,  # 10MB
+                'backupCount': 7,
+                'formatter': 'debug',
+            },
+            'telegram_file': {
+                'level': 'INFO',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join(LOG_DIR, f'telegram_{datetime.now().strftime("%Y%m%d")}.log'),
+                'maxBytes': 1024*1024*10,  # 10MB
+                'backupCount': 7,
+                'formatter': 'debug',
+            },
+            'messenger_file': {
+                'level': 'INFO',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join(LOG_DIR, f'messenger_{datetime.now().strftime("%Y%m%d")}.log'),
+                'maxBytes': 1024*1024*10,  # 10MB
+                'backupCount': 7,
+                'formatter': 'debug',
+            },
+            'instagram_file': {
+                'level': 'INFO',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join(LOG_DIR, f'instagram_{datetime.now().strftime("%Y%m%d")}.log'),
+                'maxBytes': 1024*1024*10,  # 10MB
+                'backupCount': 7,
+                'formatter': 'debug',
             }
         },
         'loggers': {
@@ -97,6 +134,26 @@ def setup_logging():
             'performance': {
                 'handlers': ['file', 'console', 'error_file'],
                 'level': 'INFO',
+                'propagate': False,
+            },
+            'whatsapp': {
+                'handlers': ['file', 'console', 'error_file', 'whatsapp_file'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+            'telegram': {
+                'handlers': ['file', 'console', 'error_file', 'telegram_file'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+            'messenger': {
+                'handlers': ['file', 'console', 'error_file', 'messenger_file'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+            'instagram': {
+                'handlers': ['file', 'console', 'error_file', 'instagram_file'],
+                'level': 'DEBUG',
                 'propagate': False,
             }
         },

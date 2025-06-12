@@ -1,3 +1,5 @@
+"""Módulo de integraciones."""
+
 from .models import Integration, IntegrationConfig, IntegrationLog
 from .serializers import (
     IntegrationSerializer,
@@ -33,6 +35,9 @@ from .utils import (
     get_integration_config,
     set_integration_config
 )
+from .linkedin import LinkedInService
+from .matchmaking import MatchmakingService
+from .chatbot import ChatbotService
 
 __all__ = [
     'Integration',
@@ -60,4 +65,7 @@ __all__ = [
     'parse_webhook_payload',
     'get_integration_config',
     'set_integration_config',
+    'LinkedInService',
+    'MatchmakingService',
+    'ChatbotService'
 ] 

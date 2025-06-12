@@ -17,8 +17,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
 from app.ats.chatbot.utils.nlp_utils import NLPUtils
-from app.models import Worker, Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
-from app.ats.chatbot.integrations.services import EmailService, MessageService
+from app.models import Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
+from app.ats.models.worker import Worker
+from app.ats.integrations.services import EmailService, MessageService
 from app.ml.core.models.matchmaking import MatchmakingModel
 from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 
@@ -814,7 +815,7 @@ async def procesar_vacante(data: Dict) -> Dict[str, str]:
     Returns:
         Dict[str, str]: Estado y mensaje del resultado.
     """
-    from app.ats.chatbot.integrations.whatsapp import registro_amigro
+    from app.ats.integrations.channels.whatsapp import registro_amigro
 
     required_fields = ["TextInput_5315eb", "TextInput_de5bdf", "TextInput_e1c9ad", "TextInput_4136cd", "TextInput_10ecd4", "TextArea_5df661"]
     missing = [field for field in required_fields if not data.get(field)]

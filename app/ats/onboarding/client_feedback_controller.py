@@ -181,7 +181,7 @@ class ClientFeedbackController:
             dict: Resultado del envío
         """
         try:
-            from app.ats.chatbot.integrations.services import send_email, send_message
+            from app.ats.integrations.services import send_email, send_message
             
             # Generar enlace
             survey_url = await cls.generate_feedback_link(feedback_id)

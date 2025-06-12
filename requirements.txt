@@ -245,3 +245,11 @@ django-silk
 django-debug-toolbar
 django-environ
 protobuf
+
+# Dependencias para el sistema de firmas
+opencv-python>=4.5.0
+numpy>=1.19.0
+face-recognition>=1.3.0
+dlib>=19.22.0
+Pillow>=8.0.0
+python-dateutil>=2.8.1

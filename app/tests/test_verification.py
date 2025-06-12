@@ -6,7 +6,7 @@ import pytest
 from django.test import TestCase
 from django.contrib.auth.models import User
 from app.models import BusinessUnit, ApiConfig
-from app.ats.chatbot.integrations.verification import VerificationService, InCodeClient, BlackTrustClient
+from app.ats.integrations.services.verification import VerificationService, InCodeClient, BlackTrustClient
 import httpx
 from unittest.mock import AsyncMock, patch
 

@@ -2721,3 +2721,186 @@ def clean_old_notifications(days=90):
 
 # Tareas de Mantenimiento
 #// ... existing code ...
+
+from app.ats.integrations.channels.linkedin.channel import LinkedInChannel
+from datetime import datetime, timedelta
+import re
+from typing import Optional
+import time
+import random
+
+def parse_linkedin_activity(activity_str: str) -> Optional[datetime]:
+    """
+    Parsea la cadena de actividad de LinkedIn a un objeto datetime.
+    
+    Args:
+        activity_str: Cadena de actividad (ej: "Activo hace 2 meses")
+        
+    Returns:
+        datetime o None si no se puede parsear
+    """
+    if not activity_str:
+        return None
+        
+    # Patrones comunes de actividad
+    patterns = {
+        r'hace (\d+) hora': lambda x: timedelta(hours=int(x)),
+        r'hace (\d+) día': lambda x: timedelta(days=int(x)),
+        r'hace (\d+) semana': lambda x: timedelta(weeks=int(x)),
+        r'hace (\d+) mes': lambda x: timedelta(days=int(x)*30),
+        r'hace (\d+) año': lambda x: timedelta(days=int(x)*365)
+    }
+    
+    for pattern, delta_func in patterns.items():
+        match = re.search(pattern, activity_str.lower())
+        if match:
+            return datetime.now() - delta_func(match.group(1))
+            
+    return None
+
+@shared_task
+def send_linkedin_invitations():
+    """
+    Envía invitaciones de LinkedIn según la programación configurada.
+    """
+    from app.models import (
+        LinkedInProfile, LinkedInMessageTemplate, 
+        LinkedInInvitationSchedule, Application
+    )
+    from app.ats.integrations.ai.insights import generate_personalized_message
+    from django.utils import timezone
+    from datetime import timedelta
+    import pytz
+    
+    # Obtener la hora actual en la zona horaria del servidor
+    current_time = timezone.localtime(timezone.now()).time()
+    
+    # Obtener programaciones activas para la hora actual
+    schedules = LinkedInInvitationSchedule.objects.filter(
+        is_active=True,
+        time_window_start__lte=current_time,
+        time_window_end__gte=current_time
+    ).order_by('priority')
+    
+    if not schedules.exists():
+        logger.info("No hay programaciones activas para la hora actual")
+        return
+        
+    # Obtener template de mensaje
+    template = LinkedInMessageTemplate.objects.filter(is_active=True).first()
+    if not template:
+        logger.error("No hay template de mensaje activo para LinkedIn")
+        return
+        
+    # Inicializar canal de LinkedIn
+    channel = LinkedInChannel(cookies_path='linkedin_cookies.json')
+    
+    try:
+        for schedule in schedules:
+            # Verificar si se pueden enviar invitaciones hoy
+            if not schedule.can_send_today():
+                logger.info(
+                    f"Programación {schedule.name} no puede enviar invitaciones hoy "
+                    f"(límites alcanzados o día no permitido)"
+                )
+                continue
+                
+            logger.info(f"Procesando programación: {schedule.name}")
+            
+            # Obtener perfiles según el tipo de objetivo
+            if schedule.target_type == 'ACTIVE_CANDIDATES':
+                # Obtener perfiles de candidatos en procesos activos
+                active_applications = Application.objects.filter(
+                    status__in=['INTERVIEW', 'OFFER', 'NEGOTIATION']
+                ).values_list('candidate__linkedin_profile', flat=True)
+                
+                profiles = LinkedInProfile.objects.filter(
+                    id__in=active_applications,
+                    is_connected=False
+                )
+            else:
+                # Obtener perfiles generales inactivos
+                profiles = LinkedInProfile.objects.filter(
+                    is_connected=False,
+                    last_invitation_sent__isnull=True
+                )
+                
+            # Obtener información de perfiles
+            profiles_with_info = []
+            for profile in profiles[:schedule.max_invitations]:
+                info = channel.get_profile_info(profile.profile_url)
+                if info:
+                    profiles_with_info.append((profile, info))
+                    
+            # Enviar invitaciones
+            invitations_sent = 0
+            for profile, info in profiles_with_info:
+                # Verificar límites diarios y semanales
+                if not schedule.can_send_today():
+                    logger.info(
+                        f"Límites alcanzados para la programación {schedule.name}. "
+                        f"Enviadas {invitations_sent} invitaciones."
+                    )
+                    break
+                    
+                # Generar mensaje personalizado
+                message = generate_personalized_message(info, template.template)
+                
+                success = channel.send_connection_request(
+                    profile_url=profile.profile_url,
+                    message=message
+                )
+                
+                if success:
+                    profile.last_invitation_sent = timezone.now()
+                    profile.save()
+                    invitations_sent += 1
+                    
+                    # Registrar el mensaje enviado
+                    logger.info(
+                        f"Mensaje enviado a {profile.name} "
+                        f"(Programación: {schedule.name}):\n{message}"
+                    )
+                    
+                # Esperar el delay configurado
+                time.sleep(schedule.delay_between_invitations)
+                
+            logger.info(
+                f"Programación {schedule.name} completada. "
+                f"Enviadas {invitations_sent} invitaciones."
+            )
+                
+    except Exception as e:
+        logger.error(f"Error en tarea de invitaciones LinkedIn: {str(e)}")
+        
+    finally:
+        channel.close()
+
+from celery import shared_task
+from celery.schedules import crontab
+from app.celery import app
+from app.tasks.linkedin import send_linkedin_invitations, cleanup_linkedin_invitations
+
+# Configuración de tareas periódicas
+app.conf.beat_schedule = {
+    'send-linkedin-invitations': {
+        'task': 'app.tasks.linkedin.send_linkedin_invitations',
+        'schedule': crontab(hour='9,12,15,18', minute='0'),  # 4 veces al día
+    },
+    'cleanup-linkedin-invitations': {
+        'task': 'app.tasks.linkedin.cleanup_linkedin_invitations',
+        'schedule': crontab(hour=0, minute=0),  # Diario a medianoche
+    },
+    'enrich-linkedin-profiles': {
+        'task': 'app.tasks.linkedin.enrich_linkedin_profiles',
+        'schedule': crontab(hour='*/8'),  # Cada 8 horas
+    },
+    'process-linkedin-updates': {
+        'task': 'app.tasks.linkedin.process_linkedin_updates',
+        'schedule': crontab(hour='*/12'),  # Cada 12 horas
+    },
+    'cleanup-linkedin-data': {
+        'task': 'app.tasks.linkedin.cleanup_linkedin_data',
+        'schedule': crontab(hour=1, minute=0),  # Diario a la 1 AM
+    },
+}

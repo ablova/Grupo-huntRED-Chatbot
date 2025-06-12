@@ -69,7 +69,7 @@ try:
     from app.ats.chatbot.utils.nlp_utils import NLPUtils
     from app.ats.chatbot.nlp.nlp import NLPProcessor
     from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation, Vacante
-    from app.ats.chatbot.integrations.services import EmailService, MessageService
+    from app.ats.integrations.services import EmailService, MessageService
     from app.ats.chatbot.components.chat_state_manager import ChatStateManager
     from app.ats.chatbot.workflow.common.common import get_possible_transitions, process_business_unit_transition
     from app.ats.chatbot.workflow.business_units.huntred.huntred import process_huntred_candidate

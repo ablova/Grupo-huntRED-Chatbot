@@ -45,6 +45,17 @@ class OptimizationConfig:
             'TIMEOUT': getattr(settings, 'REDIS_CONFIG', {}).get('ttl', 3600),
         }
 
+        # Session configuration with Redis
+        session_config = {
+            'BACKEND': 'django.contrib.sessions.backends.cache',
+            'CACHE_ALIAS': 'default',
+            'SESSION_ENGINE': 'django.contrib.sessions.backends.cache',
+            'SESSION_CACHE_ALIAS': 'default',
+            'SESSION_COOKIE_AGE': 86400,  # 24 hours
+            'SESSION_SAVE_EVERY_REQUEST': True,
+            'SESSION_EXPIRE_AT_BROWSER_CLOSE': False,
+        }
+
         # Database optimization
         db_config = {
             'CONN_MAX_AGE': 600,  # 10 minutes
@@ -62,6 +73,22 @@ class OptimizationConfig:
             'FILE_UPLOAD_PERMISSIONS': 0o644,
             'FILE_UPLOAD_TEMP_DIR': os.path.join(settings.MEDIA_ROOT, 'temp'),
             'FILE_UPLOAD_MAX_MEMORY_SIZE': 2621440,  # 2.5MB
+            'MEDIA_HANDLING': {
+                'IMAGE_MAX_SIZE': 5242880,  # 5MB
+                'VIDEO_MAX_SIZE': 104857600,  # 100MB
+                'AUDIO_MAX_SIZE': 20971520,  # 20MB
+                'DOCUMENT_MAX_SIZE': 10485760,  # 10MB
+                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png', 'image/gif'],
+                'ALLOWED_VIDEO_TYPES': ['video/mp4', 'video/quicktime'],
+                'ALLOWED_AUDIO_TYPES': ['audio/mpeg', 'audio/wav'],
+                'ALLOWED_DOCUMENT_TYPES': ['application/pdf', 'application/msword'],
+                'IMAGE_QUALITY': 85,  # JPEG quality
+                'THUMBNAIL_SIZE': (200, 200),  # Thumbnail dimensions
+                'COMPRESSION_ENABLED': True,
+                'STORAGE_BACKEND': 'django.core.files.storage.FileSystemStorage',
+                'CDN_ENABLED': env.bool('CDN_ENABLED', default=False),
+                'CDN_DOMAIN': env('CDN_DOMAIN', default=None),
+            }
         }
 
         # Async task optimization
@@ -72,10 +99,35 @@ class OptimizationConfig:
             'WORKER_PREFETCH_MULTIPLIER': 1,
             'TASK_ACKS_LATE': True,
             'TASK_REJECT_ON_WORKER_LOST': True,
+            'TASK_ROUTES': {
+                'app.ats.tasks.process_media.*': {'queue': 'media'},
+                'app.ats.tasks.send_message.*': {'queue': 'messages'},
+                'app.ats.tasks.analyze_content.*': {'queue': 'analysis'},
+            },
+            'TASK_DEFAULT_QUEUE': 'default',
+            'TASK_QUEUES': {
+                'default': {
+                    'exchange': 'default',
+                    'routing_key': 'default',
+                },
+                'media': {
+                    'exchange': 'media',
+                    'routing_key': 'media',
+                },
+                'messages': {
+                    'exchange': 'messages',
+                    'routing_key': 'messages',
+                },
+                'analysis': {
+                    'exchange': 'analysis',
+                    'routing_key': 'analysis',
+                },
+            },
         }
 
         return {
             'CACHE_CONFIG': cache_config,
+            'SESSION_CONFIG': session_config,
             'DB_CONFIG': db_config,
             'FILE_CONFIG': file_config,
             'CELERY_CONFIG': celery_config,

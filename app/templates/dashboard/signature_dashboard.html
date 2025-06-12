@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Firmas - huntRED{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Dashboard de Firmas</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSignatureModal">
+            <i class="fas fa-plus"></i> Nueva Solicitud
+        </button>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Pendientes</h5>
+                    <h2 class="card-text">{{ stats.pending }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Firmados Hoy</h5>
+                    <h2 class="card-text">{{ stats.signed_today }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Firmados Esta Semana</h5>
+                    <h2 class="card-text">{{ stats.signed_week }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tiempo Promedio</h5>
+                    <h2 class="card-text">{{ stats.avg_response_time|floatformat:1 }} min</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documentos Pendientes -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Documentos Pendientes</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="pendingDocumentsTable">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>Fecha Límite</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in pending_documents %}
+                        <tr>
+                            <td>{{ doc.document.get_type_display }}</td>
+                            <td>{{ doc.document.name }}</td>
+                            <td>
+                                <span class="badge bg-{{ doc.status|status_color }}">
+                                    {{ doc.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ doc.deadline|default:"Sin fecha límite" }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="viewDocument('{{ doc.id }}')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="signDocument('{{ doc.id }}')">
+                                    <i class="fas fa-signature"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actividad Reciente -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Actividad Reciente</h5>
+        </div>
+        <div class="card-body">
+            <div class="timeline">
+                {% for activity in recent_activity %}
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h6 class="mb-0">{{ activity.document.name }}</h6>
+                        <p class="text-muted mb-0">
+                            {{ activity.get_status_display }} por {{ activity.user.get_full_name }}
+                        </p>
+                        <small class="text-muted">{{ activity.updated_at|timesince }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado de Sistemas -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Estado Blockchain</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="status-indicator {{ systems_status.blockchain.active|yesno:'active,inactive' }}"></div>
+                        <span class="ms-2">
+                            {{ systems_status.blockchain.active|yesno:'Activo,Inactivo' }}
+                        </span>
+                    </div>
+                    <p class="mb-1">
+                        <strong>Transacciones:</strong> {{ systems_status.blockchain.transactions }}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Último Bloque:</strong> {{ systems_status.blockchain.last_block }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Estado Biométrico</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="status-indicator {{ systems_status.biometric.active|yesno:'active,inactive' }}"></div>
+                        <span class="ms-2">
+                            {{ systems_status.biometric.active|yesno:'Activo,Inactivo' }}
+                        </span>
+                    </div>
+                    <p class="mb-1">
+                        <strong>Métodos:</strong>
+                        {{ systems_status.biometric.methods|join:", " }}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Tasa de Éxito:</strong>
+                        {{ systems_status.biometric.success_rate|floatformat:1 }}%
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Solicitud -->
+<div class="modal fade" id="newSignatureModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva Solicitud de Firma</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newSignatureForm">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Documento</label>
+                        <select class="form-select" name="document_type" required>
+                            <option value="">Seleccionar...</option>
+                            {% for type, name in document_types.items %}
+                            <option value="{{ type }}">{{ name.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Documento</label>
+                        <input type="text" class="form-control" name="document_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Archivo</label>
+                        <input type="file" class="form-control" name="file" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Firmantes</label>
+                        <select class="form-select" name="signers" multiple required>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.get_full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fecha Límite</label>
+                        <input type="datetime-local" class="form-control" name="deadline">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="submitNewSignature()">Crear</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    .status-indicator.active {
+        background-color: #28a745;
+    }
+    .status-indicator.inactive {
+        background-color: #dc3545;
+    }
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 40px;
+        margin-bottom: 20px;
+    }
+    .timeline-marker {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #007bff;
+    }
+    .timeline-item:before {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 12px;
+        height: calc(100% + 8px);
+        width: 2px;
+        background-color: #e9ecef;
+    }
+    .timeline-item:last-child:before {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Inicializar DataTables
+    $(document).ready(function() {
+        $('#pendingDocumentsTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
+            }
+        });
+    });
+
+    // Función para ver documento
+    function viewDocument(id) {
+        window.location.href = `/signature/documents/${id}/`;
+    }
+
+    // Función para firmar documento
+    function signDocument(id) {
+        window.location.href = `/signature/sign/${id}/`;
+    }
+
+    // Función para enviar nueva solicitud
+    function submitNewSignature() {
+        const form = document.getElementById('newSignatureForm');
+        const formData = new FormData(form);
+
+        fetch('/signature/api/documents/create/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al crear la solicitud');
+        });
+    }
+
+    // Función para refrescar dashboard
+    function refreshDashboard() {
+        fetch('/signature/api/dashboard/')
+            .then(response => response.json())
+            .then(data => {
+                // Actualizar estadísticas
+                document.querySelector('.stats-pending').textContent = data.stats.pending;
+                document.querySelector('.stats-today').textContent = data.stats.signed_today;
+                document.querySelector('.stats-week').textContent = data.stats.signed_week;
+                document.querySelector('.stats-time').textContent = data.stats.avg_response_time;
+
+                // Actualizar tabla
+                const table = $('#pendingDocumentsTable').DataTable();
+                table.clear();
+                data.pending_documents.forEach(doc => {
+                    table.row.add([
+                        doc.type,
+                        doc.name,
+                        doc.status,
+                        doc.deadline,
+                        `<button class="btn btn-sm btn-info" onclick="viewDocument('${doc.id}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="signDocument('${doc.id}')">
+                            <i class="fas fa-signature"></i>
+                        </button>`
+                    ]);
+                });
+                table.draw();
+
+                // Actualizar estado de sistemas
+                document.querySelector('.blockchain-status').className = 
+                    `status-indicator ${data.systems_status.blockchain.active ? 'active' : 'inactive'}`;
+                document.querySelector('.biometric-status').className = 
+                    `status-indicator ${data.systems_status.biometric.active ? 'active' : 'inactive'}`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
+
+    // Refrescar dashboard cada 5 minutos
+    setInterval(refreshDashboard, 300000);
+</script>
+{% endblock %} 

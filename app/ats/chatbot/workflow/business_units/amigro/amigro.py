@@ -8,7 +8,7 @@ from django.conf import settings
 from app.models import Person, Vacante, BusinessUnit, ChatState, Application
 from app.ats.utils.signature.pdf_generator import generate_contract_pdf, generate_candidate_summary
 from app.ats.utils.signature.digital_sign import request_digital_signature
-from app.ats.chatbot.integrations.services import EmailService, send_message, send_options_async, send_menu
+from app.ats.integrations.services import EmailService, send_message, send_options_async, send_menu
 from app.ats.chatbot.workflow.common.common import (
     iniciar_creacion_perfil, ofrecer_prueba_personalidad, continuar_registro,
     transfer_candidate_to_new_division, get_possible_transitions

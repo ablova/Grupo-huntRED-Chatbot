@@ -16,7 +16,8 @@ from bs4 import BeautifulSoup
 from django.utils import timezone
 from functools import wraps
 from asgiref.sync import sync_to_async
-from app.models import Vacante, BusinessUnit, ConfiguracionBU, DominioScraping, Worker, USER_AGENTS
+from app.models import Vacante, BusinessUnit, ConfiguracionBU, DominioScraping, USER_AGENTS
+from app.ats.models.worker import Worker
 from app.ml.core.utils.scraping import MLScraper
 from app.ats.utils.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, generate_summary_report
 from app.ats.chatbot.core.gpt import GPTHandler

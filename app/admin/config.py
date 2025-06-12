@@ -1,6 +1,7 @@
 # /home/pablo/app/admin/config.py
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timedelta
+from typing import List, Dict, Any
 
 # Configuración de filtros y columnas para el admin
 ADMIN_CONFIG = {

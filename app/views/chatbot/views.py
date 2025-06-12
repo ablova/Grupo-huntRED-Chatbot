@@ -26,7 +26,7 @@ from app.models import (
     Application, Interview
 )
 from app.ats.chatbot.conversational_flow import ConversationalFlowManager
-from app.ats.chatbot.integrations.services import MessageService
+from app.ats.integrations.services import MessageService
 from app.ats.chatbot.utils import analyze_text
 
 import logging

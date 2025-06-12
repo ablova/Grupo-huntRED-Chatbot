@@ -89,7 +89,7 @@ def reverse_imports(apps, schema_editor):
         # Servicios
         (
             r'from app\.ats\.integrations\.services import (.*)',
-            r'from app.ats.chatbot.integrations.services import \1'
+            r'from app.ats.integrations.services import \1'
         ),
         # Handlers
         (

@@ -153,7 +153,7 @@ class ProposalViews(View):
         """
         Notifica al chatbot sobre la nueva propuesta.
         """
-        from app.ats.chatbot.integrations.services import MessageService
+        from app.ats.integrations.services import MessageService
         
         message_service = MessageService()
         

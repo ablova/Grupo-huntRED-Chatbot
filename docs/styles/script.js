@@ -121,21 +121,23 @@ function initHeaderScroll() {
 
 // CTA Button Interactions
 function initCTAButtons() {
-    const ctaButtons = document.querySelectorAll('button');
+    const ctaButtons = document.querySelectorAll('a[href*="#"], button');
     
     ctaButtons.forEach(button => {
         button.addEventListener('click', (e) => {
             const buttonText = button.textContent.trim();
             
-            if (buttonText.includes('Agendar') || buttonText.includes('Demo')) {
-                // Here you would open Google Calendar popup
-                console.log('Opening Google Calendar for appointment...');
-                // window.open('https://calendar.app.google/63XsoSPhKfntRns19', 'popup', 'width=600,height=700');
+            // Verificar si es un botón de demo o agendamiento
+            if (buttonText.match(/(Agendar|Demo|Solicitar Demo|Agendar Cita)/i)) {
+                e.preventDefault();
+                window.open('https://calendar.app.google/63XsoSPhKfntRns19', '_blank');
+                return false;
             }
             
+            // Manejar otros tipos de botones si es necesario
             if (buttonText.includes('Cotización')) {
                 console.log('Opening quote request form...');
-                // Handle quote request
+                // Aquí podrías agregar la lógica para el formulario de cotización
             }
         });
     });

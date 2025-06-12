@@ -1,12 +1,89 @@
+# Grupo huntRED® - Sistema Inteligente de Análisis y Evaluación
+
 <div align="center">
   <img src="static/images/logo/huntred-logo.png" alt="Grupo huntRED® Logo" width="250">
   <h1>Sistema Inteligente de Grupo huntRED®</h1>
   <p>
-    <em>Plataforma de IA para Chatbot, Procesamiento ML, Pagos, Verificación y Publicación</em>
+    <em>Plataforma integral de IA para reclutamiento, análisis y gestión de talento</em>
     <br>
     <strong>Versión 3.5 (Mayo 2025)</strong>
   </p>
 </div>
+
+---
+
+## 🏗️ Arquitectura del Sistema
+
+### CORE
+- **Base del Sistema**
+  - Autenticación y Autorización
+  - Gestión de Usuarios
+  - Configuración Global
+  - Logging y Monitoreo
+
+### ATS (Applicant Tracking System)
+- **Chatbot**
+  - Comunicación Multi-canal
+  - Procesamiento de Lenguaje Natural
+  - Flujos de Conversación
+  - Integración con ML
+- **Notificaciones**
+  - Sistema de Alertas
+  - Comunicaciones Automáticas
+  - Plantillas Personalizadas
+  - Tracking de Entrega
+- **Pagos**
+  - Procesamiento de Transacciones
+  - Facturación
+  - Suscripciones
+  - Reporting Financiero
+- **Publish**
+  - Gestión de Vacantes
+  - Distribución de Ofertas
+  - Analytics de Publicación
+  - Optimización de Alcance
+- **Proposals**
+  - Generación de Propuestas
+  - Negociación
+  - Tracking de Estado
+  - Documentación
+- **Feedback**
+  - Evaluaciones
+  - Comentarios
+  - Ratings
+  - Mejora Continua
+- **Referral**
+  - Sistema de Referidos
+  - Tracking de Conversiones
+  - Recompensas
+  - Analytics
+- **Assessments**
+  - Evaluaciones Técnicas
+  - Pruebas de Habilidades
+  - Análisis de Resultados
+  - Recomendaciones
+
+### Machine Learning
+- **Analyzers**
+  - Análisis de Perfiles
+  - Predicción de Desempeño
+  - Matching de Candidatos
+  - Optimización de Procesos
+- **CORE ML**
+  - Modelos Base
+  - Procesamiento de Datos
+  - Entrenamiento
+  - Deployment
+- **NLP**
+  - Procesamiento de Texto
+  - Análisis de Sentimiento
+  - Extracción de Información
+  - Generación de Contenido
+- **GPT Integration**
+  - Generación de Respuestas
+  - Análisis Contextual
+  - Personalización
+  - Aprendizaje Continuo
 
 ---
 
@@ -40,13 +117,16 @@
 11. [Contribución](#contribución)
 12. [Licencia](#licencia)
 
----
+### 🎯 Nuestro Propósito
 
-## Descripción General
+Transformar la manera en que las empresas encuentran, evalúan y gestionan su talento, utilizando tecnología de vanguardia para crear conexiones más significativas y efectivas.
 
-El Sistema Inteligente de Grupo huntRED® es una plataforma integral diseñada para optimizar los procesos de reclutamiento, verificación y gestión de talento a través de múltiples unidades de negocio (BUs): **Amigro**, **huntU**, **huntRED®**, **huntRED Executive**, **SEXSI** y **MilkyLeak**.
+### 💡 Nuestro Diferencial
 
-### 🚀 Características Principales
+- **IA de Última Generación**: Combinación única de machine learning, NLP y análisis predictivo
+- **Personalización Total**: Adaptación a las necesidades específicas de cada unidad de negocio
+- **Automatización Inteligente**: Procesos optimizados que ahorran tiempo y recursos
+- **Análisis Profundo**: Insights valiosos para la toma de decisiones
 
 - 🤖 **Chatbot Inteligente**: Sistema de chat multi-canal con personalización por Business Unit
 - 🧠 **Procesamiento ML**: Análisis avanzado de datos y predicción de comportamiento
@@ -57,9 +137,33 @@ El Sistema Inteligente de Grupo huntRED® es una plataforma integral diseñada p
 - 📱 **Integración Multi-canal**: WhatsApp, Telegram, Web y Email
 - 🔒 **Seguridad Avanzada**: Encriptación y validación de datos
 
-### 🔄 Flujos de Trabajo Inteligentes
+### 🤖 Chatbot Inteligente
+- **Comunicación Multi-canal**
+  - WhatsApp Business API
+  - Telegram
+  - Web Chat
+  - Email
+- **Personalización por BU**
+  - Flujos específicos
+  - Tono de comunicación
+  - Contenido adaptado
+- **Procesamiento de Lenguaje Natural**
+  - Comprensión contextual
+  - Análisis de intención
+  - Generación de respuestas
+  - Aprendizaje continuo
 
-El sistema implementa flujos de trabajo especializados para cada unidad de negocio:
+### 🧠 Procesamiento ML
+- **Análisis Predictivo**
+  - Evaluación de candidatos
+  - Predicción de desempeño
+  - Análisis de compatibilidad
+  - Recomendaciones personalizadas
+- **Machine Learning Avanzado**
+  - Modelos de clasificación
+  - Análisis de patrones
+  - Clustering de talento
+  - Optimización continua
 
 1. **Flujo huntRED®**
    - Evaluación técnica y cultural
@@ -109,6 +213,384 @@ El sistema implementa un ciclo virtuoso de mejora continua:
 ## Arquitectura del Sistema
 
 El Sistema Inteligente de Grupo huntRED® está construido sobre una arquitectura modular y escalable utilizando Django como framework principal y aprovechando tecnologías de vanguardia para procesamiento asíncrono, caché, machine learning y comunicación en tiempo real.
+
+### Estructura de Módulos
+
+#### 1. CORE (app/core/)
+Núcleo del sistema que maneja la lógica fundamental y los procesos principales.
+
+[Documentación detallada del CORE](docs/technical/core/README.md)
+
+##### Componentes Principales
+- **Gestión de Vacantes**
+  - Creación y gestión de posiciones
+  - Requisitos y especificaciones
+  - Estados y flujos de trabajo
+  - Integración con ATS
+
+- **Procesamiento de Datos**
+  - Pipeline de datos
+  - Normalización
+  - Validación
+  - Almacenamiento
+
+- **Sistema de Eventos**
+  - Eventos del sistema
+  - Notificaciones
+  - Webhooks
+  - Integración con servicios externos
+
+#### 2. Machine Learning (app/ml/)
+Sistema de inteligencia artificial y machine learning que potencia el análisis y la toma de decisiones.
+
+[Documentación detallada de ML](docs/technical/ml/README.md)
+
+##### 2.1 Matchmaking Engine
+- **Algoritmos de Matching**
+  - Matching basado en skills
+  - Matching basado en experiencia
+  - Matching basado en personalidad
+  - Matching basado en cultura
+
+- **Sistema de Scoring**
+  - Cálculo de compatibilidad
+  - Ponderación de factores
+  - Ajuste dinámico de pesos
+  - Feedback loop
+
+##### 2.2 Analizadores
+- **Base Analyzer**
+  - Procesamiento de datos base
+  - Validación de entradas
+  - Sistema de caché
+  - Métricas de rendimiento
+
+- **Team Analyzer**
+  - Análisis de composición de equipos
+  - Evaluación de sinergias
+  - Identificación de roles
+  - Recomendaciones de mejora
+
+- **Personality Analyzer**
+  - Análisis de rasgos de personalidad
+  - Evaluación de compatibilidad
+  - Predicción de comportamiento
+  - Insights de desarrollo
+
+- **Cultural Analyzer**
+  - Evaluación de fit cultural
+  - Análisis de valores
+  - Compatibilidad organizacional
+  - Recomendaciones de integración
+
+- **Professional Analyzer**
+  - Evaluación de competencias
+  - Análisis de experiencia
+  - Predicción de desempeño
+  - Planes de desarrollo
+
+- **Talent Analyzer**
+  - Identificación de potencial
+  - Análisis de habilidades
+  - Recomendaciones de carrera
+  - Planificación de sucesión
+
+##### 2.3 Modelos Predictivos
+- **Predicción de Desempeño**
+  - Modelos de regresión
+  - Análisis de tendencias
+  - Factores de éxito
+  - Métricas de evaluación
+
+- **Análisis de Patrones**
+  - Clustering de talento
+  - Identificación de patrones
+  - Detección de anomalías
+  - Insights predictivos
+
+#### 3. ATS (app/ats/)
+Sistema de seguimiento de candidatos y gestión del proceso de reclutamiento.
+
+[Documentación detallada del ATS](docs/technical/ats/README.md)
+
+##### 3.1 Chatbot (Conversational AI)
+- **Procesamiento de Lenguaje Natural**
+  - Comprensión de intención
+  - Extracción de entidades
+  - Contexto de conversación
+  - Respuestas dinámicas
+
+- **Integración con Workflows**
+  - Flujos de conversación
+  - Validación de datos
+  - Recopilación de información
+  - Guía de proceso
+
+##### 3.2 Workflows
+- **Gestión de Procesos**
+  - Flujos por BU
+  - Estados y transiciones
+  - Validaciones
+  - Notificaciones
+
+- **Assessments**
+  - Evaluaciones técnicas
+  - Tests de personalidad
+  - Evaluaciones culturales
+  - Feedback automatizado
+
+##### 3.3 Sistema de Notificaciones
+- **Canales de Comunicación**
+  - Email
+  - SMS
+  - Push notifications
+  - Integración con Slack
+
+- **Templates y Personalización**
+  - Templates dinámicos
+  - Variables de contexto
+  - Personalización por BU
+  - Multilenguaje
+
+## Estructura del Proyecto
+
+### Módulos Principales
+
+#### 1. Frontend (app/frontend/)
+Interfaz de usuario moderna y responsiva.
+
+- [Documentación Frontend](app/frontend/README.md)
+  - Componentes
+  - Estilos
+  - Integración con Backend
+
+#### 2. Backend (app/backend/)
+API RESTful y servicios de backend.
+
+- [Documentación Backend](app/backend/README.md)
+  - Endpoints
+  - Servicios
+  - Integración con Base de Datos
+
+## Flujo de Datos
+
+### 1. Entrada de Datos
+- Validación de datos
+- Preprocesamiento
+- Normalización
+- Almacenamiento en caché
+
+### 2. Procesamiento
+- Pipeline de análisis
+- Aplicación de modelos
+- Generación de insights
+- Cálculo de métricas
+
+### 3. Salida
+- Generación de reportes
+- Recomendaciones
+- Visualizaciones
+- Exportación de datos
+
+## Características Principales
+
+### 1. Sistema de Análisis
+- Evaluación de equipos
+  - Análisis de composición
+  - Evaluación de sinergias
+  - Identificación de roles
+- Análisis de personalidad
+  - Rasgos principales
+  - Compatibilidad
+  - Predicción de comportamiento
+- Evaluación cultural
+  - Fit organizacional
+  - Valores compartidos
+  - Integración
+- Análisis profesional
+  - Competencias
+  - Experiencia
+  - Potencial
+- Evaluación de talento
+  - Habilidades
+  - Desarrollo
+  - Planificación
+
+### 2. Machine Learning
+- Modelos predictivos
+  - Predicción de desempeño
+  - Análisis de patrones
+  - Recomendaciones personalizadas
+- Análisis de patrones
+  - Identificación de tendencias
+  - Detección de anomalías
+  - Clustering de talento
+- Recomendaciones personalizadas
+  - Desarrollo profesional
+  - Formación de equipos
+  - Planificación de carrera
+
+### 3. Integración
+- APIs RESTful
+  - Endpoints seguros
+  - Documentación OpenAPI
+  - Versionado de API
+- Webhooks
+  - Notificaciones en tiempo real
+  - Integración con terceros
+  - Eventos del sistema
+- Exportación de datos
+  - Formatos estándar
+  - Reportes personalizados
+  - Integración con BI
+
+## Mejoras Implementadas
+
+### 1. Sistema de Caché
+- Implementación de caché multinivel
+  - Caché en memoria
+  - Caché distribuido
+  - Persistencia local
+- Invalidación inteligente
+  - Basada en eventos
+  - TTL configurable
+  - Limpieza automática
+- Optimización de rendimiento
+  - Reducción de latencia
+  - Mejora de throughput
+  - Monitoreo de uso
+
+### 2. Validación de Datos
+- Validación con Pydantic
+  - Esquemas estrictos
+  - Validación en tiempo real
+  - Mensajes de error claros
+- Manejo de casos edge
+  - Valores nulos
+  - Datos incompletos
+  - Formatos especiales
+- Validación de tipos estricta
+  - Type hints
+  - Verificación en runtime
+  - Documentación automática
+
+### 3. Sistema de Métricas
+- Métricas de rendimiento
+  - Tiempo de respuesta
+  - Uso de recursos
+  - Throughput
+- Telemetría
+  - Trazabilidad
+  - Monitoreo en tiempo real
+  - Alertas automáticas
+- Logging mejorado
+  - Niveles de log
+  - Rotación de logs
+  - Búsqueda avanzada
+
+## Guías de Uso
+
+### 1. Instalación
+```bash
+# Clonar el repositorio
+git clone https://github.com/Grupo-huntRED-Chatbot.git
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Configurar variables de entorno
+cp .env.example .env
+```
+
+### 2. Desarrollo
+```bash
+# Iniciar servidor de desarrollo
+python manage.py runserver
+
+# Ejecutar tests
+python manage.py test
+```
+
+### 3. Despliegue
+```bash
+# Construir para producción
+./deploy.sh
+
+# Verificar configuración
+python project_diagnostic.py
+```
+
+## Mejoras Planificadas
+
+### Corto Plazo
+1. Optimización de rendimiento
+   - Mejora de queries
+   - Optimización de caché
+   - Reducción de latencia
+2. Mejora en la documentación
+   - Guías de usuario
+   - Documentación técnica
+   - Ejemplos de uso
+3. Implementación de tests adicionales
+   - Tests unitarios
+   - Tests de integración
+   - Tests de carga
+
+### Medio Plazo
+1. Nuevos modelos de ML
+   - Análisis predictivo avanzado
+   - Clustering mejorado
+   - Recomendaciones personalizadas
+2. Mejoras en la UI/UX
+   - Diseño responsivo
+   - Accesibilidad
+   - Experiencia de usuario
+3. Integración con más servicios
+   - APIs de terceros
+   - Herramientas de BI
+   - Sistemas de HR
+
+### Largo Plazo
+1. Escalabilidad horizontal
+   - Microservicios
+   - Load balancing
+   - Alta disponibilidad
+2. Nuevas funcionalidades de análisis
+   - Análisis avanzado
+   - Machine learning
+   - IA generativa
+3. Expansión internacional
+   - Multiidioma
+   - Adaptación cultural
+   - Cumplimiento normativo
+
+## Contribución
+
+### Guías de Contribución
+1. Fork del repositorio
+2. Crear rama feature
+3. Commit de cambios
+4. Push a la rama
+5. Crear Pull Request
+
+### Estándares de Código
+- PEP 8
+- Type hints
+- Docstrings
+- Tests unitarios
+
+## Soporte
+
+### Documentación
+- [Guías de Usuario](docs/user_guides/)
+- [API Reference](docs/api/)
+- [FAQ](docs/faq/)
+
+### Contacto
+- Email: soporte@huntred.com
+- Slack: #soporte-huntred
+- Jira: Proyecto HuntRED
+
 
 ### Estructura Organizada
 
@@ -172,6 +654,10 @@ Grupo-huntRED-Chatbot/
 ```
 
 ### Componentes Principales
+1. **Capa de Análisis**
+   - Sistema de analizadores modulares
+   - Pipeline de procesamiento de datos
+   - Sistema de caché distribuido
 
 1. **Chatbot**: Sistema de chat multi-canal con personalización por Business Unit
    - Procesamiento de lenguaje natural avanzado
@@ -586,7 +1072,362 @@ El módulo SEXSI (localizado en `app/sexsi`) implementa funcionalidades especial
 - **ConsentVerifier**: Verificación de consentimiento
 - **PrivacyEnforcer**: Protección de privacidad y datos sensibles
 
-## Módulo Notificaciones
+## Módulo de Notificaciones
+
+El sistema de notificaciones de Grupo huntRED® proporciona una solución unificada para enviar mensajes a través de múltiples canales (email, WhatsApp, Telegram, SMS) con soporte para plantillas personalizadas, seguimiento de entrega y manejo de errores.
+
+### Características Principales
+
+- **Multi-canal**: Envío de notificaciones a través de múltiples canales desde una única interfaz
+- **Plantillas personalizables**: Soporte para plantillas HTML/Text con variables dinámicas
+- **Seguimiento**: Registro y seguimiento de todas las notificaciones enviadas
+- **Reintentos automáticos**: Reintento automático en caso de fallos en la entrega
+- **Priorización**: Soporte para prioridades de entrega
+- **Documentos adjuntos**: Envío de documentos con notificaciones (solo email)
+
+### Arquitectura
+
+```
+app/
+├── ats/
+│   └── integrations/
+│       └── notifications/
+│           ├── channels/          # Implementaciones de canales específicos
+│           │   ├── email.py       # Canal de correo electrónico
+│           │   ├── whatsapp.py    # Canal de WhatsApp
+│           │   ├── telegram.py    # Canal de Telegram
+│           │   └── sms.py         # Canal de SMS
+│           ├── services/
+│           │   └── notification_service.py  # Servicio principal
+│           └── templates/         # Plantillas de notificación
+```
+
+### Uso Básico
+
+```python
+from app.ats.integrations.notifications.services.notification_service import notification_service
+
+# Envío de notificación simple
+await notification_service.send_notification(
+    recipient=user,
+    notification_type='bienvenida',
+    context={
+        'nombre': user.first_name,
+        'empresa': 'Grupo huntRED®'
+    },
+    channels=['email', 'whatsapp']  # Opcional, por defecto usa todos los canales
+)
+```
+
+### Notificaciones de Carta Oferta
+
+El sistema incluye soporte especializado para notificaciones relacionadas con cartas oferta:
+
+```python
+# Enviar carta oferta
+carta = await CartaOferta.objects.aget(pk=carta_id)
+await carta.enviar_carta_oferta()
+
+# Enviar documento firmado (solo por email)
+await carta.enviar_documento_firmado('/ruta/al/documento.pdf')
+```
+
+### Plantillas de Notificación
+
+Las plantillas se almacenan en `app/ats/integrations/notifications/templates/` organizadas por canal:
+
+```
+templates/
+├── email/
+│   ├── bienvenida.html
+│   ├── carta_oferta.html
+│   └── documento_firmado.html
+└── whatsapp/
+    ├── bienvenida.txt
+    └── recordatorio_cita.txt
+```
+
+### Compartición de CVs
+
+El sistema permite compartir CVs con los clientes a través de múltiples canales:
+
+```python
+# Compartir CV con cliente
+await notification_service.send_cv_notification(
+    cv=cv_instance,
+    recipient=cliente,
+    message="Adjunto encontrará el CV del candidato para la posición de {puesto}",
+    channels=['email', 'whatsapp']
+)
+```
+
+### Notificaciones de Evaluaciones Organizacionales
+
+Envío de resultados de evaluaciones a clientes:
+
+```python
+# Enviar resultados de evaluación
+await notification_service.send_assessment_results(
+    assessment=assessment_instance,
+    recipient=cliente,
+    message="Los resultados de la evaluación están listos",
+    include_pdf=True  # Incluir PDF con resultados detallados
+)
+```
+
+### Configuración
+
+El sistema se configura mediante variables de entorno:
+
+```env
+# Canales habilitados (separados por comas)
+NOTIFICATION_CHANNELS=email,whatsapp,telegram,sms
+
+# Configuración de reintentos
+NOTIFICATION_MAX_RETRIES=3
+NOTIFICATION_RETRY_DELAY=300  # segundos
+
+# Configuración de prioridad
+NOTIFICATION_DEFAULT_PRIORITY=normal
+```
+
+### Monitoreo y Registros
+
+Todas las notificaciones se registran en la base de datos con su estado:
+
+- `pending`: Pendiente de envío
+- `sent`: Enviada correctamente
+- `failed`: Falló el envío
+- `delivered`: Entregada al destinatario (cuando es posible verificarlo)
+
+### Pruebas
+
+```python
+# Prueba de envío de notificación
+@pytest.mark.asyncio
+async def test_send_notification():
+    user = await Person.objects.aget(email='test@example.com')
+    result = await notification_service.send_notification(
+        recipient=user,
+        notification_type='test',
+        context={'test': 'value'}
+    )
+    assert result['email']['status'] == 'sent'
+```
+
+### Seguridad
+
+- Todas las notificaciones se registran con propósitos de auditoría
+- Los documentos sensibles solo se envían por canales seguros (email)
+- Se validan los permisos antes de enviar cualquier notificación
+- Los tokens de acceso tienen un tiempo de expiración configurable
+
+### Personalización por Unidad de Negocio
+
+Cada unidad de negocio puede tener su propia configuración de notificaciones:
+
+```python
+# Obtener configuración específica de la unidad de negocio
+config = await ConfiguracionBU.objects.aget(business_unit=unidad_negocio)
+
+# Usar configuración específica para notificaciones
+await notification_service.send_notification(
+    recipient=user,
+    notification_type='custom',
+    context=context,
+    business_unit=unidad_negocio
+)
+```
+
+### Integración con Otros Módulos
+
+El sistema de notificaciones se integra con:
+
+- **Chatbot**: Para notificaciones automáticas
+- **CV**: Para compartir CVs con clientes
+- **Evaluaciones**: Para enviar resultados de evaluaciones
+- **Firmas electrónicas**: Para notificaciones de documentos pendientes de firma
+
+El sistema de notificaciones de Grupo huntRED® es un servicio centralizado y altamente configurable que permite el envío de mensajes a través de múltiples canales (WhatsApp, Telegram, Email, SMS) siguiendo reglas de negocio específicas por tipo de notificación y unidad de negocio.
+
+### Características Principales
+
+- **Multi-canal**: Soporte integrado para WhatsApp, Telegram, Email y SMS
+- **Asíncrono**: Procesamiento no-bloqueante para máxima eficiencia
+- **Configurable**: Reglas de negocio dinámicas por tipo de notificación
+- **Escalable**: Diseñado para manejar alto volumen de notificaciones
+- **Tolerante a fallos**: Reintentos automáticos y sistema de fallback
+- **Trazabilidad**: Registro detallado de todos los envíos
+- **Seguro**: Validación de permisos y encriptación de datos sensibles
+
+### Arquitectura
+
+```
+app/ats/integrations/notifications/
+├── core/
+│   ├── __init__.py
+│   ├── channels/           # Implementaciones específicas de canales
+│   │   ├── base.py         # Interfaz base para canales
+│   │   ├── email.py        # Canal de correo electrónico
+│   │   ├── sms.py          # Canal de mensajes SMS
+│   │   ├── telegram.py     # Integración con Telegram
+│   │   └── whatsapp.py     # Integración con WhatsApp
+│   ├── core.py             # Clase NotificationManager
+│   ├── exceptions.py       # Excepciones personalizadas
+│   ├── models.py           # Modelos de datos
+│   ├── schemas.py          # Esquemas Pydantic
+│   └── templates.py        # Sistema de plantillas
+├── services/
+│   ├── __init__.py
+│   ├── notification_service.py  # Servicio principal
+│   └── process_notifications.py # Lógica específica de procesos
+└── utils/
+    ├── __init__.py
+    ├── cache.py            # Utilidades de caché
+    ├── decorators.py       # Decoradores útiles
+    └── validators.py       # Validación de datos
+```
+
+### Configuración
+
+El sistema se configura mediante variables de entorno y la base de datos:
+
+```python
+# .env
+NOTIFICATION_DEFAULT_CHANNELS=email,whatsapp
+NOTIFICATION_RATE_LIMIT=100/3600  # 100 notificaciones por hora
+NOTIFICATION_RETRY_ATTEMPTS=3
+NOTIFICATION_RETRY_DELAY=60  # segundos
+```
+
+### Uso Básico
+
+```python
+from app.ats.integrations.notifications.services.notification_service import NotificationService
+from app.ats.integrations.notifications.core.schemas import (
+    NotificationRequest,
+    NotificationChannel,
+    NotificationPriority
+)
+
+# Crear una instancia del servicio
+notification_service = NotificationService()
+
+# Enviar notificación básica
+request = NotificationRequest(
+    recipient="usuario@ejemplo.com",
+    template_name="bienvenida",
+    context={"nombre": "Juan Pérez"},
+    channels=[NotificationChannel.EMAIL, NotificationChannel.WHATSAPP],
+    priority=NotificationPriority.HIGH
+)
+
+await notification_service.send(request)
+```
+
+### Reglas de Negocio por Canal
+
+#### 1. Feedback/Referencias
+- **Canales**: Todos disponibles (WhatsApp, Email, Telegram, SMS)
+- **Prioridad**: Alta
+- **Reintentos**: 3 intentos con 1 hora de intervalo
+- **Template**: `referral_request`
+
+#### 2. Reportes MP (Managing Partner)
+- **Canales**: Telegram (primario), Email (fallback después de 6h)
+- **Prioridad**: Crítica
+- **Template**: `mp_report`
+- **Notas**: Notificación urgente con confirmación de lectura
+
+#### 3. Notificaciones a Clientes
+- **Canales**: Email + WhatsApp
+- **Prioridad**: Media
+- **Template**: `client_notification`
+- **Personalización**: Logo y tono según unidad de negocio
+
+#### 4. Notificaciones de Proceso
+- **Canales**: Canal de origen (donde inició la conversación)
+- **Prioridad**: Baja
+- **Template**: Según etapa del proceso
+- **Ejemplos**: `interview_scheduled`, `document_required`
+
+### Plantillas Personalizadas
+
+Las plantillas se definen en la base de datos y soportan variables dinámicas:
+
+```python
+# Ejemplo de plantilla "bienvenida"
+{
+    "subject": "Bienvenido a {{business_unit_name}}",
+    "body": "Hola {{nombre}},\n\n¡Gracias por unirte a {{business_unit_name}}!\n\nTu ID de usuario es: {{user_id}}",
+    "channels": ["email", "whatsapp"],
+    "priority": "high"
+}
+```
+
+### Monitoreo y Métricas
+
+El sistema proporciona métricas en tiempo real:
+
+- Tasa de entrega por canal
+- Tiempo promedio de entrega
+- Tasa de apertura (cuando aplica)
+- Errores por tipo y canal
+
+### Mejores Prácticas
+
+1. **Caché de Plantillas**: Las plantillas se cachean por defecto por 1 hora
+2. **Procesamiento por Lotes**: Usar `send_bulk` para múltiples notificaciones
+3. **Manejo de Errores**: Implementar retry con backoff exponencial
+4. **Pruebas**: Siempre probar con datos reales antes de producción
+5. **Monitoreo**: Configurar alertas para tasas de error > 1%
+
+### Ejemplo Avanzado
+
+```python
+from datetime import datetime, timedelta
+
+# Notificación programada con plantilla dinámica
+request = NotificationRequest(
+    recipient="candidato@ejemplo.com",
+    template_name="recordatorio_entrevista",
+    context={
+        "nombre": "Ana García",
+        "fecha_entrevista": (datetime.now() + timedelta(days=1)).strftime("%d/%m/%Y %H:%M"),
+        "enlace_zoom": "https://zoom.us/j/1234567890",
+        "contacto_soporte": "soporte@huntred.com"
+    },
+    channels=[NotificationChannel.EMAIL, NotificationChannel.WHATSAPP],
+    priority=NotificationPriority.HIGH,
+    schedule_time=datetime.now() + timedelta(hours=12)  # Enviar 12h antes
+)
+
+await notification_service.send(request)
+```
+
+### Integración con Otros Módulos
+
+El sistema de notificaciones está integrado con todos los módulos principales:
+
+- **Chatbot**: Notificaciones en tiempo real de interacciones
+- **CV**: Confirmaciones de recepción y actualización
+- **Propuestas**: Notificaciones de estado y aprobaciones
+- **Carta Oferta**: Firmas electrónicas y recordatorios
+- **Referencias**: Solicitudes y seguimiento
+
+### Seguridad
+
+- Todas las notaciones son auditadas
+- Los datos sensibles se enmascaran en los logs
+- Validación de permisos por usuario y rol
+- Encriptación de datos en tránsito y en reposo
+
+### Solución de Problemas
+
+1. **Notificaciones no entregadas**: Verificar cola de reintentos
+2. **Errores de plantilla**: Validar con `validate_template`
+3. **Problemas de rendimiento**: Revisar métricas y ajustar rate limiting
+4. **Errores de autenticación**: Verificar credenciales del canal
 
 El módulo Notificaciones (localizado en `app/notifications`) es un centro unificado de notificaciones que gestiona todas las comunicaciones del sistema hacia candidatos, reclutadores y clientes.
 
@@ -640,7 +1481,36 @@ survey = await send_survey(
 )
 ```
 
-## Ciclo Virtuoso
+## Integración del Sistema de Notificaciones
+
+### Flujo de Notificaciones de Carta Oferta
+
+1. **Generación de Carta Oferta**
+   - Se crea la carta oferta en el sistema
+   - Se generan los documentos PDF correspondientes
+   - Se preparan las plantillas de notificación
+
+2. **Notificación Inicial**
+   - Se envía la notificación por todos los canales disponibles
+   - Se registra el estado de cada notificación
+   - Se actualiza el estado de la carta oferta a 'enviada'
+
+3. **Seguimiento**
+   - Se monitorean las confirmaciones de lectura
+   - Se envían recordatorios automáticos si es necesario
+   - Se registran todas las interacciones
+
+4. **Firma del Documento**
+   - El candidato firma electrónicamente
+   - Se genera el documento firmado
+   - Se envía copia por correo electrónico
+
+5. **Confirmación**
+   - Se notifica al reclutador
+   - Se actualiza el estado del proceso
+   - Se inician los siguientes pasos del flujo
+
+### Ciclo Virtuoso
 
 El Sistema Inteligente de Grupo huntRED® implementa un ciclo virtuoso de mejora continua que integra todos los módulos:
 
@@ -979,137 +1849,6 @@ Si desea contribuir al desarrollo del Sistema Inteligente de Grupo huntRED®, po
 ## Estructura del Módulo de Comunicaciones
 
 El módulo principal de comunicaciones (`com`) está organizado de la siguiente manera:
-
-```
-app/
-├── com/
-│   ├── __init__.py
-│   ├── config.py
-│   ├── models.py
-│   ├── tasks.py
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   ├── scraping/
-│   │   │   ├── __init__.py
-│   │   │   ├── linkedin.py
-│   │   │   ├── email_scraper.py
-│   │   │   └── utils.py
-│   │   ├── monitoring/
-│   │   │   ├── __init__.py
-│   │   │   └── metrics.py
-│   │   └── visualization/
-│   │       ├── __init__.py
-│   │       └── report_generator.py
-│   ├── chatbot/
-│   │   ├── __init__.py
-│   │   ├── core/
-│   │   │   ├── __init__.py
-│   │   │   ├── state_manager.py
-│   │   │   ├── context_manager.py
-│   │   │   ├── flow_manager.py
-│   │   │   ├── nlp.py
-│   │   │   └── metrics.py
-│   │   ├── channels/
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py
-│   │   │   ├── whatsapp/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── handler.py
-│   │   │   │   ├── scraper.py
-│   │   │   │   └── utils.py
-│   │   │   ├── telegram/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── handler.py
-│   │   │   │   └── utils.py
-│   │   │   ├── slack/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── handler.py
-│   │   │   │   └── utils.py
-│   │   │   └── email/
-│   │   │       ├── __init__.py
-│   │   │       ├── handler.py
-│   │   │       └── utils.py
-│   │   ├── components/
-│   │   │   ├── __init__.py
-│   │   │   ├── intents/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── handler.py
-│   │   │   │   └── optimizer.py
-│   │   │   ├── embeddings/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── generator.py
-│   │   │   └── gpt/
-│   │   │       ├── __init__.py
-│   │   │       └── handler.py
-│   │   └── utils/
-│   │       ├── __init__.py
-│   │       ├── retry.py
-│   │       └── optimization.py
-│   ├── publish/
-│   │   ├── __init__.py
-│   │   ├── handlers/
-│   │   ├── templates/
-│   │   └── utils/
-│   ├── proposals/
-│   │   ├── __init__.py
-│   │   ├── handlers/
-│   │   ├── templates/
-│   │   └── utils/
-│   ├── recipients/
-│   │   ├── __init__.py
-│   │   ├── base.py
-│   │   └── types/
-│   │       ├── __init__.py
-│   │       ├── candidate.py
-│   │       ├── consultant.py
-│   │       ├── client.py
-│   │       ├── fiscal.py
-│   │       └── collector.py
-│   └── utils/
-│       ├── __init__.py
-│       ├── scraping/
-│       │   ├── __init__.py
-│       │   ├── linkedin.py
-│       │   ├── email_scraper.py
-│       │   └── utils.py
-│       ├── monitoring/
-│       │   ├── __init__.py
-│       │   └── metrics.py
-│       └── visualization/
-│           ├── __init__.py
-│           └── report_generator.py
-```
-
-### Características Principales
-
-1. **Centralización**
-   - Código más organizado
-   - Menos duplicación
-   - Más fácil mantenimiento
-
-2. **Optimización**
-   - Índices en modelos
-   - Tareas asíncronas
-   - Caché para métricas
-   - Logging detallado
-
-3. **Visualización**
-   - Dashboard completo
-   - Métricas en tiempo real
-   - Análisis de flujo
-   - Reportes detallados
-
-4. **Integración con ML**
-   - Análisis de sentimientos
-   - Clasificación de intenciones
-   - Generación de respuestas
-   - Sistema de embeddings
-
-5. **Seguridad**
-   - Validación de identidad
-   - Códigos de verificación
-   - Protección de datos
-   - Auditoría de acciones
 
 ```
 app/
@@ -4834,3 +5573,103 @@ ML_MIN_DATA_POINTS = 50    # Mínimo de data points para activar predicciones
 
 
 sudo nano app/chatbot/chatbot.py && cd app/integrations && sudo nano services.py whatsapp.py instagram.py messenger.py telegram.py && sudo systemctl restart gunicorn && cd /home/amigro && python manage.py migrate
+
+## 🎯 Estructura del Frontend
+
+### Templates Base
+```html
+<!-- base.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Grupo huntRED®{% endblock %}</title>
+    {% block meta %}{% endblock %}
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    {% include 'partials/header.html' %}
+    {% block content %}{% endblock %}
+    {% include 'partials/footer.html' %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+```
+
+### Componentes Principales
+- **Header (`partials/header.html`)**
+  - Logo huntRED®
+  - Navegación principal
+  - Menú de usuario
+  - Búsqueda global
+- **Hero Section**
+  - Título principal
+  - Descripción del sistema
+  - CTAs principales
+  - Animaciones
+- **Flows Section**
+  - Cards de flujos
+  - Iconos descriptivos
+  - Descripciones
+  - Interacciones
+- **ML Section**
+  - Grid de tecnologías
+  - Iconos
+  - Descripciones
+  - Efectos
+- **Integration Section**
+  - Cards de partners
+  - Logos
+  - Descripciones
+  - Estados
+
+### Estilos y Assets
+- **CSS/SCSS**
+  - Variables globales
+  - Mixins
+  - Componentes
+  - Utilidades
+- **JavaScript**
+  - Funcionalidades
+  - Interacciones
+  - Validaciones
+  - Animaciones
+- **Imágenes**
+  - Logo
+  - Iconos
+  - Ilustraciones
+  - Backgrounds
+- **Fuentes**
+  - Inter (principal)
+  - Fallbacks
+  - Icon fonts
+
+### Integración Django
+- **URLs**
+  - Rutas principales
+  - API endpoints
+  - Static files
+  - Media files
+- **Views**
+  - Context data
+  - Form handling
+  - Authentication
+  - Permissions
+- **Templates**
+  - Inheritance
+  - Includes
+  - Blocks
+  - Filters
+
+### Optimización
+- **Performance**
+  - Lazy loading
+  - Code splitting
+  - Caché
+  - Minificación
+- **SEO**
+  - Meta tags
+  - Schema
+  - Sitemap
+  - Robots

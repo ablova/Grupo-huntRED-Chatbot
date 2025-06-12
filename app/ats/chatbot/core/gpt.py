@@ -31,7 +31,7 @@ from google.generativeai import types
 from app.models import GptApi, BusinessUnit
 
 # Importaciones de servicios
-from app.ats.chatbot.integrations.services import EmailService
+from app.ats.integrations.services import EmailService
 
 # Importaciones de utilidades
 from app.ats.utils.logger_utils import get_module_logger, log_async_function_call, ResourceMonitor
@@ -638,6 +638,116 @@ class VertexAIHandler(BaseHandler):
             logger.error(f"Error en Vertex AI: {e}")
             return "Error al comunicarse con Vertex AI."
 
+class MistralAIHandler(BaseHandler):
+    """Manejador para la API de Mistral AI."""
+    
+    async def initialize(self):
+        """Inicializa el cliente de Mistral AI."""
+        try:
+            self.client = None
+            self.api_key = self.config.api_key
+            self.model = self.config.model
+            self.base_url = "https://api.mistral.ai/v1"
+            
+            # Configurar headers comunes
+            self.headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # Verificar disponibilidad del modelo
+            async with await get_http_session() as session:
+                async with session.get(
+                    f"{self.base_url}/models",
+                    headers=self.headers
+                ) as response:
+                    if response.status == 200:
+                        models = await response.json()
+                        available_models = [m["id"] for m in models.get("data", [])]
+                        if self.model not in available_models:
+                            logger.warning(f"Modelo {self.model} no disponible. Modelos disponibles: {available_models}")
+                            # Usar el modelo más potente disponible
+                            self.model = next((m for m in available_models if "large" in m.lower()), available_models[0])
+                    else:
+                        logger.error(f"Error verificando modelos de Mistral AI: {response.status}")
+            
+            logger.info(f"MistralAIHandler inicializado con modelo {self.model}")
+            self._reset_failures()
+            
+        except Exception as e:
+            logger.error(f"Error inicializando MistralAIHandler: {str(e)}")
+            self._increment_failure()
+            raise
+
+    @log_async_function_call(logger)
+    @backoff.on_exception(
+        backoff.expo,
+        (ClientConnectorSSLError, asyncio.TimeoutError, requests.exceptions.RequestException),
+        max_tries=MAX_RETRIES
+    )
+    async def generate_response(self, prompt: str, business_unit=None) -> str:
+        """Genera una respuesta usando la API de Mistral AI."""
+        if self._check_circuit_breaker():
+            raise Exception("Circuit breaker abierto para Mistral AI")
+            
+        try:
+            # Verificar caché
+            cached_response = get_cached_response(self.model, prompt, business_unit)
+            if cached_response:
+                logger.info("Respuesta obtenida de caché")
+                return cached_response
+                
+            # Preparar payload
+            payload = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": self.config.max_tokens,
+                "temperature": self.config.temperature,
+                "top_p": self.config.top_p,
+                "frequency_penalty": self.config.frequency_penalty,
+                "presence_penalty": self.config.presence_penalty
+            }
+            
+            if self.config.stop_sequences:
+                payload["stop"] = self.config.stop_sequences
+                
+            # Realizar petición
+            async with await get_http_session() as session:
+                async with session.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=self.headers,
+                    json=payload,
+                    timeout=self.config.timeout
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        response_text = result["choices"][0]["message"]["content"]
+                        
+                        # Actualizar métricas
+                        tokens_used = result.get("usage", {}).get("total_tokens", 0)
+                        self._update_token_usage(tokens_used, business_unit)
+                        
+                        # Guardar en caché
+                        cache_response(self.model, prompt, response_text, business_unit)
+                        
+                        self._reset_failures()
+                        return response_text
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Error en Mistral AI: {response.status} - {error_text}")
+                        self._increment_failure()
+                        raise Exception(f"Error en Mistral AI: {response.status}")
+                        
+        except Exception as e:
+            logger.error(f"Error generando respuesta con Mistral AI: {str(e)}")
+            self._increment_failure()
+            raise
+
+    async def close(self):
+        """Cierra la conexión con Mistral AI."""
+        # No es necesario cerrar nada ya que usamos aiohttp
+        pass
+
 class GPTHandler:
     def __init__(self):
         logger.debug("Instancia GPTHandler creada.")
@@ -649,15 +759,20 @@ class GPTHandler:
     async def initialize(self):
         try:
             # Try active providers first
-            gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True, provider__name__iexact='Xai (Grok)').select_related('provider').first())()
+            gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True, provider__name__iexact='Mistral AI').select_related('provider').first())()
+            if not gpt_api:
+                logger.info("No se encontró configuración activa para Mistral AI, intentando con Grok.")
+                gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True, provider__name__iexact='Xai (Grok)').select_related('provider').first())()
             if not gpt_api:
                 logger.info("No se encontró configuración activa para Grok, intentando con OpenAI.")
                 gpt_api = await sync_to_async(lambda: GptApi.objects.filter(is_active=True, provider__name__iexact='OpenAI (ChatGPT)').select_related('provider').first())()
             if not gpt_api:
                 logger.info("No se encontró configuración activa, intentando proveedores inactivos.")
-                gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact='OpenAI (ChatGPT)').select_related('provider').first())()
+                gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact='Mistral AI').select_related('provider').first())()
                 if not gpt_api:
-                    gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact='Xai (Grok)').select_related('provider').first())()
+                    gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact='OpenAI (ChatGPT)').select_related('provider').first())()
+                    if not gpt_api:
+                        gpt_api = await sync_to_async(lambda: GptApi.objects.filter(provider__name__iexact='Xai (Grok)').select_related('provider').first())()
             if gpt_api:
                 provider_key = (await sync_to_async(lambda: gpt_api.provider.name)())
                 # Check cache for existing handler
@@ -675,7 +790,7 @@ class GPTHandler:
                 })
                 logger.info(f"GPTHandler configurado con modelo: {self.config['model']}, proveedor: {provider_key}")
             else:
-                logger.error("Sin configuración de GPT API en BD para Grok o OpenAI.")
+                logger.error("Sin configuración de GPT API en BD para Mistral AI, Grok o OpenAI.")
                 raise ValueError("Configuración GPT no encontrada.")
         except Exception as e:
             logger.exception(f"Error inicializando GPTHandler: {e}")
@@ -728,17 +843,16 @@ class GPTHandler:
 # Updated HANDLER_MAPPING to support xai(grok) and xai (grok)
 HANDLER_MAPPING = {
     'openai': OpenAIHandler,
-    'OpenAI (ChatGPT)': OpenAIHandler,
-    'xai(grok)': GrokHandler,
+    'xai': GrokHandler,
     'xai (grok)': GrokHandler,
-    'Xai (Grok)': GrokHandler,
-    'google(gemini)': GeminiHandler,
-    'Google (Gemini)': GeminiHandler,
-    'vertexai': VertexAIHandler,
-    'Vertex API': VertexAIHandler,
-    'meta(llama)': LlamaHandler,
-    'anthropic(claude)': ClaudeHandler,
-    'Anthropic (Claude)': ClaudeHandler,
+    'grok': GrokHandler,
+    'gemini': GeminiHandler,
+    'llama': LlamaHandler,
+    'claude': ClaudeHandler,
+    'vertex': VertexAIHandler,
+    'mistral': MistralAIHandler,
+    'mistral ai': MistralAIHandler,
+    'mistralai': MistralAIHandler
 }
 
 async def get_handler(config: GptApi) -> BaseHandler:

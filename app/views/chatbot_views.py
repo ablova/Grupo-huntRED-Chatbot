@@ -11,7 +11,7 @@ import json
 import logging
 from asgiref.sync import sync_to_async
 from app.ats.chatbot.conversational_flow import ConversationalFlowManager
-from app.ats.chatbot.integrations.services import MessageService
+from app.ats.integrations.services import MessageService
 from app.models import Person, BusinessUnit
 
 logger = logging.getLogger(__name__)

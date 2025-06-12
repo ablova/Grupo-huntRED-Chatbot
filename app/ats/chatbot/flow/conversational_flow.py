@@ -1,9 +1,15 @@
+# /home/pablo/app/ats/chatbot/flow/conversationa_flow.py
 from django.db import transaction
 from django.utils import timezone
 from app.models import IntentPattern, StateTransition, IntentTransition, ContextCondition, ChatState, Person, BusinessUnit
 import logging
 from app.ats.utils.visualization import FlowVisualization as BaseFlowVisualization
 import re
+from app.ats.notifications.specific_notifications import (
+    user_notifier, placement_notifier, payment_notifier,
+    process_notifier, metrics_notifier, event_notifier,
+    alert_notifier
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +58,15 @@ class ConversationalFlowManager:
         self.state_manager = StateManager(business_unit)
         self.context_manager = ContextManager(business_unit)
         self.response_generator = ResponseGenerator(business_unit)
+        
+        # Inicializar notificadores específicos
+        self.user_notifier = user_notifier(business_unit)
+        self.placement_notifier = placement_notifier(business_unit)
+        self.payment_notifier = payment_notifier(business_unit)
+        self.process_notifier = process_notifier(business_unit)
+        self.metrics_notifier = metrics_notifier(business_unit)
+        self.event_notifier = event_notifier(business_unit)
+        self.alert_notifier = alert_notifier(business_unit)
 
     async def process_message(self, person: Person, message: str) -> dict:
         """
@@ -92,6 +107,9 @@ class ConversationalFlowManager:
                 # 6. Generar respuesta
                 response = await self.response_generator.generate_response(intent, next_state)
                 
+                # 7. Manejar notificaciones específicas según el estado
+                await self._handle_state_notifications(person, next_state, intent)
+                
                 return {
                     'success': True,
                     'current_state': next_state,
@@ -105,6 +123,80 @@ class ConversationalFlowManager:
                 'success': False,
                 'error': str(e)
             }
+
+    async def _handle_state_notifications(self, person: Person, state: str, intent: str):
+        """
+        Maneja las notificaciones específicas según el estado y el intent.
+        """
+        try:
+            # Notificaciones de usuario
+            if state == 'user_registration':
+                await self.user_notifier.notify_registration(person.user, person)
+            elif state == 'user_login':
+                await self.user_notifier.notify_login(person.user, person, 'chatbot')
+                
+            # Notificaciones de colocación
+            elif state == 'placement_completed':
+                if hasattr(person, 'position') and hasattr(person, 'company'):
+                    await self.placement_notifier.notify_executive_placement(
+                        candidate=person,
+                        position=person.position,
+                        company=person.company,
+                        salary=getattr(person, 'salary', 0),
+                        start_date=getattr(person, 'start_date', timezone.now())
+                    )
+                    
+            # Notificaciones de pago
+            elif state == 'payment_received':
+                if hasattr(person, 'last_payment'):
+                    payment = person.last_payment
+                    await self.payment_notifier.notify_payment_received(
+                        recipient=person,
+                        amount=payment.amount,
+                        payment_type=payment.type,
+                        reference=payment.reference
+                    )
+                    
+            # Notificaciones de proceso
+            elif state.startswith('process_'):
+                process_type = state.replace('process_', '')
+                await self.process_notifier.notify_process_start(
+                    recipient=person,
+                    process_type=process_type,
+                    process_id=str(person.id)
+                )
+                
+            # Notificaciones de métricas
+            elif state == 'metrics_update':
+                if hasattr(person, 'metrics'):
+                    await self.metrics_notifier.notify_metrics_update(
+                        recipient=person,
+                        metrics_type='user_metrics',
+                        metrics_data=person.metrics
+                    )
+                    
+            # Notificaciones de eventos
+            elif state.startswith('event_'):
+                event_type = state.replace('event_', '')
+                await self.event_notifier.notify_system_event(
+                    recipient=person,
+                    event_name=event_type,
+                    event_type='system_event',
+                    event_data={'state': state, 'intent': intent}
+                )
+                
+            # Notificaciones de alertas
+            elif state.startswith('alert_'):
+                alert_type = state.replace('alert_', '')
+                await self.alert_notifier.notify_system_alert(
+                    recipient=person,
+                    alert_type=alert_type,
+                    alert_message=f"Alerta de tipo {alert_type} para {person.name}",
+                    severity='high' if 'critical' in alert_type else 'medium'
+                )
+                
+        except Exception as e:
+            logger.error(f"Error handling state notifications: {str(e)}")
 
     def _determine_intent(self, message: str) -> str:
         """

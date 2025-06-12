@@ -3,26 +3,30 @@ import logging
 import os
 import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.core.cache import cache
 from django.core.files.storage import default_storage
 from weasyprint import HTML, CSS
-from app.models import Proposal, Company, Vacante, Person, BusinessUnit
+from app.models import Proposal, Company, Vacante, Person, BusinessUnit, PremiumAddon
 from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.pricing.config import (
     PROPOSAL_TEMPLATES_DIR, PROPOSAL_PDF_DIR, PDF_CONFIG,
     CACHE_CONFIG, AI_CONFIG, OPTIMIZATION_CONFIG
 )
+from app.ats.pricing.strategy import PricingStrategy
 
 logger = logging.getLogger(__name__)
 
 class ProposalGenerator:
-    def __init__(self):
+    def __init__(self, business_unit: BusinessUnit):
+        self.business_unit = business_unit
+        self.addons = self._get_available_addons()
         self.gpt_handler = GPTHandler()
         self.cache = cache
+        self.pricing_strategy = PricingStrategy()
         self._ensure_directories()
 
     def _ensure_directories(self):
@@ -60,7 +64,7 @@ class ProposalGenerator:
         try:
             response = await self.gpt_handler.generate_response(
                 formatted_prompt,
-                business_unit=BusinessUnit.objects.first()  # TODO: Obtener BU correcto
+                business_unit=self.business_unit
             )
             return response
         except Exception as e:
@@ -122,40 +126,185 @@ class ProposalGenerator:
             })
         return addons
 
-    async def generate_proposal(self, proposal_id: int) -> Dict:
-        """Genera una propuesta completa"""
-        proposal = Proposal.objects.get(id=proposal_id)
-        company = proposal.company
-        vacancies = list(proposal.vacancies.all())
-        
-        # Generar introducción con IA
-        ai_introduction = await self.generate_ai_introduction(company, vacancies)
-        
-        # Generar detalles de pricing
-        pricing_details = self._generate_pricing_details(proposal)
-        
-        # Preparar contexto para renderizado
-        context = {
-            'company': company,
-            'vacancies': vacancies,
-            'pricing_details': pricing_details,
-            'ai_introduction': ai_introduction,
-            'today': timezone.now().strftime("%Y-%m-%d"),
-            'proposal': proposal,
-            'contact_person': proposal.contact_person,
-            'consultant': proposal.consultant
+    def _get_available_addons(self) -> List[Dict[str, Any]]:
+        """Obtiene addons disponibles para la propuesta"""
+        return [
+            {
+                'name': addon.name,
+                'type': addon.type,
+                'description': addon.description,
+                'price': addon.price,
+                'features': self._get_addon_features(addon)
+            }
+            for addon in PremiumAddon.objects.filter(is_active=True)
+        ]
+    
+    def _get_addon_features(self, addon: PremiumAddon) -> List[str]:
+        """Obtiene características del addon según su tipo"""
+        features = {
+            PremiumAddon.AddonType.MARKET_REPORT: [
+                'Reportes mensuales de tendencias de mercado',
+                'Análisis de demanda por habilidad',
+                'Benchmarks de competencia',
+                'Recomendaciones estratégicas'
+            ],
+            PremiumAddon.AddonType.SALARY_BENCHMARK: [
+                'Actualización trimestral de salarios',
+                'Análisis por ubicación y seniority',
+                'Tendencias salariales por industria',
+                'Recomendaciones de ajuste salarial'
+            ],
+            PremiumAddon.AddonType.LEARNING_ANALYTICS: [
+                'Análisis de gaps de habilidades',
+                'Rutas de aprendizaje personalizadas',
+                'Recomendaciones de cursos',
+                'Seguimiento de progreso'
+            ],
+            PremiumAddon.AddonType.ORGANIZATIONAL_ANALYSIS: [
+                'Análisis anual de estructura organizacional',
+                'Mapa de competencias',
+                'Plan de sucesión',
+                'Recomendaciones de desarrollo'
+            ]
         }
+        return features.get(addon.type, [])
+
+    async def generate_proposal(self) -> Dict[str, Any]:
+        """Genera propuesta completa"""
+        try:
+            # Obtener addons disponibles
+            addons = await self._get_available_addons()
+            
+            # Generar estrategias de precios
+            pricing_strategies = await self._get_pricing_strategies(addons)
+            
+            # Generar secciones de propuesta
+            sections = await self._generate_sections(addons, pricing_strategies)
+            
+            return {
+                'business_unit': self.business_unit.id,
+                'generated_at': datetime.now(),
+                'addons': addons,
+                'pricing_strategies': pricing_strategies,
+                'sections': sections
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error generando propuesta: {str(e)}")
+            return None
+    
+    async def _get_pricing_strategies(
+        self,
+        addons: List[PremiumAddon]
+    ) -> Dict[str, Any]:
+        """Obtiene estrategias de precios para cada addon"""
+        strategies = {}
         
-        # Renderizar plantilla HTML
-        html_content = render_to_string('pricing/proposal_template.html', context)
+        for addon in addons:
+            strategy = await self.pricing_strategy.get_pricing_strategy(
+                addon=addon,
+                business_unit=self.business_unit
+            )
+            strategies[addon.id] = strategy
         
-        # Convertir a PDF
-        pdf_path = await self.convert_to_pdf(html_content, proposal.id)
+        return strategies
+    
+    async def _generate_sections(
+        self,
+        addons: List[PremiumAddon],
+        pricing_strategies: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Genera secciones de la propuesta"""
+        sections = []
         
+        # Sección de valor
+        sections.append(self._generate_value_section(addons))
+        
+        # Sección de precios
+        sections.append(self._generate_pricing_section(
+            addons,
+            pricing_strategies
+        ))
+        
+        # Sección de activación
+        sections.append(self._generate_activation_section(
+            addons,
+            pricing_strategies
+        ))
+        
+        return sections
+    
+    def _generate_value_section(
+        self,
+        addons: List[PremiumAddon]
+    ) -> Dict[str, Any]:
+        """Genera sección de valor"""
         return {
-            'html': html_content,
-            'pdf': pdf_path,
-            'pricing_details': pricing_details
+            'title': 'Valor y Beneficios',
+            'content': [
+                {
+                    'addon_id': addon.id,
+                    'name': addon.name,
+                    'description': addon.description,
+                    'benefits': self._get_addon_benefits(addon),
+                    'roi': self._calculate_addon_roi(addon)
+                }
+                for addon in addons
+            ]
+        }
+    
+    def _generate_pricing_section(
+        self,
+        addons: List[PremiumAddon],
+        pricing_strategies: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Genera sección de precios"""
+        return {
+            'title': 'Estrategia de Precios',
+            'content': [
+                {
+                    'addon_id': addon.id,
+                    'name': addon.name,
+                    'base_price': addon.price,
+                    'final_price': pricing_strategies[addon.id]['final_strategy']['final_price'],
+                    'discounts': pricing_strategies[addon.id]['discount_strategy'],
+                    'referral_fees': pricing_strategies[addon.id]['referral_strategy']
+                }
+                for addon in addons
+            ]
+        }
+    
+    def _generate_activation_section(
+        self,
+        addons: List[PremiumAddon],
+        pricing_strategies: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Genera sección de activación"""
+        return {
+            'title': 'Plan de Activación',
+            'content': [
+                {
+                    'addon_id': addon.id,
+                    'name': addon.name,
+                    'activation_plan': pricing_strategies[addon.id]['final_strategy']['activation_plan'],
+                    'success_metrics': pricing_strategies[addon.id]['final_strategy']['success_metrics']
+                }
+                for addon in addons
+            ]
+        }
+    
+    def _get_addon_benefits(self, addon: PremiumAddon) -> List[str]:
+        """Obtiene beneficios del addon"""
+        # Implementar lógica real
+        return []
+    
+    def _calculate_addon_roi(self, addon: PremiumAddon) -> Dict[str, Any]:
+        """Calcula ROI del addon"""
+        # Implementar lógica real
+        return {
+            'estimated_roi': 0,
+            'payback_period': 0,
+            'risk_level': 'low'
         }
 
     async def convert_to_pdf(self, html_content: str, proposal_id: int) -> str:

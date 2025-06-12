@@ -40,8 +40,6 @@ DATABASES = {
     }
 }
 
-# PostgreSQL configuration using psycopg2-binary
-
 # Configuración de correo electrónico
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
@@ -53,7 +51,10 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # Configuración de Debug Toolbar
-INSTALLED_APPS += ['debug_toolbar']
+INSTALLED_APPS += [
+    'debug_toolbar',
+    'django_extensions',
+]
 MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 INTERNAL_IPS = ['127.0.0.1']
 
@@ -78,6 +79,10 @@ LOGGING = {
             'format': '{levelname} {message}',
             'style': '{',
         },
+        'debug': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {pathname}:{lineno} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
@@ -89,19 +94,44 @@ LOGGING = {
             'filename': BASE_DIR / 'logs' / 'development.log',
             'formatter': 'verbose',
         },
+        'debug_file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'debug.log',
+            'formatter': 'debug',
+        },
     },
     'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
+        'handlers': ['console', 'file', 'debug_file'],
+        'level': 'DEBUG',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
+            'handlers': ['console', 'file', 'debug_file'],
+            'level': 'DEBUG',
             'propagate': True,
         },
         'app': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console', 'file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'whatsapp': {
+            'handlers': ['console', 'file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'telegram': {
+            'handlers': ['console', 'file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'messenger': {
+            'handlers': ['console', 'file', 'debug_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'instagram': {
+            'handlers': ['console', 'file', 'debug_file'],
             'level': 'DEBUG',
             'propagate': True,
         },
@@ -110,6 +140,41 @@ LOGGING = {
 
 # Configuración de entorno
 ENVIRONMENT = 'development'
+
+# Configuración de APIs para desarrollo
+MESSAGING_APIS['whatsapp'].update({
+    'ENABLED': True,
+    'API_URL': 'http://localhost:8000/api/whatsapp',
+    'API_TOKEN': 'dev_whatsapp_token',
+    'WEBHOOK_SECRET': 'dev_webhook_secret',
+    'VERIFY_TOKEN': 'dev_verify_token',
+})
+
+MESSAGING_APIS['telegram'].update({
+    'ENABLED': True,
+    'BOT_TOKEN': 'dev_telegram_token',
+    'WEBHOOK_SECRET': 'dev_webhook_secret',
+})
+
+MESSAGING_APIS['messenger'].update({
+    'ENABLED': True,
+    'APP_SECRET': 'dev_messenger_secret',
+    'VERIFY_TOKEN': 'dev_verify_token',
+})
+
+MESSAGING_APIS['instagram'].update({
+    'ENABLED': True,
+    'APP_SECRET': 'dev_instagram_secret',
+    'ACCESS_TOKEN': 'dev_access_token',
+})
+
+# Configuración de Django Extensions
+SHELL_PLUS = "ipython"
+SHELL_PLUS_PRINT_SQL = True
+IPYTHON_ARGUMENTS = [
+    '--ext', 'django_extensions.management.notebook_extension',
+    '--debug',
+]
 
 # Debug print
 logger = logging.getLogger(__name__)

@@ -5,7 +5,7 @@ from django.core.mail import send_mail
 from app.models import Notification, NotificationChannel, Person, Feedback
 from app.ats.utils import logger_utils
 from app.ats.utils.whatsapp import WhatsAppHandler
-from app.ats.chatbot.integrations.email import EmailHandler
+from app.ats.integrations.services.email import EmailHandler
 import logging
 import asyncio
 import uuid

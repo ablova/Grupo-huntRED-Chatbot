@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Dashboard de Addons Premium</h1>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="refreshData()">
+                <i class="fas fa-sync"></i> Actualizar
+            </button>
+            <button class="btn btn-success" onclick="exportData()">
+                <i class="fas fa-download"></i> Exportar
+            </button>
+        </div>
+    </div>
+
+    <!-- Addons Activos -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Addons Activos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Addon</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha Inicio</th>
+                                    <th>Fecha Fin</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for addon in active_addons %}
+                                <tr>
+                                    <td>{{ addon.addon.name }}</td>
+                                    <td>{{ addon.addon.get_type_display }}</td>
+                                    <td>{{ addon.start_date }}</td>
+                                    <td>{{ addon.end_date }}</td>
+                                    <td>
+                                        <span class="badge bg-success">Activo</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Datos de Mercado -->
+    {% if market_data %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Análisis de Mercado</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Tendencias -->
+                        <div class="col-md-6">
+                            <h6>Tendencias</h6>
+                            <canvas id="marketTrendsChart"></canvas>
+                        </div>
+                        <!-- Benchmarks -->
+                        <div class="col-md-6">
+                            <h6>Benchmarks</h6>
+                            <canvas id="marketBenchmarksChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Datos de Aprendizaje -->
+    {% if learning_data %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Análisis de Aprendizaje</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Gaps de Habilidades -->
+                        <div class="col-md-6">
+                            <h6>Gaps de Habilidades</h6>
+                            <canvas id="skillGapsChart"></canvas>
+                        </div>
+                        <!-- Recomendaciones -->
+                        <div class="col-md-6">
+                            <h6>Recomendaciones</h6>
+                            <canvas id="recommendationsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Inicializar gráficos
+    function initCharts() {
+        {% if market_data %}
+        // Gráfico de tendencias
+        new Chart(document.getElementById('marketTrendsChart'), {
+            type: 'line',
+            data: {
+                labels: {{ market_data.trends|safe }}.map(t => t.skill),
+                datasets: [{
+                    label: 'Demanda',
+                    data: {{ market_data.trends|safe }}.map(t => t.demand_level),
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            }
+        });
+
+        // Gráfico de benchmarks
+        new Chart(document.getElementById('marketBenchmarksChart'), {
+            type: 'bar',
+            data: {
+                labels: {{ market_data.benchmarks|safe }}.map(b => b.skill),
+                datasets: [{
+                    label: 'Rango Salarial',
+                    data: {{ market_data.benchmarks|safe }}.map(b => b.salary_range),
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                }]
+            }
+        });
+        {% endif %}
+
+        {% if learning_data %}
+        // Gráfico de gaps
+        new Chart(document.getElementById('skillGapsChart'), {
+            type: 'radar',
+            data: {
+                labels: {{ learning_data.skill_gaps.gaps|safe }}.map(g => g.skill),
+                datasets: [{
+                    label: 'Nivel Actual',
+                    data: {{ learning_data.skill_gaps.gaps|safe }}.map(g => g.current_level),
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)'
+                }, {
+                    label: 'Nivel Requerido',
+                    data: {{ learning_data.skill_gaps.gaps|safe }}.map(g => g.required_level),
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)'
+                }]
+            }
+        });
+
+        // Gráfico de recomendaciones
+        new Chart(document.getElementById('recommendationsChart'), {
+            type: 'pie',
+            data: {
+                labels: {{ learning_data.courses|safe }}.map(c => c.provider),
+                datasets: [{
+                    data: {{ learning_data.courses|safe }}.map(c => c.price),
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 206, 86, 0.5)',
+                        'rgba(75, 192, 192, 0.5)'
+                    ]
+                }]
+            }
+        });
+        {% endif %}
+    }
+
+    // Actualizar datos
+    function refreshData() {
+        location.reload();
+    }
+
+    // Exportar datos
+    function exportData() {
+        // Implementar exportación
+    }
+
+    // Inicializar al cargar
+    document.addEventListener('DOMContentLoaded', initCharts);
+</script>
+{% endblock %}
+{% endblock %} 

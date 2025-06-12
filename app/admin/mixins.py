@@ -6,6 +6,163 @@ from django.db.models import Q, Count
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from app.ats.admin.config import ADMIN_CONFIG, get_date_ranges
+from django.urls import reverse
+from typing import List, Dict, Any, Optional
+from .config import AdminConfig
+
+class AdminMixin:
+    """Mixin base para todos los administradores"""
+    
+    def get_app_config(self) -> Dict[str, Any]:
+        """Obtiene la configuración de la aplicación"""
+        app_label = self.model._meta.app_label
+        return AdminConfig.get_app_config(app_label)
+    
+    def get_model_order(self) -> List[str]:
+        """Obtiene el orden de los modelos"""
+        app_label = self.model._meta.app_label
+        return AdminConfig.get_model_order(app_label)
+
+class ExportMixin:
+    """Mixin para funcionalidad de exportación"""
+    
+    def get_export_actions(self) -> List[str]:
+        """Retorna las acciones de exportación disponibles"""
+        return ['export_as_csv', 'export_as_json', 'export_as_xlsx']
+    
+    def export_as_csv(self, request, queryset):
+        """Exporta los registros seleccionados como CSV"""
+        # Implementación de exportación CSV
+        pass
+    
+    def export_as_json(self, request, queryset):
+        """Exporta los registros seleccionados como JSON"""
+        # Implementación de exportación JSON
+        pass
+    
+    def export_as_xlsx(self, request, queryset):
+        """Exporta los registros seleccionados como XLSX"""
+        # Implementación de exportación XLSX
+        pass
+
+class FilterMixin:
+    """Mixin para filtros personalizados"""
+    
+    def get_custom_filters(self) -> List[Any]:
+        """Retorna los filtros personalizados"""
+        return []
+    
+    def get_filter_horizontal(self) -> List[str]:
+        """Retorna los campos para filtro horizontal"""
+        return []
+    
+    def get_filter_vertical(self) -> List[str]:
+        """Retorna los campos para filtro vertical"""
+        return []
+
+class ActionMixin:
+    """Mixin para acciones personalizadas"""
+    
+    def get_custom_actions(self) -> List[str]:
+        """Retorna las acciones personalizadas"""
+        return []
+    
+    def get_action_choices(self) -> List[tuple]:
+        """Retorna las opciones de acciones"""
+        return []
+
+class DisplayMixin:
+    """Mixin para personalización de visualización"""
+    
+    def get_list_display(self) -> List[str]:
+        """Retorna los campos a mostrar en la lista"""
+        return ['__str__']
+    
+    def get_list_display_links(self) -> List[str]:
+        """Retorna los campos que serán enlaces"""
+        return ['__str__']
+    
+    def get_list_filter(self) -> List[str]:
+        """Retorna los filtros de lista"""
+        return []
+    
+    def get_search_fields(self) -> List[str]:
+        """Retorna los campos de búsqueda"""
+        return []
+
+class PermissionMixin:
+    """Mixin para permisos personalizados"""
+    
+    def has_add_permission(self, request) -> bool:
+        """Verifica si el usuario puede agregar"""
+        return super().has_add_permission(request)
+    
+    def has_change_permission(self, request, obj=None) -> bool:
+        """Verifica si el usuario puede modificar"""
+        return super().has_change_permission(request, obj)
+    
+    def has_delete_permission(self, request, obj=None) -> bool:
+        """Verifica si el usuario puede eliminar"""
+        return super().has_delete_permission(request, obj)
+    
+    def has_view_permission(self, request, obj=None) -> bool:
+        """Verifica si el usuario puede ver"""
+        return super().has_view_permission(request, obj)
+
+class AuditMixin:
+    """Mixin para auditoría"""
+    
+    def get_audit_fields(self) -> List[str]:
+        """Retorna los campos de auditoría"""
+        return ['created_at', 'updated_at', 'created_by', 'updated_by']
+    
+    def get_readonly_fields(self) -> List[str]:
+        """Retorna los campos de solo lectura"""
+        return self.get_audit_fields()
+    
+    def save_model(self, request, obj, form, change):
+        """Guarda el modelo con información de auditoría"""
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+class HistoryMixin:
+    """Mixin para historial de cambios"""
+    
+    def get_history_fields(self) -> List[str]:
+        """Retorna los campos a registrar en el historial"""
+        return []
+    
+    def get_history_view(self, request, object_id):
+        """Vista del historial de cambios"""
+        pass
+
+class ValidationMixin:
+    """Mixin para validación personalizada"""
+    
+    def get_validation_rules(self) -> Dict[str, Any]:
+        """Retorna las reglas de validación"""
+        return {}
+    
+    def validate_model(self, obj) -> bool:
+        """Valida el modelo"""
+        return True
+
+class CacheMixin:
+    """Mixin para cache"""
+    
+    def get_cache_key(self, obj) -> str:
+        """Retorna la clave de cache para el objeto"""
+        return f"{self.model._meta.model_name}:{obj.pk}"
+    
+    def get_cache_ttl(self) -> int:
+        """Retorna el tiempo de vida del cache"""
+        return 300  # 5 minutos
+    
+    def invalidate_cache(self, obj):
+        """Invalida el cache del objeto"""
+        pass
 
 class EnhancedAdminMixin(admin.ModelAdmin):
     """Mixin que agrega mejoras de performance y UX al admin"""

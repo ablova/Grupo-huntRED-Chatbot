@@ -3,8 +3,103 @@
 from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 from datetime import timedelta
-from app.models import BusinessUnit, Proposal, Vacante, Opportunity, Vacancy, PricingBaseline, Addon, PaymentMilestone, Coupon
+from typing import List, Dict, Optional, Union, Any
+from ai_huntred.utils.lazy_imports import (
+    BusinessUnit, Proposal, Vacante, Opportunity, Vacancy,
+    PricingBaseline, Addon, PaymentMilestone, Coupon
+)
 
+def calculate_price(base_price: Decimal, addons: List[Addon], coupon: Optional[Coupon] = None) -> Decimal:
+    """
+    Calcula el precio final considerando addons y cupones.
+    
+    Args:
+        base_price: Precio base
+        addons: Lista de addons aplicados
+        coupon: Cupón opcional
+        
+    Returns:
+        Precio final calculado
+    """
+    final_price = base_price
+    
+    # Aplicar addons
+    for addon in addons:
+        if addon.percentage:
+            final_price += (base_price * addon.value / 100)
+        else:
+            final_price += addon.value
+            
+    # Aplicar cupón si existe
+    if coupon:
+        if coupon.percentage:
+            final_price -= (final_price * coupon.value / 100)
+        else:
+            final_price -= coupon.value
+            
+    return final_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+def calculate_milestone_payment(
+    proposal: Proposal,
+    milestone: PaymentMilestone,
+    current_date: Optional[timezone.datetime] = None
+) -> Decimal:
+    """
+    Calcula el pago para un hito específico.
+    
+    Args:
+        proposal: Propuesta
+        milestone: Hito de pago
+        current_date: Fecha actual (opcional)
+        
+    Returns:
+        Monto a pagar
+    """
+    if current_date is None:
+        current_date = timezone.now()
+        
+    # Verificar si el hito está vencido
+    if milestone.due_date < current_date:
+        return Decimal('0.00')
+        
+    # Calcular monto base
+    base_amount = proposal.total_amount * (milestone.percentage / 100)
+    
+    # Aplicar ajustes por retraso
+    if milestone.due_date < current_date:
+        days_late = (current_date - milestone.due_date).days
+        late_fee = base_amount * Decimal('0.01') * days_late  # 1% por día
+        base_amount += late_fee
+        
+    return base_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+def get_business_unit_pricing(business_unit: BusinessUnit) -> Dict[str, Any]:
+    """
+    Obtiene la configuración de precios para una unidad de negocio.
+    
+    Args:
+        business_unit: Unidad de negocio
+        
+    Returns:
+        Diccionario con configuración de precios
+    """
+    try:
+        baseline = PricingBaseline.objects.get(business_unit=business_unit)
+        return {
+            'base_price': baseline.base_price,
+            'currency': baseline.currency,
+            'payment_terms': baseline.payment_terms,
+            'addons': list(baseline.addons.all()),
+            'discounts': list(baseline.discounts.all())
+        }
+    except PricingBaseline.DoesNotExist:
+        return {
+            'base_price': Decimal('0.00'),
+            'currency': 'USD',
+            'payment_terms': [],
+            'addons': [],
+            'discounts': []
+        }
 
 def calculate_pricing(proposal):
     """

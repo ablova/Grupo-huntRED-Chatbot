@@ -27,7 +27,7 @@ from app.models import (
     GamificationEvent,
     UserChallenge
 )
-from app.ats.chatbot.integrations.services import send_message
+from app.ats.integrations.services import send_message
 
 logger = logging.getLogger(__name__)
 

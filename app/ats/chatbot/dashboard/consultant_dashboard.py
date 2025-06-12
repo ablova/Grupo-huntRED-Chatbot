@@ -8,7 +8,7 @@ from django.db.models import Count, Q, F
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 from app.models import Person, ChatState, RecoveryAttempt, BusinessUnit, ConsultorInteraction
-from app.ats.chatbot.integrations.whatsapp import WhatsAppService
+from app.ats.integrations.channels.whatsapp import WhatsAppService
 import logging
 
 logger = logging.getLogger(__name__)
