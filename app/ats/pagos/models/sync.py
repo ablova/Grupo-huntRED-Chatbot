@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-import json
 from django.core.serializers.json import DjangoJSONEncoder
 
 class SincronizacionLog(models.Model):
@@ -26,6 +25,8 @@ class SincronizacionLog(models.Model):
     
     class Meta:
         ordering = ['-fecha_creacion']
+        verbose_name = "Log de Sincronización"
+        verbose_name_plural = "Logs de Sincronización"
         
     def __str__(self):
         return f"{self.oportunidad} - {self.estado}"
@@ -47,6 +48,8 @@ class SincronizacionError(models.Model):
     
     class Meta:
         ordering = ['-fecha_creacion']
+        verbose_name = "Error de Sincronización"
+        verbose_name_plural = "Errores de Sincronización"
         
     def __str__(self):
         return f"{self.oportunidad} - {self.mensaje[:50]}..."
@@ -69,6 +72,7 @@ class EstadoSincronizacion(models.Model):
     detalles = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
     
     class Meta:
+        verbose_name = "Estado de Sincronización"
         verbose_name_plural = "Estados de Sincronización"
         
     def __str__(self):
@@ -86,6 +90,7 @@ class ConfiguracionSincronizacion(models.Model):
     fecha_ultimo_exitoso = models.DateTimeField(null=True, blank=True)
     
     class Meta:
+        verbose_name = "Configuración de Sincronización"
         verbose_name_plural = "Configuraciones de Sincronización"
         
     def __str__(self):
@@ -96,7 +101,7 @@ class HistorialSincronizacion(models.Model):
     Modelo para historial de sincronizaciones.
     """
     configuracion = models.ForeignKey(
-        'ConfiguracionSincronizacion',
+        ConfiguracionSincronizacion,
         on_delete=models.CASCADE,
         related_name='historial'
     )
@@ -106,6 +111,7 @@ class HistorialSincronizacion(models.Model):
     detalles = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
     
     class Meta:
+        verbose_name = "Historial de Sincronización"
         verbose_name_plural = "Historial de Sincronización"
         ordering = ['-fecha']
         
@@ -128,7 +134,8 @@ class EstadoSincronizacionGlobal(models.Model):
     detalles = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
     
     class Meta:
+        verbose_name = "Estado Global de Sincronización"
         verbose_name_plural = "Estado Global de Sincronización"
         
     def __str__(self):
-        return f"Estado Global - {self.estado}"
+        return f"Estado Global - {self.estado}" 

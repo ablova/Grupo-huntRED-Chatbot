@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 class PaymentGateway(ABC):
     """
-    Clase base abstracta para implementar gateways de pago.
+    Clase base abstracta para gateways de pago.
     
     Todos los gateways de pago deben heredar de esta clase y implementar
     los métodos abstractos definidos.
@@ -11,7 +11,7 @@ class PaymentGateway(ABC):
     
     def __init__(self, business_unit: Optional[str] = None):
         """
-        Inicializa el gateway de pago.
+        Inicializa el gateway.
         
         Args:
             business_unit: Unidad de negocio asociada (opcional)

@@ -3,40 +3,44 @@
 # Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
 
 from django.urls import path
-from app.ats.pagos.views.payment_viewsviews.payment_views import (
-    payment_list, initiate_payment, webhook_payment_status,
-    refund_payment, payment_history, payment_details
+from .views import (
+    # Vistas basadas en funciones
+    create_payment,
+    execute_payment,
+    create_payout,
+    process_webhook,
+    
+    # Vistas basadas en clases
+    PagoListView,
+    PagoDetailView,
+    EmpleadorListView,
+    EmpleadorDetailView,
+    WorkerListView,
+    WorkerDetailView,
+    OportunidadListView,
+    OportunidadDetailView
 )
 
 app_name = 'pagos'
 
 urlpatterns = [
-    # Rutas de pagos
-    path('', payment_list, name='payment-list'),
-    path('iniciar/', initiate_payment, name='initiate-payment'),
-    path('webhook/', webhook_payment_status, name='webhook-payment-status'),
-    path('reembolso/<int:payment_id>/', refund_payment, name='refund-payment'),
-    path('historial/', payment_history, name='payment-history'),
-    path('detalles/<int:payment_id>/', payment_details, name='payment-details'),
+    # URLs para pagos
+    path('pagos/', PagoListView.as_view(), name='pago_list'),
+    path('pagos/<int:pk>/', PagoDetailView.as_view(), name='pago_detail'),
+    path('pagos/crear/', create_payment, name='pago_create'),
+    path('pagos/<int:pk>/ejecutar/', execute_payment, name='pago_execute'),
+    path('pagos/crear-payout/', create_payout, name='pago_create_payout'),
+    path('webhook/', process_webhook, name='pago_webhook'),
     
-    # Rutas de empleadores
-    path('empleadores/', EmpleadorListView.as_view(), name='empleador-list'),
-    path('empleadores/crear/', EmpleadorCreateView.as_view(), name='empleador-create'),
-    path('empleadores/<int:pk>/', EmpleadorDetailView.as_view(), name='empleador-detail'),
-    path('empleadores/<int:pk>/editar/', EmpleadorUpdateView.as_view(), name='empleador-update'),
-    path('empleadores/<int:pk>/eliminar/', EmpleadorDeleteView.as_view(), name='empleador-delete'),
+    # URLs para empleadores
+    path('empleadores/', EmpleadorListView.as_view(), name='empleador_list'),
+    path('empleadores/<int:pk>/', EmpleadorDetailView.as_view(), name='empleador_detail'),
     
-    # Rutas de trabajadores
-    path('trabajadores/', WorkerListView.as_view(), name='worker-list'),
-    path('trabajadores/crear/', WorkerCreateView.as_view(), name='worker-create'),
-    path('trabajadores/<int:pk>/', WorkerDetailView.as_view(), name='worker-detail'),
-    path('trabajadores/<int:pk>/editar/', WorkerUpdateView.as_view(), name='worker-update'),
-    path('trabajadores/<int:pk>/eliminar/', WorkerDeleteView.as_view(), name='worker-delete'),
+    # URLs para trabajadores
+    path('trabajadores/', WorkerListView.as_view(), name='worker_list'),
+    path('trabajadores/<int:pk>/', WorkerDetailView.as_view(), name='worker_detail'),
     
-    # Rutas de oportunidades
-    path('oportunidades/', OportunidadListView.as_view(), name='oportunidad-list'),
-    path('oportunidades/crear/', OportunidadCreateView.as_view(), name='oportunidad-create'),
-    path('oportunidades/<int:pk>/', OportunidadDetailView.as_view(), name='oportunidad-detail'),
-    path('oportunidades/<int:pk>/editar/', OportunidadUpdateView.as_view(), name='oportunidad-update'),
-    path('oportunidades/<int:pk>/eliminar/', OportunidadDeleteView.as_view(), name='oportunidad-delete'),
+    # URLs para oportunidades
+    path('oportunidades/', OportunidadListView.as_view(), name='oportunidad_list'),
+    path('oportunidades/<int:pk>/', OportunidadDetailView.as_view(), name='oportunidad_detail'),
 ]

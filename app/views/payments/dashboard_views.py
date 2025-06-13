@@ -13,8 +13,12 @@ import json
 import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 
-from app.models import Pago, Empleador, BusinessUnit
+from app.ats.pagos.models import Pago
+from app.ats.empleadores.models import Empleador
+from app.models import BusinessUnit
 from app.ats.utils.rbac import RBAC
 
 logger = logging.getLogger(__name__)

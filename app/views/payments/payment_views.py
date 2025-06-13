@@ -6,7 +6,7 @@ con integración del sistema RBAC y optimizaciones de rendimiento.
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.db.models import Q, Sum, Count
@@ -16,8 +16,16 @@ from django.utils.decorators import method_decorator
 from django.core.cache import cache
 import asyncio
 import logging
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.utils import timezone
 
-from app.models import Pago, Empleador, Worker, Oportunidad, BusinessUnit
+from app.ats.pagos.models import Pago, PagoHistorico
+from app.ats.pagos.services import PagoService
+from app.ats.empleadores.models import Empleador
+from app.ats.vacantes.models import Vacante
+from app.models import BusinessUnit
 from app.ats.utils.rbac import RBAC
 from asgiref.sync import sync_to_async
 

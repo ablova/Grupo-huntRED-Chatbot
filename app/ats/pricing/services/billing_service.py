@@ -258,86 +258,83 @@ class BillingService:
         Verifica pagos vencidos y envía notificaciones
         
         Returns:
-            list: Lista de notificaciones enviadas
+            list: Lista de pagos vencidos
         """
         today = timezone.now().date()
         overdue_payments = PaymentSchedule.objects.filter(
             due_date__lt=today,
-            status__in=['pending', 'scheduled', 'sent']
+            status__in=['pending', 'sent']
         )
         
-        notifications = []
         for payment in overdue_payments:
-            # Actualizar estado
-            payment.status = 'overdue'
-            payment.save()
-            
-            # Enviar notificación
-            notification = BillingService.send_payment_notification(
+            # Enviar notificación de vencimiento
+            BillingService.send_payment_notification(
                 payment=payment,
                 notification_type='overdue',
                 recipient_email=payment.service_calculation.client_email,
-                subject=f'Pago Vencido - {payment.service_calculation.position}',
-                message=f'''
-                Estimado cliente,
-                
-                Le informamos que el pago programado para el {payment.due_date} está vencido.
-                
-                Detalles del pago:
-                - Monto: ${payment.amount}
-                - Tipo: {payment.get_payment_type_display()}
-                - Fecha de vencimiento: {payment.due_date}
-                
-                Por favor, proceda con el pago lo antes posible.
-                
-                Saludos cordiales,
-                Equipo huntRED
-                '''
+                subject='Pago Vencido',
+                message=f'El pago por {payment.amount} está vencido desde {payment.due_date}'
             )
-            notifications.append(notification)
+            
+            # Actualizar estado
+            payment.status = 'overdue'
+            payment.save()
         
-        return notifications
+        return overdue_payments
 
     @staticmethod
     def send_payment_receipt(payment):
         """
-        Envía un recibo de pago al cliente
+        Envía recibo de pago
+        
+        Args:
+            payment: Instancia de PaymentSchedule
         """
-        context = {
-            'payment': payment,
-            'service': payment.service,
-            'company_name': settings.COMPANY_NAME,
-            'company_email': settings.COMPANY_EMAIL,
-            'company_phone': settings.COMPANY_PHONE,
-            'company_address': settings.COMPANY_ADDRESS
-        }
+        if payment.status != 'paid':
+            return
         
-        # Renderizar el template del correo
-        html_message = render_to_string('pricing/email/receipt.html', context)
-        
-        # Enviar el correo
-        send_mail(
-            subject=f'Recibo - {payment.get_concept_display()} - {payment.service.position}',
-            message='',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[settings.CLIENT_EMAIL],
-            html_message=html_message
+        # Enviar notificación
+        BillingService.send_payment_notification(
+            payment=payment,
+            notification_type='receipt',
+            recipient_email=payment.service_calculation.client_email,
+            subject='Recibo de Pago',
+            message=f'Recibo por el pago de {payment.amount} realizado el {payment.paid_date}'
         )
 
     @staticmethod
     def get_payment_stats():
         """
         Obtiene estadísticas de pagos
+        
+        Returns:
+            dict: Estadísticas de pagos
         """
-        payments = Payment.objects.all()
+        today = timezone.now().date()
         
         return {
-            'pending_total': sum(p.amount for p in payments.filter(status='pending')),
-            'sent_total': sum(p.amount for p in payments.filter(status='sent')),
-            'received_total': sum(p.amount for p in payments.filter(status='received')),
-            'overdue_total': sum(p.amount for p in payments.filter(status='overdue')),
-            'pending_payments': payments.filter(status='pending'),
-            'sent_payments': payments.filter(status='sent'),
-            'received_payments': payments.filter(status='received'),
-            'overdue_payments': payments.filter(status='overdue')
+            'total_pending': PaymentSchedule.objects.filter(
+                status='pending'
+            ).count(),
+            'total_overdue': PaymentSchedule.objects.filter(
+                status='overdue'
+            ).count(),
+            'total_paid': PaymentSchedule.objects.filter(
+                status='paid'
+            ).count(),
+            'total_amount_pending': PaymentSchedule.objects.filter(
+                status__in=['pending', 'sent']
+            ).aggregate(
+                total=Sum('amount')
+            )['total'] or 0,
+            'total_amount_overdue': PaymentSchedule.objects.filter(
+                status='overdue'
+            ).aggregate(
+                total=Sum('amount')
+            )['total'] or 0,
+            'total_amount_paid': PaymentSchedule.objects.filter(
+                status='paid'
+            ).aggregate(
+                total=Sum('amount')
+            )['total'] or 0
         } 

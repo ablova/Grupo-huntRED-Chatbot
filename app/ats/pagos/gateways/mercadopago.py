@@ -4,7 +4,9 @@ from typing import Dict, Optional
 import logging
 import mercadopago
 from django.conf import settings
+from django.utils import timezone
 from app.models import ApiConfig
+from app.ats.pagos.models import Pago
 from app.ats.pagos.gateways.base import PaymentGateway
 
 logger = logging.getLogger(__name__)
