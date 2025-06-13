@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/skills/base/base_models.py
+# /home/pablo/app/ats/utils/skills/base/base_models.py
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List, Optional, Dict, Any, Set

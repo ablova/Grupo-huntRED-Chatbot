@@ -2,8 +2,7 @@
 Modelo para cursos en el sistema de aprendizaje.
 """
 from django.db import models
-from app.models import BusinessUnit
-from .skill import Skill
+from app.models import BusinessUnit, Skill
 
 class Course(models.Model):
     """Modelo para cursos."""

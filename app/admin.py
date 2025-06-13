@@ -41,7 +41,7 @@ from app.models import (
     SmtpConfig, SuccessionCandidate, SuccessionPlan, SuccessionReadinessAssessment, 
     TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
     Worker, IntentPattern, StateTransition, IntentTransition, 
-    WorkflowStage
+    WorkflowStage, BusinessUnit, BusinessUnitMembership
 )
 from app.ats.chatbot.components.chat_state_manager import ContextCondition
 
@@ -1028,3 +1028,108 @@ class SuccessionReadinessAssessmentAdmin(admin.ModelAdmin):
         if not change:
             obj.assessed_by = request.user
         obj.save()
+
+@admin.register(BusinessUnitMembership)
+class BusinessUnitMembershipAdmin(admin.ModelAdmin):
+    list_display = ('user', 'business_unit', 'role', 'joined_at')
+    list_filter = ('role', 'business_unit')
+    search_fields = ('user__username', 'user__email', 'business_unit__name')
+    raw_id_fields = ('user', 'business_unit')
+    readonly_fields = ('joined_at', 'updated_at')
+    
+    fieldsets = (
+        (_('Información Básica'), {
+            'fields': ('business_unit', 'user', 'role')
+        }),
+        (_('Permisos'), {
+            'fields': ('permissions',),
+            'description': _('Configura los permisos específicos para este miembro.')
+        }),
+        (_('Información Temporal'), {
+            'fields': ('joined_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+class BusinessUnitAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'owner', 'active', 'created_at', 'get_member_count')
+    list_filter = ('active', 'created_at')
+    search_fields = ('name', 'code', 'owner__username')
+    raw_id_fields = ('owner', 'members')
+    readonly_fields = ('created_at', 'updated_at')
+    
+    fieldsets = (
+        (_('Información Básica'), {
+            'fields': ('name', 'code', 'description', 'active', 'owner')
+        }),
+        (_('Configuración General'), {
+            'fields': ('settings',),
+            'description': _('Configuración general de la unidad de negocio.')
+        }),
+        (_('Integraciones'), {
+            'fields': ('integrations',),
+            'description': _('Configuración de integraciones con plataformas externas.')
+        }),
+        (_('Pricing y Servicios'), {
+            'fields': ('pricing_config',),
+            'description': _('Configuración de precios y servicios ofrecidos.')
+        }),
+        (_('Configuración ATS'), {
+            'fields': ('ats_config',),
+            'description': _('Configuración del sistema ATS.')
+        }),
+        (_('Analytics'), {
+            'fields': ('analytics_config',),
+            'description': _('Configuración de analytics y métricas.')
+        }),
+        (_('Learning'), {
+            'fields': ('learning_config',),
+            'description': _('Configuración del sistema de aprendizaje.')
+        }),
+        (_('Comunicación'), {
+            'fields': (
+                'admin_phone',
+                'whatsapp_enabled',
+                'telegram_enabled',
+                'messenger_enabled',
+                'instagram_enabled',
+                'ntfy_topic'
+            ),
+            'description': _('Configuración de canales de comunicación.')
+        }),
+        (_('WordPress'), {
+            'fields': ('wordpress_base_url', 'wordpress_auth_token'),
+            'description': _('Configuración de integración con WordPress.')
+        }),
+        (_('Scraping'), {
+            'fields': ('scrapping_enabled', 'scraping_domains'),
+            'description': _('Configuración de scraping de datos.')
+        }),
+        (_('Información Temporal'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_member_count(self, obj):
+        count = obj.members.count()
+        url = reverse('admin:app_businessunitmembership_changelist') + f'?business_unit__id__exact={obj.id}'
+        return format_html('<a href="{}">{} miembros</a>', url, count)
+    get_member_count.short_description = _('Miembros')
+    
+    def save_model(self, request, obj, form, change):
+        """Valida la configuración antes de guardar."""
+        try:
+            validate_business_unit_config(obj)
+            super().save_model(request, obj, form, change)
+        except Exception as e:
+            self.message_user(request, str(e), level='error')
+            raise
+    
+    class Media:
+        css = {
+            'all': ('admin/css/business_unit_admin.css',)
+        }
+        js = ('admin/js/business_unit_admin.js',)
+
+admin.site.register(BusinessUnit, BusinessUnitAdmin)

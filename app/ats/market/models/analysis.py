@@ -1,5 +1,6 @@
 # /home/pablo/app/ats/market/models/analysis.py
 from django.db import models
+from app.models import BusinessUnit, Skill
 from .benchmark import MarketBenchmark
 
 class MarketAnalysis(models.Model):
@@ -15,6 +16,7 @@ class MarketAnalysis(models.Model):
         ('GENERAL', 'Análisis General')
     ]
     
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name='market_analyses')
     benchmark = models.ForeignKey(
         MarketBenchmark,
         on_delete=models.CASCADE,
@@ -28,31 +30,19 @@ class MarketAnalysis(models.Model):
         help_text="Tipo de análisis realizado"
     )
     
-    confidence_score = models.FloatField(
-        default=0.0,
-        help_text="Nivel de confianza del análisis (0-1)"
-    )
-    
-    findings = models.JSONField(
+    # Métricas de calidad
+    metrics = models.JSONField(
         default=dict,
-        help_text="Hallazgos principales del análisis"
+        help_text="Métricas de calidad del análisis (confianza, precisión, etc.)"
     )
     
-    recommendations = models.JSONField(
+    # Resultados del análisis
+    results = models.JSONField(
         default=dict,
-        help_text="Recomendaciones basadas en el análisis"
+        help_text="Resultados del análisis incluyendo hallazgos y recomendaciones"
     )
     
-    data_points = models.JSONField(
-        default=dict,
-        help_text="Puntos de datos utilizados en el análisis"
-    )
-    
-    accuracy_score = models.FloatField(
-        default=0.0,
-        help_text="Puntuación de precisión del análisis (0-1)"
-    )
-    
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -60,6 +50,28 @@ class MarketAnalysis(models.Model):
         verbose_name = "Análisis de Mercado"
         verbose_name_plural = "Análisis de Mercado"
         ordering = ['-created_at']
-        
+        indexes = [
+            models.Index(fields=['skill']),
+            models.Index(fields=['benchmark']),
+            models.Index(fields=['analysis_type']),
+            models.Index(fields=['created_at'])
+        ]
+    
     def __str__(self):
-        return f"{self.get_analysis_type_display()} - {self.benchmark.skill} ({self.created_at.strftime('%Y-%m-%d')})" 
+        return f"{self.get_analysis_type_display()} - {self.skill.name} ({self.created_at.strftime('%Y-%m-%d')})"
+    
+    @property
+    def confidence_score(self):
+        return self.metrics.get('confidence_score', 0)
+    
+    @property
+    def accuracy_score(self):
+        return self.metrics.get('accuracy_score', 0)
+    
+    @property
+    def findings(self):
+        return self.results.get('findings', {})
+    
+    @property
+    def recommendations(self):
+        return self.results.get('recommendations', {}) 

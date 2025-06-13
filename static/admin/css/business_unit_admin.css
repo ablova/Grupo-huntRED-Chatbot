@@ -1,0 +1,321 @@
+/* Estilos para el formulario de BusinessUnit */
+.field-settings,
+.field-integrations,
+.field-pricing_config,
+.field-ats_config,
+.field-analytics_config,
+.field-learning_config {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+/* Estilos para los campos JSON */
+.json-field {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Estilos para los campos de configuración */
+.config-field {
+    margin-bottom: 15px;
+}
+
+.config-field label {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+    display: block;
+}
+
+/* Estilos para los campos de integración */
+.integration-field {
+    background-color: #fff;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.integration-field.enabled {
+    border-left: 4px solid #28a745;
+}
+
+.integration-field.disabled {
+    border-left: 4px solid #dc3545;
+    opacity: 0.7;
+}
+
+/* Estilos para los campos de membresía */
+.membership-field {
+    background-color: #fff;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.membership-field .role {
+    font-weight: bold;
+    color: #007bff;
+}
+
+/* Estilos para los mensajes de validación */
+.validation-error {
+    color: #dc3545;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.validation-success {
+    color: #28a745;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+/* Estilos para los botones de acción */
+.action-buttons {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.action-buttons .button {
+    margin-right: 10px;
+}
+
+/* Estilos para los campos de fecha */
+.timestamp-field {
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* Estilos para los campos de estado */
+.status-field {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.status-active {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Estilos para los campos de búsqueda */
+.search-field {
+    margin-bottom: 15px;
+}
+
+.search-field input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Estilos para los campos de filtro */
+.filter-field {
+    margin-bottom: 10px;
+}
+
+.filter-field select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Estilos para los campos de ayuda */
+.help-text {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+/* Estilos para los campos requeridos */
+.required-field label:after {
+    content: " *";
+    color: #dc3545;
+}
+
+/* Estilos para los campos deshabilitados */
+.disabled-field {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Estilos para los campos de validación */
+.validation-field {
+    position: relative;
+}
+
+.validation-field .validation-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.validation-field.valid .validation-icon {
+    color: #28a745;
+}
+
+.validation-field.invalid .validation-icon {
+    color: #dc3545;
+}
+
+/* Estilos para los campos de configuración anidados */
+.nested-config {
+    margin-left: 20px;
+    padding-left: 15px;
+    border-left: 2px solid #e0e0e0;
+}
+
+/* Estilos para los campos de configuración avanzada */
+.advanced-config {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 20px;
+}
+
+.advanced-config-toggle {
+    color: #007bff;
+    cursor: pointer;
+    user-select: none;
+}
+
+.advanced-config-toggle:hover {
+    text-decoration: underline;
+}
+
+/* Estilos para los campos de configuración de integración */
+.integration-config {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.integration-config-item {
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.integration-config-item h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+/* Estilos para los campos de configuración de precios */
+.pricing-config {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.pricing-tier {
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.pricing-tier h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.pricing-tier .price {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #28a745;
+}
+
+/* Estilos para los campos de configuración de ATS */
+.ats-config {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.ats-config-section {
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.ats-config-section h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+/* Estilos para los campos de configuración de analytics */
+.analytics-config {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.analytics-metric {
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.analytics-metric h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+/* Estilos para los campos de configuración de learning */
+.learning-config {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.learning-section {
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.learning-section h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+} 

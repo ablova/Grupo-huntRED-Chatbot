@@ -2,8 +2,7 @@
 Modelo para rutas de aprendizaje.
 """
 from django.db import models
-from app.models import BusinessUnit, User
-from .skill import Skill
+from app.models import BusinessUnit, User, Skill
 from .course import Course
 
 class LearningPath(models.Model):

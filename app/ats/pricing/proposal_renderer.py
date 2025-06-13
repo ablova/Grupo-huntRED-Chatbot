@@ -1,4 +1,4 @@
-# /home/pablo/app/com/pricing/proposal_renderer.py
+# /home/pablo/app/ats/pricing/proposal_renderer.py
 """
 Módulo para la renderización modular de propuestas en Grupo huntRED®.
 
@@ -14,6 +14,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
+from weasyprint import HTML
+from app.ats.pricing.models import PricingProposal, ProposalSection, ProposalTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,68 @@ class ProposalRenderer:
         'detailed': 'detailed_proposal.html',
         'executive': 'executive_proposal.html',
     }
+    
+    def __init__(self, proposal):
+        """
+        Inicializa el renderizador con una propuesta
+        
+        Args:
+            proposal: Instancia de PricingProposal
+        """
+        self.proposal = proposal
+        self.sections = proposal.secciones.all().order_by('orden')
+    
+    def render_html(self):
+        """
+        Renderiza la propuesta en HTML
+        
+        Returns:
+            str: HTML de la propuesta
+        """
+        context = {
+            'proposal': self.proposal,
+            'sections': self.sections
+        }
+        return render_to_string('pricing/proposal_template.html', context)
+    
+    def render_pdf(self):
+        """
+        Renderiza la propuesta en PDF
+        
+        Returns:
+            bytes: PDF de la propuesta
+        """
+        html = self.render_html()
+        pdf = HTML(string=html).write_pdf()
+        return pdf
+    
+    def render_email(self):
+        """
+        Renderiza la propuesta para email
+        
+        Returns:
+            str: HTML de la propuesta para email
+        """
+        context = {
+            'proposal': self.proposal,
+            'sections': self.sections,
+            'is_email': True
+        }
+        return render_to_string('pricing/proposal_email.html', context)
+    
+    def render_preview(self):
+        """
+        Renderiza una vista previa de la propuesta
+        
+        Returns:
+            str: HTML de la vista previa
+        """
+        context = {
+            'proposal': self.proposal,
+            'sections': self.sections,
+            'is_preview': True
+        }
+        return render_to_string('pricing/proposal_preview.html', context)
     
     @classmethod
     def render_proposal(cls, proposal_data, sections=None, base_template='standard', 
@@ -206,7 +270,6 @@ class ProposalRenderer:
         
         # Generar PDF
         try:
-            from weasyprint import HTML
             html = HTML(string=html_content)
             html.write_pdf(output_file, stylesheets=stylesheets)
             logger.info(f"PDF generado exitosamente: {output_file}")

@@ -1,4 +1,4 @@
-# /home/pablo/app/com/pricing/views.py
+# /home/pablo/app/ats/pricing/views.py
 """
 Vistas para el módulo de pricing de Grupo huntRED®.
 
@@ -24,6 +24,8 @@ from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Q, Sum, Count, F, Value, CharField
 from django.db.models.functions import Concat
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 
 from app.models import (
     BusinessUnit, Opportunity, Contact, Company, 
@@ -35,45 +37,150 @@ from app.ats.pricing.forms import (
     Talent360RequestForm, CompanyForm, ContactForm, 
     BulkAnalysisRequestForm, PromotionCodeForm
 )
+from app.ats.pricing.models import (
+    PricingStrategy,
+    PricePoint,
+    DiscountRule,
+    ReferralFee,
+    PricingCalculation,
+    PricingPayment,
+    PricingProposal,
+    ProposalSection,
+    ProposalTemplate
+)
+from app.ats.pricing.services import (
+    PricingService,
+    BillingService,
+    RecommendationService
+)
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 @login_required
-def dashboard(request):
-    """Vista principal del dashboard de pricing."""
-    # Obtener estadísticas relevantes
-    total_opportunities = Opportunity.objects.count()
-    total_proposals = Opportunity.objects.filter(has_proposal=True).count()
-    total_talent_requests = TalentAnalysisRequest.objects.count()
-    
-    # Propuestas recientes
-    recent_proposals = Opportunity.objects.filter(
-        has_proposal=True
-    ).order_by('-updated_at')[:5]
-    
-    # Solicitudes de análisis recientes
-    recent_talent_requests = TalentAnalysisRequest.objects.order_by(
-        '-created_at'
-    )[:5]
-    
-    # Promociones activas
-    active_promotions = Promotion.objects.filter(
-        is_active=True,
-        valid_until__gte=timezone.now().date()
-    )
-    
+def pricing_dashboard(request):
+    """Vista del dashboard de pricing"""
     context = {
-        'total_opportunities': total_opportunities,
-        'total_proposals': total_proposals,
-        'total_talent_requests': total_talent_requests,
-        'recent_proposals': recent_proposals,
-        'recent_talent_requests': recent_talent_requests,
-        'active_promotions': active_promotions,
+        'strategies': PricingStrategy.objects.filter(
+            business_unit__in=request.user.business_units.all()
+        ),
+        'price_points': PricePoint.objects.filter(
+            business_unit__in=request.user.business_units.all()
+        ),
+        'discount_rules': DiscountRule.objects.filter(
+            business_unit__in=request.user.business_units.all()
+        ),
+        'referral_fees': ReferralFee.objects.filter(
+            business_unit__in=request.user.business_units.all()
+        )
     }
-    
     return render(request, 'pricing/dashboard.html', context)
+
+
+@login_required
+def strategy_detail(request, strategy_id):
+    """Vista de detalle de estrategia de pricing"""
+    strategy = get_object_or_404(
+        PricingStrategy,
+        id=strategy_id,
+        business_unit__in=request.user.business_units.all()
+    )
+    context = {
+        'strategy': strategy,
+        'price_points': strategy.price_points.all(),
+        'discount_rules': strategy.discount_rules.all(),
+        'referral_fees': strategy.referral_fees.all()
+    }
+    return render(request, 'pricing/strategy_detail.html', context)
+
+
+@login_required
+def create_proposal(request):
+    """Vista para crear una nueva propuesta"""
+    if request.method == 'POST':
+        # Procesar formulario
+        pass
+    context = {
+        'templates': ProposalTemplate.objects.filter(
+            business_unit__in=request.user.business_units.all()
+        )
+    }
+    return render(request, 'pricing/create_proposal.html', context)
+
+
+@login_required
+def proposal_detail(request, proposal_id):
+    """Vista de detalle de propuesta"""
+    proposal = get_object_or_404(
+        PricingProposal,
+        id=proposal_id,
+        oportunidad__business_unit__in=request.user.business_units.all()
+    )
+    context = {
+        'proposal': proposal,
+        'sections': proposal.secciones.all().order_by('orden')
+    }
+    return render(request, 'pricing/proposal_detail.html', context)
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def calculate_price(request):
+    """API para calcular precio"""
+    try:
+        data = json.loads(request.body)
+        service = PricingService()
+        result = service.calculate_price(
+            business_unit=request.user.business_unit,
+            service_type=data.get('service_type'),
+            duration=data.get('duration'),
+            complexity=data.get('complexity'),
+            requirements=data.get('requirements', [])
+        )
+        return JsonResponse(result)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def create_payment(request):
+    """API para crear pago"""
+    try:
+        data = json.loads(request.body)
+        service = BillingService()
+        result = service.create_payment(
+            business_unit=request.user.business_unit,
+            amount=data.get('amount'),
+            currency=data.get('currency'),
+            payment_method=data.get('payment_method'),
+            metadata=data.get('metadata', {})
+        )
+        return JsonResponse(result)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def get_recommendations(request):
+    """API para obtener recomendaciones de pricing"""
+    try:
+        data = json.loads(request.body)
+        service = RecommendationService()
+        result = service.get_recommendations(
+            business_unit=request.user.business_unit,
+            service_type=data.get('service_type'),
+            market_data=data.get('market_data', {}),
+            historical_data=data.get('historical_data', {})
+        )
+        return JsonResponse(result)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 
 class Talent360RequestListView(LoginRequiredMixin, ListView):

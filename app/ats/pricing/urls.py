@@ -15,7 +15,7 @@ app_name = 'pricing'
 
 urlpatterns = [
     # Dashboard principal
-    path('', views.dashboard, name='dashboard'),
+    path('', views.pricing_dashboard, name='dashboard'),
     
     # Análisis de Talento 360°
     path('talent360/', views.Talent360RequestListView.as_view(), name='talent360_request_list'),

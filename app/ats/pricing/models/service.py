@@ -1,8 +1,9 @@
+# /home/pablo/app/ats/pricing/models/service.py
 from django.db import models
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 
-class ServiceCalculation(models.Model):
+class PricingCalculation(models.Model):
     """
     Modelo para cálculos de servicios.
     """
@@ -36,20 +37,19 @@ class ServiceCalculation(models.Model):
     def __str__(self):
         return f"{self.oportunidad} - {self.monto_final} {self.moneda}"
 
-class Payment(models.Model):
+class PricingPayment(models.Model):
     """
-    Modelo para pagos de servicios.
+    Modelo para pagos asociados a cálculos de servicio.
     """
     ESTADOS = [
         ('PENDIENTE', 'Pendiente'),
         ('EN_PROCESO', 'En proceso'),
         ('COMPLETADO', 'Completado'),
-        ('FALLIDO', 'Fallido'),
-        ('REEMBOLSADO', 'Reembolsado')
+        ('CANCELADO', 'Cancelado')
     ]
     
     calculo = models.ForeignKey(
-        ServiceCalculation,
+        PricingCalculation,
         on_delete=models.CASCADE,
         related_name='pagos'
     )
@@ -63,8 +63,8 @@ class Payment(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = "Pago"
-        verbose_name_plural = "Pagos"
+        verbose_name = "Pago de Servicio"
+        verbose_name_plural = "Pagos de Servicio"
         ordering = ['-fecha_creacion']
         
     def __str__(self):

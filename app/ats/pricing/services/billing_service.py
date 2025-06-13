@@ -1,3 +1,4 @@
+# /home/pablo/app/ats/pricing/services/billing_service.py
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -5,7 +6,8 @@ from django.conf import settings
 from datetime import timedelta
 from decimal import Decimal
 
-from app.models import ServiceCalculation, PaymentSchedule, PaymentNotification, Payment
+from app.models import PaymentSchedule, PaymentNotification
+from app.ats.pricing.models import PricingCalculation, PricingPayment
 
 class BillingService:
     """
@@ -36,7 +38,7 @@ class BillingService:
         fee_percentage: str,
         custom_fee: Decimal = None,
         payment_structure: str = 'standard'
-    ) -> ServiceCalculation:
+    ) -> PricingCalculation:
         """
         Crea un nuevo cálculo de servicio y sus pagos asociados
         """
@@ -47,7 +49,7 @@ class BillingService:
         total_fee = (annual_salary * Decimal(fee_percentage)) / Decimal('100')
         
         # Crear el cálculo
-        service = ServiceCalculation.objects.create(
+        service = PricingCalculation.objects.create(
             position=position,
             monthly_salary=monthly_salary,
             bonus_months=bonus_months,
@@ -61,13 +63,13 @@ class BillingService:
         # Crear los pagos según la estructura
         if payment_structure == 'standard':
             # 25% Retainer + 75% Placement
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='retainer',
                 amount=(total_fee * Decimal('25')) / Decimal('100'),
                 due_date=timezone.now().date()
             )
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='placement',
                 amount=(total_fee * Decimal('75')) / Decimal('100'),
@@ -75,19 +77,19 @@ class BillingService:
             )
         elif payment_structure == 'extended':
             # 17.5% x 2 Retainer + 65% Placement
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='retainer',
                 amount=(total_fee * Decimal('17.5')) / Decimal('100'),
                 due_date=timezone.now().date()
             )
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='retainer',
                 amount=(total_fee * Decimal('17.5')) / Decimal('100'),
                 due_date=timezone.now().date() + timezone.timedelta(days=15)
             )
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='placement',
                 amount=(total_fee * Decimal('65')) / Decimal('100'),
@@ -95,19 +97,19 @@ class BillingService:
             )
         else:  # recurring
             # 35% Retainer + 65% Placement (3 pagos)
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='retainer',
                 amount=(total_fee * Decimal('35')) / Decimal('100'),
                 due_date=timezone.now().date()
             )
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='placement',
                 amount=(total_fee * Decimal('32.5')) / Decimal('100'),
                 due_date=timezone.now().date() + timezone.timedelta(days=30)
             )
-            Payment.objects.create(
+            PricingPayment.objects.create(
                 service=service,
                 concept='placement',
                 amount=(total_fee * Decimal('32.5')) / Decimal('100'),
@@ -117,12 +119,12 @@ class BillingService:
         return service
 
     @staticmethod
-    def create_payment_schedule(calculation: ServiceCalculation) -> list:
+    def create_payment_schedule(calculation: PricingCalculation) -> list:
         """
         Crea el calendario de pagos según la estructura seleccionada
         
         Args:
-            calculation: Instancia de ServiceCalculation
+            calculation: Instancia de PricingCalculation
             
         Returns:
             list: Lista de PaymentSchedule creados

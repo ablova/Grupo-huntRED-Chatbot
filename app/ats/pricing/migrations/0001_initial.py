@@ -1,3 +1,4 @@
+# /home/pablo/app/ats/pricing/migrations/0001_initial.py
 """
 Migración inicial para la aplicación de precios.
 """
@@ -17,6 +18,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        ('app', '0001_initial'),
     ]
 
     operations = [
@@ -92,6 +94,181 @@ class Migration(migrations.Migration):
                 'verbose_name': 'Evaluación de equipo',
                 'verbose_name_plural': 'Evaluaciones de equipo',
                 'ordering': ['-created_at'],
+            },
+        ),
+        migrations.CreateModel(
+            name='PricingStrategy',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('name', models.CharField(max_length=100)),
+                ('description', models.TextField(blank=True)),
+                ('active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('business_unit', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='app.businessunit')),
+            ],
+            options={
+                'verbose_name': 'Estrategia de Pricing',
+                'verbose_name_plural': 'Estrategias de Pricing',
+                'ordering': ['-created_at'],
+            },
+        ),
+        migrations.CreateModel(
+            name='PricePoint',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('service_type', models.CharField(max_length=50)),
+                ('base_price', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('currency', models.CharField(max_length=3)),
+                ('min_duration', models.IntegerField(default=1)),
+                ('max_duration', models.IntegerField(null=True)),
+                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('strategy', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pricing.pricingstrategy')),
+            ],
+            options={
+                'verbose_name': 'Punto de Precio',
+                'verbose_name_plural': 'Puntos de Precio',
+                'ordering': ['service_type', 'base_price'],
+            },
+        ),
+        migrations.CreateModel(
+            name='DiscountRule',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('service_type', models.CharField(max_length=50)),
+                ('discount_type', models.CharField(max_length=20)),
+                ('discount_value', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('min_amount', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('max_amount', models.DecimalField(decimal_places=2, max_digits=10, null=True)),
+                ('active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('strategy', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pricing.pricingstrategy')),
+            ],
+            options={
+                'verbose_name': 'Regla de Descuento',
+                'verbose_name_plural': 'Reglas de Descuento',
+                'ordering': ['service_type', 'min_amount'],
+            },
+        ),
+        migrations.CreateModel(
+            name='ReferralFee',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('service_type', models.CharField(max_length=50)),
+                ('fee_type', models.CharField(max_length=20)),
+                ('fee_value', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('min_amount', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('max_amount', models.DecimalField(decimal_places=2, max_digits=10, null=True)),
+                ('active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('strategy', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pricing.pricingstrategy')),
+            ],
+            options={
+                'verbose_name': 'Comisión por Referido',
+                'verbose_name_plural': 'Comisiones por Referidos',
+                'ordering': ['service_type', 'min_amount'],
+            },
+        ),
+        migrations.CreateModel(
+            name='PricingCalculation',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('service_type', models.CharField(max_length=50)),
+                ('base_price', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('discounts', models.DecimalField(decimal_places=2, max_digits=10, default=0)),
+                ('referral_fees', models.DecimalField(decimal_places=2, max_digits=10, default=0)),
+                ('total', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('currency', models.CharField(max_length=3)),
+                ('metadata', models.JSONField(default=dict)),
+                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('business_unit', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='app.businessunit')),
+            ],
+            options={
+                'verbose_name': 'Cálculo de Precio',
+                'verbose_name_plural': 'Cálculos de Precio',
+                'ordering': ['-created_at'],
+            },
+        ),
+        migrations.CreateModel(
+            name='PricingPayment',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('estado', models.CharField(max_length=20)),
+                ('monto', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('moneda', models.CharField(max_length=3)),
+                ('metodo', models.CharField(max_length=50)),
+                ('id_transaccion', models.CharField(max_length=100, null=True)),
+                ('metadata', models.JSONField(default=dict)),
+                ('fecha_creacion', models.DateTimeField(default=django.utils.timezone.now)),
+                ('fecha_actualizacion', models.DateTimeField(auto_now=True)),
+                ('calculo', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pricing.pricingcalculation')),
+            ],
+            options={
+                'verbose_name': 'Pago',
+                'verbose_name_plural': 'Pagos',
+                'ordering': ['-fecha_creacion'],
+            },
+        ),
+        migrations.CreateModel(
+            name='PricingProposal',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('estado', models.CharField(max_length=20)),
+                ('titulo', models.CharField(max_length=200)),
+                ('descripcion', models.TextField()),
+                ('monto_total', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('moneda', models.CharField(max_length=3)),
+                ('fecha_creacion', models.DateTimeField(default=django.utils.timezone.now)),
+                ('fecha_envio', models.DateTimeField(null=True)),
+                ('fecha_aprobacion', models.DateTimeField(null=True)),
+                ('fecha_rechazo', models.DateTimeField(null=True)),
+                ('metadata', models.JSONField(default=dict)),
+                ('oportunidad', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='app.opportunity')),
+            ],
+            options={
+                'verbose_name': 'Propuesta de Servicio',
+                'verbose_name_plural': 'Propuestas de Servicio',
+                'ordering': ['-fecha_creacion'],
+            },
+        ),
+        migrations.CreateModel(
+            name='ProposalSection',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('tipo', models.CharField(max_length=50)),
+                ('titulo', models.CharField(max_length=200)),
+                ('contenido', models.TextField()),
+                ('orden', models.IntegerField(default=0)),
+                ('metadata', models.JSONField(default=dict)),
+                ('propuesta', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pricing.pricingproposal')),
+            ],
+            options={
+                'verbose_name': 'Sección de Propuesta',
+                'verbose_name_plural': 'Secciones de Propuesta',
+                'ordering': ['propuesta', 'orden'],
+            },
+        ),
+        migrations.CreateModel(
+            name='ProposalTemplate',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('nombre', models.CharField(max_length=100)),
+                ('descripcion', models.TextField(blank=True)),
+                ('activo', models.BooleanField(default=True)),
+                ('secciones', models.JSONField(default=list)),
+                ('metadata', models.JSONField(default=dict)),
+                ('fecha_creacion', models.DateTimeField(default=django.utils.timezone.now)),
+                ('fecha_actualizacion', models.DateTimeField(auto_now=True)),
+                ('business_unit', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='app.businessunit')),
+            ],
+            options={
+                'verbose_name': 'Plantilla de Propuesta',
+                'verbose_name_plural': 'Plantillas de Propuesta',
+                'ordering': ['-fecha_creacion'],
             },
         ),
     ]

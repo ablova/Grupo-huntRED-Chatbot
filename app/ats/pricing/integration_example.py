@@ -1,4 +1,4 @@
-# /home/pablo/app/com/pricing/integration_example.py
+# /home/pablo/app/ats/pricing/integration_example.py
 """
 Ejemplo de integración del sistema de propuestas modulares con pricing avanzado.
 
@@ -13,6 +13,8 @@ import logging
 from decimal import Decimal
 from django.utils import timezone
 from django.conf import settings
+from django.test import TestCase
+from django.contrib.auth import get_user_model
 
 from app.models import BusinessUnit, Opportunity, Vacancy
 from app.ats.pricing.volume_pricing import VolumePricing, RecurringServicePricing
@@ -20,8 +22,182 @@ from app.ats.pricing.progressive_billing import ProgressiveBilling
 from app.ats.pricing.pricing_interface import PricingManager
 from app.ats.pricing.proposal_renderer import ProposalRenderer, generate_proposal
 from app.ats.pricing.talent_360_pricing import Talent360Pricing
+from app.ats.pricing.models import (
+    PricingStrategy,
+    PricePoint,
+    DiscountRule,
+    ReferralFee,
+    PricingCalculation,
+    PricingPayment,
+    PricingProposal,
+    ProposalSection,
+    ProposalTemplate
+)
+from app.ats.pricing.services import (
+    PricingService,
+    BillingService,
+    RecommendationService
+)
 
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
+
+class PricingIntegrationTest(TestCase):
+    """Ejemplo de integración del módulo de pricing"""
+    
+    def setUp(self):
+        """Configuración inicial"""
+        # Crear usuario de prueba
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        
+        # Crear unidad de negocio
+        self.business_unit = BusinessUnit.objects.create(
+            name='Test Business Unit',
+            owner=self.user
+        )
+        
+        # Crear estrategia de pricing
+        self.strategy = PricingStrategy.objects.create(
+            name='Test Strategy',
+            business_unit=self.business_unit,
+            description='Test strategy description'
+        )
+        
+        # Crear punto de precio
+        self.price_point = PricePoint.objects.create(
+            strategy=self.strategy,
+            service_type='RECRUITMENT',
+            base_price=1000.00,
+            currency='USD'
+        )
+        
+        # Crear regla de descuento
+        self.discount_rule = DiscountRule.objects.create(
+            strategy=self.strategy,
+            service_type='RECRUITMENT',
+            discount_type='PERCENTAGE',
+            discount_value=10.00,
+            min_amount=5000.00
+        )
+        
+        # Crear comisión por referido
+        self.referral_fee = ReferralFee.objects.create(
+            strategy=self.strategy,
+            service_type='RECRUITMENT',
+            fee_type='PERCENTAGE',
+            fee_value=5.00
+        )
+        
+        # Crear plantilla de propuesta
+        self.template = ProposalTemplate.objects.create(
+            name='Test Template',
+            description='Test template description',
+            business_unit=self.business_unit,
+            active=True
+        )
+    
+    def test_create_proposal(self):
+        """Prueba la creación de una propuesta"""
+        # Crear propuesta
+        proposal = PricingProposal.objects.create(
+            oportunidad=self.opportunity,
+            estado='BORRADOR',
+            titulo='Test Proposal',
+            descripcion='Test proposal description',
+            monto_total=5000.00,
+            moneda='USD'
+        )
+        
+        # Crear secciones
+        section1 = ProposalSection.objects.create(
+            propuesta=proposal,
+            tipo='INTRODUCCION',
+            titulo='Introduction',
+            contenido='Test introduction content',
+            orden=1
+        )
+        
+        section2 = ProposalSection.objects.create(
+            propuesta=proposal,
+            tipo='PRECIO',
+            titulo='Pricing',
+            contenido='Test pricing content',
+            orden=2
+        )
+        
+        # Verificar propuesta
+        self.assertEqual(proposal.titulo, 'Test Proposal')
+        self.assertEqual(proposal.estado, 'BORRADOR')
+        self.assertEqual(proposal.monto_total, 5000.00)
+        self.assertEqual(proposal.moneda, 'USD')
+        
+        # Verificar secciones
+        self.assertEqual(proposal.secciones.count(), 2)
+        self.assertEqual(section1.tipo, 'INTRODUCCION')
+        self.assertEqual(section2.tipo, 'PRECIO')
+    
+    def test_calculate_price(self):
+        """Prueba el cálculo de precio"""
+        # Crear servicio de pricing
+        service = PricingService()
+        
+        # Calcular precio
+        result = service.calculate_price(
+            business_unit=self.business_unit,
+            service_type='RECRUITMENT',
+            duration=30,
+            complexity='MEDIUM',
+            requirements=['requirement1', 'requirement2']
+        )
+        
+        # Verificar resultado
+        self.assertIn('base_price', result)
+        self.assertIn('discounts', result)
+        self.assertIn('total', result)
+    
+    def test_create_payment(self):
+        """Prueba la creación de un pago"""
+        # Crear servicio de facturación
+        service = BillingService()
+        
+        # Crear pago
+        result = service.create_payment(
+            business_unit=self.business_unit,
+            amount=5000.00,
+            currency='USD',
+            payment_method='CREDIT_CARD',
+            metadata={'test': 'data'}
+        )
+        
+        # Verificar resultado
+        self.assertIn('payment_id', result)
+        self.assertIn('status', result)
+        self.assertIn('amount', result)
+    
+    def test_get_recommendations(self):
+        """Prueba la obtención de recomendaciones"""
+        # Crear servicio de recomendaciones
+        service = RecommendationService()
+        
+        # Obtener recomendaciones
+        result = service.get_recommendations(
+            business_unit=self.business_unit,
+            service_type='RECRUITMENT',
+            market_data={'test': 'data'},
+            historical_data={'test': 'data'}
+        )
+        
+        # Verificar resultado
+        self.assertIn('price_points', result)
+        self.assertIn('discounts', result)
+        self.assertIn('referral_fees', result)
+        self.assertIn('market_analysis', result)
+        self.assertIn('historical_analysis', result)
 
 
 def generate_talent_360_proposal_example(opportunity_id, output_format='html', output_file=None):

@@ -3,8 +3,8 @@ from decimal import Decimal
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum, Count
-from app.models import Company, Proposal, ServiceCalculation
-from app.ats.pricing.models import DiscountCoupon
+from app.models import Company, Proposal
+from app.ats.pricing.models import DiscountCoupon, PricingCalculation
 
 class RewardsService:
     def __init__(self):
@@ -63,7 +63,7 @@ class RewardsService:
         Returns:
             int: Puntos por pagos anticipados
         """
-        early_payments = ServiceCalculation.objects.filter(
+        early_payments = PricingCalculation.objects.filter(
             company=company,
             created_at__gte=timezone.now() - timedelta(days=365),
             payment_status='received',

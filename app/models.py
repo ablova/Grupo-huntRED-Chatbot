@@ -583,61 +583,600 @@ CONDITION_TYPE_CHOICES=[
 ]
 
 class BusinessUnit(models.Model):
-    name=models.CharField(max_length=50,choices=BUSINESS_UNIT_CHOICES,unique=True)
-    description=models.TextField(blank=True)
-    admin_phone=models.CharField(max_length=20,null=True,blank=True)
-    whatsapp_enabled=models.BooleanField(default=True)
-    telegram_enabled=models.BooleanField(default=True)
-    messenger_enabled=models.BooleanField(default=True)
-    instagram_enabled=models.BooleanField(default=True)
-    scrapping_enabled=models.BooleanField(default=True)
-    scraping_domains=models.ManyToManyField('DominioScraping',related_name="business_units",blank=True)
-    wordpress_base_url=models.URLField(
+    """Modelo principal de Unidad de Negocio que centraliza toda la funcionalidad relacionada."""
+    
+    # Identificación y Estado
+    name = models.CharField(
+        max_length=50,
+        choices=BUSINESS_UNIT_CHOICES,
+        unique=True,
+        db_index=True,
+        help_text="Nombre de la unidad de negocio"
+    )
+    code = models.CharField(
+        max_length=10,
+        unique=True,
+        db_index=True,
+        help_text="Código único de la unidad de negocio"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Descripción detallada de la unidad de negocio"
+    )
+    active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Indica si la unidad de negocio está activa"
+    )
+    
+    # Configuración General
+    settings = models.JSONField(
+        default=dict,
+        help_text="""Configuración general de la unidad de negocio:
+        {
+            'general': {
+                'timezone': 'America/Mexico_City',
+                'language': 'es',
+                'currency': 'MXN',
+                'date_format': 'DD/MM/YYYY',
+                'time_format': '24h'
+            },
+            'notifications': {
+                'email_enabled': true,
+                'sms_enabled': true,
+                'push_enabled': true,
+                'notification_channels': ['email', 'sms', 'push'],
+                'notification_templates': {
+                    'welcome': 'template_id',
+                    'reminder': 'template_id'
+                }
+            },
+            'security': {
+                'password_policy': {
+                    'min_length': 8,
+                    'require_special_chars': true,
+                    'require_numbers': true,
+                    'require_uppercase': true
+                },
+                'session_timeout': 30,
+                'max_login_attempts': 5,
+                '2fa_required': false
+            },
+            'branding': {
+                'logo_url': 'url',
+                'primary_color': '#000000',
+                'secondary_color': '#FFFFFF',
+                'font_family': 'Arial',
+                'custom_css': 'css_string'
+            }
+        }"""
+    )
+    
+    # Integraciones
+    integrations = models.JSONField(
+        default=dict,
+        help_text="""Configuración de integraciones:
+        {
+            'whatsapp': {
+                'enabled': true,
+                'api_key': 'key',
+                'phone_number': 'number',
+                'templates': {
+                    'welcome': 'template_id',
+                    'reminder': 'template_id'
+                }
+            },
+            'telegram': {
+                'enabled': true,
+                'bot_token': 'token',
+                'channel_id': 'id',
+                'commands': {
+                    'start': 'command_id',
+                    'help': 'command_id'
+                }
+            },
+            'messenger': {
+                'enabled': true,
+                'page_id': 'id',
+                'access_token': 'token',
+                'greeting_text': 'text'
+            },
+            'instagram': {
+                'enabled': true,
+                'account_id': 'id',
+                'access_token': 'token'
+            },
+            'wordpress': {
+                'enabled': true,
+                'base_url': 'url',
+                'auth_token': 'token',
+                'endpoints': {
+                    'posts': 'endpoint',
+                    'pages': 'endpoint'
+                }
+            },
+            'linkedin': {
+                'enabled': true,
+                'client_id': 'id',
+                'client_secret': 'secret',
+                'access_token': 'token'
+            },
+            'indeed': {
+                'enabled': true,
+                'publisher_id': 'id',
+                'api_key': 'key'
+            },
+            'glassdoor': {
+                'enabled': true,
+                'partner_id': 'id',
+                'api_key': 'key'
+            }
+        }"""
+    )
+    
+    # Pricing y Servicios
+    pricing_config = models.JSONField(
+        default=dict,
+        help_text="""Configuración de precios y servicios:
+        {
+            'services': {
+                'recruitment': {
+                    'base_price': 1000,
+                    'currency': 'MXN',
+                    'payment_terms': 'net30',
+                    'features': ['feature1', 'feature2'],
+                    'tiers': {
+                        'basic': {
+                            'price': 1000,
+                            'features': ['feature1']
+                        },
+                        'premium': {
+                            'price': 2000,
+                            'features': ['feature1', 'feature2']
+                        }
+                    }
+                },
+                'consulting': {
+                    'hourly_rate': 100,
+                    'currency': 'MXN',
+                    'minimum_hours': 10
+                }
+            },
+            'discounts': {
+                'volume': {
+                    'threshold': 5,
+                    'percentage': 10
+                },
+                'loyalty': {
+                    'years': 1,
+                    'percentage': 5
+                }
+            },
+            'payment_methods': {
+                'credit_card': true,
+                'bank_transfer': true,
+                'paypal': true
+            }
+        }"""
+    )
+    
+    # Configuración de ATS
+    ats_config = models.JSONField(
+        default=dict,
+        help_text="""Configuración del sistema ATS:
+        {
+            'workflow': {
+                'stages': ['screening', 'interview', 'offer'],
+                'default_stage': 'screening',
+                'auto_advance': true,
+                'notifications': {
+                    'stage_change': true,
+                    'new_candidate': true
+                }
+            },
+            'scoring': {
+                'criteria': ['experience', 'skills', 'education'],
+                'weights': {
+                    'experience': 0.4,
+                    'skills': 0.4,
+                    'education': 0.2
+                },
+                'threshold': 0.7
+            },
+            'automation': {
+                'auto_screening': true,
+                'auto_interview_scheduling': true,
+                'auto_rejection': true,
+                'auto_followup': true
+            },
+            'templates': {
+                'job_description': 'template_id',
+                'offer_letter': 'template_id',
+                'rejection_email': 'template_id'
+            }
+        }"""
+    )
+    
+    # Configuración de Analytics
+    analytics_config = models.JSONField(
+        default=dict,
+        help_text="""Configuración de analytics:
+        {
+            'metrics': {
+                'recruitment': {
+                    'time_to_hire': true,
+                    'cost_per_hire': true,
+                    'quality_of_hire': true
+                },
+                'candidate': {
+                    'application_rate': true,
+                    'acceptance_rate': true,
+                    'dropout_rate': true
+                },
+                'business': {
+                    'revenue': true,
+                    'profit_margin': true,
+                    'customer_satisfaction': true
+                }
+            },
+            'reporting': {
+                'frequency': 'weekly',
+                'recipients': ['email1', 'email2'],
+                'formats': ['pdf', 'excel']
+            },
+            'dashboards': {
+                'recruitment': ['metric1', 'metric2'],
+                'business': ['metric1', 'metric2']
+            }
+        }"""
+    )
+    
+    # Configuración de Learning
+    learning_config = models.JSONField(
+        default=dict,
+        help_text="""Configuración del sistema de aprendizaje:
+        {
+            'courses': {
+                'enabled': true,
+                'categories': ['technical', 'soft_skills'],
+                'completion_criteria': {
+                    'min_score': 70,
+                    'attendance_required': true
+                }
+            },
+            'certifications': {
+                'enabled': true,
+                'validity_period': 365,
+                'renewal_required': true
+            },
+            'assessments': {
+                'frequency': 'monthly',
+                'types': ['quiz', 'project', 'interview'],
+                'passing_score': 70
+            }
+        }"""
+    )
+    
+    # Relaciones
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='owned_business_units',
+        db_index=True,
+        help_text="Usuario propietario de la unidad de negocio"
+    )
+    members = models.ManyToManyField(
+        User,
+        through='BusinessUnitMembership',
+        related_name='business_units',
+        help_text="Miembros de la unidad de negocio"
+    )
+    
+    # Campos de Integración
+    wordpress_base_url = models.URLField(
         max_length=255,
-        help_text="URL base de la API de WordPress (ej: https://huntu.mx/wp-json/wp/v2)",
+        help_text="URL base de la API de WordPress",
         null=True,
         blank=True
     )
-    wordpress_auth_token=models.CharField(
+    wordpress_auth_token = models.CharField(
         max_length=500,
         help_text="Token JWT para autenticación con WordPress",
         null=True,
         blank=True
     )
-    ntfy_topic=models.CharField(max_length=100,blank=True,null=True,default=None,help_text="Tema de ntfy.sh específico para esta unidad de negocio. Si no se define, usa el tema general.")
-    pricing_config = models.JSONField(default=dict, blank=True, help_text="Configuración de pricing por BU.")
+    ntfy_topic = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        default=None,
+        help_text="Tema de ntfy.sh específico para esta unidad de negocio"
+    )
+    
+    # Campos de Comunicación
+    admin_phone = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="Teléfono del administrador"
+    )
+    whatsapp_enabled = models.BooleanField(
+        default=True,
+        help_text="¿WhatsApp está habilitado?"
+    )
+    telegram_enabled = models.BooleanField(
+        default=True,
+        help_text="¿Telegram está habilitado?"
+    )
+    messenger_enabled = models.BooleanField(
+        default=True,
+        help_text="¿Messenger está habilitado?"
+    )
+    instagram_enabled = models.BooleanField(
+        default=True,
+        help_text="¿Instagram está habilitado?"
+    )
+    
+    # Campos de Scraping
+    scrapping_enabled = models.BooleanField(
+        default=True,
+        help_text="¿El scraping está habilitado?"
+    )
+    scraping_domains = models.ManyToManyField(
+        'DominioScraping',
+        related_name="business_units",
+        blank=True,
+        help_text="Dominios permitidos para scraping"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Unidad de Negocio"
+        verbose_name_plural = "Unidades de Negocio"
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name', 'code']),
+            models.Index(fields=['active', 'created_at']),
+            models.Index(fields=['owner', 'active']),
+        ]
+    
     def __str__(self):
-        return dict(BUSINESS_UNIT_CHOICES).get(self.name,self.name)
-    def get_ntfy_topic(self):
-        from django.conf import settings
-        return self.ntfy_topic or getattr(settings, 'NTFY_DEFAULT_TOPIC', 'huntred_notifications')
-    def get_notification_recipients(self):
-        recipients={}
-        if self.admin_phone:
-            recipients['phone']=self.admin_phone
-        if self.admin_email:
-            recipients['email']=self.admin_email
-        return recipients
-    def get_email_template_path(self):
-        sanitized_name=re.sub(r'\W+','',self.name).lower()
-        return f'emails/template_{sanitized_name}.html'
+        return f"{self.name} ({self.code})"
+    
+    # Métodos de Configuración
+    def get_settings(self, section=None, key=None, default=None):
+        """Obtiene configuración específica con caché."""
+        cache_key = f'business_unit_settings_{self.id}'
+        settings = cache.get(cache_key)
+        
+        if settings is None:
+            settings = self.settings
+            cache.set(cache_key, settings, 3600)  # Cache por 1 hora
+            
+        if section is None:
+            return settings
+            
+        section_data = settings.get(section, {})
+        if key is None:
+            return section_data
+            
+        return section_data.get(key, default)
+    
+    def set_settings(self, section, key, value):
+        """Actualiza configuración específica y limpia caché."""
+        if section not in self.settings:
+            self.settings[section] = {}
+        self.settings[section][key] = value
+        self.save(update_fields=['settings', 'updated_at'])
+        self._clear_caches()
+    
+    # Métodos de Integración
+    def get_integration_config(self, platform):
+        """Obtiene configuración de integración específica."""
+        return self.integrations.get(platform, {})
+    
+    def set_integration_config(self, platform, config):
+        """Actualiza configuración de integración específica."""
+        self.integrations[platform] = config
+        self.save(update_fields=['integrations', 'updated_at'])
+        self._clear_caches()
+    
+    # Métodos de Pricing
+    def get_pricing_config(self, service_type=None):
+        """Obtiene configuración de pricing."""
+        if service_type is None:
+            return self.pricing_config
+        return self.pricing_config.get(service_type, {})
+    
+    def set_pricing_config(self, service_type, config):
+        """Actualiza configuración de pricing."""
+        self.pricing_config[service_type] = config
+        self.save(update_fields=['pricing_config', 'updated_at'])
+        self._clear_caches()
+    
+    # Métodos de ATS
+    def get_ats_config(self, section=None):
+        """Obtiene configuración del ATS."""
+        if section is None:
+            return self.ats_config
+        return self.ats_config.get(section, {})
+    
+    def set_ats_config(self, section, config):
+        """Actualiza configuración del ATS."""
+        self.ats_config[section] = config
+        self.save(update_fields=['ats_config', 'updated_at'])
+        self._clear_caches()
+    
+    # Métodos de Analytics
+    def get_analytics_config(self, section=None):
+        """Obtiene configuración de analytics."""
+        if section is None:
+            return self.analytics_config
+        return self.analytics_config.get(section, {})
+    
+    def set_analytics_config(self, section, config):
+        """Actualiza configuración de analytics."""
+        self.analytics_config[section] = config
+        self.save(update_fields=['analytics_config', 'updated_at'])
+        self._clear_caches()
+    
+    # Métodos de Learning
+    def get_learning_config(self, section=None):
+        """Obtiene configuración de learning."""
+        if section is None:
+            return self.learning_config
+        return self.learning_config.get(section, {})
+    
+    def set_learning_config(self, section, config):
+        """Actualiza configuración de learning."""
+        self.learning_config[section] = config
+        self.save(update_fields=['learning_config', 'updated_at'])
+        self._clear_caches()
+    
+    # Métodos de Gestión de Miembros
+    def get_members(self, role=None):
+        """Obtiene miembros con caché."""
+        cache_key = f'business_unit_members_{self.id}_{role or "all"}'
+        members = cache.get(cache_key)
+        
+        if members is None:
+            query = self.memberships.all()
+            if role:
+                query = query.filter(role=role)
+            members = list(query)
+            cache.set(cache_key, members, 3600)  # Cache por 1 hora
+            
+        return members
+    
+    def add_member(self, user, role='member', permissions=None):
+        """Agrega un nuevo miembro."""
+        membership = BusinessUnitMembership.objects.create(
+            business_unit=self,
+            user=user,
+            role=role,
+            permissions=permissions or {}
+        )
+        self._clear_caches()
+        return membership
+    
+    def remove_member(self, user):
+        """Elimina un miembro."""
+        BusinessUnitMembership.objects.filter(
+            business_unit=self,
+            user=user
+        ).delete()
+        self._clear_caches()
+    
+    # Métodos de Estado
     @property
-    def admin_email(self):
-        try:
-            config=self.configuracionbu
-            if config and config.dominio_bu:
-                parsed_url=urlparse(config.dominio_bu)
-                domain=parsed_url.netloc or parsed_url.path
-                domain=domain.replace('www.','')
-                return f'hola@{domain}'
-        except ConfiguracionBU.DoesNotExist:
-            pass
-        return None
-    def save(self,*args,**kwargs):
-        super().save(*args,**kwargs)
-        if not hasattr(self,'configuracionbu'):
-            ConfiguracionBU.objects.create(business_unit=self)
-            logger.info(f"Creada ConfiguracionBU por defecto para {self.name}")
+    def is_active(self):
+        """Verifica si la unidad está activa."""
+        return self.active
+    
+    def activate(self):
+        """Activa la unidad de negocio."""
+        self.active = True
+        self.save(update_fields=['active', 'updated_at'])
+        self._clear_caches()
+    
+    def deactivate(self):
+        """Desactiva la unidad de negocio."""
+        self.active = False
+        self.save(update_fields=['active', 'updated_at'])
+        self._clear_caches()
+    
+    # Métodos de Utilidad
+    def _clear_caches(self):
+        """Limpia todas las cachés relacionadas con esta unidad."""
+        cache.delete(f'business_unit_settings_{self.id}')
+        cache.delete(f'business_unit_members_{self.id}')
+        cache.delete(f'business_unit_integrations_{self.id}')
+        cache.delete(f'business_unit_pricing_{self.id}')
+        cache.delete(f'business_unit_ats_{self.id}')
+        cache.delete(f'business_unit_analytics_{self.id}')
+        cache.delete(f'business_unit_learning_{self.id}')
+    
+    def get_ntfy_topic(self):
+        """Obtiene el tema de ntfy.sh."""
+        return self.ntfy_topic or settings.DEFAULT_NTFY_TOPIC
+    
+    def get_notification_recipients(self):
+        """Obtiene los destinatarios de notificaciones."""
+        return [self.owner] + list(self.members.filter(is_active=True))
+    
+    def get_email_template_path(self):
+        """Obtiene la ruta de la plantilla de email."""
+        return f"emails/{self.code.lower()}/"
+
+
+class BusinessUnitMembership(models.Model):
+    """Modelo para gestionar la membresía de usuarios en unidades de negocio."""
+    
+    ROLE_CHOICES = [
+        ('admin', 'Administrador'),
+        ('manager', 'Gerente'),
+        ('member', 'Miembro'),
+        ('viewer', 'Solo Lectura'),
+    ]
+    
+    business_unit = models.ForeignKey(
+        BusinessUnit,
+        on_delete=models.CASCADE,
+        related_name='memberships',
+        db_index=True
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='business_unit_memberships',
+        db_index=True
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='member',
+        db_index=True
+    )
+    permissions = models.JSONField(
+        default=dict,
+        help_text="Permisos específicos del miembro"
+    )
+    joined_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Membresía de Unidad de Negocio"
+        verbose_name_plural = "Membresías de Unidades de Negocio"
+        unique_together = ['business_unit', 'user']
+        indexes = [
+            models.Index(fields=['business_unit', 'role']),
+            models.Index(fields=['user', 'role']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.business_unit.name} ({self.get_role_display()})"
+    
+    def has_permission(self, permission_key):
+        """Verifica si el miembro tiene un permiso específico."""
+        return self.permissions.get(permission_key, False)
+    
+    def grant_permission(self, permission_key):
+        """Otorga un permiso específico."""
+        if 'permissions' not in self.permissions:
+            self.permissions['permissions'] = {}
+        self.permissions['permissions'][permission_key] = True
+        self.save(update_fields=['permissions', 'updated_at'])
+        self.business_unit._clear_caches()
+    
+    def revoke_permission(self, permission_key):
+        """Revoca un permiso específico."""
+        if 'permissions' in self.permissions:
+            self.permissions['permissions'][permission_key] = False
+            self.save(update_fields=['permissions', 'updated_at'])
+            self.business_unit._clear_caches()
 
 class Person(models.Model):
     number_interaction = models.IntegerField(default=0)
@@ -1714,18 +2253,91 @@ class WebhookLog(models.Model):
         return f"{self.event_type} - {self.created_at}"
 
 class Skill(models.Model):
-    """Modelo para habilidades."""
-    name = models.CharField(max_length=100, unique=True)
-    category = models.CharField(max_length=100)
+    """Modelo para habilidades y competencias."""
+    
+    CATEGORY_CHOICES = [
+        ('technical', 'Técnica'),
+        ('soft', 'Soft Skills'),
+        ('language', 'Idioma'),
+        ('certification', 'Certificación'),
+        ('domain', 'Dominio'),
+        ('other', 'Otro')
+    ]
+    
+    LEVEL_CHOICES = [
+        ('beginner', 'Principiante'),
+        ('intermediate', 'Intermedio'),
+        ('advanced', 'Avanzado'),
+        ('expert', 'Experto')
+    ]
+    
+    name = models.CharField(max_length=100, unique=True, help_text="Nombre de la habilidad")
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, help_text="Categoría de la habilidad")
+    description = models.TextField(blank=True, help_text="Descripción detallada de la habilidad")
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='intermediate', help_text="Nivel de competencia")
+    years_experience = models.PositiveIntegerField(default=0, help_text="Años de experiencia requeridos")
+    
+    # Campos para análisis y recomendaciones
+    demand_score = models.FloatField(default=0.0, help_text="Puntuación de demanda en el mercado (0-1)")
+    growth_potential = models.FloatField(default=0.0, help_text="Potencial de crecimiento (0-1)")
+    related_skills = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='related_to')
+    
+    # Campos para integración con aprendizaje
+    learning_resources = models.JSONField(default=list, help_text="Recursos de aprendizaje asociados")
+    certification_required = models.BooleanField(default=False, help_text="¿Requiere certificación?")
+    certification_providers = models.JSONField(default=list, help_text="Proveedores de certificación")
+    
+    # Campos para métricas y seguimiento
+    usage_count = models.PositiveIntegerField(default=0, help_text="Número de veces que se ha utilizado")
+    last_used = models.DateTimeField(null=True, blank=True, help_text="Última vez que se utilizó")
+    
+    # Campos de auditoría
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    is_active = models.BooleanField(default=True, help_text="¿La habilidad está activa?")
+    
     class Meta:
         verbose_name = "Habilidad"
         verbose_name_plural = "Habilidades"
-
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['category']),
+            models.Index(fields=['level']),
+            models.Index(fields=['demand_score']),
+            models.Index(fields=['is_active'])
+        ]
+    
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_category_display()})"
+    
+    def increment_usage(self):
+        """Incrementa el contador de uso y actualiza la última fecha de uso."""
+        self.usage_count += 1
+        self.last_used = timezone.now()
+        self.save(update_fields=['usage_count', 'last_used'])
+    
+    def get_related_skills(self):
+        """Obtiene las habilidades relacionadas."""
+        return self.related_skills.filter(is_active=True)
+    
+    def get_learning_resources(self):
+        """Obtiene los recursos de aprendizaje asociados."""
+        return self.learning_resources
+    
+    def get_certification_providers(self):
+        """Obtiene los proveedores de certificación."""
+        return self.certification_providers if self.certification_required else []
+    
+    def calculate_demand_score(self):
+        """Calcula la puntuación de demanda basada en varios factores."""
+        # Implementar lógica de cálculo
+        pass
+    
+    def calculate_growth_potential(self):
+        """Calcula el potencial de crecimiento basado en tendencias del mercado."""
+        # Implementar lógica de cálculo
+        pass
 
 class SkillAssessment(models.Model):
     """Modelo para evaluaciones de habilidades."""

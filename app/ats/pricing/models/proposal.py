@@ -1,15 +1,15 @@
+# /home/pablo/app/ats/pricing/models/proposal.py
 from django.db import models
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 
-class Proposal(models.Model):
+class PricingProposal(models.Model):
     """
-    Modelo para propuestas.
+    Modelo para propuestas de servicio.
     """
     ESTADOS = [
         ('BORRADOR', 'Borrador'),
         ('ENVIADA', 'Enviada'),
-        ('EN_REVISION', 'En revisión'),
         ('APROBADA', 'Aprobada'),
         ('RECHAZADA', 'Rechazada'),
         ('CANCELADA', 'Cancelada')
@@ -32,12 +32,12 @@ class Proposal(models.Model):
     metadata = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
     
     class Meta:
-        verbose_name = "Propuesta"
-        verbose_name_plural = "Propuestas"
+        verbose_name = "Propuesta de Servicio"
+        verbose_name_plural = "Propuestas de Servicio"
         ordering = ['-fecha_creacion']
         
     def __str__(self):
-        return f"{self.titulo} - {self.estado}"
+        return f"{self.titulo} - {self.get_estado_display()}"
 
 class ProposalSection(models.Model):
     """
@@ -53,14 +53,14 @@ class ProposalSection(models.Model):
     ]
     
     propuesta = models.ForeignKey(
-        Proposal,
+        PricingProposal,
         on_delete=models.CASCADE,
         related_name='secciones'
     )
     tipo = models.CharField(max_length=20, choices=TIPOS)
     titulo = models.CharField(max_length=200)
     contenido = models.TextField()
-    orden = models.PositiveIntegerField(default=0)
+    orden = models.IntegerField(default=0)
     metadata = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
     
     class Meta:
@@ -69,7 +69,7 @@ class ProposalSection(models.Model):
         ordering = ['orden']
         
     def __str__(self):
-        return f"{self.propuesta} - {self.titulo}"
+        return f"{self.propuesta.titulo} - {self.get_tipo_display()}"
 
 class ProposalTemplate(models.Model):
     """
