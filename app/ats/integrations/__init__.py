@@ -35,7 +35,7 @@ from .utils import (
     get_integration_config,
     set_integration_config
 )
-from .linkedin import LinkedInService
+from .channels.linkedin.channel import LinkedInChannel
 from .matchmaking import MatchmakingService
 from .chatbot import ChatbotService
 
@@ -65,7 +65,7 @@ __all__ = [
     'parse_webhook_payload',
     'get_integration_config',
     'set_integration_config',
-    'LinkedInService',
+    'LinkedInChannel',
     'MatchmakingService',
     'ChatbotService'
 ] 

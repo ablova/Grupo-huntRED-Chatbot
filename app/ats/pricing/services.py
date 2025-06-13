@@ -5,7 +5,7 @@ from django.conf import settings
 from datetime import timedelta
 from decimal import Decimal
 
-from .models import ServiceCalculation, PaymentSchedule, PaymentNotification, Payment
+from app.models import ServiceCalculation, PaymentSchedule, PaymentNotification, Payment
 
 class BillingService:
     """

@@ -34,7 +34,7 @@ import re
 import uuid
 import logging
 import requests
-import ots
+
 from django.utils import timezone as now
 logger=logging.getLogger(__name__)
 ROLE_CHOICES=[('SUPER_ADMIN','Super Administrador'),('BU_COMPLETE','Consultor BU Completo'),('BU_DIVISION','Consultor BU División')]
@@ -99,29 +99,40 @@ PERMISSION_CHOICES=[('ALL_ACCESS','Acceso Total'),('BU_ACCESS','Acceso a BU'),('
 
 # Canales de Notificación
 NOTIFICATION_CHANNEL_CHOICES = [
+    ('EMAIL', 'Email'),
+    ('SMS', 'SMS'),
     ('WHATSAPP', 'WhatsApp'),
     ('TELEGRAM', 'Telegram'),
-    ('EMAIL', 'Email'),
     ('SLACK', 'Slack'),
-    ('NTFY', 'ntfy.sh')
+    ('DISCORD', 'Discord'),
+    ('TEAMS', 'Microsoft Teams'),
+    ('WEB', 'Web'),
+    ('API', 'API'),
+    ('DATABASE', 'Base de Datos'),
+    ('QUEUE', 'Cola'),
+    ('CACHE', 'Caché')
 ]
 
 # Estados de Notificación
 NOTIFICATION_STATUS_CHOICES = [
     ('PENDING', 'Pendiente'),
-    ('SENT', 'Enviada'),
-    ('DELIVERED', 'Entregada'),
-    ('READ', 'Leída'),
-    ('FAILED', 'Fallida')
+    ('SENT', 'Enviado'),
+    ('FAILED', 'Fallido'),
+    ('DELIVERED', 'Entregado'),
+    ('READ', 'Leído'),
+    ('CANCELLED', 'Cancelado')
 ]
 
 # Tipos de Notificación
 NOTIFICATION_TYPE_CHOICES = [
-    ('FEEDBACK', 'Feedback'),
-    ('MATCHING', 'Matching'),
-    ('PROPOSAL', 'Propuesta'),
-    ('HIRE', 'Contratación'),
-    ('SYSTEM', 'Sistema')
+    ('SYSTEM', 'Sistema'),
+    ('ALERT', 'Alerta'),
+    ('UPDATE', 'Actualización'),
+    ('REMINDER', 'Recordatorio'),
+    ('WARNING', 'Advertencia'),
+    ('ERROR', 'Error'),
+    ('SUCCESS', 'Éxito'),
+    ('INFO', 'Información')
 ]
 
 class NotificationChannel(models.Model):
@@ -145,6 +156,11 @@ class NotificationChannel(models.Model):
         help_text="¿Este canal está habilitado para esta BU?"
     )
     
+    is_active = models.BooleanField(
+        default=True,
+        help_text="¿Este canal está activo?"
+    )
+    
     config = models.JSONField(
         default=dict,
         help_text="Configuración específica del canal (tokens, URLs, etc.)"
@@ -155,6 +171,19 @@ class NotificationChannel(models.Model):
         help_text="Prioridad del canal (menor número = mayor prioridad)"
     )
     
+    rate_limit = models.IntegerField(
+        default=100,
+        help_text="Límite de mensajes por minuto"
+    )
+    
+    retry_policy = models.JSONField(
+        default=dict,
+        help_text="Política de reintentos (max_attempts, delay_minutes, etc.)"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
     class Meta:
         verbose_name = "Canal de Notificación"
         verbose_name_plural = "Canales de Notificación"
@@ -163,6 +192,69 @@ class NotificationChannel(models.Model):
         
     def __str__(self):
         return f"{self.business_unit.name} - {self.channel}"
+
+
+class NotificationTemplate(models.Model):
+    """Modelo para plantillas de notificación."""
+    
+    name = models.CharField(
+        max_length=100,
+        help_text="Nombre de la plantilla"
+    )
+    
+    type = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_TYPE_CHOICES,
+        help_text="Tipo de notificación"
+    )
+    
+    channel = models.ForeignKey(
+        NotificationChannel,
+        on_delete=models.CASCADE,
+        related_name='templates',
+        help_text="Canal asociado a esta plantilla"
+    )
+    
+    subject = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Asunto de la notificación (para email, etc.)"
+    )
+    
+    content = models.TextField(
+        help_text="Contenido de la plantilla con variables"
+    )
+    
+    variables = models.JSONField(
+        default=list,
+        help_text="Lista de variables disponibles en la plantilla"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="¿La plantilla está activa?"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Plantilla de Notificación"
+        verbose_name_plural = "Plantillas de Notificación"
+        ordering = ['name']
+        unique_together = ['name', 'type', 'channel']
+        
+    def __str__(self):
+        return self.name
+        
+    def render_content(self, context):
+        """Renderiza el contenido de la plantilla con el contexto proporcionado."""
+        try:
+            template = Template(self.content)
+            return template.render(Context(context))
+        except Exception as e:
+            logger.error(f"Error al renderizar plantilla {self.name}: {str(e)}")
+            return self.content
 
 class Notification(models.Model):
     """Modelo para manejar todas las notificaciones del sistema."""
@@ -197,9 +289,34 @@ class Notification(models.Model):
         help_text="Contenido de la notificación"
     )
     
+    template = models.ForeignKey(
+        'NotificationTemplate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notifications',
+        help_text="Plantilla utilizada para esta notificación"
+    )
+    
     metadata = models.JSONField(
         default=dict,
         help_text="Datos adicionales de la notificación"
+    )
+    
+    sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha y hora en que se envió la notificación"
+    )
+    
+    error_message = models.TextField(
+        blank=True,
+        help_text="Mensaje de error si falló el envío"
+    )
+    
+    retry_count = models.IntegerField(
+        default=0,
+        help_text="Número de intentos de envío"
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -212,6 +329,23 @@ class Notification(models.Model):
         
     def __str__(self):
         return f"{self.notification_type} - {self.recipient.nombre} ({self.channel})"
+        
+    def mark_as_sent(self):
+        """Marca la notificación como enviada."""
+        self.status = 'SENT'
+        self.sent_at = timezone.now()
+        self.save()
+        
+    def mark_as_failed(self, error_message):
+        """Marca la notificación como fallida."""
+        self.status = 'FAILED'
+        self.error_message = error_message
+        self.save()
+        
+    def increment_retry(self):
+        """Incrementa el contador de reintentos."""
+        self.retry_count += 1
+        self.save()
 
 class Feedback(models.Model):
     """Modelo para almacenar feedback de candidatos y entrevistas."""
@@ -1081,6 +1215,116 @@ class DominioScraping(models.Model):
     def __str__(self):
         return self.domain
 
+
+class Worker(models.Model):
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='workers')
+    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='workers')
+    name=models.CharField(max_length=100)
+    whatsapp=models.CharField(max_length=20,blank=True,null=True)
+    img_company=models.CharField(max_length=500,blank=True,null=True)
+    job_id=models.CharField(max_length=100,blank=True,null=True)
+    url_name=models.CharField(max_length=100,blank=True,null=True)
+    salary=models.CharField(max_length=100,blank=True,null=True)
+    job_type=models.CharField(max_length=100,blank=True,null=True)
+    address=models.CharField(max_length=200,blank=True,null=True)
+    longitude=models.CharField(max_length=100,blank=True,null=True)
+    latitude=models.CharField(max_length=100,blank=True,null=True)
+    required_skills=models.TextField(blank=True,null=True)
+    experience_required=models.IntegerField(blank=True,null=True)
+    job_description=models.TextField(blank=True,null=True)
+    metadata=models.JSONField(default=dict,blank=True,help_text="Información adicional del puesto: sectores, requerimientos, etc.")
+    class Meta:
+        indexes=[
+            models.Index(fields=['name']),
+            models.Index(fields=['job_id']),
+            models.Index(fields=['company']),
+        ]
+    def __str__(self):
+        return str(self.name)
+
+class Vacante(models.Model):
+    titulo = models.CharField(max_length=1000)
+    empresa = models.ForeignKey(Worker, on_delete=models.CASCADE)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)
+    proposal = models.ForeignKey('Proposal', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacancies')
+    salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    ubicacion = models.CharField(max_length=300, blank=True, null=True)
+    modalidad = models.CharField(max_length=50, choices=[
+        ('presencial', 'Presencial'),
+        ('remoto', 'Remoto'),
+        ('hibrido', 'Híbrido')
+    ], null=True, blank=True)
+    remote_friendly = models.BooleanField(default=False)
+    descripcion = models.TextField(max_length=3000, blank=True)
+    requisitos = models.TextField(blank=True, null=True)
+    beneficios = models.TextField(blank=True, null=True)
+    skills_required = models.JSONField(default=list)
+    activa = models.BooleanField(default=True)
+    fecha_publicacion = models.DateTimeField()
+    fecha_scraping = models.DateTimeField(auto_now_add=True)
+    current_stage = models.ForeignKey('WorkflowStage', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacantes')
+    numero_plazas = models.IntegerField(default=1, help_text="Número total de plazas disponibles")
+    plazas_restantes = models.IntegerField(default=1, help_text="Número de plazas aún disponibles")
+    procesamiento_count = models.IntegerField(default=0, help_text="Número de candidatos en proceso")
+    publicar_en = models.JSONField(default=list, help_text="Plataformas donde se publicará la vacante")
+    frecuencia_publicacion = models.IntegerField(default=1, help_text="Frecuencia de publicación en días")
+    max_candidatos = models.IntegerField(default=100, help_text="Máximo número de candidatos a aceptar")
+    dominio_origen = models.ForeignKey('DominioScraping', on_delete=models.SET_NULL, null=True)
+    url_original = models.URLField(max_length=1000, blank=True, null=True)
+    sentiment = models.CharField(max_length=20, blank=True, null=True)
+    job_classification = models.CharField(max_length=100, blank=True, null=True)
+    requiere_prueba_personalidad = models.BooleanField(default=False)
+    # Campos de LinkedIn (temporalmente deshabilitados hasta obtener acceso a la API)
+    linkedin_job_id = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        help_text="ID de la publicación en LinkedIn (temporalmente no disponible)"
+    )
+    linkedin_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_posted', 'No publicado'),
+            ('manual', 'Publicado manualmente')
+        ],
+        default='not_posted',
+        help_text="Estado de la publicación en LinkedIn (temporalmente solo manual)"
+    )
+    # Origen de la vacante
+    ORIGEN_CHOICES = [
+        ('manual', 'Creada manualmente'),
+        ('scraping', 'Obtenida por scraping'),
+        ('email', 'Obtenida por email'),
+        ('wordpress', 'Sincronizada de WordPress')
+    ]
+    origen = models.CharField(
+        max_length=20,
+        choices=ORIGEN_CHOICES,
+        default='manual',
+        help_text="Origen de la vacante (manual, scraping, email o wordpress)"
+    )
+    unique_together = ['titulo', 'empresa', 'url_original']
+    ordering = ['-fecha_publicacion']
+    def __str__(self):
+        return f"{self.titulo} - {self.empresa}"
+
+
+class Vacancy(models.Model):
+    """Modelo para vacantes."""
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    status = models.CharField(max_length=50)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Vacante"
+        verbose_name_plural = "Vacantes"
+
+    def __str__(self):
+        return self.title
+    
 class MilkyLeak(models.Model):
     """Modelo para el sistema de leaks."""
     title = models.CharField(max_length=200)
@@ -1239,6 +1483,38 @@ class Invoice(models.Model):
 
     def __str__(self):
         return self.invoice_number
+
+class EstadoPerfil(models.TextChoices):
+    ACTIVO = 'activo', 'Activo'
+    INACTIVO = 'inactivo', 'Inactivo'
+    SUSPENDIDO = 'suspendido', 'Suspendido'
+
+class TipoDocumento(models.TextChoices):
+    RFC = 'rfc', 'RFC'
+    CURP = 'curp', 'CURP'
+    DNI = 'dni', 'DNI'
+    PASAPORTE = 'pasaporte', 'Pasaporte'
+
+class EstadoPago(models.TextChoices):
+    PENDIENTE = 'pendiente', 'Pendiente'
+    COMPLETADO = 'completado', 'Completado'
+    FALLIDO = 'fallido', 'Fallido'
+    RECHAZADO = 'rechazado', 'Rechazado'
+    EN_PROCESO = 'en_proceso', 'En Proceso'
+    REFUNDADO = 'reembolsado', 'Reembolsado'
+
+class TipoPago(models.TextChoices):
+    MONOEDO = 'monoedo', 'Pago Simple'
+    MULTIEDO = 'multiedo', 'Pago Múltiple'
+    RECURRENTE = 'recurrente', 'Pago Recurrente'
+    PRUEBA = 'prueba', 'Pago de Prueba'
+
+class MetodoPago(models.TextChoices):
+    PAYPAL = 'paypal', 'PayPal'
+    STRIPE = 'stripe', 'Stripe'
+    MERCADOPAGO = 'mercadopago', 'MercadoPago'
+    TRANSFERENCIA = 'transferencia', 'Transferencia Bancaria'
+    CRYPTO = 'crypto', 'Criptomonedas'
 
 class Pago(models.Model):
     empleador = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='pagos_enviados')
@@ -1849,22 +2125,6 @@ class Contract(models.Model):
     def __str__(self):
         return self.title
 
-class Vacancy(models.Model):
-    """Modelo para vacantes."""
-    title = models.CharField(max_length=200)
-    description = models.TextField()
-    status = models.CharField(max_length=50)
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Vacante"
-        verbose_name_plural = "Vacantes"
-
-    def __str__(self):
-        return self.title
-
 class UserPermission(models.Model):
     """Modelo para permisos de usuario."""
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -2136,18 +2396,263 @@ class TalentAnalysisRequest(models.Model):
         return f"{self.person} - {self.status}"
 
 class ServiceCalculation(models.Model):
-    """Modelo para cálculos de servicios."""
-    service_type = models.CharField(max_length=100)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    """Modelo para cálculos de servicios y precios."""
+    
+    service = models.ForeignKey(
+        'Service',
+        on_delete=models.CASCADE,
+        related_name='calculations',
+        help_text="Servicio asociado"
+    )
+    
+    base_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Precio base del servicio"
+    )
+    
+    calculation_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('FIXED', 'Precio Fijo'),
+            ('HOURLY', 'Por Hora'),
+            ('DAILY', 'Por Día'),
+            ('MONTHLY', 'Por Mes'),
+            ('PROJECT', 'Por Proyecto'),
+            ('PERCENTAGE', 'Porcentaje')
+        ],
+        help_text="Tipo de cálculo de precio"
+    )
+    
+    variables = models.JSONField(
+        default=dict,
+        help_text="Variables utilizadas en el cálculo"
+    )
+    
+    formula = models.TextField(
+        help_text="Fórmula de cálculo"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     class Meta:
         verbose_name = "Cálculo de Servicio"
         verbose_name_plural = "Cálculos de Servicios"
-
+        
     def __str__(self):
-        return f"{self.service_type} - {self.amount}"
+        return f"{self.service.name} - {self.get_calculation_type_display()}"
+
+class PaymentSchedule(models.Model):
+    """Modelo para programación de pagos."""
+    
+    service = models.ForeignKey(
+        'Service',
+        on_delete=models.CASCADE,
+        related_name='payment_schedules',
+        help_text="Servicio asociado"
+    )
+    
+    client = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='payment_schedules',
+        help_text="Cliente"
+    )
+    
+    total_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Monto total a pagar"
+    )
+    
+    schedule_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('SINGLE', 'Pago Único'),
+            ('INSTALLMENTS', 'Pagos Parciales'),
+            ('RECURRING', 'Pago Recurrente')
+        ],
+        help_text="Tipo de programación"
+    )
+    
+    start_date = models.DateField(
+        help_text="Fecha de inicio de pagos"
+    )
+    
+    end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Fecha de finalización (si aplica)"
+    )
+    
+    frequency = models.CharField(
+        max_length=20,
+        choices=[
+            ('DAILY', 'Diario'),
+            ('WEEKLY', 'Semanal'),
+            ('MONTHLY', 'Mensual'),
+            ('QUARTERLY', 'Trimestral'),
+            ('YEARLY', 'Anual')
+        ],
+        help_text="Frecuencia de pagos"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('PENDING', 'Pendiente'),
+            ('ACTIVE', 'Activo'),
+            ('COMPLETED', 'Completado'),
+            ('CANCELLED', 'Cancelado')
+        ],
+        default='PENDING',
+        help_text="Estado de la programación"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Programación de Pago"
+        verbose_name_plural = "Programaciones de Pagos"
+        
+    def __str__(self):
+        return f"{self.client.nombre} - {self.service.name} ({self.get_schedule_type_display()})"
+
+class PaymentNotification(models.Model):
+    """Modelo para notificaciones de pago."""
+    
+    payment = models.ForeignKey(
+        'Payment',
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        help_text="Pago asociado"
+    )
+    
+    notification_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('DUE', 'Pago Próximo'),
+            ('OVERDUE', 'Pago Vencido'),
+            ('PAID', 'Pago Realizado'),
+            ('FAILED', 'Pago Fallido'),
+            ('REFUNDED', 'Pago Reembolsado')
+        ],
+        help_text="Tipo de notificación"
+    )
+    
+    recipient = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='payment_notifications',
+        help_text="Destinatario de la notificación"
+    )
+    
+    message = models.TextField(
+        help_text="Mensaje de la notificación"
+    )
+    
+    sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha y hora de envío"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('PENDING', 'Pendiente'),
+            ('SENT', 'Enviado'),
+            ('FAILED', 'Fallido'),
+            ('READ', 'Leído')
+        ],
+        default='PENDING',
+        help_text="Estado de la notificación"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Notificación de Pago"
+        verbose_name_plural = "Notificaciones de Pagos"
+        
+    def __str__(self):
+        return f"{self.get_notification_type_display()} - {self.payment}"
+
+class Payment(models.Model):
+    """Modelo para pagos."""
+    
+    schedule = models.ForeignKey(
+        PaymentSchedule,
+        on_delete=models.CASCADE,
+        related_name='payments',
+        help_text="Programación de pago asociada"
+    )
+    
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Monto del pago"
+    )
+    
+    due_date = models.DateField(
+        help_text="Fecha de vencimiento"
+    )
+    
+    payment_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha y hora del pago"
+    )
+    
+    payment_method = models.CharField(
+        max_length=20,
+        choices=[
+            ('CASH', 'Efectivo'),
+            ('CARD', 'Tarjeta'),
+            ('TRANSFER', 'Transferencia'),
+            ('CHECK', 'Cheque'),
+            ('CRYPTO', 'Criptomoneda')
+        ],
+        help_text="Método de pago"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('PENDING', 'Pendiente'),
+            ('PAID', 'Pagado'),
+            ('OVERDUE', 'Vencido'),
+            ('FAILED', 'Fallido'),
+            ('REFUNDED', 'Reembolsado')
+        ],
+        default='PENDING',
+        help_text="Estado del pago"
+    )
+    
+    transaction_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="ID de la transacción"
+    )
+    
+    notes = models.TextField(
+        blank=True,
+        help_text="Notas adicionales"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Pago"
+        verbose_name_plural = "Pagos"
+        
+    def __str__(self):
+        return f"{self.schedule.client.nombre} - {self.amount} ({self.get_status_display()})"
 
 class PremiumAddon(models.Model):
     """Modelo para addons premium."""
@@ -2479,9 +2984,30 @@ def update_candidate_status(sender, instance, created, **kwargs):
             candidate.metadata['succession_status'] = 'needs_development'
         candidate.save()
 
+# Tipos de mentoría
+MENTORING_TYPE_CHOICES = [
+    ('CAREER', 'Carrera'),
+    ('TECHNICAL', 'Habilidades técnicas'),
+    ('LEADERSHIP', 'Liderazgo'),
+    ('ENTREPRENEURSHIP', 'Emprendimiento'),
+    ('WORK_LIFE', 'Equilibrio vida-trabajo'),
+    ('NETWORKING', 'Networking')
+]
+
+# Estados de sesión de mentoría
+MENTORING_SESSION_STATUS_CHOICES = [
+    ('SCHEDULED', 'Programada'),
+    ('COMPLETED', 'Completada'),
+    ('CANCELLED', 'Cancelada'),
+    ('IN_PROGRESS', 'En Progreso')
+]
+
 class Mentor(models.Model):
-    """Modelo para profesionales que dan mentorías a otros."""
+    """Modelo para profesionales que dan mentorías a otros.
     
+    Un Mentor es una Person vinculada a una Company que ofrece orientación
+    y apoyo a otros profesionales (mentees) basado en su experiencia.
+    """
     person = models.OneToOneField(
         'Person',
         on_delete=models.CASCADE,
@@ -2529,6 +3055,7 @@ class Mentor(models.Model):
         help_text="Áreas de expertise específicas"
     )
     
+    # Área de descripción y estilo
     bio = models.TextField(
         blank=True,
         help_text="Biografía y experiencia relevante"
@@ -2546,13 +3073,25 @@ class Mentor(models.Model):
         help_text="Tipo de personalidad predominante"
     )
     
+    # Disponibilidad y preferencias
     availability = models.JSONField(
         default=dict,
         help_text="Disponibilidad horaria del mentor"
     )
     
+    # Metadatos
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Recomendador (debe ser de la misma organización)
+    recommended_by = models.ForeignKey(
+        'Person',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='mentor_recommendations',
+        help_text="Persona que recomendó al mentor (debe ser de la misma organización)"
+    )
     
     class Meta:
         verbose_name = "Mentor"
@@ -2560,38 +3099,42 @@ class Mentor(models.Model):
         indexes = [
             models.Index(fields=['person']),
             models.Index(fields=['company']),
-            models.Index(fields=['specialty']),
-            models.Index(fields=['is_active'])
+            models.Index(fields=['is_active']),
+            models.Index(fields=['rating'])
         ]
-        
+    
     def __str__(self):
-        return f"{self.person} - {self.specialty}"
-        
+        return f"Mentor: {self.person} ({self.specialty})"
+    
     def get_skills(self):
+        """Obtiene las habilidades del mentor."""
         return self.mentor_skills.all()
-        
+    
     def get_sessions(self):
+        """Obtiene las sesiones del mentor."""
         return self.mentor_sessions.all()
-        
+    
     def to_dict(self):
+        """Convierte el objeto a diccionario para API."""
         return {
             'id': self.id,
-            'person': self.person.to_dict(),
+            'name': str(self.person),
             'specialty': self.specialty,
             'years_experience': self.years_experience,
             'rating': self.rating,
             'is_active': self.is_active,
             'mentoring_types': self.mentoring_types,
             'expertise_areas': self.expertise_areas,
-            'bio': self.bio,
             'teaching_style': self.teaching_style,
-            'personality_type': self.personality_type,
-            'availability': self.availability
+            'personality_type': self.personality_type
         }
 
 class MentorSkill(models.Model):
-    """Modelo para habilidades específicas de un mentor."""
+    """Modelo para habilidades específicas de un mentor.
     
+    Representa una habilidad que posee un mentor, con su nivel de dominio
+    y años de experiencia en esa habilidad específica.
+    """
     mentor = models.ForeignKey(
         'Mentor',
         on_delete=models.CASCADE,
@@ -2616,6 +3159,7 @@ class MentorSkill(models.Model):
         help_text="Años de experiencia con esta habilidad"
     )
     
+    # Metadatos
     created_at = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
     
@@ -2628,21 +3172,25 @@ class MentorSkill(models.Model):
             models.Index(fields=['skill']),
             models.Index(fields=['proficiency_level'])
         ]
-        
+    
     def __str__(self):
-        return f"{self.mentor} - {self.skill} ({self.proficiency_level}%)"
-        
+        return f"{self.skill} ({self.proficiency_level}%)"
+    
     def to_dict(self):
+        """Convierte el objeto a diccionario para API."""
         return {
             'id': self.id,
-            'skill': self.skill.to_dict(),
-            'proficiency_level': self.proficiency_level,
+            'name': str(self.skill),
+            'level': self.proficiency_level,
             'years': self.years
         }
 
 class MentorSession(models.Model):
-    """Modelo para sesiones de mentoría."""
+    """Modelo para sesiones de mentoría.
     
+    Representa una sesión programada o completada entre un mentor y un mentee,
+    con información sobre objetivos, resultados y retroalimentación.
+    """
     mentor = models.ForeignKey(
         'Mentor',
         on_delete=models.CASCADE,
@@ -2684,6 +3232,7 @@ class MentorSession(models.Model):
         help_text="Notas previas o agenda de la sesión"
     )
     
+    # Campos para sesiones completadas
     completed_date = models.DateTimeField(
         null=True,
         blank=True,
@@ -2702,6 +3251,7 @@ class MentorSession(models.Model):
         help_text="Retroalimentación sobre la sesión"
     )
     
+    # Metadatos
     created_at = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
     
@@ -2715,26 +3265,28 @@ class MentorSession(models.Model):
             models.Index(fields=['status'])
         ]
         ordering = ['-scheduled_date']
-        
+    
     def __str__(self):
-        return f"Sesión de {self.mentor} con {self.mentee} - {self.scheduled_date}"
-        
+        return f"Sesión: {self.mentor.person} - {self.mentee} ({self.scheduled_date.strftime('%Y-%m-%d')})"
+    
     def to_dict(self):
+        """Convierte el objeto a diccionario para API."""
         return {
             'id': self.id,
-            'mentor': self.mentor.to_dict(),
-            'mentee': self.mentee.to_dict(),
-            'scheduled_date': self.scheduled_date,
+            'mentor_id': self.mentor.id,
+            'mentee_id': self.mentee.id,
+            'scheduled_date': self.scheduled_date.isoformat(),
             'duration': self.duration,
             'status': self.status,
             'goal': self.goal,
             'notes': self.notes,
-            'completed_date': self.completed_date,
+            'completed_date': self.completed_date.isoformat() if self.completed_date else None,
             'rating': self.rating,
             'feedback': self.feedback
         }
-        
+    
     def mark_as_completed(self, rating=None, feedback=None):
+        """Marca la sesión como completada con retroalimentación opcional."""
         self.status = 'COMPLETED'
         self.completed_date = timezone.now()
         if rating is not None:
@@ -2782,27 +3334,6 @@ class CustomUser(AbstractUser):
             return True
         return self.business_unit.division == division
 
-class EstadoPago(models.TextChoices):
-    PENDIENTE = 'pendiente', 'Pendiente'
-    COMPLETADO = 'completado', 'Completado'
-    FALLIDO = 'fallido', 'Fallido'
-    RECHAZADO = 'rechazado', 'Rechazado'
-    EN_PROCESO = 'en_proceso', 'En Proceso'
-    REFUNDADO = 'reembolsado', 'Reembolsado'
-
-class TipoPago(models.TextChoices):
-    MONOEDO = 'monoedo', 'Pago Simple'
-    MULTIEDO = 'multiedo', 'Pago Múltiple'
-    RECURRENTE = 'recurrente', 'Pago Recurrente'
-    PRUEBA = 'prueba', 'Pago de Prueba'
-
-class MetodoPago(models.TextChoices):
-    PAYPAL = 'paypal', 'PayPal'
-    STRIPE = 'stripe', 'Stripe'
-    MERCADOPAGO = 'mercadopago', 'MercadoPago'
-    TRANSFERENCIA = 'transferencia', 'Transferencia Bancaria'
-    CRYPTO = 'crypto', 'Criptomonedas'
-
 class Worker(models.Model):
     persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='worker')
     
@@ -2835,6 +3366,54 @@ class Worker(models.Model):
     def validar_documentos(self):
         """Valida que todos los documentos requeridos estén presentes y sean válidos"""
         return True  # Implementación pendiente
+
+class Empleador(models.Model):
+    persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='empleador')
+    description = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    industry = models.CharField(max_length=100, choices=[DIVISION_CHOICES])
+    size = models.CharField(max_length=50, choices=[
+        ('small', 'Pequeña'),
+        ('medium', 'Mediana'),
+        ('large', 'Grande'),
+        ('enterprise', 'Empresa')
+    ])
+    location = models.CharField(max_length=255)
+    
+    # Información fiscal
+    razon_social = models.CharField(max_length=255)
+    rfc = models.CharField(max_length=13, unique=True)
+    direccion_fiscal = models.TextField()
+    
+    # Información bancaria
+    clabe = models.CharField(max_length=18, unique=True)
+    banco = models.CharField(max_length=100)
+    
+    # Información de contacto
+    sitio_web = models.URLField(null=True, blank=True)
+    telefono_oficina = models.CharField(max_length=20)
+    
+    # Estado
+    estado = models.CharField(max_length=20, choices=EstadoPerfil.choices, default=EstadoPerfil.ACTIVO)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    # Documentos
+    documento_identidad = models.FileField(upload_to='empleadores/documentos/')
+    comprobante_domicilio = models.FileField(upload_to='empleadores/documentos/')
+    
+    class Meta:
+        ordering = ['-fecha_registro']
+        verbose_name = 'Empleador'
+        verbose_name_plural = 'Empleadores'
+
+    def __str__(self):
+        return self.razon_social
+
+    def validar_documentos(self):
+        """Valida que todos los documentos requeridos estén presentes y sean válidos"""
+        return True  # Implementación pendiente
+
 
 class Oportunidad(models.Model):
     empleador = models.ForeignKey(Empleador, on_delete=models.CASCADE, related_name='oportunidades')
@@ -3691,7 +4270,7 @@ class NotificationConfig(models.Model):
     )
     default_channel = models.CharField(
         max_length=20,
-        choices=NotificationChannel.CHANNEL_CHOICES,
+        choices=NOTIFICATION_CHANNEL_CHOICES,
         default='WHATSAPP',
         help_text="Canal por defecto para notificaciones"
     )
@@ -3737,22 +4316,100 @@ class NotificationConfig(models.Model):
         return False
 
 class ChatState(models.Model):
-    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='chat_states')
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='chat_states')
-    state = models.CharField(max_length=50, choices=STATE_TYPE_CHOICES, default='INITIAL')
-    last_intent = models.ForeignKey(IntentPattern, on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_states')
-    conversation_history = models.JSONField(default=list)
-    last_transition = models.DateTimeField(auto_now=True)
+    """Modelo para manejar el estado de las conversaciones del chatbot."""
+    
+    # Campos de identificación
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        related_name='chat_states',
+        help_text="Persona asociada a la conversación"
+    )
+    
+    business_unit = models.ForeignKey(
+        BusinessUnit,
+        on_delete=models.CASCADE,
+        related_name='chat_states',
+        help_text="Business Unit asociada a la conversación"
+    )
+    
+    # Campos de estado
+    state = models.CharField(
+        max_length=50,
+        choices=STATE_TYPE_CHOICES,
+        default='INITIAL',
+        help_text="Estado actual de la conversación"
+    )
+    
+    last_intent = models.ForeignKey(
+        IntentPattern,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='chat_states',
+        help_text="Último intento reconocido"
+    )
+    
+    # Campos de navegación
+    menu_page = models.IntegerField(
+        default=0,
+        help_text="Página actual del menú"
+    )
+    
+    last_menu = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Último menú visitado"
+    )
+    
+    last_submenu = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Último submenú visitado"
+    )
+    
+    # Campos de búsqueda
+    search_term = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Término de búsqueda actual"
+    )
+    
+    # Campos de historial
+    conversation_history = models.JSONField(
+        default=list,
+        help_text="Historial de la conversación"
+    )
+    
+    last_transition = models.DateTimeField(
+        auto_now=True,
+        help_text="Última transición de estado"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        verbose_name = "Estado de Chat"
+        verbose_name_plural = "Estados de Chat"
         unique_together = ('person', 'business_unit')
+        indexes = [
+            models.Index(fields=["person", "business_unit"]),
+            models.Index(fields=["state"]),
+            models.Index(fields=["menu_page"]),
+            models.Index(fields=["last_menu"]),
+            models.Index(fields=["last_submenu"]),
+            models.Index(fields=["last_transition"]),
+        ]
         
     def __str__(self):
         return f"{self.person.nombre} - {self.business_unit.name} ({self.state})"
         
     def get_available_intents(self):
+        """Obtiene los intents disponibles para el estado actual."""
         current_state = self.state
         bu = self.business_unit
         transitions = StateTransition.objects.filter(current_state=current_state, business_unit=bu)
@@ -3761,6 +4418,7 @@ class ChatState(models.Model):
         return filtered_intents
         
     def validate_transition(self, new_state):
+        """Valida si la transición al nuevo estado es permitida."""
         try:
             StateTransition.objects.get(current_state=self.state, next_state=new_state, business_unit=self.business_unit)
             return True
@@ -3768,12 +4426,36 @@ class ChatState(models.Model):
             return False
             
     def transition_to(self, new_state):
+        """Realiza la transición al nuevo estado si es válida."""
         if self.validate_transition(new_state):
             self.state = new_state
             self.last_transition = timezone.now()
             self.save()
             return True
         return False
+        
+    def reset_menu_state(self):
+        """Resetea el estado de navegación del menú."""
+        self.menu_page = 0
+        self.last_menu = None
+        self.last_submenu = None
+        self.search_term = None
+        self.save()
+        
+    def update_menu_state(self, menu: str = None, submenu: str = None, page: int = None):
+        """Actualiza el estado de navegación del menú."""
+        if menu is not None:
+            self.last_menu = menu
+        if submenu is not None:
+            self.last_submenu = submenu
+        if page is not None:
+            self.menu_page = page
+        self.save()
+        
+    def update_search_term(self, term: str):
+        """Actualiza el término de búsqueda actual."""
+        self.search_term = term
+        self.save()
 
 class FailedLoginAttempt(models.Model):
     """Registro de intentos fallidos de inicio de sesión."""
@@ -4288,30 +4970,6 @@ class Interaction(models.Model):
     def __str__(self):
         return f"{self.user} - {self.type}"
 
-class Empleador(models.Model):
-    """Modelo para empleadores."""
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    website = models.URLField(blank=True)
-    industry = models.CharField(max_length=100)
-    size = models.CharField(max_length=50, choices=[
-        ('small', 'Pequeña'),
-        ('medium', 'Mediana'),
-        ('large', 'Grande'),
-        ('enterprise', 'Empresa')
-    ])
-    location = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Empleador"
-        verbose_name_plural = "Empleadores"
-        ordering = ['name']
-        
-    def __str__(self):
-        return self.name
 
 class SexsiConfig(models.Model):
     """Modelo para configuración de Sexsi."""
@@ -4464,3 +5122,4 @@ class Experience(models.Model):
         
     def __str__(self):
         return f"{self.person} - {self.title} en {self.company}"
+

@@ -1,5 +1,6 @@
+# /home/pablo/app/ats/admin/chatbot/__init__.py
 from django.contrib import admin
-from app.ats.chatbot.models import ChatSession, ChatMessage, ChatTemplate
+from app.models import ChatSession, ChatMessage
 
 @admin.register(ChatSession)
 class ChatSessionAdmin(admin.ModelAdmin):
@@ -95,44 +96,6 @@ class ChatMessageAdmin(admin.ModelAdmin):
             'fields': (
                 'response_time',
                 'processing_time'
-            )
-        })
-    )
-
-@admin.register(ChatTemplate)
-class ChatTemplateAdmin(admin.ModelAdmin):
-    """Administración de Plantillas de Chat"""
-    
-    list_display = (
-        'name',
-        'type',
-        'is_active',
-        'created_at'
-    )
-    
-    list_filter = (
-        'type',
-        'is_active'
-    )
-    
-    search_fields = (
-        'name',
-        'content'
-    )
-    
-    fieldsets = (
-        ('Información Básica', {
-            'fields': (
-                'name',
-                'type',
-                'is_active'
-            )
-        }),
-        ('Contenido', {
-            'fields': (
-                'content',
-                'variables',
-                'conditions'
             )
         })
     ) 

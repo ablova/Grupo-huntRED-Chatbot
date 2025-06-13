@@ -1,13 +1,11 @@
 from typing import Dict, Any, List
 from decimal import Decimal
-from app.ats.pricing.models.addons import PremiumAddon
+from app.ats.pricing.models import PricingStrategy, PremiumAddon, DiscountRule, ReferralFee
 from app.ats.models.business_unit import BusinessUnit
 from app.ats.market.services.market_monitor import MarketMonitor
-from app.ats.pricing.models.discount import Discount
-from app.ats.pricing.models.referral import ReferralFee
 
-class PricingStrategy:
-    """Servicio de estrategia de precios"""
+class PricingService:
+    """Servicio para manejar la lógica de precios"""
     
     def __init__(self):
         self.market_monitor = MarketMonitor()
@@ -95,10 +93,10 @@ class PricingStrategy:
         business_unit: BusinessUnit
     ) -> Dict[str, Any]:
         """Obtiene estrategia de descuentos"""
-        discounts = await Discount.objects.filter(
-            addon=addon,
-            business_unit=business_unit,
-            is_active=True
+        discounts = await DiscountRule.objects.filter(
+            is_active=True,
+            valid_from__lte=timezone.now(),
+            valid_to__isnull=True
         )
         
         return {
@@ -120,9 +118,9 @@ class PricingStrategy:
     ) -> Dict[str, Any]:
         """Obtiene estrategia de referidos"""
         referral_fees = await ReferralFee.objects.filter(
-            addon=addon,
-            business_unit=business_unit,
-            is_active=True
+            is_active=True,
+            valid_from__lte=timezone.now(),
+            valid_to__isnull=True
         )
         
         return {

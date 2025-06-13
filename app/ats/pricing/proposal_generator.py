@@ -16,7 +16,7 @@ from app.ats.pricing.config import (
     PROPOSAL_TEMPLATES_DIR, PROPOSAL_PDF_DIR, PDF_CONFIG,
     CACHE_CONFIG, AI_CONFIG, OPTIMIZATION_CONFIG
 )
-from app.ats.pricing.strategy import PricingStrategy
+from app.ats.pricing.services import PricingService
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class ProposalGenerator:
         self.addons = self._get_available_addons()
         self.gpt_handler = GPTHandler()
         self.cache = cache
-        self.pricing_strategy = PricingStrategy()
+        self.pricing_service = PricingService()
         self._ensure_directories()
 
     def _ensure_directories(self):
@@ -201,7 +201,7 @@ class ProposalGenerator:
         strategies = {}
         
         for addon in addons:
-            strategy = await self.pricing_strategy.get_pricing_strategy(
+            strategy = await self.pricing_service.get_pricing_strategy(
                 addon=addon,
                 business_unit=self.business_unit
             )

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from app.ats.integrations.notifications.models import Notification, NotificationTemplate, NotificationChannel
+from app.models import Notification, NotificationTemplate, NotificationChannel
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
