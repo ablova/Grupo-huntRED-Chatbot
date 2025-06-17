@@ -1,4 +1,10 @@
 """
+DEPRECATED: Módulo legacy basado en Twilio. El sistema actual envía SMS
+cuando corresponda mediante integraciones definidas en
+`app.utils.notification_service` u otros handlers sin depender de
+Twilio. Este archivo se conserva sólo por compatibilidad histórica y NO
+debería usarse en código nuevo.
+
 Canal de notificaciones para SMS.
 """
 import logging

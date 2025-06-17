@@ -1,4 +1,4 @@
-# /home/pablo/app/ats/integrations/services/__init__.py
+# app/ats/integrations/services/__init__.py
 from .base import (
     UserDataFetcher,
     WhatsAppUserDataFetcher,

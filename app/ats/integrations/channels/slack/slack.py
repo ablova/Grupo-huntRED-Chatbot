@@ -1,4 +1,4 @@
-# /home/pablo/app/ats/chatbot/integrations/slack.py
+# app/ats/integrations/channels/slack/slack.py
 #
 # Módulo para manejar la integración con Slack API.
 # Procesa mensajes entrantes, envía respuestas, y gestiona interacciones como botones y archivos.

@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/recipients/client.py
 """
 Client notification handlers for the Grupo huntRED® Chatbot.
 
@@ -12,7 +13,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from app.models import Person, Vacancy, CartaOferta, BusinessUnit
-from ....core.service import get_notification_service
+from app.ats.integrations.notifications.core.service import get_notification_service
 
 logger = logging.getLogger(__name__)
 

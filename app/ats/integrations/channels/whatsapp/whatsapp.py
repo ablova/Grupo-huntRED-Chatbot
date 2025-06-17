@@ -1,4 +1,4 @@
-# /home/pablo/app/ats/chatbot/integrations/whatsapp.py
+# app/ats/integrations/channels/whatsapp/whatsapp.py
 #
 # Módulo para manejar la integración con WhatsApp Business API.
 # Procesa mensajes entrantes, envía respuestas, y gestiona interacciones como botones y listas.

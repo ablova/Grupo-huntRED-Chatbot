@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/integrations/message_sender.py
+# app/ats/integrations/services/message.py
 """
 Message sending utilities for chatbot integrations.
 This module contains functions for sending messages through different platforms
@@ -15,12 +15,8 @@ from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.models import BusinessUnit, MessageLog
-from app.ats.integrations.channels.telegram.telegram.telegram import TelegramHandler
-from app.ats.integrations.channels.whatsapp.whatsapp.whatsapp import WhatsAppHandler
-from app.ats.integrations.channels.slack.slack.slack import SlackHandler
-from app.ats.integrations.channels.messenger.messenger.messenger import MessengerHandler
-from app.ats.integrations.channels.instagram.instagram.instagram import InstagramHandler
-from app.ats.integrations.channels.x.x.x import XHandler
+# Imports de handlers movidos dentro de _get_handler para evitar importaciones
+# circulares (por ejemplo InstagramHandler ↔︎ MessageService).
 
 logger = logging.getLogger('chatbot')
 
@@ -53,16 +49,22 @@ class MessageService:
         """Obtiene o crea el manejador para la plataforma especificada."""
         if platform not in self._handlers:
             if platform == 'telegram':
+                from app.ats.integrations.channels.telegram.telegram import TelegramHandler
                 self._handlers[platform] = TelegramHandler(self.business_unit)
             elif platform == 'whatsapp':
+                from app.ats.integrations.channels.whatsapp.whatsapp import WhatsAppHandler
                 self._handlers[platform] = WhatsAppHandler(self.business_unit)
             elif platform == 'slack':
+                from app.ats.integrations.channels.slack.slack import SlackHandler
                 self._handlers[platform] = SlackHandler(self.business_unit)
             elif platform == 'messenger':
+                from app.ats.integrations.channels.messenger.messenger import MessengerHandler
                 self._handlers[platform] = MessengerHandler(self.business_unit)
             elif platform == 'instagram':
+                from app.ats.integrations.channels.instagram.instagram import InstagramHandler
                 self._handlers[platform] = InstagramHandler(self.business_unit)
             elif platform == 'x':
+                from app.ats.integrations.channels.x.x import XHandler
                 self._handlers[platform] = XHandler(self.business_unit)
             else:
                 raise ValueError(f"Plataforma no soportada: {platform}")
@@ -287,6 +289,13 @@ class MessageService:
                 'success': False,
                 'error': str(e)
             }
+
+# Backwards-compatibility aliases para evitar ImportError en otros módulos
+WhatsAppMessageService = MessageService  # type: ignore
+TelegramMessageService = MessageService  # type: ignore
+MessengerMessageService = MessageService  # type: ignore
+InstagramMessageService = MessageService  # type: ignore
+SlackMessageService = MessageService  # type: ignore
 
 # Funciones de utilidad para compatibilidad con código existente
 

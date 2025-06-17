@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/core/service.py
 """
 Core notification service for the Grupo huntRED® Chatbot.
 
@@ -11,7 +12,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 
 from app.models import Person, Notification, BusinessUnit
-from .channels import get_channel
+from app.ats.integrations.notifications.channels import get_channel_class
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,19 @@ class NotificationService:
         
         for channel_name in channels:
             try:
-                channel = get_channel(channel_name)
+                channel_class = get_channel_class(channel_name)
+                if not channel_class:
+                    logger.warning(f"Channel {channel_name} not found for notification {template_name}")
+                    results[channel_name] = False
+                    continue
+                # Instantiate channel with provided BU or fallback to recipient's BU
+                bu = business_unit or getattr(recipient, 'business_unit', None) or BusinessUnit.objects.first()
+                try:
+                    channel = channel_class(bu) if bu else channel_class()
+                except Exception as inst_err:
+                    logger.error(f"Error instantiating {channel_name} channel: {inst_err}")
+                    results[channel_name] = False
+                    continue
                 if not channel:
                     logger.warning(f"Channel {channel_name} not found"
                                  f" for notification {template_name}")

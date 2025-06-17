@@ -1,5 +1,12 @@
 # app/ats/integrations/notifications/channels/whatsapp.py
 """
+DEPRECATED: Este módulo legacy con Twilio ya no se utiliza. Todas las
+notificaciones de WhatsApp se envían mediante
+`app.ats.integrations.channels.whatsapp.whatsapp.WhatsAppHandler`, que
+se comunica directamente con la API oficial de WhatsApp Business.
+Este archivo se conserva únicamente para evitar errores de importación
+residuales y NO debe usarse en código nuevo.
+
 Canal de notificaciones para WhatsApp.
 """
 import logging

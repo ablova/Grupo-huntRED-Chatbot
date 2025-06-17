@@ -12,7 +12,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from app.models import Person, BusinessUnit, Vacancy, CartaOferta
-from ....core.service import get_notification_service
+from app.ats.integrations.notifications.core.service import get_notification_service
 
 logger = logging.getLogger(__name__)
 
