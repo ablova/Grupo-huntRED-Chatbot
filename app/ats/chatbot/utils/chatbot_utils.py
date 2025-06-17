@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/utils/chatbot_utils.py
+# /home/pablo/app/ats/chatbot/utils/chatbot_utils.py
 """
 Utilidades básicas del chatbot.
 """
@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from itsdangerous import URLSafeTimedSerializer
+from app.ats.utils.nlp import create_nlp_processor
 
 logger = logging.getLogger(__name__)
 
@@ -116,4 +117,18 @@ class ChatbotUtils:
         elif level == "error":
             logger.error(log_message)
         else:
-            logger.debug(log_message) 
+            logger.debug(log_message)
+
+    @staticmethod
+    def get_nlp_processor(business_unit=None, **kwargs):
+        """
+        Obtiene una instancia del procesador NLP.
+        
+        Args:
+            business_unit: Unidad de negocio para el análisis
+            **kwargs: Argumentos adicionales para el procesador
+            
+        Returns:
+            NLPProcessor: Instancia del procesador NLP
+        """
+        return create_nlp_processor(business_unit, **kwargs) 

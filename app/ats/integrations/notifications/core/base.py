@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/core/base.py
 """
 Sistema base de notificaciones para Grupo huntRED®.
 """

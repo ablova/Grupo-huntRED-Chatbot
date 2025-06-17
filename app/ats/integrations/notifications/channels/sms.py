@@ -6,8 +6,15 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from django.conf import settings
-from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
+try:
+    from twilio.rest import Client  # type: ignore
+    from twilio.base.exceptions import TwilioRestException  # type: ignore
+except ImportError:
+    Client = None  # type: ignore
+
+    class TwilioRestException(Exception):
+        """Fallback Twilio exception when SDK is absent."""
+        pass
 
 from app.models import BusinessUnit
 from app.ats.integrations.notifications.channels.base import RequireInitiationChannel

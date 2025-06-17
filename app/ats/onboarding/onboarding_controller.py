@@ -13,6 +13,7 @@ import logging
 import base64
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Dict, Any, Optional
 
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
@@ -26,9 +27,11 @@ from django.core.exceptions import ValidationError
 from asgiref.sync import sync_to_async
 from PIL import Image
 
-from app.models import OnboardingProcess, OnboardingTask, Person, Vacante
+from app.models import OnboardingProcess, OnboardingTask, Person, Vacante, BusinessUnit
 from app.ats.onboarding.satisfaction_tracker import SatisfactionTracker
 from app.ml.onboarding_processor import OnboardingMLProcessor
+from app.ats.integrations.notifications.process.onboarding_notifications import OnboardingNotificationService
+from app.ats.analytics.services.satisfaction_analyzer import SatisfactionAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,11 @@ class OnboardingController:
     Controlador principal para la gestión del sistema de onboarding.
     Maneja la creación de procesos, programación de encuestas, y generación de reportes.
     """
+    
+    def __init__(self):
+        self.notification_service = OnboardingNotificationService()
+        self.satisfaction_tracker = SatisfactionTracker()
+        self.satisfaction_analyzer = SatisfactionAnalyzer()
     
     @classmethod
     async def start_onboarding_process(cls, person_id, vacancy_id, hire_date=None):
@@ -132,6 +140,10 @@ class OnboardingController:
                 hire_date=hire_date
             )
             
+            # Notificar inicio del proceso
+            notification_service = OnboardingNotificationService()
+            await notification_service.notify_onboarding_started(process.id)
+            
             return {
                 'success': True,
                 'process_id': process.id,
@@ -184,16 +196,24 @@ class OnboardingController:
                 
                 # Si satisfacción es baja, crear alerta
                 if data.get('general_satisfaction') and int(data.get('general_satisfaction')) < 5:
-                    # TODO: Implementar sistema de alertas para satisfacción baja
-                    logger.warning(f"Alerta: Baja satisfacción en onboarding {onboarding_id}, periodo {period}")
+                    notification_service = OnboardingNotificationService()
+                    asyncio.run(notification_service.notify_low_satisfaction(
+                        onboarding_id=onboarding_id,
+                        period=period,
+                        score=int(data.get('general_satisfaction'))
+                    ))
                 
                 return process
             
             process = await save_response()
             
-            # Procesar datos para ML si corresponde
+            # Procesar datos para ML
             ml_processor = OnboardingMLProcessor()
             await ml_processor.process_survey_response(process.id, period, data)
+            
+            # Analizar tendencias
+            satisfaction_analyzer = SatisfactionAnalyzer()
+            await satisfaction_analyzer.analyze_satisfaction_trends(process.business_unit)
             
             return {
                 'success': True,
@@ -214,95 +234,95 @@ class OnboardingController:
         
         Args:
             onboarding_id (int): ID del proceso de onboarding
-            period (int, optional): Período específico para el reporte. Si es None, incluye todos.
+            period (int, optional): Período específico para el reporte
             
         Returns:
-            HttpResponse: Reporte en formato HTML o PDF
+            dict: Datos del reporte generado
         """
         try:
             @sync_to_async
             def get_report_data():
                 process = get_object_or_404(OnboardingProcess, id=onboarding_id)
+                
+                # Obtener datos del proceso
                 person = process.person
                 vacancy = process.vacancy
+                company = vacancy.company
                 
-                # Obtener período específico o el último disponible
-                if period is not None:
-                    # Usar período específico
-                    report_period = period
-                else:
-                    # Buscar el último período con respuestas
-                    available_periods = [
-                        int(p) for p in process.survey_responses.keys()
-                    ] if process.survey_responses else []
-                    
-                    report_period = max(available_periods) if available_periods else None
+                # Obtener respuestas de encuestas
+                responses = process.get_responses()
                 
-                # Preparar datos del reporte
-                satisfaction_score = process.get_satisfaction_score(report_period)
-                all_periods = process.get_all_periods_scores()
+                # Si se especifica período, filtrar solo ese período
+                if period:
+                    responses = {str(period): responses.get(str(period), {})}
                 
-                # Calcular tendencia (si hay al menos 2 períodos con respuestas)
-                trend = None
-                trend_percent = None
+                # Calcular métricas
+                total_surveys = len(responses)
+                completed_surveys = sum(1 for r in responses.values() if r)
+                satisfaction_scores = [
+                    int(r.get('general_satisfaction', 0))
+                    for r in responses.values()
+                    if r and r.get('general_satisfaction')
+                ]
                 
-                available_scores = [(p['days'], p['score']) for p in all_periods if p['score'] is not None]
-                available_scores.sort(key=lambda x: x[0])
+                avg_satisfaction = sum(satisfaction_scores) / len(satisfaction_scores) if satisfaction_scores else 0
                 
-                if len(available_scores) >= 2:
-                    # Comparar último score con el anterior
-                    current_score = available_scores[-1][1]
-                    previous_score = available_scores[-2][1]
-                    
-                    if current_score > previous_score:
-                        trend = 'up'
-                        trend_percent = ((current_score - previous_score) / previous_score) * 100
-                    elif current_score < previous_score:
-                        trend = 'down'
-                        trend_percent = ((previous_score - current_score) / previous_score) * 100
-                    else:
-                        trend = 'stable'
-                
-                # Obtener logo para el reporte
-                logo_path = Path(settings.BASE_DIR) / 'app' / 'static' / 'images' / 'logo.png'
-                if logo_path.exists():
-                    with open(logo_path, 'rb') as logo_file:
-                        logo_base64 = base64.b64encode(logo_file.read()).decode('utf-8')
-                else:
-                    logo_base64 = None
-                
-                company = vacancy.empresa if hasattr(vacancy, 'empresa') else None
-                
-                # Preparar contexto para el template
-                context = {
-                    'onboarding': process,
-                    'person': person,
-                    'vacancy': vacancy,
-                    'company': company,
-                    'period': report_period,
-                    'date': timezone.now().strftime('%d/%m/%Y'),
-                    'report': {
-                        'satisfaction_score': satisfaction_score,
-                        'trend': trend,
-                        'trend_percent': trend_percent,
-                        'periods': all_periods,
-                        'responses': process.survey_responses.get(str(report_period), {}) if report_period else {}
+                return {
+                    'process_id': onboarding_id,
+                    'person': {
+                        'id': person.id,
+                        'name': f"{person.first_name} {person.last_name}",
+                        'email': person.email
                     },
-                    'logo_base64': logo_base64
+                    'vacancy': {
+                        'id': vacancy.id,
+                        'title': vacancy.title,
+                        'company': company.name
+                    },
+                    'hire_date': process.hire_date.isoformat(),
+                    'total_surveys': total_surveys,
+                    'completed_surveys': completed_surveys,
+                    'average_satisfaction': round(avg_satisfaction, 2),
+                    'responses': responses
                 }
-                
-                return context
             
-            # Obtener datos y renderizar reporte
-            context = await get_report_data()
-            html_content = render_to_string('onboarding/satisfaction_report.html', context)
+            report_data = await get_report_data()
             
-            # Devolver como HTML (podría extenderse para generar PDF)
-            return HttpResponse(html_content, content_type='text/html')
+            # Generar PDF
+            pdf_file = await cls._generate_pdf_report(report_data)
+            
+            return {
+                'success': True,
+                'report_data': report_data,
+                'pdf_file': pdf_file
+            }
             
         except Exception as e:
             logger.error(f"Error generando reporte de satisfacción: {str(e)}")
-            return HttpResponse(f"Error: {str(e)}", status=500)
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    @classmethod
+    async def _generate_pdf_report(cls, report_data):
+        """Genera archivo PDF del reporte."""
+        try:
+            # Renderizar template HTML
+            html_content = render_to_string(
+                'onboarding/satisfaction_report.html',
+                report_data
+            )
+            
+            # Convertir a PDF
+            from weasyprint import HTML
+            pdf = HTML(string=html_content).write_pdf()
+            
+            return pdf
+            
+        except Exception as e:
+            logger.error(f"Error generando PDF: {str(e)}")
+            return None
     
     @classmethod
     async def generate_secure_survey_link(cls, onboarding_id, period):

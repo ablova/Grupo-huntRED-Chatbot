@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/channels/linkedin.py
 """
 Canal de notificaciones de LinkedIn para Grupo huntRED®.
 """

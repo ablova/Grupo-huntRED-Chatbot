@@ -1,3 +1,4 @@
+# app/ats/utils/logger_utils.py
 import logging
 import json
 import traceback
@@ -52,6 +53,16 @@ class CustomFormatter(logging.Formatter):
             log_record["data"] = record.data
             
         return json.dumps(log_record)
+
+# Configuración de loggers por módulo
+
+def get_logger(module_name: str, log_level=logging.INFO):
+    """Backward-compatibility alias for get_module_logger.
+
+    Some parts of the codebase call ``logger_utils.get_logger`` directly.
+    To avoid refactoring every call, we proxy to :func:`get_module_logger`.
+    """
+    return get_module_logger(module_name, log_level)
 
 # Configuración de loggers por módulo
 def get_module_logger(module_name, log_level=logging.INFO):

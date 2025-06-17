@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 import asyncio
 from datetime import datetime
 from django.db import models
+from app.models import Person, Vacante, BusinessUnit, Interview
 
 logger = logging.getLogger(__name__)
 

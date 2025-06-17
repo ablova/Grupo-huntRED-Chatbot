@@ -12,6 +12,8 @@ from app.ats.integrations.notifications.core.config import (
     NotificationType,
     NotificationSeverity
 )
+from app.ats.integrations.notifications.recipients.client import ClientRecipient
+from app.ats.integrations.notifications.recipients.candidate import CandidateRecipient
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,7 @@ class InterviewNotificationService(BaseNotificationService):
                 'company': vacancy.company_name,
                 'interview_date': interview_date.strftime('%d/%m/%Y %H:%M'),
                 'interview_type': interview_type,
+                'location': location.get('name') if location else 'No especificada',
                 'additional_notes': additional_notes,
                 'business_unit': self.business_unit.name
             }
@@ -78,21 +81,22 @@ class InterviewNotificationService(BaseNotificationService):
                 })
             
             # Notificar al candidato
+            candidate_recipient = CandidateRecipient(person)
             await self.send_notification(
-                notification_type=NotificationType.PROCESS_EVENT.value,
-                message=self._get_interview_scheduled_template('candidate'),
+                recipient=candidate_recipient,
+                template='interview_scheduled_candidate',
                 context=context,
                 channels=['email', 'whatsapp']
             )
             
-            # Notificar al consultor
-            if vacancy.assigned_consultant:
-                await self.send_notification(
-                    notification_type=NotificationType.PROCESS_EVENT.value,
-                    message=self._get_interview_scheduled_template('consultant'),
-                    context=context,
-                    channels=['email', 'telegram']
-                )
+            # Notificar al cliente
+            client_recipient = ClientRecipient(vacancy.company)
+            await self.send_notification(
+                recipient=client_recipient,
+                template='interview_scheduled_client',
+                context=context,
+                channels=['email', 'telegram']
+            )
             
             return True
             
@@ -178,21 +182,22 @@ class InterviewNotificationService(BaseNotificationService):
             }
             
             # Notificar al candidato
+            candidate_recipient = CandidateRecipient(person)
             await self.send_notification(
-                notification_type=NotificationType.PROCESS_EVENT.value,
-                message=self._get_interview_cancelled_template('candidate'),
+                recipient=candidate_recipient,
+                template='interview_cancelled_candidate',
                 context=context,
                 channels=['email', 'whatsapp']
             )
             
-            # Notificar al consultor
-            if vacancy.assigned_consultant:
-                await self.send_notification(
-                    notification_type=NotificationType.PROCESS_EVENT.value,
-                    message=self._get_interview_cancelled_template('consultant'),
-                    context=context,
-                    channels=['email', 'telegram']
-                )
+            # Notificar al cliente
+            client_recipient = ClientRecipient(vacancy.company)
+            await self.send_notification(
+                recipient=client_recipient,
+                template='interview_cancelled_client',
+                context=context,
+                channels=['email', 'telegram']
+            )
             
             return True
             
@@ -200,6 +205,104 @@ class InterviewNotificationService(BaseNotificationService):
             logger.error(f"Error notificando cancelación de entrevista: {str(e)}", exc_info=True)
             return False
             
+    async def notify_candidate_location_update(
+        self,
+        person: Person,
+        vacancy: Vacante,
+        interview_date: datetime,
+        location: Dict[str, Any],
+        status: str,
+        estimated_arrival: Optional[datetime] = None
+    ) -> bool:
+        """
+        Notifica actualización de ubicación del candidato.
+        
+        Args:
+            person: Candidato en tránsito
+            vacancy: Vacante relacionada
+            interview_date: Fecha y hora de la entrevista
+            location: Información de ubicación actual
+            status: Estado del candidato ('en_traslado', 'llegando_tarde', 'cerca')
+            estimated_arrival: Tiempo estimado de llegada
+            
+        Returns:
+            bool: True si la notificación se envió correctamente
+        """
+        try:
+            context = {
+                'candidate_name': person.full_name,
+                'position': vacancy.title,
+                'company': vacancy.company_name,
+                'interview_date': interview_date.strftime('%d/%m/%Y %H:%M'),
+                'current_location': location.get('name', ''),
+                'distance': location.get('distance', ''),
+                'estimated_arrival': estimated_arrival.strftime('%H:%M') if estimated_arrival else 'N/A',
+                'status': status,
+                'business_unit': self.business_unit.name
+            }
+            
+            # Notificar al cliente
+            client_recipient = ClientRecipient(vacancy.company)
+            await self.send_notification(
+                recipient=client_recipient,
+                template='candidate_location_update',
+                context=context,
+                channels=['telegram']
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error notificando actualización de ubicación: {str(e)}", exc_info=True)
+            return False
+
+    async def notify_interview_delay(
+        self,
+        person: Person,
+        vacancy: Vacante,
+        interview_date: datetime,
+        delay_minutes: int,
+        reason: str
+    ) -> bool:
+        """
+        Notifica retraso en la entrevista.
+        
+        Args:
+            person: Candidato retrasado
+            vacancy: Vacante relacionada
+            interview_date: Fecha y hora original de la entrevista
+            delay_minutes: Minutos de retraso
+            reason: Razón del retraso
+            
+        Returns:
+            bool: True si la notificación se envió correctamente
+        """
+        try:
+            context = {
+                'candidate_name': person.full_name,
+                'position': vacancy.title,
+                'company': vacancy.company_name,
+                'interview_date': interview_date.strftime('%d/%m/%Y %H:%M'),
+                'delay_minutes': delay_minutes,
+                'reason': reason,
+                'business_unit': self.business_unit.name
+            }
+            
+            # Notificar al cliente
+            client_recipient = ClientRecipient(vacancy.company)
+            await self.send_notification(
+                recipient=client_recipient,
+                template='interview_delay',
+                context=context,
+                channels=['telegram']
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error notificando retraso: {str(e)}", exc_info=True)
+            return False
+
     def _get_interview_scheduled_template(self, recipient_type: str) -> str:
         """Obtiene la plantilla según el tipo de destinatario."""
         templates = {
@@ -259,4 +362,51 @@ class InterviewNotificationService(BaseNotificationService):
                 "👤 *Cancelada por:* {cancelled_by}"
             )
         }
-        return templates.get(recipient_type, templates['candidate']) 
+        return templates.get(recipient_type, templates['candidate'])
+
+    def _get_location_update_template(self, status: str) -> str:
+        """Obtiene la plantilla según el estado de ubicación."""
+        templates = {
+            'en_traslado': (
+                "🚗 *Actualización de Ubicación*\n\n"
+                "👤 *Candidato:* {candidate_name}\n"
+                "💼 *Posición:* {position}\n"
+                "🏢 *Empresa:* {company}\n"
+                "📍 *Ubicación actual:* {current_location}\n"
+                "📏 *Distancia:* {distance}\n"
+                "⏰ *Llegada estimada:* {estimated_arrival}\n\n"
+                "El candidato está en camino a la entrevista."
+            ),
+            'llegando_tarde': (
+                "⚠️ *Retraso en Llegada*\n\n"
+                "👤 *Candidato:* {candidate_name}\n"
+                "💼 *Posición:* {position}\n"
+                "🏢 *Empresa:* {company}\n"
+                "📍 *Ubicación actual:* {current_location}\n"
+                "⏰ *Llegada estimada:* {estimated_arrival}\n\n"
+                "El candidato llegará tarde a la entrevista."
+            ),
+            'cerca': (
+                "🎯 *Candidato Cerca*\n\n"
+                "👤 *Candidato:* {candidate_name}\n"
+                "💼 *Posición:* {position}\n"
+                "🏢 *Empresa:* {company}\n"
+                "📍 *Ubicación actual:* {current_location}\n"
+                "⏰ *Llegada estimada:* {estimated_arrival}\n\n"
+                "El candidato está cerca del lugar de la entrevista."
+            )
+        }
+        return templates.get(status, templates['en_traslado'])
+
+    def _get_delay_template(self) -> str:
+        """Obtiene la plantilla para notificación de retraso."""
+        return (
+            "⏰ *Retraso en Entrevista*\n\n"
+            "👤 *Candidato:* {candidate_name}\n"
+            "💼 *Posición:* {position}\n"
+            "🏢 *Empresa:* {company}\n"
+            "📅 *Fecha original:* {interview_date}\n"
+            "⏱️ *Retraso:* {delay_minutes} minutos\n"
+            "📝 *Razón:* {reason}\n\n"
+            "Por favor, tenga en cuenta este retraso."
+        ) 

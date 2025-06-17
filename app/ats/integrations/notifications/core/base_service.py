@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/core/base_service.py
 """
 Servicio base para el sistema de notificaciones de Grupo huntRED®.
 """

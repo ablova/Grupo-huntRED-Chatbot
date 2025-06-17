@@ -671,780 +671,6 @@ def execute_ml_and_scraping(self):
 # =========================================================
 
 @shared_task(bind=True, max_retries=3)
-def send_satisfaction_survey(self, onboarding_id, period_days):
-    """
-    Envía encuesta de satisfacción a un candidato en proceso de onboarding.
-    
-    Args:
-        onboarding_id: ID del proceso de onboarding
-        period_days: Días transcurridos desde contratación para esta encuesta
-    """
-    try:
-        from app.ats.onboarding.satisfaction_tracker import SatisfactionTracker
-        
-        logger.info(f"Enviando encuesta de satisfacción para onboarding {onboarding_id} a {period_days} días")
-        tracker = SatisfactionTracker()
-        
-        # Ejecutar función asíncrona
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(tracker.send_satisfaction_survey(onboarding_id, period_days))
-            if result:
-                logger.info(f"Encuesta enviada correctamente para onboarding {onboarding_id}")
-                return {"status": "success", "message": "Encuesta enviada correctamente"}
-            else:
-                logger.warning(f"No se pudo enviar encuesta para onboarding {onboarding_id}")
-                return {"status": "warning", "message": "No se pudo enviar la encuesta"}
-        finally:
-            loop.close()
-            
-    except Exception as e:
-        logger.error(f"Error enviando encuesta de satisfacción: {e}")
-        # Reintentar en caso de error
-        if self.request.retries < self.max_retries:
-            # Retraso exponencial: 5min, 25min, 125min
-            countdown = 5 * 60 * (5 ** self.request.retries)
-            raise self.retry(exc=e, countdown=countdown)
-        return {"status": "error", "message": str(e)}
-
-@shared_task(bind=True, max_retries=2)
-def generate_client_satisfaction_report(self, company_id, period='6_months'):
-    """
-    Genera reporte de satisfacción para clientes basado en datos recolectados.
-    
-    Args:
-        company_id: ID de la empresa para la que generar el reporte
-        period: Período de tiempo a considerar ('1_month', '3_months', '6_months', '1_year')
-    """
-    try:
-        from app.ats.onboarding.satisfaction_tracker import SatisfactionTracker
-        from app.models import Company
-        from app.ats.utils.email_sender import EmailSender
-        
-        logger.info(f"Generando reporte de satisfacción para empresa {company_id}")
-        
-        # Obtener empresa
-        try:
-            company = Company.objects.get(id=company_id)
-        except Company.DoesNotExist:
-            logger.error(f"Empresa con ID {company_id} no encontrada")
-            return {"status": "error", "message": "Empresa no encontrada"}
-        
-        # Obtener datos de tendencias
-        tracker = SatisfactionTracker()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            trends = loop.run_until_complete(tracker.get_satisfaction_trends(company_id, period))
-            
-            # Verificar si hay datos
-            if not trends.get('average_score'):
-                logger.warning(f"No hay datos de satisfacción para empresa {company.name}")
-                return {"status": "warning", "message": "No hay datos de satisfacción"}
-                
-            # Generar PDF
-            from app.ats.utils.pdf_generator import generate_pdf
-            pdf_content = loop.run_until_complete(generate_pdf(
-                'onboarding/satisfaction_company_report.html',
-                {
-                    'company': company,
-                    'trends': trends,
-                    'period': period,
-                    'date': datetime.now().strftime('%d/%m/%Y')
-                }
-            ))
-            
-            # Enviar por correo
-            client_email = getattr(company, 'client_contact_email', None)
-            if client_email:
-                email_sender = EmailSender()
-                subject = f"Reporte de Satisfacción - {company.name} - {period}"
-                
-                send_result = loop.run_until_complete(email_sender.send_email(
-                    recipients=[client_email],
-                    subject=subject,
-                    template='onboarding/satisfaction_company_report_email.html',
-                    context={
-                        'company': company,
-                        'trends': trends,
-                        'period': period
-                    },
-                    attachments=[
-                        {
-                            'filename': f'reporte_satisfaccion_{company.name.replace(" ", "_")}.pdf',
-                            'content': pdf_content
-                        }
-                    ]
-                ))
-                
-                if send_result:
-                    logger.info(f"Reporte enviado a {client_email}")
-                    return {"status": "success", "message": "Reporte enviado correctamente"}
-                else:
-                    logger.warning(f"No se pudo enviar reporte a {client_email}")
-                    return {"status": "warning", "message": "No se pudo enviar el reporte"}
-            else:
-                logger.warning(f"Empresa {company.name} no tiene email de contacto")
-                return {"status": "warning", "message": "Empresa sin email de contacto"}
-                
-        finally:
-            loop.close()
-            
-    except Exception as e:
-        logger.error(f"Error generando reporte de satisfacción: {e}")
-        if self.request.retries < self.max_retries:
-            countdown = 5 * 60 * (5 ** self.request.retries)
-            raise self.retry(exc=e, countdown=countdown)
-        return {"status": "error", "message": str(e)}
-
-@shared_task(bind=True)
-def process_onboarding_ml_data(self):
-    """
-    Procesa datos de onboarding para alimentar modelos de ML.
-    Extrae encuestas de satisfacción, datos de retención, y entrena modelos predictivos.
-    """
-    try:
-        from app.ml.onboarding_processor import OnboardingMLProcessor
-        
-        logger.info("Procesando datos de onboarding para ML")
-        processor = OnboardingMLProcessor()
-        
-        # Ejecutar procesamiento asíncrono
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            # Procesar datos de satisfacción
-            result = loop.run_until_complete(processor.process_satisfaction_data())
-            
-            # Entrenar modelos si hay suficientes datos
-            if result.get('success') and result.get('row_count', 0) >= 30:
-                training_result = loop.run_until_complete(processor.train_models(result.get('file_path')))
-                result['training'] = training_result
-                
-            logger.info(f"Procesamiento ML de onboarding completado: {result.get('row_count', 0)} registros procesados")
-            return result
-        finally:
-            loop.close()
-            
-    except Exception as e:
-        logger.error(f"Error procesando datos de onboarding para ML: {e}")
-        return {"status": "error", "message": str(e)}
-
-@shared_task(bind=True)
-def schedule_periodic_onboarding_tasks(self):
-    """
-    Programa tareas periódicas relacionadas con onboarding.
-    - Envío de reportes de satisfacción mensuales a clientes
-    - Procesamiento de datos para ML
-    """
-    try:
-        from app.models import Company
-        from django_celery_beat.models import PeriodicTask, CrontabSchedule
-        import json
-        
-        # Programar procesamiento de datos para ML (cada lunes a las 3 AM)
-        schedule, _ = CrontabSchedule.objects.get_or_create(
-            minute='0',
-            hour='3',
-            day_of_week='1',  # Lunes
-            day_of_month='*',
-            month_of_year='*',
-        )
-        
-        PeriodicTask.objects.update_or_create(
-            name='Procesar datos de onboarding para ML',
-            defaults={
-                'crontab': schedule,
-                'task': 'app.tasks.process_onboarding_ml_data',
-                'enabled': True,
-            }
-        )
-        
-        # Programar generación de reportes mensuales para cada empresa activa
-        # El día 1 de cada mes a las 7 AM
-        report_schedule, _ = CrontabSchedule.objects.get_or_create(
-            minute='0',
-            hour='7',
-            day_of_week='*',
-            day_of_month='1',  # Día 1 de cada mes
-            month_of_year='*',
-        )
-        
-        # Obtener empresas activas
-        active_companies = Company.objects.filter(activa=True)
-        
-        for company in active_companies:
-            PeriodicTask.objects.update_or_create(
-                name=f'Reporte mensual de satisfacción - {company.name}',
-                defaults={
-                    'crontab': report_schedule,
-                    'task': 'app.tasks.generate_client_satisfaction_report',
-                    'args': json.dumps([company.id, '1_month']),
-                    'enabled': True,
-                }
-            )
-            
-        return {
-            "status": "success", 
-            "message": f"Tareas programadas para {active_companies.count()} empresas"
-        }
-            
-    except Exception as e:
-        logger.error(f"Error programando tareas periódicas de onboarding: {e}")
-        return {"status": "error", "message": str(e)}
-
-@shared_task(bind=True, max_retries=2)
-def create_onboarding_event(self, person_id, vacancy_id, event_type, start_time, end_time, consultant_id=None):
-    """
-    Crea un evento en Google Calendar para una actividad de onboarding.
-    
-    Args:
-        person_id: ID de la persona (candidato)
-        vacancy_id: ID de la vacante
-        event_type: Tipo de evento ('introduction', 'training', 'followup')
-        start_time: Hora de inicio (formato ISO)
-        end_time: Hora de fin (formato ISO)
-        consultant_id: ID del consultor responsable (opcional)
-    """
-    try:
-        from app.ats.utils.google_calendar import create_onboarding_event
-        
-        logger.info(f"Creando evento de onboarding tipo {event_type} para persona {person_id}")
-        
-        # Ejecutar creación asíncrona
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(create_onboarding_event(
-                person_id, vacancy_id, event_type, start_time, end_time, consultant_id
-            ))
-            
-            if result.get('success'):
-                logger.info(f"Evento creado exitosamente: {result.get('event_id')}")
-                return result
-            else:
-                logger.warning(f"No se pudo crear evento: {result.get('error')}")
-                return result
-                
-        finally:
-            loop.close()
-            
-    except Exception as e:
-        logger.error(f"Error creando evento de onboarding: {e}")
-        if self.request.retries < self.max_retries:
-            raise self.retry(exc=e, countdown=60)
-        return {"success": False, "error": str(e)}
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
-def send_notification_task(self, platform, recipient, message):
-    try:
-        asyncio.run(send_message(platform, recipient, message))
-        logger.info(f"✅ Notificación enviada a {recipient} en {platform}.")
-    except Exception as e:
-        logger.error(f"❌ Error enviando notificación: {e}")
-        self.retry(exc=e)
-
-def trigger_amigro_workflows(candidate_id):
-    """ Ejecuta los flujos de trabajo al agendar un candidato con un cliente. """
-    generate_candidate_summary_task.delay(candidate_id)
-    send_migration_docs_task.delay(candidate_id)
-    
-    # Programar seguimiento en 5 días
-    follow_up_migration_task.apply_async(args=[candidate_id], countdown=5 * 86400)
-
-    return f"Flujos de trabajo iniciados para el candidato {candidate_id}"
-
-# =========================================================
-# Tareas para manejo de datos LinkedIn (API/Csv/Scraping)
-# =========================================================
-@shared_task
-def process_batch_task():
-    logger.info("Procesando lote de usuarios recientes.")
-    from app.ats.chatbot.nlp.nlp import process_recent_users_batch
-    process_recent_users_batch()
-    return "Lote procesado"
-
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def process_linkedin_updates_task(self):
-    try:
-        asyncio.run(process_linkedin_updates())
-        logger.info("✅ LinkedIn updates completed")
-    except Exception as e:
-        logger.error(f"❌ Error in LinkedIn updates: {e}")
-        self.retry(exc=e)
-
-@shared_task
-def process_linkedin_api_data_task(member_ids: list):
-    """
-    Procesa datos desde la API oficial de LinkedIn.
-    """
-    bu = BusinessUnit.objects.filter(name='huntRED').first()
-    if not bu:
-        logger.error("No se encontró la BU huntRED.")
-        return
-
-    if not member_ids:
-        logger.warning("No member_ids, nada que hacer.")
-        return
-
-    logger.info(f"Iniciando API LinkedIn para {len(member_ids)} miembros.")
-    process_api_data(bu, member_ids)
-    logger.info("Datos vía API LinkedIn completado.")
-
-@shared_task
-def process_linkedin_csv_task(csv_path: str = "/home/pablo/connections.csv"):
-    """
-    Procesa el CSV de conexiones de LinkedIn.
-    """
-    bu = BusinessUnit.objects.filter(name='huntRED').first()
-    if not bu:
-        logger.error("No se encontró BU huntRED.")
-        return
-    logger.info(f"Procesando CSV {csv_path}")
-    process_csv(csv_path, bu)
-    logger.info("Procesamiento CSV completado.")
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def slow_scrape_from_csv_task(self, csv_path: str, business_unit_id: int):
-    try:
-        business_unit = BusinessUnit.objects.get(id=business_unit_id)
-        asyncio.run(slow_scrape_from_csv(csv_path, business_unit))
-        logger.info(f"✅ Slow scrape completed for {csv_path}")
-    except Exception as e:
-        logger.error(f"❌ Error in slow scrape: {e}")
-        self.retry(exc=e)
-
-@shared_task
-def scrape_single_profile_task(profile_url: str):
-    """
-    Tarea que scrapea un perfil de LinkedIn.
-    """
-    logger.info(f"Scrapeando perfil: {profile_url}")
-    data = scrape_linkedin_profile(profile_url)
-    logger.info(f"Datos obtenidos: {data}")
-    return data
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def process_csv_and_scrape_task(self, csv_path: str = "/home/pablo/connections.csv"):
-    try:
-        bu = BusinessUnit.objects.filter(name='huntRED').first()
-        if not bu:
-            raise Exception("No se encontró la BU huntRED.")
-
-        logger.info("🚀 Iniciando procesamiento del CSV.")
-        async_to_sync(process_csv)(csv_path, bu)
-
-        logger.info("🧹 Iniciando deduplicación.")
-        duplicates = deduplicate_candidates()
-        logger.info(f"🧹 Deduplicación completada. Total duplicados eliminados: {len(duplicates)}")
-
-        logger.info("🔍 Iniciando scraping de perfiles.")
-        persons = Person.objects.filter(linkedin_url__isnull=False)
-        for person in persons:
-            try:
-                scraped_data = async_to_sync(scrape_linkedin_profile)(person.linkedin_url, bu.name.lower())
-                update_person_from_scrape(person, scraped_data)
-                logger.info(f"Perfil scrapeado: {person.nombre} {person.apellido_paterno}")
-            except Exception as e:
-                logger.error(f"Error scrapeando {person.linkedin_url}: {e}")
-                continue
-
-        logger.info("✅ Proceso completo de CSV y scraping finalizado.")
-    except Exception as e:
-        logger.error(f"❌ Error en el flujo combinado: {e}", exc_info=True)
-        self.retry(exc=e)
-        
-@shared_task(bind=True, max_retries=3, default_retry_delay=300, queue='notifications')
-def enviar_invitaciones_completar_perfil(self, fields=None):
-    """
-    Envía invitaciones a candidatos con perfiles incompletos, filtrando por campos específicos.
-    
-    Args:
-        fields (list, optional): Lista de campos a considerar como incompletos (e.g., ['phone', 'email']).
-                                 Por defecto, solo 'phone'.
-    """
-    if fields is None:
-        fields = ['phone']
-    try:
-        query = Q()
-        for field in fields:
-            query |= Q(**{f"{field}__isnull": True})
-        candidatos = Person.objects.filter(query)
-        if not candidatos.exists():
-            logger.info("No se encontraron candidatos con perfiles incompletos para invitar.")
-            return "No candidates to invite."
-        
-        business_unit = BusinessUnit.objects.first()
-        if not business_unit:
-            logger.error("No se encontró ninguna BusinessUnit.")
-            return "No BusinessUnit found."
-        
-        invitaciones_enviadas = 0
-        for candidate in candidatos:
-            enviar_invitacion_completar_perfil(candidate, business_unit)
-            invitaciones_enviadas += 1
-        
-        logger.info(f"Invitaciones enviadas: {invitaciones_enviadas}")
-        return f"Invitaciones enviadas: {invitaciones_enviadas}"
-    except Exception as e:
-        logger.error(f"Error en el task enviar_invitaciones_completar_perfil: {e}", exc_info=True)
-        self.retry(exc=e)
-# =========================================================
-# Tareas para historial de ponderaciones
-# =========================================================
-
-@shared_task
-@with_retry
-async def update_weighting_history_task(weighting_id: int):
-    """
-    Actualiza el historial de cambios en las ponderaciones.
-    
-    Args:
-        weighting_id (int): ID del modelo de ponderación
-    """
-    try:
-        weighting = await WeightingModel.objects.aget(id=weighting_id)
-        
-        # Obtener el historial más reciente
-        last_history = await WeightingHistory.objects.filter(
-            weighting=weighting
-        ).order_by('-timestamp').afirst()
-        
-        if last_history:
-            # Comparar con el historial más reciente
-            changes = {}
-            current_weights = weighting.get_weights()
-            
-            for field in ['weight_skills', 'weight_experience', 'weight_culture', 
-                         'weight_location', 'culture_importance', 'experience_requirement']:
-                old_value = last_history.changes.get(field, {}).get('new', None)
-                new_value = current_weights.get(field)
-                
-                if old_value != new_value:
-                    changes[field] = {
-                        'old': old_value,
-                        'new': float(new_value)
-                    }
-            
-            if changes:
-                await WeightingHistory.objects.acreate(
-                    weighting=weighting,
-                    changed_by=weighting.updated_by,
-                    changes=changes
-                )
-                
-                # Notificar cambios importantes
-                if any(field in changes for field in ['weight_skills', 'weight_experience']):
-                    await send_email(
-                        subject=f"Ponderaciones actualizadas: {weighting.business_unit.name} - {weighting.position_level}",
-                        message=f"Se han actualizado las ponderaciones para {weighting.business_unit.name} - {weighting.position_level}:\n\n" + 
-                              json.dumps(changes, indent=2)
-                    )
-    except Exception as e:
-        logger.error(f"Error actualizando historial de ponderaciones: {str(e)}")
-        raise
-
-# =========================================================
-# Tareas para reportes, limpieza y otros
-# =========================================================
-
-@shared_task
-def send_final_candidate_report(business_unit_id, candidates_ids, recipient_email):
-    """
-    Genera y envía el reporte final de candidatos con análisis.
-    
-    :param business_unit_id: ID de la unidad de negocio.
-    :param candidates_ids: Lista de IDs de candidatos a incluir en el reporte.
-    :param recipient_email: Correo electrónico del destinatario.
-    """
-    try:
-        # Obtener la unidad de negocio
-        business_unit = BusinessUnit.objects.get(id=business_unit_id)
-        
-        # Ruta al logo de la división
-        division_logo_path = os.path.join(settings.MEDIA_ROOT, business_unit.logo_path)
-        
-        # Obtener los candidatos
-        candidates = Person.objects.filter(id__in=candidates_ids)
-        
-        # Generar el reporte principal (asumiendo que ya tienes una función para esto)
-        main_report_path = os.path.join(settings.MEDIA_ROOT, f"report_{business_unit.name}.pdf")
-        generate_main_candidate_report(candidates, main_report_path)  # Implementa esta función según tu lógica
-    
-        # Preparar los datos de análisis
-        analysis_data = {
-            "Análisis de Personalidad": "Alta capacidad de liderazgo, orientado a resultados.",
-            "Análisis de Skills": ", ".join(sn.extract_skills(" ".join([p.metadata.get('skills', []) for p in candidates]).replace(',', ' '))),
-            "Análisis Salarial": "Rango salarial estimado entre $50,000 - $70,000 USD.",
-            # Añade más secciones según necesidad
-        }
-        
-        # Generar la página de análisis
-        analysis_pdf_path = os.path.join(settings.MEDIA_ROOT, f"analysis_{business_unit.name}.pdf")
-        generate_analysis_page(division_logo_path, analysis_data, analysis_pdf_path)
-        
-        # Fusionar los PDFs
-        final_report_path = os.path.join(settings.MEDIA_ROOT, f"final_report_{business_unit.name}.pdf")
-        merge_pdfs(main_report_path, analysis_pdf_path, final_report_path)
-        
-        # Enviar el correo electrónico con el reporte adjunto
-        email = EmailMessage(
-            subject=f"Reporte Final de Candidatos - {business_unit.name}",
-            body="Adjunto encontrarás el reporte final de candidatos con análisis.",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[recipient_email],
-        )
-        email.attach_file(final_report_path)
-        email.send()
-        
-        logger.info(f"Reporte final enviado a {recipient_email}")
-        
-        # Opcional: Eliminar los archivos temporales
-        os.remove(main_report_path)
-        os.remove(analysis_pdf_path)
-        os.remove(final_report_path)
-        
-    except Exception as e:
-        logger.error(f"Error al enviar el reporte final: {e}")
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
-def generate_and_send_reports(self):
-    """
-    Genera y envía reportes consolidados.
-    """
-    logger.info("📊 Generando reportes consolidados.")
-    today = timezone.now().date()
-
-    try:
-        configuracion = Configuracion.objects.first()
-        if not configuracion:
-            logger.warning("⚠️ Sin configuración general.")
-            return
-
-        business_units = BusinessUnit.objects.all()
-        for bu in business_units:
-            try:
-                nuevas_posiciones = bu.vacantes.filter(fecha_publicacion__date=today)
-                birthday_persons = Person.objects.filter(
-                    fecha_nacimiento__month=today.month,
-                    fecha_nacimiento__day=today.day,
-                    interactions__timestamp__date=today
-                ).distinct()
-
-                scraping_report = generate_scraping_report(nuevas_posiciones)
-                birthday_report = generate_birthday_report(birthday_persons)
-
-                admin_phone = bu.admin_phone if bu.admin_phone else configuracion.test_phone_number
-                admin_email = bu.admin_email if bu.admin_email else configuracion.test_email
-
-                # Mensaje WA
-                admin_whatsapp_message = (
-                    f"📋 Reporte {today.strftime('%d/%m/%Y')}\n\n"
-                    f"Nuevas Posiciones: {nuevas_posiciones.count()} en {bu.name}\n"
-                    f"Cumpleaños: {birthday_persons.count()} en {bu.name}\n"
-                    "Ver detalles en tu correo."
-                )
-                send_whatsapp_message_task.delay(
-                    recipient=admin_phone,
-                    message=admin_whatsapp_message
-                )
-
-                # Email
-                try:
-                    configuracion_bu = ConfiguracionBU.objects.get(business_unit=bu)
-                    domain_bu = configuracion_bu.dominio_bu
-                except ConfiguracionBU.DoesNotExist:
-                    logger.error(f"Sin ConfigBU para {bu.name}")
-                    domain_bu = "tudominio.com"
-
-                email_subject = f"📋 Reporte Consolidado {today.strftime('%d/%m/%Y')}"
-                email_text = (
-                    f"Hola Admin {bu.name},\n\n"
-                    f"Nuevas Posiciones: {nuevas_posiciones.count()}\n"
-                    f"Cumpleaños: {birthday_persons.count()}\n\n"
-                    "Detalles en dashboard."
-                )
-
-                send_email_task.delay(
-                    user_id=bu.name,
-                    email_type='consolidated_report',
-                    dynamic_content=email_text
-                )
-                logger.info(f"✅ Correo reporte {bu.name} a {admin_email}")
-
-                # Gamificación por cumpleaños
-                for person in birthday_persons:
-                    gamification_profile = person.enhancednetworkgamificationprofile
-                    gamification_profile.award_points('birthday_greeting')
-                    logger.info(f"🏅 Gamificación a {person.nombre}")
-
-            except Exception as bu_error:
-                logger.error(f"❌ Error procesando BU {bu.name}: {bu_error}")
-                self.retry(exc=bu_error, countdown=60)
-    except Exception as e:
-        logger.error(f"Error reportes consolidados: {e}")
-        self.retry(exc=e)
-
-def generate_scraping_report(nuevas_posiciones):
-    """
-    Genera un reporte de nuevas vacantes.
-    """
-    report = f"Reporte Nuevas Posiciones - {timezone.now().date()}\n\n"
-    for v in nuevas_posiciones:
-        report += f"{v.titulo} - {v.descripcion[:50]}...\n"
-    return report
-
-def generate_birthday_report(birthday_persons):
-    """
-    Genera un reporte de cumpleaños.
-    """
-    report = f"Reporte Cumpleaños - {timezone.now().date()}\n\n"
-    for p in birthday_persons:
-        report += f"{p.nombre} {p.apellido_paterno}, Tel: {p.phone}\n"
-    return report
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=120, queue='scraping')
-def limpieza_vacantes(self):
-    """
-    Limpieza periódica de vacantes antiguas.
-    """
-    logger.info("🧹 Limpieza semestral vacantes.")
-    from django.db import models
-    try:
-        hace_seis_meses = timezone.now() - timedelta(days=180)
-        vacantes_a_eliminar = Vacante.objects.filter(fecha_scraping__lt=hace_seis_meses)
-        vacantes_por_empresa = vacantes_a_eliminar.values('empresa').annotate(total=models.Count('id'))
-
-        count_eliminadas = vacantes_a_eliminar.count()
-        vacantes_a_eliminar.delete()
-        detalles = "\n".join([f"{v['empresa']}: {v['total']} eliminadas." for v in vacantes_por_empresa])
-        logger.info(f"✅ Limpieza completada: {count_eliminadas} vacantes.")
-
-        with open(f"limpieza_vacantes_{timezone.now().date()}.log", "w") as log_file:
-            log_file.write(f"Limpieza {timezone.now().date()}:\n{detalles}\n")
-    except Exception as e:
-        logger.error(f"❌ Error limpieza vacantes: {e}")
-        self.retry(exc=e)
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def verificar_dominios_scraping(self):
-    """
-    Verifica dominios de scraping.
-    """
-    logger.info("🔄 Verificación dominios scraping.")
-    dominios = DominioScraping.objects.all()
-    for d in dominios:
-        try:
-            is_valid = asyncio.run(validar_url(d.dominio))
-            d.verificado = is_valid
-            d.mensaje_error = "" if is_valid else "Dominio no responde."
-            d.save()
-            if is_valid:
-                logger.info(f"✅ Dominio ok: {d.dominio}")
-            else:
-                logger.warning(f"⚠️ Dominio no válido: {d.dominio}")
-        except Exception as e:
-            logger.error(f"❌ Error verificación dominio {d.dominio}: {e}")
-            self.retry(exc=e)
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
-def enviar_reporte_diario(self):
-    """
-    Envía un reporte diario del scraping.
-    """
-    logger.info("📊 Generando reporte diario scraping.")
-    try:
-        schedules = DominioScraping.objects.filter(verificado=True)
-        mensaje = "<h2>📅 Reporte diario:</h2><ul>"
-        from app.models import RegistroScraping  # Import local
-
-        for sch in schedules:
-            vacantes_creadas = Vacante.objects.filter(
-                fecha_scraping__date=timezone.now().date(),
-                empresa=sch.empresa
-            ).count()
-
-            registros = RegistroScraping.objects.filter(
-                dominio=sch,
-                fecha_inicio__date=timezone.now().date()
-            )
-            exitosos = registros.filter(estado="exitoso").count()
-            fallidos = registros.filter(estado="fallido").count()
-            total = exitosos + fallidos
-            tasa_exito = (exitosos / total * 100) if total > 0 else 0
-            mensaje += (
-                f"<li><strong>{sch.empresa}</strong> ({sch.dominio}): "
-                f"{vacantes_creadas} vacantes. Éxito: {tasa_exito:.2f}%. Errores: {fallidos}</li>"
-            )
-        mensaje += "</ul>"
-
-        configuracion = Configuracion.objects.first()
-        if configuracion and configuracion.test_email:
-            asyncio.run(send_email(
-                business_unit_name="Grupo huntRED®",
-                subject="📈 Reporte Diario Scraping",
-                to=configuracion.test_email,
-                body=mensaje,
-                html=True
-            ))
-            logger.info("✅ Reporte diario enviado por correo.")
-        else:
-            logger.warning("⚠️ Sin configuracion de correo para reporte diario.")
-    except Exception as e:
-        logger.error(f"❌ Error reporte diario: {e}")
-        self.retry(exc=e)
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='scraping')
-def scrape_single_profile_task(self, profile_url: str):
-    logger.info(f"Scrapeando perfil: {profile_url}")
-    data = asyncio.run(scrape_linkedin_profile(profile_url, "amigro"))  # Default unit, adjust as needed
-    logger.info(f"Datos obtenidos: {data}")
-    return data
-
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def check_emails_and_parse_cvs(self):
-    """
-    Revisa los correos y procesa los CVs adjuntos.
-    """
-    try:
-        # Aquí iría la lógica para conectarse a la bandeja de entrada y revisar los correos
-        # Por ejemplo, usando IMAP para obtener los correos
-        # ...
-
-        # Supongamos que tienes una lista de archivos de CVs adjuntos
-        cv_files = []  # Aquí deberías obtener los archivos de CVs de los correos
-
-        for cv_file in cv_files:
-            # Procesar cada CV
-            parser = CVParser(business_unit)  # Asegúrate de pasar la unidad de negocio correcta
-            analysis_result = parser.parse_cv(cv_file)
-            if analysis_result:  # Validar que el resultado no esté vacío
-                person = Person.objects.create(**analysis_result)
-                logger.info(f"CV procesado y candidato añadido: {person.name}")
-            else:
-                logger.warning(f"No se pudo procesar el CV: {cv_file}")
-
-    except Exception as e:
-        logger.error(f"Error al procesar correos y CVs: {e}")
-        self.retry(exc=e)
-
-@shared_task
-def send_signature_reminders():
-    """Envía recordatorios de firma a los candidatos y clientes cada 24 horas"""
-    pending_signatures = Person.objects.filter(signature_status="pending")
-
-    for person in pending_signatures:
-        send_message("whatsapp", person.phone, "⚠️ Tienes un documento pendiente de firma. Revísalo y firma lo antes posible.", person.business_unit)
-
-    return f"Recordatorios enviados a {pending_signatures.count()} personas."
-
-# =========================================================
-# Tareas relacionadas con Onboarding y Satisfacción
-# =========================================================
-
-@shared_task(bind=True, max_retries=3)
 def send_satisfaction_survey_task(self, onboarding_id, period):
     """
     Envía una encuesta de satisfacción a un candidato para un período específico.
@@ -1455,6 +681,7 @@ def send_satisfaction_survey_task(self, onboarding_id, period):
     """
     from app.models import OnboardingProcess
     from app.ats.onboarding.onboarding_controller import OnboardingController
+    from app.ats.integrations.notifications.process.onboarding_notifications import OnboardingNotificationService
     
     try:
         # Obtener proceso de onboarding
@@ -1479,36 +706,25 @@ def send_satisfaction_survey_task(self, onboarding_id, period):
         message += f"Han pasado {period} días desde tu incorporación a {company_name} y nos gustaría conocer tu experiencia.\n\n"
         message += f"📝 Por favor, completa esta breve encuesta de satisfacción: {survey_url}\n\n"
         message += "Tu opinión es muy importante para nosotros.\n\n"
-        message += "Gracias,\nEquipo Grupo huntRED®"
         
-        # Intentar enviar por WhatsApp primero
-        sent = False
-        if person.whatsapp:
-            try:
-                send_message("whatsapp", person.whatsapp, message, None)
-                sent = True
-                logger.info(f"Encuesta enviada por WhatsApp a {person.whatsapp} para proceso {onboarding_id}, período {period}")
-            except Exception as e:
-                logger.warning(f"No se pudo enviar por WhatsApp: {str(e)}")
+        # Enviar notificación usando el servicio específico
+        notification_service = OnboardingNotificationService()
+        result = asyncio.run(notification_service.notify_satisfaction_survey(
+            onboarding_id=onboarding_id,
+            period=period
+        ))
         
-        # Si no se envió por WhatsApp, intentar por email
-        if not sent and person.email:
-            try:
-                email_subject = f"Encuesta de satisfacción - Día {period}"
-                send_email(person.email, email_subject, message)
-                sent = True
-                logger.info(f"Encuesta enviada por email a {person.email} para proceso {onboarding_id}, período {period}")
-            except Exception as e:
-                logger.warning(f"No se pudo enviar por email: {str(e)}")
+        if not result.get('success'):
+            raise ValueError(f"Error enviando notificación: {result.get('error')}")
         
-        if not sent:
-            raise ValueError(f"No se pudo enviar la encuesta al candidato {person.id} por ningún canal")
-        
-        return f"Encuesta de satisfacción enviada para proceso {onboarding_id}, período {period}"
+        return f"Encuesta enviada correctamente para período {period}"
         
     except Exception as e:
         logger.error(f"Error enviando encuesta de satisfacción: {str(e)}")
-        self.retry(exc=e, countdown=60 * 5)  # Reintentar en 5 minutos
+        if self.request.retries < self.max_retries:
+            countdown = 5 * 60 * (5 ** self.request.retries)
+            raise self.retry(exc=e, countdown=countdown)
+        return f"Error: {str(e)}"
 
 @shared_task(bind=True)
 def check_satisfaction_surveys_task(self):
@@ -1551,122 +767,339 @@ def check_satisfaction_surveys_task(self):
 @shared_task(bind=True)
 def generate_client_satisfaction_reports_task(self):
     """
-    Genera reportes de satisfacción mensuales para los clientes con procesos activos.
+    Genera reportes mensuales de satisfacción para clientes con procesos de onboarding activos.
     """
-    from app.models import OnboardingProcess, Person
+    from app.models import OnboardingProcess, BusinessUnit
     from app.ats.onboarding.onboarding_controller import OnboardingController
-    import uuid
-    from django.core.files.storage import default_storage
-    from django.core.files.base import ContentFile
-    from django.conf import settings
-    import os
     
     try:
-        # Obtener procesos activos agrupados por empresa
-        processes = OnboardingProcess.objects.filter(
-            Q(status='IN_PROGRESS') | Q(status='COMPLETED')
-        ).order_by('vacancy__empresa')
-        
-        if not processes.exists():
-            return "No hay procesos de onboarding activos para generar reportes"
-        
+        # Obtener todas las Business Units activas
+        business_units = BusinessUnit.objects.filter(is_active=True)
         reports_generated = 0
-        current_month = timezone.now().strftime('%B_%Y').lower()
         
-        # Agrupar por empresa
-        company_processes = {}
-        for process in processes:
-            company = getattr(process.vacancy, 'empresa', None)
-            if company:
-                company_id = company.id
-                if company_id not in company_processes:
-                    company_processes[company_id] = []
-                company_processes[company_id].append(process)
-        
-        # Generar reporte para cada empresa
-        for company_id, processes in company_processes.items():
-            if not processes:
+        for bu in business_units:
+            # Obtener procesos activos de la BU
+            active_processes = OnboardingProcess.objects.filter(
+                vacancy__business_unit=bu,
+                status__in=['IN_PROGRESS', 'COMPLETED']
+            )
+            
+            if not active_processes.exists():
                 continue
-                
-            # Tomar primer proceso para obtener datos de la empresa
-            sample_process = processes[0]
-            company = sample_process.vacancy.empresa
             
-            # Crear directorio si no existe
-            reports_dir = os.path.join(settings.MEDIA_ROOT, 'satisfaction_reports')
-            os.makedirs(reports_dir, exist_ok=True)
-            
-            # Generar reporte consolidado
-            report_filename = f"{company.name.lower().replace(' ', '_')}_{current_month}.html"
-            report_path = os.path.join(reports_dir, report_filename)
-            
-            # Contenido del reporte
-            with open(report_path, 'w') as f:
-                f.write("<!DOCTYPE html>\n<html>\n<head>")
-                f.write(f"<title>Reporte de Satisfacción {company.name} - {current_month}</title>")
-                f.write("<style>")
-                # Estilos CSS para el reporte
-                f.write("body { font-family: Arial, sans-serif; }")
-                f.write("h1, h2 { color: #0056b3; }")
-                f.write("table { border-collapse: collapse; width: 100%; }")
-                f.write("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }")
-                f.write("th { background-color: #f2f2f2; }")
-                f.write("</style>")
-                f.write("</head>\n<body>")
+            # Generar reporte para cada proceso
+            for process in active_processes:
+                report = asyncio.run(OnboardingController.generate_satisfaction_report(process.id))
                 
-                f.write(f"<h1>Reporte de Satisfacción - {company.name}</h1>")
-                f.write(f"<p>Período: {current_month}</p>")
-                
-                # Tabla de procesos
-                f.write("<h2>Procesos de Onboarding Activos</h2>")
-                f.write("<table>")
-                f.write("<tr><th>Colaborador</th><th>Posición</th><th>Días desde contratación</th><th>Satisfacción</th></tr>")
-                
-                for process in processes:
-                    days_since_hire = (timezone.now().date() - process.hire_date.date()).days
-                    satisfaction = process.get_satisfaction_score() or "N/A"
-                    satisfaction_display = f"{satisfaction}/10" if satisfaction != "N/A" else "N/A"
-                    
-                    f.write(f"<tr>")
-                    f.write(f"<td>{process.person.first_name} {process.person.last_name}</td>")
-                    f.write(f"<td>{process.vacancy.title}</td>")
-                    f.write(f"<td>{days_since_hire}</td>")
-                    f.write(f"<td>{satisfaction_display}</td>")
-                    f.write(f"</tr>")
-                
-                f.write("</table>")
-                
-                # Más contenido aquí según necesidad
-                
-                f.write("</body>\n</html>")
-            
-            reports_generated += 1
-            logger.info(f"Generado reporte de satisfacción para {company.name}: {report_path}")
+                if report.get('success'):
+                    reports_generated += 1
+                    logger.info(f"Generado reporte para onboarding {process.id} en BU {bu.name}")
         
-        return f"Generados {reports_generated} reportes de satisfacción"
-    
+        return f"Generados {reports_generated} reportes de satisfacción de clientes"
+        
     except Exception as e:
-        logger.error(f"Error generando reportes de satisfacción: {str(e)}")
+        logger.error(f"Error generando reportes de satisfacción de clientes: {str(e)}")
         return f"Error: {str(e)}"
 
 @shared_task(bind=True)
 def process_onboarding_ml_data_task(self):
     """
-    Procesa datos de onboarding para machine learning, incluyendo actualización de modelos
-    predictivos de satisfacción y retención.
+    Procesa datos de onboarding para actualizar modelos predictivos de satisfacción y retención.
     """
     from app.ml.onboarding_processor import OnboardingMLProcessor
+    from app.models import OnboardingProcess
     
     try:
-        processor = OnboardingMLProcessor()
-        results = asyncio.run(processor.process_all_onboarding_data())
+        # Obtener todos los procesos de onboarding
+        processes = OnboardingProcess.objects.all()
         
-        return f"Datos de onboarding procesados: {results}"
+        # Procesar datos para ML
+        ml_processor = OnboardingMLProcessor()
+        results = asyncio.run(ml_processor.process_onboarding_data(processes))
+        
+        return f"Procesados {len(processes)} procesos de onboarding para ML"
         
     except Exception as e:
         logger.error(f"Error procesando datos de onboarding para ML: {str(e)}")
         return f"Error: {str(e)}"
 
+# =========================================================
+# Tareas de Notificaciones de Ofertas
+# =========================================================
+
+@shared_task(bind=True, max_retries=3)
+def send_offer_notification_task(self, offer_id, notification_type):
+    """
+    Envía notificaciones relacionadas con ofertas.
+    
+    Args:
+        offer_id (int): ID de la oferta
+        notification_type (str): Tipo de notificación ('created', 'accepted', 'declined')
+    """
+    from app.models import Offer
+    from app.ats.integrations.notifications.process.offer_notifications import OfferNotificationService
+    
+    try:
+        offer = Offer.objects.get(id=offer_id)
+        notification_service = OfferNotificationService(offer.business_unit)
+        
+        if notification_type == 'created':
+            result = asyncio.run(notification_service.notify_offer_made(
+                person=offer.candidate,
+                vacancy=offer.vacancy,
+                offer_details=offer.details,
+                deadline=offer.expiration_date
+            ))
+        elif notification_type == 'accepted':
+            result = asyncio.run(notification_service.notify_offer_accepted(
+                person=offer.candidate,
+                vacancy=offer.vacancy,
+                acceptance_date=timezone.now()
+            ))
+        elif notification_type == 'declined':
+            result = asyncio.run(notification_service.notify_offer_declined(
+                person=offer.candidate,
+                vacancy=offer.vacancy,
+                reason=offer.decline_reason
+            ))
+        else:
+            raise ValueError(f"Tipo de notificación no válido: {notification_type}")
+            
+        if not result:
+            raise ValueError("Error enviando notificación de oferta")
+            
+        return f"Notificación de oferta enviada correctamente: {notification_type}"
+        
+    except Exception as e:
+        logger.error(f"Error enviando notificación de oferta: {str(e)}")
+        if self.request.retries < self.max_retries:
+            countdown = 5 * 60 * (5 ** self.request.retries)
+            raise self.retry(exc=e, countdown=countdown)
+        return f"Error: {str(e)}"
+
+# =========================================================
+# Tareas de Notificaciones de Entrevistas
+# =========================================================
+
+@shared_task(bind=True, max_retries=3)
+def send_interview_notification_task(self, interview_id, notification_type):
+    """
+    Envía notificaciones relacionadas con entrevistas.
+    
+    Args:
+        interview_id (int): ID de la entrevista
+        notification_type (str): Tipo de notificación ('scheduled', 'reminder', 'cancelled', 'location_update', 'delay')
+    """
+    from app.models import Interview
+    from app.ats.integrations.notifications.process.interview_notifications import InterviewNotificationService
+    
+    try:
+        interview = Interview.objects.get(id=interview_id)
+        notification_service = InterviewNotificationService(interview.business_unit)
+        
+        if notification_type == 'scheduled':
+            result = asyncio.run(notification_service.notify_interview_scheduled(
+                interview=interview,
+                candidate=interview.candidate,
+                consultant=interview.consultant
+            ))
+        elif notification_type == 'reminder':
+            result = asyncio.run(notification_service.notify_interview_reminder(
+                interview=interview,
+                candidate=interview.candidate,
+                consultant=interview.consultant
+            ))
+        elif notification_type == 'cancelled':
+            result = asyncio.run(notification_service.notify_interview_cancelled(
+                interview=interview,
+                candidate=interview.candidate,
+                consultant=interview.consultant,
+                reason=interview.cancellation_reason
+            ))
+        elif notification_type == 'location_update':
+            result = asyncio.run(notification_service.notify_candidate_location_update(
+                person=interview.candidate,
+                vacancy=interview.vacancy,
+                interview_date=interview.interview_date,
+                location=interview.current_location,
+                status=interview.location_status,
+                estimated_arrival=interview.estimated_arrival
+            ))
+        elif notification_type == 'delay':
+            result = asyncio.run(notification_service.notify_interview_delay(
+                person=interview.candidate,
+                vacancy=interview.vacancy,
+                interview_date=interview.interview_date,
+                delay_minutes=interview.delay_minutes,
+                reason=interview.delay_reason
+            ))
+        else:
+            raise ValueError(f"Tipo de notificación no válido: {notification_type}")
+            
+        if not result:
+            raise ValueError("Error enviando notificación de entrevista")
+            
+        return f"Notificación de entrevista enviada correctamente: {notification_type}"
+        
+    except Exception as e:
+        logger.error(f"Error enviando notificación de entrevista: {str(e)}")
+        if self.request.retries < self.max_retries:
+            countdown = 5 * 60 * (5 ** self.request.retries)
+            raise self.retry(exc=e, countdown=countdown)
+        return f"Error: {str(e)}"
+
+@shared_task(bind=True)
+async def track_candidate_location_task(self, interview_id):
+    """
+    Rastrea la ubicación del candidato antes de la entrevista.
+    
+    Args:
+        interview_id (int): ID de la entrevista
+    """
+    from app.models import Interview
+    from app.ats.integrations.notifications.process.interview_notifications import InterviewNotificationService
+    from app.ats.utils.location_tracker import LocationTracker
+    
+    try:
+        interview = Interview.objects.get(id=interview_id)
+        location_tracker = LocationTracker()
+        notification_service = InterviewNotificationService(interview.business_unit)
+        
+        # Obtener ubicación actual
+        current_location = await location_tracker.get_current_location(interview.candidate)
+        
+        # Calcular distancia y tiempo estimado
+        distance = await location_tracker.calculate_distance(
+            current_location,
+            interview.location
+        )
+        
+        # Determinar estado
+        if distance < 1:  # Menos de 1 km
+            status = 'cerca'
+        elif distance < 5:  # Menos de 5 km
+            status = 'en_traslado'
+        else:
+            status = 'llegando_tarde'
+            
+        # Calcular tiempo estimado de llegada
+        estimated_arrival = await location_tracker.estimate_arrival_time(
+            current_location,
+            interview.location,
+            interview.interview_date
+        )
+        
+        # Actualizar estado en la entrevista
+        interview.current_location = current_location
+        interview.location_status = status
+        interview.estimated_arrival = estimated_arrival
+        await interview.asave()
+        
+        # Enviar notificación
+        result = await notification_service.notify_candidate_location_update(
+            person=interview.candidate,
+            vacancy=interview.vacancy,
+            interview_date=interview.interview_date,
+            location=current_location,
+            status=status,
+            estimated_arrival=estimated_arrival
+        )
+        
+        if not result:
+            raise ValueError("Error enviando notificación de ubicación")
+            
+        return f"Ubicación del candidato actualizada: {status}"
+        
+    except Exception as e:
+        logger.error(f"Error rastreando ubicación del candidato: {str(e)}")
+        return f"Error: {str(e)}"
+
+@shared_task(bind=True)
+async def check_interview_delays_task(self):
+    """
+    Verifica retrasos en entrevistas programadas.
+    """
+    from app.models import Interview
+    from app.ats.integrations.notifications.process.interview_notifications import InterviewNotificationService
+    from django.utils import timezone
+    
+    try:
+        now = timezone.now()
+        upcoming_interviews = await Interview.objects.filter(
+            interview_date__gt=now,
+            interview_date__lte=now + timezone.timedelta(hours=1),
+            status='scheduled'
+        ).aiterator()
+        
+        async for interview in upcoming_interviews:
+            # Verificar si el candidato está en camino
+            if interview.location_status == 'en_traslado':
+                # Calcular tiempo estimado de llegada
+                estimated_arrival = interview.estimated_arrival
+                if estimated_arrival and estimated_arrival > interview.interview_date:
+                    # Calcular minutos de retraso
+                    delay_minutes = int((estimated_arrival - interview.interview_date).total_seconds() / 60)
+                    
+                    # Actualizar estado
+                    interview.delay_minutes = delay_minutes
+                    interview.delay_reason = "Tráfico o distancia"
+                    await interview.asave()
+                    
+                    # Enviar notificación
+                    notification_service = InterviewNotificationService(interview.business_unit)
+                    result = await notification_service.notify_interview_delay(
+                        person=interview.candidate,
+                        vacancy=interview.vacancy,
+                        interview_date=interview.interview_date,
+                        delay_minutes=delay_minutes,
+                        reason=interview.delay_reason
+                    )
+                    
+                    if not result:
+                        logger.error(f"Error notificando retraso para entrevista {interview.id}")
+        
+        return "Verificación de retrasos completada"
+        
+    except Exception as e:
+        logger.error(f"Error verificando retrasos: {str(e)}")
+        return f"Error: {str(e)}"
+
+# =========================================================
+# Tareas de Notificaciones de Propuestas
+# =========================================================
+
+@shared_task(bind=True, max_retries=3)
+def send_proposal_notification_task(self, proposal_id):
+    """
+    Envía notificaciones relacionadas con propuestas.
+    
+    Args:
+        proposal_id (int): ID de la propuesta
+    """
+    from app.models import Proposal
+    from app.ats.integrations.notifications.process.proposal_notifications import ProposalNotificationService
+    
+    try:
+        proposal = Proposal.objects.get(id=proposal_id)
+        notification_service = ProposalNotificationService(proposal.business_unit)
+        
+        result = asyncio.run(notification_service.notify_proposal_created(
+            proposal=proposal,
+            client=proposal.client,
+            consultant=proposal.consultant
+        ))
+            
+        if not result:
+            raise ValueError("Error enviando notificación de propuesta")
+            
+        return "Notificación de propuesta enviada correctamente"
+        
+    except Exception as e:
+        logger.error(f"Error enviando notificación de propuesta: {str(e)}")
+        if self.request.retries < self.max_retries:
+            countdown = 5 * 60 * (5 ** self.request.retries)
+            raise self.retry(exc=e, countdown=countdown)
+        return f"Error: {str(e)}"
 
 # =========================================================
 # Tareas para obtención de oportunidades, scraping, 
@@ -2904,3 +2337,82 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=1, minute=0),  # Diario a la 1 AM
     },
 }
+
+# =========================================================
+# Tareas de Seguimiento de Entrevistas
+# =========================================================
+
+from app.ats.services.interview_tracking_service import InterviewTrackingService
+
+@shared_task
+async def track_candidate_location_task(interview_id: int) -> None:
+    """
+    Tarea para actualizar la ubicación del candidato.
+    
+    Args:
+        interview_id: ID de la entrevista
+    """
+    try:
+        interview = await Interview.objects.aget(id=interview_id)
+        tracking_service = InterviewTrackingService(interview.business_unit)
+        await tracking_service.update_location(interview_id)
+    except Exception as e:
+        logger.error(f"Error en track_candidate_location_task: {str(e)}")
+
+@shared_task
+async def start_interview_tracking_task(interview_id: int) -> None:
+    """
+    Tarea para iniciar el tracking de una entrevista.
+    
+    Args:
+        interview_id: ID de la entrevista
+    """
+    try:
+        interview = await Interview.objects.aget(id=interview_id)
+        tracking_service = InterviewTrackingService(interview.business_unit)
+        await tracking_service.start_tracking(interview_id)
+    except Exception as e:
+        logger.error(f"Error en start_interview_tracking_task: {str(e)}")
+
+@shared_task
+async def stop_interview_tracking_task(interview_id: int) -> None:
+    """
+    Tarea para detener el tracking de una entrevista.
+    
+    Args:
+        interview_id: ID de la entrevista
+    """
+    try:
+        interview = await Interview.objects.aget(id=interview_id)
+        tracking_service = InterviewTrackingService(interview.business_unit)
+        await tracking_service.stop_tracking(interview_id)
+    except Exception as e:
+        logger.error(f"Error en stop_interview_tracking_task: {str(e)}")
+
+@shared_task
+async def schedule_interview_tracking_task(interview_id: int) -> None:
+    """
+    Tarea para programar el tracking de una entrevista.
+    
+    Args:
+        interview_id: ID de la entrevista
+    """
+    try:
+        interview = await Interview.objects.aget(id=interview_id)
+        
+        # Programar inicio del tracking 1 hora antes
+        start_time = interview.interview_date - timedelta(hours=1)
+        start_interview_tracking_task.apply_async(
+            args=[interview_id],
+            eta=start_time
+        )
+        
+        # Programar fin del tracking al finalizar la entrevista
+        end_time = interview.interview_date + timedelta(hours=1)  # Asumiendo 1 hora de duración
+        stop_interview_tracking_task.apply_async(
+            args=[interview_id],
+            eta=end_time
+        )
+        
+    except Exception as e:
+        logger.error(f"Error en schedule_interview_tracking_task: {str(e)}")

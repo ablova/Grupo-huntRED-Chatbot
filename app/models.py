@@ -4672,32 +4672,91 @@ class JobTracker(models.Model):
     def __str__(self):
         return f"Seguimiento de {self.candidato} - {self.oportunidad}"
 
+INTERVIEW_TYPES = [
+    ('phone', 'Teléfono'),
+    ('video', 'Video-entrevista'),
+    ('onsite', 'Presencial'),
+]
+
+INTERVIEW_STATUS = [
+    ('scheduled', 'Programada'),
+    ('in_progress', 'En curso'),
+    ('completed', 'Completada'),
+    ('canceled', 'Cancelada'),
+]
 class Interview(models.Model):
-    """Modelo para entrevistas en inglés."""
-    candidate = models.ForeignKey('Person', on_delete=models.CASCADE)
-    interviewer = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='interviews_conducted')
-    opportunity = models.ForeignKey('Oportunidad', on_delete=models.CASCADE)
-    interview_type = models.CharField(max_length=50)
-    scheduled_date = models.DateTimeField()
-    duration = models.IntegerField(default=60)  # en minutos
-    status = models.CharField(max_length=20, choices=[
-        ('SCHEDULED', 'Scheduled'),
-        ('COMPLETED', 'Completed'),
-        ('CANCELLED', 'Cancelled'),
-        ('RESCHEDULED', 'Rescheduled')
-    ], default='SCHEDULED')
-    notes = models.TextField(blank=True)
-    feedback = models.TextField(blank=True)
+    """
+    Modelo para gestionar las entrevistas de candidatos.
+    """
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='interviews')
+    vacancy = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='interviews')
+    interview_date = models.DateTimeField()
+    interview_type = models.CharField(max_length=50, choices=INTERVIEW_TYPES)
+    status = models.CharField(max_length=20, choices=INTERVIEW_STATUS, default='scheduled')
+    location = models.JSONField(null=True, blank=True)  # Información de ubicación
+    current_location = models.JSONField(null=True, blank=True)  # Ubicación actual del candidato
+    location_status = models.CharField(max_length=20, choices=[
+        ('en_traslado', 'En Traslado'),
+        ('llegando_tarde', 'Llegando Tarde'),
+        ('cerca', 'Cerca del Lugar')
+    ], null=True, blank=True)
+    estimated_arrival = models.DateTimeField(null=True, blank=True)
+    delay_minutes = models.IntegerField(null=True, blank=True)
+    delay_reason = models.TextField(null=True, blank=True)
+    cancellation_reason = models.TextField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Interview"
-        verbose_name_plural = "Interviews"
-        ordering = ['-scheduled_date']
+        ordering = ['-interview_date']
+        indexes = [
+            models.Index(fields=['interview_date']),
+            models.Index(fields=['status']),
+            models.Index(fields=['location_status'])
+        ]
 
     def __str__(self):
-        return f"Interview with {self.candidate} for {self.opportunity}"
+        return f"{self.person.full_name} - {self.vacancy.title} ({self.interview_date})"
+
+    @property
+    def is_delayed(self):
+        """Verifica si la entrevista está retrasada."""
+        if self.estimated_arrival and self.estimated_arrival > self.interview_date:
+            return True
+        return False
+
+    @property
+    def delay_time(self):
+        """Calcula el tiempo de retraso en minutos."""
+        if self.is_delayed:
+            return int((self.estimated_arrival - self.interview_date).total_seconds() / 60)
+        return 0
+
+    def update_location(self, current_location, status=None):
+        """
+        Actualiza la ubicación actual del candidato.
+        
+        Args:
+            current_location (dict): Información de ubicación actual
+            status (str, optional): Estado de ubicación
+        """
+        self.current_location = current_location
+        if status:
+            self.location_status = status
+        self.save()
+
+    def mark_as_delayed(self, minutes, reason):
+        """
+        Marca la entrevista como retrasada.
+        
+        Args:
+            minutes (int): Minutos de retraso
+            reason (str): Razón del retraso
+        """
+        self.delay_minutes = minutes
+        self.delay_reason = reason
+        self.save()
 
 class ConfiguracionScraping(models.Model):
     """Configuración para el scraping de datos."""
@@ -5734,4 +5793,24 @@ class Experience(models.Model):
         
     def __str__(self):
         return f"{self.person} - {self.title} en {self.company}"
+
+class NotificationLog(models.Model):
+    """
+    Registro de notificaciones enviadas.
+    """
+    notification = models.ForeignKey('Notification', on_delete=models.CASCADE)
+    channel = models.CharField(max_length=50)
+    status = models.CharField(max_length=20)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    error_message = models.TextField(null=True, blank=True)
+    metadata = models.JSONField(default=dict)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['notification', 'channel']),
+            models.Index(fields=['status', 'sent_at'])
+        ]
+
+    def __str__(self):
+        return f"{self.notification} - {self.channel} ({self.status})"
 
