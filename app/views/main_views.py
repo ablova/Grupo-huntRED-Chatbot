@@ -7,20 +7,16 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
-from app.ats.decorators import (
-    super_admin_required, bu_complete_required, bu_division_required,
-    business_unit_required, division_required, permission_required,
-    verified_user_required, active_user_required
-)
+from app.decorators import *
 from asgiref.sync import sync_to_async
 from django.template.response import TemplateResponse
 from django.middleware.csrf import get_token
 #from ratelimit.decorators import ratelimit
 
 from app.models import (
-    BusinessUnit, ChatState, Configuracion, Application, Vacante, Person
+    BusinessUnit, ChatState, ConfiguracionBU, Application, Vacante, Person
 )
-from app.ats.chatbot.utils import analyze_text
+from app.ats.chatbot.utils.nlp_utils import NLPUtils
 from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.chatbot import ChatBotHandler
 from app.ats.integrations.services import MessageService, get_business_unit
@@ -52,7 +48,7 @@ def index(request):
     Muestra un formulario de envío de mensajes para administradores autenticados.
     """
     business_units = BusinessUnit.objects.all()
-    config = Configuracion.objects.first()
+    config = ConfiguracionBU.objects.first()
     context = {
         'business_units': business_units,
         'config': config,

@@ -30,6 +30,7 @@ logger = logging.getLogger('chatbot')
 # Constantes
 MAX_RETRIES = 3
 REQUEST_TIMEOUT = 10.0
+CACHE_TIMEOUT = 60  # Assuming a default cache timeout
 
 class SlackHandler:
     """
@@ -54,10 +55,18 @@ class SlackHandler:
     async def initialize(self):
         """Inicializa la conexión con la API de Slack."""
         try:
-            self.slack_api = await sync_to_async(SlackAPI.objects.filter(
-                is_active=True, 
-                business_unit=self.business_unit
-            ).first)()
+            # Obtener configuración de SlackAPI
+            cache_key = f"slack_api:{self.business_unit.id}"
+            self.slack_api = cache.get(cache_key)
+            
+            if not self.slack_api:
+                self.slack_api = await SlackAPI.objects.filter(
+                    is_active=True, 
+                    business_unit=self.business_unit
+                ).afirst()
+                
+                if self.slack_api:
+                    cache.set(cache_key, self.slack_api, CACHE_TIMEOUT)
             
             if not self.slack_api:
                 logger.error(f"No se encontró configuración de SlackAPI activa para la unidad de negocio {self.business_unit.name}")

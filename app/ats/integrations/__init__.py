@@ -36,7 +36,18 @@ from .utils import (
     set_integration_config
 )
 from .channels.linkedin.channel import LinkedInChannel
-from .matchmaking import MatchmakingService
+from .services import (
+    EmailService,
+    SMSService,
+    WhatsAppService,
+    TelegramService,
+    MessengerService,
+    InstagramService,
+    SlackService,
+    LinkedInService,
+    XService
+)
+from .matchmaking.service import EnhancedMatchmakingService as MatchmakingService
 from .chatbot import ChatbotService
 
 __all__ = [
@@ -66,6 +77,15 @@ __all__ = [
     'get_integration_config',
     'set_integration_config',
     'LinkedInChannel',
+    'EmailService',
+    'SMSService',
+    'WhatsAppService',
+    'TelegramService',
+    'MessengerService',
+    'InstagramService',
+    'SlackService',
+    'LinkedInService',
+    'XService',
     'MatchmakingService',
     'ChatbotService'
 ] 

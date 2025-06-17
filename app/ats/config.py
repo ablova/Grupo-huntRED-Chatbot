@@ -52,13 +52,9 @@ METRICS_CONFIG = {
 # Configuración de integraciones
 INTEGRATION_CONFIG = {
     'whatsapp': {
-        'api_key': os.getenv('WHATSAPP_API_KEY'),
-        'api_url': os.getenv('WHATSAPP_API_URL'),
         'enabled': True
     },
     'x': {
-        'api_key': os.getenv('X_API_KEY'),
-        'api_secret': os.getenv('X_API_SECRET'),
         'enabled': True
     },
     'calendar': {
@@ -95,17 +91,30 @@ class ComConfig:
     @staticmethod
     def get_channel_config(channel_type: str) -> Dict:
         """Obtiene la configuración para un canal específico."""
+        from app.models import WhatsAppAPI, TelegramAPI, MessengerAPI, InstagramAPI, SlackAPI, XAPI
+        
         return {
             'whatsapp': {
-                'api_key': settings.WHATSAPP_API_KEY,
-                'api_secret': settings.WHATSAPP_API_SECRET,
+                'retry_delay': 30,
+                'max_retries': 3
+            },
+            'telegram': {
+                'retry_delay': 30,
+                'max_retries': 3
+            },
+            'messenger': {
+                'retry_delay': 30,
+                'max_retries': 3
+            },
+            'instagram': {
+                'retry_delay': 30,
+                'max_retries': 3
+            },
+            'slack': {
                 'retry_delay': 30,
                 'max_retries': 3
             },
             'x': {
-                'api_key': settings.X_API_KEY,
-                'api_secret': settings.X_API_SECRET,
-                'access_token': settings.X_ACCESS_TOKEN,
                 'retry_delay': 60,
                 'max_retries': 3
             },

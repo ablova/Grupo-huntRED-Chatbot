@@ -19,10 +19,7 @@ from django.utils import timezone
 from django.core.cache import caches
 from django_ratelimit.decorators import ratelimit
 
-from app.ats.decorators import (
-    bu_complete_required, bu_division_required,
-    permission_required, verified_user_required
-)
+from app.decorators import *
 from app.models import (
     Application, Interview, Person, Vacante,
     ApplicationStatus, InterviewStatus

@@ -53,11 +53,16 @@ required_env_vars = [
     'EMAIL_HOST',
     'EMAIL_HOST_USER',
     'EMAIL_HOST_PASSWORD',
-    'WHATSAPP_API_TOKEN',
-    'TELEGRAM_BOT_TOKEN',
-    'MESSENGER_APP_SECRET',
-    'INSTAGRAM_APP_SECRET',
 ]
+
+# Las configuraciones de los canales se obtienen de sus respectivos modelos API:
+# - WhatsApp: WhatsAppAPI
+# - Telegram: TelegramAPI
+# - Messenger: MessengerAPI
+# - Instagram: InstagramAPI
+# - Slack: SlackAPI
+# - LinkedIn: LinkedInAPI
+# - X (Twitter): XAPI
 
 for var in required_env_vars:
     if not env(var, default=None):

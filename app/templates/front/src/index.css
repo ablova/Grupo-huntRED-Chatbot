@@ -1,0 +1,30 @@
+
+@import url('./styles/main.css');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles after Tailwind base */
+html {
+  font-family: var(--font-family);
+}
+
+/* Dark theme integration with Tailwind */
+.dark {
+  color-scheme: dark;
+}
+
+/* Ensure our custom classes work with Tailwind */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center;
+  }
+  
+  .card {
+    @apply rounded-xl p-6 transition-all duration-300;
+  }
+  
+  .section-header {
+    @apply text-center mb-16;
+  }
+}

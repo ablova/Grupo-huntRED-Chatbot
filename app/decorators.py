@@ -100,3 +100,21 @@ def permission_required(permission):
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
+
+def rbac_required(allowed_roles):
+    """
+    Decorador para restringir el acceso a vistas según una lista de roles permitidos.
+    Compatible con @method_decorator y vistas basadas en clase o función.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        @login_required(login_url='login')
+        def _wrapped_view(request, *args, **kwargs):
+            user_role = getattr(request.user, 'role', None)
+            if user_role not in allowed_roles:
+                logger.warning(f"Access denied for user {getattr(request.user, 'username', 'anon')} with role {user_role} (required: {allowed_roles})")
+                return HttpResponseForbidden("No tienes permisos para acceder a esta vista.")
+            logger.info(f"Access granted for user {getattr(request.user, 'username', 'anon')} with role {user_role}")
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator

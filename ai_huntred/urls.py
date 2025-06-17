@@ -16,7 +16,7 @@ from django.views.generic import RedirectView
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.conf.urls.static import static
 from django.views.decorators.csrf import csrf_exempt
-from ai_huntred.settings import METRICS_ENDPOINT, ENABLE_METRICS
+from ai_huntred.config.development import METRICS_ENDPOINT, ENABLE_METRICS
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi

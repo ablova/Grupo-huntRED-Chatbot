@@ -32,11 +32,38 @@ EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
-# API Keys and Secrets
-WHATSAPP_API_KEY = env('WHATSAPP_API_KEY')
-TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN')
-MESSENGER_APP_SECRET = env('MESSENGER_APP_SECRET')
-INSTAGRAM_APP_SECRET = env('INSTAGRAM_APP_SECRET')
+# Configuración de WhatsApp
+WHATSAPP_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'api_key': '',  # Obtenido desde ConfigAPI
+    'api_url': '',  # Obtenido desde ConfigAPI
+    'webhook_url': '',  # Obtenido dinámicamente
+    'webhook_token': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Telegram
+TELEGRAM_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'BOT_TOKEN': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Messenger
+MESSENGER_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'APP_SECRET': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Instagram
+INSTAGRAM_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'APP_SECRET': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
 
 # Database configuration
 DATABASES = {

@@ -21,9 +21,7 @@ from django.conf import settings
 from asgiref.sync import sync_to_async
 from weasyprint import HTML, CSS
 
-from app.ats.decorators import (
-    role_required, permission_required
-)
+from app.decorators import *
 from app.models import (
     Opportunity, Person, VerificationService, VerificationAddon,
     OpportunityVerificationPackage, PackageAddonDetail, CandidateVerification,

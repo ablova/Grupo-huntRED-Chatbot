@@ -25,11 +25,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuración de Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings.production')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_huntred.settings.development')
 
 # Importar después de configurar el entorno
 from django.core.asgi import get_asgi_application
-from ai_huntred.settings.production import LOGGING, SECURITY_CONFIG
+from ai_huntred.settings.development import LOGGING, SECURITY_CONFIG
 
 # Configurar logging
 logging.config.dictConfig(LOGGING)

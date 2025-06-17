@@ -1,45 +1,5 @@
 """Módulo de vistas."""
 
-from .proposal_views import (
-    ProposalListView,
-    ProposalDetailView,
-    ProposalCreateView,
-    ProposalUpdateView
-)
-from .interview_views import (
-    InterviewListView,
-    InterviewDetailView,
-    InterviewCreateView,
-    InterviewUpdateView
-)
-from .offer_views import (
-    OfferListView,
-    OfferDetailView,
-    OfferCreateView,
-    OfferUpdateView
-)
-from .onboarding_views import (
-    OnboardingListView,
-    OnboardingDetailView,
-    OnboardingCreateView,
-    OnboardingUpdateView
-)
+# No se importan vistas específicas porque los archivos proposal_views, interview_views, offer_views y onboarding_views no existen actualmente.
 
-__all__ = [
-    'ProposalListView',
-    'ProposalDetailView',
-    'ProposalCreateView',
-    'ProposalUpdateView',
-    'InterviewListView',
-    'InterviewDetailView',
-    'InterviewCreateView',
-    'InterviewUpdateView',
-    'OfferListView',
-    'OfferDetailView',
-    'OfferCreateView',
-    'OfferUpdateView',
-    'OnboardingListView',
-    'OnboardingDetailView',
-    'OnboardingCreateView',
-    'OnboardingUpdateView'
-] 
+__all__ = [] 

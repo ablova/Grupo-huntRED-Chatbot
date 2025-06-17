@@ -14,7 +14,7 @@ from django.http import JsonResponse, HttpResponse
 from django.core.cache import cache
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
-from app.models import Person, BusinessUnit, InstagramAPI
+from app.models import Person, BusinessUnit, InstagramAPI, MetaAPI
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.ats.chatbot.components.rate_limiter import RateLimiter
 from app.ats.integrations.services.message import (
@@ -78,17 +78,30 @@ class InstagramHandler:
     async def initialize(self) -> bool:
         """Inicializa el manejador de Instagram."""
         try:
-            # Obtener configuración de InstagramAPI
-            cache_key = f"instagram_api:{self.phone_id}"
-            self.instagram_api = cache.get(cache_key)
+            # Obtener configuración de InstagramAPI y MetaAPI
+            cache_key_instagram = f"instagram_api:{self.phone_id}"
+            cache_key_meta = f"meta_api:{self.business_unit.id}"
+            
+            self.instagram_api = cache.get(cache_key_instagram)
             if not self.instagram_api:
                 self.instagram_api = await InstagramAPI.objects.filter(
-                    phoneID=self.phone_id, is_active=True
+                    phoneID=self.phone_id, 
+                    is_active=True
                 ).afirst()
                 if self.instagram_api:
-                    cache.set(cache_key, self.instagram_api, CACHE_TIMEOUT)
-            if not self.instagram_api:
-                raise ValueError(f"No se encontró InstagramAPI para phoneID: {self.phone_id}")
+                    cache.set(cache_key_instagram, self.instagram_api, CACHE_TIMEOUT)
+                    
+            meta_api = cache.get(cache_key_meta)
+            if not meta_api:
+                meta_api = await MetaAPI.objects.filter(
+                    business_unit=self.business_unit,
+                    is_active=True
+                ).afirst()
+                if meta_api:
+                    cache.set(cache_key_meta, meta_api, CACHE_TIMEOUT)
+                    
+            if not self.instagram_api or not meta_api:
+                raise ValueError(f"No se encontró configuración de InstagramAPI o MetaAPI para phoneID: {self.phone_id}")
 
             # Obtener o crear usuario y extraer datos
             self.user = await self._get_or_create_user()

@@ -1,16 +1,7 @@
 from django.contrib import admin
-from django.apps import apps
-from .mixins import AdminMixin
-from .config import AdminConfig
-
-# Importar todos los módulos de administración
-from .ats import *
-from .notifications import *
-from .chatbot import *
-from .market import *
-from .pricing import *
-from .learning import *
-from .analytics import *
+from app.admin.mixins import AdminMixin
+from app.admin.config import AdminConfig
+import app.ats.admin
 
 class HuntREDAdminSite(admin.AdminSite):
     """Sitio de administración personalizado para HuntRED"""
@@ -34,15 +25,8 @@ class HuntREDAdminSite(admin.AdminSite):
 # Instancia personalizada del sitio de administración
 admin_site = HuntREDAdminSite(name='admin')
 
-# Registrar modelos automáticamente si no están registrados manualmente
-def auto_register_models():
-    """Registra automáticamente los modelos que no tienen un admin personalizado"""
-    for model in apps.get_models():
-        if not model._meta.abstract and not model._meta.proxy:
-            try:
-                admin_site.register(model)
-            except admin.sites.AlreadyRegistered:
-                pass
-
-# Ejecutar el registro automático
+# Configuración del admin
+admin.site.site_header = AdminConfig.SITE_HEADER
+admin.site.site_title = AdminConfig.SITE_TITLE
+admin.site.index_title = AdminConfig.INDEX_TITLE
  

@@ -9,7 +9,7 @@ from django.conf import settings
 from telegram import Bot, ParseMode
 from telegram.error import TelegramError
 
-from app.models import BusinessUnit
+from app.models import BusinessUnit, TelegramAPI
 from app.ats.integrations.notifications.core.base import BaseNotificationChannel
 
 logger = logging.getLogger('chatbot')
@@ -19,8 +19,11 @@ class TelegramNotificationChannel(BaseNotificationChannel):
     
     def __init__(self, business_unit: BusinessUnit):
         super().__init__(business_unit)
-        self.bot = Bot(token=self.business_unit.telegram_bot_token)
-        self.channel_id = self.business_unit.telegram_channel_id
+        self.telegram_api = TelegramAPI.objects.filter(business_unit=business_unit, is_active=True).first()
+        if not self.telegram_api:
+            raise ValueError(f"No hay configuración activa de Telegram para la unidad de negocio {business_unit.name}")
+        self.bot = Bot(token=self.telegram_api.bot_token)
+        self.channel_id = self.telegram_api.chat_id
     
     async def send_notification(
         self,

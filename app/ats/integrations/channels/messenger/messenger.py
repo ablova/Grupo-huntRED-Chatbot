@@ -14,7 +14,7 @@ from django.http import JsonResponse, HttpResponse
 from django.core.cache import cache
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
-from app.models import Person, BusinessUnit, MessengerAPI
+from app.models import Person, BusinessUnit, MessengerAPI, MetaAPI
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.ats.chatbot.components.rate_limiter import RateLimiter
 from app.ats.integrations.services.message import (
@@ -77,17 +77,30 @@ class MessengerHandler:
     async def initialize(self) -> bool:
         """Inicializa el manejador de Messenger."""
         try:
-            # Obtener configuración de MessengerAPI
-            cache_key = f"messenger_api:{self.page_id}"
-            self.messenger_api = cache.get(cache_key)
+            # Obtener configuración de MessengerAPI y MetaAPI
+            cache_key_messenger = f"messenger_api:{self.page_id}"
+            cache_key_meta = f"meta_api:{self.business_unit.id}"
+            
+            self.messenger_api = cache.get(cache_key_messenger)
             if not self.messenger_api:
                 self.messenger_api = await MessengerAPI.objects.filter(
-                    page_id=self.page_id, is_active=True
+                    page_id=self.page_id, 
+                    is_active=True
                 ).afirst()
                 if self.messenger_api:
-                    cache.set(cache_key, self.messenger_api, CACHE_TIMEOUT)
-            if not self.messenger_api:
-                raise ValueError(f"No se encontró MessengerAPI para page_id: {self.page_id}")
+                    cache.set(cache_key_messenger, self.messenger_api, CACHE_TIMEOUT)
+                    
+            meta_api = cache.get(cache_key_meta)
+            if not meta_api:
+                meta_api = await MetaAPI.objects.filter(
+                    business_unit=self.business_unit,
+                    is_active=True
+                ).afirst()
+                if meta_api:
+                    cache.set(cache_key_meta, meta_api, CACHE_TIMEOUT)
+                    
+            if not self.messenger_api or not meta_api:
+                raise ValueError(f"No se encontró configuración de MessengerAPI o MetaAPI para page_id: {self.page_id}")
 
             # Obtener o crear usuario y extraer datos
             self.user = await self._get_or_create_user()

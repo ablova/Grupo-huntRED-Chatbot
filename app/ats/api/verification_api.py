@@ -18,10 +18,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 
-from app.ats.decorators import (
-    super_admin_required, bu_complete_required, bu_division_required,
-    role_required
-)
+from app.decorators import *
 from models import (
     VerificationService, VerificationAddon, OpportunityVerificationPackage,
     CandidateVerification, CandidateServiceResult, Person, SocialNetworkVerification

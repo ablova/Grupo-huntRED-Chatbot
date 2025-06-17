@@ -9,7 +9,7 @@ from django.conf.urls.static import static
 from django.contrib.auth.decorators import login_required
 
 # IMPORTACIONES DE VISTAS
-from app.ats.views.main_views import (
+from app.views.main_views import (
     index, interacciones_por_unidad, finalize_candidates, 
     submit_application, home
 )

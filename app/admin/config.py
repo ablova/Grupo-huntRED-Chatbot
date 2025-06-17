@@ -85,3 +85,35 @@ def get_date_ranges():
             today.replace(day=1) - timedelta(days=1)
         )
     }
+
+class AdminConfig:
+    """
+    Configuración base para el admin de la aplicación
+    """
+    # Configuración general
+    SITE_HEADER = "Grupo huntRED Admin"
+    SITE_TITLE = "Grupo huntRED"
+    INDEX_TITLE = "Panel de Administración"
+    
+    # Configuración de listas
+    LIST_PER_PAGE = 50
+    MAX_SHOW_ALL_ALLOWED = 200
+    
+    # Configuración de acciones
+    ACTIONS_SHOW_DROPDOWN = True
+    
+    # Configuración de filtros
+    FILTERS_SHOW_DROPDOWN = True
+    
+    # Configuración de búsqueda
+    SEARCH_FIELDS = ['name', 'code', 'description']
+    
+    # Configuración de ordenamiento
+    ORDERING = ['-created_at']
+    
+    # Configuración de campos de solo lectura
+    READONLY_FIELDS = ['created_at', 'updated_at']
+    
+    # Configuración de campos de fecha
+    DATE_FORMAT = '%Y-%m-%d'
+    DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'

@@ -141,32 +141,15 @@ LOGGING = {
 # Configuración de entorno
 ENVIRONMENT = 'development'
 
-# Configuración de APIs para desarrollo
-MESSAGING_APIS['whatsapp'].update({
-    'ENABLED': True,
-    'API_URL': 'http://localhost:8000/api/whatsapp',
-    'API_TOKEN': 'dev_whatsapp_token',
-    'WEBHOOK_SECRET': 'dev_webhook_secret',
-    'VERIFY_TOKEN': 'dev_verify_token',
-})
-
-MESSAGING_APIS['telegram'].update({
-    'ENABLED': True,
-    'BOT_TOKEN': 'dev_telegram_token',
-    'WEBHOOK_SECRET': 'dev_webhook_secret',
-})
-
-MESSAGING_APIS['messenger'].update({
-    'ENABLED': True,
-    'APP_SECRET': 'dev_messenger_secret',
-    'VERIFY_TOKEN': 'dev_verify_token',
-})
-
-MESSAGING_APIS['instagram'].update({
-    'ENABLED': True,
-    'APP_SECRET': 'dev_instagram_secret',
-    'ACCESS_TOKEN': 'dev_access_token',
-})
+# Configuración de canales de mensajería
+# Las configuraciones de los canales se obtienen de sus respectivos modelos API:
+# - WhatsApp: WhatsAppAPI
+# - Telegram: TelegramAPI
+# - Messenger: MessengerAPI
+# - Instagram: InstagramAPI
+# - Slack: SlackAPI
+# - LinkedIn: LinkedInAPI
+# - X (Twitter): XAPI
 
 # Configuración de Django Extensions
 SHELL_PLUS = "ipython"

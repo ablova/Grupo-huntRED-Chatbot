@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from app.ats.publish.integrations.base_integration import BaseIntegration
+from app.models import TelegramAPI
 
 
 class TelegramIntegration(BaseIntegration):
@@ -9,7 +10,10 @@ class TelegramIntegration(BaseIntegration):
     """
     def __init__(self):
         super().__init__()
-        self.bot_token = settings.TELEGRAM_BOT_TOKEN
+        self.telegram_api = TelegramAPI.objects.filter(is_active=True).first()
+        if not self.telegram_api:
+            raise ValueError("No hay configuración activa de Telegram")
+        self.bot_token = self.telegram_api.bot_token
         
     def register_channel(self, channel_type: str, identifier: str, name: str) -> models.Model:
         """

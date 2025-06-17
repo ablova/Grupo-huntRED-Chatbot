@@ -9,4 +9,4 @@ class AccountsConfig(AppConfig):
 
     def ready(self):
         # Importar señales para asegurar que se registren
-        import app.ats.ats.accounts.signals  # noqa
+        import app.ats.accounts.signals  # noqa

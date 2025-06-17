@@ -31,6 +31,7 @@ from app.ats.pricing.utils import calculate_pricing
 from app.ats.ats.contracts.contract_generator import ContractGenerator
 from app.ats.proposals.forms import ProposalFilterForm
 from app.ats.utils import get_business_unit, get_user_permissions
+from app.decorators import *
 
 import logging
 import pdfkit

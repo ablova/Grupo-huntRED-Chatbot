@@ -81,15 +81,44 @@ class SecurityConfig:
             required_env_vars = [
                 'JWT_SECRET_KEY', 
                 'DATABASE_URL', 
-                'REDIS_URL',
-                'WHATSAPP_WEBHOOK_SECRET',
-                'TELEGRAM_BOT_TOKEN',
-                'MESSENGER_APP_SECRET',
-                'INSTAGRAM_APP_SECRET'
+                'REDIS_URL'
             ]
             for var in required_env_vars:
                 if not env(var, default=None):
                     raise ImproperlyConfigured(f"Environment variable {var} is required")
+
+        # Configuración de WhatsApp
+        WHATSAPP_CONFIG = {
+            # Los valores se obtienen desde WhatsAppAPI
+            'api_key': '',  # Obtenido desde WhatsAppAPI
+            'api_url': '',  # Obtenido desde WhatsAppAPI
+            'webhook_url': '',  # Obtenido desde WhatsAppAPI
+            'webhook_token': '',  # Obtenido desde WhatsAppAPI
+        }
+
+        # Configuración de Telegram
+        TELEGRAM_CONFIG = {
+            # Los valores se obtienen desde TelegramAPI
+            'BOT_TOKEN': '',  # Obtenido desde TelegramAPI
+            'WEBHOOK_URL': '',  # Obtenido desde TelegramAPI
+            'WEBHOOK_TOKEN': '',  # Obtenido desde TelegramAPI
+        }
+
+        # Configuración de Messenger
+        MESSENGER_CONFIG = {
+            # Los valores se obtienen desde MessengerAPI
+            'APP_SECRET': '',  # Obtenido desde MessengerAPI
+            'WEBHOOK_URL': '',  # Obtenido desde MessengerAPI
+            'WEBHOOK_TOKEN': '',  # Obtenido desde MessengerAPI
+        }
+
+        # Configuración de Instagram
+        INSTAGRAM_CONFIG = {
+            # Los valores se obtienen desde InstagramAPI
+            'APP_SECRET': '',  # Obtenido desde InstagramAPI
+            'WEBHOOK_URL': '',  # Obtenido desde InstagramAPI
+            'WEBHOOK_TOKEN': '',  # Obtenido desde InstagramAPI
+        }
 
         return {
             'JWT_CONFIG': jwt_config,

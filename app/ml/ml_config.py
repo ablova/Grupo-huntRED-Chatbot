@@ -101,6 +101,210 @@ LOGGING_CONFIG = {
     'file': os.path.join(ML_LOGS_DIR, 'ml.log')
 }
 
+# Configuración de modelos de educación
+EDUCATION_CONFIG = {
+    'university': {
+        'base_scores': {
+            # Top 10 Universidades Nacionales
+            'UNAM': {
+                'score': 0.95,
+                'ranking': 1,
+                'cost': '$',
+                'specialties': ['Medicina', 'Arquitectura', 'Política'],
+                'is_public': True
+            },
+            'ITESM': {
+                'score': 0.95,
+                'ranking': 2,
+                'cost': '$$$',
+                'specialties': ['Ingeniería', 'TIC\'s', 'Economía'],
+                'is_public': False
+            },
+            'UDG': {
+                'score': 0.90,
+                'ranking': 3,
+                'cost': '$',
+                'specialties': ['Ciencias sociales', 'Medicina'],
+                'is_public': True
+            },
+            'UANL': {
+                'score': 0.90,
+                'ranking': 4,
+                'cost': '$',
+                'specialties': ['Ingeniería', 'Derecho', 'Administración'],
+                'is_public': True
+            },
+            'IPN': {
+                'score': 0.90,
+                'ranking': 5,
+                'cost': '$',
+                'specialties': ['Administración', 'Ingeniería'],
+                'is_public': True
+            },
+            'UIA': {
+                'score': 0.85,
+                'ranking': 13,
+                'cost': '$$$',
+                'specialties': ['Arquitectura', 'Comunicación', 'Contaduría'],
+                'is_public': False
+            },
+            'ITAM': {
+                'score': 0.85,
+                'ranking': 19,
+                'cost': '$$$',
+                'specialties': ['Administración', 'Contaduría', 'Derecho'],
+                'is_public': False
+            },
+            'Anáhuac': {
+                'score': 0.80,
+                'ranking': 17,
+                'cost': '$$$',
+                'specialties': ['Mercadotecnia', 'Medicina', 'Negocios'],
+                'is_public': False
+            },
+            'La Salle': {
+                'score': 0.80,
+                'ranking': 46,
+                'cost': '$$$',
+                'specialties': ['Diseño Gráfico', 'Ingeniería Cibernética'],
+                'is_public': False
+            },
+            'UVM': {
+                'score': 0.75,
+                'ranking': 38,
+                'cost': '$$$',
+                'specialties': ['Administración', 'Arquitectura', 'Derecho'],
+                'is_public': False
+            },
+            # Universidades internacionales (top 10 QS)
+            'MIT': {
+                'score': 1.0,
+                'ranking': 1,
+                'cost': '$$$$',
+                'specialties': ['Ingeniería', 'Ciencias', 'Tecnología'],
+                'is_public': False,
+                'is_international': True
+            },
+            'Cambridge': {
+                'score': 1.0,
+                'ranking': 2,
+                'cost': '$$$$',
+                'specialties': ['Ciencias', 'Humanidades', 'Ingeniería'],
+                'is_public': False,
+                'is_international': True
+            },
+            'Oxford': {
+                'score': 1.0,
+                'ranking': 3,
+                'cost': '$$$$',
+                'specialties': ['Humanidades', 'Ciencias', 'Medicina'],
+                'is_public': False,
+                'is_international': True
+            },
+            'Harvard': {
+                'score': 1.0,
+                'ranking': 4,
+                'cost': '$$$$',
+                'specialties': ['Negocios', 'Derecho', 'Medicina'],
+                'is_public': False,
+                'is_international': True
+            },
+            'Stanford': {
+                'score': 1.0,
+                'ranking': 5,
+                'cost': '$$$$',
+                'specialties': ['Tecnología', 'Negocios', 'Ingeniería'],
+                'is_public': False,
+                'is_international': True
+            }
+        },
+        'ml_weights': {},  # Se llenará dinámicamente
+        'cost_multipliers': {
+            '$': 1.0,      # Públicas
+            '$$': 1.1,     # Privadas económicas
+            '$$$': 1.2,    # Privadas medias
+            '$$$$': 1.3    # Privadas premium/internacionales
+        }
+    },
+    'program': {
+        'base_scores': {
+            # Derecho
+            'Derecho': {
+                'Escuela Libre de Derecho': 1.0,
+                'UNAM': 0.9,
+                'ITAM': 0.9,
+                'UIA': 0.85,
+                'UANL': 0.85,
+                'CIDE': 0.9,
+            },
+            # Medicina
+            'Medicina': {
+                'UNAM': 1.0,
+                'IPN': 0.9,
+                'ITESM': 0.85,
+                'UDG': 0.85,
+                'UANL': 0.85,
+            },
+            # Ingeniería
+            'Ingeniería en Sistemas': {
+                'ITESM': 1.0,
+                'UNAM': 0.9,
+                'IPN': 0.9,
+                'UIA': 0.85,
+            },
+            'Ingeniería Industrial': {
+                'ITESM': 1.0,
+                'UNAM': 0.9,
+                'IPN': 0.9,
+                'UANL': 0.85,
+            },
+            # Negocios
+            'Administración': {
+                'ITAM': 1.0,
+                'ITESM': 0.95,
+                'UIA': 0.9,
+                'IPN': 0.85,
+            },
+            'Finanzas': {
+                'ITAM': 1.0,
+                'ITESM': 0.95,
+                'UIA': 0.9,
+                'EBC': 0.85,
+            },
+            # Comunicación
+            'Comunicación': {
+                'UIA': 1.0,
+                'ITESM': 0.95,
+                'UNAM': 0.9,
+                'UAM': 0.85,
+            },
+            # Arquitectura
+            'Arquitectura': {
+                'UNAM': 1.0,
+                'UIA': 0.95,
+                'ITESM': 0.9,
+                'La Salle': 0.85,
+            }
+        },
+        'ml_weights': {},  # Se llenará dinámicamente
+        'specialty_bonus': 0.1  # Bonus por estudiar en una universidad especializada
+    },
+    'weights': {
+        'undergraduate': 0.4,
+        'graduate': 0.4,
+        'phd': 0.2,
+    },
+    'confidence_threshold': 0.7,
+    'update_frequency': 'weekly',
+    'ranking_weights': {
+        'top_10': 1.0,
+        'top_25': 0.9,
+        'top_50': 0.8,
+        'top_100': 0.7,
+        'others': 0.6
+    }
+}
+
 ML_CONFIG = {
     'SYSTEM': {
         'ENABLED_ON_MIGRATE': False,  # Deshabilitar durante migraciones

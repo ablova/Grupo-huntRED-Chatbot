@@ -1183,6 +1183,7 @@ class Parser:
     def __init__(self):
         self._cache = {}
         self._cache_ttl = 3600  # 1 hora
+        self.nlp = NLPProcessor()
         
     def _get_cached_result(self, key: str) -> Optional[Dict]:
         """Obtiene resultado del caché si existe y es válido."""
@@ -1388,3 +1389,42 @@ class Parser:
             soup.find('span', {'itemprop': 'datePosted'})
         )
         return date_elem.get_text(strip=True) if date_elem else ''
+
+    def parse_education(self, text: str) -> Dict[str, Any]:
+        """
+        Parsea la sección de educación del CV.
+        """
+        education_data = {
+            'universities': [],
+            'degrees': [],
+            'years': []
+        }
+        
+        # Extraer universidades
+        universities = self.nlp.extract_universities(text)
+        education_data['universities'] = universities
+        
+        # Extraer grados
+        degrees = self._extract_degrees(text)
+        education_data['degrees'] = degrees
+        
+        # Extraer años
+        years = self._extract_years(text)
+        education_data['years'] = years
+        
+        return education_data
+    
+    def _extract_degrees(self, text: str) -> List[Dict[str, Any]]:
+        """
+        Extrae grados académicos.
+        """
+        # TODO: Implementar extracción de grados
+        return []
+    
+    def _extract_years(self, text: str) -> List[Dict[str, Any]]:
+        """
+        Extrae años de estudio.
+        """
+        # TODO: Implementar extracción de años
+        return []
+    

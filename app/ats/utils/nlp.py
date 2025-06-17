@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/nlp.py
+# /home/pablo/app/ats/utils/nlp.py
 import spacy
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -84,6 +84,7 @@ class NLPProcessor:
         self._nlp = None
         self._sentiment_analyzer = None
         self._skill_patterns = None
+        self.university_patterns = self._load_university_patterns()
         
     async def initialize(self):
         """Inicializa los recursos del procesador de forma asíncrona."""
@@ -519,6 +520,133 @@ class NLPProcessor:
         except Exception as e:
             logger.error(f"Error en comparación de textos: {str(e)}")
             return 0.0
+
+    def _load_university_patterns(self) -> Dict[str, Any]:
+        """
+        Carga patrones para reconocimiento de universidades.
+        """
+        return {
+            'common_abbreviations': {
+                'UNAM': 'Universidad Nacional Autónoma de México',
+                'IPN': 'Instituto Politécnico Nacional',
+                'ITAM': 'Instituto Tecnológico Autónomo de México',
+                'UP': 'Universidad Panamericana',
+                'UIA': 'Universidad Iberoamericana',
+                'ITESM': 'Instituto Tecnológico de Estudios Superiores de Monterrey',
+                'TEC': 'Instituto Tecnológico de Estudios Superiores de Monterrey',
+                'UDLA': 'Universidad de las Américas',
+                'UVM': 'Universidad del Valle de México',
+                'UNITEC': 'Universidad Tecnológica de México',
+                # ... más abreviaturas comunes
+            },
+            'campus_patterns': {
+                'ITESM': [
+                    'ITESM Campus {campus}',
+                    'TEC Campus {campus}',
+                    'Tec de Monterrey Campus {campus}'
+                ],
+                'UVM': [
+                    'UVM Campus {campus}',
+                    'Universidad del Valle de México Campus {campus}'
+                ],
+                'UNITEC': [
+                    'UNITEC Campus {campus}',
+                    'Universidad Tecnológica de México Campus {campus}'
+                ]
+            },
+            'patterns': [
+                # Patrones generales
+                r'(?:Universidad|Instituto|Escuela).*?(?:Nacional|Autónoma|Tecnológico|Politecnico)',
+                r'(?:UP|UNAM|IPN|ITAM|ITESM|UAM|UIA|UDLA|UVM|UNITEC|TEC)',
+                
+                # Patrones específicos
+                r'(?:ITESM|TEC|Tec de Monterrey)(?:\s+Campus\s+[A-Za-z\s]+)?',
+                r'(?:UVM|Universidad del Valle de México)(?:\s+Campus\s+[A-Za-z\s]+)?',
+                r'(?:UNITEC|Universidad Tecnológica de México)(?:\s+Campus\s+[A-Za-z\s]+)?',
+                r'(?:UIA|Universidad Iberoamericana)(?:\s+Campus\s+[A-Za-z\s]+)?',
+                r'(?:UDLA|Universidad de las Américas)(?:\s+Campus\s+[A-Za-z\s]+)?',
+                
+                # Patrones de campus
+                r'Campus\s+[A-Za-z\s]+(?:\s+de\s+[A-Za-z\s]+)?'
+            ]
+        }
+    
+    def extract_universities(self, text: str) -> List[Dict[str, Any]]:
+        """
+        Extrae universidades del texto.
+        """
+        universities = []
+        
+        # Buscar por patrones
+        for pattern in self.university_patterns['patterns']:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                university = match.group(0)
+                # Normalizar nombre
+                normalized = self._normalize_university_name(university)
+                # Extraer campus si existe
+                campus = self._extract_campus(university, normalized)
+                
+                universities.append({
+                    'original': university,
+                    'normalized': normalized,
+                    'campus': campus,
+                    'confidence': self._calculate_confidence(match)
+                })
+        
+        return universities
+    
+    def _extract_campus(self, text: str, normalized_university: str) -> Optional[str]:
+        """
+        Extrae información del campus si existe.
+        """
+        # Buscar patrones de campus
+        for university, patterns in self.university_patterns['campus_patterns'].items():
+            if university in normalized_university.upper():
+                for pattern in patterns:
+                    match = re.search(pattern.format(campus=r'([A-Za-z\s]+)'), text, re.IGNORECASE)
+                    if match:
+                        return match.group(1).strip()
+        return None
+    
+    def _normalize_university_name(self, name: str) -> str:
+        """
+        Normaliza el nombre de la universidad.
+        """
+        # Verificar si es una abreviatura
+        name_upper = name.upper()
+        for abbr, full_name in self.university_patterns['common_abbreviations'].items():
+            if abbr in name_upper:
+                return full_name
+        
+        # Normalizar formato
+        name = name.strip()
+        name = re.sub(r'\s+', ' ', name)
+        
+        return name
+    
+    def _calculate_confidence(self, match: re.Match) -> float:
+        """
+        Calcula el nivel de confianza de la extracción.
+        """
+        # Factores que afectan la confianza
+        factors = {
+            'exact_match': 1.0,
+            'abbreviation_match': 0.9,
+            'pattern_match': 0.8,
+            'campus_match': 0.7
+        }
+        
+        # Determinar el tipo de match
+        matched_text = match.group(0)
+        if matched_text.upper() in self.university_patterns['common_abbreviations']:
+            return factors['exact_match']
+        elif any(abbr in matched_text.upper() for abbr in self.university_patterns['common_abbreviations']):
+            return factors['abbreviation_match']
+        elif self._extract_campus(matched_text, matched_text):
+            return factors['campus_match']
+        else:
+            return factors['pattern_match']
 
 def create_nlp_processor(business_unit: BusinessUnit, **kwargs) -> NLPProcessor:
     """Factory para crear procesadores NLP."""

@@ -3,6 +3,7 @@ import logging
 import aiohttp
 from django.conf import settings
 from app.ats.chatbot.models.business_unit import BusinessUnit
+from app.models import TelegramAPI
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +15,11 @@ class TelegramNotifier:
     def __init__(self, business_unit_id: int):
         self.business_unit_id = business_unit_id
         self.business_unit = BusinessUnit.objects.get(id=business_unit_id)
-        self.api_token = self.business_unit.telegram_bot_token
-        self.channel_id = self.business_unit.telegram_channel_id
+        self.telegram_api = TelegramAPI.objects.filter(business_unit=self.business_unit, is_active=True).first()
+        if not self.telegram_api:
+            raise ValueError(f"No hay configuración activa de Telegram para la unidad de negocio {self.business_unit.name}")
+        self.api_token = self.telegram_api.bot_token
+        self.channel_id = self.telegram_api.chat_id
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
         
     async def send_message(self, message: str, parse_mode: str = "Markdown") -> Dict[str, Any]:

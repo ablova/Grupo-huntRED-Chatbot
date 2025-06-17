@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any
 import logging
 from datetime import datetime
 
-from .analyzer import EnhancedMatchmakingAnalyzer
+from app.ats.integrations.matchmaking.analyzer import EnhancedMatchmakingAnalyzer
 from app.ats.models import Person, Job, Match
 from app.ats.utils.cache import cache_manager
 

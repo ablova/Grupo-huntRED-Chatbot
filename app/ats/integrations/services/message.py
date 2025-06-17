@@ -15,12 +15,12 @@ from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.models import BusinessUnit, MessageLog
-from app.ats.integrations.channels.telegram import TelegramHandler
-from app.ats.integrations.channels.whatsapp import WhatsAppHandler
-from app.ats.integrations.channels.slack import SlackHandler
-from app.ats.integrations.channels.messenger import MessengerHandler
-from app.ats.integrations.channels.instagram import InstagramHandler
-from app.ats.integrations.channels.x import XHandler
+from app.ats.integrations.channels.telegram.telegram.telegram import TelegramHandler
+from app.ats.integrations.channels.whatsapp.whatsapp.whatsapp import WhatsAppHandler
+from app.ats.integrations.channels.slack.slack.slack import SlackHandler
+from app.ats.integrations.channels.messenger.messenger.messenger import MessengerHandler
+from app.ats.integrations.channels.instagram.instagram.instagram import InstagramHandler
+from app.ats.integrations.channels.x.x.x import XHandler
 
 logger = logging.getLogger('chatbot')
 

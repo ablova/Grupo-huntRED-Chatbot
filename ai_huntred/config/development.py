@@ -5,6 +5,7 @@
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
 from ai_huntred.settings import *
+from ai_huntred.settings.base import BASE_DIR, INSTALLED_APPS, MIDDLEWARE
 import os
 import environ
 
@@ -26,11 +27,38 @@ DATABASES = {
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'noreply@huntred.com'
 
-# API Keys and Secrets (development values)
-WHATSAPP_API_KEY = env('WHATSAPP_API_KEY', default='dev_whatsapp_key')
-TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default='dev_telegram_token')
-MESSENGER_APP_SECRET = env('MESSENGER_APP_SECRET', default='dev_messenger_secret')
-INSTAGRAM_APP_SECRET = env('INSTAGRAM_APP_SECRET', default='dev_instagram_secret')
+# Configuración de WhatsApp
+WHATSAPP_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'api_key': '',  # Obtenido desde ConfigAPI
+    'api_url': '',  # Obtenido desde ConfigAPI
+    'webhook_url': '',  # Obtenido dinámicamente
+    'webhook_token': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Telegram
+TELEGRAM_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'BOT_TOKEN': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Messenger
+MESSENGER_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'APP_SECRET': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Instagram
+INSTAGRAM_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'APP_SECRET': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
 
 # Cache configuration
 CACHES = {

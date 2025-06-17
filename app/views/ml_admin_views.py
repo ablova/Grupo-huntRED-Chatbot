@@ -11,7 +11,7 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.conf import settings
 
-from app.ats.utilidades.decorators import rbac_required
+from app.decorators import rbac_required
 from app.models import Vacante, Person, BusinessUnit
 from app.ml.core.models.base import MatchmakingLearningSystem, MatchmakingModel, TransitionModel, MarketAnalysisModel
 from app.ats.kanban.ml_integration import get_vacancy_recommendations, get_candidate_growth_data, analyze_skill_gaps

@@ -25,7 +25,8 @@ from app.ats.talent.cultural_fit import CulturalFitAnalyzer
 from app.ats.talent.learning_engine import LearningEngine
 from app.ats.talent.mentor_matcher import MentorMatcher
 from app.models import Person, BusinessUnit, Role
-from app.ats.utils.decorators import check_role_access
+# from app.ats.utils.decorators import check_role_access
+# TODO: Implementar check_role_access en app/decorators.py si es necesario
 
 logger = logging.getLogger(__name__)
 

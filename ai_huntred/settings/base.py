@@ -45,6 +45,7 @@ ENVIRONMENT = env('DJANGO_ENVIRONMENT', default='development')
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
 INSTALLED_APPS = [
+    # Django apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,21 +53,21 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    # Aplicaciones locales
-    'app.ats.accounts.apps.AccountsConfig',
-    
-    # Local apps
-    'app.apps.AppConfig',  # Incluye todos los modelos incluyendo sexsi
-    
     # Third-party apps
     'rest_framework',
     'corsheaders',
-    'django_celery_results',
-    'django_celery_beat',
     'django_filters',
     'silk',
     'channels',
     'drf_yasg',
+    
+    # Aplicaciones locales
+    'app.ats.accounts.apps.AccountsConfig',
+    'app.apps.AppConfig',  # Incluye todos los modelos incluyendo sexsi
+    
+    # Celery apps (deben ir al final)
+    'django_celery_results',
+    'django_celery_beat',
 ]
 
 # Configuración de usuario personalizado
@@ -250,39 +251,15 @@ CACHES = {
     }
 }
 
-# Configuración de APIs de mensajería
-MESSAGING_APIS = {
-    'whatsapp': {
-        'ENABLED': env.bool('WHATSAPP_ENABLED', default=True),
-        'API_URL': env('WHATSAPP_API_URL', default=''),
-        'API_TOKEN': env('WHATSAPP_API_TOKEN', default=''),
-        'WEBHOOK_SECRET': env('WHATSAPP_WEBHOOK_SECRET', default=''),
-        'VERIFY_TOKEN': env('WHATSAPP_VERIFY_TOKEN', default=''),
-        'MAX_RETRIES': 3,
-        'TIMEOUT': 30,
-    },
-    'telegram': {
-        'ENABLED': env.bool('TELEGRAM_ENABLED', default=True),
-        'BOT_TOKEN': env('TELEGRAM_BOT_TOKEN', default=''),
-        'WEBHOOK_SECRET': env('TELEGRAM_WEBHOOK_SECRET', default=''),
-        'MAX_RETRIES': 3,
-        'TIMEOUT': 30,
-    },
-    'messenger': {
-        'ENABLED': env.bool('MESSENGER_ENABLED', default=True),
-        'APP_SECRET': env('MESSENGER_APP_SECRET', default=''),
-        'VERIFY_TOKEN': env('MESSENGER_VERIFY_TOKEN', default=''),
-        'MAX_RETRIES': 3,
-        'TIMEOUT': 30,
-    },
-    'instagram': {
-        'ENABLED': env.bool('INSTAGRAM_ENABLED', default=True),
-        'APP_SECRET': env('INSTAGRAM_APP_SECRET', default=''),
-        'ACCESS_TOKEN': env('INSTAGRAM_ACCESS_TOKEN', default=''),
-        'MAX_RETRIES': 3,
-        'TIMEOUT': 30,
-    }
-}
+# Configuración de canales de mensajería
+# Las configuraciones de los canales se obtienen de sus respectivos modelos API:
+# - WhatsApp: WhatsAppAPI
+# - Telegram: TelegramAPI
+# - Messenger: MessengerAPI
+# - Instagram: InstagramAPI
+# - Slack: SlackAPI
+# - LinkedIn: LinkedInAPI
+# - X (Twitter): XAPI
 
 # Configuración de PayPal
 PAYPAL_CONFIG = {
@@ -315,6 +292,39 @@ X_CONFIG = {
     'api_secret': env('X_API_SECRET', default=''),
     'access_token': env('X_ACCESS_TOKEN', default=''),
     'access_token_secret': env('X_ACCESS_TOKEN_SECRET', default='')
+}
+
+# Configuración de WhatsApp
+WHATSAPP_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'api_key': '',  # Obtenido desde ConfigAPI
+    'api_url': '',  # Obtenido desde ConfigAPI
+    'webhook_url': '',  # Obtenido dinámicamente
+    'webhook_token': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Telegram
+TELEGRAM_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'BOT_TOKEN': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Messenger
+MESSENGER_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'APP_SECRET': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
+}
+
+# Configuración de Instagram
+INSTAGRAM_CONFIG = {
+    # Los valores de API y webhooks se obtienen desde ConfigAPI y modelos dinámicos
+    'APP_SECRET': '',  # Obtenido desde ConfigAPI
+    'WEBHOOK_URL': '',  # Obtenido dinámicamente
+    'WEBHOOK_TOKEN': '',  # Obtenido dinámicamente
 }
 
 # Crear directorios necesarios
