@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/validation/truth_analyzer.py
+# app/ats/chatbot/validation/truth_analyzer.py
 """TruthSense™: Módulo para detección de inconsistencias en perfiles de candidatos.
 Implementa técnicas de validación cruzada y análisis de consistencia para verificar
 la veracidad de la información proporcionada durante la creación de perfiles.

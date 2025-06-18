@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/channels/__init__.py
 """Notification channels package.
 
 Provides utility to retrieve channel classes by name. Channels should implement
@@ -37,3 +38,11 @@ def get_channel_class(channel_name: str):
     except Exception:
         # Import failed – swallow but return None to avoid propagating.
         return None
+
+# ---------------------------------------------------------------------------
+# Backward-compatibility: legacy code may still import `get_channel` expecting
+# the previous behaviour of returning the class. Keep an alias so that old
+# imports do not break while migrations complete.
+# ---------------------------------------------------------------------------
+get_channel = get_channel_class
+

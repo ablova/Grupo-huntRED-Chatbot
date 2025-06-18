@@ -1,4 +1,4 @@
-# /home/pablo/app/com/onboarding/satisfaction_tracker.py
+# /home/pablo/app/ats/onboarding/satisfaction_tracker.py
 """
 Sistema de seguimiento de satisfacción para candidatos en onboarding.
 Realiza encuestas periódicas, recolecta respuestas y genera insights.
@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from app.models import Person, Vacante, Company, OnboardingProcess
 from app.ats.chatbot.message_service import MessageService
-from app.tasks import send_satisfaction_survey
+from app.tasks import send_satisfaction_survey_task as send_satisfaction_survey
 
 logger = logging.getLogger(__name__)
 

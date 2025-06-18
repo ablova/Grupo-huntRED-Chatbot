@@ -1,4 +1,4 @@
-from app.ats.notifications.recipients.basebase import BaseRecipient
+from app.ats.integrations.notifications.recipients.base import BaseRecipient
 from app.models import Person
 
 class CollectorRecipient(BaseRecipient):

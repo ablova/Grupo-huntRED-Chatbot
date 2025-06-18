@@ -1,3 +1,12 @@
+"""
+Re-exportación de modelos de feedback desde app.models.
+Este archivo existe para mantener la compatibilidad con el código existente.
+"""
+
+from app.models import ProposalFeedback, MeetingRequest
+
+__all__ = ['ProposalFeedback', 'MeetingRequest']
+
 from django.db import models
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder

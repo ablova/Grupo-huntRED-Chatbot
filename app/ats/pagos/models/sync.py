@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
+from .empleador import Oportunidad
 
 class SincronizacionLog(models.Model):
     """
@@ -14,7 +15,7 @@ class SincronizacionLog(models.Model):
     ]
     
     oportunidad = models.ForeignKey(
-        'pagos.Oportunidad',
+        Oportunidad,
         on_delete=models.CASCADE,
         related_name='sincronizaciones'
     )
@@ -36,7 +37,7 @@ class SincronizacionError(models.Model):
     Modelo para registrar errores de sincronización.
     """
     oportunidad = models.ForeignKey(
-        'pagos.Oportunidad',
+        Oportunidad,
         on_delete=models.CASCADE,
         related_name='errores_sincronizacion'
     )

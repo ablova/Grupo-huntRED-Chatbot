@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from app.models import Person, Empleador
+from app.models import Person
 
 class EstadoPerfil(models.TextChoices):
     ACTIVO = 'activo', 'Activo'
@@ -50,8 +50,9 @@ class Empleador(models.Model):
         """Valida que todos los documentos requeridos estén presentes y sean válidos"""
         return True  # Implementación pendiente
 
-class Worker(models.Model):
-    persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='worker')
+# Modelo para personas físicas que trabajan (empleados)
+class Empleado(models.Model):
+    persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='empleado')
     
     # Información laboral
     nss = models.CharField(max_length=11, unique=True, null=True, blank=True)
@@ -68,13 +69,13 @@ class Worker(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
     # Documentos
-    documento_identidad = models.FileField(upload_to='workers/documentos/')
-    comprobante_domicilio = models.FileField(upload_to='workers/documentos/')
+    documento_identidad = models.FileField(upload_to='empleados/documentos/')
+    comprobante_domicilio = models.FileField(upload_to='empleados/documentos/')
     
     class Meta:
         ordering = ['-fecha_registro']
-        verbose_name = 'Worker'
-        verbose_name_plural = 'Workers'
+        verbose_name = 'Empleado'
+        verbose_name_plural = 'Empleados'
 
     def __str__(self):
         return f"{self.persona.nombre} {self.persona.apellido_paterno}"

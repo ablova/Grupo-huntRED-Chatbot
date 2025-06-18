@@ -21,7 +21,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
-from app.ats.pagos.models import Pago, PagoHistorico
+from app.ats.pagos.models import Pago, PagoHistorico, Empleado
 from app.ats.pagos.services import PagoService
 from app.ats.empleadores.models import Empleador
 from app.ats.vacantes.models import Vacante
@@ -264,40 +264,40 @@ class EmpleadorDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('empleador-list')
 
 
-# Worker views
-class WorkerListView(LoginRequiredMixin, BUFilterMixin, ListView):
-    model = Worker
-    template_name = 'pagos/worker_list.html'
-    context_object_name = 'workers'
+# Empleado views
+class EmpleadoListView(LoginRequiredMixin, BUFilterMixin, ListView):
+    model = Empleado
+    template_name = 'pagos/empleado_list.html'
+    context_object_name = 'empleados'
     paginate_by = 20
 
 
-class WorkerCreateView(LoginRequiredMixin, CreateView):
-    model = Worker
-    template_name = 'pagos/worker_form.html'
-    fields = ['empleador', 'nombre', 'email', 'telefono', 'puesto', 'salario', 'fecha_inicio', 'detalles']
-    success_url = reverse_lazy('worker-list')
+class EmpleadoCreateView(LoginRequiredMixin, CreateView):
+    model = Empleado
+    template_name = 'pagos/empleado_form.html'
+    fields = ['persona', 'nss', 'ocupacion', 'experiencia_anios', 'clabe', 'banco', 'estado', 'documento_identidad', 'comprobante_domicilio']
+    success_url = reverse_lazy('empleado-list')
 
 
-class WorkerDetailView(LoginRequiredMixin, DetailView):
-    model = Worker
-    template_name = 'pagos/worker_detail.html'
-    context_object_name = 'worker'
+class EmpleadoDetailView(LoginRequiredMixin, DetailView):
+    model = Empleado
+    template_name = 'pagos/empleado_detail.html'
+    context_object_name = 'empleado'
 
 
-class WorkerUpdateView(LoginRequiredMixin, UpdateView):
-    model = Worker
-    template_name = 'pagos/worker_form.html'
-    fields = ['empleador', 'nombre', 'email', 'telefono', 'puesto', 'salario', 'fecha_inicio', 'detalles']
+class EmpleadoUpdateView(LoginRequiredMixin, UpdateView):
+    model = Empleado
+    template_name = 'pagos/empleado_form.html'
+    fields = ['persona', 'nss', 'ocupacion', 'experiencia_anios', 'clabe', 'banco', 'estado', 'documento_identidad', 'comprobante_domicilio']
     
     def get_success_url(self):
-        return reverse_lazy('worker-detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('empleado-detail', kwargs={'pk': self.object.pk})
 
 
-class WorkerDeleteView(LoginRequiredMixin, DeleteView):
-    model = Worker
-    template_name = 'pagos/worker_confirm_delete.html'
-    success_url = reverse_lazy('worker-list')
+class EmpleadoDeleteView(LoginRequiredMixin, DeleteView):
+    model = Empleado
+    template_name = 'pagos/empleado_confirm_delete.html'
+    success_url = reverse_lazy('empleado-list')
 
 
 # Oportunidad views

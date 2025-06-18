@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/process_notifications.py   
 """
 Servicio de notificaciones de procesos de Grupo huntRED®.
 """
@@ -5,9 +6,20 @@ import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from app.models import BusinessUnit, Process
+from app.models import BusinessUnit, Vacante as Process
 from app.ats.integrations.notifications.core.base_service import BaseNotificationService
 from app.ats.integrations.notifications.core.config import NotificationType
+
+# ---------------------------------------------------------------------------
+# Backward-compatibility: mantener el nombre `ProcessNotificationManager` que
+# algunos módulos (p.ej. `app.ats.tasks`) esperan encontrar en este paquete.
+# Reexportamos la clase real desde `process.manager` sin instanciarla.
+# ---------------------------------------------------------------------------
+from app.ats.integrations.notifications.process.manager import (
+    ProcessNotificationManager as _ProcessNotificationManager,
+)
+# Alias público
+ProcessNotificationManager = _ProcessNotificationManager
 
 logger = logging.getLogger('notifications')
 
@@ -154,5 +166,13 @@ class ProcessNotificationService(BaseNotificationService):
             additional_data=additional_details
         )
 
-# Instancia global del servicio de notificaciones de procesos
-process_notifier = ProcessNotificationService(BusinessUnit.objects.first()) 
+# Instancia global del servicio de notificaciones de procesos.
+# Para evitar errores durante comandos de migración (la tabla aún no existe),
+# atrapamos excepciones de base de datos y diferimos la creación.
+from django.db.utils import OperationalError, ProgrammingError
+
+try:
+    process_notifier = ProcessNotificationService(BusinessUnit.objects.first())
+except (OperationalError, ProgrammingError):
+    # La base de datos todavía no está lista; se inicializará en tiempo de ejecución.
+    process_notifier = None 

@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
-from app.models import Person, Vacante
+from datetime import timedelta
+from .empleador import Person, Vacante
 
 class EstadoPago(models.TextChoices):
     PENDIENTE = 'pendiente', 'Pendiente'
@@ -110,36 +111,6 @@ class Pago(models.Model):
     def calcular_monto_total(self):
         """Calcula el monto total basado en el número de plazas."""
         return self.monto_por_plaza * self.numero_plazas
-    
-    class Meta:
-        ordering = ['-fecha_creacion']
-        verbose_name = 'Pago'
-        verbose_name_plural = 'Pagos'
-
-    def __str__(self):
-        return f'Pago #{self.id} - {self.empleador.nombre} -> {self.business_unit.name} (Oportunidad: {self.oportunidad_id})'
-
-    def actualizar_estado(self, nuevo_estado, metadata=None):
-        """Actualiza el estado del pago y crea un registro histórico."""
-        historico = PagoHistorico.objects.create(
-            pago=self,
-            estado_anterior=self.estado,
-            metadata=metadata or {}
-        )
-        self.estado = nuevo_estado
-        self.fecha_actualizacion = timezone.now()
-        self.save()
-        return historico
-
-    def marcar_como_completado(self, transaccion_id=None):
-        self.estado = EstadoPago.COMPLETADO
-        self.id_transaccion = transaccion_id
-        self.save()
-
-    def marcar_como_fallido(self, motivo=None):
-        self.estado = EstadoPago.FALLIDO
-        self.metadata['motivo_fallo'] = motivo
-        self.save()
 
 class PagoRecurrente(models.Model):
     pago_base = models.OneToOneField(Pago, on_delete=models.CASCADE, related_name='recurrente')
@@ -198,7 +169,6 @@ class WebhookLog(models.Model):
     evento = models.CharField(max_length=50)
     payload = models.JSONField()
     fecha_creacion = models.DateTimeField(auto_now_add=True)
-    procesado = models.BooleanField(default=False)
     error = models.TextField(null=True, blank=True)
     
     class Meta:
@@ -207,4 +177,4 @@ class WebhookLog(models.Model):
         verbose_name_plural = 'Logs de Webhooks'
 
     def __str__(self):
-        return f'Webhook #{self.id} - {self.evento}'
+        return f'Webhook Log #{self.id} - {self.evento}'

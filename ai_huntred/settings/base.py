@@ -58,8 +58,18 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'silk',
-    'channels',
+    
     'drf_yasg',
+]
+
+# Opcional: agregar Channels solo si está instalado
+try:
+    import channels  # noqa: F401
+    INSTALLED_APPS.append('channels')
+except ImportError:
+    import warnings
+    warnings.warn('Django Channels no está instalado; funcionalidades en tiempo real deshabilitadas.', ImportWarning)
+
     
     # Aplicaciones locales
     'app.ats.accounts.apps.AccountsConfig',

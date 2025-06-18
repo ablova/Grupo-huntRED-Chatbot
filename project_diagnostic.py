@@ -32,6 +32,10 @@ import json
 from datetime import datetime
 import grp
 import pwd
+import re
+from collections import defaultdict
+from django.apps import apps
+from django.db import models
 
 # Configuración de logging
 logging.basicConfig(
@@ -53,9 +57,42 @@ except ImportError:
     logger.warning("systemd no está disponible. Usando alternativas.")
     SYSTEMD_AVAILABLE = False
 
+def setup_django():
+    """Configura el entorno de Django."""
+    try:
+        # Asegurarse de que estamos en el directorio correcto
+        project_root = Path(__file__).parent.absolute()
+        os.chdir(project_root)
+        
+        # Configurar Django
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+        django.setup()
+        
+        logger.info("✓ Entorno de Django configurado correctamente")
+        return True
+    except Exception as e:
+        logger.error(f"Error configurando Django: {str(e)}")
+        return False
+
 class ProjectManager:
     def __init__(self):
-        self.project_root = Path(__file__).parent
+        self.project_root = Path(__file__).parent.absolute()
+        self.requirements_file = self.project_root / 'requirements.txt'
+        self.env_file = self.project_root / '.env'
+        self.settings_file = self.project_root / 'config' / 'settings.py'
+        self.urls_file = self.project_root / 'config' / 'urls.py'
+        self.models_file = self.project_root / 'app' / 'models.py'
+        self.views_dir = self.project_root / 'app' / 'views'
+        self.templates_dir = self.project_root / 'app' / 'templates'
+        self.static_dir = self.project_root / 'app' / 'static'
+        self.migrations_dir = self.project_root / 'app' / 'migrations'
+        
+        # Verificar que estamos en el directorio correcto
+        if not self.settings_file.exists():
+            logger.error(f"No se encontró el archivo de configuración en: {self.settings_file}")
+            logger.info("Asegúrate de ejecutar el script desde el directorio raíz del proyecto")
+            sys.exit(1)
+        
         self.app_dir = self.project_root / 'app'
         self.issues = []
         self.optimizations = []
@@ -1178,7 +1215,6 @@ stopwaitsecs=600"""
                     SELECT table_name 
                     FROM information_schema.tables 
                     WHERE table_schema = 'public'
-                    AND table_type = 'BASE TABLE'
                 """)
                 tables = cursor.fetchall()
                 
@@ -1264,11 +1300,16 @@ def main():
     """Función principal."""
     try:
         # Cargar variables de entorno
-        load_dotenv()
+        env_path = Path(__file__).parent / '.env'
+        if env_path.exists():
+            load_dotenv(env_path)
+            logger.info("✓ Variables de entorno cargadas")
+        else:
+            logger.warning("No se encontró el archivo .env")
         
         # Configurar Django
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-        django.setup()
+        if not setup_django():
+            sys.exit(1)
         
         # Ejecutar gestión del proyecto
         manager = ProjectManager()

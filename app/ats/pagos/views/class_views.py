@@ -4,11 +4,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
-from app.ats.pagos.models import Pago
+from app.ats.pagos.models import Pago, Empleado
 from app.ats.empleadores.models import Empleador
 from app.ats.vacantes.models import Vacante
 from app.ats.models import Oportunidad
-from app.ats.models.worker import Worker
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PagoListView(LoginRequiredMixin, ListView):
@@ -42,18 +41,17 @@ class EmpleadorDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'empleador'
 
 @method_decorator(csrf_exempt, name='dispatch')
-class WorkerListView(LoginRequiredMixin, ListView):
-    """Lista de trabajadores."""
-    model = Worker
-    template_name = 'pagos/worker_list.html'
-    context_object_name = 'workers'
+class EmpleadoListView(LoginRequiredMixin, ListView):
+    model = Empleado
+    template_name = 'pagos/empleado_list.html'
+    context_object_name = 'empleados'
+    paginate_by = 20
 
 @method_decorator(csrf_exempt, name='dispatch')
-class WorkerDetailView(LoginRequiredMixin, DetailView):
-    """Detalles de un trabajador específico."""
-    model = Worker
-    template_name = 'pagos/worker_detail.html'
-    context_object_name = 'worker'
+class EmpleadoDetailView(LoginRequiredMixin, DetailView):
+    model = Empleado
+    template_name = 'pagos/empleado_detail.html'
+    context_object_name = 'empleado'
 
 @method_decorator(csrf_exempt, name='dispatch')
 class OportunidadListView(LoginRequiredMixin, ListView):

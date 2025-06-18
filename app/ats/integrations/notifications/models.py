@@ -1,3 +1,12 @@
+"""
+Re-exportación de modelos de notificación desde app.models.
+Este archivo existe para mantener la compatibilidad con el código existente.
+"""
+
+from app.models import Notification, NotificationTemplate, NotificationChannel
+
+__all__ = ['Notification', 'NotificationTemplate', 'NotificationChannel']
+
 from django.db import models
 from django.utils import timezone
 

@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from app.models import Person, BusinessUnit, Vacancy, CartaOferta
 from app.ats.integrations.notifications.core.service import get_notification_service
+from app.ats.integrations.notifications.recipients.base import BaseRecipient
 
 logger = logging.getLogger(__name__)
 

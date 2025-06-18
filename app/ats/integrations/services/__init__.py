@@ -1,5 +1,5 @@
 # app/ats/integrations/services/__init__.py
-from .base import (
+from app.ats.integrations.services.base import (
     UserDataFetcher,
     WhatsAppUserDataFetcher,
     TelegramUserDataFetcher,
@@ -13,7 +13,7 @@ from .base import (
     reset_chat_state
 )
 
-from .message import (
+from app.ats.integrations.services.message import (
     MessageService,
     WhatsAppMessageService,
     TelegramMessageService,
@@ -22,7 +22,7 @@ from .message import (
     SlackMessageService
 )
 
-from .menu import (
+from app.ats.integrations.services.menu import (
     MenuSystem,
     MenuItem,
     get_menus,
@@ -32,20 +32,20 @@ from .menu import (
     menu_system as MENUS
 )
 
-from .assessment import (
+from app.ats.integrations.services.assessment import (
     Assessment,
     AssessmentService,
     assessment_service
 )
 
-from .gamification import (
+from app.ats.integrations.services.gamification import (
     Achievement,
     Badge,
     GamificationService,
     gamification_service
 )
 
-from .email import (
+from app.ats.integrations.services.email import (
     EmailService,
     email_service
 )

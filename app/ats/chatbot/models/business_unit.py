@@ -1,3 +1,12 @@
+"""
+Re-exportación de modelos de business unit desde app.models.
+Este archivo existe para mantener la compatibilidad con el código existente.
+"""
+
+from app.models import BusinessUnit
+
+__all__ = ['BusinessUnit']
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 

@@ -17,7 +17,7 @@ from app.ats.integrations.notifications.core.service import get_notification_ser
 
 logger = logging.getLogger(__name__)
 
-from app.ats.notifications.recipients.basebase import BaseRecipient
+from app.ats.integrations.notifications.recipients.base import BaseRecipient
 from app.models import Person
 
 class ClientRecipient(BaseRecipient):

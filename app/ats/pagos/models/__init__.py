@@ -1,5 +1,13 @@
-from .empleador import Empleador
-from .pago import Pago
+from .empleador import Empleador, Empleado
+from .pago import (
+    EstadoPago,
+    TipoPago,
+    MetodoPago,
+    Pago,
+    PagoRecurrente,
+    PagoHistorico,
+    WebhookLog
+)
 from .sync import (
     SincronizacionLog,
     SincronizacionError,
@@ -11,7 +19,14 @@ from .sync import (
 
 __all__ = [
     'Empleador',
+    'Empleado',
+    'EstadoPago',
+    'TipoPago',
+    'MetodoPago',
     'Pago',
+    'PagoRecurrente',
+    'PagoHistorico',
+    'WebhookLog',
     'SincronizacionLog',
     'SincronizacionError',
     'EstadoSincronizacion',
