@@ -1,3 +1,4 @@
+# app/ats/pagos/models/pago.py
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
@@ -25,7 +26,7 @@ class MetodoPago(models.TextChoices):
     CRYPTO = 'crypto', 'Criptomonedas'
 
 class Pago(models.Model):
-    empleador = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='pagos_enviados')
+    empleador = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='pagos_enviados') # No debería ser el Empleador / Empresa
     vacante = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='pagos')
     business_unit = models.ForeignKey('app.BusinessUnit', on_delete=models.CASCADE, related_name='pagos_recibidos')
     

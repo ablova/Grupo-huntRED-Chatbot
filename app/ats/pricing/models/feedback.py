@@ -1,11 +1,8 @@
+# app/ats/pricing/models/feedback.py
 """
 Re-exportación de modelos de feedback desde app.models.
 Este archivo existe para mantener la compatibilidad con el código existente.
 """
-
-from app.models import ProposalFeedback, MeetingRequest
-
-__all__ = ['ProposalFeedback', 'MeetingRequest']
 
 from django.db import models
 from django.utils import timezone
@@ -23,7 +20,7 @@ class ProposalFeedback(models.Model):
     ]
     
     propuesta = models.ForeignKey(
-        'pricing.Proposal',
+        'pricing.PricingProposal',
         on_delete=models.CASCADE,
         related_name='feedback'
     )
@@ -54,7 +51,7 @@ class MeetingRequest(models.Model):
     ]
     
     propuesta = models.ForeignKey(
-        'pricing.Proposal',
+        'pricing.PricingProposal',
         on_delete=models.CASCADE,
         related_name='solicitudes_reunion'
     )

@@ -25,7 +25,7 @@ import redis
 import requests
 
 from app.models import Proposal, TalentAnalysisRequest, Company, Contact, Opportunity
-from app.ats.pricing.feedback_models import ProposalFeedback, MeetingRequest
+from app.ats.pricing.models.feedback import ProposalFeedback, MeetingRequest
 from app.ats.chatbot.message_service import MessageService
 
 logger = logging.getLogger(__name__)

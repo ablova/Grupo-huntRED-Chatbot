@@ -1,3 +1,4 @@
+# app/ats/pagos/models/empleador.py
 from django.db import models
 from django.utils import timezone
 from app.models import Person
@@ -14,7 +15,9 @@ class TipoDocumento(models.TextChoices):
     PASAPORTE = 'pasaporte', 'Pasaporte'
 
 class Empleador(models.Model):
+    name = models.CharField(max_length=100, blank=True, null=True)
     persona = models.OneToOneField(Person, on_delete=models.CASCADE, related_name='empleador')
+    whatsapp = models.CharField(max_length=20, blank=True, null=True)
     
     # Información fiscal
     razon_social = models.CharField(max_length=255)
@@ -26,8 +29,10 @@ class Empleador(models.Model):
     banco = models.CharField(max_length=100)
     
     # Información de contacto
+    img_company = models.CharField(max_length=500, blank=True, null=True)
     sitio_web = models.URLField(null=True, blank=True)
     telefono_oficina = models.CharField(max_length=20)
+    address = models.CharField(max_length=200, blank=True, null=True)
     
     # Estado
     estado = models.CharField(max_length=20, choices=EstadoPerfil.choices, default=EstadoPerfil.ACTIVO)
@@ -37,6 +42,20 @@ class Empleador(models.Model):
     # Documentos
     documento_identidad = models.FileField(upload_to='empleadores/documentos/')
     comprobante_domicilio = models.FileField(upload_to='empleadores/documentos/')
+    
+    # --- CAMPOS AÑADIDOS DE WORKER ---
+    job_id = models.CharField(max_length=100, blank=True, null=True)
+    url_name = models.CharField(max_length=100, blank=True, null=True)
+    salary = models.CharField(max_length=100, blank=True, null=True)
+    job_type = models.CharField(max_length=100, blank=True, null=True)
+    
+    longitude = models.CharField(max_length=100, blank=True, null=True)
+    latitude = models.CharField(max_length=100, blank=True, null=True)
+    required_skills = models.TextField(blank=True, null=True)
+    experience_required = models.IntegerField(blank=True, null=True)
+    job_description = models.TextField(blank=True, null=True)
+    metadata = models.JSONField(default=dict, blank=True, help_text="Información adicional del empleador: sectores, requerimientos, etc.")
+    # --- FIN CAMPOS AÑADIDOS ---
     
     class Meta:
         ordering = ['-fecha_registro']

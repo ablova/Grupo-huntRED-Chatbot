@@ -9,10 +9,7 @@ from app.ats.pricing.models.service import (
     PricingCalculation,
     PricingPayment
 )
-from app.ats.pricing.models.feedback import (
-    ProposalFeedback,
-    MeetingRequest
-)
+from .feedback import ProposalFeedback, MeetingRequest
 from app.ats.pricing.models.proposal import (
     PricingProposal,
     ProposalSection,

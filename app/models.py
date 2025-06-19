@@ -1495,7 +1495,7 @@ class DominioScraping(models.Model):
 
 class Vacante(models.Model):
     titulo = models.CharField(max_length=1000)
-    empresa = models.ForeignKey(Company, on_delete=models.CASCADE)
+    empresa = models.ForeignKey('Empleador', on_delete=models.CASCADE, related_name='vacantes')
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)
     proposal = models.ForeignKey('Proposal', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacancies')
     salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -1676,8 +1676,7 @@ class Proposal(models.Model):
         return self.title
 
 class Invoice(models.Model):
-    """Modelo para facturas."""
-    payment = models.ForeignKey(Payment, on_delete=models.CASCADE)
+    payment = models.ForeignKey('app.Pago', on_delete=models.CASCADE)
     invoice_number = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -3722,7 +3721,7 @@ class Contrato(models.Model):
     """Modelo para gestionar contratos de trabajo."""
     
     oportunidad = models.ForeignKey('Oportunidad', on_delete=models.CASCADE)
-    worker = models.ForeignKey('company', on_delete=models.CASCADE)
+    empleado = models.ForeignKey('Empleado', on_delete=models.CASCADE, related_name='contratos')
     status = models.CharField(max_length=20, choices=CONTRATO_STATUS_CHOICES, default='PENDING_APPROVAL')
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
@@ -3737,7 +3736,7 @@ class Contrato(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Contrato de {self.worker} para {self.oportunidad}"
+        return f"Contrato de {self.empleado} para {self.oportunidad}"
 
 class EntrevistaTipo(models.Model):
     """Tipos de entrevistas disponibles."""
@@ -4220,72 +4219,6 @@ class MessageLog(models.Model):
     def __str__(self):
         recipient = self.phone or self.email or (self.recipient.nombre if self.recipient else "Unknown")
         return f"{self.message_type} a {recipient} [{self.status}]"
-
-class NotificationConfig(models.Model):
-    """Configuración global del canal de notificaciones."""
-    name = models.CharField(max_length=100, default="Canal de Notificaciones General")
-    whatsapp_channel = models.OneToOneField(
-        NotificationChannel,
-        on_delete=models.CASCADE,
-        related_name='notification_config',
-        null=True,
-        blank=True,
-        help_text="Canal de WhatsApp configurado para notificaciones"
-    )
-    email_channel = models.OneToOneField(
-        NotificationChannel,
-        on_delete=models.CASCADE,
-        related_name='email_config',
-        null=True,
-        blank=True,
-        help_text="Canal de Email configurado para notificaciones"
-    )
-    default_channel = models.CharField(
-        max_length=20,
-        choices=NOTIFICATION_CHANNEL_CHOICES,
-        default='WHATSAPP',
-        help_text="Canal por defecto para notificaciones"
-    )
-    retry_attempts = models.IntegerField(
-        default=3,
-        help_text="Número de intentos de reenvío"
-    )
-    retry_delay_minutes = models.IntegerField(
-        default=5,
-        help_text="Tiempo de espera entre reintentos (minutos)"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Configuración de Notificaciones"
-        verbose_name_plural = "Configuraciones de Notificaciones"
-        
-    def __str__(self):
-        return self.name
-        
-    def get_default_channel(self):
-        """Obtiene el canal por defecto habilitado."""
-        channel = self.whatsapp_channel if self.default_channel == 'WHATSAPP' else self.email_channel
-        return channel if channel and channel.enabled else None
-        
-    def get_enabled_channels(self):
-        """Obtiene todos los canales habilitados."""
-        channels = []
-        if self.whatsapp_channel and self.whatsapp_channel.enabled:
-            channels.append(self.whatsapp_channel)
-        if self.email_channel and self.email_channel.enabled:
-            channels.append(self.email_channel)
-        return channels
-        
-    def update_channel_config(self, channel_type: str, config: dict):
-        """Actualiza la configuración de un canal específico."""
-        channel = self.whatsapp_channel if channel_type == 'WHATSAPP' else self.email_channel
-        if channel:
-            channel.config.update(config)
-            channel.save()
-            return True
-        return False
 
 class ChatState(models.Model):
     """Modelo para manejar el estado de las conversaciones del chatbot."""
@@ -5408,6 +5341,71 @@ class Notification(models.Model):
         self.retry_count += 1
         self.save(update_fields=['retry_count', 'updated_at'])
 
+class NotificationConfig(models.Model):
+    """Configuración global del canal de notificaciones."""
+    name = models.CharField(max_length=100, default="Canal de Notificaciones General")
+    whatsapp_channel = models.OneToOneField(
+        NotificationChannel,
+        on_delete=models.CASCADE,
+        related_name='notification_config',
+        null=True,
+        blank=True,
+        help_text="Canal de WhatsApp configurado para notificaciones"
+    )
+    email_channel = models.OneToOneField(
+        NotificationChannel,
+        on_delete=models.CASCADE,
+        related_name='email_config',
+        null=True,
+        blank=True,
+        help_text="Canal de Email configurado para notificaciones"
+    )
+    default_channel = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_CHANNEL_CHOICES,
+        default='WHATSAPP',
+        help_text="Canal por defecto para notificaciones"
+    )
+    retry_attempts = models.IntegerField(
+        default=3,
+        help_text="Número de intentos de reenvío"
+    )
+    retry_delay_minutes = models.IntegerField(
+        default=5,
+        help_text="Tiempo de espera entre reintentos (minutos)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración de Notificaciones"
+        verbose_name_plural = "Configuraciones de Notificaciones"
+        
+    def __str__(self):
+        return self.name
+        
+    def get_default_channel(self):
+        """Obtiene el canal por defecto habilitado."""
+        channel = self.whatsapp_channel if self.default_channel == 'WHATSAPP' else self.email_channel
+        return channel if channel and channel.enabled else None
+        
+    def get_enabled_channels(self):
+        """Obtiene todos los canales habilitados."""
+        channels = []
+        if self.whatsapp_channel and self.whatsapp_channel.enabled:
+            channels.append(self.whatsapp_channel)
+        if self.email_channel and self.email_channel.enabled:
+            channels.append(self.email_channel)
+        return channels
+        
+    def update_channel_config(self, channel_type: str, config: dict):
+        """Actualiza la configuración de un canal específico."""
+        channel = self.whatsapp_channel if channel_type == 'WHATSAPP' else self.email_channel
+        if channel:
+            channel.config.update(config)
+            channel.save()
+            return True
+        return False
 
 #PARA MODULO DE FEEDBACK
 # Estados de Feedback
@@ -5526,3 +5524,72 @@ class Feedback(models.Model):
     def skip_feedback(self):
         self.status = 'SKIPPED'
         self.save()
+
+# Modelos centralizados de feedback de propuestas y solicitudes de reunión
+from django.core.serializers.json import DjangoJSONEncoder
+
+class ProposalFeedback(models.Model):
+    """
+    Modelo para feedback de propuestas.
+    """
+    ESTADOS = [
+        ('PENDIENTE', 'Pendiente'),
+        ('EN_REVISION', 'En revisión'),
+        ('APROBADO', 'Aprobado'),
+        ('RECHAZADO', 'Rechazado')
+    ]
+    
+    propuesta = models.ForeignKey(
+        'pricing.Proposal',
+        on_delete=models.CASCADE,
+        related_name='feedback'
+    )
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE')
+    comentarios = models.TextField()
+    calificacion = models.PositiveSmallIntegerField(null=True, blank=True)
+    metadata = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Feedback de Propuesta"
+        verbose_name_plural = "Feedback de Propuestas"
+        ordering = ['-fecha_creacion']
+        
+    def __str__(self):
+        return f"{self.propuesta} - {self.estado}"
+
+class MeetingRequest(models.Model):
+    """
+    Modelo para solicitudes de reunión.
+    """
+    ESTADOS = [
+        ('PENDIENTE', 'Pendiente'),
+        ('APROBADA', 'Aprobada'),
+        ('RECHAZADA', 'Rechazada'),
+        ('COMPLETADA', 'Completada')
+    ]
+    
+    propuesta = models.ForeignKey(
+        'pricing.Proposal',
+        on_delete=models.CASCADE,
+        related_name='solicitudes_reunion'
+    )
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE')
+    fecha_solicitud = models.DateTimeField()
+    fecha_reunion = models.DateTimeField(null=True, blank=True)
+    duracion_minutos = models.PositiveIntegerField(default=30)
+    tipo_reunion = models.CharField(max_length=50)
+    participantes = models.JSONField(encoder=DjangoJSONEncoder)
+    notas = models.TextField(null=True, blank=True)
+    metadata = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Solicitud de Reunión"
+        verbose_name_plural = "Solicitudes de Reunión"
+        ordering = ['-fecha_creacion']
+        
+    def __str__(self):
+        return f"{self.propuesta} - {self.fecha_reunion or self.fecha_solicitud}"

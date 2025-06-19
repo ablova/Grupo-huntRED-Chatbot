@@ -60,16 +60,7 @@ INSTALLED_APPS = [
     'silk',
     
     'drf_yasg',
-]
-
-# Opcional: agregar Channels solo si está instalado
-try:
-    import channels  # noqa: F401
-    INSTALLED_APPS.append('channels')
-except ImportError:
-    import warnings
-    warnings.warn('Django Channels no está instalado; funcionalidades en tiempo real deshabilitadas.', ImportWarning)
-
+    # 'channels',  # No lo incluyas aquí directamente
     
     # Aplicaciones locales
     'app.ats.accounts.apps.AccountsConfig',
@@ -79,6 +70,14 @@ except ImportError:
     'django_celery_results',
     'django_celery_beat',
 ]
+
+# Opcional: agregar Channels solo si está instalado
+try:
+    import channels  # noqa: F401
+    INSTALLED_APPS.append('channels')
+except ImportError:
+    import warnings
+    warnings.warn('Django Channels no está instalado; funcionalidades en tiempo real deshabilitadas.', ImportWarning)
 
 # Configuración de usuario personalizado
 

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.forms.widgets import TextInput, Textarea, Select, CheckboxInput, NumberInput, RadioSelect
 
-from app.ats.pricing.feedback_models import ProposalFeedback, MeetingRequest
+from app.ats.pricing.models.feedback import ProposalFeedback, MeetingRequest
 
 
 class ProposalFeedbackForm(forms.ModelForm):

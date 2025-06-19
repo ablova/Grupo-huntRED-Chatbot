@@ -32,7 +32,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q, Count, Avg, F, Value, Sum, Case, When, IntegerField
 
 from app.models import Proposal, TalentAnalysisRequest, Company, Contact, Opportunity
-from app.ats.pricing.feedback_models import ProposalFeedback, MeetingRequest
+from app.ats.pricing.models.feedback import ProposalFeedback, MeetingRequest
 from app.ats.pricing.feedback_forms import ProposalFeedbackForm, MeetingRequestForm
 from app.ats.pricing.proposal_tracker import ProposalTracker, get_proposal_tracker
 
