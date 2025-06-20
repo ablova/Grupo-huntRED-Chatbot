@@ -46,4 +46,39 @@ urlpatterns = [
     path('onboarding/<uuid:pk>/', OnboardingDetailView.as_view(), name='onboarding_detail'),
     path('onboarding/create/', OnboardingCreateView.as_view(), name='onboarding_create'),
     path('onboarding/<uuid:pk>/update/', OnboardingUpdateView.as_view(), name='onboarding_update'),
+]
+
+"""
+URLs para el Sistema ATS con integración de AURA
+
+Configura las rutas para acceder a las funcionalidades de AURA
+desde el dashboard de huntRED.
+"""
+
+from django.urls import path
+from app.ats.views.aura_views import (
+    aura_dashboard,
+    person_aura_view,
+    candidate_aura_view,
+    job_aura_matches_view,
+    network_insights_view,
+    aura_communities_view,
+    aura_influencers_view,
+    validate_experience_view,
+    aura_settings_view
+)
+
+app_name = 'ats'
+
+urlpatterns += [
+    # 🌟 AURA - SISTEMA DE INTELIGENCIA RELACIONAL
+    path('aura/', aura_dashboard, name='aura_dashboard'),
+    path('aura/person/<int:person_id>/', person_aura_view, name='person_aura'),
+    path('aura/candidate/<int:candidate_id>/', candidate_aura_view, name='candidate_aura'),
+    path('aura/job/<int:job_id>/matches/', job_aura_matches_view, name='job_aura_matches'),
+    path('aura/network/<int:person_id>/insights/', network_insights_view, name='network_insights'),
+    path('aura/communities/', aura_communities_view, name='aura_communities'),
+    path('aura/influencers/', aura_influencers_view, name='aura_influencers'),
+    path('aura/validate-experience/', validate_experience_view, name='validate_experience'),
+    path('aura/settings/', aura_settings_view, name='aura_settings'),
 ] 

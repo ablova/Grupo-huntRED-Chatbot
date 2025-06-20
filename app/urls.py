@@ -106,6 +106,9 @@ urlpatterns = [
     path('pagos/', include('app.ats.pagos.urls', namespace='pagos')),
     path('ml/', include('app.views.ml.urls')),
     path('webhooks/', include('app.views.webhook.urls')),
+    
+    # 🌟 INTEGRACIÓN DE AURA - SISTEMA DE INTELIGENCIA RELACIONAL
+    path('api/aura/', include('app.ml.aura.urls', namespace='aura')),
 ]
 
 # ---------------------------------

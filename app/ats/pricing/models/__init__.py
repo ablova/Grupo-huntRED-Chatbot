@@ -15,6 +15,7 @@ from app.ats.pricing.models.proposal import (
     ProposalSection,
     ProposalTemplate
 )
+from app.ats.pricing.models.addons import BusinessUnitAddon
 
 __all__ = [
     # Strategy models
@@ -34,5 +35,7 @@ __all__ = [
     # Proposal models
     'PricingProposal',
     'ProposalSection',
-    'ProposalTemplate'
+    'ProposalTemplate',
+    # Addons
+    'BusinessUnitAddon'
 ] 

@@ -254,3 +254,7 @@ numpy>=1.19.0
 #dlib>=19.22.0
 Pillow>=8.0.0
 python-dateutil>=2.8.1
+google-api-python-client 
+google-auth 
+google-auth-httplib2 
+google-auth-oauthlib

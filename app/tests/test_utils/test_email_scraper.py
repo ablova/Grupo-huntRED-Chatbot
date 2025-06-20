@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
 from app.models import BusinessUnit, Vacante
-from app.ats.utils.email_scraper import connect_to_imap, fetch_emails, extract_job_info, save_to_vacante, move_email, process_emails
+from app.ats.utils.scraping.email_scraper import connect_to_imap, fetch_emails, extract_job_info, save_to_vacante, move_email, process_emails
 
 import logging
 

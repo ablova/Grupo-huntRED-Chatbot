@@ -19,7 +19,7 @@ from app.ats.utils.loader import DIVISION_SKILLS
 from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.nlp.nlp import NLPProcessor
 from app.ats.utils.vacantes import VacanteManager
-from app.ats.utils.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, inicializar_contexto_playwright, visitar_pagina_humanizada, extraer_y_guardar_cookies
+from app.ats.utils.scraping.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache, inicializar_contexto_playwright, visitar_pagina_humanizada, extraer_y_guardar_cookies
 from app.ats.utils.parser import parse_job_listing, save_job_to_vacante
 from app.ml.core.utils.scraping import MLScraper
 from app.ats.utils.parser import parse_job_listing, save_job_to_vacante

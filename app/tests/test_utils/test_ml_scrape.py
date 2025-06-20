@@ -2,7 +2,7 @@
 import pytest
 import email
 from email.mime.text import MIMEText
-from app.ml.utils.scrape import MLScraper
+from app.ml.core.utils.scraping import MLScraper
 
 @pytest.mark.asyncio
 async def test_classify_email():

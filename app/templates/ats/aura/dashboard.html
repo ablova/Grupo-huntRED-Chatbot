@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/aura-dashboard.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="aura-dashboard">
+    <!-- Header de AURA -->
+    <div class="aura-header">
+        <div class="aura-header-content">
+            <div class="aura-logo">
+                <i class="fas fa-magic"></i>
+                <h1>AURA</h1>
+                <span class="aura-subtitle">Inteligencia Relacional</span>
+            </div>
+            <div class="aura-status">
+                <div class="status-indicator {% if health_status.overall_status == 'healthy' %}healthy{% else %}unhealthy{% endif %}">
+                    <i class="fas fa-circle"></i>
+                    <span>{{ health_status.overall_status|title }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Principales -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="metric-content">
+                <h3>{{ total_people }}</h3>
+                <p>Personas Analizadas</p>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-user-tie"></i>
+            </div>
+            <div class="metric-content">
+                <h3>{{ total_candidates }}</h3>
+                <p>Candidatos</p>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-briefcase"></i>
+            </div>
+            <div class="metric-content">
+                <h3>{{ total_jobs }}</h3>
+                <p>Trabajos</p>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="metric-content">
+                <h3>{{ aura_metrics.average_aura_score|floatformat:2 }}</h3>
+                <p>Score Promedio</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secciones Principales -->
+    <div class="dashboard-sections">
+        <!-- Análisis Rápido -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2><i class="fas fa-search"></i> Análisis Rápido</h2>
+            </div>
+            <div class="section-content">
+                <div class="quick-analysis-form">
+                    <div class="form-group">
+                        <label for="person_id">ID de Persona:</label>
+                        <input type="number" id="person_id" placeholder="Ej: 123">
+                    </div>
+                    <button class="btn btn-primary" onclick="analyzePerson()">
+                        <i class="fas fa-magic"></i> Analizar Aura
+                    </button>
+                </div>
+                <div id="quick-analysis-result" class="analysis-result"></div>
+            </div>
+        </div>
+
+        <!-- Métricas del Sistema -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-line"></i> Métricas del Sistema</h2>
+            </div>
+            <div class="section-content">
+                <div class="metrics-details">
+                    <div class="metric-item">
+                        <span class="metric-label">Personas Analizadas:</span>
+                        <span class="metric-value">{{ aura_metrics.total_people_analyzed }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Conexiones Analizadas:</span>
+                        <span class="metric-value">{{ aura_metrics.total_connections_analyzed }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Comunidades Detectadas:</span>
+                        <span class="metric-value">{{ aura_metrics.communities_detected }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Influenciadores Identificados:</span>
+                        <span class="metric-value">{{ aura_metrics.influencers_identified }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Validaciones Realizadas:</span>
+                        <span class="metric-value">{{ aura_metrics.validations_performed }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Uptime del Sistema:</span>
+                        <span class="metric-value">{{ aura_metrics.system_uptime }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado de Componentes -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2><i class="fas fa-cogs"></i> Estado de Componentes</h2>
+            </div>
+            <div class="section-content">
+                <div class="components-status">
+                    <div class="component-item {% if health_status.aura_engine == 'healthy' %}healthy{% else %}unhealthy{% endif %}">
+                        <i class="fas fa-engine"></i>
+                        <span>Motor AURA</span>
+                        <div class="status-badge">{{ health_status.aura_engine|title }}</div>
+                    </div>
+                    <div class="component-item {% if health_status.integration_layer == 'healthy' %}healthy{% else %}unhealthy{% endif %}">
+                        <i class="fas fa-layer-group"></i>
+                        <span>Capa de Integración</span>
+                        <div class="status-badge">{{ health_status.integration_layer|title }}</div>
+                    </div>
+                    <div class="component-item {% if health_status.gnn_models == 'healthy' %}healthy{% else %}unhealthy{% endif %}">
+                        <i class="fas fa-brain"></i>
+                        <span>Modelos GNN</span>
+                        <div class="status-badge">{{ health_status.gnn_models|title }}</div>
+                    </div>
+                    <div class="component-item {% if health_status.connectors.linkedin == 'healthy' %}healthy{% else %}unhealthy{% endif %}">
+                        <i class="fab fa-linkedin"></i>
+                        <span>Conector LinkedIn</span>
+                        <div class="status-badge">{{ health_status.connectors.linkedin|title }}</div>
+                    </div>
+                    <div class="component-item {% if health_status.connectors.icloud == 'healthy' %}healthy{% else %}unhealthy{% endif %}">
+                        <i class="fab fa-apple"></i>
+                        <span>Conector iCloud</span>
+                        <div class="status-badge">{{ health_status.connectors.icloud|title }}</div>
+                    </div>
+                    <div class="component-item {% if health_status.database_connection == 'healthy' %}healthy{% else %}unhealthy{% endif %}">
+                        <i class="fas fa-database"></i>
+                        <span>Conexión BD</span>
+                        <div class="status-badge">{{ health_status.database_connection|title }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones Rápidas -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2><i class="fas fa-bolt"></i> Acciones Rápidas</h2>
+            </div>
+            <div class="section-content">
+                <div class="quick-actions">
+                    <a href="{% url 'ats:aura_communities' %}" class="action-btn">
+                        <i class="fas fa-users"></i>
+                        <span>Ver Comunidades</span>
+                    </a>
+                    <a href="{% url 'ats:aura_influencers' %}" class="action-btn">
+                        <i class="fas fa-star"></i>
+                        <span>Ver Influenciadores</span>
+                    </a>
+                    <a href="{% url 'ats:aura_settings' %}" class="action-btn">
+                        <i class="fas fa-cog"></i>
+                        <span>Configuración</span>
+                    </a>
+                    <button class="action-btn" onclick="runHealthCheck()">
+                        <i class="fas fa-heartbeat"></i>
+                        <span>Verificar Salud</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="aura-footer">
+        <p>Última actualización: {{ aura_metrics.last_updated }}</p>
+        <p>AURA - Sistema de Inteligencia Relacional de huntRED</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/aura-dashboard.js' %}"></script>
+{% endblock %} 

@@ -1,9 +1,9 @@
-# app/client_portal/models.py
+# app/ats/client_portal/models.py
 from django.db import models
 from django.contrib.auth.models import User
-from app.ats.ats.models import Company
+from app.models import Company
 from django.utils import timezone
-from app.ats.ats.notifications.services.notification_service import NotificationService
+from app.ats.utils.notification_service import NotificationService
 
 class PortalAddon(models.Model):
     """Modelo para addons del portal del cliente."""

@@ -22,7 +22,7 @@ from enum import Enum, auto
 from app.ats.config.api_config import LINKEDIN_CONFIG
 
 # Monitoreo
-from app.ats.utils.monitoring import (
+from app.ats.utils.monitoring.monitoring import (
     monitor_linkedin_request,
     track_scrape_duration
 )

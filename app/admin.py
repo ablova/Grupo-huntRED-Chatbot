@@ -22,7 +22,7 @@ from django.utils.translation import gettext_lazy as _
 # Importaciones directas sin usar __init__.py
 from app.ats.chatbot.core.gpt import PromptManager, GPTHandler
 from app.ats.chatbot.core.intents_handler import detect_intents
-from app.ats.utils.scraping import enrich_with_gpt
+from app.ats.utils.scraping.scraping import enrich_with_gpt
 
 # Utility Imports
 from io import BytesIO

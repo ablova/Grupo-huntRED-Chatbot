@@ -1,0 +1,631 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AURA - Visualización de Red{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/aura-dashboard.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+.network-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: var(--aura-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.network-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.network-controls .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.network-controls .btn-primary {
+    background: var(--aura-gradient);
+    color: white;
+}
+
+.network-controls .btn-secondary {
+    background: var(--aura-light);
+    color: var(--aura-dark);
+    border: 2px solid var(--aura-border);
+}
+
+.network-controls .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--aura-shadow);
+}
+
+.network-canvas {
+    width: 100%;
+    height: 600px;
+    background: var(--aura-light);
+    border-radius: 15px;
+    border: 2px dashed var(--aura-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.network-canvas.loading {
+    background: linear-gradient(45deg, var(--aura-light) 25%, transparent 25%), 
+                linear-gradient(-45deg, var(--aura-light) 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, var(--aura-light) 75%), 
+                linear-gradient(-45deg, transparent 75%, var(--aura-light) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    animation: loading-animation 1s linear infinite;
+}
+
+@keyframes loading-animation {
+    0% { background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
+    100% { background-position: 20px 20px, 20px 30px, 30px 10px, 10px 20px; }
+}
+
+.network-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-card {
+    background: var(--aura-light);
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 4px solid var(--aura-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--aura-gradient);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.stat-content h4 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--aura-primary);
+}
+
+.stat-content p {
+    margin: 5px 0 0 0;
+    color: var(--aura-gray);
+    font-size: 0.9rem;
+}
+
+.network-legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--aura-dark);
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.legend-color.influencer { background: #ef4444; }
+.legend-color.connector { background: #f59e0b; }
+.legend-color.regular { background: #6366f1; }
+.legend-color.community { background: #10b981; }
+
+.network-filters {
+    background: var(--aura-light);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: var(--aura-dark);
+    min-width: 120px;
+}
+
+.filter-group select,
+.filter-group input {
+    padding: 8px 12px;
+    border: 2px solid var(--aura-border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+    outline: none;
+    border-color: var(--aura-primary);
+}
+
+.network-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.network-actions .btn {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="aura-dashboard">
+    <!-- Header -->
+    <div class="aura-header">
+        <div class="aura-header-content">
+            <div class="aura-logo">
+                <a href="{% url 'ats:aura_dashboard' %}" class="back-link">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <i class="fas fa-network-wired"></i>
+                <h1>Visualización de Red</h1>
+            </div>
+            <div class="network-status">
+                <div class="status-indicator healthy">
+                    <i class="fas fa-circle"></i>
+                    <span>Red Activa</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles de Red -->
+    <div class="network-controls">
+        <button class="btn btn-primary" onclick="loadNetwork()">
+            <i class="fas fa-sync-alt"></i> Cargar Red
+        </button>
+        <button class="btn btn-secondary" onclick="toggleLayout()">
+            <i class="fas fa-project-diagram"></i> Cambiar Layout
+        </button>
+        <button class="btn btn-secondary" onclick="exportNetwork()">
+            <i class="fas fa-download"></i> Exportar
+        </button>
+        <button class="btn btn-secondary" onclick="fullscreenMode()">
+            <i class="fas fa-expand"></i> Pantalla Completa
+        </button>
+    </div>
+
+    <!-- Filtros -->
+    <div class="network-filters">
+        <h3><i class="fas fa-filter"></i> Filtros de Red</h3>
+        <div class="filter-group">
+            <label>Tipo de Nodo:</label>
+            <select id="nodeTypeFilter">
+                <option value="">Todos</option>
+                <option value="influencer">Influenciadores</option>
+                <option value="connector">Conectores</option>
+                <option value="regular">Regulares</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Fuerza Mínima:</label>
+            <input type="range" id="strengthFilter" min="0" max="100" value="0">
+            <span id="strengthValue">0%</span>
+        </div>
+        <div class="filter-group">
+            <label>Comunidad:</label>
+            <select id="communityFilter">
+                <option value="">Todas</option>
+                {% for community in communities %}
+                <option value="{{ community.id }}">{{ community.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="network-actions">
+            <button class="btn btn-primary" onclick="applyFilters()">
+                <i class="fas fa-check"></i> Aplicar Filtros
+            </button>
+            <button class="btn btn-secondary" onclick="clearFilters()">
+                <i class="fas fa-times"></i> Limpiar
+            </button>
+        </div>
+    </div>
+
+    <!-- Canvas de Visualización -->
+    <div class="network-container">
+        <div id="networkCanvas" class="network-canvas loading">
+            <div class="loading-content">
+                <div class="loading"></div>
+                <p>Cargando visualización de red...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas de Red -->
+    <div class="network-stats">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h4 id="totalNodes">{{ network_stats.total_nodes }}</h4>
+                <p>Nodos Totales</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-link"></i>
+            </div>
+            <div class="stat-content">
+                <h4 id="totalEdges">{{ network_stats.total_edges }}</h4>
+                <p>Conexiones</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="stat-content">
+                <h4 id="communities">{{ network_stats.communities }}</h4>
+                <p>Comunidades</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-content">
+                <h4 id="influencers">{{ network_stats.influencers }}</h4>
+                <p>Influenciadores</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leyenda -->
+    <div class="network-legend">
+        <div class="legend-item">
+            <div class="legend-color influencer"></div>
+            <span>Influenciadores</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color connector"></div>
+            <span>Conectores</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color regular"></div>
+            <span>Nodos Regulares</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color community"></div>
+            <span>Comunidades</span>
+        </div>
+    </div>
+
+    <!-- Información del Nodo Seleccionado -->
+    <div id="nodeInfo" class="section-card" style="display: none;">
+        <div class="section-header">
+            <h2><i class="fas fa-info-circle"></i> Información del Nodo</h2>
+        </div>
+        <div class="section-content">
+            <div id="nodeDetails">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js"></script>
+<script src="{% static 'js/aura-network.js' %}"></script>
+<script>
+// Configuración inicial
+let networkData = {{ network_data|safe }};
+let networkInstance = null;
+let currentLayout = 'force';
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    initializeNetwork();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Filtro de fuerza
+    const strengthFilter = document.getElementById('strengthFilter');
+    const strengthValue = document.getElementById('strengthValue');
+    
+    strengthFilter.addEventListener('input', function() {
+        strengthValue.textContent = this.value + '%';
+    });
+}
+
+function initializeNetwork() {
+    const container = document.getElementById('networkCanvas');
+    
+    // Configuración de la red
+    const options = {
+        nodes: {
+            shape: 'circle',
+            size: 20,
+            font: {
+                size: 12,
+                color: '#333'
+            },
+            borderWidth: 2,
+            shadow: true
+        },
+        edges: {
+            width: 2,
+            color: { color: '#6366f1', opacity: 0.6 },
+            smooth: {
+                type: 'continuous'
+            }
+        },
+        physics: {
+            enabled: true,
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+                gravitationalConstant: -50,
+                centralGravity: 0.01,
+                springLength: 100,
+                springConstant: 0.08
+            }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200
+        }
+    };
+
+    // Crear instancia de red
+    networkInstance = new vis.Network(container, networkData, options);
+    
+    // Eventos
+    networkInstance.on('click', function(params) {
+        if (params.nodes.length > 0) {
+            showNodeInfo(params.nodes[0]);
+        }
+    });
+
+    networkInstance.on('stabilizationProgress', function(params) {
+        const progress = Math.round(params.iterations / params.total * 100);
+        updateLoadingProgress(progress);
+    });
+
+    networkInstance.on('stabilizationIterationsDone', function() {
+        hideLoading();
+    });
+}
+
+function loadNetwork() {
+    showLoading();
+    
+    // Simular carga de datos
+    setTimeout(() => {
+        fetch('/api/aura/network/data/')
+            .then(response => response.json())
+            .then(data => {
+                networkData = data;
+                networkInstance.setData(networkData);
+                updateStats(data);
+            })
+            .catch(error => {
+                console.error('Error cargando red:', error);
+                hideLoading();
+            });
+    }, 1000);
+}
+
+function toggleLayout() {
+    const layouts = ['force', 'hierarchical', 'circular'];
+    const currentIndex = layouts.indexOf(currentLayout);
+    const nextIndex = (currentIndex + 1) % layouts.length;
+    currentLayout = layouts[nextIndex];
+
+    const physicsOptions = {
+        force: {
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+                gravitationalConstant: -50,
+                centralGravity: 0.01,
+                springLength: 100,
+                springConstant: 0.08
+            }
+        },
+        hierarchical: {
+            solver: 'hierarchicalRepulsion',
+            hierarchicalRepulsion: {
+                nodeDistance: 150
+            }
+        },
+        circular: {
+            solver: 'repulsion',
+            repulsion: {
+                nodeDistance: 200
+            }
+        }
+    };
+
+    networkInstance.setOptions({
+        physics: {
+            enabled: true,
+            ...physicsOptions[currentLayout]
+        }
+    });
+}
+
+function applyFilters() {
+    const nodeType = document.getElementById('nodeTypeFilter').value;
+    const strength = document.getElementById('strengthFilter').value / 100;
+    const community = document.getElementById('communityFilter').value;
+
+    // Aplicar filtros a los datos
+    const filteredData = filterNetworkData(networkData, {
+        nodeType,
+        strength,
+        community
+    });
+
+    networkInstance.setData(filteredData);
+}
+
+function clearFilters() {
+    document.getElementById('nodeTypeFilter').value = '';
+    document.getElementById('strengthFilter').value = 0;
+    document.getElementById('strengthValue').textContent = '0%';
+    document.getElementById('communityFilter').value = '';
+    
+    networkInstance.setData(networkData);
+}
+
+function showNodeInfo(nodeId) {
+    const node = networkData.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const nodeInfo = document.getElementById('nodeInfo');
+    const nodeDetails = document.getElementById('nodeDetails');
+
+    nodeDetails.innerHTML = `
+        <div class="person-card">
+            <div class="person-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="person-details">
+                <h3>${node.label}</h3>
+                <p><strong>Tipo:</strong> ${node.type || 'Regular'}</p>
+                <p><strong>Fuerza:</strong> ${(node.strength * 100).toFixed(1)}%</p>
+                <p><strong>Comunidad:</strong> ${node.community || 'N/A'}</p>
+                <p><strong>Conexiones:</strong> ${node.connections || 0}</p>
+            </div>
+        </div>
+    `;
+
+    nodeInfo.style.display = 'block';
+}
+
+function updateStats(data) {
+    document.getElementById('totalNodes').textContent = data.nodes.length;
+    document.getElementById('totalEdges').textContent = data.edges.length;
+    
+    const communities = new Set(data.nodes.map(n => n.community).filter(c => c));
+    document.getElementById('communities').textContent = communities.size;
+    
+    const influencers = data.nodes.filter(n => n.type === 'influencer').length;
+    document.getElementById('influencers').textContent = influencers;
+}
+
+function showLoading() {
+    const canvas = document.getElementById('networkCanvas');
+    canvas.classList.add('loading');
+    canvas.innerHTML = `
+        <div class="loading-content">
+            <div class="loading"></div>
+            <p>Cargando visualización de red...</p>
+        </div>
+    `;
+}
+
+function hideLoading() {
+    const canvas = document.getElementById('networkCanvas');
+    canvas.classList.remove('loading');
+}
+
+function updateLoadingProgress(progress) {
+    const canvas = document.getElementById('networkCanvas');
+    if (canvas.classList.contains('loading')) {
+        canvas.innerHTML = `
+            <div class="loading-content">
+                <div class="loading"></div>
+                <p>Estabilizando red... ${progress}%</p>
+            </div>
+        `;
+    }
+}
+
+function exportNetwork() {
+    // Implementar exportación
+    console.log('Exportando red...');
+}
+
+function fullscreenMode() {
+    const canvas = document.getElementById('networkCanvas');
+    if (canvas.requestFullscreen) {
+        canvas.requestFullscreen();
+    }
+}
+
+function filterNetworkData(data, filters) {
+    let filteredNodes = data.nodes;
+    let filteredEdges = data.edges;
+
+    // Filtrar por tipo de nodo
+    if (filters.nodeType) {
+        filteredNodes = filteredNodes.filter(node => node.type === filters.nodeType);
+    }
+
+    // Filtrar por fuerza mínima
+    if (filters.strength > 0) {
+        filteredNodes = filteredNodes.filter(node => node.strength >= filters.strength);
+    }
+
+    // Filtrar por comunidad
+    if (filters.community) {
+        filteredNodes = filteredNodes.filter(node => node.community === filters.community);
+    }
+
+    // Filtrar edges que conecten solo con nodos filtrados
+    const nodeIds = new Set(filteredNodes.map(n => n.id));
+    filteredEdges = filteredEdges.filter(edge => 
+        nodeIds.has(edge.from) && nodeIds.has(edge.to)
+    );
+
+    return {
+        nodes: filteredNodes,
+        edges: filteredEdges
+    };
+}
+</script>
+{% endblock %} 
