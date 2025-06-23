@@ -1,16 +1,13 @@
 
-import type { Config } from 'tailwindcss';
-import forms from '@tailwindcss/forms';
-import typography from '@tailwindcss/typography';
+import type { Config } from "tailwindcss";
 
-const config: Config = {
+export default {
 	darkMode: ["class"],
 	content: [
-		"./index.html",
-		"./src/**/*.{js,ts,jsx,tsx}",
-		"./src/components/**/*.{js,ts,jsx,tsx}",
-		"./src/pages/**/*.{js,ts,jsx,tsx}",
-		"./app/**/*.{js,ts,jsx,tsx}",
+		"./pages/**/*.{ts,tsx}",
+		"./components/**/*.{ts,tsx}",
+		"./app/**/*.{ts,tsx}",
+		"./src/**/*.{ts,tsx}",
 	],
 	prefix: "",
 	theme: {
@@ -146,9 +143,5 @@ const config: Config = {
 			}
 		}
 	},
-	plugins: [
-		require("tailwindcss-animate"),
-		forms,
-		typography,
-	],
+	plugins: [require("tailwindcss-animate")],
 } satisfies Config;

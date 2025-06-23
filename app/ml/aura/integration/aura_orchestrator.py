@@ -1,6 +1,6 @@
 """
 AURA - Intelligent Orchestrator
-Orquestador inteligente que integra todos los sistemas de AURA
+Orquestador inteligente que integra todos los sistemas de AURA, incluyendo integración avanzada de productividad (calendarios, mensajería, automatización).
 """
 
 import logging
@@ -65,6 +65,56 @@ class IntegrationResult:
     timestamp: datetime = field(default_factory=datetime.now)
 
 
+class ProductivityConnector:
+    """
+    Conector avanzado de productividad para AURA.
+    Sincroniza calendarios (Google, Outlook), mensajería (Slack, Teams, WhatsApp) y automatiza tareas.
+    Permite sugerencias contextuales y acciones inteligentes desde cualquier módulo.
+    """
+    def __init__(self):
+        self.connected_calendars = {}  # user_id -> provider -> credentials
+        self.connected_messengers = {}  # user_id -> platform -> credentials
+        self.automated_tasks = {}  # user_id -> lista de tareas
+
+    def connect_calendar(self, user_id: str, provider: str, credentials: dict):
+        """Conecta y sincroniza el calendario del usuario."""
+        self.connected_calendars.setdefault(user_id, {})[provider] = credentials
+        # Aquí se integraría con la API real
+        return True
+
+    def get_free_slots(self, user_id: str, duration: int = 60) -> list:
+        """Devuelve huecos libres en la agenda para networking, eventos o mentorías."""
+        # Simulación: slots genéricos
+        return ["2024-06-10 10:00", "2024-06-11 15:00"]
+
+    def connect_messenger(self, user_id: str, platform: str, credentials: dict):
+        """Conecta mensajería (Slack, Teams, WhatsApp, etc.)."""
+        self.connected_messengers.setdefault(user_id, {})[platform] = credentials
+        return True
+
+    def send_message(self, user_id: str, platform: str, message: str):
+        """Envía mensajes/notificaciones a la plataforma conectada."""
+        # Aquí se integraría con la API real
+        print(f"Mensaje a {user_id} por {platform}: {message}")
+        return True
+
+    def automate_task(self, user_id: str, task: str):
+        """Automatiza tareas como agendar reuniones, enviar recordatorios, preparar reportes."""
+        self.automated_tasks.setdefault(user_id, []).append(task)
+        print(f"Tarea automatizada para {user_id}: {task}")
+        return True
+
+    def suggest_contextual_actions(self, user_id: str, context: dict) -> list:
+        """Sugiere acciones inteligentes según el contexto del usuario (por ejemplo, networking en huecos libres)."""
+        slots = self.get_free_slots(user_id)
+        actions = []
+        if slots:
+            actions.append(f"Sugiere networking en {slots[0]}")
+        if context.get("pending_tasks"):
+            actions.append("Automatiza recordatorio de tareas pendientes")
+        return actions
+
+
 class AuraOrchestrator:
     """
     Orquestador inteligente que coordina todos los sistemas de AURA
@@ -89,6 +139,8 @@ class AuraOrchestrator:
             "cache_results": True,
             "cache_duration_hours": 24
         }
+        
+        self.productivity_connector = ProductivityConnector()
         
         self._initialize_flow_definitions()
         self._initialize_component_status()
@@ -630,6 +682,20 @@ class AuraOrchestrator:
             "component_status": {},
             "flow_definitions": {}
         }
+
+    # Ejemplo de hook de integración global
+    def suggest_productivity_actions(self, user_id: str, context: dict) -> list:
+        """Sugiere acciones de productividad integradas para el usuario."""
+        return self.productivity_connector.suggest_contextual_actions(user_id, context)
+
+    # Ejemplo de uso desde un flujo global
+    async def execute_networking_suggestion(self, user_id: str, context: dict):
+        """Ejecuta una sugerencia de networking en un hueco libre de agenda."""
+        slots = self.productivity_connector.get_free_slots(user_id)
+        if slots:
+            self.productivity_connector.send_message(user_id, "Slack", f"¿Te gustaría agendar networking el {slots[0]}?")
+            self.productivity_connector.automate_task(user_id, f"Agendar networking el {slots[0]}")
+        return slots
 
 
 # Instancia global del orquestador

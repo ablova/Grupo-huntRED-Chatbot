@@ -530,17 +530,17 @@ class ProjectManager:
             'static',
             'media',
             'temp',
-            'app/com/chatbot/flow',
-            'app/com/chatbot/workflow',
-            'app/com/chatbot/nlp',
-            'app/com/chatbot/core',
-            'app/com/chatbot/components',
-            'app/com/chatbot/models',
-            'app/com/chatbot/views',
-            'app/com/chatbot/urls',
-            'app/com/chatbot/validation',
-            'app/com/chatbot/values',
-            'app/com/chatbot/middleware'
+            'app/ats/chatbot/flow',
+            'app/ats/chatbot/workflow',
+            'app/ats/chatbot/nlp',
+            'app/ats/chatbot/core',
+            'app/ats/chatbot/components',
+            'app/ats/chatbot/models',
+            'app/ats/chatbot/views',
+            'app/ats/chatbot/urls',
+            'app/ats/chatbot/validation',
+            'app/ats/chatbot/values',
+            'app/ats/chatbot/middleware'
         ]
         
         for dir_path in required_dirs:
@@ -942,7 +942,7 @@ class ProjectManager:
                 
         # Verificar si el archivo está en directorios críticos
         critical_dirs = [
-            'app/com/chatbot',
+            'app/ats/chatbot',
             'config',
             'static',
             'media',

@@ -13,4 +13,4 @@ logger = logging.getLogger(__name__)
 logger.info("Módulo app inicializado correctamente")
 
 # Registrar modelos adicionales (p.ej. ContactImportJob)
-from . import contact_import_job  # noqa: E402
+# from . import contact_import_job  # noqa: E402

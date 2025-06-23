@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import json
 import hashlib
+from app.ml.aura.graph_builder import GNNManager
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,8 @@ class AchievementSystem:
     """
     
     def __init__(self):
+        self.gnn = GNNManager()
+        self.last_achievements = {}
         self.achievements = {}
         self.user_profiles = {}
         self.user_achievements = {}
@@ -648,6 +651,33 @@ class AchievementSystem:
             "completion_percentage": (profile.achievements_earned / len(self.achievements)) * 100
         }
 
+    def award(self, user_id: str, achievement: str) -> Dict[str, Any]:
+        """
+        Otorga un logro/badge al usuario.
+        Args:
+            user_id: ID del usuario
+            achievement: nombre del logro
+        Returns:
+            dict con logros actualizados
+        """
+        achievements = self.gnn.award_achievement(user_id, achievement)
+        self.last_achievements[user_id] = achievements
+        logger.info(f"AchievementSystem: logro '{achievement}' otorgado a {user_id}.")
+        return {'user_id': user_id, 'achievements': achievements, 'timestamp': datetime.now().isoformat()}
+
+    def get(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Devuelve los logros y badges del usuario.
+        """
+        achievements = self.gnn.get_achievements(user_id)
+        return achievements
+
+    def ranking(self, business_unit: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Devuelve el ranking de impacto social/profesional.
+        """
+        ranking = self.gnn.get_impact_ranking(business_unit)
+        return ranking
 
 # Instancia global del sistema de logros
 achievement_system = AchievementSystem() 

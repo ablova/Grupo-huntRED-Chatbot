@@ -266,6 +266,173 @@ class AuraFeaturesConfig:
                     "escrow_enabled": True,
                     "dispute_resolution": True
                 }
+            ),
+            
+            "organizational_analytics": FeatureConfig(
+                name="Organizational Analytics",
+                description="Análisis de red organizacional, movilidad interna y benchmarking de talento para empresas (premium, requiere datos masivos)",
+                phase=Phase.PHASE_4,
+                enabled=False,  # Deshabilitado por defecto
+                dependencies=["executive_analytics", "multi_platform_connector", "compliance_manager"],
+                config={
+                    "min_users": 100,
+                    "integration_required": ["HRIS", "email", "slack"],
+                    "privacy_level": "high",
+                    "visualization": "advanced_graph",
+                    "benchmarking": True
+                }
+            ),
+            "personalization_engine": FeatureConfig(
+                name="Personalization Engine",
+                description="Personalización dinámica por usuario/segmento (IA adaptativa, modo executive/junior, perfiles enriquecidos)",
+                phase=Phase.PHASE_1,
+                enabled=False,
+                dependencies=["sentiment_analyzer"],
+                config={}
+            ),
+            "skill_gap_analyzer": FeatureConfig(
+                name="Skill Gap Analyzer",
+                description="Análisis de brecha de habilidades y recomendaciones de upskilling",
+                phase=Phase.PHASE_1,
+                enabled=False,
+                dependencies=["career_predictor", "market_predictor"],
+                config={}
+            ),
+            "career_simulator": FeatureConfig(
+                name="Career Simulator",
+                description="Simulación de trayectorias de carrera y escenarios futuros",
+                phase=Phase.PHASE_1,
+                enabled=False,
+                dependencies=["career_predictor"],
+                config={}
+            ),
+            "market_alerts": FeatureConfig(
+                name="Market Alerts",
+                description="Alertas de mercado personalizadas y proactivas",
+                phase=Phase.PHASE_1,
+                enabled=False,
+                dependencies=["market_predictor"],
+                config={}
+            ),
+            "network_matchmaker": FeatureConfig(
+                name="Network Matchmaker",
+                description="Matchmaking inteligente de networking y conexiones estratégicas",
+                phase=Phase.PHASE_2,
+                enabled=False,
+                dependencies=["multi_platform_connector"],
+                config={}
+            ),
+            "event_recommender": FeatureConfig(
+                name="Event Recommender",
+                description="Recomendador de eventos y grupos profesionales",
+                phase=Phase.PHASE_2,
+                enabled=False,
+                dependencies=["multi_platform_connector"],
+                config={}
+            ),
+            "auto_introducer": FeatureConfig(
+                name="Auto Introducer",
+                description="Introducciones automáticas entre usuarios con intereses complementarios",
+                phase=Phase.PHASE_2,
+                enabled=False,
+                dependencies=["network_matchmaker"],
+                config={}
+            ),
+            "custom_dashboard": FeatureConfig(
+                name="Custom Dashboard",
+                description="Dashboard personalizable por usuario o empresa",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["executive_analytics"],
+                config={}
+            ),
+            "sector_comparator": FeatureConfig(
+                name="Sector Comparator",
+                description="Comparativa sectorial de red y skills",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["executive_analytics", "market_predictor"],
+                config={}
+            ),
+            "smart_alerts": FeatureConfig(
+                name="Smart Alerts",
+                description="Alertas inteligentes y proactivas en dashboard y chatbot",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["executive_analytics", "market_alerts"],
+                config={}
+            ),
+            "privacy_panel": FeatureConfig(
+                name="Privacy Panel",
+                description="Panel de privacidad y control de datos para el usuario",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["compliance_manager"],
+                config={}
+            ),
+            "explainable_ai": FeatureConfig(
+                name="Explainable AI",
+                description="Explicabilidad de las recomendaciones de IA (transparencia y confianza)",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["ai_conversational"],
+                config={}
+            ),
+            "public_api": FeatureConfig(
+                name="Public API",
+                description="API pública/documentada para terceros (ecosistema abierto)",
+                phase=Phase.PHASE_4,
+                enabled=False,
+                dependencies=[],
+                config={}
+            ),
+            "module_marketplace": FeatureConfig(
+                name="Module Marketplace",
+                description="Marketplace de módulos/extensiones para empresas y desarrolladores",
+                phase=Phase.PHASE_4,
+                enabled=False,
+                dependencies=["public_api"],
+                config={}
+            ),
+            "social_achievements": FeatureConfig(
+                name="Social Achievements",
+                description="Logros sociales y reconocimiento por impacto en la red",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["achievement_system"],
+                config={}
+            ),
+            "impact_ranking": FeatureConfig(
+                name="Impact Ranking",
+                description="Ranking por impacto y valor generado en la red",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["social_achievements"],
+                config={}
+            ),
+            "cv_generator": FeatureConfig(
+                name="CV Generator",
+                description="Generador automático de CVs, perfiles y cartas de presentación",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["ai_conversational"],
+                config={}
+            ),
+            "interview_simulator": FeatureConfig(
+                name="Interview Simulator",
+                description="Simulador de entrevistas con IA generativa",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["ai_conversational"],
+                config={}
+            ),
+            "auto_summarizer": FeatureConfig(
+                name="Auto Summarizer",
+                description="Resúmenes automáticos de actividad, reuniones y eventos",
+                phase=Phase.PHASE_3,
+                enabled=False,
+                dependencies=["ai_conversational"],
+                config={}
             )
         })
     

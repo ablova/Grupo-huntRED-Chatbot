@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cotización huntRED®</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #222; margin: 0; padding: 0; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 24px 32px 8px 32px; border-bottom: 2px solid #e5e5e5; }
+        .logo-unit { height: 48px; }
+        .logo-huntred { height: 36px; }
+        .logo-client { height: 40px; margin-left: 16px; }
+        .content { padding: 32px; }
+        .section-title { font-size: 1.2em; font-weight: bold; margin-top: 24px; margin-bottom: 8px; color: #b00; }
+        .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+        .summary-table th, .summary-table td { border: 1px solid #eee; padding: 8px 12px; text-align: left; }
+        .summary-table th { background: #f8f8f8; }
+        .total { font-size: 1.3em; font-weight: bold; color: #b00; text-align: right; }
+        .footer { border-top: 2px solid #e5e5e5; padding: 16px 32px; text-align: center; font-size: 0.95em; color: #888; }
+        .powered { font-size: 0.9em; color: #b00; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <img src="{{ unit_logo_url }}" alt="Logo Unidad" class="logo-unit"/>
+            {% if client_logo_url %}
+                <img src="{{ client_logo_url }}" alt="Logo Cliente" class="logo-client"/>
+            {% endif %}
+        </div>
+        <img src="{{ huntred_logo_url }}" alt="Grupo huntRED®" class="logo-huntred"/>
+    </div>
+    <div class="content">
+        <h2>Cotización Personalizada</h2>
+        <p><strong>Cliente:</strong> {{ client_name }}<br>
+           <strong>Correo:</strong> {{ client_email }}<br>
+           <strong>Fecha:</strong> {{ date }}</p>
+
+        <div class="section-title">Resumen de la Solución</div>
+        <table class="summary-table">
+            <tr><th>Unidad de Negocio</th><td>{{ business_unit }}</td></tr>
+            <tr><th>Modalidad(es)</th><td>{{ modalities }}</td></tr>
+            <tr><th>Servicios</th><td>{{ services }}</td></tr>
+            {% if addons %}<tr><th>Addons</th><td>{{ addons }}</td></tr>{% endif %}
+            {% if assessments %}<tr><th>Assessments</th><td>{{ assessments }}</td></tr>{% endif %}
+        </table>
+
+        <div class="section-title">Desglose de Pagos</div>
+        <table class="summary-table">
+            <tr><th>Concepto</th><th>Monto</th><th>Condición</th></tr>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.label }}</td>
+                <td>${{ payment.amount|floatformat:2 }}</td>
+                <td>{{ payment.condition }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <div class="total">Total Estimado: ${{ total|floatformat:2 }}</div>
+
+        <div class="section-title">Notas y Condiciones</div>
+        <ul>
+            <li>Esta cotización es informativa y sujeta a validación comercial.</li>
+            <li>Vigencia: 15 días naturales.</li>
+            <li>Para dudas o ajustes, contáctanos a <a href="mailto:hola@huntred.com">hola@huntred.com</a></li>
+        </ul>
+    </div>
+    <div class="footer">
+        <span>© {{ year }} Grupo huntRED®. Todos los derechos reservados.</span>
+        <div class="powered">Powered by huntRED®</div>
+    </div>
+</body>
+</html> 

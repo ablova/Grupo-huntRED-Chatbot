@@ -1,279 +1,262 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, Settings, Zap, Brain, Shield, Cpu, Database, Activity, Sparkles, CheckCircle } from 'lucide-react';
+import { ArrowRight, Building, Users, Briefcase, Zap, Target } from 'lucide-react';
 
 const BusinessUnitsSection = () => {
-  const [selectedUnit, setSelectedUnit] = useState(0);
-  const [activeConfig, setActiveConfig] = useState('features');
-
-  const businessUnits = [
+  const huntredBrands = [
     {
-      title: "FinTech & Banking",
-      description: "Soluciones de IA para servicios financieros, detección de fraudes y análisis de riesgo crediticio.",
-      features: ["Análisis de Riesgo", "Detección de Fraudes", "Robo-Advisory", "KYC Automatizado"],
-      image: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      color: "bg-blue-500/10 border-blue-500/20",
-      accentColor: "text-blue-600",
-      gradient: "from-blue-400 to-cyan-600",
-      configurations: {
-        compliance: ["SOX", "PCI-DSS", "GDPR", "Basel III"],
-        integrations: ["Core Banking", "Payment Gateways", "CRM Systems", "Regulatory APIs"],
-        models: ["Credit Scoring", "Fraud Detection", "Market Analysis", "Risk Assessment"],
-        security: ["End-to-End Encryption", "Multi-Factor Auth", "Audit Trails", "Data Masking"]
-      }
+      name: "huntRED® Executive",
+      tagline: "Liderazgo C-Level y Dirección Estratégica",
+      description: "Búsqueda ejecutiva de más alto nivel para transformar organizaciones",
+      color: "bg-purple-600",
+      accent: "text-purple-600",
+      bg: "bg-purple-500/15 border-purple-500/30",
+      level: 1,
+      icon: "👑"
     },
     {
-      title: "Healthcare & Medical",
-      description: "Tecnologías de diagnóstico asistido por IA y análisis de imágenes médicas avanzadas.",
-      features: ["Diagnóstico por IA", "Análisis de Imágenes", "Predicción de Enfermedades", "Telemedicina"],
-      image: "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      color: "bg-green-500/10 border-green-500/20",
-      accentColor: "text-green-600",
-      gradient: "from-green-400 to-emerald-600",
-      configurations: {
-        compliance: ["HIPAA", "FDA", "CE Marking", "ISO 13485"],
-        integrations: ["EMR/EHR", "PACS Systems", "Lab Equipment", "Wearable Devices"],
-        models: ["Image Analysis", "Drug Discovery", "Patient Monitoring", "Clinical Decision Support"],
-        security: ["PHI Protection", "Secure Messaging", "Access Controls", "Anonymization"]
-      }
+      name: "huntRED®",
+      tagline: "Gerencial y Alta Especialización",
+      description: "Reclutamiento especializado para posiciones gerenciales estratégicas",
+      color: "bg-red-600",
+      accent: "text-red-600",
+      bg: "bg-red-500/15 border-red-500/30",
+      level: 2,
+      icon: "🎯"
     },
     {
-      title: "Retail & E-commerce",
-      description: "Personalización de experiencias de compra y optimización de inventarios mediante IA.",
-      features: ["Recomendaciones Personalizadas", "Optimización de Precios", "Análisis de Sentimientos", "Chatbots de Ventas"],
-      image: "https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      color: "bg-purple-500/10 border-purple-500/20",
-      accentColor: "text-purple-600",
-      gradient: "from-purple-400 to-pink-600",
-      configurations: {
-        compliance: ["PCI DSS", "CCPA", "GDPR", "Local Tax Laws"],
-        integrations: ["E-commerce Platforms", "CRM", "ERP Systems", "Social Media APIs"],
-        models: ["Recommendation Engine", "Price Optimization", "Demand Forecasting", "Customer Segmentation"],
-        security: ["Payment Security", "Customer Data Protection", "Fraud Prevention", "API Security"]
-      }
+      name: "huntU®",
+      tagline: "Talento Joven y Profesionales Junior",
+      description: "Conectamos el futuro del talento con oportunidades de crecimiento",
+      color: "bg-orange-500",
+      accent: "text-orange-600",
+      bg: "bg-orange-500/15 border-orange-500/30",
+      level: 3,
+      icon: "🚀"
     },
     {
-      title: "Manufacturing & IoT",
-      description: "Automatización inteligente y mantenimiento predictivo para la industria 4.0.",
-      features: ["Mantenimiento Predictivo", "Control de Calidad", "Optimización de Procesos", "IoT Analytics"],
-      image: "https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      color: "bg-orange-500/10 border-orange-500/20",
-      accentColor: "text-orange-600",
-      gradient: "from-orange-400 to-red-600",
-      configurations: {
-        compliance: ["ISO 9001", "ISO 27001", "OSHA", "Environmental Standards"],
-        integrations: ["MES Systems", "SCADA", "IoT Sensors", "Supply Chain APIs"],
-        models: ["Predictive Maintenance", "Quality Control", "Energy Optimization", "Production Planning"],
-        security: ["OT Security", "Edge Computing", "Secure Communication", "Asset Protection"]
-      }
-    },
-    {
-      title: "Legal & Compliance",
-      description: "Análisis automatizado de documentos legales y cumplimiento normativo inteligente.",
-      features: ["Document Review", "Contract Analysis", "Compliance Monitoring", "Legal Research"],
-      image: "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      color: "bg-red-500/10 border-red-500/20",
-      accentColor: "text-red-600",
-      gradient: "from-red-400 to-rose-600",
-      configurations: {
-        compliance: ["Legal Standards", "Data Protection", "Industry Regulations", "Cross-Border Laws"],
-        integrations: ["Legal Databases", "Document Management", "Case Management", "Court Systems"],
-        models: ["Document Classification", "Contract Analysis", "Legal Research", "Risk Assessment"],
-        security: ["Attorney-Client Privilege", "Document Security", "Access Controls", "Audit Trails"]
-      }
-    },
-    {
-      title: "Education & Training",
-      description: "Plataformas de aprendizaje adaptativo y evaluación automatizada con IA.",
-      features: ["Aprendizaje Personalizado", "Evaluación Automática", "Tutores Virtuales", "Analytics Educativo"],
-      image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      color: "bg-cyan-500/10 border-cyan-500/20",
-      accentColor: "text-cyan-600",
-      gradient: "from-cyan-400 to-blue-600",
-      configurations: {
-        compliance: ["FERPA", "COPPA", "Accessibility Standards", "Academic Standards"],
-        integrations: ["LMS Platforms", "Student Information Systems", "Assessment Tools", "Content Libraries"],
-        models: ["Learning Analytics", "Adaptive Learning", "Performance Prediction", "Content Recommendation"],
-        security: ["Student Privacy", "Secure Assessment", "Data Protection", "Access Management"]
-      }
+      name: "amigro®",
+      tagline: "Reclutamiento Masivo y Operativo",
+      description: "Soluciones eficientes para posiciones operativas y reclutamiento de volumen",
+      color: "bg-green-500",
+      accent: "text-green-600",
+      bg: "bg-green-500/15 border-green-500/30",
+      level: 4,
+      icon: "⚡"
     }
   ];
 
-  const configTabs = [
-    { id: 'features', label: 'Características', icon: Sparkles },
-    { id: 'compliance', label: 'Cumplimiento', icon: Shield },
-    { id: 'integrations', label: 'Integraciones', icon: Cpu },
-    { id: 'models', label: 'Modelos IA', icon: Brain },
-    { id: 'security', label: 'Seguridad', icon: Database }
+  const sectorialDivisions = [
+    {
+      name: "Legal",
+      description: "Abogados, consultores jurídicos y especialistas en compliance",
+      icon: "⚖️",
+      specialties: ["Derecho Corporativo", "Compliance", "Propiedad Intelectual", "Litigation"]
+    },
+    {
+      name: "Servicios Financieros",
+      description: "Banca, seguros, fintech y gestión de activos",
+      icon: "💰",
+      specialties: ["Banking", "Insurance", "FinTech", "Asset Management"]
+    },
+    {
+      name: "Energía",
+      description: "Renovables, petróleo, gas y eficiencia energética",
+      icon: "⚡",
+      specialties: ["Renewables", "Oil & Gas", "Energy Efficiency", "Smart Grid"]
+    },
+    {
+      name: "Healthcare",
+      description: "Salud, farmacéutica, biotecnología y dispositivos médicos",
+      icon: "🏥",
+      specialties: ["Pharmaceutical", "Biotech", "Medical Devices", "Digital Health"]
+    }
+  ];
+
+  const functionalDivisions = [
+    {
+      name: "Ventas y Mercadotecnia",
+      description: "Comercial, marketing digital y growth marketing",
+      icon: "📈",
+      specialties: ["Sales", "Digital Marketing", "Growth", "CRM"]
+    },
+    {
+      name: "Finanzas y Contabilidad",
+      description: "CFO, controllers, auditores y analistas financieros",
+      icon: "📊",
+      specialties: ["Finance", "Accounting", "Audit", "FP&A"]
+    },
+    {
+      name: "Manufactura e Industria",
+      description: "Operaciones, supply chain y lean manufacturing",
+      icon: "🏭",
+      specialties: ["Operations", "Supply Chain", "Lean", "Quality"]
+    },
+    {
+      name: "Tecnologías de la Información",
+      description: "Desarrollo, infraestructura, ciberseguridad y datos",
+      icon: "💻",
+      specialties: ["Software Development", "Infrastructure", "Cybersecurity", "Data"]
+    },
+    {
+      name: "Sustentabilidad",
+      description: "ESG, economía circular y responsabilidad social",
+      icon: "🌱",
+      specialties: ["ESG", "Circular Economy", "CSR", "Carbon Management"]
+    }
   ];
 
   return (
-    <section id="business-units" className="py-20 bg-muted/30 relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 quantum-grid opacity-10" />
-      <div className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full blur-3xl animate-float" />
-      <div className="absolute bottom-20 right-10 w-48 h-48 bg-gradient-to-r from-cyan-500/10 to-pink-500/10 rounded-full blur-2xl animate-float-delay" />
-      
-      <div className="container mx-auto px-4 lg:px-8 relative z-10">
+    <section id="business-units" className="py-20 bg-muted/30">
+      <div className="container mx-auto px-4 lg:px-8">
+        {/* Call to Action moved before Business Units */}
+        <div className="mb-16 text-center">
+          <Card className="glass border-primary/20 max-w-4xl mx-auto">
+            <CardContent className="p-8 space-y-6">
+              <h3 className="text-3xl font-bold">¿Necesitas talento especializado?</h3>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Nuestras 4 unidades de negocio y 9 divisiones de expertise nos permiten encontrar exactamente 
+                el perfil que tu empresa necesita.
+              </p>
+              
+              <div className="grid md:grid-cols-3 gap-6 mt-8">
+                <div className="text-center space-y-2">
+                  <div className="text-2xl">🎯</div>
+                  <div className="font-semibold">Especialización</div>
+                  <div className="text-sm text-muted-foreground">Expertise profunda en cada sector</div>
+                </div>
+                <div className="text-center space-y-2">
+                  <div className="text-2xl">⚡</div>
+                  <div className="font-semibold">Rapidez</div>
+                  <div className="text-sm text-muted-foreground">Procesos optimizados con IA</div>
+                </div>
+                <div className="text-center space-y-2">
+                  <div className="text-2xl">🤝</div>
+                  <div className="font-semibold">Confianza</div>
+                  <div className="text-sm text-muted-foreground">Metodología probada y resultados</div>
+                </div>
+              </div>
+              
+              <Button size="lg" className="bg-tech-gradient hover:opacity-90 transition-opacity">
+                Solicitar Consultoría Especializada
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="text-center space-y-4 mb-16">
-          <div className="inline-flex items-center space-x-2 glass rounded-full px-6 py-2 border border-primary/20">
-            <Settings className="h-5 w-5 text-primary" />
-            <span className="text-sm font-medium">CONFIGURACIONES AVANZADAS</span>
-          </div>
-          
           <h2 className="text-3xl md:text-4xl font-bold">
-            Unidades de <span className="text-gradient">Negocio</span>
+            Nuestras <span className="bg-tech-gradient bg-clip-text text-transparent">Unidades de Negocio</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Soluciones altamente configurables con ajustes específicos para cada industria
+            Estructura jerárquica organizacional con cuatro niveles especializados
           </p>
         </div>
 
-        {/* Enhanced Business Units Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {businessUnits.map((unit, index) => (
-            <Card 
-              key={index} 
-              className={`group cursor-pointer transition-all duration-500 hover:scale-105 ${unit.color} border-2 ${
-                selectedUnit === index ? 'border-primary/50 shadow-2xl' : 'hover:border-primary/30'
-              }`}
-              onClick={() => setSelectedUnit(index)}
-            >
-              <CardHeader className="p-0">
-                <div className="relative h-48 overflow-hidden rounded-t-lg">
-                  <img
-                    src={unit.image}
-                    alt={unit.title}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-br ${unit.gradient} opacity-20`} />
-                  <div className="absolute top-4 left-4 glass rounded-lg px-3 py-1">
-                    <span className="text-sm font-medium">Especializado</span>
+        {/* Hierarchical Business Units */}
+        <div className="space-y-8 mb-16">
+          {huntredBrands.map((brand, index) => (
+            <Card key={index} className={`group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${brand.bg} border-2 max-w-4xl mx-auto`}>
+              <CardContent className="p-8">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-16 h-16 ${brand.color} rounded-full flex items-center justify-center text-white text-2xl`}>
+                      {brand.icon}
+                    </div>
+                    <div className="text-6xl font-bold text-muted-foreground/20">
+                      {brand.level}
+                    </div>
                   </div>
-                  <div className="absolute top-4 right-4">
-                    <Settings className={`h-5 w-5 ${unit.accentColor} animate-pulse`} />
+                  
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className={`text-2xl font-bold ${brand.accent}`}>
+                        {brand.name}
+                      </h3>
+                      <div className="text-sm text-muted-foreground">
+                        Nivel {brand.level}
+                      </div>
+                    </div>
+                    <p className="text-lg font-medium text-muted-foreground">
+                      {brand.tagline}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {brand.description}
+                    </p>
+                    
+                    <Button variant="ghost" size="sm" className="group-hover:bg-primary/10 transition-colors">
+                      Conocer Más
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Button>
                   </div>
                 </div>
-              </CardHeader>
-              
-              <CardContent className="p-6 space-y-4">
-                <CardTitle className={`text-xl ${unit.accentColor}`}>
-                  {unit.title}
-                </CardTitle>
-                
-                <p className="text-muted-foreground text-sm">
-                  {unit.description}
-                </p>
-                
-                <div className="flex flex-wrap gap-2">
-                  {unit.features.slice(0, 2).map((feature, featureIndex) => (
-                    <Badge key={featureIndex} variant="secondary" className="text-xs">
-                      {feature}
-                    </Badge>
-                  ))}
-                  <Badge variant="outline" className="text-xs">
-                    +{unit.features.length - 2} más
-                  </Badge>
-                </div>
-                
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className={`w-full group-hover:bg-gradient-to-r group-hover:${unit.gradient} group-hover:text-white transition-all`}
-                >
-                  Configurar
-                  <Settings className="ml-2 h-4 w-4 transition-transform group-hover:rotate-180" />
-                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Advanced Configuration Panel */}
-        <Card className="glass border-primary/20 mb-16">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <div className={`w-4 h-4 bg-gradient-to-r ${businessUnits[selectedUnit].gradient} rounded-full animate-pulse`} />
-              <span>Configuración Avanzada: {businessUnits[selectedUnit].title}</span>
-            </CardTitle>
-          </CardHeader>
-          
-          <CardContent>
-            <Tabs value={activeConfig} onValueChange={setActiveConfig} className="w-full">
-              <TabsList className="grid w-full grid-cols-5 mb-6">
-                {configTabs.map((tab) => (
-                  <TabsTrigger key={tab.id} value={tab.id} className="flex items-center space-x-2">
-                    <tab.icon className="h-4 w-4" />
-                    <span className="hidden md:inline">{tab.label}</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              
-              {configTabs.map((tab) => (
-                <TabsContent key={tab.id} value={tab.id} className="space-y-4">
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {(tab.id === 'features' ? businessUnits[selectedUnit].features : 
-                      businessUnits[selectedUnit].configurations[tab.id as keyof typeof businessUnits[0]['configurations']])
-                      ?.map((item, itemIndex) => (
-                      <div 
-                        key={itemIndex}
-                        className="glass rounded-lg p-4 hover:bg-primary/5 transition-all duration-300 border border-primary/10 hover:border-primary/30 group"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <CheckCircle className={`h-5 w-5 ${businessUnits[selectedUnit].accentColor} group-hover:animate-pulse`} />
-                          <span className="text-sm font-medium">{item}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
-          </CardContent>
-        </Card>
+        {/* Metodología de Especialización */}
+        <div className="space-y-12">
+          <div className="text-center space-y-4">
+            <h3 className="text-2xl font-bold">Metodología de Especialización</h3>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              9 divisiones de expertise que soportan todas nuestras marcas con conocimiento profundo del mercado
+            </p>
+          </div>
 
-        {/* Custom Consultation Section */}
-        <div className="text-center">
-          <Card className="glass border-primary/20 max-w-4xl mx-auto neural-connection">
-            <CardContent className="p-8 space-y-6">
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Zap className="h-8 w-8 text-primary animate-pulse" />
-                <h3 className="text-2xl font-bold">Configuración Personalizada</h3>
-              </div>
-              
-              <p className="text-muted-foreground text-lg">
-                ¿Necesitas ajustes específicos para tu industria? Nuestro equipo de especialistas 
-                puede configurar soluciones completamente personalizadas.
-              </p>
-              
-              <div className="grid md:grid-cols-3 gap-4 my-6">
-                <div className="text-center">
-                  <Activity className="h-12 w-12 mx-auto text-primary mb-2 animate-bounce" />
-                  <h4 className="font-semibold">Análisis Profundo</h4>
-                  <p className="text-sm text-muted-foreground">Evaluamos tus necesidades específicas</p>
-                </div>
-                <div className="text-center">
-                  <Cpu className="h-12 w-12 mx-auto text-primary mb-2 animate-pulse" />
-                  <h4 className="font-semibold">Configuración Custom</h4>
-                  <p className="text-sm text-muted-foreground">Adaptamos cada parámetro a tu negocio</p>
-                </div>
-                <div className="text-center">
-                  <Shield className="h-12 w-12 mx-auto text-primary mb-2 animate-spin-slow" />
-                  <h4 className="font-semibold">Implementación Segura</h4>
-                  <p className="text-sm text-muted-foreground">Despliegue con máxima seguridad</p>
-                </div>
-              </div>
-              
-              <Button size="lg" className="btn-gradient">
-                Solicitar Configuración Personalizada
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Divisiones Sectoriales */}
+          <div className="space-y-6">
+            <h4 className="text-xl font-semibold text-center">Divisiones Sectoriales</h4>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {sectorialDivisions.map((division, index) => (
+                <Card key={index} className="glass border-primary/20 hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="text-center">
+                      <div className="text-3xl mb-2">{division.icon}</div>
+                      <h5 className="font-semibold">{division.name}</h5>
+                      <p className="text-xs text-muted-foreground">{division.description}</p>
+                    </div>
+                    <div className="space-y-1">
+                      {division.specialties.map((specialty, specIndex) => (
+                        <div key={specIndex} className="flex items-center space-x-2">
+                          <div className="w-1 h-1 bg-primary rounded-full" />
+                          <span className="text-xs">{specialty}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Divisiones Funcionales */}
+          <div className="space-y-6">
+            <h4 className="text-xl font-semibold text-center">Divisiones Funcionales</h4>
+            <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {functionalDivisions.map((division, index) => (
+                <Card key={index} className="glass border-primary/20 hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="text-center">
+                      <div className="text-3xl mb-2">{division.icon}</div>
+                      <h5 className="font-semibold text-sm">{division.name}</h5>
+                      <p className="text-xs text-muted-foreground">{division.description}</p>
+                    </div>
+                    <div className="space-y-1">
+                      {division.specialties.map((specialty, specIndex) => (
+                        <div key={specIndex} className="flex items-center space-x-2">
+                          <div className="w-1 h-1 bg-primary rounded-full" />
+                          <span className="text-xs">{specialty}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

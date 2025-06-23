@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 import json
+from app.ml.aura.graph_builder import GNNManager
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,8 @@ class ExecutiveAnalytics:
         self.market_analyses = {}
         self.performance_data = defaultdict(list)
         self.alert_thresholds = self._initialize_thresholds()
+        self.gnn = GNNManager()
+        self.last_dashboards = {}
     
     def _initialize_thresholds(self) -> Dict[str, Dict[str, float]]:
         """Inicializa umbrales de alerta para KPIs"""
@@ -652,6 +655,28 @@ class ExecutiveAnalytics:
                 "12_months": 0.050
             }
         }
+
+    def generate_dashboard(self, user_id: str, business_unit: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Genera un dashboard ejecutivo personalizado para el usuario.
+        Args:
+            user_id: ID del usuario
+            business_unit: contexto de unidad de negocio (opcional)
+        Returns:
+            dict con KPIs, comparativas y alertas
+        """
+        kpis = self.gnn.get_executive_kpis(user_id, business_unit)
+        sector_comparison = self.gnn.compare_to_sector(user_id, business_unit)
+        alerts = self.gnn.get_smart_alerts(user_id, business_unit)
+        dashboard = {
+            'kpis': kpis,
+            'sector_comparison': sector_comparison,
+            'alerts': alerts,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.last_dashboards[user_id] = dashboard
+        logger.info(f"ExecutiveAnalytics: dashboard generado para {user_id}.")
+        return dashboard
 
 
 # Instancia global del sistema de analytics ejecutivo

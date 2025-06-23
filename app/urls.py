@@ -361,3 +361,10 @@ urlpatterns += [
     path('linkedin/schedules/<int:pk>/toggle/', schedules.schedule_toggle, name='linkedin:schedule_toggle'),
     path('linkedin/schedules/<int:pk>/delete/', schedules.schedule_delete, name='linkedin:schedule_delete'),
 ]
+
+# New routes for AURA
+path('aura/dashboard/', ExecutiveDashboardView.as_view(), name='aura_dashboard'),
+path('aura/recommendations/', AuraRecommendationsView.as_view(), name='aura_recommendations'),
+path('aura/networking/', AuraNetworkingView.as_view(), name='aura_networking'),
+path('aura/organizational/', AuraOrganizationalView.as_view(), name='aura_organizational'),
+path('aura/gpt/', AuraGPTAssistantView.as_view(), name='aura_gpt_assistant'),
