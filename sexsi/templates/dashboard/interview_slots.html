@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/interview_slots.css' %}">
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .slot-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border-left: 4px solid #667eea;
+        transition: transform 0.2s ease;
+    }
+    
+    .slot-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    
+    .slot-card.group {
+        border-left-color: #28a745;
+    }
+    
+    .slot-card.individual {
+        border-left-color: #007bff;
+    }
+    
+    .slot-card.full {
+        border-left-color: #dc3545;
+        opacity: 0.7;
+    }
+    
+    .slot-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .slot-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .slot-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: 500;
+    }
+    
+    .badge-group {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .badge-individual {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .badge-confirmed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .badge-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .slot-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .detail-icon {
+        width: 16px;
+        height: 16px;
+        color: #666;
+    }
+    
+    .participants-section {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+    
+    .participant-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .filters-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .filter-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #555;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .actions-section {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #1e7e34;
+    }
+    
+    .btn-warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .btn-warning:hover {
+        background-color: #e0a800;
+    }
+    
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+    
+    .empty-state i {
+        font-size: 4em;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">{{ page_title }}</h1>
+                <div class="actions">
+                    <a href="{% url 'slot_analytics' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-bar"></i> Analytics
+                    </a>
+                    <button class="btn btn-success" data-toggle="modal" data-target="#generateSlotsModal">
+                        <i class="fas fa-plus"></i> Generar Slots
+                    </button>
+                </div>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ stats.total_slots }}</h4>
+                                <p class="mb-0">Total Slots</p>
+                            </div>
+                            <i class="fas fa-calendar-alt fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ stats.group_slots }}</h4>
+                                <p class="mb-0">Slots Grupales</p>
+                            </div>
+                            <i class="fas fa-users fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ stats.confirmed_slots }}</h4>
+                                <p class="mb-0">Confirmados</p>
+                            </div>
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ stats.total_participants }}</h4>
+                                <p class="mb-0">Participantes</p>
+                            </div>
+                            <i class="fas fa-user-friends fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filters-section">
+                <form method="GET" class="filters-grid">
+                    <div class="filter-group">
+                        <label for="business_unit">Unidad de Negocio</label>
+                        <select name="business_unit" id="business_unit" class="form-control">
+                            <option value="">Todas las unidades</option>
+                            {% for bu in business_units %}
+                            <option value="{{ bu.id }}" {% if selected_business_unit.id == bu.id %}selected{% endif %}>
+                                {{ bu.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="vacancy">Vacante</label>
+                        <select name="vacancy" id="vacancy" class="form-control">
+                            <option value="">Todas las vacantes</option>
+                            {% for vacancy in vacancies %}
+                            <option value="{{ vacancy.id }}" {% if selected_vacancy_id == vacancy.id|stringformat:"s" %}selected{% endif %}>
+                                {{ vacancy.titulo }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="session_type">Tipo de Sesión</label>
+                        <select name="session_type" id="session_type" class="form-control">
+                            {% for value, label in session_types %}
+                            <option value="{{ value }}" {% if selected_session_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="date_from">Fecha Desde</label>
+                        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="date_to">Fecha Hasta</label>
+                        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+                    </div>
+                    
+                    <div class="filter-group d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                        <a href="{% url 'interview_slots_dashboard' %}" class="btn btn-outline-secondary ml-2">
+                            <i class="fas fa-times"></i> Limpiar
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Lista de Slots -->
+            <div class="slots-container">
+                {% if slots %}
+                    {% for slot in slots %}
+                    <div class="slot-card {{ slot.session_type|lower }} {% if slot.is_full %}full{% endif %}">
+                        <div class="slot-header">
+                            <div class="slot-title">{{ slot.title }}</div>
+                            <div class="slot-badges">
+                                <span class="slot-badge badge-{{ slot.session_type|lower }}">
+                                    {{ slot.session_type }}
+                                </span>
+                                <span class="slot-badge badge-{{ slot.status|lower }}">
+                                    {{ slot.status }}
+                                </span>
+                                {% if slot.is_full %}
+                                <span class="slot-badge badge-danger">Completo</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="slot-details">
+                            <div class="detail-item">
+                                <i class="fas fa-calendar detail-icon"></i>
+                                <span>{{ slot.start_time|date:"l d/m/Y" }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clock detail-icon"></i>
+                                <span>{{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-map-marker-alt detail-icon"></i>
+                                <span>{{ slot.mode }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-users detail-icon"></i>
+                                <span>{{ slot.participants_count }}/{{ slot.total_spots }} participantes</span>
+                            </div>
+                            {% if slot.location %}
+                            <div class="detail-item">
+                                <i class="fas fa-building detail-icon"></i>
+                                <span>{{ slot.location }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if slot.participants %}
+                        <div class="participants-section">
+                            <h6>Participantes:</h6>
+                            {% for participant in slot.participants %}
+                            <div class="participant-item">
+                                <div>
+                                    <strong>{{ participant.name }}</strong>
+                                    <small class="text-muted">{{ participant.email }}</small>
+                                </div>
+                                <span class="badge badge-{{ participant.status|lower }}">
+                                    {{ participant.status }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="actions-section">
+                            <a href="{% url 'slot_details' slot.id %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-eye"></i> Ver Detalles
+                            </a>
+                            <a href="{% url 'edit_slot' slot.id %}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-edit"></i> Editar
+                            </a>
+                            {% if not slot.participants %}
+                            <button class="btn btn-danger btn-sm" onclick="deleteSlot('{{ slot.id }}')">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-calendar-times"></i>
+                        <h4>No hay slots disponibles</h4>
+                        <p>No se encontraron slots de entrevista con los filtros aplicados.</p>
+                        <button class="btn btn-success" data-toggle="modal" data-target="#generateSlotsModal">
+                            <i class="fas fa-plus"></i> Generar Slots
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Generar Slots -->
+<div class="modal fade" id="generateSlotsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generar Slots de Entrevista</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="generateSlotsForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="vacancy_id">Vacante</label>
+                                <select name="vacancy_id" id="vacancy_id" class="form-control" required>
+                                    <option value="">Seleccionar vacante</option>
+                                    {% for vacancy in vacancies %}
+                                    <option value="{{ vacancy.id }}">{{ vacancy.titulo }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="slot_duration">Duración (minutos)</label>
+                                <input type="number" name="slot_duration" id="slot_duration" class="form-control" value="45" min="15" max="120">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="start_date">Fecha de Inicio</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="end_date">Fecha de Fin</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="max_slots_per_day">Máximo slots por día</label>
+                                <input type="number" name="max_slots_per_day" id="max_slots_per_day" class="form-control" value="8" min="1" max="20">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="generateSlots()">
+                    <i class="fas fa-plus"></i> Generar Slots
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generateSlots() {
+    const form = document.getElementById('generateSlotsForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        vacancy_id: formData.get('vacancy_id'),
+        start_date: formData.get('start_date'),
+        end_date: formData.get('end_date'),
+        slot_duration: parseInt(formData.get('slot_duration')),
+        max_slots_per_day: parseInt(formData.get('max_slots_per_day'))
+    };
+    
+    fetch('{% url "generate_slots" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error generando slots');
+    });
+}
+
+function deleteSlot(slotId) {
+    if (confirm('¿Estás seguro de que quieres eliminar este slot?')) {
+        fetch(`/dashboard/slots/${slotId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error eliminando slot');
+        });
+    }
+}
+
+// Establecer fechas por defecto
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    document.getElementById('start_date').value = today.toISOString().split('T')[0];
+    document.getElementById('end_date').value = nextWeek.toISOString().split('T')[0];
+});
+</script>
+{% endblock %} 

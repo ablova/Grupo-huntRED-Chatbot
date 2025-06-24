@@ -38,7 +38,10 @@ from app.ats.views.candidatos_views import (
 )
 from app.ats.views.ml_views import train_ml_api, predict_matches
 from app.ats.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
-from app.ats.views.dashboard import dashboard
+from app.views.dashboard import (
+    dashboard, interview_slots_dashboard, generate_slots, 
+    slot_details, edit_slot, delete_slot, slot_analytics
+)
 
 # IMPORTACIONES DE WEBHOOKS (MENSAJERÍA)
 from app.ats.views.webhook_views import (
@@ -148,6 +151,14 @@ urlpatterns += [
 # ------------------------
 urlpatterns += [
     path('dashboard/', dashboard, name='dashboard'),
+    
+    # 🎯 NUEVAS RUTAS PARA GESTIÓN DE SLOTS DE ENTREVISTA
+    path('dashboard/slots/', login_required(interview_slots_dashboard), name='interview_slots_dashboard'),
+    path('dashboard/slots/generate/', login_required(generate_slots), name='generate_slots'),
+    path('dashboard/slots/<uuid:slot_id>/', login_required(slot_details), name='slot_details'),
+    path('dashboard/slots/<uuid:slot_id>/edit/', login_required(edit_slot), name='edit_slot'),
+    path('dashboard/slots/<uuid:slot_id>/delete/', login_required(delete_slot), name='delete_slot'),
+    path('dashboard/slots/analytics/', login_required(slot_analytics), name='slot_analytics'),
 ]
 
 # 📌 RUTAS DE CANDIDATOS

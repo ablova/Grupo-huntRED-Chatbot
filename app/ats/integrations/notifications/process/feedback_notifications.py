@@ -40,20 +40,16 @@ class FeedbackNotificationService(BaseNotificationService):
         vacancy: Vacante,
         interview_date: datetime,
         interviewer: str,
-        deadline: datetime
+        deadline: datetime,
+        feedback_link: str = None
     ) -> bool:
         """
-        Solicita feedback sobre una entrevista.
-        
-        Args:
-            person: Candidato entrevistado
-            vacancy: Vacante relacionada
-            interview_date: Fecha de la entrevista
-            interviewer: Nombre del entrevistador
-            deadline: Fecha límite para enviar el feedback
-            
-        Returns:
-            bool: True si la notificación se envió correctamente
+        Flujo innovador de feedback de dos niveles (rápido y completo), multicanal.
+        - Siempre notifica a consultor y cliente.
+        - Feedback rápido en canal (quick replies): 👍, 🤔, 👎.
+        - Si la respuesta es negativa/neutral, pregunta "¿Qué le faltó?" (opciones rápidas + campo libre).
+        - Opción de feedback completo (web o chat).
+        - Agradecimiento visual al finalizar.
         """
         try:
             context = {
@@ -63,32 +59,152 @@ class FeedbackNotificationService(BaseNotificationService):
                 'interview_date': interview_date.strftime('%d/%m/%Y %H:%M'),
                 'interviewer': interviewer,
                 'deadline': deadline.strftime('%d/%m/%Y %H:%M'),
-                'business_unit': self.business_unit.name
+                'business_unit': self.business_unit.name,
+                'feedback_link': feedback_link or f'https://tusistema.com/feedback/{vacancy.id}/{person.id}',
+                # Opciones rápidas para WhatsApp/Telegram
+                'quick_replies': [
+                    {'title': '👍 Cumple con el perfil', 'payload': 'positive'},
+                    {'title': '🤔 Dudas', 'payload': 'neutral'},
+                    {'title': '👎 No cumple', 'payload': 'negative'},
+                ]
             }
-            
-            # Notificar al entrevistador
+            # Notificar al entrevistador (cliente)
             await self.send_notification(
                 notification_type=NotificationType.FEEDBACK_REQUEST.value,
                 message=self._get_feedback_request_template('interviewer'),
                 context=context,
-                channels=['email', 'telegram']
+                channels=['email', 'telegram', 'whatsapp'],
+                quick_replies=context['quick_replies']
             )
-            
             # Notificar al consultor
-            if vacancy.assigned_consultant:
-                await self.send_notification(
-                    notification_type=NotificationType.FEEDBACK_REQUEST.value,
-                    message=self._get_feedback_request_template('consultant'),
-                    context=context,
-                    channels=['email', 'telegram']
-                )
-            
+            await self.send_notification(
+                notification_type=NotificationType.FEEDBACK_REQUEST.value,
+                message=self._get_feedback_request_template('consultant'),
+                context=context,
+                channels=['email', 'telegram', 'whatsapp'],
+                quick_replies=context['quick_replies']
+            )
+            # Programar recordatorio automático si no responde en 24h
+            # (Pseudocódigo, depende de tu sistema de tareas)
+            # schedule_feedback_reminder(person, vacancy, interview_date, delay_hours=24)
             return True
-            
         except Exception as e:
             logger.error(f"Error solicitando feedback de entrevista: {str(e)}", exc_info=True)
             return False
-            
+
+    def process_quick_reply_feedback(self, reply_payload, user_id, context):
+        """
+        Procesa la respuesta rápida del usuario en canal (WhatsApp/Telegram).
+        Si la respuesta es negativa/neutral, pregunta automáticamente "¿Qué le faltó?" y ofrece escalamiento.
+        Si es positiva, agradece y ofrece feedback completo.
+        Si es muy negativa, ofrece:
+          1. Reposición automática (Plan B GenIA)
+          2. Hablar con consultor
+          3. Escalamiento directo a Pablo (WhatsApp)
+        """
+        if reply_payload == 'positive':
+            # Agradecer y ofrecer feedback completo
+            self.send_followup_message(user_id, "¡Gracias por tu feedback! ¿Quieres dejar un feedback más completo? [Haz clic aquí]({feedback_link})".format(**context))
+        elif reply_payload == 'negative':
+            # Escalamiento doble: reposición, consultor, Pablo
+            self.send_followup_message(
+                user_id,
+                "🤖 GenIA siempre tiene un Plan B. Ya estamos buscando una nueva alternativa para ti. ¿Qué prefieres hacer?",
+                quick_replies=[
+                    {'title': 'Ver alternativa (Plan B)', 'payload': 'ver_alternativa'},
+                    {'title': 'Hablar con consultor', 'payload': 'consultor'},
+                    {'title': 'Escalar a Pablo', 'payload': 'escalar_pablo'}
+                ]
+            )
+            # El flujo continúa según la respuesta:
+            # - ver_alternativa: buscar y ofrecer nuevo candidato
+            # - consultor: notificar a consultor humano
+            # - escalar_pablo: enviar WhatsApp a Pablo
+        else:
+            # Preguntar "¿Qué le faltó?" con opciones rápidas
+            opciones = [
+                {'title': 'Soft skills', 'payload': 'faltosoft'},
+                {'title': 'Experiencia', 'payload': 'faltoexp'},
+                {'title': 'Idiomas', 'payload': 'faltoidioma'},
+                {'title': 'Otro', 'payload': 'faltootro'},
+            ]
+            self.send_followup_message(user_id, "¿Qué le faltó para ser el candidato ideal?", quick_replies=opciones)
+            self.send_followup_message(user_id, "¿Quieres dejar un feedback más completo? [Haz clic aquí]({feedback_link})".format(**context))
+
+    def handle_escalation(self, user_id, context, tipo):
+        """
+        Maneja el escalamiento según la opción elegida:
+        - 'consultor': notifica a consultor humano y deja registro interno.
+        - 'escalar_pablo': envía WhatsApp a Pablo con los datos del cliente y situación.
+        """
+        if tipo == 'consultor':
+            # Notificación interna (puedes integrar con tu sistema de alertas/admin)
+            self.send_internal_notification(
+                f"[ESCALAMIENTO] Cliente {context.get('cliente_nombre', 'N/A')} ({context.get('cliente_contacto', 'N/A')}) solicita hablar con consultor. Vacante: {context.get('position', 'N/A')}. Motivo: Feedback negativo."
+            )
+            self.send_followup_message(user_id, "Un consultor humano te contactará a la brevedad. ¡Gracias por tu honestidad!")
+        elif tipo == 'escalar_pablo':
+            # Enviar WhatsApp a Pablo
+            mensaje = (
+                f"[ESCALAMIENTO DIRECTO]\n"
+                f"Cliente: {context.get('cliente_nombre', 'N/A')}\n"
+                f"Contacto: {context.get('cliente_contacto', 'N/A')}\n"
+                f"Vacante: {context.get('position', 'N/A')}\n"
+                f"Motivo: Feedback muy negativo sobre candidato.\n"
+                f"Por favor, atiende personalmente."
+            )
+            self.send_whatsapp_to_pablo(mensaje)
+            self.send_followup_message(user_id, "Pablo Lelo de Larrea te contactará personalmente para resolver tu situación. ¡Gracias por tu confianza!")
+
+    def send_internal_notification(self, message):
+        """
+        Envía una notificación interna al equipo de consultores/admin.
+        (Implementar integración real según tu sistema.)
+        """
+        pass
+
+    def send_whatsapp_to_pablo(self, message):
+        """
+        Envía un WhatsApp directo a Pablo (555218490291) con el mensaje proporcionado.
+        (Implementar integración real con API de WhatsApp Business o Twilio.)
+        """
+        pass
+
+    def process_complete_feedback(self, user_id, context):
+        """
+        Flujo de feedback completo (web o chat):
+        - ¿Cumple con los skills y requerimientos? (Sí/No)
+        - ¿Qué le faltó para ser el candidato ideal? (Texto o selección)
+        - ¿Recomendarías avanzar con este candidato? (Sí/No)
+        - Comentarios adicionales (opcional)
+        - Agradecimiento visual al finalizar.
+        """
+        # Ejemplo de lógica, debe integrarse con el sistema de formularios/chat
+        self.send_followup_message(user_id, "¿Cumple con los skills y requerimientos?", quick_replies=[{'title': 'Sí', 'payload': 'si'}, {'title': 'No', 'payload': 'no'}])
+        # ... continuar con el flujo ...
+        self.send_followup_message(user_id, "¿Qué le faltó para ser el candidato ideal? (Puedes escribir o elegir)")
+        self.send_followup_message(user_id, "¿Recomendarías avanzar con este candidato?", quick_replies=[{'title': 'Sí', 'payload': 'si'}, {'title': 'No', 'payload': 'no'}])
+        self.send_followup_message(user_id, "¿Comentarios adicionales? (opcional)")
+        self.send_followup_message(user_id, "¡Gracias por tu feedback! Ayudas a mejorar nuestro proceso. 🏆")
+
+    def _get_feedback_request_template(self, recipient_type: str) -> str:
+        """Obtiene la plantilla según el tipo de destinatario."""
+        templates = {
+            'interviewer': (
+                "📝 *¡Ayúdanos a mejorar!*\n\n"
+                "Por favor, deja tu feedback sobre el candidato entrevistado para {position} en {company}.\n\n"
+                "*¿Cómo calificarías al candidato?*\n"
+                "- 👍 Cumple con el perfil\n- 🤔 Dudas\n- 👎 No cumple\n\n"
+                "[Dejar feedback detallado]({feedback_link})\n\n"
+                "¡Gracias por tu colaboración!"
+            ),
+            'consultant': (
+                "📝 *Solicitud de Feedback Enviada*\n\n"
+                "Se ha solicitado feedback para el candidato {candidate_name} en la posición {position}."
+            )
+        }
+        return templates.get(recipient_type, templates['interviewer'])
+        
     async def notify_feedback_received(
         self,
         person: Person,
@@ -186,30 +302,6 @@ class FeedbackNotificationService(BaseNotificationService):
         except Exception as e:
             logger.error(f"Error enviando recordatorio de feedback: {str(e)}", exc_info=True)
             return False
-            
-    def _get_feedback_request_template(self, recipient_type: str) -> str:
-        """Obtiene la plantilla según el tipo de destinatario."""
-        templates = {
-            'interviewer': (
-                "📝 *Solicitud de Feedback*\n\n"
-                "👤 *Candidato:* {candidate_name}\n"
-                "💼 *Posición:* {position}\n"
-                "🏢 *Empresa:* {company}\n"
-                "📅 *Fecha de entrevista:* {interview_date}\n"
-                "⏰ *Fecha límite:* {deadline}\n\n"
-                "Por favor, completa el formulario de feedback antes de la fecha límite."
-            ),
-            'consultant': (
-                "📝 *Solicitud de Feedback Enviada*\n\n"
-                "👤 *Candidato:* {candidate_name}\n"
-                "💼 *Posición:* {position}\n"
-                "🏢 *Empresa:* {company}\n"
-                "👥 *Entrevistador:* {interviewer}\n"
-                "📅 *Fecha de entrevista:* {interview_date}\n"
-                "⏰ *Fecha límite:* {deadline}"
-            )
-        }
-        return templates.get(recipient_type, templates['interviewer'])
         
     def _get_feedback_received_template(self, recipient_type: str) -> str:
         """Obtiene la plantilla según el tipo de destinatario."""
@@ -248,3 +340,12 @@ class FeedbackNotificationService(BaseNotificationService):
             "⏰ *Fecha límite:* {deadline}\n\n"
             "Por favor, completa el formulario de feedback antes de la fecha límite."
         )
+
+    def send_followup_message(self, user_id, message, quick_replies=None):
+        """
+        Envía un mensaje de seguimiento al usuario (por canal/chat).
+        quick_replies: lista de opciones rápidas si aplica.
+        (Este método debe integrarse con el sistema de mensajería/chatbot real.)
+        """
+        # Pseudocódigo: integrar con WhatsApp/Telegram/email
+        pass

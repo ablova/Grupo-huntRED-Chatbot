@@ -433,14 +433,44 @@ REFERENCE_CONFIGS = {
     }
 }
 
-def get_reference_config(business_unit: str) -> dict:
+def get_reference_config(business_unit: str, skills: list = None, required_skills: list = None) -> dict:
     """
     Obtiene la configuración de referencias para una unidad de negocio.
-    
-    Args:
-        business_unit: str - Código de la unidad de negocio
-        
-    Returns:
-        dict - Configuración de referencias
+    Si se pasan required_skills, solo pregunta por esos skills y pide nivel de expertise visual (3 niveles).
     """
-    return REFERENCE_CONFIGS.get(business_unit.lower(), REFERENCE_CONFIGS['huntred']) 
+    config = REFERENCE_CONFIGS.get(business_unit.lower(), REFERENCE_CONFIGS['huntred']).copy()
+    dynamic_questions = []
+    # Usar solo los skills obligatorios y limitar a 3-5 más relevantes
+    if required_skills:
+        top_skills = required_skills[:5]
+        for skill in top_skills:
+            dynamic_questions.append({
+                'id': f'skill_{skill.lower().replace(" ", "_")}',
+                'text': f'¿Qué nivel de expertise tiene el candidato en "{skill}"?',
+                'type': 'quick_reply',
+                'options': [
+                    {'title': 'X', 'value': 0, 'description': 'No lo domina'},
+                    {'title': '👍', 'value': 1, 'description': 'Nivel básico'},
+                    {'title': '👍👍', 'value': 2, 'description': 'Nivel avanzado'}
+                ],
+                'weight': 1.0
+            })
+    elif skills:
+        # Si no hay required_skills, usar skills generales
+        top_skills = skills[:5]
+        for skill in top_skills:
+            dynamic_questions.append({
+                'id': f'skill_{skill.lower().replace(" ", "_")}',
+                'text': f'¿Qué nivel de expertise tiene el candidato en "{skill}"?',
+                'type': 'quick_reply',
+                'options': [
+                    {'title': 'X', 'value': 0, 'description': 'No lo domina'},
+                    {'title': '👍', 'value': 1, 'description': 'Nivel básico'},
+                    {'title': '👍👍', 'value': 2, 'description': 'Nivel avanzado'}
+                ],
+                'weight': 1.0
+            })
+    if dynamic_questions:
+        config['questions'] = config['questions'] + dynamic_questions
+    # Comentario: aquí se pueden agregar más lógicas dinámicas por seniority, tipo de vacante, etc.
+    return config 

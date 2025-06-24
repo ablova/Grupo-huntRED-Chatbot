@@ -32,8 +32,8 @@ const Header = () => {
               <Heart className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="text-xl font-bold bg-tech-gradient bg-clip-text text-transparent">Grupo huntRED®  AI</span>
-              <div className="text-xs text-muted-foreground">Con ❤️ para tu éxito</div>
+              <span className="text-xl font-bold bg-tech-gradient bg-clip-text text-transparent">Grupo huntRED®</span>
+              <div className="text-xs text-muted-foreground">Ecosistema de Inteligencia Artifical en Recursos Humanos</div>
             </div>
           </div>
 

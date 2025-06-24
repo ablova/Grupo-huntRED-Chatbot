@@ -1,7 +1,7 @@
 // /app/templates/front/src/components/SolutionCalculator.tsx
-import React, { useState, useMemo, useRef, lazy } from 'react';
+import React, { useState, useMemo, useRef, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, FieldErrors } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -14,16 +14,29 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Loader2, Info, Calendar, Mail, Copy, Share2, Download } from 'lucide-react';
+import { Loader2, Info, Calendar, Mail, Copy, Share2, Download, Minus, Plus } from 'lucide-react';
 import axios from 'axios';
 import { toast } from '@/components/ui/use-toast';
 import { ErrorBoundary } from 'react-error-boundary';
 
-// Interfaces
+// Charts lazy load
+const BarChart = lazy(() => import('recharts').then(module => ({ default: module.BarChart })));
+const Bar = lazy(() => import('recharts').then(module => ({ default: module.Bar })));
+
+// Interfaces mejoradas
+interface PlanType {
+  type: string;
+  base_price: number;
+  rate: number;
+  rate_discount: number;
+}
+
 interface BusinessUnit {
   id: number;
   name: string;
-  pricing_config: { plans: Array<{ name: string; type: string; base_price: string; description: string }> };
+  pricing_config: {
+    plans: Array<{ name: string; type: string; base_price: string; description?: string }>;
+  };
 }
 
 interface Addon {
@@ -46,19 +59,47 @@ interface BillingMilestone {
 }
 
 interface PricingProposal {
-  total_amount: string;
+  total_amount: number;
   currency: string;
-  modalities: Array<{ type: string; count: number; cost: number; billing_milestones: BillingMilestone[] }>;
+  modalities: Array<{
+    type: string;
+    count: number;
+    cost: number;
+    billing_milestones: Array<{ label: string; amount: number; detail: string }>;
+  }>;
+  opportunity?: {
+    id: number;
+    name: string;
+    business_unit: { id: number; name: string };
+  };
+  pricing?: {
+    volume: any;
+    addons: any[];
+    bundles: any[];
+    assessments: any;
+  };
+  payment_schedule?: any;
+  totals?: {
+    subtotal: number;
+    iva: number;
+    total: number;
+    currency: string;
+    date: string;
+    valid_until: string;
+  };
 }
 
 interface FormValues {
   businessUnit: string;
-  services: { [key: string]: { ai: number; hybrid: number; human: number; baseSalary: number } };
+  services: {
+    [key: string]: { ai: number; hybrid: number; human: number; baseSalary: number };
+  };
   addons: string[];
   assessments: { id: string; users: number }[];
-  retainerScheme: 'single' | 'double' | null;
-  compareModes: string[];
-  email: string;
+  email?: string;
+  retainerScheme?: 'single' | 'double';
+  compareModes?: string[];
+  consent: boolean;
 }
 
 // Logo Mapping
@@ -71,32 +112,35 @@ const LOGO_MAP: { [key: string]: string } = {
 const DEFAULT_LOGO = '/static/images/g_huntred.png';
 const LARGE_LOGO = '/static/images/Grupo_huntred.png';
 
-// API Client
+// API Client mejorado
 const apiClient = axios.create({ baseURL: '/api/pricing' });
-const fetchBusinessUnits = () => apiClient.get('/business-units').then(res => res.data.business_units);
-const fetchAddons = () => apiClient.get('/addons').then(res => res.data.addons);
-const fetchAssessments = () => apiClient.get('/assessments').then(res => res.data.assessments);
+
+const fetchBusinessUnits = () => apiClient.get('/business-units').then(res => res.data.business_units as BusinessUnit[]);
+const fetchAddons = () => apiClient.get('/addons').then(res => res.data.addons as Addon[]);
+const fetchAssessments = () => apiClient.get('/assessments').then(res => res.data.assessments as Assessment[]);
+const fetchPlans = () => apiClient.get('/plans').then(res => res.data.plans as PlanType[]);
+
 const calculatePricing = (data: FormValues) =>
-  apiClient
-    .post('/calculate', {
-      opportunity_id: null,
-      include_addons: data.addons,
-      include_assessments: data.assessments.map(a => ({ id: a.id, users: a.users })),
-      include_bundles: Object.entries(data.services).map(([bu, svc]) => ({
-        business_unit: bu,
-        ai: svc.ai,
-        hybrid: svc.hybrid,
-        human: svc.human,
-        base_salary: svc.baseSalary,
-        retainer_scheme: ['huntRED Executive', 'huntRED Standard'].includes(bu) ? data.retainerScheme : null,
-      })),
-    })
-    .then(res => res.data.proposal);
+  apiClient.post('/calculate', {
+    opportunity_id: null,
+    include_addons: data.addons,
+    include_assessments: data.assessments.map(a => ({ id: a.id, users: a.users })),
+    include_bundles: Object.entries(data.services).map(([bu, svc]) => ({
+      business_unit: bu,
+      ai: svc.ai,
+      hybrid: svc.hybrid,
+      human: svc.human,
+      base_salary: svc.baseSalary,
+      retainer_scheme: data.retainerScheme,
+    })),
+  }).then(res => res.data.proposal as PricingProposal);
+
 const sendProposal = (data: FormValues, proposal: PricingProposal) =>
   apiClient
     .post('/send-proposal', { email: data.email, proposal })
     .then(() => ({ status: 'success', message: 'Cotización enviada correctamente.' }))
     .catch(err => ({ status: 'error', message: err.response?.data?.error || 'Error enviando la cotización.' }));
+
 const trackShare = (data: FormValues, proposal: PricingProposal, platform: string) =>
   apiClient.post('/track-share', {
     email: data.email || 'Anónimo',
@@ -193,41 +237,77 @@ const SolutionCalculator: React.FC = () => {
       },
       addons: [],
       assessments: [],
-      retainerScheme: null,
+      retainerScheme: undefined,
       compareModes: [],
       email: '',
+      consent: false,
     },
   });
   const { register, watch, setValue, handleSubmit, formState: { errors } } = methods;
   const formValues = watch();
 
-  // Queries
-  const { data: businessUnits, isLoading: loadingUnits } = useQuery(['businessUnits'], fetchBusinessUnits, { staleTime: 24 * 60 * 60 * 1000 });
-  const { data: addons, isLoading: loadingAddons } = useQuery(['addons'], fetchAddons, { staleTime: 24 * 60 * 60 * 1000 });
-  const { data: assessments, isLoading: loadingAssessments } = useQuery(['assessments'], fetchAssessments, { staleTime: 24 * 60 * 60 * 1000 });
-  const { data: pricingProposal, isLoading: loadingPricing, refetch: calculateTotal } = useQuery<PricingProposal>(
-    ['pricing', formValues],
-    () => calculatePricing(formValues),
-    { enabled: false }
-  );
-  const { data: pricingPlans } = useQuery(['plans'], () => apiClient.get('/plans').then(res => res.data.plans), { staleTime: 24 * 60 * 60 * 1000 });
+  // Queries mejoradas con tipos correctos
+  const { data: businessUnits = [], isLoading: loadingUnits } = useQuery({
+    queryKey: ['businessUnits'],
+    queryFn: fetchBusinessUnits,
+    staleTime: 24 * 60 * 60 * 1000
+  });
+
+  const { data: addons = [], isLoading: loadingAddons } = useQuery({
+    queryKey: ['addons'],
+    queryFn: fetchAddons,
+    staleTime: 24 * 60 * 60 * 1000
+  });
+
+  const { data: assessments = [], isLoading: loadingAssessments } = useQuery({
+    queryKey: ['assessments'],
+    queryFn: fetchAssessments,
+    staleTime: 24 * 60 * 60 * 1000
+  });
+
+  const { data: pricingPlans = [] } = useQuery({
+    queryKey: ['plans'],
+    queryFn: fetchPlans,
+    staleTime: 24 * 60 * 60 * 1000
+  });
+
+  const { data: pricingProposal, isLoading: loadingPricing, refetch: calculateTotal } = useQuery({
+    queryKey: ['pricing', formValues],
+    queryFn: () => calculatePricing(formValues),
+    enabled: false
+  });
 
   // Progreso
   const progress = useMemo(() => (step / 5) * 100, [step]);
 
-  // Subtotal
-  const subtotal = useMemo(() => Number(pricingProposal?.total_amount || 0), [pricingProposal]);
+  // Subtotal mejorado
+  const subtotal = useMemo(() => {
+    if (pricingProposal?.totals?.total) {
+      return Number(pricingProposal.totals.total);
+    }
+    if (pricingProposal?.total_amount) {
+      return Number(pricingProposal.total_amount);
+    }
+    return 0;
+  }, [pricingProposal]);
 
   // Handlers
   const nextStep = () => setStep(prev => Math.min(prev + 1, 5));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
+  
   const toggleCompareMode = (mode: string) => {
-    setValue('compareModes', formValues.compareModes.includes(mode) ? formValues.compareModes.filter(m => m !== mode) : [...formValues.compareModes, mode]);
+    const currentModes = formValues.compareModes || [];
+    const newModes = currentModes.includes(mode) 
+      ? currentModes.filter(m => m !== mode) 
+      : [...currentModes, mode];
+    setValue('compareModes', newModes);
   };
+
   const onSubmit = async (data: FormValues) => {
     await calculateTotal();
     nextStep();
   };
+
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
     documentTitle: `Cotización_huntRED_${new Date().toISOString().split('T')[0]}`,
@@ -236,6 +316,7 @@ const SolutionCalculator: React.FC = () => {
       apiClient.post('/track', { event: 'pdf_export', email: formValues.email || 'Anónimo', proposal: pricingProposal });
     },
   });
+
   const handleCopy = () => {
     const summary = `
 Unidad de Negocio: ${formValues.businessUnit}
@@ -250,6 +331,7 @@ Total Estimado: $${subtotal.toLocaleString()}
     navigator.clipboard.writeText(summary);
     toast({ title: 'Copiado', description: 'El resumen ha sido copiado al portapapeles.' });
   };
+
   const handleShare = async (platform: 'whatsapp' | 'linkedin') => {
     const summary = encodeURIComponent(`
 Cotización huntRED®
@@ -263,13 +345,14 @@ Más info: www.huntred.com
     `);
     const url = platform === 'whatsapp' ? `https://wa.me/?text=${summary}` : `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('www.huntred.com')}&summary=${summary}`;
     window.open(url, '_blank');
-    if (platform === 'whatsapp') {
+    if (platform === 'whatsapp' && pricingProposal) {
       await trackShare(formValues, pricingProposal, 'whatsapp');
       toast({ title: 'Compartido', description: 'El resumen se ha compartido y nuestro equipo ha sido notificado.' });
     }
   };
+
   const handleSendEmail = async () => {
-    if (!formValues.email) return;
+    if (!formValues.email || !pricingProposal) return;
     const response = await sendProposal(formValues, pricingProposal);
     toast({
       title: response.status === 'success' ? 'Correo enviado' : 'Error',
@@ -278,17 +361,17 @@ Más info: www.huntred.com
     });
   };
 
-  // Gráfico de costos
+  // Gráfico de costos mejorado
   const chartData = useMemo(
     () =>
-      formValues.compareModes.map(mode => {
-        const modality = pricingProposal?.modalities.find(m => m.type === mode);
+      (formValues.compareModes || []).map(mode => {
+        const modality = pricingProposal?.modalities?.find(m => m.type === mode);
         return { name: MODALIDADES.find(m => m.key === mode)?.label, Costo: modality?.cost || 0 };
       }),
     [formValues.compareModes, pricingProposal]
   );
 
-  // [MEJORA] Input para subir logo del cliente
+  // Input para subir logo del cliente
   const [clientLogo, setClientLogo] = useState<File | null>(null);
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -344,7 +427,7 @@ Más info: www.huntred.com
                         <CardTitle>{bu.name}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground">{bu.pricing_config.plans[0]?.description}</p>
+                        <p className="text-sm text-muted-foreground">{bu.pricing_config.plans[0]?.description || 'Servicios de reclutamiento especializados'}</p>
                         <input
                           type="radio"
                           value={bu.name}
@@ -403,14 +486,14 @@ Más info: www.huntred.com
                           <div className="grid md:grid-cols-3 gap-4">
                             {MODALIDADES.map(({ key, label, tooltip }) => (
                               <div key={key} className="border rounded-lg p-4">
-                                <UITooltipProvider>
+                                <TooltipProvider>
                                   <UITooltip>
                                     <TooltipTrigger asChild>
                                       <div className="font-medium mb-2">{label}</div>
                                     </TooltipTrigger>
                                     <TooltipContent>{tooltip}</TooltipContent>
                                   </UITooltip>
-                                </UITooltipProvider>
+                                </TooltipProvider>
                                 <div className="text-sm text-muted-foreground mb-3">
                                   {key === 'ai' && '$95,000 por búsqueda'}
                                   {key === 'hybrid' && `${formValues.services[formValues.businessUnit].ai + formValues.services[formValues.businessUnit].hybrid + formValues.services[formValues.businessUnit].human >= 2 ? '13' : '14'}% de la base`}
@@ -632,7 +715,7 @@ Más info: www.huntred.com
                     <div className="text-right text-2xl font-bold">Total Estimado: ${subtotal.toLocaleString()}</div>
 
                     {/* Visualización Gráfica */}
-                    {formValues.compareModes.length > 0 && (
+                    {formValues.compareModes && formValues.compareModes.length > 0 && (
                       <div className="space-y-4">
                         <h4 className="font-medium">Comparación de Costos</h4>
                         <div style={{ height: 200 }}>
@@ -653,12 +736,12 @@ Más info: www.huntred.com
                       <h4 className="font-medium">Comparar Modalidades</h4>
                       <div className="flex flex-wrap gap-4">
                         {MODALIDADES.map(({ key, label, tooltip }) => (
-                          <UITooltipProvider key={key}>
+                          <TooltipProvider key={key}>
                             <UITooltip>
                               <TooltipTrigger asChild>
                                 <div className="flex items-center gap-2">
                                   <Checkbox
-                                    checked={formValues.compareModes.includes(key)}
+                                    checked={formValues.compareModes?.includes(key) || false}
                                     onCheckedChange={() => toggleCompareMode(key)}
                                     disabled={['huntU', 'amigro'].includes(formValues.businessUnit) && key === 'human'}
                                     id={`compare-${key}`}
@@ -669,10 +752,10 @@ Más info: www.huntred.com
                               </TooltipTrigger>
                               <TooltipContent>{tooltip}</TooltipContent>
                             </UITooltip>
-                          </UITooltipProvider>
+                          </TooltipProvider>
                         ))}
                       </div>
-                      {formValues.compareModes.length > 0 && (
+                      {formValues.compareModes && formValues.compareModes.length > 0 && (
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -685,7 +768,7 @@ Más info: www.huntred.com
                           </TableHeader>
                           <TableBody>
                             {formValues.compareModes.map(mode => {
-                              const modality = pricingProposal?.modalities.find(m => m.type === mode);
+                              const modality = pricingProposal?.modalities?.find(m => m.type === mode);
                               const count = modality?.count || 0;
                               const cost = modality?.cost || 0;
                               const milestones = modality?.billing_milestones || [];
@@ -771,7 +854,7 @@ Más info: www.huntred.com
 
               {/* Hidden Printable Component */}
               <div style={{ display: 'none' }}>
-                <PrintableSummary ref={printRef} formValues={formValues} proposal={pricingProposal} addons={addons} assessments={assessments} />
+                <PrintableSummary formValues={formValues} proposal={pricingProposal} addons={addons} assessments={assessments} />
               </div>
             </form>
           </ErrorBoundary>

@@ -75,11 +75,8 @@ async def create_interview_slots_in_calendar(job_data: dict, calendar_id: str):
 async def create_calendar_event(event_data: Dict, consultant_id: Optional[int] = None, calendar_id: str = 'primary'):
     """
     Crea un evento en Google Calendar con mayor flexibilidad para diferentes tipos de eventos.
-    
-    :param event_data: Diccionario con datos del evento (title, start_time, end_time, description, attendees, etc)
-    :param consultant_id: ID del consultor para usar sus credenciales específicas
-    :param calendar_id: ID del calendario donde crear el evento (default 'primary')
-    :return: Dict con información del evento creado incluyendo htmlLink
+    Si event_data['event_mode'] es 'virtual' o 'hibrido', fuerza add_video_conference=True.
+    Devuelve el link de Google Meet si aplica.
     """
     # Obtener credenciales
     creds = get_google_credentials(consultant_id)
@@ -89,6 +86,11 @@ async def create_calendar_event(event_data: Dict, consultant_id: Optional[int] =
     
     try:
         service = build('calendar', 'v3', credentials=creds)
+        
+        # Forzar Google Meet si es virtual o híbrido
+        event_mode = event_data.get('event_mode', 'virtual')
+        if event_mode in ('virtual', 'hibrido'):
+            event_data['add_video_conference'] = True
         
         # Construir cuerpo del evento
         event = {

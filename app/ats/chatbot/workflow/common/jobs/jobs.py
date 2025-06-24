@@ -1,9 +1,14 @@
 # /home/pablo/app/com/chatbot/workflow/jobs.py
 import logging
 from asgiref.sync import sync_to_async
-from app.models import Person, ChatState, BusinessUnit, Application, EnhancedNetworkGamificationProfile, NotificationPreference
+from app.models import Person, ChatState, BusinessUnit, Application, EnhancedNetworkGamificationProfile, NotificationPreference, Vacante
 from app.ats.integrations.services import send_message, send_options, send_menu
 from django.utils import timezone
+from typing import Dict, Any, List
+from datetime import datetime, timedelta
+from app.ats.utils.vacantes import VacanteManager
+from app.ats.services.interview_service import InterviewService
+from app.ats.utils.google_calendar import notify_no_slots_available
 
 logger = logging.getLogger(__name__)
 
@@ -38,153 +43,387 @@ async def handle_job_selection(plataforma: str, user_id: str, texto: str, estado
         await send_message(plataforma, user_id, resp, unidad_negocio.name.lower())
 
 async def handle_job_action(plataforma: str, user_id: str, texto: str, estado_chat: ChatState, unidad_negocio: BusinessUnit, persona: Person):
-    recommended_jobs = estado_chat.context.get('recommended_jobs', [])
-    bu_name = unidad_negocio.name.lower()
+    """
+    Maneja las acciones relacionadas con trabajos en el chatbot.
+    Mejorado para incluir slots grupales y mejor experiencia.
+    """
+    try:
+        bu_name = unidad_negocio.name
+        recommended_jobs = estado_chat.context.get('recommended_jobs', [])
+        
+        if texto.startswith("apply_"):
+            job_index = int(texto.split('_')[1])
+            if 0 <= job_index < len(recommended_jobs):
+                selected_job = recommended_jobs[job_index]
+                # Lógica de aplicación
+                resp = f"¡Excelente elección! Has aplicado para {selected_job['title']}. Te contactaremos pronto."
+                await send_message(plataforma, user_id, resp, bu_name)
+            else:
+                resp = "No encuentro esa vacante."
+                await send_message(plataforma, user_id, resp, bu_name)
 
-    if texto.startswith("apply_"):
-        job_index = int(texto.split('_')[1])
-        if 0 <= job_index < len(recommended_jobs):
-            job = recommended_jobs[job_index]
-            await sync_to_async(Application.objects.create)(user=persona, vacancy_id=job['id'], status='applied')
-            estado_chat.state = "applied"  # Transición a estado 'applied'
-            await sync_to_async(estado_chat.save)()
-            resp = "¡Has aplicado a la vacante con éxito!"
-            await send_message(plataforma, user_id, resp, bu_name)
-            await award_gamification_points(persona, "job_application", plataforma, unidad_negocio)
-            await send_menu(plataforma, user_id, unidad_negocio)  # Enviar menú dinámico
-        else:
-            resp = "No encuentro esa vacante."
-            await send_message(plataforma, user_id, resp, bu_name)
-
-    elif texto.startswith("details_"):
-        job_index = int(texto.split('_')[1])
-        if 0 <= job_index < len(recommended_jobs):
-            job = recommended_jobs[job_index]
-            details = job.get('description', 'No hay descripción disponible.')
-            resp = f"Detalles de la posición:\n{details}"
-            await send_message(plataforma, user_id, resp, bu_name)
-        else:
-            resp = "No encuentro esa vacante."
-            await send_message(plataforma, user_id, resp, bu_name)
-
-    elif texto.startswith("schedule_"):
-        job_index = int(texto.split('_')[1])
-        if 0 <= job_index < len(recommended_jobs):
-            selected_job = recommended_jobs[job_index]
-            slots = await get_interview_slots(selected_job)
-            
-            if not slots:
-                # Obtener mensaje de alternativas
-                message = await notify_no_slots_available(selected_job['title'], persona, unidad_negocio)
+        elif texto.startswith("schedule_"):
+            job_index = int(texto.split('_')[1])
+            if 0 <= job_index < len(recommended_jobs):
+                selected_job = recommended_jobs[job_index]
                 
-                # Crear botones para las opciones
-                buttons = [
-                    {'title': 'Dejar horarios preferidos', 'payload': 'set_preferred_times'},
-                    {'title': 'Llamada informativa', 'payload': 'schedule_info_call'},
-                    {'title': 'Recibir información por email', 'payload': 'get_email_info'}
-                ]
+                # Obtener la vacante
+                try:
+                    vacancy = await sync_to_async(Vacante.objects.get)(id=selected_job['id'])
+                except Vacante.DoesNotExist:
+                    resp = "Lo sentimos, esa vacante ya no está disponible."
+                    await send_message(plataforma, user_id, resp, bu_name)
+                    return
                 
-                await send_message(plataforma, user_id, message, bu_name, options=buttons)
-                estado_chat.state = "waiting_slot_preference"
+                # Obtener slots disponibles
+                slots = await get_interview_slots(selected_job)
+                
+                if not slots:
+                    # Obtener mensaje de alternativas
+                    message = await notify_no_slots_available(selected_job['title'], persona, unidad_negocio)
+                    
+                    # Crear botones para las opciones
+                    buttons = [
+                        {'title': 'Dejar horarios preferidos', 'payload': 'set_preferred_times'},
+                        {'title': 'Llamada informativa', 'payload': 'schedule_info_call'},
+                        {'title': 'Recibir información por email', 'payload': 'get_email_info'}
+                    ]
+                    
+                    await send_message(plataforma, user_id, message, bu_name, options=buttons)
+                    estado_chat.state = "waiting_slot_preference"
+                    estado_chat.context['selected_job'] = selected_job
+                    await sync_to_async(estado_chat.save)()
+                    return
+                
+                # Crear botones para los slots
+                buttons = []
+                for idx, slot in enumerate(slots):
+                    # Crear etiqueta más descriptiva
+                    if slot['session_type'] == 'grupal':
+                        button_text = f"{slot['label']} (Grupal)"
+                    else:
+                        button_text = f"{slot['label']} (Individual)"
+                    
+                    buttons.append({
+                        'title': button_text,
+                        'payload': f"book_slot_{idx}"
+                    })
+                
+                # Añadir opción para más horarios
+                buttons.append({
+                    'title': 'Ver más horarios disponibles',
+                    'payload': 'show_more_slots'
+                })
+                
+                estado_chat.context['available_slots'] = slots
                 estado_chat.context['selected_job'] = selected_job
                 await sync_to_async(estado_chat.save)()
-                return
                 
-            buttons = [{'title': slot['label'], 'payload': f"book_slot_{idx}"} for idx, slot in enumerate(slots)]
-            estado_chat.context['available_slots'] = slots
-            estado_chat.context['selected_job'] = selected_job
-            await sync_to_async(estado_chat.save)()
-            resp = "Elige un horario para la entrevista:"
-            await send_message(plataforma, user_id, resp, bu_name, options=buttons)
-        else:
-            resp = "No encuentro esa vacante."
-            await send_message(plataforma, user_id, resp, bu_name)
+                # Mensaje mejorado
+                resp = f"🎯 Perfecto para {selected_job['title']}! Aquí tienes los horarios disponibles:\n\n"
+                resp += "📅 Selecciona el horario que mejor te convenga:\n\n"
+                
+                await send_message(plataforma, user_id, resp, bu_name, options=buttons)
+            else:
+                resp = "No encuentro esa vacante."
+                await send_message(plataforma, user_id, resp, bu_name)
 
-    elif texto == "set_preferred_times":
-        resp = "Por favor, indica tus horarios preferidos (por ejemplo: '9:00 AM - 11:00 AM, 2:00 PM - 4:00 PM')"
-        await send_message(plataforma, user_id, resp, bu_name)
-        estado_chat.state = "waiting_time_preferences"
-        await sync_to_async(estado_chat.save)()
-
-    elif estado_chat.state == "waiting_time_preferences":
-        # Procesar horarios preferidos
-        try:
-            time_slots = [slot.strip() for slot in texto.split(',')]
+        elif texto.startswith("book_slot_"):
+            slot_index = int(texto.split('_')[2])
+            available_slots = estado_chat.context.get('available_slots', [])
             selected_job = estado_chat.context.get('selected_job')
             
-            # Guardar preferencias
-            await NotificationPreference.objects.aupdate_or_create(
-                person=persona,
-                job_title=selected_job['title'],
-                defaults={
-                    'notify_on_slot_available': True,
-                    'preferred_time_slots': time_slots,
-                    'last_notification': timezone.now()
-                }
-            )
+            if not selected_job:
+                resp = "No se encontró la vacante seleccionada."
+                await send_message(plataforma, user_id, resp, bu_name)
+                return
             
-            resp = "¡Perfecto! Te notificaremos cuando haya slots disponibles en tus horarios preferidos. ¿Hay algo más en lo que pueda ayudarte?"
-            await send_message(plataforma, user_id, resp, bu_name)
-            estado_chat.state = "idle"
+            if 0 <= slot_index < len(available_slots):
+                selected_slot = available_slots[slot_index]
+                
+                # Obtener la vacante
+                try:
+                    vacancy = await sync_to_async(Vacante.objects.get)(id=selected_job['id'])
+                except Vacante.DoesNotExist:
+                    resp = "Lo sentimos, esa vacante ya no está disponible."
+                    await send_message(plataforma, user_id, resp, bu_name)
+                    return
+                
+                # Reservar el slot
+                result = await book_interview_slot(persona, vacancy, selected_slot, unidad_negocio)
+                
+                if result['success']:
+                    await send_message(plataforma, user_id, result['message'], bu_name)
+                    
+                    # Limpiar contexto
+                    estado_chat.context.pop('available_slots', None)
+                    estado_chat.context.pop('selected_job', None)
+                    estado_chat.state = "idle"
+                    await sync_to_async(estado_chat.save)()
+                else:
+                    await send_message(plataforma, user_id, result['message'], bu_name)
+            else:
+                resp = "No encuentro ese horario."
+                await send_message(plataforma, user_id, resp, bu_name)
+
+        elif texto == "show_more_slots":
+            selected_job = estado_chat.context.get('selected_job')
+            if selected_job:
+                # Generar más slots automáticamente
+                try:
+                    vacancy = await sync_to_async(Vacante.objects.get)(id=selected_job['id'])
+                    interview_service = InterviewService(unidad_negocio)
+                    
+                    # Generar slots para los próximos 14 días
+                    start_date = timezone.now() + timedelta(days=7)
+                    end_date = start_date + timedelta(days=14)
+                    
+                    await interview_service.generate_interview_slots(
+                        vacancy=vacancy,
+                        start_date=start_date,
+                        end_date=end_date
+                    )
+                    
+                    # Obtener slots actualizados
+                    new_slots = await get_interview_slots(selected_job)
+                    
+                    if new_slots:
+                        buttons = []
+                        for idx, slot in enumerate(new_slots):
+                            if slot['session_type'] == 'grupal':
+                                button_text = f"{slot['label']} (Grupal)"
+                            else:
+                                button_text = f"{slot['label']} (Individual)"
+                            
+                            buttons.append({
+                                'title': button_text,
+                                'payload': f"book_slot_{idx}"
+                            })
+                        
+                        estado_chat.context['available_slots'] = new_slots
+                        await sync_to_async(estado_chat.save)()
+                        
+                        resp = "🎯 Aquí tienes más horarios disponibles:\n\n"
+                        await send_message(plataforma, user_id, resp, bu_name, options=buttons)
+                    else:
+                        resp = "No hay más horarios disponibles en este momento. Te notificaremos cuando se liberen nuevos slots."
+                        await send_message(plataforma, user_id, resp, bu_name)
+                        
+                except Exception as e:
+                    logger.error(f"Error generando más slots: {str(e)}")
+                    resp = "No se pudieron generar más horarios en este momento."
+                    await send_message(plataforma, user_id, resp, bu_name)
+            else:
+                resp = "No se encontró la vacante seleccionada."
+                await send_message(plataforma, user_id, resp, bu_name)
+
+        elif texto == "set_preferred_times":
+            resp = "📅 Por favor, indícame tus horarios preferidos:\n\n"
+            resp += "• ¿Qué días de la semana prefieres? (Lunes-Viernes)\n"
+            resp += "• ¿Qué horarios te funcionan mejor? (Mañana/Tarde)\n"
+            resp += "• ¿Prefieres entrevistas individuales o grupales?\n\n"
+            resp += "Ejemplo: 'Prefiero lunes y miércoles por la mañana, entrevistas individuales'"
+            
+            estado_chat.state = "waiting_time_preferences"
             await sync_to_async(estado_chat.save)()
             
-        except Exception as e:
-            logger.error(f"Error procesando horarios preferidos: {e}")
-            resp = "Lo siento, no pude procesar los horarios. Por favor, intenta de nuevo con el formato: '9:00 AM - 11:00 AM, 2:00 PM - 4:00 PM'"
             await send_message(plataforma, user_id, resp, bu_name)
 
-    elif texto == "schedule_info_call":
-        # Programar llamada informativa con reclutador
-        resp = "Un reclutador te contactará en las próximas 24 horas para resolver tus dudas. ¿En qué horario prefieres recibir la llamada?"
-        buttons = [
-            {'title': '9:00 AM - 11:00 AM', 'payload': 'call_morning'},
-            {'title': '2:00 PM - 4:00 PM', 'payload': 'call_afternoon'},
-            {'title': '5:00 PM - 7:00 PM', 'payload': 'call_evening'}
-        ]
-        await send_message(plataforma, user_id, resp, bu_name, options=buttons)
-        estado_chat.state = "waiting_call_preference"
-        await sync_to_async(estado_chat.save)()
-
-    elif texto == "get_email_info":
-        # Enviar información por email
-        resp = "Te enviaré información detallada sobre el proceso de selección a tu correo electrónico. ¿Confirmas que quieres recibir la información?"
-        buttons = [
-            {'title': 'Sí, enviar información', 'payload': 'confirm_email_info'},
-            {'title': 'No, gracias', 'payload': 'decline_email_info'}
-        ]
-        await send_message(plataforma, user_id, resp, bu_name, options=buttons)
-        estado_chat.state = "waiting_email_confirmation"
-        await sync_to_async(estado_chat.save)()
-
-    elif texto.startswith("tips_"):
-        job_index = int(texto.split('_')[1])
-        resp = "Prepárate, investiga la empresa, sé puntual y comunica tus logros con seguridad."
-        await send_message(plataforma, user_id, resp, bu_name)
-
-    elif texto.startswith("book_slot_"):
-        slot_index = int(texto.split('_')[2])
-        available_slots = estado_chat.context.get('available_slots', [])
-        if 0 <= slot_index < len(available_slots):
-            selected_slot = available_slots[slot_index]
-            resp = f"Entrevista agendada para {selected_slot['label']} ¡Éxito!"
-            await send_message(plataforma, user_id, resp, bu_name)
-            estado_chat.state = "scheduled"  # Movido aquí
+        elif texto == "schedule_info_call":
+            resp = "📞 Perfecto! Te programaremos una llamada informativa.\n\n"
+            resp += "Un reclutador te contactará en las próximas 24 horas para:\n"
+            resp += "• Explicarte más sobre el puesto\n"
+            resp += "• Resolver tus dudas\n"
+            resp += "• Coordinar una entrevista formal\n\n"
+            resp += "¿En qué horario prefieres que te llamen?"
+            
+            estado_chat.state = "waiting_call_preference"
             await sync_to_async(estado_chat.save)()
-            await send_menu(plataforma, user_id, unidad_negocio)
-        else:
-            resp = "No encuentro ese horario."
+            
             await send_message(plataforma, user_id, resp, bu_name)
 
-    else:
-        resp = "Opción no reconocida."
+        elif texto == "get_email_info":
+            resp = "📧 Te enviaremos información detallada por email.\n\n"
+            resp += "Recibirás:\n"
+            resp += "• Descripción completa del puesto\n"
+            resp += "• Requisitos y beneficios\n"
+            resp += "• Proceso de aplicación\n"
+            resp += "• Enlaces para agendar entrevista\n\n"
+            resp += "Revisa tu email en los próximos minutos."
+            
+            # Aquí se enviaría el email
+            # await send_job_info_email(persona, selected_job)
+            
+            await send_message(plataforma, user_id, resp, bu_name)
+
+    except Exception as e:
+        logger.error(f"Error en handle_job_action: {str(e)}")
+        resp = "Lo sentimos, hubo un error. Por favor, intenta nuevamente."
         await send_message(plataforma, user_id, resp, bu_name)
 
 async def get_interview_slots(job: Dict[str, Any]) -> List[Dict[str, str]]:
-    """Devuelve horarios disponibles para entrevistas."""
-    return [
-        {'label': 'Mañana 10:00 AM', 'datetime': '2025-03-22T10:00:00'},
-        {'label': 'Mañana 11:00 AM', 'datetime': '2025-03-22T11:00:00'}
-    ]
+    """
+    Obtiene slots de entrevista disponibles para una vacante.
+    Ahora incluye soporte para slots grupales y mejor información.
+    """
+    try:
+        # Obtener la vacante
+        vacancy = await sync_to_async(Vacante.objects.get)(id=job['id'])
+        
+        # Crear servicio de entrevistas
+        interview_service = InterviewService(vacancy.business_unit)
+        
+        # Obtener slots disponibles
+        available_slots = await interview_service.get_available_slots_for_vacancy(vacancy)
+        
+        if not available_slots:
+            return []
+        
+        # Formatear slots para el chatbot
+        formatted_slots = []
+        for slot in available_slots:
+            # Crear etiqueta descriptiva
+            if slot['session_type'] == 'grupal':
+                label = f"{slot['label']} (Grupal - {slot['available_spots']}/{slot['total_spots']} cupos)"
+            else:
+                label = f"{slot['label']} (Individual)"
+            
+            formatted_slots.append({
+                'id': slot['id'],
+                'label': label,
+                'datetime': slot['datetime'],
+                'session_type': slot['session_type'],
+                'available_spots': slot['available_spots'],
+                'total_spots': slot['total_spots'],
+                'mode': slot['mode'],
+                'location': slot['location']
+            })
+        
+        return formatted_slots
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo slots de entrevista: {str(e)}")
+        return []
+
+async def book_interview_slot(
+    person: Person,
+    vacancy: Vacante,
+    slot_data: Dict[str, Any],
+    business_unit: BusinessUnit
+) -> Dict[str, Any]:
+    """
+    Reserva un slot de entrevista para un candidato.
+    Ahora maneja slots grupales e individuales.
+    """
+    try:
+        # Crear servicio de entrevistas
+        interview_service = InterviewService(business_unit)
+        
+        # Reservar el slot
+        result = await interview_service.book_slot_for_candidate(
+            person=person,
+            vacancy=vacancy,
+            slot_id=slot_data['id'],
+            interview_type='video'  # Por defecto video
+        )
+        
+        if result['success']:
+            # Preparar mensaje de confirmación
+            if result.get('session_type') == 'grupal':
+                message = f"¡Perfecto! Te has registrado en una entrevista grupal para {vacancy.titulo}.\n\n"
+                message += f"📅 Fecha: {datetime.fromisoformat(result['datetime']).strftime('%A %d/%m/%Y a las %H:%M')}\n"
+                message += "👥 Tipo: Entrevista grupal\n"
+                message += "🔗 Recibirás el enlace de la videollamada 30 minutos antes.\n\n"
+                message += "💡 Consejos para entrevistas grupales:\n"
+                message += "• Llega 5 minutos antes\n"
+                message += "• Ten tu cámara y micrófono listos\n"
+                message += "• Participa activamente en la conversación\n"
+                message += "• Ten preguntas preparadas sobre el puesto"
+            else:
+                message = f"¡Excelente! Tu entrevista individual para {vacancy.titulo} ha sido confirmada.\n\n"
+                message += f"📅 Fecha: {datetime.fromisoformat(result['datetime']).strftime('%A %d/%m/%Y a las %H:%M')}\n"
+                message += "👤 Tipo: Entrevista individual\n"
+                message += "🔗 Recibirás el enlace de la videollamada 30 minutos antes.\n\n"
+                message += "💡 Consejos para tu entrevista:\n"
+                message += "• Llega 5 minutos antes\n"
+                message += "• Ten tu cámara y micrófono listos\n"
+                message += "• Revisa tu CV y prepárate para preguntas\n"
+                message += "• Ten preguntas preparadas sobre el puesto"
+            
+            return {
+                'success': True,
+                'message': message,
+                'interview_id': result['interview_id']
+            }
+        else:
+            return {
+                'success': False,
+                'message': f"No se pudo reservar el horario: {result.get('error', 'Error desconocido')}"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error reservando slot: {str(e)}")
+        return {
+            'success': False,
+            'message': "Hubo un error al reservar tu entrevista. Por favor, intenta nuevamente."
+        }
+
+async def handle_time_preferences(plataforma: str, user_id: str, texto: str, estado_chat: ChatState, unidad_negocio: BusinessUnit, persona: Person):
+    """
+    Maneja las preferencias de horarios del candidato.
+    """
+    try:
+        bu_name = unidad_negocio.name
+        selected_job = estado_chat.context.get('selected_job')
+        
+        if not selected_job:
+            resp = "No se encontró la vacante seleccionada."
+            await send_message(plataforma, user_id, resp, bu_name)
+            return
+        
+        # Guardar preferencias en el perfil del usuario
+        if not persona.metadata:
+            persona.metadata = {}
+        
+        persona.metadata['preferred_time_slots'] = texto
+        await sync_to_async(persona.save)()
+        
+        resp = "✅ Perfecto! He guardado tus preferencias de horarios.\n\n"
+        resp += "Te notificaremos cuando haya slots disponibles que coincidan con tus preferencias.\n\n"
+        resp += "Mientras tanto, ¿te gustaría:\n"
+        resp += "• Ver otras vacantes disponibles\n"
+        resp += "• Recibir información por email\n"
+        resp += "• Programar una llamada informativa"
+        
+        # Crear botones
+        buttons = [
+            {'title': 'Ver otras vacantes', 'payload': 'show_more_jobs'},
+            {'title': 'Recibir información por email', 'payload': 'get_email_info'},
+            {'title': 'Llamada informativa', 'payload': 'schedule_info_call'}
+        ]
+        
+        estado_chat.state = "idle"
+        await sync_to_async(estado_chat.save)()
+        
+        await send_message(plataforma, user_id, resp, bu_name, options=buttons)
+        
+    except Exception as e:
+        logger.error(f"Error manejando preferencias de horarios: {str(e)}")
+        resp = "Lo sentimos, hubo un error guardando tus preferencias."
+        await send_message(plataforma, user_id, resp, bu_name)
+
+async def notify_no_slots_available(job_title: str, persona: Person, unidad_negocio: BusinessUnit) -> str:
+    """
+    Genera un mensaje personalizado cuando no hay slots disponibles.
+    """
+    message = f"📅 Actualmente no hay horarios disponibles para {job_title}.\n\n"
+    message += "Pero no te preocupes, tenemos estas opciones para ti:\n\n"
+    message += "🕐 **Dejar horarios preferidos**: Te notificaremos cuando haya disponibilidad\n"
+    message += "📞 **Llamada informativa**: Un reclutador te contactará para coordinar\n"
+    message += "📧 **Información por email**: Recibe detalles completos del puesto\n\n"
+    message += "¿Qué opción prefieres?"
+    
+    return message
 
 async def award_gamification_points(persona: Person, activity_type: str, plataforma: str, unidad_negocio: BusinessUnit):
     profile, created = await sync_to_async(EnhancedNetworkGamificationProfile.objects.get_or_create)(
@@ -214,7 +453,3 @@ async def notify_user_gamification_update(persona: Person, activity_type: str, p
         logger.warning(f"No se encontró perfil de gamificación para {persona.nombre}")
     except Exception as e:
         logger.error(f"Error notificando gamificación a {persona.nombre}: {e}", exc_info=True)
-
-async def notify_no_slots_available(job_title: str, persona: Person, unidad_negocio: BusinessUnit) -> str:
-    # Implementa la lógica para obtener un mensaje adecuado cuando no hay slots disponibles
-    return f"Lo siento, no hay horarios disponibles para la entrevista para el trabajo: {job_title}. ¿Qué prefieres hacer?"

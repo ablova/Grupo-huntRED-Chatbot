@@ -14,6 +14,12 @@ import BusinessUnitsSection from '@/components/BusinessUnitsSection';
 import ServicesSection from '@/components/ServicesSection';
 import SolutionCalculator from '@/components/SolutionCalculator';
 import Footer from '@/components/Footer';
+import EcosystemFlow from '@/components/EcosystemFlow';
+import MLFlowsSection from '@/components/MLFlowsSection';
+import ROICalculatorSection from '@/components/ROICalculatorSection';
+import MLPipelineSection from '@/components/MLPipelineSection';
+import KanbanDashboardSection from '@/components/KanbanDashboardSection';
+import LearningSection from '@/components/LearningSection';
 
 const Index = () => {
   return (
@@ -26,12 +32,19 @@ const Index = () => {
           <RecruitmentDashboard />
           <AURAArchitectureSection />
           <GenIAAndAURASection />
+          <LearningSection />
+          <EcosystemFlow />
+          <MLFlowsSection />
+          <MLPipelineSection />
+          <KanbanDashboardSection />
+          <ProcessSection />
           <AIFlowsSection />
           <TechnologySection />
           <TestimonialsSection />
           <BusinessUnitsSection />
           <ServicesSection />
           <SolutionCalculator />
+          <ROICalculatorSection />
         </main>
         <Footer />
       </div>

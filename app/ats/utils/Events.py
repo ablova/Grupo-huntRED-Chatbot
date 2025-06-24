@@ -27,6 +27,31 @@ class Event(models.Model):
     end_time = models.DateTimeField()
     location = models.CharField(max_length=255, null=True, blank=True)
     virtual_link = models.URLField(null=True, blank=True)
+    SESSION_TYPE_CHOICES = [
+        ("individual", "Individual"),
+        ("grupal", "Grupal"),
+    ]
+    session_type = models.CharField(
+        max_length=20,
+        choices=SESSION_TYPE_CHOICES,
+        default="individual",
+        help_text="Define si el evento es individual o grupal."
+    )
+    cupo_maximo = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Máximo de participantes para slots grupales. Solo aplica si session_type es grupal."
+    )
+    EVENT_MODE_CHOICES = [
+        ("presencial", "Presencial"),
+        ("virtual", "Virtual"),
+        ("hibrido", "Híbrido"),
+    ]
+    event_mode = models.CharField(
+        max_length=20,
+        choices=EVENT_MODE_CHOICES,
+        default="virtual",
+        help_text="Modalidad del evento: presencial, virtual o híbrido."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -36,7 +61,7 @@ class Event(models.Model):
         verbose_name_plural = 'Eventos'
 
     def __str__(self):
-        return f'{self.event_type}: {self.title}'
+        return f'{self.event_type}: {self.title} [{self.get_event_mode_display()}]'
 
     def is_upcoming(self) -> bool:
         """Verifica si el evento está por venir."""
@@ -45,6 +70,12 @@ class Event(models.Model):
     def is_overdue(self) -> bool:
         """Verifica si el evento ya pasó."""
         return self.end_time < timezone.now()
+
+    def lugares_disponibles(self) -> int:
+        """Devuelve el número de lugares disponibles para slots grupales."""
+        if self.session_type == "grupal" and self.cupo_maximo:
+            return max(0, self.cupo_maximo - self.participants.count())
+        return 1  # Para individuales, solo 1 lugar
 
 class EventParticipant(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='participants')

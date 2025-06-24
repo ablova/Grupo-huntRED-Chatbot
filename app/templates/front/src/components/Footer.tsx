@@ -6,9 +6,9 @@ import { Calendar, Mail, Phone, ArrowRight, Brain } from 'lucide-react';
 const Footer = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const businessUnits = [{
-    name: "FinTech Solutions",
-    contact: "fintech@aura.com",
-    phone: "+1 (555) 123-4567"
+    name: "huntRED® Executive",
+    contact: "executive@huntred.com",
+    phone: "+52 (55) 5914-0089"
   }, {
     name: "Healthcare AI",
     contact: "healthcare@aura.com",
@@ -20,7 +20,7 @@ const Footer = () => {
   }, {
     name: "Industrial IoT",
     contact: "industry@aura.com",
-    phone: "+1 (555) 456-7890"
+    pphone: "+52 (55) 5914-0089
   }];
   const socialLinks = [{
     name: "LinkedIn",

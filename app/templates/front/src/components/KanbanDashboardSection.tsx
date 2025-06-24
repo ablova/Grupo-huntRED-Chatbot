@@ -7,9 +7,9 @@ const KanbanDashboardSection = () => {
 
   const businessUnits = [
     { value: 'huntred-executive', label: 'huntRED® Executive', color: 'from-slate-600 to-slate-700' },
-    { value: 'huntred-m', label: 'huntRED® m', color: 'from-blue-500 to-blue-600' },
-    { value: 'huntu', label: 'huntU', color: 'from-green-500 to-green-600' },
-    { value: 'amigro', label: 'Amigro', color: 'from-orange-500 to-red-500' }
+    { value: 'huntred-m', label: 'huntRED® ', color: 'from-blue-500 to-blue-600' },
+    { value: 'huntu', label: 'huntU®', color: 'from-green-500 to-green-600' },
+    { value: 'amigro', label: 'Amigro®', color: 'from-orange-500 to-red-500' }
   ];
 
   const kanbanColumns = [

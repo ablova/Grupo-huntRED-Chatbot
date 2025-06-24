@@ -1043,3 +1043,10 @@ async def exportar_vacantes_a_wordpress(business_unit: BusinessUnit, vacantes: L
             logger.error(f"Error publishing vacante {vacante.titulo}: {e}")
 
     return True
+
+def requiere_slots_grupales(vacante) -> bool:
+    """
+    Determina si una vacante debe habilitar slots grupales automáticamente.
+    Por defecto, si el número de plazas es mayor o igual a 3, se habilitan slots grupales.
+    """
+    return getattr(vacante, 'numero_plazas', 1) >= 3
